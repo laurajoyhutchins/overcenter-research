@@ -3,6 +3,16 @@
   "project_ref": "github:laurajoyhutchins/overcenter-2",
   "transitions": [
     {
+      "id": "document-event-sourcing-compaction",
+      "priority": 90,
+      "requires": [],
+      "executor": {
+        "kind": "agent",
+        "role": "research-documentation",
+        "skill": "technical-writing"
+      }
+    },
+    {
       "id": "document-saga-recovery-semantics",
       "priority": 100,
       "requires": [],
