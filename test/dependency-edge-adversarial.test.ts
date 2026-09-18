@@ -63,8 +63,9 @@ function settleFile(
   assert.ok(ready);
   assert.equal(ready.status, 'READY');
   const run = kernel.claim(id, ready.revision);
+  kernel.beginEffect(run);
   writeFileSync(path, content);
-  const receipt = kernel.resolve(run.id);
+  const receipt = kernel.resolve(run);
   assert.equal(receipt.disposition, 'DONE');
   return { run, receipt };
 }
@@ -286,7 +287,7 @@ test('claim fact durably binds the exact semantic obligation key', () => {
       claimed_revision?: string;
     };
 
-    assert.equal(claim.schema, 'overcenter-git-claim-v2');
+    assert.equal(claim.schema, 'overcenter-git-claim-v3');
     assert.equal(claim.obligation_key, run.obligation_key);
     assert.match(claim.obligation_key!, /^[0-9a-f]{64}$/);
     assert.equal(claim.claimed_revision, run.claimed_revision);
