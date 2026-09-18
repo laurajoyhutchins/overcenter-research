@@ -1,0 +1,20 @@
+{
+  "schema": "overcenter-git-receipt-v2",
+  "run_id": "bc85b322-4fa7-4fb1-a8da-3f72f1b13803",
+  "obligation_id": "actions-proof-35303766455-1",
+  "claimed_revision": "68bf05aa81dfa023b7ed08443a93a2c82bf75e58",
+  "claim_commit": "d9f2c9a20b37c2da757c0988678d61768c05e70a",
+  "disposition": "RECOVERY_REQUIRED",
+  "verified": false,
+  "observed": null,
+  "diagnostic": {
+    "reason": "execution-terminated",
+    "source": "github-actions-job-supervisor",
+    "repository": "laurajoyhutchins/overcenter-research",
+    "workflow_run_id": "35303766455",
+    "workflow_run_attempt": "1",
+    "job": "agent-a",
+    "outcome": "failure"
+  },
+  "settled_at": "2026-09-18T03:35:51.402Z"
+}
