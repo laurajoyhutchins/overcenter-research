@@ -6,10 +6,10 @@ on:
       - prototype/two-effect-concurrency
     paths:
       - .github/workflows/two-effect-concurrency.yml
-      - actions/concurrency-authority.ts
-      - actions/concurrency-agent.ts
-      - actions/concurrency-recovery.ts
-      - actions/concurrency-verify.ts
+      - experiments/two-effect-concurrency/authority.ts
+      - experiments/two-effect-concurrency/agent.ts
+      - experiments/two-effect-concurrency/recovery.ts
+      - experiments/two-effect-concurrency/verify.ts
       - src/git-kernel.ts
       - test/git-kernel.test.ts
       - test/disposable-agent.test.ts
@@ -43,7 +43,7 @@ jobs:
       - name: Define and claim both obligations
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types actions/concurrency-authority.ts
+        run: node --experimental-strip-types experiments/two-effect-concurrency/authority.ts
 
   agent-alpha:
     name: Disposable Agent alpha
@@ -68,7 +68,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: alpha
-        run: node --experimental-strip-types actions/concurrency-agent.ts
+        run: node --experimental-strip-types experiments/two-effect-concurrency/agent.ts
       - name: Supervisor confirms alpha terminated
         if: always()
         env:
@@ -98,7 +98,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: beta
-        run: node --experimental-strip-types actions/concurrency-agent.ts
+        run: node --experimental-strip-types experiments/two-effect-concurrency/agent.ts
       - name: Supervisor confirms beta terminated
         if: always()
         env:
@@ -127,7 +127,7 @@ jobs:
       - name: Recover and settle alpha
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types actions/concurrency-recovery.ts
+        run: node --experimental-strip-types experiments/two-effect-concurrency/recovery.ts
 
   recover-beta:
     name: Recover beta
@@ -151,7 +151,7 @@ jobs:
       - name: Recover and settle beta
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types actions/concurrency-recovery.ts
+        run: node --experimental-strip-types experiments/two-effect-concurrency/recovery.ts
 
   verify:
     name: Verify both settlements
@@ -172,4 +172,4 @@ jobs:
       - name: Read final authority
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types actions/concurrency-verify.ts
+        run: node --experimental-strip-types experiments/two-effect-concurrency/verify.ts
