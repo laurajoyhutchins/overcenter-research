@@ -1,0 +1,28 @@
+name: GitHub observation grammar proof
+
+on:
+  push:
+    branches:
+      - experiment/github-observation-grammar
+    paths:
+      - .github/workflows/github-observation-grammar.yml
+      - src/github-openapi.ts
+      - src/github-semantics.ts
+      - test/github-observation.test.ts
+      - research/github-observation-grammar.md
+      - package.json
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Full regression and observation proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - run: npm test
