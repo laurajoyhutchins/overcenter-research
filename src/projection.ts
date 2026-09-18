@@ -110,7 +110,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
 
       lifecycles=deriveLifecycles(state,runs,receiptsByRun);
       const current=lifecycles.get(claim.obligation_id);
-      if (current?.status!=='READY') throw new Error('CLAIM_WHILE_NOT_READY');
+      if (current?.status!=='UNREALIZED') throw new Error('CLAIM_WHILE_NOT_READY');
       const unsatisfied=dependencyUpstreams(obligation)
         .filter(dependency=>lifecycles.get(dependency)?.status!=='DONE');
       if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
