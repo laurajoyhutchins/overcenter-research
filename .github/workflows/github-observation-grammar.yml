@@ -71,6 +71,7 @@ jobs:
           SOURCE_REF: ${{ github.head_ref || github.ref_name }}
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           CHECK_REF: main
+          STATUS_REF: b91ac6c4e64f72b83c6a8d8caa78e9482037a2d1
           VOLATILE_CHECK_REF: ${{ github.sha }}
           PULL_NUMBER: ${{ github.event.pull_request.number }}
         run: |
