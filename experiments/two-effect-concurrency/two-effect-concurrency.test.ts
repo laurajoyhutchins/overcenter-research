@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -161,42 +161,5 @@ test('two fresh recovery processes concurrently settle independent effects throu
   } finally {
     rmSync(f.root,{recursive:true,force:true});
     rmSync(barrier,{recursive:true,force:true});
-  }
-});
-
-test('lost provider response becomes recovery and later independent readback can settle', () => {
-  const f=fixture();
-  try {
-    const external=f.path('provider.git');
-    const unavailable=f.path('provider.offline');
-    execFileSync('git',['init','--bare',external],{stdio:'ignore'});
-
-    const target=f.kernel.head()!;
-    const ref='refs/tags/effect-a';
-    f.kernel.define({
-      id:'a',
-      postcondition:{verifier:'git-ref-equals/v1',remote:external,ref,target_sha:target},
-    });
-    f.kernel.define({id:'b',postcondition:pc(f.path('b'),'B')});
-
-    const runA=f.kernel.claim('a',f.kernel.deriveReadyWork()!.revision);
-    const runB=f.kernel.claim('b',f.kernel.deriveReadyWork()!.revision);
-
-    execFileSync('git',['-C',f.authority,'push',external,`${target}:${ref}`],{stdio:'ignore'});
-    renameSync(external,unavailable);
-
-    const uncertain=f.kernel.resolve(runA.id);
-    assert.equal(uncertain.disposition,'RECOVERY_REQUIRED');
-    assert.equal(uncertain.observed?.mutation_certainty,'uncertain');
-
-    const absent=f.kernel.resolve(runB.id);
-    assert.equal(absent.disposition,'READY');
-
-    renameSync(unavailable,external);
-    const settled=f.kernel.reconcile(runA.id);
-    assert.equal(settled.disposition,'DONE');
-    assert.equal(settled.verified,true);
-  } finally {
-    rmSync(f.root,{recursive:true,force:true});
   }
 });

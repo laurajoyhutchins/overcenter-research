@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
-const STATE_REF=process.env.STATE_REF ?? 'refs/overcenter/conflict-state';
+const STATE_REF=required('STATE_REF');
 
 function required(name:string):string {
   const value=process.env[name];

@@ -13,6 +13,7 @@ const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('GITHUB_SHA');
 const agentOutcome = required('AGENT_A_OUTCOME');
 const token = required('GITHUB_TOKEN');
+const stateRef = required('STATE_REF');
 
 if (agentOutcome !== 'failure') {
   throw new Error(`AGENT_A_DID_NOT_TERMINATE_AS_EXPECTED: ${agentOutcome}`);
@@ -20,6 +21,7 @@ if (agentOutcome !== 'failure') {
 
 const kernel = new GitOvercenterKernel(process.cwd(), {
   remote: 'origin',
+  ref: stateRef,
   githubToken: token,
 });
 

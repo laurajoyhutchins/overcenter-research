@@ -111,7 +111,7 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
     });
     f.owner.define({
       id: 'verify-publish',
-      deps: ['publish'],
+      dependencies: [{ kind: 'control', upstream: 'publish' }],
       postcondition: {
         verifier: 'file-content-equals/v1',
         path: `${f.world}.verified`,

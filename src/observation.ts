@@ -3,15 +3,8 @@ import { readFileSync } from 'node:fs';
 import type { Observation, Postcondition } from './model.ts';
 import { findGithubCommitStatus, githubGet } from './providers/github-status.ts';
 
-interface GitReadResult {
-  ok: boolean;
-  stdout: string;
-  stderr?: string;
-}
-
 export interface ObservationContext {
   githubToken: string | null;
-  gitLsRemote: (remote: string, ref: string) => GitReadResult;
 }
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -24,10 +17,6 @@ export function validatePostcondition(p: Postcondition): void {
   if (p?.verifier==='eventually-consistent-file-content-equals/v1'
     && typeof p.path==='string'
     && typeof p.content==='string') return;
-  if (p?.verifier==='git-ref-equals/v1'
-    && typeof p.remote==='string'
-    && typeof p.ref==='string'
-    && typeof p.target_sha==='string') return;
   if (p?.verifier==='github-commit-status/v1'
     && p.provider==='github'
     && Number.isSafeInteger(p.repository_id)
@@ -154,39 +143,6 @@ export function observePostcondition(
     }
   }
 
-  if (p.verifier==='git-ref-equals/v1') {
-    const listed=context.gitLsRemote(p.remote,p.ref);
-    if (!listed.ok) {
-      return {
-        verifier:p.verifier,
-        remote:p.remote,
-        ref:p.ref,
-        expected_sha:p.target_sha,
-        mutation_certainty:'uncertain',
-        observation_error:listed.stderr ?? 'git ls-remote failed',
-      };
-    }
-    const line=listed.stdout.trim();
-    if (!line) {
-      return {
-        verifier:p.verifier,
-        remote:p.remote,
-        ref:p.ref,
-        expected_sha:p.target_sha,
-        mutation_certainty:'absent',
-      };
-    }
-    const actualSha=line.split(/\s+/)[0];
-    return {
-      verifier:p.verifier,
-      remote:p.remote,
-      ref:p.ref,
-      expected_sha:p.target_sha,
-      actual_sha:actualSha,
-      mutation_certainty:'present',
-    };
-  }
-
   const expected=sha256(p.content);
   try {
     const actual=readFileSync(p.path,'utf8');
@@ -235,13 +191,6 @@ export function observationVerified(
       throw new Error('OBSERVATION_COORDINATE_MISMATCH');
     }
     return observed.actual_sha256===sha256(postcondition.content);
-  }
-
-  if (postcondition.verifier==='git-ref-equals/v1') {
-    if (observed.remote!==postcondition.remote || observed.ref!==postcondition.ref) {
-      throw new Error('OBSERVATION_COORDINATE_MISMATCH');
-    }
-    return observed.actual_sha===postcondition.target_sha;
   }
 
   if (

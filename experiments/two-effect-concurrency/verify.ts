@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
-const STATE_REF='refs/overcenter/concurrency-state';
+const STATE_REF=required('STATE_REF');
 
 function required(name:string):string {
   const value=process.env[name];

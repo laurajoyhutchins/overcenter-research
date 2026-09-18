@@ -1,9 +1,10 @@
 name: Overcenter conflicting-effect ordering proof
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - prototype/conflicting-effect-boundary
+      - main
     paths:
       - .github/workflows/conflicting-effect.yml
       - experiments/conflicting-effect/agent.ts
@@ -12,10 +13,16 @@ on:
       - experiments/conflicting-effect/guard-claim-beta.ts
       - experiments/conflicting-effect/guard-verify.ts
       - src/git-kernel.ts
+      - src/model.ts
+      - src/observation.ts
+      - src/providers/github-status.ts
       - experiments/conflicting-effect/effect-ordering.test.ts
       - package.json
 
 permissions: {}
+
+env:
+  STATE_REF: refs/overcenter/conflict-runs/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   authority:
@@ -61,7 +68,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: alpha
-          STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
           WRITE_CONTEXT_CASE: upper
         run: node --experimental-strip-types experiments/conflicting-effect/agent.ts
 
@@ -76,7 +82,6 @@ jobs:
       statuses: read
     env:
       SLOT: alpha
-      STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
       AGENT_OUTCOME: ${{ needs.alpha.outputs.outcome }}
     steps:
       - uses: actions/checkout@v7
@@ -128,7 +133,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: beta
-          STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
         run: node --experimental-strip-types experiments/conflicting-effect/agent.ts
 
   recover-beta:
@@ -142,7 +146,6 @@ jobs:
       statuses: read
     env:
       SLOT: beta
-      STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
       AGENT_OUTCOME: ${{ needs.beta.outputs.outcome }}
     steps:
       - uses: actions/checkout@v7

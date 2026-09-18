@@ -79,7 +79,7 @@ test('explicit graph order permits the canonical conflicting predecessor to be c
     f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
     f.kernel.define({
       id:'beta',
-      deps:['alpha'],
+      dependencies:[{kind:'control',upstream:'alpha'}],
       postcondition:statusPostcondition('failure'),
     });
 

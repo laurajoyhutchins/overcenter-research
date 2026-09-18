@@ -16,13 +16,6 @@ export interface EventuallyConsistentFilePostcondition {
   content: string;
 }
 
-export interface GitRefPostcondition {
-  verifier: 'git-ref-equals/v1';
-  remote: string;
-  ref: string;
-  target_sha: string;
-}
-
 export interface GitHubCommitStatusPostcondition {
   verifier: 'github-commit-status/v1';
   provider: 'github';
@@ -35,7 +28,6 @@ export interface GitHubCommitStatusPostcondition {
 export type Postcondition =
   | FileContentPostcondition
   | EventuallyConsistentFilePostcondition
-  | GitRefPostcondition
   | GitHubCommitStatusPostcondition;
 
 export interface Observation extends Data {
@@ -44,10 +36,6 @@ export interface Observation extends Data {
   path?: string;
   expected_sha256?: string;
   actual_sha256?: string;
-  remote?: string;
-  ref?: string;
-  expected_sha?: string;
-  actual_sha?: string;
   provider?: 'github';
   repository_id?: number;
   repository_full_name?: string;
@@ -69,7 +57,6 @@ export type Dependency =
 
 export interface Obligation {
   id: string;
-  deps: string[];
   dependencies: Dependency[];
   packet: Data;
   postcondition: Postcondition;

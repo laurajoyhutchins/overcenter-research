@@ -28,8 +28,10 @@ async function github(path: string, init: RequestInit = {}): Promise<Response> {
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('GITHUB_SHA');
+const stateRef = required('STATE_REF');
+const stateRefApi = stateRef.replace(/^refs\//, '');
 
-const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin' });
+const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });
 const candidates = kernel.inspect().filter(work => {
   if (work.status !== 'EXECUTING') return false;
   const executor = work.packet.executor as Record<string, unknown> | undefined;
@@ -48,7 +50,7 @@ assert.equal(snapshot.postcondition.commit_sha, sourceSha);
 const attacker = join(tmpdir(), `overcenter-attacker-${workflowRunId}.git`);
 execFileSync('git', ['init', '--bare', attacker], { stdio: 'ignore' });
 execFileSync('git', ['remote', 'set-url', 'origin', attacker], { stdio: 'ignore' });
-execFileSync('git', ['update-ref', 'refs/overcenter/state', sourceSha], { stdio: 'ignore' });
+execFileSync('git', ['update-ref', stateRef, sourceSha], { stdio: 'ignore' });
 writeFileSync('src/git-kernel.ts', '// Agent A locally replaced the kernel. This must not affect authority.\n');
 writeFileSync('agent-cache.sqlite', 'arbitrary disposable local database');
 
@@ -58,7 +60,7 @@ const repository = await repositoryIdentity.json() as { id: number; full_name: s
 assert.equal(repository.id, snapshot.postcondition.repository_id);
 
 const attemptedAuthorityRewrite = await github(
-  `/repos/${repository.full_name}/git/refs/overcenter/state`,
+  `/repos/${repository.full_name}/git/refs/${stateRefApi}`,
   {
     method: 'PATCH',
     body: JSON.stringify({ sha: sourceSha, force: true }),
@@ -66,7 +68,7 @@ const attemptedAuthorityRewrite = await github(
 );
 assert.equal(attemptedAuthorityRewrite.ok, false, 'execution token unexpectedly rewrote project authority');
 
-const authoritativeRef = await github(`/repos/${repository.full_name}/git/ref/overcenter/state`);
+const authoritativeRef = await github(`/repos/${repository.full_name}/git/ref/${stateRefApi}`);
 if (!authoritativeRef.ok) throw new Error(`authority read failed: ${authoritativeRef.status}`);
 const authoritative = await authoritativeRef.json() as { object: { sha: string } };
 assert.equal(authoritative.object.sha, snapshot.revision, 'sandbox tampering escaped into Git authority');

@@ -1,20 +1,27 @@
 name: Overcenter disposable-agent trust proof
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - prototype/git-object-database
+      - main
     paths:
       - .github/workflows/disposable-agent-proof.yml
       - experiments/disposable-agent/authority.ts
       - experiments/disposable-agent/agent-a.ts
       - experiments/disposable-agent/agent-b.ts
       - src/git-kernel.ts
+      - src/model.ts
+      - src/observation.ts
+      - src/providers/github-status.ts
       - test/git-kernel.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
 
 permissions: {}
+
+env:
+  STATE_REF: refs/overcenter/disposable-runs/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   project-authority:
