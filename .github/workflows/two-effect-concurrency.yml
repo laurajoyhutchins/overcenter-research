@@ -11,10 +11,7 @@ on:
       - experiments/two-effect-concurrency/agent.ts
       - experiments/two-effect-concurrency/recovery.ts
       - experiments/two-effect-concurrency/verify.ts
-      - src/git-kernel.ts
-      - src/model.ts
-      - src/observation.ts
-      - src/providers/github-status.ts
+      - src/**
       - test/git-kernel.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
       - experiments/two-effect-concurrency/two-effect-concurrency.test.ts
