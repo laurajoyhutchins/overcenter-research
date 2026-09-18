@@ -8,6 +8,7 @@ import {
   type ObservationOperation,
   type ObservationProvenance,
   type OpenApiDocument,
+  type RawObservation,
 } from './openapi.ts';
 import {
   evaluateCheckRunPage,
@@ -29,6 +30,11 @@ import {
   type GithubFact,
 } from './semantics.ts';
 import { reconstructGithubProjection } from './reconstruction.ts';
+import {
+  RESPONSE_SLICES,
+  validateResponseSlice,
+  type ResponseSliceResult,
+} from './response-slice.ts';
 
 const schemaPath = process.argv[2];
 if (!schemaPath) throw new Error('usage: live-semantic-proof.ts <openapi.json>');
@@ -70,11 +76,28 @@ function op(pathTemplate: string): ObservationOperation {
   });
 }
 
+const structuralSlices: ResponseSliceResult[] = [];
+
+function validateSlice(operation: ObservationOperation, observation: RawObservation): void {
+  assert.equal(observation.outcome.status, 200);
+  const fields = RESPONSE_SLICES[
+    operation.operation_id as keyof typeof RESPONSE_SLICES
+  ];
+  assert.ok(fields, `response slice missing for ${operation.operation_id}`);
+  structuralSlices.push(validateResponseSlice(
+    operation,
+    '200',
+    observation.outcome.value,
+    fields,
+  ));
+}
+
 const repoOperation = op('/repos/{owner}/{repo}');
 const repoObservation = await observeOperation(repoOperation, { owner, repo }, transport, provenance);
 assert.equal(repoObservation.outcome.status, 200);
 assert.equal(repoObservation.request.authorization, 'bearer');
 assert.equal(repoObservation.contract.schema_sha256, schemaSha);
+validateSlice(repoOperation, repoObservation);
 const repository = projectRepositoryIdentity(repoObservation);
 assert.ok(repository);
 
@@ -98,6 +121,7 @@ if (conditionalObservation.outcome.status === 304) {
   // The repository representation may legitimately change between reads.
   // In that case GitHub returns a fresh 200 representation instead of 304.
   assert.equal(conditionalObservation.outcome.status, 200);
+  validateSlice(repoOperation, conditionalObservation);
   refreshedRepositoryObservation = conditionalObservation;
   conditionalResult = 'MODIFIED';
 }
@@ -105,12 +129,14 @@ const refreshedRepository = projectRepositoryIdentity(refreshedRepositoryObserva
 assert.equal(refreshedRepository?.subject.id, repository.subject.id);
 
 const refName = `heads/${sourceRef}`;
+const refOperation = op('/repos/{owner}/{repo}/git/ref/{ref}');
 const refObservation = await observeOperation(
-  op('/repos/{owner}/{repo}/git/ref/{ref}'),
+  refOperation,
   { owner, repo, ref: refName },
   transport,
   provenance,
 );
+validateSlice(refOperation, refObservation);
 const refFact = projectGitRefTarget(refObservation, repository);
 assert.ok(refFact);
 assert.equal(evaluateGitRefTarget(refObservation, repository, {
@@ -119,12 +145,14 @@ assert.equal(evaluateGitRefTarget(refObservation, repository, {
   target_sha: sourceSha,
 }).state, 'SATISFIED');
 
+const commitOperation = op('/repos/{owner}/{repo}/git/commits/{commit_sha}');
 const commitObservation = await observeOperation(
-  op('/repos/{owner}/{repo}/git/commits/{commit_sha}'),
+  commitOperation,
   { owner, repo, commit_sha: sourceSha },
   transport,
   provenance,
 );
+validateSlice(commitOperation, commitObservation);
 const commitFact = projectGitCommit(commitObservation, repository);
 assert.ok(commitFact);
 assert.equal(commitFact.subject.sha.toLowerCase(), sourceSha.toLowerCase());
@@ -134,12 +162,14 @@ const currentFacts: GithubFact[] = [repository, refFact];
 let pullFact = null;
 let issueFact = null;
 if (pullNumber !== null) {
+  const pullOperation = op('/repos/{owner}/{repo}/pulls/{pull_number}');
   const pullObservation = await observeOperation(
-    op('/repos/{owner}/{repo}/pulls/{pull_number}'),
+    pullOperation,
     { owner, repo, pull_number: pullNumber },
     transport,
     provenance,
   );
+  validateSlice(pullOperation, pullObservation);
   pullFact = projectPullRequestSnapshot(pullObservation, repository);
   assert.ok(pullFact);
   assert.equal(evaluatePullRequestSnapshot(pullFact, {
@@ -150,12 +180,14 @@ if (pullNumber !== null) {
     base_ref: baseRef,
   }).state, 'SATISFIED');
 
+  const issueOperation = op('/repos/{owner}/{repo}/issues/{issue_number}');
   const issueObservation = await observeOperation(
-    op('/repos/{owner}/{repo}/issues/{issue_number}'),
+    issueOperation,
     { owner, repo, issue_number: pullNumber },
     transport,
     provenance,
   );
+  validateSlice(issueOperation, issueObservation);
   issueFact = projectIssueSnapshot(issueObservation, repository);
   assert.ok(issueFact);
   assert.equal(issueFact.is_pull_request, true);
@@ -178,6 +210,7 @@ const checksObservation = await observeOperation(
   transport,
   provenance,
 );
+validateSlice(checksOperation, checksObservation);
 const checksPage = projectCheckRunsPage(checksObservation, repository);
 assert.ok(checksPage);
 assert.ok(checksPage.members.length > 0, 'stable check coordinate should expose at least one check run');
@@ -202,6 +235,7 @@ const statusObservation = await observeOperation(
   transport,
   provenance,
 );
+validateSlice(statusOperation, statusObservation);
 const statusPage = projectCommitStatusesPage(statusObservation, repository);
 assert.ok(statusPage);
 assert.ok(statusPage.members.length > 0, 'stable status coordinate should expose at least one commit status');
@@ -228,6 +262,7 @@ if (volatileCheckRef) {
     transport,
     provenance,
   );
+  validateSlice(checksOperation, volatileObservation);
   const volatilePage = projectCheckRunsPage(volatileObservation, repository);
   assert.ok(volatilePage);
   const missing = evaluateCheckRunPage(volatilePage, {
@@ -244,12 +279,14 @@ if (volatileCheckRef) {
   };
 }
 
+const workflowOperation = op('/repos/{owner}/{repo}/actions/runs');
 const workflowObservation = await observeOperation(
-  op('/repos/{owner}/{repo}/actions/runs'),
+  workflowOperation,
   { owner, repo, page: 1, per_page: 1 },
   transport,
   provenance,
 );
+validateSlice(workflowOperation, workflowObservation);
 const workflowPage = projectWorkflowRunsPage(workflowObservation, repository);
 assert.ok(workflowPage);
 assert.ok(workflowPage.members.length > 0, 'repository should expose at least one workflow run');
@@ -352,6 +389,12 @@ console.log(JSON.stringify({
     missing_member: 'INDETERMINATE',
     first_run_id: firstWorkflowRun.id,
     first_workflow_id: firstWorkflowRun.workflow_id,
+  },
+  structural_response_slices: {
+    observations_validated: structuralSlices.length,
+    operations: [...new Set(structuralSlices.map(slice => slice.operation_id))],
+    validated_paths: structuralSlices.reduce((sum, slice) => sum + slice.validated_paths.length, 0),
+    optional_absent_paths: structuralSlices.reduce((sum, slice) => sum + slice.optional_absent_paths.length, 0),
   },
   reconstruction: {
     durable_commits: Object.keys(rebuilt.commits).length,
