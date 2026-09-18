@@ -8,33 +8,38 @@ function required(name: string): string {
   return value;
 }
 
-const repository = required('GITHUB_REPOSITORY');
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
+const sourceSha = required('GITHUB_SHA');
 const agentOutcome = required('AGENT_A_OUTCOME');
+const token = required('GITHUB_TOKEN');
 
 if (agentOutcome !== 'failure') {
   throw new Error(`AGENT_A_DID_NOT_TERMINATE_AS_EXPECTED: ${agentOutcome}`);
 }
 
-const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin' });
+const kernel = new GitOvercenterKernel(process.cwd(), {
+  remote: 'origin',
+  githubToken: token,
+});
+
 const candidates = kernel.inspect().filter(work => {
   if (work.status !== 'EXECUTING') return false;
   const executor = work.packet.executor as Record<string, unknown> | undefined;
   return executor?.provider === 'github-actions/v1'
-    && executor.repository === repository
     && String(executor.workflow_run_id) === workflowRunId
     && String(executor.workflow_run_attempt) === workflowRunAttempt
     && executor.job === 'agent-a';
 });
-
-assert.equal(candidates.length, 1, `expected one exact unresolved Agent A run, found ${candidates.length}`);
+assert.equal(candidates.length, 1, `expected one exact unresolved execution, found ${candidates.length}`);
 const work = candidates[0];
-assert.ok(work.run_id, 'unresolved work must carry run identity');
+assert.ok(work.run_id);
+assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
+if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
+assert.equal(work.postcondition.commit_sha, sourceSha, 'settlement input identity drifted');
 
 const recovery = kernel.recoverInterrupted(work.run_id, {
   source: 'github-actions-job-supervisor',
-  repository,
   workflow_run_id: workflowRunId,
   workflow_run_attempt: workflowRunAttempt,
   job: 'agent-a',
@@ -44,6 +49,11 @@ const recovery = kernel.recoverInterrupted(work.run_id, {
 const settled = kernel.reconcile(work.run_id);
 assert.equal(settled.disposition, 'DONE');
 assert.equal(settled.verified, true);
+assert.equal(settled.observed?.verifier, 'github-commit-status/v1');
+assert.equal(settled.observed?.repository_id, work.postcondition.repository_id);
+assert.equal(settled.observed?.commit_sha, sourceSha);
+assert.equal(settled.observed?.context, work.postcondition.context);
+assert.equal(settled.observed?.actual_state, 'success');
 
 const final = kernel.inspect().find(candidate => candidate.id === work.id);
 assert.equal(final?.status, 'DONE');
@@ -55,15 +65,16 @@ assert.ok(receipts.every(receipt => receipt.claim_commit === recovery.claim_comm
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
   appendFileSync(summary, [
-    '## Agent B',
+    '## Trusted recovery / settlement',
     '',
-    '- This job started on a fresh GitHub-hosted runner.',
-    `- GitHub supervisor fact for Agent A: \`${agentOutcome}\``,
-    `- Reconstructed Overcenter run from Git: \`${work.run_id}\``,
+    `- Reconstructed run: \`${work.run_id}\``,
+    `- Immutable input: \`${sourceSha}\``,
+    `- Canonical repository ID: \`${work.postcondition.repository_id}\``,
     `- Provider verifier: \`${settled.observed?.verifier}\``,
-    `- Observed provider SHA: \`${settled.observed?.actual_sha}\``,
+    `- Provider status context: \`${settled.observed?.context}\``,
+    `- Provider state: \`${settled.observed?.actual_state}\``,
     `- Final disposition: **${settled.disposition}**`,
-    '- No Agent A cache, worktree, database, output payload, or process memory was consumed.',
+    '- Agent A local Git configuration and files were not consulted.',
     '',
   ].join('\n'));
 }
