@@ -10,7 +10,9 @@ const cases = [
   ['/repos/{owner}/{repo}/git/ref/{ref}', 'git/get-ref'],
   ['/repos/{owner}/{repo}/git/commits/{commit_sha}', 'git/get-commit'],
   ['/repos/{owner}/{repo}/pulls/{pull_number}', 'pulls/get'],
+  ['/repos/{owner}/{repo}/issues/{issue_number}', 'issues/get'],
   ['/repos/{owner}/{repo}/commits/{ref}/check-runs', 'checks/list-for-ref'],
+  ['/repos/{owner}/{repo}/commits/{ref}/statuses', 'repos/list-commit-statuses-for-ref'],
 ] as const;
 
 const result = cases.map(([pathTemplate, expectedOperationId]) => {
@@ -24,7 +26,7 @@ const result = cases.map(([pathTemplate, expectedOperationId]) => {
     semantic_shape: expectedOperationId === 'repos/get' ? 'stable identity'
       : expectedOperationId === 'git/get-commit' ? 'immutable singleton'
         : expectedOperationId === 'git/get-ref' ? 'mutable binding'
-          : expectedOperationId === 'pulls/get' ? 'mutable entity'
+          : ['pulls/get', 'issues/get'].includes(expectedOperationId) ? 'mutable entity'
             : 'paginated collection',
     operation_id: operation.operation_id,
     path_template: operation.path_template,
