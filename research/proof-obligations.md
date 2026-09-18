@@ -4,7 +4,7 @@ Overcenter's evidence surface should answer a stricter question than "are the te
 
 > Which claim is being exercised, at which layer, and what does a green result actually establish?
 
-The evidence classes remain deliberately separate:
+The evidence classes remain deliberately separate. The first three are continuously enforced by `.github/workflows/tests.yml` on pull requests and `main`; the live provider lane remains separately dispatchable:
 
 - `npm test` — deterministic implementation invariants;
 - `npm run proof:local` — adversarial executable experiments;
@@ -39,7 +39,8 @@ The maintenance rule is simple:
 2. An implementation guarantee needs implementation or executable experiment evidence. A TLA+ result alone does not upgrade runtime behavior.
 3. A formal safety claim needs a checked invariant and, where practical, a negative control showing the model can express the failure.
 4. A provider claim needs real-provider evidence. Mock transport is not provider proof.
-5. `proof:live` must wait for every hosted proof and verify that every run executed the same exact source revision. Dispatch success is not proof success.
+5. The deterministic CI workflow must run `npm test`, `npm run proof:local`, and `npm run proof:formal`; no one-off workflow should silently become the only witness for a local/formal claim.
+6. `proof:live` must wait for every real-provider hosted proof and verify that every run executed the same exact source revision. Dispatch success is not proof success.
 
 ## Deliberately open proof obligations
 
