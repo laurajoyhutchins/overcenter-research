@@ -523,3 +523,95 @@ handwritten
 The next architectural pressure should therefore be on generating more of the **structural response decoding** from the pinned OpenAPI schema while keeping the handwritten semantic choices explicit and typed.
 
 That would test whether the current 926-line runtime can shrink for the right reason, rather than by moving semantics into an untyped configuration DSL.
+
+### Mutable coordinates make bad positive fixtures
+
+A later live run exposed another freshness mistake in the proof itself.
+
+The commit-status proof originally queried:
+
+```text
+GET /repos/{owner}/{repo}/commits/main/statuses
+```
+
+because `main` had previously pointed at a commit with two Overcenter status contexts.
+
+By the time the later proof ran, `main` had advanced to:
+
+```text
+d3dd12da46d074bb06b751a3c28191a2369859b0
+```
+
+and that commit legitimately had no commit statuses. The positive-membership assertion failed.
+
+The statuses still existed on the exact historical commit:
+
+```text
+b91ac6c4e64f72b83c6a8d8caa78e9482037a2d1
+
+overcenter/concurrency/35373921130/1/alpha -> success
+overcenter/concurrency/35373921130/1/beta  -> success
+```
+
+The live proof now uses that exact commit SHA as the positive status fixture.
+
+This is not just test hygiene. It demonstrates the architectural rule directly:
+
+```text
+"main had status S"
+    !=
+"current main has status S"
+
+status attached to exact commit C
+    remains evidence about C
+```
+
+Mutable aliases are suitable for fresh-current observations. They are poor durable coordinates for historical positive evidence.
+
+### Repository-scoped collection result
+
+`actions/list-workflow-runs-for-repo` falsified the narrower assumption that reusable collection semantics could be modeled specifically as “collection for ref.”
+
+The collection fact now accepts a typed subject coordinate rather than requiring `ref`.
+
+Live GitHub evidence on the proof run observed:
+
+```text
+workflow runs total_count = 299
+first page members         = 1
+positive membership        = SATISFIED
+invented missing member    = INDETERMINATE
+```
+
+The same evaluator is now used for:
+
+```text
+check runs
+  subject = { repository_id, ref }
+
+commit statuses
+  subject = { repository_id, ref }
+
+workflow runs
+  subject = { repository_id }
+```
+
+This strengthens the claim that **positive collection membership** is a reusable epistemic semantic independent of the exact provider coordinate shape.
+
+It does not reduce the cost of interpreting each member representation. Workflow-run decoding still requires endpoint-specific knowledge of run ID, node ID, workflow ID, run number, attempt, event, status, conclusion, and head SHA.
+
+That is further evidence that the current architectural seam is:
+
+```text
+generated / mechanical
+  transport grammar
+  pagination mechanics
+  structural decoding       <- next target
+
+handwritten / semantic
+  identity choice
+  field meaning
+  evidence strength
+  freshness
+  obligation predicate
+```
