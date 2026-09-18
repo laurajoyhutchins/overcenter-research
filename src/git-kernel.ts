@@ -32,10 +32,8 @@ import type {
   ReceiptFact,
   ReceiptKind,
 } from './facts.ts';
-import {
-  validateGraph,
-  withObligation,
-} from './graph.ts';
+import { withObligation } from './graph.ts';
+import { validateAdmission } from './admission.ts';
 import {
   hasInFlight,
   obligationKey,
@@ -102,7 +100,7 @@ export class GitOvercenterKernel {
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
 
     const next=withObligation(state,obligation,head);
-    validateGraph(next);
+    validateAdmission(next);
     const fact:ObligationFact={schema:OBLIGATION_SCHEMA,kind:'defined',obligation};
     const commit=this.#store.createCommit(
       head,
@@ -125,7 +123,7 @@ export class GitOvercenterKernel {
 
     const previous=state.definition_commits[id];
     const next=withObligation(state,obligation,head);
-    validateGraph(next);
+    validateAdmission(next);
     const fact:ObligationFact={
       schema:OBLIGATION_SCHEMA,
       kind:'amended',

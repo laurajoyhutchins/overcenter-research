@@ -70,7 +70,9 @@ export function observePostcondition(
           commit_sha:p.commit_sha,
           context:p.context,
           expected_state:p.expected_state,
-          mutation_certainty:'absent',
+          mutation_certainty:'uncertain',
+          negative_evidence_authoritative:false,
+          observation_error:'COLLECTION_ABSENCE_NOT_AUTHORITATIVE',
         };
       }
       return {
@@ -162,6 +164,7 @@ export function observePostcondition(
         path:p.path,
         expected_sha256:expected,
         mutation_certainty:'absent',
+        negative_evidence_authoritative:true,
       };
     }
     return {
@@ -174,14 +177,13 @@ export function observePostcondition(
   }
 }
 
-export function observationVerified(
-  postcondition: Postcondition,
-  observed: Observation,
-): boolean {
+function assertObservationCoordinate(
+  postcondition:Postcondition,
+  observed:Observation,
+):void {
   if (observed.verifier!==postcondition.verifier) {
     throw new Error('OBSERVATION_VERIFIER_MISMATCH');
   }
-  if (observed.mutation_certainty!=='present') return false;
 
   if (
     postcondition.verifier==='file-content-equals/v1'
@@ -190,7 +192,7 @@ export function observationVerified(
     if (observed.path!==postcondition.path) {
       throw new Error('OBSERVATION_COORDINATE_MISMATCH');
     }
-    return observed.actual_sha256===sha256(postcondition.content);
+    return;
   }
 
   if (
@@ -201,5 +203,30 @@ export function observationVerified(
   ) {
     throw new Error('OBSERVATION_COORDINATE_MISMATCH');
   }
+}
+
+export function observationAuthoritativelyAbsent(
+  postcondition:Postcondition,
+  observed:Observation,
+):boolean {
+  assertObservationCoordinate(postcondition,observed);
+  return observed.mutation_certainty==='absent'
+    && observed.negative_evidence_authoritative===true;
+}
+
+export function observationVerified(
+  postcondition: Postcondition,
+  observed: Observation,
+): boolean {
+  assertObservationCoordinate(postcondition,observed);
+  if (observed.mutation_certainty!=='present') return false;
+
+  if (
+    postcondition.verifier==='file-content-equals/v1'
+    || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+  ) {
+    return observed.actual_sha256===sha256(postcondition.content);
+  }
+
   return observed.actual_state===postcondition.expected_state;
 }
