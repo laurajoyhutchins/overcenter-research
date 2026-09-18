@@ -45,12 +45,8 @@ function defineWithEdges(
     postcondition: ReturnType<typeof pc>;
   },
 ) {
-  // Feed the proposed typed representation while also supplying legacy deps so
-  // today's kernel still enforces predecessor ordering. The adversarial tests
-  // therefore fail on edge semantics, not merely because scheduling vanished.
   return kernel.define({
     id,
-    deps: edges.map(edge => edge.upstream),
     packet,
     postcondition,
     dependencies: edges,
@@ -355,7 +351,6 @@ test('reclassifying control dependency as semantic cannot reuse old completion s
 
     const amended = f.kernel.amend({
       id: 'b',
-      deps: ['a'],
       postcondition: pc(b, 'B'),
       dependencies: [{
         kind: 'semantic',
@@ -409,7 +404,6 @@ test('rewiring a satisfied control edge does not change downstream semantic iden
 
     f.kernel.amend({
       id: 'b',
-      deps: ['c'],
       dependencies: [{ kind: 'control', upstream: 'c' }],
       postcondition: pc(b, 'B'),
     }, f.kernel.head()!);
@@ -456,7 +450,6 @@ test('content-selected semantic dependency can reuse across equivalent producers
 
     f.kernel.amend({
       id: 'b',
-      deps: ['c'],
       dependencies: [{
         kind: 'semantic',
         upstream: 'c',
@@ -514,7 +507,6 @@ test('semantic edge declaration order does not change obligation identity', () =
 
     f.kernel.amend({
       id: 'b',
-      deps: ['c', 'a'],
       dependencies: [
         {
           kind: 'semantic',

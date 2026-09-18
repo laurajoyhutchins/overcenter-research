@@ -20,7 +20,7 @@ kernel.define({
 });
 kernel.define({
   id: 'verify-build',
-  deps: ['write-file'],
+  dependencies: [{ kind: 'control', upstream: 'write-file' }],
   packet: { path: build, content: 'build-passes' },
   postcondition: { verifier: 'file-content-equals/v1', path: build, content: 'build-passes' },
 });

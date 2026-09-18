@@ -58,7 +58,7 @@ assert.ok(unordered.every(work=>work.status==='BLOCKED' && !work.run_id && work.
 const oAlpha=`guard-${workflowRunId}-${attempt}-ordered-alpha`;
 const oBeta=`guard-${workflowRunId}-${attempt}-ordered-beta`;
 kernel.define({id:oAlpha,postcondition:statusPc(orderedContext,'success')});
-kernel.define({id:oBeta,deps:[oAlpha],postcondition:statusPc(orderedContext,'failure')});
+kernel.define({id:oBeta,dependencies:[{kind:'control',upstream:oAlpha}],postcondition:statusPc(orderedContext,'failure')});
 
 const alpha=kernel.inspect().find(work=>work.id===oAlpha)!;
 const run=kernel.claim(alpha.id,alpha.revision);

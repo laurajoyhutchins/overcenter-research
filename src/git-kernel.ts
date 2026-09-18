@@ -18,35 +18,13 @@ import type {
 import { observePostcondition, observationVerified, validatePostcondition } from './observation.ts';
 import { githubStatusContextKey } from './providers/github-status.ts';
 
-export type {
-  Data,
-  Dependency,
-  Disposition,
-  EventuallyConsistentFilePostcondition,
-  ExecuteOutcome,
-  FileContentPostcondition,
-  GitHubCommitStatusPostcondition,
-  GitRefPostcondition,
-  LifecycleStatus,
-  LoopOptions,
-  LoopResult,
-  MutationCertainty,
-  Obligation,
-  Observation,
-  Postcondition,
-  Run,
-  Work,
-  WorkStatus,
-} from './model.ts';
-
 const STATE_REF = 'refs/overcenter/state';
-const OBLIGATION_SCHEMA = 'overcenter-git-obligation-v2';
+const OBLIGATION_SCHEMA = 'overcenter-git-obligation-v3';
 const CLAIM_SCHEMA = 'overcenter-git-claim-v2';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v3';
 
 interface ObligationInput {
   id: string;
-  deps?: string[];
   dependencies?: Dependency[];
   packet?: Data;
   postcondition: Postcondition;
@@ -362,7 +340,7 @@ export class GitOvercenterKernel {
       if (obligationFile.ok) {
         const fact=JSON.parse(obligationFile.stdout) as ObligationFact;
         if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
-        const obligation=this.#normalizeStoredObligation(fact.obligation);
+        const obligation=this.#validateStoredObligation(fact.obligation);
         const id=obligation.id;
 
         if (fact.kind==='defined') {
@@ -396,7 +374,7 @@ export class GitOvercenterKernel {
         lifecycles=this.#deriveLifecycles(replay,runs,receiptsByRun);
         const current=lifecycles.get(claim.obligation_id);
         if (current?.status!=='READY') throw new Error('CLAIM_WHILE_NOT_READY');
-        const unsatisfied=obligation.deps.filter(dep=>lifecycles.get(dep)?.status!=='DONE');
+        const unsatisfied=this.#dependencyUpstreams(obligation).filter(dep=>lifecycles.get(dep)?.status!=='DONE');
         if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
 
         const expectedKey=this.#obligationKey(replay,obligation,lifecycles,receiptsByRun);
@@ -465,15 +443,7 @@ export class GitOvercenterKernel {
   #requireHead(): string { const head=this.head(); if (!head) throw new Error('NOT_INITIALIZED'); return head; }
   #emptyState(): State { return {obligations:{},definition_commits:{}}; }
 
-  #normalizeObligation(input:ObligationInput): Obligation {
-    if (!input || typeof input.id!=='string' || input.id.length===0) {
-      throw new Error('INVALID_OBLIGATION_ID');
-    }
-    validatePostcondition(input.postcondition);
-    const dependencies:Dependency[]=input.dependencies
-      ? structuredClone(input.dependencies)
-      : (input.deps ?? []).map(upstream=>({kind:'control' as const,upstream}));
-
+  #validateDependencies(dependencies:Dependency[]): void {
     for (const edge of dependencies) {
       if (!edge || typeof edge.upstream!=='string' || edge.upstream.length===0) {
         throw new Error('INVALID_DEPENDENCY');
@@ -489,33 +459,37 @@ export class GitOvercenterKernel {
         throw new Error('INVALID_DEPENDENCY');
       }
     }
+  }
 
-    const deps=[...new Set(dependencies.map(edge=>edge.upstream))];
-    if (input.deps) {
-      const declared=[...new Set(input.deps)].sort();
-      const typed=[...deps].sort();
-      if (JSON.stringify(declared)!==JSON.stringify(typed)) {
-        throw new Error('DEPENDENCY_DECLARATION_MISMATCH');
-      }
+  #normalizeObligation(input:ObligationInput): Obligation {
+    if (!input || typeof input.id!=='string' || input.id.length===0) {
+      throw new Error('INVALID_OBLIGATION_ID');
     }
-
+    validatePostcondition(input.postcondition);
+    const dependencies:Dependency[]=structuredClone(input.dependencies ?? []);
+    this.#validateDependencies(dependencies);
     return {
       id:input.id,
-      deps,
       dependencies,
       packet:structuredClone(input.packet ?? {}),
       postcondition:structuredClone(input.postcondition),
     };
   }
 
-  #normalizeStoredObligation(obligation:Obligation): Obligation {
-    return this.#normalizeObligation({
-      id:obligation.id,
-      deps:obligation.deps,
-      dependencies:obligation.dependencies,
-      packet:obligation.packet,
-      postcondition:obligation.postcondition,
-    });
+  #validateStoredObligation(obligation:Obligation): Obligation {
+    if (!obligation || typeof obligation!=='object') throw new Error('INVALID_OBLIGATION');
+    const raw=obligation as unknown as Record<string,unknown>;
+    if ('deps' in raw) throw new Error('LEGACY_DEPENDENCY_PROJECTION_UNSUPPORTED');
+    if (typeof obligation.id!=='string' || obligation.id.length===0) throw new Error('INVALID_OBLIGATION_ID');
+    if (!Array.isArray(obligation.dependencies)) throw new Error('INVALID_DEPENDENCIES');
+    if (!raw.packet || typeof raw.packet!=='object' || Array.isArray(raw.packet)) throw new Error('INVALID_PACKET');
+    this.#validateDependencies(obligation.dependencies);
+    validatePostcondition(obligation.postcondition);
+    return structuredClone(obligation);
+  }
+
+  #dependencyUpstreams(obligation:Obligation): string[] {
+    return [...new Set(obligation.dependencies.map(edge=>edge.upstream))];
   }
 
   #deriveLifecycles(
@@ -622,9 +596,6 @@ export class GitOvercenterKernel {
       ) {
         return `sha256:${sha256(upstream.postcondition.content)}`;
       }
-      if (upstream.postcondition.verifier==='git-ref-equals/v1') {
-        return `git-object:${upstream.postcondition.target_sha}`;
-      }
       if (upstream.postcondition.verifier==='github-commit-status/v1') {
         return this.#digest({
           provider:'github',
@@ -678,7 +649,7 @@ export class GitOvercenterKernel {
     seen.add(fromId);
     const work=state.obligations[fromId];
     if (!work) return false;
-    return work.deps.some(dep=>dep===targetId || this.#dependsOn(state,dep,targetId,seen));
+    return this.#dependencyUpstreams(work).some(dep=>dep===targetId || this.#dependsOn(state,dep,targetId,seen));
   }
   #claimabilityError(
     state: State,
@@ -691,7 +662,7 @@ export class GitOvercenterKernel {
         .filter(candidate=>lifecycles.get(candidate.id)?.status==='DONE')
         .map(candidate=>candidate.id),
     );
-    if (!work.deps.every(dep=>done.has(dep))) return 'DEPENDENCIES_NOT_DONE';
+    if (!this.#dependencyUpstreams(work).every(dep=>done.has(dep))) return 'DEPENDENCIES_NOT_DONE';
 
     const semantics=this.#effectSemantics(work.postcondition);
     if (!semantics) return null;
@@ -739,7 +710,7 @@ export class GitOvercenterKernel {
       if (!file.ok) continue;
       const fact=JSON.parse(file.stdout) as ObligationFact;
       if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
-      const obligation=this.#normalizeStoredObligation(fact.obligation);
+      const obligation=this.#validateStoredObligation(fact.obligation);
       const id=obligation.id;
       if (fact.kind==='defined') {
         if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
@@ -772,7 +743,7 @@ export class GitOvercenterKernel {
 
   #validateGraph(state:State): void {
     for (const obligation of Object.values(state.obligations)) {
-      for (const dep of obligation.deps) {
+      for (const dep of this.#dependencyUpstreams(obligation)) {
         if (!state.obligations[dep]) throw new Error(`UNKNOWN_DEPENDENCY:${obligation.id}:${dep}`);
       }
     }
@@ -783,17 +754,14 @@ export class GitOvercenterKernel {
       if (visiting.has(id)) throw new Error(`DEPENDENCY_CYCLE:${id}`);
       if (visited.has(id)) return;
       visiting.add(id);
-      for (const dep of state.obligations[id].deps) visit(dep);
+      for (const dep of this.#dependencyUpstreams(state.obligations[id])) visit(dep);
       visiting.delete(id);
       visited.add(id);
     };
     for (const id of Object.keys(state.obligations)) visit(id);
   }
   #observe(p: Postcondition): Observation {
-    return observePostcondition(p,{
-      githubToken:this.githubToken,
-      gitLsRemote:(remote,ref)=>this.#git(['ls-remote',remote,ref],{allowFailure:true}),
-    });
+    return observePostcondition(p,{githubToken:this.githubToken});
   }
 
   #projectReceipt(fact:ReceiptFact,work:Obligation,settlementCommit?:string): Receipt {

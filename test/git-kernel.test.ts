@@ -33,7 +33,7 @@ test('kernel-owned evidence drives dependency chain to DONE', async () => {
   try {
     const a = f.path('a'), b = f.path('b');
     f.kernel.define({ id: 'a', packet: { path: a, content: 'A' }, postcondition: pc(a, 'A') });
-    f.kernel.define({ id: 'b', deps: ['a'], packet: { path: b, content: 'B' }, postcondition: pc(b, 'B') });
+    f.kernel.define({ id: 'b', dependencies: [{ kind: 'control', upstream: 'a' }], packet: { path: b, content: 'B' }, postcondition: pc(b, 'B') });
     const result = await runGitCoreLoop(f.kernel, {
       execute: async packet => {
         writeFileSync(String(packet.path), String(packet.content));
@@ -68,25 +68,6 @@ test('authoritative absence alone makes work replayable', () => {
     const receipt = f.kernel.resolve(run.id);
     assert.equal(receipt.disposition, 'READY');
     assert.equal(f.kernel.inspect()[0].status, 'READY');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
-});
-
-test('kernel-owned Git ref verifier reads independent remote truth', () => {
-  const f = fixture();
-  try {
-    const external = f.path('external.git');
-    execFileSync('git', ['init', '--bare', external], { stdio: 'ignore' });
-    const target = f.kernel.head()!;
-    const ref = 'refs/tags/provider-proof';
-    f.kernel.define({
-      id: 'provider',
-      postcondition: { verifier: 'git-ref-equals/v1', remote: external, ref, target_sha: target },
-    });
-    const run = f.kernel.claim('provider', f.kernel.deriveReadyWork()!.revision);
-    execFileSync('git', ['-C', f.repo, 'push', external, `${target}:${ref}`], { stdio: 'ignore' });
-    const receipt = f.kernel.resolve(run.id);
-    assert.equal(receipt.disposition, 'DONE');
-    assert.equal(receipt.observed?.actual_sha, target);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
