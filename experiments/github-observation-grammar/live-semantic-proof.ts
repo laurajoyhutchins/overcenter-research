@@ -11,14 +11,19 @@ import {
 } from './openapi.ts';
 import {
   evaluateCheckRunPage,
+  evaluateCommitStatusPage,
   evaluateGitRefTarget,
+  evaluateIssueSnapshot,
   evaluatePullRequestSnapshot,
   projectCheckRunsPage,
+  projectCommitStatusesPage,
   projectGitCommit,
   projectGitRefTarget,
+  projectIssueSnapshot,
   projectPullRequestSnapshot,
   projectRepositoryIdentity,
   revalidateNotModified,
+  sameGithubEntity,
   type GithubFact,
 } from './semantics.ts';
 import { reconstructGithubProjection } from './reconstruction.ts';
@@ -112,6 +117,7 @@ assert.equal(commitFact.stability, 'content-addressed');
 
 const currentFacts: GithubFact[] = [repository, refFact];
 let pullFact = null;
+let issueFact = null;
 if (pullNumber !== null) {
   const pullObservation = await observeOperation(
     op('/repos/{owner}/{repo}/pulls/{pull_number}'),
@@ -128,7 +134,26 @@ if (pullNumber !== null) {
     head_sha: sourceSha,
     base_ref: 'main',
   }).state, 'SATISFIED');
-  currentFacts.push(pullFact);
+
+  const issueObservation = await observeOperation(
+    op('/repos/{owner}/{repo}/issues/{issue_number}'),
+    { owner, repo, issue_number: pullNumber },
+    transport,
+    provenance,
+  );
+  issueFact = projectIssueSnapshot(issueObservation, repository);
+  assert.ok(issueFact);
+  assert.equal(issueFact.is_pull_request, true);
+  assert.notEqual(issueFact.subject.id, pullFact.subject.id);
+  assert.equal(issueFact.subject.node_id, pullFact.subject.node_id);
+  assert.equal(sameGithubEntity(issueFact, pullFact), true);
+  assert.equal(evaluateIssueSnapshot(issueFact, {
+    repository_id: repository.subject.id,
+    number: pullNumber,
+    state: 'open',
+  }).state, 'SATISFIED');
+
+  currentFacts.push(pullFact, issueFact);
 }
 
 const checksOperation = op('/repos/{owner}/{repo}/commits/{ref}/check-runs');
@@ -154,6 +179,31 @@ assert.equal(evaluateCheckRunPage(checksPage, {
   id: Number.MAX_SAFE_INTEGER,
 }).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
 currentFacts.push(checksPage);
+
+const statusOperation = op('/repos/{owner}/{repo}/commits/{ref}/statuses');
+const statusObservation = await observeOperation(
+  statusOperation,
+  { owner, repo, ref: checkRef, page: 1, per_page: 1 },
+  transport,
+  provenance,
+);
+const statusPage = projectCommitStatusesPage(statusObservation, repository);
+assert.ok(statusPage);
+assert.ok(statusPage.members.length > 0, 'stable status coordinate should expose at least one commit status');
+const firstStatus = statusPage.members[0];
+assert.equal(evaluateCommitStatusPage(statusPage, {
+  repository_id: repository.subject.id,
+  ref: checkRef,
+  node_id: firstStatus.node_id,
+  context: firstStatus.context,
+  state: firstStatus.state,
+}).state, 'SATISFIED');
+assert.equal(evaluateCommitStatusPage(statusPage, {
+  repository_id: repository.subject.id,
+  ref: checkRef,
+  node_id: 'missing-status-node',
+}).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
+currentFacts.push(statusPage);
 
 let volatileChecks: { ref: string; members: number; missing_member: string } | null = null;
 if (volatileCheckRef) {
@@ -216,8 +266,17 @@ console.log(JSON.stringify({
   },
   pull_request: pullFact && {
     number: pullFact.subject.number,
+    id: pullFact.subject.id,
+    node_id: pullFact.subject.node_id,
     state: pullFact.state,
     head_sha: pullFact.head_sha,
+  },
+  issue_surface: issueFact && {
+    number: issueFact.subject.number,
+    id: issueFact.subject.id,
+    node_id: issueFact.subject.node_id,
+    is_pull_request: issueFact.is_pull_request,
+    same_entity_as_pull: pullFact ? sameGithubEntity(issueFact, pullFact) : false,
   },
   checks: {
     stable_ref: checkRef,
@@ -227,6 +286,14 @@ console.log(JSON.stringify({
     positive_membership: 'SATISFIED',
     missing_member: 'INDETERMINATE',
     volatile_probe: volatileChecks,
+  },
+  commit_statuses: {
+    stable_ref: checkRef,
+    page_members: statusPage.members.length,
+    has_next: statusPage.has_next,
+    positive_membership: 'SATISFIED',
+    missing_member: 'INDETERMINATE',
+    first_context: firstStatus.context,
   },
   reconstruction: {
     durable_commits: Object.keys(rebuilt.commits).length,
