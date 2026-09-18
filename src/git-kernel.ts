@@ -22,7 +22,15 @@ export interface GitRefPostcondition {
   ref: string;
   target_sha: string;
 }
-export type Postcondition = FileContentPostcondition | GitRefPostcondition;
+export interface GitHubCommitStatusPostcondition {
+  verifier: 'github-commit-status/v1';
+  provider: 'github';
+  repository_id: number;
+  commit_sha: string;
+  context: string;
+  expected_state: 'success';
+}
+export type Postcondition = FileContentPostcondition | GitRefPostcondition | GitHubCommitStatusPostcondition;
 
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
@@ -35,6 +43,13 @@ export interface Observation extends Data {
   ref?: string;
   expected_sha?: string;
   actual_sha?: string;
+  provider?: 'github';
+  repository_id?: number;
+  repository_full_name?: string;
+  commit_sha?: string;
+  context?: string;
+  expected_state?: string;
+  actual_state?: string;
 }
 
 export interface Obligation {
@@ -78,11 +93,20 @@ export class GitOvercenterKernel {
   readonly repo: string;
   readonly ref: string;
   readonly remote: string | null;
+  readonly githubToken: string | null;
 
-  constructor(repo: string, { ref = STATE_REF, remote = null }: { ref?: string; remote?: string | null } = {}) {
+  constructor(
+    repo: string,
+    {
+      ref = STATE_REF,
+      remote = null,
+      githubToken = null,
+    }: { ref?: string; remote?: string | null; githubToken?: string | null } = {},
+  ) {
     this.repo = repo;
     this.ref = ref;
     this.remote = remote;
+    this.githubToken = githubToken;
     this.#git(['rev-parse','--git-dir']);
   }
 
@@ -253,10 +277,81 @@ export class GitOvercenterKernel {
       && typeof p.remote==='string'
       && typeof p.ref==='string'
       && typeof p.target_sha==='string') return;
+    if (p?.verifier==='github-commit-status/v1'
+      && p.provider==='github'
+      && Number.isSafeInteger(p.repository_id)
+      && p.repository_id > 0
+      && /^[0-9a-f]{40,64}$/i.test(p.commit_sha)
+      && typeof p.context==='string'
+      && p.context.length > 0
+      && p.expected_state==='success') return;
     throw new Error('UNSUPPORTED_POSTCONDITION');
   }
   #observe(p: Postcondition): Observation {
     this.#validatePostcondition(p);
+    if (p.verifier==='github-commit-status/v1') {
+      if (!this.githubToken) {
+        return {
+          verifier:p.verifier,
+          provider:'github',
+          repository_id:p.repository_id,
+          commit_sha:p.commit_sha,
+          context:p.context,
+          expected_state:p.expected_state,
+          mutation_certainty:'uncertain',
+          verified:false,
+          observation_error:'GITHUB_TOKEN_UNAVAILABLE',
+        };
+      }
+      try {
+        const repository=this.#githubGet(`/repositories/${p.repository_id}`) as { id?: number; full_name?: string };
+        if (repository.id!==p.repository_id || typeof repository.full_name!=='string') {
+          throw new Error('GITHUB_REPOSITORY_IDENTITY_MISMATCH');
+        }
+        const statuses=this.#githubGet(
+          `/repos/${repository.full_name}/commits/${p.commit_sha}/statuses?per_page=100`,
+        ) as Array<{ context?: string; state?: string }>;
+        const status=statuses.find(candidate=>candidate.context===p.context);
+        if (!status) {
+          return {
+            verifier:p.verifier,
+            provider:'github',
+            repository_id:p.repository_id,
+            repository_full_name:repository.full_name,
+            commit_sha:p.commit_sha,
+            context:p.context,
+            expected_state:p.expected_state,
+            mutation_certainty:'absent',
+            verified:false,
+          };
+        }
+        return {
+          verifier:p.verifier,
+          provider:'github',
+          repository_id:p.repository_id,
+          repository_full_name:repository.full_name,
+          commit_sha:p.commit_sha,
+          context:p.context,
+          expected_state:p.expected_state,
+          actual_state:status.state,
+          mutation_certainty:'present',
+          verified:status.state===p.expected_state,
+        };
+      } catch (e: unknown) {
+        return {
+          verifier:p.verifier,
+          provider:'github',
+          repository_id:p.repository_id,
+          commit_sha:p.commit_sha,
+          context:p.context,
+          expected_state:p.expected_state,
+          mutation_certainty:'uncertain',
+          verified:false,
+          observation_error:errorMessage(e),
+        };
+      }
+    }
+
     if (p.verifier==='git-ref-equals/v1') {
       const listed=this.#git(['ls-remote',p.remote,p.ref],{allowFailure:true});
       if (!listed.ok) {
@@ -327,6 +422,26 @@ export class GitOvercenterKernel {
     return true;
   }
   #objectIdLength(): number { return this.#git(['rev-parse','--show-object-format']).stdout.trim()==='sha256'?64:40; }
+  #githubGet(path: string): unknown {
+    if (!this.githubToken) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
+    const config = [
+      `header = "Authorization: Bearer ${this.githubToken}"`,
+      'header = "Accept: application/vnd.github+json"',
+      'header = "X-GitHub-Api-Version: 2022-11-28"',
+      '',
+    ].join('\n');
+    try {
+      const stdout=execFileSync(
+        'curl',
+        ['--silent','--show-error','--fail-with-body','--config','-',`https://api.github.com${path}`],
+        {input:config,encoding:'utf8',stdio:['pipe','pipe','pipe']},
+      );
+      return JSON.parse(stdout);
+    } catch (e: unknown) {
+      const f=e as {stderr?:string|Buffer;stdout?:string|Buffer;message?:string};
+      throw new Error(`GITHUB_PROVIDER_READ_FAILED: ${String(f.stderr??f.stdout??f.message??'').trim()}`);
+    }
+  }
   #git(args:string[],{input=undefined,env=process.env,allowFailure=false}:{input?:string;env?:Record<string,string|undefined>;allowFailure?:boolean}={}): GitResult {
     try {
       const stdout=execFileSync('git',['-C',this.repo,...args],{input,env,encoding:'utf8',stdio:['pipe','pipe','pipe']});
