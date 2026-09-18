@@ -84,6 +84,23 @@ const status = await github(
 );
 if (status.status !== 201) throw new Error(`status creation failed ${status.status}: ${await status.text()}`);
 
+for (let i = 0; i < 100; i += 1) {
+  const distractor = await github(
+    `/repos/${repository.full_name}/statuses/${snapshot.postcondition.commit_sha}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        state: 'pending',
+        context: `${snapshot.postcondition.context}/pagination-distractor/${i}`,
+        description: 'Pagination proof distractor',
+      }),
+    },
+  );
+  if (distractor.status !== 201) {
+    throw new Error(`distractor status creation failed ${distractor.status}: ${await distractor.text()}`);
+  }
+}
+
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
   appendFileSync(summary, [
@@ -94,7 +111,9 @@ if (summary) {
     '- Local state ref, kernel source, and fake SQLite cache were modified.',
     `- Attempt to rewrite canonical project authority returned HTTP \`${attemptedAuthorityRewrite.status}\`.`,
     '- Canonical authority remained at the original claim commit.',
-    `- Bounded provider effect: commit status \`${snapshot.postcondition.context}\` on \`${snapshot.postcondition.commit_sha}\`.`,
+    `- Authorized effect coordinate: commit status \`${snapshot.postcondition.context}\` on \`${snapshot.postcondition.commit_sha}\`.`,
+    '- The GitHub token is repository-scoped for commit-status writes; it is not capability-scoped to that one coordinate.',
+    '- 100 newer distractor statuses were written so trusted readback must paginate before proving presence/absence.',
     '- Agent A now terminates without settlement.',
     '',
   ].join('\n'));
