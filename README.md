@@ -20,147 +20,209 @@ settle durable receipt
 recompute READY work ↺
 ```
 
-The worker does **not** decide that its work succeeded. `DONE` can only be settled when an observation proves the obligation's postcondition.
+The worker does **not** decide that its work succeeded.
 
 ## Two storage experiments
 
-The repository now has two implementations of the same loop:
-
 ```text
 src/kernel.js       SQLite-backed reference
-src/git-kernel.ts   Git-object-database prototype
+src/git-kernel.ts   Git-backed prototype
 ```
 
-The Git prototype asks a narrower question:
-
-> Can Git itself provide the durable database, exact revision identity, transaction fence, and receipt history needed by the core loop?
-
-Its answer so far is yes.
-
-The Git implementation stores state snapshots as ordinary Git objects and advances exactly one authoritative ref:
+The Git prototype asks whether the core loop can reduce durable shared authority to:
 
 ```text
+immutable Git objects
+        +
 refs/overcenter/state
-          │
-          ▼
-       commit N
-          │
-          └── state.json
+        +
+CAS(expected SHA → new SHA)
 ```
 
-Settlement commits also contain `receipt.json`. Older receipts remain reachable through commit history.
+For a local authority repository, CAS is `git update-ref <ref> <new> <expected>`.
 
-The commit SHA is the state revision. Claims and settlements use Git's compare-and-swap ref update:
+For disposable agent clones, the same rule is enforced against the central authority with an exact leased push:
 
 ```text
-git update-ref refs/overcenter/state <new> <expected-old>
+git push \
+  --force-with-lease=refs/overcenter/state:<expected-sha> \
+  origin <new-sha>:refs/overcenter/state
 ```
 
-If the ref no longer equals the exact revision the caller observed, the mutation loses rather than silently rebasing itself onto newer truth.
+The commit SHA is the authoritative state revision. Settlement and recovery commits carry `receipt.json`; older receipts remain reachable through Git history.
 
-Bootstrap is explicit. `initialize()` creates the authority ref; ordinary definition and execution refuse to recreate it. If `refs/overcenter/state` disappears later, the kernel fails closed with `NOT_INITIALIZED` instead of silently constructing an empty database.
+## Kernel-owned verification
 
-### Current deliberate constraint
+Agents no longer supply an observation object or verifier function to settle work.
 
-The prototype permits only **one active external effect at a time**. That keeps one linear authoritative ref sufficient and makes the transaction argument easy to inspect.
+The obligation contains immutable verification semantics. The current deliberately tiny adapter is:
 
-This is intentional. Parallel execution should not be added until it proves that it needs either multiple authority refs or a more sophisticated merge/settlement protocol.
+```ts
+{
+  verifier: 'file-content-equals/v1',
+  path: '/authoritative/external/path',
+  content: 'expected content'
+}
+```
+
+`resolve(runId)` reads that external truth itself, hashes the expected and actual content, and deterministically chooses:
+
+```text
+matches expected       → DONE
+authoritatively absent → READY
+anything else          → RECOVERY_REQUIRED
+```
+
+So this is no longer possible:
+
+```ts
+settle(run.id, {
+  disposition: 'DONE',
+  observed: fabricatedEvidence,
+  verify: () => true,
+});
+```
+
+There is no caller-provided `DONE` verifier path.
+
+The file-content verifier is intentionally only a proof adapter, not a proposed universal evidence model. Additional verifier kinds should have to earn their way in as deterministic kernel-owned semantics.
+
+## Disposable-agent handoff
+
+The strongest experiment in this branch is:
+
+```text
+central Git authority
+        │
+        ▼
+fresh Agent A clone
+        │
+        ▼
+claim exact run
+        │
+        ▼
+perform external effect
+        │
+        X
+delete Agent A repo, cache, DB, process memory
+        │
+        ▼
+durable supervisor fact: run A terminated
+        │
+        ▼
+fresh Agent B clone
+        │
+        ▼
+reconstruct unresolved run from Git
+        │
+        ▼
+observe external truth
+        │
+        ▼
+reconcile same run
+        │
+        ▼
+verified DONE
+```
+
+Agent B receives nothing from Agent A's local database or filesystem.
+
+The test even creates a fake `agent-cache.sqlite` inside A's sandbox and then deletes the entire sandbox before B exists. Project truth survives because the claim was already committed to central Git authority.
+
+The supervisor contributes only a termination fact for the exact run ID. `recoverInterrupted(runId)` refuses to recover a different active run.
+
+This is the current boundary:
+
+```text
+Git owns:
+  durable state
+  exact identity
+  history
+  CAS
+  receipts
+  reconstruction
+
+execution platform owns:
+  "sandbox/run X has terminated"
+```
+
+No shared SQL database is required by the experiment.
+
+## Fail-closed authority
+
+Missing authority is not empty state.
+
+If `refs/overcenter/state` disappears, all observational surfaces fail with `NOT_INITIALIZED`, including:
+
+- `inspect()`
+- `deriveReadyWork()`
+- `receipts()`
+- `recoverInterrupted()`
+
+A disposable agent cannot confuse "I cannot see project truth" with "there is no work."
+
+## Lost acknowledgement
+
+Settlement and reconciliation are idempotent by run identity.
+
+If reconciliation commits `READY` or `DONE` but its response is lost, repeating `reconcile(runId)` returns the existing durable receipt instead of reporting `UNKNOWN_RUN`.
+
+## Current deliberate constraint
+
+The prototype permits only **one active external effect at a time**.
+
+That keeps one linear authoritative ref sufficient. Parallel graph execution, leases, PostgreSQL, and distributed heartbeat machinery remain deliberately absent until an experiment demonstrates they are required.
 
 ## Run it
 
-The Git prototype is executable TypeScript. It is validated here with Node.js 22.16.0 using Node's built-in `--experimental-strip-types` support and Git 2.47.3. There is no TypeScript compiler, loader, or package dependency in the execution path.
+Validated in the assistant sandbox with Node.js 22.16.0 and Git 2.47.3. The TypeScript path uses Node's built-in type stripping; there is no TypeScript compiler, loader, or package dependency.
 
 ```sh
 npm test
-npm run demo
-
 npm run test:git
+npm run test:handoff
 npm run test:stress
 npm run demo:git
+```
 
-# Equivalent direct execution:
+Equivalent direct execution:
+
+```sh
 node --experimental-strip-types examples/git-demo.ts
 ```
 
-## What the Git prototype proves
+## Current proof set
 
-The Git tests exercise real temporary bare repositories and prove:
+The sandbox validation covers:
 
-- a commit SHA is the exact authoritative state revision;
-- a claim commit is a child of the revision it claims;
-- two readers of the same revision cannot both claim it;
-- `DONE` still requires authoritative postcondition verification;
-- settlement receipts are immutable commits in history;
-- an uncertain external effect is not blindly replayed;
-- restart converts an interrupted claim into a recovery commit;
-- later observation can reconcile that exact run to `DONE`;
-- a lost settlement acknowledgement is harmless because the authoritative ref already contains the settled state;
-- 32 simultaneous claimers produce one authoritative claim;
-- 16 complete loops racing one obligation execute the external effect exactly once;
-- observer or verifier failure after execution durably enters recovery;
-- ref-lock failure cannot partially claim work;
-- loss of the authoritative ref fails closed;
-- reachable state and receipts survive aggressive Git GC and SHA-256 object format;
-- seeded crash/recovery state-machine runs preserve terminal receipt invariants.
+- exact-revision claim ancestry;
+- kernel-owned postcondition observation;
+- wrong-but-real effects cannot become `DONE` or `READY`;
+- only authoritative absence permits replay;
+- stale-revision fencing;
+- exact-run interrupted recovery;
+- idempotent `DONE` and `READY` reconciliation after lost acknowledgement;
+- missing authority fails closed on every read surface;
+- ref-lock failure cannot partially claim;
+- aggressive Git GC;
+- SHA-256 repositories;
+- 16 independent disposable clones contending on one central authority, with exactly one claim;
+- complete destruction of Agent A followed by successful reconstruction and settlement by fresh Agent B.
 
-The interesting shape is:
-
-```text
-refs/overcenter/state
-        │
-        ▼
-      define
-        │
-        ▼
-       claim
-        │
-   external effect
-        │
-        ▼
-      settle
-        │
-        ▼
-       claim
-        │
-        ▼
-      settle
-```
-
-The commits are simultaneously snapshots, history, exact identities, and durable transaction evidence.
-
-## Core invariant
-
-> No obligation becomes `DONE` unless authoritative observation proves its postcondition for the claimed revision.
-
-And for uncertain effects:
-
-> If an external action may have happened, restarting the loop does not execute it again until reconciliation proves replay is safe.
-
-The replay rule is deliberately stronger than "verification failed":
-
-> Work may return to `READY` only when authoritative observation proves the attempted mutation is absent.
-
-Anything else that is not verified `DONE` becomes `RECOVERY_REQUIRED` (or `WAITING` for an explicit judgment boundary).
-
-### What Git does not provide
-
-Git supplies durable snapshots, exact identities, history, and compare-and-swap ref updates. It does **not** provide a failure detector.
-
-`recoverInterrupted()` therefore has an external precondition: something outside Git must know that execution was interrupted. Stress tests show that premature recovery of a still-live worker remains safe—no replay and no false `DONE`—but it forces reconciliation before progress can continue.
-
-That is currently the clearest piece of machinery that survives the "Git is the database" simplification.
+The combined focused, handoff, and stress suites passed **17/17** in the sandbox before being committed.
 
 ## Files
 
 ```text
-src/kernel.js            SQLite executable kernel
-src/git-kernel.ts        Git object database prototype
-examples/demo.js         SQLite two-obligation demo
-examples/git-demo.ts     Git-native history demo
-test/kernel.test.js      SQLite safety/recovery proofs
-test/git-kernel.test.ts  Git transaction/recovery proofs
-stress/git-stress.ts      adversarial concurrency/crash/recovery suite
-research/                prior research that motivated the kernel
+src/kernel.js                 SQLite reference kernel
+src/git-kernel.ts             Git authority kernel
+examples/demo.js              SQLite demo
+examples/git-demo.ts          Git-native demo
+test/kernel.test.js           SQLite proofs
+test/git-kernel.test.ts       Git kernel proofs
+test/disposable-agent.test.ts disposable-agent handoff proof
+stress/git-stress.ts          adversarial Git/clone stress tests
+research/                     prior research
 ```
 
-This is intentionally small enough to read in one sitting. New machinery should have to justify why it cannot live behind this loop as deterministic software.
+The experiment is intentionally small. New machinery should have to demonstrate that Git authority plus disposable local state cannot provide the required safety first.
