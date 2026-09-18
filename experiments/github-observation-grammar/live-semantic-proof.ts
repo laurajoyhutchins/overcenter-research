@@ -99,8 +99,8 @@ const repoObservation = await observeOperation(repoOperation, { owner, repo }, t
 assert.equal(repoObservation.outcome.status, 200);
 assert.equal(repoObservation.request.authorization, 'bearer');
 assert.equal(repoObservation.contract.schema_sha256, schemaSha);
-validateSlice(repoOperation, repoObservation);
-const repository = projectRepositoryIdentity(repoObservation);
+const validatedRepoObservation = validateSlice(repoOperation, repoObservation);
+const repository = projectRepositoryIdentity(validatedRepoObservation);
 assert.ok(repository);
 
 // Conditional HTTP is a cross-cutting transport semantic, not a GitHub resource model.
@@ -112,19 +112,18 @@ const conditionalObservation = await observeOperation(
   provenance,
   { headers: { 'If-None-Match': repoObservation.response.etag } },
 );
-let refreshedRepositoryObservation: RawObservation;
+let refreshedRepositoryObservation: StructurallyValidatedObservation;
 let conditionalResult: 'NOT_MODIFIED' | 'MODIFIED';
 if (conditionalObservation.outcome.status === 304) {
-  const revalidated = revalidateNotModified(repoObservation, conditionalObservation);
+  const revalidated = revalidateNotModified(validatedRepoObservation, conditionalObservation);
   assert.ok(revalidated);
-  refreshedRepositoryObservation = revalidated;
+  refreshedRepositoryObservation = validateSlice(repoOperation, revalidated);
   conditionalResult = 'NOT_MODIFIED';
 } else {
   // The repository representation may legitimately change between reads.
   // In that case GitHub returns a fresh 200 representation instead of 304.
   assert.equal(conditionalObservation.outcome.status, 200);
-  validateSlice(repoOperation, conditionalObservation);
-  refreshedRepositoryObservation = conditionalObservation;
+  refreshedRepositoryObservation = validateSlice(repoOperation, conditionalObservation);
   conditionalResult = 'MODIFIED';
 }
 const refreshedRepository = projectRepositoryIdentity(refreshedRepositoryObservation);
