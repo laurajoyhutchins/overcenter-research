@@ -47,10 +47,13 @@ function certifyGet(value: unknown) {
     { path: 'apiVersion' }, { path: 'kind' }, { path: 'metadata.name' }, { path: 'metadata.namespace' }, { path: 'metadata.uid' }, { path: 'metadata.resourceVersion' }, { path: 'data' },
   ]);
 }
+function listItem(uid: string, rv: string, data = { value: rv }) {
+  return { metadata: { name: 'proof', namespace: 'default', uid, resourceVersion: rv }, data };
+}
 function certifyList(value: unknown, query: Record<string, string> = {}) {
   return validateObservationSlice(listOp, raw(listOp, value, query), [
     { path: 'apiVersion' }, { path: 'kind' }, { path: 'metadata.resourceVersion' }, { path: 'metadata.continue', required: false },
-    { path: 'items[].apiVersion' }, { path: 'items[].kind' }, { path: 'items[].metadata.name' }, { path: 'items[].metadata.namespace' }, { path: 'items[].metadata.uid' }, { path: 'items[].metadata.resourceVersion' }, { path: 'items[].data' },
+    { path: 'items[].metadata.name' }, { path: 'items[].metadata.namespace' }, { path: 'items[].metadata.uid' }, { path: 'items[].metadata.resourceVersion' }, { path: 'items[].data' },
   ]);
 }
 
@@ -80,11 +83,20 @@ test('resourceVersion is treated as opaque identity, never ordered', () => {
   assert.equal(sameState(before, after), false);
 });
 
+test('LIST member type comes from the collection contract when per-item TypeMeta is omitted', () => {
+  const page = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '498' }, items: [listItem('uid-a', '497')] }), 'default')!;
+  assert.equal(page.members[0].api_version, 'v1');
+  assert.equal(page.members[0].object_kind, 'ConfigMap');
+  assert.equal(page.members[0].entity.uid, 'uid-a');
+});
+
 test('a terminal list may omit optional continue and still certify completion', () => {
-  const page = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '499' }, items: [cm('uid-a', '498')] }), 'default')!;
+  const page = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '499' }, items: [listItem('uid-a', '498')] }), 'default')!;
   const snapshot = assembleCompleteList([page]);
   assert.ok(snapshot);
   assert.equal(snapshot.snapshot_resource_version, '499');
+  assert.equal(snapshot.members[0].api_version, 'v1');
+  assert.equal(snapshot.members[0].object_kind, 'ConfigMap');
 });
 
 test('one chunk cannot mint authoritative absence', () => {
@@ -94,7 +106,7 @@ test('one chunk cannot mint authoritative absence', () => {
 
 test('continued pages only become complete when the chain closes on one snapshot resourceVersion', () => {
   const first = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '500', continue: 'token-1' }, items: [] }), 'default')!;
-  const last = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '500', continue: '' }, items: [cm('uid-a', '499')] }, { continue: 'token-1' }), 'default')!;
+  const last = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '500', continue: '' }, items: [listItem('uid-a', '499')] }, { continue: 'token-1' }), 'default')!;
   const snapshot = assembleCompleteList([first, last])!;
   assert.equal(snapshot.complete, true);
   assert.equal(evaluateSnapshotMembership(snapshot, coordinate).state, 'PRESENT');
@@ -107,7 +119,7 @@ test('continued pages only become complete when the chain closes on one snapshot
 });
 
 test('snapshot plus continuous watch reconstructs delete/recreate without collapsing UID lifetimes', () => {
-  const initialPage = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '500', continue: '' }, items: [cm('uid-a', '499', { value: 'old' })] }), 'default')!;
+  const initialPage = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '500', continue: '' }, items: [listItem('uid-a', '499', { value: 'old' })] }), 'default')!;
   const snapshot = assembleCompleteList([initialPage])!;
   const deleted = projectConfigMap(certifyGet(cm('uid-a', '501', { value: 'old' })))!;
   const recreated = projectConfigMap(certifyGet(cm('uid-b', '502', { value: 'new' })))!;
@@ -118,7 +130,7 @@ test('snapshot plus continuous watch reconstructs delete/recreate without collap
 });
 
 test('broken watch continuity fails closed and requires a relist', () => {
-  const initialPage = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '500', continue: '' }, items: [cm('uid-a', '499')] }), 'default')!;
+  const initialPage = projectConfigMapListPage(certifyList({ apiVersion: 'v1', kind: 'ConfigMapList', metadata: { resourceVersion: '500', continue: '' }, items: [listItem('uid-a', '499')] }), 'default')!;
   const snapshot = assembleCompleteList([initialPage])!;
   const broken: WatchSegment = { namespace: 'default', start_resource_version: '500', events: [], continuity: 'broken-relist-required', termination: 'gone', last_resource_version: '500' };
   assert.equal(replaySnapshotAndWatch(snapshot, broken), null);
