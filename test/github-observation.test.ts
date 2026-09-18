@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   deriveObservationCatalog,
   deriveObservationOperation,
+  GitHubRestTransport,
   observeOperation,
   type OpenApiDocument,
 } from '../src/github-openapi.ts';
