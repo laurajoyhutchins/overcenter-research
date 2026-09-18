@@ -124,9 +124,11 @@ function verifyOperation({
   assert.equal(pinned.operation_id,generated.operation_id);
   assert.equal(pinned.path_template,generated.path_template);
   assert.equal(pinned.method,generated.method);
+  const parameterKey=(parameter:{in:string;name:string;required:boolean})=>
+    `${parameter.in}:\0${parameter.name}:\0${String(parameter.required)}`;
   assert.deepEqual(
-    pinned.parameters.map(parameter=>[parameter.in,parameter.name,parameter.required]),
-    generated.parameters.map(parameter=>[parameter.in,parameter.name,parameter.required]),
+    pinned.parameters.map(parameterKey).sort(),
+    generated.parameters.map(parameterKey).sort(),
   );
 
   const verified:Record<string,string[]>={};
