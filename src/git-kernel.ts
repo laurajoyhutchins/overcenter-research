@@ -53,10 +53,29 @@ export interface Observation extends Data {
   actual_state?: string;
 }
 
+export type Dependency =
+  | { kind: 'control'; upstream: string }
+  | {
+      kind: 'semantic';
+      upstream: string;
+      consumes:
+        | { kind: 'output'; selector: string }
+        | { kind: 'evidence'; selector: string };
+    };
+
 export interface Obligation {
   id: string;
   deps: string[];
+  dependencies: Dependency[];
   packet: Data;
+  postcondition: Postcondition;
+}
+
+interface ObligationInput {
+  id: string;
+  deps?: string[];
+  dependencies?: Dependency[];
+  packet?: Data;
   postcondition: Postcondition;
 }
 interface State {
@@ -82,12 +101,19 @@ export interface Work extends Obligation {
   claimed_revision?: string;
   blocked_reason?: string;
 }
-export interface Run { id: string; obligation_id: string; claimed_revision: string; claim_commit: string }
+export interface Run {
+  id: string;
+  obligation_id: string;
+  claimed_revision: string;
+  claim_commit: string;
+  obligation_key: string;
+}
 interface ClaimFact {
   schema: typeof CLAIM_SCHEMA;
   run_id: string;
   obligation_id: string;
   claimed_revision: string;
+  obligation_key: string;
 }
 interface Lifecycle {
   status: LifecycleStatus;
@@ -181,7 +207,9 @@ export class GitOvercenterKernel {
     return sha;
   }
 
-  define({ id, deps = [], packet = {}, postcondition }: { id: string; deps?: string[]; packet?: Data; postcondition: Postcondition }): string {
+  define(input: ObligationInput): string {
+    const obligation=this.#normalizeObligation(input);
+    const {id,postcondition}=obligation;
     this.#validatePostcondition(postcondition);
     const head = this.#requireHead();
     const state = this.#state(head);
@@ -189,7 +217,6 @@ export class GitOvercenterKernel {
     if (this.#hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
 
-    const obligation={id,deps,packet,postcondition};
     const next=this.#withObligation(state,obligation,'defined',head);
     this.#validateGraph(next);
     const fact:ObligationFact={schema:OBLIGATION_SCHEMA,kind:'defined',obligation};
@@ -198,10 +225,9 @@ export class GitOvercenterKernel {
     return commit;
   }
 
-  amend(
-    { id, deps = [], packet = {}, postcondition }: { id: string; deps?: string[]; packet?: Data; postcondition: Postcondition },
-    expectedRevision: string,
-  ): string {
+  amend(input: ObligationInput, expectedRevision: string): string {
+    const obligation=this.#normalizeObligation(input);
+    const {id,postcondition}=obligation;
     this.#validatePostcondition(postcondition);
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
@@ -210,11 +236,6 @@ export class GitOvercenterKernel {
     if (this.#hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
     if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
 
-    const dependents=Object.values(state.obligations)
-      .filter(candidate=>candidate.id!==id && this.#dependsOn(state,candidate.id,id));
-    if (dependents.length>0) throw new Error('AMEND_HAS_DEPENDENTS');
-
-    const obligation={id,deps,packet,postcondition};
     const previous=state.definition_commits[id];
     const next=this.#withObligation(state,obligation,'amended',head);
     this.#validateGraph(next);
@@ -257,11 +278,25 @@ export class GitOvercenterKernel {
     const history=this.#history(state,head);
     const claimabilityError=this.#claimabilityError(state,work,history.lifecycles);
     if (claimabilityError) throw new Error(claimabilityError);
+    const obligationKey=this.#obligationKey(state,work,history.lifecycles,history.receiptsByRun);
+    if (!obligationKey) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
     const runId = randomUUID();
-    const claim:ClaimFact={schema:CLAIM_SCHEMA,run_id:runId,obligation_id:id,claimed_revision:head};
+    const claim:ClaimFact={
+      schema:CLAIM_SCHEMA,
+      run_id:runId,
+      obligation_id:id,
+      claimed_revision:head,
+      obligation_key:obligationKey,
+    };
     const commit = this.#commit(head,`overcenter: claim ${id} ${runId}`,null,claim);
     if (!this.#cas(commit,head)) throw new Error('CLAIM_LOST');
-    return {id:runId, obligation_id:id, claimed_revision:head, claim_commit:commit};
+    return {
+      id:runId,
+      obligation_id:id,
+      claimed_revision:head,
+      claim_commit:commit,
+      obligation_key:obligationKey,
+    };
   }
 
   resolve(runId: string): Receipt {
