@@ -18,7 +18,7 @@ export type RealizationStatus =
   | 'RECOVERY_REQUIRED'
   | 'DONE';
 
-export interface Lifecycle {
+export interface RealizationLifecycle {
   status:RealizationStatus;
   run?:Run;
 }
@@ -28,7 +28,7 @@ const UNSETTLED_RUN_STATES=new Set<RealizationStatus>(['EXECUTING','WAITING','RE
 function semanticDependencyIdentity(
   catalog:ObligationCatalog,
   edge:Extract<Dependency,{kind:'semantic'}>,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationLifecycle>,
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
   const upstream=catalog.obligations[edge.upstream];
@@ -55,7 +55,7 @@ function semanticDependencyIdentity(
 export function obligationKey(
   catalog:ObligationCatalog,
   work:Obligation,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationLifecycle>,
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
   const semantic=work.dependencies
@@ -66,7 +66,7 @@ export function obligationKey(
     identity:string;
   }>=[];
   for (const edge of semantic) {
-    const identity=semanticDependencyIdentity(state,edge,lifecycles,receiptsByRun);
+    const identity=semanticDependencyIdentity(catalog,edge,lifecycles,receiptsByRun);
     if (!identity) return null;
     consumed.push({
       consumes:structuredClone(edge.consumes),
@@ -87,8 +87,8 @@ export function deriveLifecycles(
   catalog:ObligationCatalog,
   runs:Map<string,RunRecord>,
   receiptsByRun:Map<string,Receipt>,
-):Map<string,Lifecycle> {
-  const lifecycles=new Map<string,Lifecycle>();
+):Map<string,RealizationLifecycle> {
+  const lifecycles=new Map<string,RealizationLifecycle>();
   const visiting=new Set<string>();
   const allRuns=[...runs.values()];
 
@@ -138,6 +138,6 @@ export function deriveLifecycles(
   return lifecycles;
 }
 
-export function hasUnsettledRun(lifecycles:Map<string,Lifecycle>):boolean {
+export function hasUnsettledRun(lifecycles:Map<string,RealizationLifecycle>):boolean {
   return [...lifecycles.values()].some(({status})=>UNSETTLED_RUN_STATES.has(status));
 }

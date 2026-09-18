@@ -7,13 +7,13 @@ import {
   dependencyUpstreams,
   dependsOn,
 } from './graph.ts';
-import type { Lifecycle } from './lifecycle.ts';
+import type { RealizationLifecycle } from './lifecycle.ts';
 import { effectConflictSemantics } from './semantics.ts';
 
-export function claimabilityError(
+export function claimBlockReason(
   catalog:ObligationCatalog,
   work:Obligation,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationLifecycle>,
 ):string|null {
   const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
   if (realization!=='UNREALIZED') return 'NOT_READY';
@@ -35,9 +35,9 @@ export function claimabilityError(
     const otherSemantics=effectConflictSemantics(other.postcondition);
     if (!otherSemantics || otherSemantics.coordinate!==semantics.coordinate) continue;
 
-    const sameDesired=otherSemantics.desiredState===semantics.desiredState;
+    const sameDesiredState=otherSemantics.desiredState===semantics.desiredState;
     if (
-      sameDesired
+      sameDesiredState
       && semantics.sameDesiredCommutes
       && otherSemantics.sameDesiredCommutes
     ) continue;
@@ -53,7 +53,7 @@ export function projectWork(
   catalog:ObligationCatalog,
   work:Obligation,
   revision:string,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationLifecycle>,
 ):Work {
   const lifecycle=lifecycles.get(work.id)??{status:'UNREALIZED' as const};
   const status=lifecycle.status==='UNREALIZED' ? 'READY' : lifecycle.status;
@@ -68,7 +68,7 @@ export function projectWork(
 
   if (lifecycle.status!=='UNREALIZED') return projected;
 
-  const reason=claimabilityError(catalog,work,lifecycles);
+  const reason=claimBlockReason(catalog,work,lifecycles);
   if (reason && reason!=='NOT_READY') {
     projected.status='BLOCKED';
     projected.blocked_reason=reason;

@@ -35,7 +35,7 @@ import {
   obligationKey,
 } from './lifecycle.ts';
 import {
-  claimabilityError,
+  claimBlockReason,
   projectWork,
 } from './eligibility.ts';
 import {
@@ -92,7 +92,7 @@ export class GitOvercenterKernel {
     const revision=this.#requireAuthorityRevision();
     const projection=this.#reconstructProjection(revision);
     const {catalog,history}=projection;
-    if (hasUnsettledRun(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    if (hasUnsettledRun(history.lifecycles)) throw new Error('PROJECT_HAS_UNSETTLED_RUN');
     if (catalog.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
 
     const next=withObligation(catalog,obligation,revision);
@@ -114,7 +114,7 @@ export class GitOvercenterKernel {
     if (revision!==expectedRevision) throw new Error('STALE_REVISION');
     const projection=this.#reconstructProjection(revision);
     const {catalog,history}=projection;
-    if (hasUnsettledRun(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    if (hasUnsettledRun(history.lifecycles)) throw new Error('PROJECT_HAS_UNSETTLED_RUN');
     if (!catalog.obligations[id]) throw new Error(`unknown obligation: ${id}`);
 
     const previous=catalog.definition_commits[id];
@@ -148,7 +148,7 @@ export class GitOvercenterKernel {
     const {catalog,history}=this.#reconstructProjection(revision);
     const work=Object.values(catalog.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .find(candidate=>claimabilityError(catalog,candidate,history.lifecycles)===null);
+      .find(candidate=>claimBlockReason(catalog,candidate,history.lifecycles)===null);
     return work ? projectWork(catalog,work,revision,history.lifecycles) : null;
   }
 
@@ -158,7 +158,7 @@ export class GitOvercenterKernel {
     const {catalog,history}=this.#reconstructProjection(revision);
     const work=catalog.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    const claimError=claimabilityError(catalog,work,history.lifecycles);
+    const claimError=claimBlockReason(catalog,work,history.lifecycles);
     if (claimError) throw new Error(claimError);
     const key=obligationKey(catalog,work,history.lifecycles,history.receiptsByRun);
     if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');

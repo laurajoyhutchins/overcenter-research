@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
 import type { RunRecord, ObligationCatalog, Receipt } from '../src/facts.ts';
 import { deriveLifecycles, obligationKey } from '../src/lifecycle.ts';
-import { claimabilityError, projectWork } from '../src/eligibility.ts';
+import { claimBlockReason, projectWork } from '../src/eligibility.ts';
 
 const work:Obligation={
   id:'a',
@@ -16,7 +16,7 @@ const state:ObligationCatalog={obligations:{a:work},definition_commits:{a:'defin
 test('unrealized lifecycle becomes public READY only after eligibility',()=>{
   const lifecycles=deriveLifecycles(state,new Map(),new Map());
   assert.equal(lifecycles.get('a')?.status,'UNREALIZED');
-  assert.equal(claimabilityError(state,work,lifecycles),null);
+  assert.equal(claimBlockReason(state,work,lifecycles),null);
   assert.equal(projectWork(state,work,'revision-a',lifecycles).status,'READY');
 });
 

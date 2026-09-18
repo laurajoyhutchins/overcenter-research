@@ -25,10 +25,10 @@ import {
   hasUnsettledRun,
   obligationKey,
 } from './lifecycle.ts';
-import type { Lifecycle } from './lifecycle.ts';
+import type { RealizationLifecycle } from './lifecycle.ts';
 
 export interface HistoryProjection {
-  lifecycles:Map<string,Lifecycle>;
+  lifecycles:Map<string,RealizationLifecycle>;
   runs:Map<string,RunRecord>;
   receiptsByRun:Map<string,Receipt>;
   receipts:Receipt[];
@@ -70,7 +70,7 @@ export function projectReceipt(
 
 export function reconstructProjection(commits:FactCommit[]):Projection {
   const catalog=emptyObligationCatalog();
-  let lifecycles=new Map<string,Lifecycle>();
+  let lifecycles=new Map<string,RealizationLifecycle>();
   const runs=new Map<string,RunRecord>();
   const receiptsByRun=new Map<string,Receipt>();
   const receipts:Receipt[]=[];
@@ -89,7 +89,7 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
         if (fact.previous_definition_commit!==catalog.definition_commits[id]) {
           throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
         }
-        if (hasUnsettledRun(lifecycles)) throw new Error('AMEND_WHILE_UNSETTLED_RUN_STATES');
+        if (hasUnsettledRun(lifecycles)) throw new Error('AMEND_WITH_UNSETTLED_RUN');
       } else {
         throw new Error('INVALID_OBLIGATION_KIND');
       }
