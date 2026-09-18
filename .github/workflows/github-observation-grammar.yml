@@ -9,14 +9,19 @@ on:
       - experiment/github-observation-semantics
       - experiment/certified-github-status-readback
       - integration/provider-observation-core
+      - integration/certified-github-ref-binding
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
       - src/observation.ts
+      - src/model.ts
       - src/provider-observation/**
       - src/providers/github-certified-status.ts
+      - src/providers/github-certified-ref.ts
+      - src/providers/github-contract.ts
       - src/providers/github-status.ts
       - test/github-certified-status.test.ts
+      - test/github-certified-ref.test.ts
       - test/provider-observation.test.ts
       - research/github-observation-grammar.md
       - package.json
@@ -24,6 +29,7 @@ on:
     branches:
       - main
       - experiment/certified-github-status-readback
+      - integration/provider-observation-core
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
@@ -61,6 +67,8 @@ jobs:
         run: npm test
       - name: Promoted provider observation core
         run: npm run test:provider-observation
+      - name: Certified GitHub ref binding
+        run: npm run test:github-certified-ref
       - name: GitHub observation experiment
         run: npm run test:github-observation
 
@@ -78,9 +86,9 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/github/rest-api-description/d4278c869e367f5d6d4e0f46878119128abba77b/descriptions/api.github.com/dereferenced/api.github.com.2026-03-10.deref.json \
             --output "$RUNNER_TEMP/github-openapi.json"
-      - name: Verify kernel status contract against pinned OpenAPI
+      - name: Verify kernel GitHub contracts against pinned OpenAPI
         run: |
-          node --experimental-strip-types experiments/github-observation-grammar/verify-kernel-status-contract.ts \
+          node --experimental-strip-types experiments/github-observation-grammar/verify-kernel-github-contracts.ts \
             "$RUNNER_TEMP/github-openapi.json"
       - name: Generate complete read-only observation inventory
         run: |
@@ -113,3 +121,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/live-kernel-status-readback.ts
+      - name: Prove kernel exact-ref readback uses certified observations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/live-kernel-ref-readback.ts
