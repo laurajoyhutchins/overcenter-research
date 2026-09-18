@@ -322,6 +322,8 @@ negative_evidence_authoritative = false
 
 rather than making completeness an inference hidden in control flow.
 
+The first pull-request live proof exposed this case directly. While the PR workflow's check was visibly running, an immediate `checks/list-for-ref` read against the synthetic PR merge SHA returned an empty collection. The experiment treats that as a successful observation of what GitHub exposed at that instant, but **not** as proof that no check existed. The live positive-membership proof therefore uses a stable coordinate with established checks, while the current-run coordinate remains a hostile visibility probe whose missing member evaluates `INDETERMINATE`.
+
 ### Conditional requests / 304
 
 Conditional HTTP is modeled as a cross-cutting observation semantic.
