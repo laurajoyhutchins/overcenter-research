@@ -85,7 +85,20 @@ settle(run.id, {
 
 There is no caller-provided `DONE` verifier path.
 
-The file-content verifier is intentionally only a proof adapter, not a proposed universal evidence model. Additional verifier kinds should have to earn their way in as deterministic kernel-owned semantics.
+The file-content verifier is intentionally only a local proof adapter, not a proposed universal evidence model.
+
+The branch now also has a real cross-sandbox provider adapter:
+
+```ts
+{
+  verifier: 'git-ref-equals/v1',
+  remote: 'origin',
+  ref: 'refs/tags/overcenter-actions-effect-<run>',
+  target_sha: '<exact commit>'
+}
+```
+
+The kernel performs `git ls-remote` itself. Exact SHA match becomes `DONE`; an absent ref becomes `READY`; a conflicting ref or unreadable provider becomes `RECOVERY_REQUIRED`.
 
 ## Disposable-agent handoff
 
@@ -148,6 +161,59 @@ execution platform owns:
 
 No shared SQL database is required by the experiment.
 
+## Live GitHub Actions proof
+
+The disposable-agent model has now been exercised on GitHub-hosted runners, not only local bare repositories.
+
+Workflow run `35303766455` used two different hosted VMs:
+
+```text
+Agent A job
+  fresh checkout
+  initialize/fetch refs/overcenter/state
+  claim exact run via leased remote CAS
+  create GitHub effect ref
+  read effect ref back
+  exit 86 without settlement
+        │
+        ▼
+GitHub records Agent A step outcome = failure
+Agent A job ends and its runner is discarded
+        │
+        ▼
+Agent B job
+  fresh checkout on a different runner
+  receive only GitHub's recorded failure outcome
+  reconstruct unresolved run from refs/overcenter/state
+  recover exact run
+  read provider ref independently
+  settle verified DONE
+```
+
+No Agent A run ID, cache, worktree, artifact, SQLite database, or process memory is passed to Agent B. Agent B finds the Overcenter run identity in Git authority.
+
+The hosted repository accepted the custom authority ref and exact leased updates to it. After the proof:
+
+- `refs/overcenter/state` points to settlement commit `ae574663ed1ec321ae1121a48fe92019c5eed006`;
+- the external effect ref `refs/tags/overcenter-actions-effect-35303766455-1` points to source commit `835b974ada11d498d84ce4cab957addfb26517a6`;
+- the recovery commit is `175dbfec7219dbe9c33904b49f609d79b11add25`;
+- the original claim commit is `d9f2c9a20b37c2da757c0988678d61768c05e70a`;
+- the exact Overcenter run is `bc85b322-4fa7-4fb1-a8da-3f72f1b13803`.
+
+The recovery receipt records:
+
+```text
+source: github-actions-job-supervisor
+workflow_run_id: 35303766455
+workflow_run_attempt: 1
+job: agent-a
+outcome: failure
+```
+
+The following settlement receipt independently records matching expected and actual GitHub provider SHAs and `verified: true`.
+
+The overall Actions workflow concludes successfully because the deliberate Agent A process failure is treated as an observed lifecycle event rather than a failed proof.
+
 ## Fail-closed authority
 
 Missing authority is not empty state.
@@ -197,6 +263,7 @@ The sandbox validation covers:
 
 - exact-revision claim ancestry;
 - kernel-owned postcondition observation;
+- kernel-owned Git-provider ref observation;
 - wrong-but-real effects cannot become `DONE` or `READY`;
 - only authoritative absence permits replay;
 - stale-revision fencing;
@@ -207,7 +274,8 @@ The sandbox validation covers:
 - aggressive Git GC;
 - SHA-256 repositories;
 - 16 independent disposable clones contending on one central authority, with exactly one claim;
-- complete destruction of Agent A followed by successful reconstruction and settlement by fresh Agent B.
+- complete destruction of Agent A followed by successful reconstruction and settlement by fresh Agent B;
+- a live GitHub Actions handoff across two hosted runners with GitHub itself supplying the lifecycle fact and provider readback.
 
 The combined focused, handoff, and stress suites passed **17/17** in the sandbox before being committed.
 
@@ -222,6 +290,9 @@ test/kernel.test.js           SQLite proofs
 test/git-kernel.test.ts       Git kernel proofs
 test/disposable-agent.test.ts disposable-agent handoff proof
 stress/git-stress.ts          adversarial Git/clone stress tests
+actions/disposable-agent-a.ts  hosted disposable executor
+actions/disposable-agent-b.ts  hosted recovery executor
+.github/workflows/disposable-agent-proof.yml  live Actions proof
 research/                     prior research
 ```
 
