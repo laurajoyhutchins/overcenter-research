@@ -100,7 +100,10 @@ Important entry points:
 
 - [`src/git-kernel.ts`](./src/git-kernel.ts) - transaction policy over durable facts and authoritative readback.
 - [`src/git-store.ts`](./src/git-store.ts) - Git object storage, history access, and authority-ref CAS.
-- [`src/projection.ts`](./src/projection.ts) - pure fact replay, lifecycle projection, graph, and reuse semantics.
+- [`src/facts.ts`](./src/facts.ts) - durable fact schemas plus obligation/fact validation.
+- [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
+- [`src/graph.ts`](./src/graph.ts) - dependency graph, lifecycle, reuse identity, and claimability.
+- [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to current project projection.
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
