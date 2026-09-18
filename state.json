@@ -162,7 +162,7 @@
         "context": "overcenter/trust-proof/35304983844/1",
         "expected_state": "success"
       },
-      "status": "RECOVERY_REQUIRED",
+      "status": "DONE",
       "run_id": "e8d297ff-75f0-4ebe-b052-501af6e9b8d3",
       "claimed_revision": "dd5e0b5ce6b43b0f95e542e837e606ad57f1fdf7",
       "claim_commit": "7d95620952df2d400dd10331d938713142bcd156"
