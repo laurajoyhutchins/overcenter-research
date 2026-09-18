@@ -1,5 +1,5 @@
 import { appendFileSync } from 'node:fs';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
 function required(name: string): string {
   const value = process.env[name];

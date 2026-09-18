@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
 function required(name: string): string {
   const value = process.env[name];
