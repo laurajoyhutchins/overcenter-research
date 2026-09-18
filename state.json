@@ -147,7 +147,9 @@
         "context": "overcenter/concurrency/35310443402/1/beta",
         "expected_state": "success"
       },
-      "status": "READY"
+      "status": "EXECUTING",
+      "run_id": "536e6327-bd51-4066-a83e-9c24238c55ed",
+      "claimed_revision": "5c7abb91ff9b92d1301b8092ab096f99e2a9d893"
     }
   }
 }
