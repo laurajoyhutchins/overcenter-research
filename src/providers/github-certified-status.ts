@@ -56,7 +56,7 @@ interface StatusMember {
   updated_at:string;
 }
 
-const STATUS_OPERATION:ObservationOperation={
+export const GITHUB_COMMIT_STATUSES_OPERATION:ObservationOperation={
   provider:'github',
   api_version:GITHUB_API_VERSION,
   method:'GET',
@@ -120,14 +120,14 @@ function rawStatusObservation({
     contract:{
       provider:'github',
       api_version:GITHUB_API_VERSION,
-      operation_id:STATUS_OPERATION.operation_id,
+      operation_id:GITHUB_COMMIT_STATUSES_OPERATION.operation_id,
       schema_sha256:GITHUB_OPENAPI_SHA256,
     },
     observer:{kind:'git-kernel',id:'github-commit-status/v1'},
     observed_at:observedAt,
     request:{
       method:'GET',
-      path_template:STATUS_OPERATION.path_template,
+      path_template:GITHUB_COMMIT_STATUSES_OPERATION.path_template,
       path:`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(commitSha)}/statuses?per_page=${perPage}&page=${page}`,
       parameters:{owner,repo,ref:commitSha,page,per_page:perPage},
       headers:{
@@ -147,7 +147,7 @@ function certifiedMembers(observation:RawObservation):{
   optional_absent_paths:string[];
 } {
   const certified=validateObservationSlice(
-    STATUS_OPERATION,
+    GITHUB_COMMIT_STATUSES_OPERATION,
     observation,
     RESPONSE_SLICES['repos/list-commit-statuses-for-ref'],
   );
