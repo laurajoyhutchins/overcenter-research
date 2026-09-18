@@ -18,6 +18,10 @@ import {
   GITHUB_GET_REF_OPERATION,
   GITHUB_REF_RESPONSE_SLICE,
 } from '../../src/providers/github-certified-ref.ts';
+import {
+  GITHUB_GET_REPOSITORY_OPERATION,
+  GITHUB_REPOSITORY_RESPONSE_SLICE,
+} from '../../src/providers/github-certified-repository.ts';
 import type {
   ResponseFieldSpec,
   StructuralOperation,
@@ -145,6 +149,11 @@ function verifyOperation({
   return verified;
 }
 
+const pinnedRepository=deriveObservationOperation(document,{
+  apiVersion:GITHUB_API_VERSION,
+  method:'get',
+  pathTemplate:'/repos/{owner}/{repo}',
+});
 const pinnedStatus=deriveObservationOperation(document,{
   apiVersion:GITHUB_API_VERSION,
   method:'get',
@@ -156,6 +165,11 @@ const pinnedRef=deriveObservationOperation(document,{
   pathTemplate:'/repos/{owner}/{repo}/git/ref/{ref}',
 });
 
+const repositoryVerified=verifyOperation({
+  pinned:pinnedRepository,
+  generated:GITHUB_GET_REPOSITORY_OPERATION,
+  fields:GITHUB_REPOSITORY_RESPONSE_SLICE,
+});
 const statusVerified=verifyOperation({
   pinned:pinnedStatus,
   generated:GITHUB_COMMIT_STATUSES_OPERATION,
@@ -170,6 +184,10 @@ const refVerified=verifyOperation({
 console.log(JSON.stringify({
   schema_sha256:actualDigest,
   operations:{
+    [pinnedRepository.operation_id]:{
+      selected_paths:Object.keys(repositoryVerified),
+      structural_summaries:repositoryVerified,
+    },
     [pinnedStatus.operation_id]:{
       selected_paths:Object.keys(statusVerified),
       structural_summaries:statusVerified,
