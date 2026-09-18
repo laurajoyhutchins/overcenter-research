@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const STATE_REF = 'refs/overcenter/state';
 const OBLIGATION_SCHEMA = 'overcenter-git-obligation-v1';
-const CLAIM_SCHEMA = 'overcenter-git-claim-v1';
+const CLAIM_SCHEMA = 'overcenter-git-claim-v2';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v3';
 
 type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
