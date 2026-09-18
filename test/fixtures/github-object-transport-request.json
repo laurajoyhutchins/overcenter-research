@@ -8,6 +8,10 @@
     {
       "path": "test/fixtures/github-object-transport.txt",
       "writable": true
+    },
+    {
+      "path": ".transport-proof/hidden.txt",
+      "writable": true
     }
   ]
 }
