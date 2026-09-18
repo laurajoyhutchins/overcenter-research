@@ -3,9 +3,32 @@ export interface EntityIdentity {
   node_id: string;
 }
 
-export interface RefCollectionPageShape<Member, Evidence> {
+export interface NumberedEntitySubject<Kind extends string> extends EntityIdentity {
+  kind: Kind;
+  number: number;
+  id: number;
+}
+
+export type MutableEntitySnapshot<
+  Kind extends string,
+  Fields extends object,
+  Evidence,
+> = {
+  kind: 'entity-snapshot';
+  subject: NumberedEntitySubject<Kind>;
+  stability: 'mutable-snapshot';
+  evidence: Evidence;
+} & Fields;
+
+export type RefCollectionPageShape<
+  Member,
+  Evidence,
+  Kind extends string = string,
+  Extra extends object = object,
+> = {
   kind: 'collection-page';
   subject: {
+    kind: Kind;
     repository_id: number;
     ref: string;
   };
@@ -16,7 +39,7 @@ export interface RefCollectionPageShape<Member, Evidence> {
   enumeration: 'partial' | 'terminal-page-seen';
   negative_evidence_authoritative: false;
   evidence: Evidence;
-}
+} & Extra;
 
 export interface ShapeEvaluation<T> {
   state: 'SATISFIED' | 'UNSATISFIED' | 'INDETERMINATE';
