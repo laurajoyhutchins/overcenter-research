@@ -32,7 +32,7 @@ assert.equal(works.length,4);
 
 const unordered=works.filter(work=>work.id.includes('-unordered-'));
 assert.equal(unordered.length,2);
-assert.ok(unordered.every(work=>work.status==='READY' && !work.run_id));
+assert.ok(unordered.every(work=>work.status==='BLOCKED' && !work.run_id && work.blocked_reason?.startsWith('UNORDERED_EFFECT_CONFLICT:')));
 const uAlpha=unordered.find(work=>work.id.endsWith('-alpha'))!;
 assert.throws(
   ()=>kernel.claim(uAlpha.id,uAlpha.revision),
