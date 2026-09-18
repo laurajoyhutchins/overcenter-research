@@ -531,26 +531,26 @@ The remaining minimality constraint is therefore not "one effect at a time." It 
 
 > Add concurrency semantics only where the provider adapter can name the mutation coordinate and justify commutativity/conflict rules.
 
-## Run it
+## Evidence ladder
 
-Validated in the assistant sandbox with Node.js 22.16.0 and Git 2.47.3. The TypeScript path uses Node's built-in type stripping; there is no TypeScript compiler, loader, or package dependency.
+The command name states what kind of evidence a green check supports:
 
-```sh
-npm test
-npm run test:git
-npm run test:handoff
-npm run test:eventual
-npm run test:concurrency
-npm run test:effect-order
-npm run test:stress
-npm run demo:git
-```
+| Command | Evidence |
+| --- | --- |
+| `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
+| `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
+| `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
+| `npm run proof:live` | Real-provider proof on GitHub-hosted runners. |
 
-Equivalent direct execution:
+These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
+
+`proof:live` dispatches `.github/workflows/disposable-agent-proof.yml` through the GitHub CLI. To target a non-default branch, pass the ref explicitly:
 
 ```sh
-node --experimental-strip-types examples/git-demo.ts
+npm run proof:live -- --ref <branch>
 ```
+
+Focused experiment and demo scripts remain available when debugging a specific claim.
 
 ## Current proof set
 
@@ -580,7 +580,7 @@ The sandbox validation covers:
 - canonical GitHub-status effect conflicts are blocked unless graph ordering makes the sequence explicit;
 - identical desired GitHub statuses on the same canonical coordinate are explicitly modeled as commuting.
 
-The proof suite is intentionally growing; the README does not pin a historical pass count. Hosted proofs run from current `main` against fresh per-run authority refs and may also be launched manually. Run `npm test` for the current focused regression set and the dedicated scripts above for handoff, concurrency, effect-ordering, and stress experiments.
+The proof suite is intentionally growing; the README does not pin a historical pass count. Use the evidence ladder above to distinguish regression evidence, local adversarial evidence, formal evidence, and real-provider evidence.
 
 ## Repository shape
 
@@ -637,7 +637,7 @@ formal/
   hosted orchestration for live proofs; implementation stays beside experiments
 ```
 
-Run `npm test` for the ordinary mechanism + experiment gate. Formal and stress proofs remain explicit dedicated commands.
+The repository layout and the command names intentionally describe the same evidence boundaries: regression tests, local experiments, formal models, and hosted provider proofs.
 
 
 The experiment is intentionally small. New machinery should have to demonstrate that Git authority plus disposable local state cannot provide the required safety first.
