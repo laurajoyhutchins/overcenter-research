@@ -66,7 +66,34 @@ const openapi: OpenApiDocument = {
           { name: 'owner', in: 'path', required: true, schema: { type: 'string' } },
           { name: 'repo', in: 'path', required: true, schema: { type: 'string' } },
         ],
-        responses: { '200': { description: 'Response' }, '301': { description: 'Moved' }, '404': { description: 'Not found' } },
+        responses: {
+          '200': {
+            description: 'Response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['id', 'node_id', 'full_name', 'name', 'owner'],
+                  properties: {
+                    id: { type: 'integer' },
+                    node_id: { type: 'string', minLength: 1 },
+                    full_name: { type: 'string', minLength: 1 },
+                    name: { type: 'string', minLength: 1 },
+                    owner: {
+                      type: 'object',
+                      required: ['login'],
+                      properties: {
+                        login: { type: 'string', minLength: 1 },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '301': { description: 'Moved' },
+          '404': { description: 'Not found' },
+        },
       },
     },
     [paths.ref]: {
@@ -197,7 +224,7 @@ async function observe(
   return observeOperation(op, values, { request: async () => result }, provenance, { headers });
 }
 
-async function repositoryObservation(owner = 'acme', repo = 'widget', id = 42, fullName = `${owner}/${repo}`): Promise<RawObservation> {
+async function rawRepositoryObservation(owner = 'acme', repo = 'widget', id = 42, fullName = `${owner}/${repo}`): Promise<RawObservation> {
   return observe(operation(paths.repo), { owner, repo }, response(200, {
     id,
     node_id: `R_${id}`,
@@ -205,6 +232,16 @@ async function repositoryObservation(owner = 'acme', repo = 'widget', id = 42, f
     full_name: fullName,
     owner: { login: owner },
   }));
+}
+
+async function repositoryObservation(owner = 'acme', repo = 'widget', id = 42, fullName = `${owner}/${repo}`) {
+  const repoOperation = operation(paths.repo);
+  const observation = await rawRepositoryObservation(owner, repo, id, fullName);
+  return validateObservationSlice(
+    repoOperation,
+    observation,
+    RESPONSE_SLICES['repos/get'],
+  );
 }
 
 test('OpenAPI yields only read operations and auxiliary request headers remain explicit evidence', async () => {
@@ -243,7 +280,10 @@ test('OpenAPI yields only read operations and auxiliary request headers remain e
   );
 });
 
-test('stable repository identity is numeric even when the observed owner/name alias changes', async () => {
+test('stable repository identity requires structural certification and survives owner/name alias changes', async () => {
+  const raw = await rawRepositoryObservation('acme', 'widget', 42);
+  assert.equal(projectRepositoryIdentity(raw), null);
+
   const before = projectRepositoryIdentity(await repositoryObservation('acme', 'widget', 42));
   const after = projectRepositoryIdentity(await repositoryObservation('new-acme', 'renamed-widget', 42));
   assert.ok(before && after);
