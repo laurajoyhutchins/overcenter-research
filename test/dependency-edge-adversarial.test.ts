@@ -81,6 +81,7 @@ function obligationFact(repo: string, commit: string) {
       { encoding: 'utf8' },
     ),
   ) as {
+    schema?: string;
     obligation: Record<string, unknown>;
     kind: string;
     previous_definition_commit?: string;
@@ -319,6 +320,7 @@ test('semantic selector is part of durable edge meaning', () => {
     });
 
     const fact = obligationFact(f.repo, bDefinition);
+    assert.equal(fact.schema, 'overcenter-git-obligation-v2');
     const stored = fact.obligation as {
       dependencies?: Edge[];
     };
