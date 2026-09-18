@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/kernel.test.js && node --experimental-strip-types --test test/git-kernel.test.ts",
     "demo": "node examples/demo.js",
-    "test:git": "node --test test/git-kernel.test.js",
-    "demo:git": "node examples/git-demo.js",
-    "test:stress": "node --test stress/git-stress.js"
+    "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts",
+    "demo:git": "node --experimental-strip-types examples/git-demo.ts",
+    "test:stress": "node --experimental-strip-types --test stress/git-stress.ts"
   },
   "engines": {
     "node": ">=22.5"
