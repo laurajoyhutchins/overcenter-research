@@ -321,20 +321,19 @@ function refCollectionBase(
 }
 
 export function projectRepositoryIdentity(observation: RawObservation): RepositoryIdentityFact | null {
-  if (!observed200(observation, 'repos/get')) return null;
+  const requiredPaths = RESPONSE_SLICES['repos/get'].map(field => field.path);
+  if (!structurallyValidatedFor(observation, 'repos/get', requiredPaths)) return null;
+
   const coordinate = requestCoordinate(observation);
+  if (!coordinate) return null;
   const body = observation.outcome.value as {
-    id?: unknown;
-    node_id?: unknown;
-    full_name?: unknown;
-    name?: unknown;
-    owner?: { login?: unknown };
-  } | undefined;
-  if (!coordinate || !body) return null;
-  if (!Number.isSafeInteger(body.id) || Number(body.id) <= 0) return null;
-  if (typeof body.node_id !== 'string' || body.node_id.length === 0) return null;
-  if (typeof body.full_name !== 'string' || typeof body.name !== 'string') return null;
-  if (typeof body.owner?.login !== 'string') return null;
+    id: number;
+    node_id: string;
+    full_name: string;
+    name: string;
+    owner: { login: string };
+  };
+  if (body.id <= 0) return null;
   if (lower(body.owner.login) !== lower(coordinate.owner) || lower(body.name) !== lower(coordinate.repo)) return null;
   if (lower(body.full_name) !== lower(`${body.owner.login}/${body.name}`)) return null;
 
@@ -342,7 +341,7 @@ export function projectRepositoryIdentity(observation: RawObservation): Reposito
     kind: 'repository-identity',
     subject: {
       kind: 'github.repository',
-      id: Number(body.id),
+      id: body.id,
       node_id: body.node_id,
     },
     relation: 'named',
