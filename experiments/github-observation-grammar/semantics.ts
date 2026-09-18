@@ -119,6 +119,26 @@ export type CommitStatusesPageFact = CollectionPageShape<
   FactEvidence
 >;
 
+export interface WorkflowRunMember {
+  id: number;
+  node_id: string;
+  workflow_id: number;
+  run_number: number;
+  run_attempt: number;
+  name: string;
+  event: string;
+  status: string;
+  conclusion: string | null;
+  head_sha: string;
+}
+
+export type WorkflowRunsPageFact = CollectionPageShape<
+  { kind: 'github.workflow-runs'; repository_id: number },
+  WorkflowRunMember,
+  FactEvidence,
+  { total_count: number }
+>;
+
 export type GithubFact =
   | RepositoryIdentityFact
   | GitRefTargetFact
@@ -126,7 +146,8 @@ export type GithubFact =
   | PullRequestSnapshotFact
   | IssueSnapshotFact
   | CheckRunsPageFact
-  | CommitStatusesPageFact;
+  | CommitStatusesPageFact
+  | WorkflowRunsPageFact;
 
 export interface GitRefTargetObligation {
   repository_id: number;
@@ -167,6 +188,17 @@ export interface CommitStatusObligation {
   node_id?: string;
   context?: string;
   state?: string;
+}
+
+export interface WorkflowRunObligation {
+  repository_id: number;
+  id?: number;
+  node_id?: string;
+  workflow_id?: number;
+  head_sha?: string;
+  event?: string;
+  status?: string;
+  conclusion?: string | null;
 }
 
 export interface ObligationEvaluation<T extends GithubFact = GithubFact> {
@@ -547,6 +579,66 @@ export function projectCommitStatusesPage(
   };
 }
 
+export function projectWorkflowRunsPage(
+  observation: RawObservation,
+  repository: RepositoryIdentityFact,
+): WorkflowRunsPageFact | null {
+  const base = collectionBase(observation, repository, 'actions/list-workflow-runs-for-repo');
+  if (!base) return null;
+  const body = base.body as {
+    total_count?: unknown;
+    workflow_runs?: Array<{
+      id?: unknown;
+      node_id?: unknown;
+      workflow_id?: unknown;
+      run_number?: unknown;
+      run_attempt?: unknown;
+      name?: unknown;
+      event?: unknown;
+      status?: unknown;
+      conclusion?: unknown;
+      head_sha?: unknown;
+    }>;
+  } | undefined;
+  if (!body || !Number.isSafeInteger(body.total_count) || Number(body.total_count) < 0 || !Array.isArray(body.workflow_runs)) return null;
+
+  const members: WorkflowRunMember[] = [];
+  for (const run of body.workflow_runs) {
+    if (!Number.isSafeInteger(run.id) || Number(run.id) <= 0) return null;
+    if (typeof run.node_id !== 'string' || run.node_id.length === 0) return null;
+    if (!Number.isSafeInteger(run.workflow_id) || Number(run.workflow_id) <= 0) return null;
+    if (!Number.isSafeInteger(run.run_number) || Number(run.run_number) <= 0) return null;
+    if (!Number.isSafeInteger(run.run_attempt) || Number(run.run_attempt) <= 0) return null;
+    if (typeof run.name !== 'string' || typeof run.event !== 'string' || typeof run.status !== 'string') return null;
+    if (!(run.conclusion === null || typeof run.conclusion === 'string')) return null;
+    if (typeof run.head_sha !== 'string' || !sha.test(run.head_sha)) return null;
+    members.push({
+      id: Number(run.id),
+      node_id: run.node_id,
+      workflow_id: Number(run.workflow_id),
+      run_number: Number(run.run_number),
+      run_attempt: Number(run.run_attempt),
+      name: run.name,
+      event: run.event,
+      status: run.status,
+      conclusion: run.conclusion as string | null,
+      head_sha: run.head_sha,
+    });
+  }
+
+  return {
+    kind: 'collection-page',
+    subject: {
+      kind: 'github.workflow-runs',
+      repository_id: repository.subject.id,
+    },
+    members,
+    total_count: Number(body.total_count),
+    ...base.pagination,
+    evidence: base.evidence,
+  };
+}
+
 export function evaluateGitRefTarget(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
@@ -642,6 +734,27 @@ export function evaluateCommitStatusPage(
       && (expected.context === undefined || candidate.context === expected.context),
     memberDiffers: (candidate, expected) =>
       expected.state !== undefined && candidate.state !== expected.state,
+  });
+}
+
+export function evaluateWorkflowRunPage(
+  fact: WorkflowRunsPageFact,
+  obligation: WorkflowRunObligation,
+): ObligationEvaluation<WorkflowRunsPageFact> {
+  return evaluatePositiveCollectionMember({
+    fact,
+    obligation,
+    coordinateMatches: (candidate, expected) =>
+      candidate.subject.repository_id === expected.repository_id,
+    memberMatches: (candidate, expected) =>
+      (expected.id === undefined || candidate.id === expected.id)
+      && (expected.node_id === undefined || candidate.node_id === expected.node_id)
+      && (expected.workflow_id === undefined || candidate.workflow_id === expected.workflow_id)
+      && (expected.head_sha === undefined || lower(candidate.head_sha) === lower(expected.head_sha)),
+    memberDiffers: (candidate, expected) =>
+      (expected.event !== undefined && candidate.event !== expected.event)
+      || (expected.status !== undefined && candidate.status !== expected.status)
+      || (expected.conclusion !== undefined && candidate.conclusion !== expected.conclusion),
   });
 }
 
