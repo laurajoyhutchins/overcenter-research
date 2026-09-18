@@ -37,6 +37,7 @@ const sourceRef = required('SOURCE_REF');
 const sourceSha = required('SOURCE_SHA');
 const checkRef = required('CHECK_REF');
 const statusRef = required('STATUS_REF');
+const baseRef = required('BASE_REF');
 const volatileCheckRef = process.env.VOLATILE_CHECK_REF ?? null;
 const [owner, repo] = repositoryName.split('/');
 if (!owner || !repo) throw new Error('GITHUB_REPOSITORY_INVALID');
@@ -146,7 +147,7 @@ if (pullNumber !== null) {
     number: pullNumber,
     state: 'open',
     head_sha: sourceSha,
-    base_ref: 'main',
+    base_ref: baseRef,
   }).state, 'SATISFIED');
 
   const issueObservation = await observeOperation(
