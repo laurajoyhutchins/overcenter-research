@@ -1,4 +1,10 @@
 import type { RawObservation } from './openapi.ts';
+import {
+  evaluateMutableEntity,
+  evaluatePositiveCollectionMember,
+  paginationShape,
+  sameEntityIdentity,
+} from './semantic-shapes.ts';
 
 export interface FactEvidence {
   api_version: string;
@@ -64,11 +70,29 @@ export interface PullRequestSnapshotFact {
     repository_id: number;
     number: number;
     id: number;
+    node_id: string;
   };
   state: string;
   head_sha: string;
   base_ref: string;
   base_sha: string;
+  stability: 'mutable-snapshot';
+  evidence: FactEvidence;
+}
+
+export interface IssueSnapshotFact {
+  kind: 'entity-snapshot';
+  subject: {
+    kind: 'github.issue';
+    repository_id: number;
+    number: number;
+    id: number;
+    node_id: string;
+  };
+  state: string;
+  title: string;
+  locked: boolean;
+  is_pull_request: boolean;
   stability: 'mutable-snapshot';
   evidence: FactEvidence;
 }
@@ -98,12 +122,40 @@ export interface CheckRunsPageFact {
   evidence: FactEvidence;
 }
 
+export interface CommitStatusMember {
+  id: number;
+  node_id: string;
+  state: string;
+  context: string;
+  target_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommitStatusesPageFact {
+  kind: 'collection-page';
+  subject: {
+    kind: 'github.commit-statuses';
+    repository_id: number;
+    ref: string;
+  };
+  members: CommitStatusMember[];
+  page: number;
+  per_page: number;
+  has_next: boolean;
+  enumeration: 'partial' | 'terminal-page-seen';
+  negative_evidence_authoritative: false;
+  evidence: FactEvidence;
+}
+
 export type GithubFact =
   | RepositoryIdentityFact
   | GitRefTargetFact
   | GitCommitFact
   | PullRequestSnapshotFact
-  | CheckRunsPageFact;
+  | IssueSnapshotFact
+  | CheckRunsPageFact
+  | CommitStatusesPageFact;
 
 export interface GitRefTargetObligation {
   repository_id: number;
@@ -119,6 +171,14 @@ export interface PullRequestObligation {
   base_ref?: string;
 }
 
+export interface IssueObligation {
+  repository_id: number;
+  number: number;
+  state?: string;
+  title?: string;
+  locked?: boolean;
+}
+
 export interface CheckRunObligation {
   repository_id: number;
   ref: string;
@@ -127,6 +187,15 @@ export interface CheckRunObligation {
   head_sha?: string;
   status?: string;
   conclusion?: string | null;
+}
+
+export interface CommitStatusObligation {
+  repository_id: number;
+  ref: string;
+  id?: number;
+  node_id?: string;
+  context?: string;
+  state?: string;
 }
 
 export interface ObligationEvaluation<T extends GithubFact = GithubFact> {
@@ -289,6 +358,7 @@ export function projectPullRequestSnapshot(
   const requested = observation.request.parameters.pull_number;
   const body = observation.outcome.value as {
     id?: unknown;
+    node_id?: unknown;
     number?: unknown;
     state?: unknown;
     head?: { sha?: unknown };
@@ -296,6 +366,7 @@ export function projectPullRequestSnapshot(
   } | undefined;
   if (!Number.isSafeInteger(requested) || !body) return null;
   if (!Number.isSafeInteger(body.id) || Number(body.id) <= 0) return null;
+  if (typeof body.node_id !== 'string' || body.node_id.length === 0) return null;
   if (!Number.isSafeInteger(body.number) || Number(body.number) !== Number(requested)) return null;
   if (typeof body.state !== 'string') return null;
   if (typeof body.head?.sha !== 'string' || !sha.test(body.head.sha)) return null;
@@ -308,6 +379,7 @@ export function projectPullRequestSnapshot(
       repository_id: repository.subject.id,
       number: Number(body.number),
       id: Number(body.id),
+      node_id: body.node_id,
     },
     state: body.state,
     head_sha: body.head.sha,
@@ -316,10 +388,6 @@ export function projectPullRequestSnapshot(
     stability: 'mutable-snapshot',
     evidence: evidence(observation),
   };
-}
-
-function hasNext(link: string | null): boolean {
-  return typeof link === 'string' && link.split(',').some(part => /;\s*rel="next"\s*$/.test(part.trim()));
 }
 
 export function projectCheckRunsPage(
@@ -357,8 +425,8 @@ export function projectCheckRunsPage(
   }
   const page = Number(observation.request.parameters.page ?? 1);
   const perPage = Number(observation.request.parameters.per_page ?? 30);
-  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(perPage) || perPage < 1) return null;
-  const next = hasNext(observation.response.link);
+  const pagination = paginationShape(page, perPage, observation.response.link);
+  if (!pagination) return null;
 
   return {
     kind: 'collection-page',
@@ -369,11 +437,108 @@ export function projectCheckRunsPage(
     },
     members,
     total_count: Number(body.total_count),
-    page,
-    per_page: perPage,
-    has_next: next,
-    enumeration: next ? 'partial' : 'terminal-page-seen',
-    negative_evidence_authoritative: false,
+    ...pagination,
+    evidence: evidence(observation),
+  };
+}
+
+export function projectIssueSnapshot(
+  observation: RawObservation,
+  repository: RepositoryIdentityFact,
+): IssueSnapshotFact | null {
+  if (!observed200(observation, 'issues/get')) return null;
+  if (!sameRepositoryCoordinate(observation, repository)) return null;
+  const requested = observation.request.parameters.issue_number;
+  const body = observation.outcome.value as {
+    id?: unknown;
+    node_id?: unknown;
+    number?: unknown;
+    state?: unknown;
+    title?: unknown;
+    locked?: unknown;
+    pull_request?: unknown;
+  } | undefined;
+  if (!Number.isSafeInteger(requested) || !body) return null;
+  if (!Number.isSafeInteger(body.id) || Number(body.id) <= 0) return null;
+  if (typeof body.node_id !== 'string' || body.node_id.length === 0) return null;
+  if (!Number.isSafeInteger(body.number) || Number(body.number) !== Number(requested)) return null;
+  if (typeof body.state !== 'string' || typeof body.title !== 'string' || typeof body.locked !== 'boolean') return null;
+
+  return {
+    kind: 'entity-snapshot',
+    subject: {
+      kind: 'github.issue',
+      repository_id: repository.subject.id,
+      number: Number(body.number),
+      id: Number(body.id),
+      node_id: body.node_id,
+    },
+    state: body.state,
+    title: body.title,
+    locked: body.locked,
+    is_pull_request: body.pull_request !== undefined && body.pull_request !== null,
+    stability: 'mutable-snapshot',
+    evidence: evidence(observation),
+  };
+}
+
+export function sameGithubEntity(
+  left: PullRequestSnapshotFact | IssueSnapshotFact,
+  right: PullRequestSnapshotFact | IssueSnapshotFact,
+): boolean {
+  return sameEntityIdentity(left.subject, right.subject);
+}
+
+export function projectCommitStatusesPage(
+  observation: RawObservation,
+  repository: RepositoryIdentityFact,
+): CommitStatusesPageFact | null {
+  if (!observed200(observation, 'repos/list-commit-statuses-for-ref')) return null;
+  if (!sameRepositoryCoordinate(observation, repository)) return null;
+  const requestedRef = observation.request.parameters.ref;
+  const body = observation.outcome.value as Array<{
+    id?: unknown;
+    node_id?: unknown;
+    state?: unknown;
+    context?: unknown;
+    target_url?: unknown;
+    created_at?: unknown;
+    updated_at?: unknown;
+  }> | undefined;
+  if (typeof requestedRef !== 'string' || !Array.isArray(body)) return null;
+
+  const members: CommitStatusMember[] = [];
+  for (const status of body) {
+    if (!Number.isSafeInteger(status.id) || Number(status.id) <= 0) return null;
+    if (typeof status.node_id !== 'string' || status.node_id.length === 0) return null;
+    if (typeof status.state !== 'string' || typeof status.context !== 'string') return null;
+    if (!(status.target_url === null || typeof status.target_url === 'string')) return null;
+    if (typeof status.created_at !== 'string' || typeof status.updated_at !== 'string') return null;
+    members.push({
+      id: Number(status.id),
+      node_id: status.node_id,
+      state: status.state,
+      context: status.context,
+      target_url: status.target_url as string | null,
+      created_at: status.created_at,
+      updated_at: status.updated_at,
+    });
+  }
+
+  const page = Number(observation.request.parameters.page ?? 1);
+  const perPage = Number(observation.request.parameters.per_page ?? 30);
+  const pagination = paginationShape(page, perPage, observation.response.link);
+  if (!pagination) return null;
+
+  return {
+    kind: 'collection-page',
+    subject: {
+      kind: 'github.commit-statuses',
+      repository_id: repository.subject.id,
+      ref: requestedRef,
+    },
+    members,
+    ...pagination,
     evidence: evidence(observation),
   };
 }
@@ -405,39 +570,75 @@ export function evaluatePullRequestSnapshot(
   fact: PullRequestSnapshotFact,
   obligation: PullRequestObligation,
 ): ObligationEvaluation<PullRequestSnapshotFact> {
-  if (fact.subject.repository_id !== obligation.repository_id || fact.subject.number !== obligation.number) {
-    return { state: 'INDETERMINATE', reason: 'OBSERVATION_COORDINATE_MISMATCH', fact };
-  }
-  const mismatches = [
-    obligation.state !== undefined && fact.state !== obligation.state,
-    obligation.head_sha !== undefined && lower(fact.head_sha) !== lower(obligation.head_sha),
-    obligation.base_ref !== undefined && fact.base_ref !== obligation.base_ref,
-  ];
-  return mismatches.some(Boolean)
-    ? { state: 'UNSATISFIED', reason: 'AUTHORITATIVE_ENTITY_SNAPSHOT_DIFFERS', fact }
-    : { state: 'SATISFIED', reason: 'AUTHORITATIVE_ENTITY_SNAPSHOT_MATCHES', fact };
+  return evaluateMutableEntity({
+    fact,
+    obligation,
+    coordinateMatches: (candidate, expected) =>
+      candidate.subject.repository_id === expected.repository_id
+      && candidate.subject.number === expected.number,
+    differs: (candidate, expected) => [
+      expected.state !== undefined && candidate.state !== expected.state,
+      expected.head_sha !== undefined && lower(candidate.head_sha) !== lower(expected.head_sha),
+      expected.base_ref !== undefined && candidate.base_ref !== expected.base_ref,
+    ].some(Boolean),
+  });
+}
+
+export function evaluateIssueSnapshot(
+  fact: IssueSnapshotFact,
+  obligation: IssueObligation,
+): ObligationEvaluation<IssueSnapshotFact> {
+  return evaluateMutableEntity({
+    fact,
+    obligation,
+    coordinateMatches: (candidate, expected) =>
+      candidate.subject.repository_id === expected.repository_id
+      && candidate.subject.number === expected.number,
+    differs: (candidate, expected) => [
+      expected.state !== undefined && candidate.state !== expected.state,
+      expected.title !== undefined && candidate.title !== expected.title,
+      expected.locked !== undefined && candidate.locked !== expected.locked,
+    ].some(Boolean),
+  });
 }
 
 export function evaluateCheckRunPage(
   fact: CheckRunsPageFact,
   obligation: CheckRunObligation,
 ): ObligationEvaluation<CheckRunsPageFact> {
-  if (fact.subject.repository_id !== obligation.repository_id || fact.subject.ref !== obligation.ref) {
-    return { state: 'INDETERMINATE', reason: 'OBSERVATION_COORDINATE_MISMATCH', fact };
-  }
-  const member = fact.members.find(candidate =>
-    (obligation.id === undefined || candidate.id === obligation.id)
-    && (obligation.name === undefined || candidate.name === obligation.name)
-    && (obligation.head_sha === undefined || lower(candidate.head_sha) === lower(obligation.head_sha)),
-  );
-  if (!member) {
-    return { state: 'INDETERMINATE', reason: 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE', fact };
-  }
-  const differs = (obligation.status !== undefined && member.status !== obligation.status)
-    || (obligation.conclusion !== undefined && member.conclusion !== obligation.conclusion);
-  return differs
-    ? { state: 'UNSATISFIED', reason: 'AUTHORITATIVE_COLLECTION_MEMBER_DIFFERS', fact }
-    : { state: 'SATISFIED', reason: 'AUTHORITATIVE_COLLECTION_MEMBER_MATCHES', fact };
+  return evaluatePositiveCollectionMember({
+    fact,
+    obligation,
+    coordinateMatches: (candidate, expected) =>
+      candidate.subject.repository_id === expected.repository_id
+      && candidate.subject.ref === expected.ref,
+    memberMatches: (candidate, expected) =>
+      (expected.id === undefined || candidate.id === expected.id)
+      && (expected.name === undefined || candidate.name === expected.name)
+      && (expected.head_sha === undefined || lower(candidate.head_sha) === lower(expected.head_sha)),
+    memberDiffers: (candidate, expected) =>
+      (expected.status !== undefined && candidate.status !== expected.status)
+      || (expected.conclusion !== undefined && candidate.conclusion !== expected.conclusion),
+  });
+}
+
+export function evaluateCommitStatusPage(
+  fact: CommitStatusesPageFact,
+  obligation: CommitStatusObligation,
+): ObligationEvaluation<CommitStatusesPageFact> {
+  return evaluatePositiveCollectionMember({
+    fact,
+    obligation,
+    coordinateMatches: (candidate, expected) =>
+      candidate.subject.repository_id === expected.repository_id
+      && candidate.subject.ref === expected.ref,
+    memberMatches: (candidate, expected) =>
+      (expected.id === undefined || candidate.id === expected.id)
+      && (expected.node_id === undefined || candidate.node_id === expected.node_id)
+      && (expected.context === undefined || candidate.context === expected.context),
+    memberDiffers: (candidate, expected) =>
+      expected.state !== undefined && candidate.state !== expected.state,
+  });
 }
 
 function sameRequestCoordinate(left: RawObservation, right: RawObservation): boolean {
