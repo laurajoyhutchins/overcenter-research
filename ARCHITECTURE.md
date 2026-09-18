@@ -289,15 +289,41 @@ The strongest trust-boundary experiment deliberately lets an executor corrupt it
 - local kernel source;
 - cache.
 
-The executor can still attempt the provider effect it has capability to perform, but it cannot redefine the immutable obligation or independently certify settlement.
+The stronger reference boundary does not give the disposable worker provider-mutation authority at all. In GitHub Actions, the worker job has repository read permission only. A separate trusted effect-broker job owns provider write permission and the execution permit.
 
 ### Worker contract
 
 Conceptually:
 
 ```text
-worker(snapshot, capability)
-    -> candidate effect / candidate realization / execution evidence
+worker(snapshot)
+    -> candidate effect intent / candidate realization / execution evidence
+```
+
+The worker does not need:
+
+```text
+ExecutionPermit
+provider write credential
+reservation authority
+settlement authority
+```
+
+Those belong to deterministic trusted machinery.
+
+```text
+worker
+  candidate intent
+      |
+      v
+trusted effect broker
+  validate against authoritative obligation
+  acquire current execution authority
+  reserve
+  mutate provider
+      |
+      v
+authoritative observation / settlement
 ```
 
 not:
@@ -322,7 +348,7 @@ Examples:
 
 The provider may not share a transaction with Overcenter.
 
-In the reference Git core loop, non-effectful judgment is separated from execution. A preflight callback may choose `judgment-required` without receiving the execution permit. If execution proceeds, the kernel validates that permit and commits the durable effect reservation before invoking effectful executor code. Once that boundary is crossed, an executor may no longer downgrade the attempt to ordinary `WAITING`; it must be reconciled as potentially mutating.
+In the reference Git core loop, non-effectful judgment is separated from provider mutation. A preflight callback may choose `judgment-required` without receiving the execution permit. If execution proceeds, the kernel validates that permit and commits the durable effect reservation before invoking the trusted effect handler. The handler receives the work packet, not the execution permit. Once that boundary is crossed, a late judgment result cannot downgrade the attempt to ordinary `WAITING`; it must be reconciled as potentially mutating.
 
 That creates the fundamental uncertainty window:
 
