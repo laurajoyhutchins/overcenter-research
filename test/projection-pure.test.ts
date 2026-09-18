@@ -109,7 +109,10 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
   );
 });
 
-function absentReceipt(verifier:Obligation['postcondition']['verifier']):ReceiptFact {
+function absentReceipt(
+  verifier:Obligation['postcondition']['verifier'],
+  authoritative:boolean,
+):ReceiptFact {
   return {
     schema:RECEIPT_SCHEMA,
     run_id:'run-absence',
@@ -117,7 +120,11 @@ function absentReceipt(verifier:Obligation['postcondition']['verifier']):Receipt
     claimed_revision:'revision-absence',
     claim_commit:'claim-absence',
     kind:'observation',
-    observed:{verifier,mutation_certainty:'absent'},
+    observed:{
+      verifier,
+      mutation_certainty:'absent',
+      negative_evidence_authoritative:authoritative,
+    },
     settled_at:'2026-09-18T00:00:00.000Z',
   };
 }
@@ -130,8 +137,12 @@ test('absence authorizes replay only when the verifier declared authoritative ab
     postcondition:{verifier:'file-content-equals/v1',path:'/provider/absence',content:'A'},
   };
   assert.equal(
-    projectReceipt(absentReceipt('file-content-equals/v1'),local).disposition,
+    projectReceipt(absentReceipt('file-content-equals/v1',true),local).disposition,
     'READY',
+  );
+  assert.equal(
+    projectReceipt(absentReceipt('file-content-equals/v1',false),local).disposition,
+    'RECOVERY_REQUIRED',
   );
 
   const eventual:Obligation={
@@ -146,7 +157,7 @@ test('absence authorizes replay only when the verifier declared authoritative ab
   };
   assert.equal(
     projectReceipt(
-      absentReceipt('eventually-consistent-file-content-equals/v1'),
+      absentReceipt('eventually-consistent-file-content-equals/v1',true),
       eventual,
     ).disposition,
     'RECOVERY_REQUIRED',
@@ -166,7 +177,7 @@ test('absence authorizes replay only when the verifier declared authoritative ab
     },
   };
   assert.equal(
-    projectReceipt(absentReceipt('github-commit-status/v1'),github).disposition,
+    projectReceipt(absentReceipt('github-commit-status/v1',true),github).disposition,
     'RECOVERY_REQUIRED',
   );
 });
