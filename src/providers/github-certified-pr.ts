@@ -42,7 +42,7 @@ export const GITHUB_PULL_REQUEST_OPERATION:ObservationOperation={
         id:{type:'integer'},
         node_id:{type:'string'},
         number:{type:'integer'},
-        state:{type:'string'},
+        state:{type:'string',enum:['open','closed']},
         head:{
           type:'object',
           required:['sha'],
