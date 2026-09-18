@@ -1,54 +1,46 @@
 import { execFileSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 const STATE_REF = 'refs/overcenter/state';
-const STATE_SCHEMA = 'overcenter-git-state-v1';
-const RECEIPT_SCHEMA = 'overcenter-git-receipt-v1';
+const STATE_SCHEMA = 'overcenter-git-state-v2';
+const RECEIPT_SCHEMA = 'overcenter-git-receipt-v2';
 
-type WorkStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
+export type WorkStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
 export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
 export type MutationCertainty = 'present' | 'absent' | 'uncertain';
-export type Data = Record<string, any>;
-export type Verify = (postcondition: Data, observed: Observation) => boolean;
+export type Data = Record<string, unknown>;
+
+export interface FileContentPostcondition {
+  verifier: 'file-content-equals/v1';
+  path: string;
+  content: string;
+}
+export type Postcondition = FileContentPostcondition;
 
 export interface Observation extends Data {
-  mutation_certainty?: MutationCertainty;
+  verifier: Postcondition['verifier'];
+  mutation_certainty: MutationCertainty;
+  path: string;
+  expected_sha256: string;
+  actual_sha256?: string;
+  verified: boolean;
 }
 
 export interface Obligation {
   id: string;
   deps: string[];
   packet: Data;
-  postcondition: Data;
+  postcondition: Postcondition;
   status: WorkStatus;
   run_id?: string;
   claimed_revision?: string;
   claim_commit?: string;
 }
-
-interface ActiveRun {
-  id: string;
-  obligation_id: string;
-  claimed_revision: string;
-}
-
-interface State {
-  schema: typeof STATE_SCHEMA;
-  obligations: Record<string, Obligation>;
-  active_run: ActiveRun | null;
-}
-
-export interface Work extends Obligation {
-  revision: string;
-}
-
-export interface Run {
-  id: string;
-  obligation_id: string;
-  claimed_revision: string;
-  claim_commit: string;
-}
-
+interface ActiveRun { id: string; obligation_id: string; claimed_revision: string }
+interface State { schema: typeof STATE_SCHEMA; obligations: Record<string, Obligation>; active_run: ActiveRun | null }
+export interface Work extends Obligation { revision: string }
+export interface Run { id: string; obligation_id: string; claimed_revision: string; claim_commit: string }
 export interface Receipt {
   schema: typeof RECEIPT_SCHEMA;
   run_id: string;
@@ -57,54 +49,31 @@ export interface Receipt {
   claim_commit: string;
   disposition: Disposition;
   verified: boolean;
-  observed: Observation;
+  observed: Observation | null;
+  diagnostic?: Data;
   settled_at: string;
   settlement_commit?: string;
 }
+export interface ExecuteOutcome extends Data { kind?: string; may_have_mutated?: boolean }
+export interface LoopOptions { execute: (packet: Data, run: Run) => Promise<ExecuteOutcome>; maxAdvances?: number }
+export interface LoopResult { state: 'IDLE'|'RECOVERY_REQUIRED'|'WAITING'|'BUDGET_EXHAUSTED'; advances: number; work?: string; run?: string }
+interface GitResult { ok: boolean; stdout: string; stderr?: string }
 
-export interface ExecuteOutcome extends Data {
-  kind?: string;
-  may_have_mutated?: boolean;
-}
-
-export interface LoopOptions {
-  execute: (packet: Data, run: Run) => Promise<ExecuteOutcome>;
-  observe: (work: Work, run: Run, outcome: ExecuteOutcome) => Promise<Observation>;
-  verify: Verify;
-  maxAdvances?: number;
-}
-
-export interface LoopResult {
-  state: 'IDLE' | 'RECOVERY_REQUIRED' | 'WAITING' | 'BUDGET_EXHAUSTED';
-  advances: number;
-  work?: string;
-  run?: string;
-}
-
-interface GitResult {
-  ok: boolean;
-  stdout: string;
-  stderr?: string;
-}
-
-const TERMINAL_BLOCKERS = new Set<WorkStatus>(['EXECUTING', 'WAITING', 'RECOVERY_REQUIRED']);
-
-function json(value: unknown): string {
-  return `${JSON.stringify(value, null, 2)}\n`;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
+const BLOCKERS = new Set<WorkStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
+const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+const json = (v: unknown) => `${JSON.stringify(v, null, 2)}\n`;
+const errorMessage = (e: unknown) => e instanceof Error ? e.message : String(e);
 
 export class GitOvercenterKernel {
   readonly repo: string;
   readonly ref: string;
+  readonly remote: string | null;
 
-  constructor(repo: string, { ref = STATE_REF }: { ref?: string } = {}) {
+  constructor(repo: string, { ref = STATE_REF, remote = null }: { ref?: string; remote?: string | null } = {}) {
     this.repo = repo;
     this.ref = ref;
-    this.#git(['rev-parse', '--git-dir']);
+    this.remote = remote;
+    this.#git(['rev-parse','--git-dir']);
   }
 
   initialize(): string {
@@ -112,8 +81,7 @@ export class GitOvercenterKernel {
     if (existing) return existing;
     const commit = this.#commit(null, this.#emptyState(), 'overcenter: initialize');
     const zero = '0'.repeat(this.#objectIdLength());
-    if (this.#updateRef(commit, zero)) return commit;
-
+    if (this.#cas(commit, zero)) return commit;
     const winner = this.head();
     if (!winner) throw new Error('INITIALIZE_LOST');
     this.#state(winner);
@@ -121,365 +89,220 @@ export class GitOvercenterKernel {
   }
 
   head(): string | null {
-    const result = this.#git(['rev-parse', '-q', '--verify', this.ref], { allowFailure: true });
-    return result.ok ? result.stdout.trim() : null;
+    if (!this.remote) {
+      const result = this.#git(['rev-parse','-q','--verify',this.ref], { allowFailure: true });
+      return result.ok ? result.stdout.trim() : null;
+    }
+    const listed = this.#git(['ls-remote', this.remote, this.ref], { allowFailure: true });
+    if (!listed.ok) throw new Error('AUTHORITY_UNREACHABLE');
+    const line = listed.stdout.trim();
+    if (!line) {
+      this.#git(['update-ref','-d',this.ref], { allowFailure: true });
+      return null;
+    }
+    const sha = line.split(/\s+/)[0];
+    const fetched = this.#git(['fetch','--no-tags',this.remote,`+${this.ref}:${this.ref}`], { allowFailure: true });
+    if (!fetched.ok) throw new Error('AUTHORITY_UNREACHABLE');
+    return sha;
   }
 
-  define({
-    id,
-    deps = [],
-    packet = {},
-    postcondition,
-  }: {
-    id: string;
-    deps?: string[];
-    packet?: Data;
-    postcondition: Data;
-  }): string {
-    const head = this.head();
-    if (!head) throw new Error('NOT_INITIALIZED');
+  define({ id, deps = [], packet = {}, postcondition }: { id: string; deps?: string[]; packet?: Data; postcondition: Postcondition }): string {
+    this.#validatePostcondition(postcondition);
+    const head = this.#requireHead();
     const state = this.#state(head);
     if (state.active_run || this.#hasBlocker(state)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
-    state.obligations[id] = { id, deps, packet, postcondition, status: 'READY' };
+    state.obligations[id] = { id, deps, packet, postcondition, status:'READY' };
     const commit = this.#commit(head, state, `overcenter: define ${id}`);
-    if (!this.#updateRef(commit, head)) throw new Error('DEFINE_LOST');
+    if (!this.#cas(commit, head)) throw new Error('DEFINE_LOST');
     return commit;
   }
 
   inspect(): Work[] {
-    const head = this.head();
-    if (!head) return [];
+    const head = this.#requireHead();
     return Object.values(this.#state(head).obligations)
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .map(work => ({ ...structuredClone(work), revision: head }));
+      .sort((a,b)=>a.id.localeCompare(b.id))
+      .map(work => ({...structuredClone(work), revision: head}));
   }
 
   deriveReadyWork(): Work | null {
-    const head = this.head();
-    if (!head) return null;
+    const head = this.#requireHead();
     const state = this.#state(head);
     if (state.active_run || this.#hasBlocker(state)) return null;
-    const done = new Set(
-      Object.values(state.obligations)
-        .filter(work => work.status === 'DONE')
-        .map(work => work.id),
-    );
-    const work = Object.values(state.obligations)
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .find(candidate => candidate.status === 'READY' && candidate.deps.every(dep => done.has(dep)));
-    return work ? { ...structuredClone(work), revision: head } : null;
+    const done = new Set(Object.values(state.obligations).filter(x=>x.status==='DONE').map(x=>x.id));
+    const work = Object.values(state.obligations).sort((a,b)=>a.id.localeCompare(b.id))
+      .find(x=>x.status==='READY' && x.deps.every(d=>done.has(d)));
+    return work ? {...structuredClone(work), revision: head} : null;
   }
 
   claim(id: string, expectedRevision: string): Run {
-    const head = this.head();
+    const head = this.#requireHead();
     if (head !== expectedRevision) throw new Error('STALE_REVISION');
     const state = this.#state(head);
     if (state.active_run || this.#hasBlocker(state)) throw new Error('PROJECT_BUSY');
     const work = state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
     if (work.status !== 'READY') throw new Error('NOT_READY');
-    const done = new Set(
-      Object.values(state.obligations)
-        .filter(candidate => candidate.status === 'DONE')
-        .map(candidate => candidate.id),
-    );
-    if (!work.deps.every(dep => done.has(dep))) throw new Error('DEPENDENCIES_NOT_DONE');
-
+    const done = new Set(Object.values(state.obligations).filter(x=>x.status==='DONE').map(x=>x.id));
+    if (!work.deps.every(d=>done.has(d))) throw new Error('DEPENDENCIES_NOT_DONE');
     const runId = randomUUID();
-    work.status = 'EXECUTING';
-    work.run_id = runId;
-    work.claimed_revision = head;
-    state.active_run = { id: runId, obligation_id: id, claimed_revision: head };
-    const commit = this.#commit(head, state, `overcenter: claim ${id} ${runId}`);
-    if (!this.#updateRef(commit, head)) throw new Error('CLAIM_LOST');
-    return { id: runId, obligation_id: id, claimed_revision: head, claim_commit: commit };
+    work.status='EXECUTING'; work.run_id=runId; work.claimed_revision=head;
+    state.active_run={id:runId, obligation_id:id, claimed_revision:head};
+    const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`);
+    if (!this.#cas(commit,head)) throw new Error('CLAIM_LOST');
+    return {id:runId, obligation_id:id, claimed_revision:head, claim_commit:commit};
   }
 
-  settle(
-    runId: string,
-    {
-      disposition,
-      observed = {},
-      verify = null,
-    }: {
-      disposition: Disposition;
-      observed?: Observation;
-      verify?: Verify | null;
-    },
-  ): Receipt {
-    const head = this.head();
-    if (!head) throw new Error('NOT_INITIALIZED');
+  resolve(runId: string): Receipt {
+    const head = this.#requireHead();
     const state = this.#state(head);
-    if (!state.active_run || state.active_run.id !== runId) {
-      const prior = this.receipts(runId).at(-1);
-      if (prior) return prior;
-      throw new Error('UNKNOWN_RUN');
-    }
-    const work = state.obligations[state.active_run.obligation_id];
-    if (!work || work.status !== 'EXECUTING' || work.run_id !== runId) throw new Error('AUTHORITY_LOST');
-
-    const verified = disposition === 'DONE'
-      ? Boolean(verify?.(work.postcondition, observed))
-      : false;
-    if (disposition === 'DONE' && !verified) throw new Error('UNVERIFIED_DONE');
-    if (disposition === 'READY' && observed.mutation_certainty !== 'absent') {
-      throw new Error('REPLAY_SAFETY_UNPROVEN');
-    }
-
-    work.claim_commit = head;
-    const receipt = this.#receipt(runId, work, disposition, verified, observed, head);
-    work.status = disposition;
-    if (disposition === 'READY') {
-      delete work.run_id;
-      delete work.claimed_revision;
-      delete work.claim_commit;
-    }
-    state.active_run = null;
-    const commit = this.#commit(head, state, `overcenter: settle ${work.id} ${disposition}`, receipt);
-    if (!this.#updateRef(commit, head)) throw new Error('AUTHORITY_LOST');
-    return { ...receipt, settlement_commit: commit };
-  }
-
-  recoverInterrupted(): number {
-    const head = this.head();
-    if (!head) return 0;
-    const state = this.#state(head);
-    if (!state.active_run) return 0;
-    const run = state.active_run;
-    const work = state.obligations[run.obligation_id];
-    if (!work || work.status !== 'EXECUTING' || work.run_id !== run.id) throw new Error('CORRUPT_ACTIVE_RUN');
-
-    const observed: Observation = { mutation_certainty: 'uncertain', reason: 'interrupted execution' };
-    work.claim_commit = head;
-    const receipt = this.#receipt(run.id, work, 'RECOVERY_REQUIRED', false, observed, head);
-    work.status = 'RECOVERY_REQUIRED';
-    state.active_run = null;
-    const commit = this.#commit(head, state, `overcenter: recover ${work.id} ${run.id}`, receipt);
-    if (!this.#updateRef(commit, head)) throw new Error('RECOVERY_LOST');
-    return 1;
-  }
-
-  reconcile(runId: string, observed: Observation, verify: Verify): Receipt {
-    const head = this.head();
-    if (!head) throw new Error('NOT_INITIALIZED');
-    const state = this.#state(head);
-    if (state.active_run) throw new Error('PROJECT_BUSY');
-    const work = Object.values(state.obligations).find(candidate => candidate.run_id === runId);
+    const active = state.active_run?.id === runId;
+    const work = active
+      ? state.obligations[state.active_run!.obligation_id]
+      : Object.values(state.obligations).find(x=>x.run_id===runId);
     if (!work) {
       const prior = this.receipts(runId).at(-1);
-      if (prior?.disposition === 'DONE') return prior;
+      if (prior) return prior;
       throw new Error('UNKNOWN_RUN');
     }
-    if (!['RECOVERY_REQUIRED', 'WAITING'].includes(work.status)) {
+    if (!active && !['RECOVERY_REQUIRED','WAITING'].includes(work.status)) {
       const prior = this.receipts(runId).at(-1);
       if (prior) return prior;
-      throw new Error('NOT_RECONCILABLE');
+      throw new Error('NOT_RESOLVABLE');
     }
-
-    const verified = Boolean(verify(work.postcondition, observed));
-    const disposition: Disposition = verified
-      ? 'DONE'
-      : observed.mutation_certainty === 'absent'
-        ? 'READY'
-        : 'RECOVERY_REQUIRED';
-    if (!work.claim_commit) throw new Error('MISSING_CLAIM_IDENTITY');
-    const receipt = this.#receipt(runId, work, disposition, verified, observed, work.claim_commit);
-    work.status = disposition;
-    if (disposition === 'READY') {
-      delete work.run_id;
-      delete work.claimed_revision;
-      delete work.claim_commit;
-    }
-    const commit = this.#commit(head, state, `overcenter: reconcile ${work.id} ${disposition}`, receipt);
-    if (!this.#updateRef(commit, head)) throw new Error('RECONCILE_LOST');
-    return { ...receipt, settlement_commit: commit };
+    if (!work.claim_commit) work.claim_commit = head;
+    const observed = this.#observe(work.postcondition);
+    const disposition: Disposition = observed.verified ? 'DONE' : observed.mutation_certainty === 'absent' ? 'READY' : 'RECOVERY_REQUIRED';
+    const receipt = this.#receipt(runId,work,disposition,observed.verified,observed,work.claim_commit);
+    work.status=disposition;
+    if (disposition==='READY') { delete work.run_id; delete work.claimed_revision; delete work.claim_commit; }
+    state.active_run=null;
+    const commit=this.#commit(head,state,`overcenter: resolve ${work.id} ${disposition}`,receipt);
+    if (!this.#cas(commit,head)) throw new Error('RESOLVE_LOST');
+    return {...receipt, settlement_commit:commit};
   }
+
+  defer(runId: string, disposition: 'WAITING'|'RECOVERY_REQUIRED', diagnostic: Data = {}): Receipt {
+    const head=this.#requireHead();
+    const state=this.#state(head);
+    if (!state.active_run || state.active_run.id!==runId) {
+      const prior=this.receipts(runId).at(-1); if (prior) return prior; throw new Error('UNKNOWN_RUN');
+    }
+    const work=state.obligations[state.active_run.obligation_id];
+    if (!work || work.status!=='EXECUTING' || work.run_id!==runId) throw new Error('AUTHORITY_LOST');
+    work.claim_commit=head; work.status=disposition; state.active_run=null;
+    const receipt=this.#receipt(runId,work,disposition,false,null,head,diagnostic);
+    const commit=this.#commit(head,state,`overcenter: defer ${work.id} ${disposition}`,receipt);
+    if (!this.#cas(commit,head)) throw new Error('AUTHORITY_LOST');
+    return {...receipt, settlement_commit:commit};
+  }
+
+  recoverInterrupted(runId: string, diagnostic: Data = {}): Receipt {
+    const head=this.#requireHead();
+    const state=this.#state(head);
+    if (!state.active_run) {
+      const prior=this.receipts(runId).at(-1); if (prior) return prior; throw new Error('NO_ACTIVE_RUN');
+    }
+    if (state.active_run.id!==runId) throw new Error('RUN_ID_MISMATCH');
+    const work=state.obligations[state.active_run.obligation_id];
+    if (!work || work.status!=='EXECUTING' || work.run_id!==runId) throw new Error('CORRUPT_ACTIVE_RUN');
+    work.claim_commit=head; work.status='RECOVERY_REQUIRED'; state.active_run=null;
+    const receipt=this.#receipt(runId,work,'RECOVERY_REQUIRED',false,null,head,{reason:'execution-terminated',...diagnostic});
+    const commit=this.#commit(head,state,`overcenter: recover ${work.id} ${runId}`,receipt);
+    if (!this.#cas(commit,head)) throw new Error('RECOVERY_LOST');
+    return {...receipt, settlement_commit:commit};
+  }
+
+  reconcile(runId: string): Receipt { return this.resolve(runId); }
 
   receipts(runId: string | null = null): Receipt[] {
-    const head = this.head();
-    if (!head) return [];
-    const revs = this.#git(['rev-list', '--reverse', head]).stdout.trim().split(/\n+/).filter(Boolean);
-    const receipts: Receipt[] = [];
+    const head=this.#requireHead();
+    const revs=this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
+    const out: Receipt[]=[];
     for (const commit of revs) {
-      const file = this.#git(['show', `${commit}:receipt.json`], { allowFailure: true });
+      const file=this.#git(['show',`${commit}:receipt.json`],{allowFailure:true});
       if (!file.ok) continue;
-      const receipt = JSON.parse(file.stdout) as Receipt;
-      if (!runId || receipt.run_id === runId) receipts.push({ ...receipt, settlement_commit: commit });
+      const receipt=JSON.parse(file.stdout) as Receipt;
+      if (!runId || receipt.run_id===runId) out.push({...receipt,settlement_commit:commit});
     }
-    return receipts;
+    return out;
   }
 
-  #emptyState(): State {
-    return { schema: STATE_SCHEMA, obligations: {}, active_run: null };
-  }
-
-  #hasBlocker(state: State): boolean {
-    return Object.values(state.obligations).some(work => TERMINAL_BLOCKERS.has(work.status));
-  }
-
+  #requireHead(): string { const head=this.head(); if (!head) throw new Error('NOT_INITIALIZED'); return head; }
+  #emptyState(): State { return {schema:STATE_SCHEMA,obligations:{},active_run:null}; }
+  #hasBlocker(state: State): boolean { return Object.values(state.obligations).some(x=>BLOCKERS.has(x.status)); }
   #state(commit: string): State {
-    const state = JSON.parse(this.#git(['show', `${commit}:state.json`]).stdout) as State;
-    if (state.schema !== STATE_SCHEMA) throw new Error('INVALID_STATE_SCHEMA');
-    return state;
+    const state=JSON.parse(this.#git(['show',`${commit}:state.json`]).stdout) as State;
+    if (state.schema!==STATE_SCHEMA) throw new Error('INVALID_STATE_SCHEMA'); return state;
   }
-
-  #receipt(
-    runId: string,
-    work: Obligation,
-    disposition: Disposition,
-    verified: boolean,
-    observed: Observation,
-    claimCommit: string,
-  ): Receipt {
-    return {
-      schema: RECEIPT_SCHEMA,
-      run_id: runId,
-      obligation_id: work.id,
-      claimed_revision: work.claimed_revision,
-      claim_commit: claimCommit,
-      disposition,
-      verified,
-      observed,
-      settled_at: new Date().toISOString(),
-    };
+  #validatePostcondition(p: Postcondition): void {
+    if (p?.verifier!=='file-content-equals/v1' || typeof p.path!=='string' || typeof p.content!=='string') throw new Error('UNSUPPORTED_POSTCONDITION');
   }
-
-  #commit(parent: string | null, state: State, message: string, receipt: Receipt | null = null): string {
-    const entries: Array<[string, string]> = [['state.json', this.#blob(json(state))]];
-    if (receipt) entries.push(['receipt.json', this.#blob(json(receipt))]);
-    const treeInput = entries
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, sha]) => `100644 blob ${sha}\t${name}\n`)
-      .join('');
-    const tree = this.#git(['mktree'], { input: treeInput }).stdout.trim();
-    const args = ['commit-tree', tree];
-    if (parent) args.push('-p', parent);
-    const env = {
-      ...process.env,
-      GIT_AUTHOR_NAME: 'Overcenter Kernel',
-      GIT_AUTHOR_EMAIL: 'overcenter@local',
-      GIT_COMMITTER_NAME: 'Overcenter Kernel',
-      GIT_COMMITTER_EMAIL: 'overcenter@local',
-    };
-    return this.#git(args, { input: `${message}\n`, env }).stdout.trim();
-  }
-
-  #blob(content: string): string {
-    return this.#git(['hash-object', '-w', '--stdin'], { input: content }).stdout.trim();
-  }
-
-  #updateRef(next: string, expected: string): boolean {
-    return this.#git(['update-ref', this.ref, next, expected], { allowFailure: true }).ok;
-  }
-
-  #objectIdLength(): number {
-    return this.#git(['rev-parse', '--show-object-format']).stdout.trim() === 'sha256' ? 64 : 40;
-  }
-
-  #git(
-    args: string[],
-    {
-      input = undefined,
-      env = process.env,
-      allowFailure = false,
-    }: {
-      input?: string;
-      env?: Record<string, string | undefined>;
-      allowFailure?: boolean;
-    } = {},
-  ): GitResult {
+  #observe(p: Postcondition): Observation {
+    this.#validatePostcondition(p);
+    const expected=sha256(p.content);
     try {
-      const stdout = execFileSync('git', ['-C', this.repo, ...args], {
-        input,
-        env,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      return { ok: true, stdout };
-    } catch (error) {
-      const failure = error as { stdout?: string | Buffer; stderr?: string | Buffer; message?: string };
-      if (allowFailure) {
-        return {
-          ok: false,
-          stdout: String(failure.stdout ?? ''),
-          stderr: String(failure.stderr ?? ''),
-        };
-      }
-      throw new Error(`git ${args.join(' ')} failed: ${String(failure.stderr ?? failure.message ?? '').trim()}`);
+      const actual=readFileSync(p.path,'utf8');
+      const actualSha=sha256(actual);
+      return {verifier:p.verifier,path:p.path,expected_sha256:expected,actual_sha256:actualSha,mutation_certainty:'present',verified:actual===p.content};
+    } catch (e: unknown) {
+      const code=(e as {code?:string}).code;
+      if (code==='ENOENT') return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'absent',verified:false};
+      return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'uncertain',verified:false,observation_error:errorMessage(e)};
+    }
+  }
+  #receipt(runId:string,work:Obligation,disposition:Disposition,verified:boolean,observed:Observation|null,claimCommit:string,diagnostic?:Data): Receipt {
+    return {schema:RECEIPT_SCHEMA,run_id:runId,obligation_id:work.id,claimed_revision:work.claimed_revision,claim_commit:claimCommit,disposition,verified,observed,...(diagnostic?{diagnostic}:{}),settled_at:new Date().toISOString()};
+  }
+  #commit(parent:string|null,state:State,message:string,receipt:Receipt|null=null): string {
+    const entries:Array<[string,string]>=[['state.json',this.#blob(json(state))]];
+    if (receipt) entries.push(['receipt.json',this.#blob(json(receipt))]);
+    const treeInput=entries.sort(([a],[b])=>a.localeCompare(b)).map(([name,sha])=>`100644 blob ${sha}\t${name}\n`).join('');
+    const tree=this.#git(['mktree'],{input:treeInput}).stdout.trim();
+    const args=['commit-tree',tree]; if (parent) args.push('-p',parent);
+    const env={...process.env,GIT_AUTHOR_NAME:'Overcenter Kernel',GIT_AUTHOR_EMAIL:'overcenter@local',GIT_COMMITTER_NAME:'Overcenter Kernel',GIT_COMMITTER_EMAIL:'overcenter@local'};
+    return this.#git(args,{input:`${message}\n`,env}).stdout.trim();
+  }
+  #blob(content:string): string { return this.#git(['hash-object','-w','--stdin'],{input:content}).stdout.trim(); }
+  #cas(next:string,expected:string): boolean {
+    if (!this.remote) return this.#git(['update-ref',this.ref,next,expected],{allowFailure:true}).ok;
+    const zero='0'.repeat(this.#objectIdLength());
+    const lease=expected===zero ? `--force-with-lease=${this.ref}:` : `--force-with-lease=${this.ref}:${expected}`;
+    const pushed=this.#git(['push','--porcelain',lease,this.remote,`${next}:${this.ref}`],{allowFailure:true});
+    if (!pushed.ok) return false;
+    this.#git(['update-ref',this.ref,next]);
+    return true;
+  }
+  #objectIdLength(): number { return this.#git(['rev-parse','--show-object-format']).stdout.trim()==='sha256'?64:40; }
+  #git(args:string[],{input=undefined,env=process.env,allowFailure=false}:{input?:string;env?:Record<string,string|undefined>;allowFailure?:boolean}={}): GitResult {
+    try {
+      const stdout=execFileSync('git',['-C',this.repo,...args],{input,env,encoding:'utf8',stdio:['pipe','pipe','pipe']});
+      return {ok:true,stdout};
+    } catch (e: unknown) {
+      const f=e as {stdout?:string|Buffer;stderr?:string|Buffer;message?:string};
+      if (allowFailure) return {ok:false,stdout:String(f.stdout??''),stderr:String(f.stderr??'')};
+      throw new Error(`git ${args.join(' ')} failed: ${String(f.stderr??f.message??'').trim()}`);
     }
   }
 }
 
-export async function runGitCoreLoop(
-  kernel: GitOvercenterKernel,
-  { execute, observe, verify, maxAdvances = 100 }: LoopOptions,
-): Promise<LoopResult> {
-  if (!kernel.head()) throw new Error('NOT_INITIALIZED');
-  for (let i = 0; i < maxAdvances; i += 1) {
-    const work = kernel.deriveReadyWork();
-    if (!work) return { state: 'IDLE', advances: i };
-
-    let run: Run;
-    try {
-      run = kernel.claim(work.id, work.revision);
-    } catch (error) {
-      const message = errorMessage(error);
-      if (message === 'STALE_REVISION' || message === 'CLAIM_LOST') continue;
-      throw error;
+export async function runGitCoreLoop(kernel: GitOvercenterKernel,{execute,maxAdvances=100}:LoopOptions): Promise<LoopResult> {
+  kernel.inspect();
+  for (let i=0;i<maxAdvances;i+=1) {
+    const work=kernel.deriveReadyWork(); if (!work) return {state:'IDLE',advances:i};
+    let run:Run;
+    try { run=kernel.claim(work.id,work.revision); }
+    catch(e:unknown) { const m=errorMessage(e); if (m==='STALE_REVISION'||m==='CLAIM_LOST') continue; throw e; }
+    let outcome:ExecuteOutcome;
+    try { outcome=await execute(work.packet,run); }
+    catch(e:unknown) { outcome={kind:'execution-error',error:errorMessage(e),may_have_mutated:true}; }
+    if (outcome.kind==='judgment-required') {
+      kernel.defer(run.id,'WAITING',{outcome});
+      return {state:'WAITING',work:work.id,run:run.id,advances:i+1};
     }
-
-    let outcome: ExecuteOutcome;
-    try {
-      outcome = await execute(work.packet, run);
-    } catch (error) {
-      outcome = {
-        kind: 'execution-error',
-        error: errorMessage(error),
-        may_have_mutated: true,
-      };
-    }
-
-    let observed: Observation;
-    try {
-      observed = await observe(work, run, outcome);
-    } catch (error) {
-      observed = {
-        mutation_certainty: 'uncertain',
-        observation_error: errorMessage(error),
-      };
-      kernel.settle(run.id, { disposition: 'RECOVERY_REQUIRED', observed });
-      return { state: 'RECOVERY_REQUIRED', work: work.id, run: run.id, advances: i + 1 };
-    }
-
-    let verified: boolean;
-    try {
-      verified = Boolean(verify(work.postcondition, observed));
-    } catch (error) {
-      const recoveryObservation: Observation = {
-        ...observed,
-        mutation_certainty: 'uncertain',
-        verification_error: errorMessage(error),
-      };
-      kernel.settle(run.id, { disposition: 'RECOVERY_REQUIRED', observed: recoveryObservation });
-      return { state: 'RECOVERY_REQUIRED', work: work.id, run: run.id, advances: i + 1 };
-    }
-
-    if (verified) {
-      kernel.settle(run.id, { disposition: 'DONE', observed, verify });
-      continue;
-    }
-    if (outcome.kind === 'judgment-required') {
-      kernel.settle(run.id, { disposition: 'WAITING', observed });
-      return { state: 'WAITING', work: work.id, run: run.id, advances: i + 1 };
-    }
-    if (observed.mutation_certainty === 'absent') {
-      kernel.settle(run.id, { disposition: 'READY', observed });
-      continue;
-    }
-
-    kernel.settle(run.id, { disposition: 'RECOVERY_REQUIRED', observed });
-    return { state: 'RECOVERY_REQUIRED', work: work.id, run: run.id, advances: i + 1 };
+    const receipt=kernel.resolve(run.id);
+    if (receipt.disposition==='DONE' || receipt.disposition==='READY') continue;
+    return {state:'RECOVERY_REQUIRED',work:work.id,run:run.id,advances:i+1};
   }
-  return { state: 'BUDGET_EXHAUSTED', advances: maxAdvances };
+  return {state:'BUDGET_EXHAUSTED',advances:maxAdvances};
 }
