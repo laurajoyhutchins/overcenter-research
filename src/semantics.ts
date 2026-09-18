@@ -53,6 +53,3 @@ export function effectSemantics(postcondition:Postcondition):EffectSemantics|nul
   };
 }
 
-export function semanticDigest(value:unknown):string {
-  return digest(value);
-}
