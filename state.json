@@ -86,8 +86,14 @@
         "ref": "refs/tags/overcenter-actions-effect-35304768100-1",
         "target_sha": "1edeab63f1a62c7f05e5f7c27a8914c46aa450e5"
       },
-      "status": "READY"
+      "status": "EXECUTING",
+      "run_id": "0c1512a3-5b52-4c08-a3a5-6f6ac7e9a7c8",
+      "claimed_revision": "09af3d27874af030d8703a3cf3c058df00eca774"
     }
   },
-  "active_run": null
+  "active_run": {
+    "id": "0c1512a3-5b52-4c08-a3a5-6f6ac7e9a7c8",
+    "obligation_id": "actions-proof-35304768100-1",
+    "claimed_revision": "09af3d27874af030d8703a3cf3c058df00eca774"
+  }
 }
