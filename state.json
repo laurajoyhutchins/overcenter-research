@@ -41,9 +41,10 @@
         "context": "overcenter/conflict-guard/35310531160/1/ordered",
         "expected_state": "success"
       },
-      "status": "EXECUTING",
+      "status": "RECOVERY_REQUIRED",
       "run_id": "f4f0071e-131e-416f-bead-a7d638adffa0",
-      "claimed_revision": "c5e1eab0462ac38c455893011a21ba63cba84c1f"
+      "claimed_revision": "c5e1eab0462ac38c455893011a21ba63cba84c1f",
+      "claim_commit": "414f85d9ae663bfd11bcbd9c069a1ede517b635e"
     },
     "guard-35310531160-1-ordered-beta": {
       "id": "guard-35310531160-1-ordered-beta",
