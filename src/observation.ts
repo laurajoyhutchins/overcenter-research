@@ -70,7 +70,9 @@ export function observePostcondition(
           commit_sha:p.commit_sha,
           context:p.context,
           expected_state:p.expected_state,
-          mutation_certainty:'absent',
+          mutation_certainty:'uncertain',
+          negative_evidence_authoritative:false,
+          observation_error:'COLLECTION_ABSENCE_NOT_AUTHORITATIVE',
         };
       }
       return {
