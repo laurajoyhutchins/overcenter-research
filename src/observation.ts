@@ -1,10 +1,15 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { Observation, Postcondition } from './model.ts';
-import { findGithubCommitStatus, githubGet } from './providers/github-status.ts';
+import {
+  observeCertifiedGithubCommitStatus,
+  type GithubJsonGet,
+} from './providers/github-certified-status.ts';
 
 export interface ObservationContext {
   githubToken: string | null;
+  githubGet?: GithubJsonGet;
+  clock?: () => string;
 }
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -48,41 +53,44 @@ export function observePostcondition(
       };
     }
     try {
-      const repository=githubGet(
+      const status=observeCertifiedGithubCommitStatus(
         context.githubToken,
-        `/repositories/${p.repository_id}`,
-      ) as { id?: number; full_name?: string };
-      if (repository.id!==p.repository_id || typeof repository.full_name!=='string') {
-        throw new Error('GITHUB_REPOSITORY_IDENTITY_MISMATCH');
-      }
-      const status=findGithubCommitStatus(
-        context.githubToken,
-        repository.full_name,
-        p.commit_sha,
-        p.context,
+        {
+          repositoryId:p.repository_id,
+          commitSha:p.commit_sha,
+          context:p.context,
+          ...(context.githubGet?{get:context.githubGet}:{}),
+          ...(context.clock?{clock:context.clock}:{}),
+        },
       );
-      if (!status) {
+      if (status.state==='indeterminate') {
         return {
           verifier:p.verifier,
           provider:'github',
           repository_id:p.repository_id,
-          repository_full_name:repository.full_name,
+          repository_full_name:status.repository_full_name,
           commit_sha:p.commit_sha,
           context:p.context,
           expected_state:p.expected_state,
-          mutation_certainty:'absent',
+          mutation_certainty:'uncertain',
+          negative_evidence_authoritative:false,
+          observation_error:status.reason,
+          provider_evidence:status.evidence,
+          legacy_interpretation:status.legacy_interpretation,
         };
       }
       return {
         verifier:p.verifier,
         provider:'github',
         repository_id:p.repository_id,
-        repository_full_name:repository.full_name,
+        repository_full_name:status.repository_full_name,
         commit_sha:p.commit_sha,
         context:p.context,
         expected_state:p.expected_state,
-        actual_state:status.state,
+        actual_state:status.actual_state,
         mutation_certainty:'present',
+        provider_evidence:status.evidence,
+        legacy_interpretation:status.legacy_interpretation,
       };
     } catch (e: unknown) {
       return {
