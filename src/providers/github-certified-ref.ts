@@ -8,7 +8,7 @@ import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
-} from './github-certified-status.ts';
+} from './github-contract.ts';
 import { githubGet, type GithubJsonGet } from './github-status.ts';
 
 interface GithubObservationParameter {
