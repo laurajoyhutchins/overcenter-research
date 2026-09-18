@@ -158,7 +158,7 @@ The authority-untrusted executor can corrupt local Git configuration, refs, kern
 
 ### S10. Execution-generation fencing is separate from exact revision
 
-**Status:** Architectural requirement.
+**Status:** Architectural requirement in the implementation; model-checked in the formal kernel.
 
 The distributed-fencing research shows that exact Git revision checks cannot reject a stale worker when execution authority changes without moving Git.
 
@@ -174,11 +174,11 @@ exact expected project revision
 
 > A stale lease generation must be rejected at the authoritative mutation/settlement boundary even if the project revision is unchanged.
 
-**Current limitation:** Main's minimal Git experiment demonstrates exact-revision CAS and disposable recovery, not the full distributed lease/fencing mechanism.
+**Evidence boundary:** `formal/TransitionKernel.tla` checks `MutationAuthoritySafety`, and `BrokenNoFence.cfg` must produce its counterexample. Main's Git implementation still demonstrates exact-revision CAS and disposable recovery, not the full distributed lease/fencing mechanism.
 
 ### S11. An unresolved authorized effect must block conflicting successor effects
 
-**Status:** Architectural requirement.
+**Status:** Architectural requirement in the implementation; model-checked in the formal kernel.
 
 A new authority epoch may need to recover an older uncertain effect, but it must not issue a conflicting successor effect until that reservation is resolved.
 
@@ -186,9 +186,11 @@ A new authority epoch may need to recover an older uncertain effect, but it must
 
 > At most one unresolved authoritative mutation reservation may control a conflicting effect coordinate at a time.
 
+**Evidence boundary:** `formal/TransitionKernel.tla` checks `ReservationSafety`, and `BrokenNoReservation.cfg` must produce its counterexample. The current Git implementation does not yet carry this reservation across execution-authority generations as a runtime mechanism.
+
 ### S12. DONE should be derivable from evidence
 
-**Status:** Architectural requirement.
+**Status:** Demonstrated for the current Git fact/receipt projection; broader durable-attestation sufficiency remains an architectural requirement.
 
 The intended semantic rule is:
 
@@ -201,6 +203,8 @@ DONE =
 ```
 
 A cached lifecycle field may exist, but it should not be the deepest source of truth.
+
+The pure replay and projection-reconstruction tests derive `DONE` from obligation, claim, observation, verification, and receipt facts after materialized projection state is discarded. The formal kernel separately checks `NoFalseDone` and requires the broken no-evidence model to produce a counterexample. This does not yet prove that the proposed compact transition-attestation format is sufficient for every provider or future storage backend.
 
 ## Safety assumptions and non-claims
 
@@ -512,6 +516,8 @@ When adding a new README/research claim, classify it explicitly.
 - Which hidden inputs could invalidate it?
 - Does reuse require authoritative readback for external effects?
 - Can verification policy changes invalidate or revalidate the realization?
+
+For a layer-by-layer witness map, see [`proof-obligations.md`](./proof-obligations.md).
 
 ## Bottom line
 
