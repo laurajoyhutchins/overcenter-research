@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/kernel.test.js && node --experimental-strip-types --test test/git-kernel.test.ts test/disposable-agent.test.ts test/two-effect-concurrency.test.ts test/effect-ordering.test.ts test/projection-reconstruction.test.ts",
+    "test": "node --test test/kernel.test.js && node --experimental-strip-types --test test/git-kernel.test.ts test/disposable-agent.test.ts test/two-effect-concurrency.test.ts test/effect-ordering.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts",
     "demo": "node examples/demo.js",
     "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts test/disposable-agent.test.ts",
     "demo:git": "node --experimental-strip-types examples/git-demo.ts",
@@ -11,7 +11,8 @@
     "test:handoff": "node --experimental-strip-types --test test/disposable-agent.test.ts",
     "test:concurrency": "node --experimental-strip-types --test test/two-effect-concurrency.test.ts",
     "test:effect-order": "node --experimental-strip-types --test test/effect-ordering.test.ts",
-    "test:projection": "node --experimental-strip-types --test test/projection-reconstruction.test.ts"
+    "test:projection": "node --experimental-strip-types --test test/projection-reconstruction.test.ts",
+    "test:dependency-edges": "node --experimental-strip-types --test test/dependency-edge-adversarial.test.ts"
   },
   "engines": {
     "node": ">=22.16.0"
