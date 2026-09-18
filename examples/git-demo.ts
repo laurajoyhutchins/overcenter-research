@@ -29,7 +29,7 @@ console.log('state ref before:', kernel.head());
 console.log('before:', kernel.inspect().map(({ id, status }) => ({ id, status })));
 
 const result = await runGitCoreLoop(kernel, {
-  execute: async packet => {
+  effect: async packet => {
     writeFileSync(String(packet.path), String(packet.content));
     return { kind: 'ok' };
   },
