@@ -21,6 +21,7 @@ on:
       - src/providers/github-certified-ref.ts
       - src/providers/github-certified-repository.ts
       - src/providers/github-contract.ts
+      - src/providers/github-observation.ts
       - src/providers/github-status.ts
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
@@ -44,6 +45,7 @@ on:
       - src/providers/github-certified-ref.ts
       - src/providers/github-certified-repository.ts
       - src/providers/github-contract.ts
+      - src/providers/github-observation.ts
       - src/providers/github-status.ts
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
