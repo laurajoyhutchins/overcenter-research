@@ -3,12 +3,8 @@ import type {
   Work,
 } from './model.ts';
 import type { State } from './facts.ts';
-import {
-  dependencyUpstreams,
-  dependsOn,
-} from './graph.ts';
+import { dependencyUpstreams } from './graph.ts';
 import type { Lifecycle } from './lifecycle.ts';
-import { effectSemantics } from './semantics.ts';
 
 export function claimabilityError(
   state:State,
@@ -27,25 +23,9 @@ export function claimabilityError(
     return 'DEPENDENCIES_NOT_DONE';
   }
 
-  const semantics=effectSemantics(work.postcondition);
-  if (!semantics) return null;
-
-  for (const other of Object.values(state.obligations)) {
-    if (other.id===work.id) continue;
-    const otherSemantics=effectSemantics(other.postcondition);
-    if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
-
-    const sameDesired=otherSemantics.desired===semantics.desired;
-    if (
-      sameDesired
-      && semantics.sameDesiredCommutes
-      && otherSemantics.sameDesiredCommutes
-    ) continue;
-
-    const ordered=dependsOn(state,work.id,other.id)
-      || dependsOn(state,other.id,work.id);
-    if (!ordered) return `UNORDERED_EFFECT_CONFLICT:${work.id}:${other.id}`;
-  }
+  // Mechanically knowable semantic-selector and static effect-ordering errors
+  // are graph-admission invariants. Eligibility is intentionally limited to
+  // dynamic execution readiness.
   return null;
 }
 
