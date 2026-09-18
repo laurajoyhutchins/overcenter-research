@@ -423,6 +423,57 @@ test('rewiring a satisfied control edge does not change downstream semantic iden
   }
 });
 
+test('content-selected semantic dependency can reuse across equivalent producers', () => {
+  const f = fixture();
+  try {
+    const a = f.path('a');
+    const c = f.path('c');
+    const b = f.path('b');
+
+    defineWithEdges(f.kernel, {
+      id: 'a',
+      postcondition: pc(a, 'same-content'),
+    });
+    defineWithEdges(f.kernel, {
+      id: 'c',
+      postcondition: pc(c, 'same-content'),
+    });
+    defineWithEdges(f.kernel, {
+      id: 'b',
+      edges: [{
+        kind: 'semantic',
+        upstream: 'a',
+        consumes: { kind: 'output', selector: 'verified-content' },
+      }],
+      postcondition: pc(b, 'B'),
+    });
+
+    settleFile(f.kernel, 'a', a, 'same-content');
+    settleFile(f.kernel, 'c', c, 'same-content');
+    const b1 = settleFile(f.kernel, 'b', b, 'B');
+
+    f.kernel.amend({
+      id: 'b',
+      deps: ['c'],
+      dependencies: [{
+        kind: 'semantic',
+        upstream: 'c',
+        consumes: { kind: 'output', selector: 'verified-content' },
+      }],
+      postcondition: pc(b, 'B'),
+    }, f.kernel.head()!);
+
+    const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
+    assert.equal(projectedB.status, 'DONE');
+    assert.equal(
+      f.kernel.receipts(b1.run.id).at(-1)?.settlement_commit,
+      b1.receipt.settlement_commit,
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
 test('semantic edge declaration order does not change obligation identity', () => {
   const f = fixture();
   try {
