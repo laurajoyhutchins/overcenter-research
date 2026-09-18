@@ -211,8 +211,8 @@ const checksObservation = await observeOperation(
   transport,
   provenance,
 );
-validateSlice(checksOperation, checksObservation);
-const checksPage = projectCheckRunsPage(checksObservation, repository);
+const validatedChecksObservation = validateSlice(checksOperation, checksObservation);
+const checksPage = projectCheckRunsPage(validatedChecksObservation, repository);
 assert.ok(checksPage);
 assert.ok(checksPage.members.length > 0, 'stable check coordinate should expose at least one check run');
 const firstCheck = checksPage.members[0];
@@ -236,8 +236,8 @@ const statusObservation = await observeOperation(
   transport,
   provenance,
 );
-validateSlice(statusOperation, statusObservation);
-const statusPage = projectCommitStatusesPage(statusObservation, repository);
+const validatedStatusObservation = validateSlice(statusOperation, statusObservation);
+const statusPage = projectCommitStatusesPage(validatedStatusObservation, repository);
 assert.ok(statusPage);
 assert.ok(statusPage.members.length > 0, 'stable status coordinate should expose at least one commit status');
 const firstStatus = statusPage.members[0];
@@ -263,8 +263,8 @@ if (volatileCheckRef) {
     transport,
     provenance,
   );
-  validateSlice(checksOperation, volatileObservation);
-  const volatilePage = projectCheckRunsPage(volatileObservation, repository);
+  const validatedVolatileObservation = validateSlice(checksOperation, volatileObservation);
+  const volatilePage = projectCheckRunsPage(validatedVolatileObservation, repository);
   assert.ok(volatilePage);
   const missing = evaluateCheckRunPage(volatilePage, {
     repository_id: repository.subject.id,
@@ -287,8 +287,8 @@ const workflowObservation = await observeOperation(
   transport,
   provenance,
 );
-validateSlice(workflowOperation, workflowObservation);
-const workflowPage = projectWorkflowRunsPage(workflowObservation, repository);
+const validatedWorkflowObservation = validateSlice(workflowOperation, workflowObservation);
+const workflowPage = projectWorkflowRunsPage(validatedWorkflowObservation, repository);
 assert.ok(workflowPage);
 assert.ok(workflowPage.members.length > 0, 'repository should expose at least one workflow run');
 const firstWorkflowRun = workflowPage.members[0];
