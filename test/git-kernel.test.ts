@@ -158,6 +158,8 @@ test('kernel state never persists lifecycle status or cached claim commit', () =
       const stored = state().obligations.x;
       assert.ok(stored);
       assert.equal('status' in stored, false);
+      assert.equal('run_id' in stored, false);
+      assert.equal('claimed_revision' in stored, false);
       assert.equal('claim_commit' in stored, false);
     };
 
