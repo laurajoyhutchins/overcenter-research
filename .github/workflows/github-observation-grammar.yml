@@ -8,13 +8,16 @@ on:
       - experiment/github-observation-grammar
       - experiment/github-observation-semantics
       - experiment/certified-github-status-readback
+      - integration/provider-observation-core
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
       - src/observation.ts
+      - src/provider-observation/**
       - src/providers/github-certified-status.ts
       - src/providers/github-status.ts
       - test/github-certified-status.test.ts
+      - test/provider-observation.test.ts
       - research/github-observation-grammar.md
       - package.json
   pull_request:
@@ -49,6 +52,8 @@ jobs:
           node-version-file: '.node-version'
       - name: Fast deterministic regression
         run: npm test
+      - name: Promoted provider observation core
+        run: npm run test:provider-observation
       - name: GitHub observation experiment
         run: npm run test:github-observation
 
