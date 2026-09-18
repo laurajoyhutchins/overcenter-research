@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel, runGitCoreLoop } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'overcenter-effect-order-'));
@@ -26,48 +26,52 @@ function statusPostcondition(state:'success'|'failure',context='overcenter/confl
   };
 }
 
-test('READY frontier excludes unordered incompatible canonical effects', () => {
+test('unordered incompatible canonical effects are rejected before definition commits', () => {
   const f=fixture();
   try {
     f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
-    f.kernel.define({id:'beta',postcondition:statusPostcondition('failure')});
-
-    assert.equal(f.kernel.deriveReadyWork(),null);
-
-    const inspected=f.kernel.inspect();
-    assert.deepEqual(
-      inspected.map(work=>[work.id,work.status]),
-      [['alpha','BLOCKED'],['beta','BLOCKED']],
-    );
-    assert.match(inspected[0].blocked_reason ?? '',/UNORDERED_EFFECT_CONFLICT/);
-    assert.match(inspected[1].blocked_reason ?? '',/UNORDERED_EFFECT_CONFLICT/);
+    const acceptedHead=f.kernel.head();
 
     assert.throws(
-      ()=>f.kernel.claim('alpha',inspected[0].revision),
+      ()=>f.kernel.define({id:'beta',postcondition:statusPostcondition('failure')}),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
+    );
+
+    assert.equal(f.kernel.head(),acceptedHead);
+    assert.deepEqual(
+      f.kernel.inspect().map(work=>[work.id,work.status]),
+      [['alpha','READY']],
     );
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
 });
 
-test('core loop reports BLOCKED rather than IDLE for semantic conflict', async () => {
+test('amendment cannot remove ordering and create a static effect conflict', () => {
   const f=fixture();
   try {
     f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
-    f.kernel.define({id:'beta',postcondition:statusPostcondition('failure')});
-
-    let executions=0;
-    const result=await runGitCoreLoop(f.kernel,{
-      execute:async ()=>{
-        executions+=1;
-        return {kind:'ok'};
-      },
+    f.kernel.define({
+      id:'beta',
+      dependencies:[{kind:'control',upstream:'alpha'}],
+      postcondition:statusPostcondition('failure'),
     });
+    const acceptedHead=f.kernel.head()!;
 
-    assert.equal(result.state,'BLOCKED');
-    assert.equal(executions,0);
-    assert.ok(result.work==='alpha' || result.work==='beta');
+    assert.throws(
+      ()=>f.kernel.amend({
+        id:'beta',
+        dependencies:[],
+        postcondition:statusPostcondition('failure'),
+      },acceptedHead),
+      /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
+    );
+
+    assert.equal(f.kernel.head(),acceptedHead);
+    assert.deepEqual(
+      f.kernel.inspect().find(work=>work.id==='beta')?.dependencies,
+      [{kind:'control',upstream:'alpha'}],
+    );
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
@@ -101,28 +105,24 @@ test('explicit graph order permits the canonical conflicting predecessor to be c
   }
 });
 
-test('GitHub status contexts differing only by case share one conflict domain', () => {
+test('GitHub status contexts differing only by case conflict at admission', () => {
   const f=fixture();
   try {
     f.kernel.define({
       id:'alpha',
       postcondition:statusPostcondition('success','overcenter/Build'),
     });
-    f.kernel.define({
-      id:'beta',
-      postcondition:statusPostcondition('failure','overcenter/build'),
-    });
+    const acceptedHead=f.kernel.head();
 
-    assert.equal(f.kernel.deriveReadyWork(),null);
-    const inspected=f.kernel.inspect();
-    assert.deepEqual(
-      inspected.map(work=>[work.id,work.status]),
-      [['alpha','BLOCKED'],['beta','BLOCKED']],
-    );
     assert.throws(
-      ()=>f.kernel.claim('alpha',inspected[0].revision),
+      ()=>f.kernel.define({
+        id:'beta',
+        postcondition:statusPostcondition('failure','overcenter/build'),
+      }),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
+
+    assert.equal(f.kernel.head(),acceptedHead);
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
