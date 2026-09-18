@@ -339,3 +339,142 @@ export function validateObservationStructure(
   }
   return validateStructure(outcome.schema as Schema, observation.outcome.value);
 }
+
+
+export type StructuralSelection =
+  | true
+  | {
+      properties?: Record<string, StructuralSelection>;
+      items?: StructuralSelection;
+    };
+
+interface ProjectedSchema {
+  state: 'VALID' | 'UNSUPPORTED';
+  schema?: Schema;
+  problems: StructuralProblem[];
+}
+
+function projected(schema: Schema): ProjectedSchema {
+  return { state: 'VALID', schema, problems: [] };
+}
+
+function unsupported(path: string, reason: string): ProjectedSchema {
+  return { state: 'UNSUPPORTED', problems: [{ path, reason }] };
+}
+
+function projectSelectedSchema(
+  schema: Schema,
+  selection: StructuralSelection,
+  path = '$',
+): ProjectedSchema {
+  if (schema === false) return projected(false);
+  if (schema === true) return unsupported(path, 'SELECTED_SCHEMA_UNCONSTRAINED');
+  if (schema === null || typeof schema !== 'object' || Array.isArray(schema)) {
+    return unsupported(path, 'SELECTED_SCHEMA_INVALID');
+  }
+  if ('$ref' in schema) return unsupported(path, 'SELECTED_SCHEMA_REF_UNRESOLVED');
+
+  const output: Record<string, unknown> = {};
+  for (const key of ['type', 'nullable', 'enum', 'const']) {
+    if (key in schema) output[key] = schema[key];
+  }
+
+  for (const key of ['allOf', 'anyOf', 'oneOf'] as const) {
+    if (!(key in schema)) continue;
+    const branches = schemaArray(schema[key]);
+    if (!branches) return unsupported(path, `SELECTED_SCHEMA_${key.toUpperCase()}_INVALID`);
+    const projectedBranches: Schema[] = [];
+    for (const branch of branches) {
+      const result = projectSelectedSchema(branch, selection, path);
+      if (result.state !== 'VALID' || result.schema === undefined) return result;
+      projectedBranches.push(result.schema);
+    }
+    output[key] = projectedBranches;
+  }
+
+  if ('not' in schema) {
+    const branch = schema.not;
+    if (!(typeof branch === 'boolean' || (branch !== null && typeof branch === 'object' && !Array.isArray(branch)))) {
+      return unsupported(path, 'SELECTED_SCHEMA_NOT_INVALID');
+    }
+    const result = projectSelectedSchema(branch as Schema, selection, path);
+    if (result.state !== 'VALID' || result.schema === undefined) return result;
+    output.not = result.schema;
+  }
+
+  if (selection === true) {
+    if (Object.keys(output).length === 0) {
+      return unsupported(path, 'SELECTED_SCHEMA_HAS_NO_STRUCTURAL_CONSTRAINT');
+    }
+    return projected(output);
+  }
+
+  if (selection.properties) {
+    const sourceProperties = schemaObject(schema.properties);
+    if (!sourceProperties) return unsupported(path, 'SELECTED_SCHEMA_PROPERTIES_UNAVAILABLE');
+    const selectedProperties: Record<string, Schema> = {};
+    for (const [name, childSelection] of Object.entries(selection.properties)) {
+      const childSchema = sourceProperties[name];
+      if (childSchema === undefined) {
+        return unsupported(`${path}.${name}`, 'SELECTED_SCHEMA_PROPERTY_UNAVAILABLE');
+      }
+      const result = projectSelectedSchema(childSchema, childSelection, `${path}.${name}`);
+      if (result.state !== 'VALID' || result.schema === undefined) return result;
+      selectedProperties[name] = result.schema;
+    }
+    output.type ??= 'object';
+    output.properties = selectedProperties;
+    // Selection is semantic: every selected field is required for this proposition,
+    // even if the provider's general response schema marks it optional.
+    output.required = Object.keys(selectedProperties);
+  }
+
+  if (selection.items) {
+    const sourceItems = schema.items;
+    if (!(typeof sourceItems === 'boolean' || (sourceItems !== null && typeof sourceItems === 'object' && !Array.isArray(sourceItems)))) {
+      return unsupported(path, 'SELECTED_SCHEMA_ITEMS_UNAVAILABLE');
+    }
+    const result = projectSelectedSchema(sourceItems as Schema, selection.items, `${path}[]`);
+    if (result.state !== 'VALID' || result.schema === undefined) return result;
+    output.type ??= 'array';
+    output.items = result.schema;
+  }
+
+  if (Object.keys(output).length === 0) {
+    return unsupported(path, 'SELECTED_SCHEMA_HAS_NO_STRUCTURAL_CONSTRAINT');
+  }
+  return projected(output);
+}
+
+export function validateSelectedStructure(
+  schema: Schema,
+  value: unknown,
+  selection: StructuralSelection,
+): StructuralResult {
+  const projection = projectSelectedSchema(schema, selection);
+  if (projection.state !== 'VALID' || projection.schema === undefined) {
+    return { state: 'UNSUPPORTED', problems: projection.problems };
+  }
+  return validateStructure(projection.schema, value);
+}
+
+export function validateSelectedObservationStructure(
+  operation: ObservationOperation,
+  observation: RawObservation,
+  selection: StructuralSelection,
+): StructuralResult {
+  if (observation.contract.provider !== operation.provider
+    || observation.contract.api_version !== operation.api_version
+    || observation.contract.operation_id !== operation.operation_id) {
+    return problem('INVALID', '$', 'STRUCTURAL_OPERATION_IDENTITY_MISMATCH');
+  }
+  const outcome = operation.outcomes.find(candidate => candidate.status === String(observation.outcome.status));
+  if (!outcome) return problem('UNSUPPORTED', '$', 'STRUCTURAL_OUTCOME_NOT_IN_CONTRACT');
+  if (outcome.schema === null || outcome.schema === undefined) {
+    return problem('UNSUPPORTED', '$', 'STRUCTURAL_RESPONSE_SCHEMA_UNAVAILABLE');
+  }
+  if (observation.outcome.value === undefined) {
+    return problem('INVALID', '$', 'STRUCTURAL_RESPONSE_BODY_MISSING');
+  }
+  return validateSelectedStructure(outcome.schema as Schema, observation.outcome.value, selection);
+}
