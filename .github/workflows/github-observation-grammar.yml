@@ -6,11 +6,11 @@ on:
       - experiment/github-observation-grammar
     paths:
       - .github/workflows/github-observation-grammar.yml
-      - scripts/github-openapi-inventory.ts
-      - scripts/github-ref-live-proof.ts
-      - src/github-openapi.ts
-      - src/github-semantics.ts
-      - test/github-observation.test.ts
+      - experiments/github-observation-grammar/inventory.ts
+      - experiments/github-observation-grammar/live-ref-proof.ts
+      - experiments/github-observation-grammar/openapi.ts
+      - experiments/github-observation-grammar/semantics.ts
+      - experiments/github-observation-grammar/github-observation.test.ts
       - research/github-observation-grammar.md
       - package.json
 
@@ -49,12 +49,12 @@ jobs:
             --output "$RUNNER_TEMP/github-openapi.json"
       - name: Generate read-only observation inventory
         run: |
-          node --experimental-strip-types scripts/github-openapi-inventory.ts \
+          node --experimental-strip-types experiments/github-observation-grammar/inventory.ts \
             "$RUNNER_TEMP/github-openapi.json" \
             2026-03-10
       - name: Prove live ref readback through generated descriptor
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          node --experimental-strip-types scripts/github-ref-live-proof.ts \
+          node --experimental-strip-types experiments/github-observation-grammar/live-ref-proof.ts \
             "$RUNNER_TEMP/github-openapi.json"

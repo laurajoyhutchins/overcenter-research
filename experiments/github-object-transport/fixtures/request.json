@@ -1,0 +1,17 @@
+{
+  "schema": "github-object-transport/request/v1",
+  "entries": [
+    {
+      "path": "package.json",
+      "writable": false
+    },
+    {
+      "path": "experiments/github-object-transport/fixtures/payload.txt",
+      "writable": true
+    },
+    {
+      "path": "experiments/github-object-transport/fixtures/hidden.txt",
+      "writable": true
+    }
+  ]
+}

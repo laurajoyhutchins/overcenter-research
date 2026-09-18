@@ -6,12 +6,12 @@ on:
       - prototype/git-object-database
     paths:
       - .github/workflows/disposable-agent-proof.yml
-      - actions/project-authority.ts
-      - actions/disposable-agent-a.ts
-      - actions/disposable-agent-b.ts
+      - experiments/disposable-agent/authority.ts
+      - experiments/disposable-agent/agent-a.ts
+      - experiments/disposable-agent/agent-b.ts
       - src/git-kernel.ts
       - test/git-kernel.test.ts
-      - test/disposable-agent.test.ts
+      - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
 
 permissions: {}
@@ -41,7 +41,7 @@ jobs:
       - name: Define immutable obligation and claim exact snapshot
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types actions/project-authority.ts
+        run: node --experimental-strip-types experiments/disposable-agent/authority.ts
 
   agent-a:
     name: Agent A — authority-untrusted sandbox, provider effect, terminate
@@ -70,7 +70,7 @@ jobs:
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types actions/disposable-agent-a.ts
+        run: node --experimental-strip-types experiments/disposable-agent/agent-a.ts
 
       - name: Supervisor confirms Agent A terminated
         if: always()
@@ -104,4 +104,4 @@ jobs:
       - name: Reconstruct immutable intent and settle
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types actions/disposable-agent-b.ts
+        run: node --experimental-strip-types experiments/disposable-agent/agent-b.ts

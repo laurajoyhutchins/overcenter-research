@@ -32,7 +32,7 @@ For the consolidated architecture and research claims, start with:
 ## Two storage experiments
 
 ```text
-src/kernel.js       SQLite-backed reference
+experiments/sqlite-baseline/kernel.js  SQLite-backed baseline experiment
 src/git-kernel.ts   Git-backed prototype
 ```
 
@@ -587,28 +587,59 @@ The sandbox validation covers:
 
 The proof suite is intentionally growing; the README does not pin a historical pass count. Run `npm test` for the current focused regression set and the dedicated scripts above for handoff, concurrency, effect-ordering, and stress experiments.
 
-## Files
+## Repository shape
+
+Paths intentionally distinguish the kind of evidence they contain:
 
 ```text
-src/kernel.js                 SQLite reference kernel
-src/git-kernel.ts             Git authority kernel
-examples/demo.js              SQLite demo
-examples/git-demo.ts          Git-native demo
-test/kernel.test.js           SQLite proofs
-test/git-kernel.test.ts       Git kernel proofs
-test/disposable-agent.test.ts disposable-agent handoff proof
-test/two-effect-concurrency.test.ts independent-effect concurrency/recovery proofs
-test/effect-ordering.test.ts  provider-coordinate conflict/commutativity proofs
-stress/git-stress.ts          adversarial Git/clone stress tests
-actions/project-authority.ts    trusted definition/claim boundary
-actions/disposable-agent-a.ts  hosted disposable executor
-actions/disposable-agent-b.ts  hosted recovery executor
-.github/workflows/disposable-agent-proof.yml  live Actions proof
-ARCHITECTURE.md               consolidated architecture + glossary
-research/README.md            research map
-research/claims.md            safety/liveness/provenance/reuse taxonomy
-research/durable-execution-comparison.md durable-execution comparison
-research/                     detailed prior-art notes
+src/          reusable reference mechanism
+test/         focused invariants of that mechanism
+experiments/  executable empirical and adversarial proofs
+formal/       machine-checked models
+research/     literature, synthesis, and architectural claims
 ```
+
+Current executable surfaces:
+
+```text
+src/git-kernel.ts
+  Git-backed authority / projection / recovery reference mechanism
+
+test/
+  reconstruction, typed dependency identity, and focused kernel invariants
+
+experiments/sqlite-baseline/
+  original SQLite baseline implementation and proof
+
+experiments/disposable-agent/
+  worker destruction, reconstruction, and settlement
+
+experiments/two-effect-concurrency/
+  independent concurrent effects and recovery
+
+experiments/conflicting-effect/
+  provider-coordinate conflict and commutativity
+
+experiments/eventually-consistent-readback/
+  hostile negative-evidence / no-blind-replay proof
+
+experiments/github-observation-grammar/
+  OpenAPI-derived GitHub observation grammar experiment
+
+experiments/github-object-transport/
+  exact GitHub object materialization fixtures
+
+experiments/git-stress/
+  adversarial Git / CAS / clone stress coverage
+
+formal/
+  TLA+ transaction and recovery kernel with negative controls
+
+.github/workflows/
+  hosted orchestration for live proofs; implementation stays beside experiments
+```
+
+Run `npm test` for the ordinary mechanism + experiment gate. Formal and stress proofs remain explicit dedicated commands.
+
 
 The experiment is intentionally small. New machinery should have to demonstrate that Git authority plus disposable local state cannot provide the required safety first.

@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+
+const STATE_REF=`refs/overcenter/conflict-guard-runs/${process.env.GITHUB_RUN_ID}/${process.env.GITHUB_RUN_ATTEMPT}`;
+
+function required(name:string):string {
+  const value=process.env[name];
+  if (!value) throw new Error(`missing ${name}`);
+  return value;
+}
+
+async function github(path:string):Promise<any> {
+  const token=required('GITHUB_TOKEN');
+  const response=await fetch(`https://api.github.com${path}`,{
+    headers:{
+      Authorization:`Bearer ${token}`,
+      Accept:'application/vnd.github+json',
+      'X-GitHub-Api-Version':'2022-11-28',
+    },
+  });
+  if (!response.ok) throw new Error(`GitHub ${response.status}: ${await response.text()}`);
+  return response.json();
+}
+
+const workflowRunId=required('GITHUB_RUN_ID');
+const attempt=required('GITHUB_RUN_ATTEMPT');
+const token=required('GITHUB_TOKEN');
+const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF,githubToken:token});
+const prefix=`guard-${workflowRunId}-${attempt}-`;
+const works=kernel.inspect().filter(work=>work.id.startsWith(prefix));
+assert.equal(works.length,4);
+
+const unordered=works.filter(work=>work.id.includes('-unordered-'));
+assert.equal(unordered.length,2);
+assert.ok(unordered.every(work=>work.status==='BLOCKED' && !work.run_id && work.blocked_reason?.startsWith('UNORDERED_EFFECT_CONFLICT:')));
+const uAlpha=unordered.find(work=>work.id.endsWith('-alpha'))!;
+assert.throws(
+  ()=>kernel.claim(uAlpha.id,uAlpha.revision),
+  /UNORDERED_EFFECT_CONFLICT/,
+);
+
+const ordered=works.filter(work=>work.id.includes('-ordered-'));
+assert.equal(ordered.length,2);
+assert.ok(ordered.every(work=>work.status==='DONE'));
+
+const alpha=ordered.find(work=>work.id.endsWith('-alpha'))!;
+const beta=ordered.find(work=>work.id.endsWith('-beta'))!;
+assert.ok(alpha.run_id && beta.run_id);
+assert.equal(kernel.receipts(alpha.run_id).at(-1)?.observed?.actual_state,'success');
+assert.equal(kernel.receipts(beta.run_id).at(-1)?.observed?.actual_state,'failure');
+
+if (beta.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
+const repoInfo=await github(`/repositories/${beta.postcondition.repository_id}`);
+const statuses=await github(
+  `/repos/${repoInfo.full_name}/commits/${beta.postcondition.commit_sha}/statuses?per_page=100`,
+);
+const latest=statuses.find((status:any)=>status.context===beta.postcondition.context);
+assert.equal(latest.state,'failure');
+
+console.log(JSON.stringify({
+  unordered:unordered.map(work=>({id:work.id,status:work.status})),
+  ordered:ordered.map(work=>({id:work.id,status:work.status,run_id:work.run_id})),
+  provider_now:latest.state,
+  authority:kernel.head(),
+}));
