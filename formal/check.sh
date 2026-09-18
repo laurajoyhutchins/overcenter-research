@@ -54,8 +54,14 @@ mkdir -p "$FORMAL/.tlc/logs"
 
 GOOD_LOG="$FORMAL/.tlc/logs/TransitionKernel.log"
 echo "==> checking authoritative kernel"
-run_tlc "TransitionKernel.cfg" "$GOOD_LOG"
-grep -q "Model checking completed" "$GOOD_LOG"
+if ! run_tlc "TransitionKernel.cfg" "$GOOD_LOG"; then
+  cat "$GOOD_LOG" >&2
+  exit 1
+fi
+if ! grep -q "Model checking completed" "$GOOD_LOG"; then
+  cat "$GOOD_LOG" >&2
+  exit 1
+fi
 tail -n 8 "$GOOD_LOG"
 
 check_expected_failure() {
