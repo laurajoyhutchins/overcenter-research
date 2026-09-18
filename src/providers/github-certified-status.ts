@@ -4,13 +4,11 @@ import {
   type ResponseFieldSpec,
   type StructuralOperation,
 } from '../provider-observation/response-slice.ts';
-import { githubGet, githubStatusContextKey } from './github-status.ts';
+import { githubGet, githubStatusContextKey, type GithubJsonGet } from './github-status.ts';
 
 export const GITHUB_API_VERSION='2026-03-10';
 export const GITHUB_OPENAPI_SOURCE_COMMIT='d4278c869e367f5d6d4e0f46878119128abba77b';
 export const GITHUB_OPENAPI_SHA256='9d0534e66064a95f0637d542b463a868fc60a53a8cac37eddc85d72a465b8810';
-
-export type GithubJsonGet=(token:string,path:string)=>unknown;
 
 interface GithubObservationParameter {
   name:string;
