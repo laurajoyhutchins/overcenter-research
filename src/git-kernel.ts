@@ -18,6 +18,11 @@ export interface FileContentPostcondition {
   path: string;
   content: string;
 }
+export interface EventuallyConsistentFilePostcondition {
+  verifier: 'eventually-consistent-file-content-equals/v1';
+  path: string;
+  content: string;
+}
 export interface GitRefPostcondition {
   verifier: 'git-ref-equals/v1';
   remote: string;
@@ -32,7 +37,11 @@ export interface GitHubCommitStatusPostcondition {
   context: string;
   expected_state: 'error' | 'failure' | 'pending' | 'success';
 }
-export type Postcondition = FileContentPostcondition | GitRefPostcondition | GitHubCommitStatusPostcondition;
+export type Postcondition =
+  | FileContentPostcondition
+  | EventuallyConsistentFilePostcondition
+  | GitRefPostcondition
+  | GitHubCommitStatusPostcondition;
 
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
@@ -660,7 +669,10 @@ export class GitOvercenterKernel {
     if (lifecycle?.status!=='DONE' || !lifecycle.run) return null;
 
     if (edge.consumes.kind==='output' && edge.consumes.selector==='verified-content') {
-      if (upstream.postcondition.verifier==='file-content-equals/v1') {
+      if (
+        upstream.postcondition.verifier==='file-content-equals/v1'
+        || upstream.postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+      ) {
         return `sha256:${sha256(upstream.postcondition.content)}`;
       }
       if (upstream.postcondition.verifier==='git-ref-equals/v1') {
@@ -834,6 +846,9 @@ export class GitOvercenterKernel {
     if (p?.verifier==='file-content-equals/v1'
       && typeof p.path==='string'
       && typeof p.content==='string') return;
+    if (p?.verifier==='eventually-consistent-file-content-equals/v1'
+      && typeof p.path==='string'
+      && typeof p.content==='string') return;
     if (p?.verifier==='git-ref-equals/v1'
       && typeof p.remote==='string'
       && typeof p.ref==='string'
@@ -910,6 +925,51 @@ export class GitOvercenterKernel {
       }
     }
 
+    if (p.verifier==='eventually-consistent-file-content-equals/v1') {
+      const expected=sha256(p.content);
+      try {
+        const actual=readFileSync(p.path,'utf8');
+        const actualSha=sha256(actual);
+        if (actual===p.content) {
+          return {
+            verifier:p.verifier,
+            path:p.path,
+            expected_sha256:expected,
+            actual_sha256:actualSha,
+            mutation_certainty:'present',
+          };
+        }
+        return {
+          verifier:p.verifier,
+          path:p.path,
+          expected_sha256:expected,
+          actual_sha256:actualSha,
+          mutation_certainty:'uncertain',
+          negative_evidence_authoritative:false,
+          observation_error:'NON_MATCHING_READ_NOT_AUTHORITATIVE',
+        };
+      } catch (e: unknown) {
+        const code=(e as {code?:string}).code;
+        if (code==='ENOENT') {
+          return {
+            verifier:p.verifier,
+            path:p.path,
+            expected_sha256:expected,
+            mutation_certainty:'uncertain',
+            negative_evidence_authoritative:false,
+            observation_error:'NEGATIVE_READ_NOT_AUTHORITATIVE',
+          };
+        }
+        return {
+          verifier:p.verifier,
+          path:p.path,
+          expected_sha256:expected,
+          mutation_certainty:'uncertain',
+          observation_error:errorMessage(e),
+        };
+      }
+    }
+
     if (p.verifier==='git-ref-equals/v1') {
       const listed=this.#git(['ls-remote',p.remote,p.ref],{allowFailure:true});
       if (!listed.ok) {
@@ -958,7 +1018,10 @@ export class GitOvercenterKernel {
     if (observed.verifier!==postcondition.verifier) throw new Error('OBSERVATION_VERIFIER_MISMATCH');
     if (observed.mutation_certainty!=='present') return false;
 
-    if (postcondition.verifier==='file-content-equals/v1') {
+    if (
+      postcondition.verifier==='file-content-equals/v1'
+      || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+    ) {
       if (observed.path!==postcondition.path) throw new Error('OBSERVATION_COORDINATE_MISMATCH');
       return observed.actual_sha256===sha256(postcondition.content);
     }

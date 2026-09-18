@@ -264,6 +264,21 @@ There is no caller-provided `DONE` verifier path.
 
 The file-content verifier is intentionally only a local proof adapter, not a proposed universal evidence model.
 
+### Hostile eventually consistent readback
+
+The executable hostile-readback experiment models a provider whose write path can succeed before its read model converges:
+
+```ts
+{
+  verifier: 'eventually-consistent-file-content-equals/v1',
+  path: '/provider/read-model/resource-42',
+  content: 'created'
+}
+```
+
+For this provider class, missing or stale non-matching reads are not authoritative negative evidence. They remain `uncertain`, keep the exact run in `RECOVERY_REQUIRED`, and cannot release replayable `READY` work. Only positive convergence can settle the run `DONE`. See `research/eventually-consistent-readback-experiment.md`.
+
+
 The branch now has two cross-sandbox/provider proof adapters.
 
 The earlier `git-ref-equals/v1` adapter proved hosted Git ref readback. The hardened adapter removes sandbox-local remote aliases entirely:
@@ -529,6 +544,7 @@ Validated in the assistant sandbox with Node.js 22.16.0 and Git 2.47.3. The Type
 npm test
 npm run test:git
 npm run test:handoff
+npm run test:eventual
 npm run test:concurrency
 npm run test:effect-order
 npm run test:stress
@@ -562,7 +578,8 @@ The sandbox validation covers:
 - a live GitHub Actions handoff across two hosted runners with GitHub itself supplying the lifecycle fact and provider readback;
 - a hardened three-job proof where a separately authorized project authority defines and claims immutable intent before an execution agent with no Contents write permission starts;
 - executor sandbox tampering with Git config, local state, kernel source, and cache cannot alter project truth or verifier authority;
-- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration;
+- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration;;
+- hostile eventually consistent readback cannot turn stale missing or old values into replayable absence; the original run remains recovery-bound until positive convergence.
 - two independent obligations can remain `EXECUTING` simultaneously without losing exact claim identity;
 - two fresh recovery processes can settle independent effects through one CAS authority ref;
 - canonical GitHub-status effect conflicts are blocked unless graph ordering makes the sequence explicit;
