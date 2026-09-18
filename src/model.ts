@@ -67,6 +67,7 @@ export interface Work extends Obligation {
   revision: string;
   run_id?: string;
   claimed_revision?: string;
+  execution_generation?: number;
   blocked_reason?: string;
 }
 
@@ -76,6 +77,13 @@ export interface Run {
   claimed_revision: string;
   claim_commit: string;
   obligation_key: string;
+  execution_generation: number;
+  execution_authority_commit: string;
+  execution_capability_sha256: string;
+}
+
+export interface ExecutionPermit extends Run {
+  execution_capability: string;
 }
 
 export interface ExecuteOutcome extends Data {
@@ -84,7 +92,7 @@ export interface ExecuteOutcome extends Data {
 }
 
 export interface LoopOptions {
-  execute: (packet: Data, run: Run) => Promise<ExecuteOutcome>;
+  execute: (packet: Data, run: ExecutionPermit) => Promise<ExecuteOutcome>;
   maxAdvances?: number;
 }
 
