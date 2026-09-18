@@ -32,8 +32,8 @@ For the consolidated architecture and research claims, start with:
 ## Two storage experiments
 
 ```text
-src/kernel.js       SQLite-backed reference
-src/git-kernel.ts   Git-backed prototype
+experiments/sqlite-baseline/kernel.js  SQLite-backed baseline experiment
+src/git-kernel.ts                       Git-backed reference mechanism
 ```
 
 The Git prototype asks whether the core loop can reduce durable shared authority to:
@@ -400,28 +400,56 @@ The sandbox validation covers:
 
 The proof suite is intentionally growing; the README does not pin a historical pass count. Run `npm test` for the current focused regression set and the dedicated scripts above for handoff, concurrency, effect-ordering, and stress experiments.
 
-## Files
+## Repository shape
+
+The repository separates four kinds of evidence so paths reveal what kind of truth they contain:
 
 ```text
-src/kernel.js                 SQLite reference kernel
-src/git-kernel.ts             Git authority kernel
-examples/demo.js              SQLite demo
-examples/git-demo.ts          Git-native demo
-test/kernel.test.js           SQLite proofs
-test/git-kernel.test.ts       Git kernel proofs
-test/disposable-agent.test.ts disposable-agent handoff proof
-test/two-effect-concurrency.test.ts independent-effect concurrency/recovery proofs
-test/effect-ordering.test.ts  provider-coordinate conflict/commutativity proofs
-stress/git-stress.ts          adversarial Git/clone stress tests
-actions/project-authority.ts    trusted definition/claim boundary
-actions/disposable-agent-a.ts  hosted disposable executor
-actions/disposable-agent-b.ts  hosted recovery executor
-.github/workflows/disposable-agent-proof.yml  live Actions proof
-ARCHITECTURE.md               consolidated architecture + glossary
-research/README.md            research map
-research/claims.md            safety/liveness/provenance/reuse taxonomy
-research/durable-execution-comparison.md durable-execution comparison
-research/                     detailed prior-art notes
+src/          reusable reference mechanism
+test/         focused tests of reusable mechanism
+experiments/  executable empirical/adversarial proofs
+research/     literature, synthesis, and architectural claims
+formal/       machine-checked models when present
 ```
+
+Current executable surfaces:
+
+```text
+src/git-kernel.ts
+  Git authority/reference mechanism
+
+test/git-kernel.test.ts
+  focused Git-kernel regression tests
+
+experiments/sqlite-baseline/
+  original SQLite baseline kernel, proof, and demo
+
+experiments/disposable-agent/
+  disposable-worker handoff proof and hosted actors
+
+experiments/two-effect-concurrency/
+  independent-effect concurrency and recovery proof
+
+experiments/conflicting-effect/
+  provider-coordinate conflict and commutativity proof
+
+experiments/github-object-transport/
+  GitHub object-transport fixtures
+
+experiments/git-stress/
+  adversarial Git/clone stress experiment
+
+.github/workflows/
+  thin hosted orchestration for live proofs
+
+ARCHITECTURE.md
+  consolidated architecture and glossary
+
+research/
+  claims, comparison work, and detailed prior-art notes
+```
+
+Run `npm test` for the ordinary repository test gate. Dedicated experiment commands remain available through the `test:*` scripts in `package.json`.
+
 
 The experiment is intentionally small. New machinery should have to demonstrate that Git authority plus disposable local state cannot provide the required safety first.

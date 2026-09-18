@@ -1,16 +1,18 @@
 {
-  "name": "overcenter-core-loop",
+  "name": "overcenter-research",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/kernel.test.js && node --experimental-strip-types --test test/git-kernel.test.ts test/disposable-agent.test.ts test/two-effect-concurrency.test.ts test/effect-ordering.test.ts",
-    "demo": "node examples/demo.js",
-    "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts test/disposable-agent.test.ts",
+    "test": "npm run test:unit && npm run test:experiments",
+    "test:unit": "node --experimental-strip-types --test test/git-kernel.test.ts",
+    "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts",
+    "demo": "node experiments/sqlite-baseline/demo.js",
+    "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts experiments/disposable-agent/disposable-agent.test.ts",
     "demo:git": "node --experimental-strip-types examples/git-demo.ts",
-    "test:stress": "node --experimental-strip-types --test stress/git-stress.ts",
-    "test:handoff": "node --experimental-strip-types --test test/disposable-agent.test.ts",
-    "test:concurrency": "node --experimental-strip-types --test test/two-effect-concurrency.test.ts",
-    "test:effect-order": "node --experimental-strip-types --test test/effect-ordering.test.ts"
+    "test:stress": "node --experimental-strip-types --test experiments/git-stress/git-stress.test.ts",
+    "test:handoff": "node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts",
+    "test:concurrency": "node --experimental-strip-types --test experiments/two-effect-concurrency/two-effect-concurrency.test.ts",
+    "test:effect-order": "node --experimental-strip-types --test experiments/conflicting-effect/effect-ordering.test.ts"
   },
   "engines": {
     "node": ">=22.16.0"
