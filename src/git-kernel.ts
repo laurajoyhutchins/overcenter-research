@@ -506,7 +506,7 @@ export async function runGitCoreLoop(
 
     let outcome:ExecuteOutcome;
     try {
-      outcome=await execute(work.packet,run);
+      outcome=await execute(work.packet);
     } catch (error:unknown) {
       outcome={
         kind:'execution-error',
