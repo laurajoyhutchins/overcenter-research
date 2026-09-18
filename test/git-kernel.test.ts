@@ -234,3 +234,39 @@ test('projected terminal receipt remains idempotent after a retry is claimed', (
     assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
+
+test('judgment-required fact projects WAITING without persisting WAITING', () => {
+  const f = fixture();
+  try {
+    const path = f.path('judgment');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+
+    const waiting = f.kernel.deferForJudgment(run.id, {
+      source: 'test',
+      question: 'human judgment needed',
+    });
+
+    assert.equal(waiting.disposition, 'WAITING');
+    assert.equal(waiting.verified, false);
+    assert.equal(f.kernel.inspect()[0].status, 'WAITING');
+
+    const persisted = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${waiting.settlement_commit}:receipt.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as Record<string, unknown>;
+
+    assert.equal(persisted.kind, 'judgment-required');
+    assert.equal('disposition' in persisted, false);
+    assert.equal('verified' in persisted, false);
+    assert.equal(JSON.stringify(persisted).includes('WAITING'), false);
+
+    writeFileSync(path, 'present');
+    const settled = f.kernel.reconcile(run.id);
+    assert.equal(settled.disposition, 'DONE');
+    assert.equal(f.kernel.inspect()[0].status, 'DONE');
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
