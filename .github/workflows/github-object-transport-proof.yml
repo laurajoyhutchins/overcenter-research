@@ -1,0 +1,375 @@
+name: GitHub object transport proof
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: github-object-transport-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  API_VERSION: '2022-11-28'
+  PROOF_PATH: test/fixtures/github-object-transport.txt
+
+jobs:
+  materialize:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'proof/github-object-transport'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      source_sha: ${{ steps.materialize.outputs.source_sha }}
+      base_tree: ${{ steps.materialize.outputs.base_tree }}
+      blob_sha: ${{ steps.materialize.outputs.blob_sha }}
+      manifest_sha256: ${{ steps.materialize.outputs.manifest_sha256 }}
+    steps:
+      - name: Materialize exact declared blob from GitHub objects
+        id: materialize
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PROOF_PATH: ${{ env.PROOF_PATH }}
+          API_VERSION: ${{ env.API_VERSION }}
+        run: |
+          set -euo pipefail
+
+          api_get() {
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "https://api.github.com${1}"
+          }
+
+          commit_json="$(api_get "/repos/${REPOSITORY}/git/commits/${SOURCE_SHA}")"
+          resolved_sha="$(jq -r '.sha' <<<"${commit_json}")"
+          base_tree="$(jq -r '.tree.sha' <<<"${commit_json}")"
+          test "${resolved_sha}" = "${SOURCE_SHA}"
+          test -n "${base_tree}"
+
+          tree_json="$(api_get "/repos/${REPOSITORY}/git/trees/${base_tree}?recursive=1")"
+          test "$(jq -r '.truncated' <<<"${tree_json}")" = "false"
+          entry="$(jq -c --arg path "${PROOF_PATH}" '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0] else error("expected exactly one declared blob") end' <<<"${tree_json}")"
+          blob_sha="$(jq -r '.sha' <<<"${entry}")"
+          mode="$(jq -r '.mode' <<<"${entry}")"
+
+          mkdir -p "capsule/workspace/$(dirname "${PROOF_PATH}")"
+          blob_json="$(api_get "/repos/${REPOSITORY}/git/blobs/${blob_sha}")"
+          test "$(jq -r '.encoding' <<<"${blob_json}")" = "base64"
+          jq -r '.content' <<<"${blob_json}" | tr -d '\n' | base64 --decode > "capsule/workspace/${PROOF_PATH}"
+          content_sha256="$(sha256sum "capsule/workspace/${PROOF_PATH}" | cut -d' ' -f1)"
+
+          jq -n \
+            --arg repository "${REPOSITORY}" \
+            --arg source_sha "${SOURCE_SHA}" \
+            --arg base_tree "${base_tree}" \
+            --arg path "${PROOF_PATH}" \
+            --arg mode "${mode}" \
+            --arg blob_sha "${blob_sha}" \
+            --arg content_sha256 "${content_sha256}" \
+            '{
+              schema: "github-object-transport/input/v1",
+              repository: $repository,
+              source_sha: $source_sha,
+              base_tree: $base_tree,
+              entries: [{
+                path: $path,
+                mode: $mode,
+                blob_sha: $blob_sha,
+                content_sha256: $content_sha256,
+                writable: true
+              }]
+            }' > capsule/manifest.json
+
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -cf capsule/workspace.tar -C capsule/workspace .
+          rm -rf capsule/workspace
+
+          manifest_sha256="$(sha256sum capsule/manifest.json | cut -d' ' -f1)"
+          printf '%s  %s\n' "${manifest_sha256}" manifest.json > capsule/manifest.sha256
+
+          echo "source_sha=${SOURCE_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "base_tree=${base_tree}" >> "${GITHUB_OUTPUT}"
+          echo "blob_sha=${blob_sha}" >> "${GITHUB_OUTPUT}"
+          echo "manifest_sha256=${manifest_sha256}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload immutable input capsule
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-object-input-capsule
+          path: capsule
+          if-no-files-found: error
+          retention-days: 1
+
+  execute:
+    needs: materialize
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Download input capsule
+        uses: actions/download-artifact@v4
+        with:
+          name: github-object-input-capsule
+          path: input
+
+      - name: Verify capsule and run disposable worker
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          cd input
+          sha256sum --check manifest.sha256
+          manifest_sha256="$(cut -d' ' -f1 manifest.sha256)"
+          test "${manifest_sha256}" = "${{ needs.materialize.outputs.manifest_sha256 }}"
+
+          path="$(jq -r '.entries | if length == 1 then .[0].path else error("expected one input entry") end' manifest.json)"
+          expected_sha256="$(jq -r '.entries[0].content_sha256' manifest.json)"
+          old_blob_sha="$(jq -r '.entries[0].blob_sha' manifest.json)"
+          mode="$(jq -r '.entries[0].mode' manifest.json)"
+          writable="$(jq -r '.entries[0].writable' manifest.json)"
+          source_sha="$(jq -r '.source_sha' manifest.json)"
+          test "${writable}" = "true"
+
+          mkdir work
+          tar -xf workspace.tar -C work
+          actual_sha256="$(sha256sum "work/${path}" | cut -d' ' -f1)"
+          test "${actual_sha256}" = "${expected_sha256}"
+
+          # Stand-in for an implementation agent: no repository token, only the capsule.
+          printf 'transport-proof:%s:%s\n' "${RUN_ID}" "${RUN_ATTEMPT}" > "work/${path}"
+
+          mkdir -p "../candidate/payload/$(dirname "${path}")"
+          cp "work/${path}" "../candidate/payload/${path}"
+          payload_sha256="$(sha256sum "../candidate/payload/${path}" | cut -d' ' -f1)"
+
+          jq -n \
+            --arg manifest_sha256 "${manifest_sha256}" \
+            --arg source_sha "${source_sha}" \
+            --arg path "${path}" \
+            --arg mode "${mode}" \
+            --arg old_blob_sha "${old_blob_sha}" \
+            --arg payload_sha256 "${payload_sha256}" \
+            '{
+              schema: "github-object-transport/candidate/v1",
+              input_manifest_sha256: $manifest_sha256,
+              source_sha: $source_sha,
+              changes: [{
+                operation: "modify",
+                path: $path,
+                mode: $mode,
+                old_blob_sha: $old_blob_sha,
+                payload_sha256: $payload_sha256
+              }]
+            }' > ../candidate/delta.json
+
+      - name: Upload candidate delta
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-object-candidate-delta
+          path: candidate
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [materialize, execute]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      result_sha: ${{ steps.publish.outputs.result_sha }}
+      result_ref: ${{ steps.publish.outputs.result_ref }}
+      result_blob_sha: ${{ steps.publish.outputs.result_blob_sha }}
+    steps:
+      - name: Download trusted input capsule
+        uses: actions/download-artifact@v4
+        with:
+          name: github-object-input-capsule
+          path: input
+
+      - name: Download untrusted candidate delta
+        uses: actions/download-artifact@v4
+        with:
+          name: github-object-candidate-delta
+          path: candidate
+
+      - name: Validate delta and publish Git objects
+        id: publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          API_VERSION: ${{ env.API_VERSION }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          api_post() {
+            local endpoint="$1"
+            local body="$2"
+            curl --fail-with-body --silent --show-error \
+              -X POST \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "https://api.github.com${endpoint}" \
+              -d "${body}"
+          }
+
+          (cd input && sha256sum --check manifest.sha256)
+          manifest_sha256="$(cut -d' ' -f1 input/manifest.sha256)"
+          test "${manifest_sha256}" = "${{ needs.materialize.outputs.manifest_sha256 }}"
+
+          source_sha="$(jq -r '.source_sha' input/manifest.json)"
+          base_tree="$(jq -r '.base_tree' input/manifest.json)"
+          path="$(jq -r '.entries | if length == 1 then .[0].path else error("expected one manifest entry") end' input/manifest.json)"
+          mode="$(jq -r '.entries[0].mode' input/manifest.json)"
+          old_blob_sha="$(jq -r '.entries[0].blob_sha' input/manifest.json)"
+          writable="$(jq -r '.entries[0].writable' input/manifest.json)"
+
+          test "${source_sha}" = "${EXPECTED_SOURCE_SHA}"
+          test "${source_sha}" = "${{ needs.materialize.outputs.source_sha }}"
+          test "${base_tree}" = "${{ needs.materialize.outputs.base_tree }}"
+          test "${old_blob_sha}" = "${{ needs.materialize.outputs.blob_sha }}"
+          test "${writable}" = "true"
+
+          test "$(jq -r '.schema' candidate/delta.json)" = "github-object-transport/candidate/v1"
+          test "$(jq -r '.input_manifest_sha256' candidate/delta.json)" = "${manifest_sha256}"
+          test "$(jq -r '.source_sha' candidate/delta.json)" = "${source_sha}"
+          test "$(jq '.changes | length' candidate/delta.json)" -eq 1
+          test "$(jq -r '.changes[0].operation' candidate/delta.json)" = "modify"
+          test "$(jq -r '.changes[0].path' candidate/delta.json)" = "${path}"
+          test "$(jq -r '.changes[0].mode' candidate/delta.json)" = "${mode}"
+          test "$(jq -r '.changes[0].old_blob_sha' candidate/delta.json)" = "${old_blob_sha}"
+
+          payload="candidate/payload/${path}"
+          test -f "${payload}"
+          payload_sha256="$(sha256sum "${payload}" | cut -d' ' -f1)"
+          test "${payload_sha256}" = "$(jq -r '.changes[0].payload_sha256' candidate/delta.json)"
+
+          encoded="$(base64 -w0 "${payload}")"
+          blob_body="$(jq -n --arg content "${encoded}" '{content: $content, encoding: "base64"}')"
+          blob_json="$(api_post "/repos/${REPOSITORY}/git/blobs" "${blob_body}")"
+          result_blob_sha="$(jq -r '.sha' <<<"${blob_json}")"
+          test -n "${result_blob_sha}"
+
+          tree_body="$(jq -n \
+            --arg base_tree "${base_tree}" \
+            --arg path "${path}" \
+            --arg mode "${mode}" \
+            --arg sha "${result_blob_sha}" \
+            '{base_tree: $base_tree, tree: [{path: $path, mode: $mode, type: "blob", sha: $sha}]}')"
+          tree_json="$(api_post "/repos/${REPOSITORY}/git/trees" "${tree_body}")"
+          result_tree_sha="$(jq -r '.sha' <<<"${tree_json}")"
+
+          commit_body="$(jq -n \
+            --arg message "Prove GitHub object transport run ${RUN_ID}/${RUN_ATTEMPT}" \
+            --arg tree "${result_tree_sha}" \
+            --arg parent "${source_sha}" \
+            '{message: $message, tree: $tree, parents: [$parent]}')"
+          commit_json="$(api_post "/repos/${REPOSITORY}/git/commits" "${commit_body}")"
+          result_sha="$(jq -r '.sha' <<<"${commit_json}")"
+          test -n "${result_sha}"
+
+          result_ref="transport-proof/result-${RUN_ID}-${RUN_ATTEMPT}"
+          ref_body="$(jq -n --arg ref "refs/heads/${result_ref}" --arg sha "${result_sha}" '{ref: $ref, sha: $sha}')"
+          api_post "/repos/${REPOSITORY}/git/refs" "${ref_body}" >/dev/null
+
+          jq -n \
+            --arg schema "github-object-transport/publish-receipt/v1" \
+            --arg source_sha "${source_sha}" \
+            --arg result_sha "${result_sha}" \
+            --arg result_ref "${result_ref}" \
+            --arg path "${path}" \
+            --arg old_blob_sha "${old_blob_sha}" \
+            --arg new_blob_sha "${result_blob_sha}" \
+            --arg manifest_sha256 "${manifest_sha256}" \
+            '{schema: $schema, source_sha: $source_sha, result_sha: $result_sha, result_ref: $result_ref, path: $path, old_blob_sha: $old_blob_sha, new_blob_sha: $new_blob_sha, input_manifest_sha256: $manifest_sha256}' \
+            > publish-receipt.json
+
+          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
+          echo "result_ref=${result_ref}" >> "${GITHUB_OUTPUT}"
+          echo "result_blob_sha=${result_blob_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload publish receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-object-publish-receipt
+          path: publish-receipt.json
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    needs: [materialize, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify authoritative GitHub readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ needs.materialize.outputs.source_sha }}
+          RESULT_SHA: ${{ needs.publish.outputs.result_sha }}
+          RESULT_BLOB_SHA: ${{ needs.publish.outputs.result_blob_sha }}
+          RESULT_REF: ${{ needs.publish.outputs.result_ref }}
+          PROOF_PATH: ${{ env.PROOF_PATH }}
+          API_VERSION: ${{ env.API_VERSION }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          api_get() {
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "https://api.github.com${1}"
+          }
+
+          ref_json="$(api_get "/repos/${REPOSITORY}/git/ref/heads/${RESULT_REF}")"
+          test "$(jq -r '.object.sha' <<<"${ref_json}")" = "${RESULT_SHA}"
+
+          commit_json="$(api_get "/repos/${REPOSITORY}/git/commits/${RESULT_SHA}")"
+          test "$(jq -r '.parents | length' <<<"${commit_json}")" -eq 1
+          test "$(jq -r '.parents[0].sha' <<<"${commit_json}")" = "${SOURCE_SHA}"
+
+          compare_json="$(api_get "/repos/${REPOSITORY}/compare/${SOURCE_SHA}...${RESULT_SHA}")"
+          test "$(jq -r '.status' <<<"${compare_json}")" = "ahead"
+          test "$(jq -r '.ahead_by' <<<"${compare_json}")" -eq 1
+          test "$(jq -r '.files | length' <<<"${compare_json}")" -eq 1
+          test "$(jq -r '.files[0].filename' <<<"${compare_json}")" = "${PROOF_PATH}"
+
+          tree_sha="$(jq -r '.tree.sha' <<<"${commit_json}")"
+          tree_json="$(api_get "/repos/${REPOSITORY}/git/trees/${tree_sha}?recursive=1")"
+          test "$(jq -r '.truncated' <<<"${tree_json}")" = "false"
+          observed_blob_sha="$(jq -r --arg path "${PROOF_PATH}" '.tree[] | select(.path == $path and .type == "blob") | .sha' <<<"${tree_json}")"
+          test "${observed_blob_sha}" = "${RESULT_BLOB_SHA}"
+
+          blob_json="$(api_get "/repos/${REPOSITORY}/git/blobs/${observed_blob_sha}")"
+          observed="$(jq -r '.content' <<<"${blob_json}" | tr -d '\n' | base64 --decode)"
+          expected="transport-proof:${RUN_ID}:${RUN_ATTEMPT}"
+          test "${observed}" = "${expected}"
+
+          {
+            echo '### GitHub object transport proof'
+            echo
+            echo "- source: ${SOURCE_SHA}"
+            echo "- result: ${RESULT_SHA}"
+            echo "- result ref: ${RESULT_REF}"
+            echo "- changed paths: exactly ${PROOF_PATH}"
+            echo '- executor repository permissions: {}'
+            echo '- checkout steps: none'
+            echo '- authoritative readback: passed'
+          } >> "${GITHUB_STEP_SUMMARY}"
