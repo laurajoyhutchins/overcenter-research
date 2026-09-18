@@ -32,8 +32,10 @@ import {
 import { reconstructGithubProjection } from './reconstruction.ts';
 import {
   RESPONSE_SLICES,
+  validateObservationSlice,
   validateResponseSlice,
   type ResponseSliceResult,
+  type StructurallyValidatedObservation,
 } from './response-slice.ts';
 
 const schemaPath = process.argv[2];
@@ -78,18 +80,18 @@ function op(pathTemplate: string): ObservationOperation {
 
 const structuralSlices: ResponseSliceResult[] = [];
 
-function validateSlice(operation: ObservationOperation, observation: RawObservation): void {
+function validateSlice(
+  operation: ObservationOperation,
+  observation: RawObservation,
+): StructurallyValidatedObservation {
   assert.equal(observation.outcome.status, 200);
   const fields = RESPONSE_SLICES[
     operation.operation_id as keyof typeof RESPONSE_SLICES
   ];
   assert.ok(fields, `response slice missing for ${operation.operation_id}`);
-  structuralSlices.push(validateResponseSlice(
-    operation,
-    '200',
-    observation.outcome.value,
-    fields,
-  ));
+  const validated = validateObservationSlice(operation, observation, fields);
+  structuralSlices.push(validated.structural_validation);
+  return validated;
 }
 
 const repoOperation = op('/repos/{owner}/{repo}');
@@ -136,10 +138,10 @@ const refObservation = await observeOperation(
   transport,
   provenance,
 );
-validateSlice(refOperation, refObservation);
-const refFact = projectGitRefTarget(refObservation, repository);
+const validatedRefObservation = validateSlice(refOperation, refObservation);
+const refFact = projectGitRefTarget(validatedRefObservation, repository);
 assert.ok(refFact);
-assert.equal(evaluateGitRefTarget(refObservation, repository, {
+assert.equal(evaluateGitRefTarget(validatedRefObservation, repository, {
   repository_id: repository.subject.id,
   ref: refName,
   target_sha: sourceSha,
