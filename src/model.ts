@@ -17,9 +17,10 @@ export interface EventuallyConsistentFilePostcondition {
 }
 
 export interface GitHubCommitStatusPostcondition {
-  verifier: 'github-commit-status/v1';
+  verifier: 'github-commit-status/v2';
   provider: 'github';
   repository_id: number;
+  repository_full_name: string;
   commit_sha: string;
   context: string;
   expected_state: 'error' | 'failure' | 'pending' | 'success';
