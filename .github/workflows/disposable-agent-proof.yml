@@ -2,6 +2,16 @@ name: Overcenter disposable-agent trust proof
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/disposable-agent-proof.yml
+      - experiments/disposable-agent/authority.ts
+      - experiments/disposable-agent/agent-a.ts
+      - experiments/disposable-agent/effect-broker.ts
+      - experiments/disposable-agent/agent-b.ts
+      - src/**
+      - test/git-kernel.test.ts
+      - experiments/disposable-agent/disposable-agent.test.ts
   push:
     branches:
       - main
@@ -17,6 +27,9 @@ on:
 
 permissions: {}
 
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   project-authority:
     name: Trusted project authority — define and claim
@@ -30,6 +43,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Node 22.16
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -59,6 +73,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Node 22.16
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -104,6 +119,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Node 22.16
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -146,6 +162,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Node 22.16
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
