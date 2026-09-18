@@ -10,7 +10,8 @@
     "test:stress": "node --experimental-strip-types --test stress/git-stress.ts",
     "test:handoff": "node --experimental-strip-types --test test/disposable-agent.test.ts",
     "test:concurrency": "node --experimental-strip-types --test test/two-effect-concurrency.test.ts",
-    "test:effect-order": "node --experimental-strip-types --test test/effect-ordering.test.ts"
+    "test:effect-order": "node --experimental-strip-types --test test/effect-ordering.test.ts",
+    "test:formal": "bash formal/check.sh"
   },
   "engines": {
     "node": ">=22.16.0"
