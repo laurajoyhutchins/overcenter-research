@@ -111,9 +111,28 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
 });
 
 function absentReceipt(
-  verifier:Obligation['postcondition']['verifier'],
+  work:Obligation,
   authoritative:boolean,
+  overrides:Record<string,unknown>={},
 ):ReceiptFact {
+  const observed=work.postcondition.verifier==='github-commit-status/v1'
+    ? {
+        verifier:work.postcondition.verifier,
+        provider:'github' as const,
+        repository_id:work.postcondition.repository_id,
+        commit_sha:work.postcondition.commit_sha,
+        context:work.postcondition.context,
+        mutation_certainty:'absent' as const,
+        negative_evidence_authoritative:authoritative,
+        ...overrides,
+      }
+    : {
+        verifier:work.postcondition.verifier,
+        path:work.postcondition.path,
+        mutation_certainty:'absent' as const,
+        negative_evidence_authoritative:authoritative,
+        ...overrides,
+      };
   return {
     schema:RECEIPT_SCHEMA,
     run_id:'run-absence',
@@ -121,11 +140,7 @@ function absentReceipt(
     claimed_revision:'revision-absence',
     claim_commit:'claim-absence',
     kind:'observation',
-    observed:{
-      verifier,
-      mutation_certainty:'absent',
-      negative_evidence_authoritative:authoritative,
-    },
+    observed,
     settled_at:'2026-09-18T00:00:00.000Z',
   };
 }
@@ -138,12 +153,19 @@ test('absence authorizes replay only when the verifier declared authoritative ab
     postcondition:{verifier:'file-content-equals/v1',path:'/provider/absence',content:'A'},
   };
   assert.equal(
-    projectReceipt(absentReceipt('file-content-equals/v1',true),local).disposition,
+    projectReceipt(absentReceipt(local,true),local).disposition,
     'READY',
   );
   assert.equal(
-    projectReceipt(absentReceipt('file-content-equals/v1',false),local).disposition,
+    projectReceipt(absentReceipt(local,false),local).disposition,
     'RECOVERY_REQUIRED',
+  );
+  assert.throws(
+    ()=>projectReceipt(
+      absentReceipt(local,true,{path:'/provider/wrong-coordinate'}),
+      local,
+    ),
+    /OBSERVATION_COORDINATE_MISMATCH/,
   );
 
   const eventual:Obligation={
@@ -158,7 +180,7 @@ test('absence authorizes replay only when the verifier declared authoritative ab
   };
   assert.equal(
     projectReceipt(
-      absentReceipt('eventually-consistent-file-content-equals/v1',true),
+      absentReceipt(eventual,true),
       eventual,
     ).disposition,
     'RECOVERY_REQUIRED',
@@ -178,7 +200,7 @@ test('absence authorizes replay only when the verifier declared authoritative ab
     },
   };
   assert.equal(
-    projectReceipt(absentReceipt('github-commit-status/v1',true),github).disposition,
+    projectReceipt(absentReceipt(github,true),github).disposition,
     'RECOVERY_REQUIRED',
   );
 });
