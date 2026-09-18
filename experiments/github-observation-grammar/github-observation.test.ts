@@ -268,7 +268,37 @@ const openapi: OpenApiDocument = {
           { name: 'page', in: 'query', required: false, schema: { type: 'integer' } },
           { name: 'per_page', in: 'query', required: false, schema: { type: 'integer' } },
         ],
-        responses: { '200': { description: 'Response' }, '404': { description: 'Not found' } },
+        responses: {
+          '200': {
+            description: 'Response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['total_count', 'check_runs'],
+                  properties: {
+                    total_count: { type: 'integer' },
+                    check_runs: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        required: ['id', 'name', 'head_sha', 'status', 'conclusion'],
+                        properties: {
+                          id: { type: 'integer' },
+                          name: { type: 'string' },
+                          head_sha: { type: 'string', minLength: 40, maxLength: 64 },
+                          status: { type: 'string' },
+                          conclusion: { type: 'string', nullable: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': { description: 'Not found' },
+        },
       },
     },
     [paths.statuses]: {
@@ -281,7 +311,32 @@ const openapi: OpenApiDocument = {
           { name: 'page', in: 'query', required: false, schema: { type: 'integer' } },
           { name: 'per_page', in: 'query', required: false, schema: { type: 'integer' } },
         ],
-        responses: { '200': { description: 'Response' }, '301': { description: 'Moved' } },
+        responses: {
+          '200': {
+            description: 'Response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['id', 'node_id', 'state', 'context', 'target_url', 'created_at', 'updated_at'],
+                    properties: {
+                      id: { type: 'integer' },
+                      node_id: { type: 'string', minLength: 1 },
+                      state: { type: 'string' },
+                      context: { type: 'string' },
+                      target_url: { type: 'string', nullable: true },
+                      created_at: { type: 'string' },
+                      updated_at: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '301': { description: 'Moved' },
+        },
       },
     },
     [paths.workflowRuns]: {
@@ -293,7 +348,41 @@ const openapi: OpenApiDocument = {
           { name: 'page', in: 'query', required: false, schema: { type: 'integer' } },
           { name: 'per_page', in: 'query', required: false, schema: { type: 'integer' } },
         ],
-        responses: { '200': { description: 'Response' } },
+        responses: {
+          '200': {
+            description: 'Response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['total_count', 'workflow_runs'],
+                  properties: {
+                    total_count: { type: 'integer' },
+                    workflow_runs: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        required: ['id', 'node_id', 'workflow_id', 'run_number', 'run_attempt', 'name', 'event', 'status', 'conclusion', 'head_sha'],
+                        properties: {
+                          id: { type: 'integer' },
+                          node_id: { type: 'string', minLength: 1 },
+                          workflow_id: { type: 'integer' },
+                          run_number: { type: 'integer' },
+                          run_attempt: { type: 'integer' },
+                          name: { type: 'string' },
+                          event: { type: 'string' },
+                          status: { type: 'string' },
+                          conclusion: { type: 'string', nullable: true },
+                          head_sha: { type: 'string', minLength: 40, maxLength: 64 },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
   },
@@ -544,7 +633,12 @@ test('paginated collection proves positive membership but not absence, even on a
     total_count: 2,
     check_runs: [{ id: 10, name: 'build', head_sha: SHA_A, status: 'completed', conclusion: 'success' }],
   }, { ...RESPONSE, link: '<https://api.github.com/x?page=2>; rel="next", <https://api.github.com/x?page=2>; rel="last"' }));
-  const firstPage = projectCheckRunsPage(first, repository)!;
+  assert.equal(projectCheckRunsPage(first, repository), null);
+  const firstPage = projectCheckRunsPage(validateObservationSlice(
+    operation(paths.checks),
+    first,
+    RESPONSE_SLICES['checks/list-for-ref'],
+  ), repository)!;
   assert.equal(firstPage.has_next, true);
   assert.equal(firstPage.enumeration, 'partial');
   assert.equal(evaluateCheckRunPage(firstPage, {
@@ -560,7 +654,11 @@ test('paginated collection proves positive membership but not absence, even on a
     total_count: 2,
     check_runs: [{ id: 11, name: 'lint', head_sha: SHA_A, status: 'completed', conclusion: 'success' }],
   }, { ...RESPONSE, link: '<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first"' }));
-  const terminalPage = projectCheckRunsPage(terminal, repository)!;
+  const terminalPage = projectCheckRunsPage(validateObservationSlice(
+    operation(paths.checks),
+    terminal,
+    RESPONSE_SLICES['checks/list-for-ref'],
+  ), repository)!;
   assert.equal(terminalPage.enumeration, 'terminal-page-seen');
   assert.equal(terminalPage.negative_evidence_authoritative, false);
   assert.equal(evaluateCheckRunPage(terminalPage, {
@@ -576,7 +674,11 @@ test('an empty check-run page is observation evidence, not proof that no run exi
     total_count: 0,
     check_runs: [],
   }));
-  const page = projectCheckRunsPage(empty, repository)!;
+  const page = projectCheckRunsPage(validateObservationSlice(
+    operation(paths.checks),
+    empty,
+    RESPONSE_SLICES['checks/list-for-ref'],
+  ), repository)!;
   assert.equal(page.members.length, 0);
   assert.equal(page.total_count, 0);
   assert.equal(page.negative_evidence_authoritative, false);
@@ -601,7 +703,12 @@ test('commit statuses reuse positive collection membership semantics without gai
     updated_at: '2026-09-18T16:01:00Z',
   }], { ...RESPONSE, link: '<https://api.github.com/x?page=2>; rel="next"' }));
 
-  const page = projectCommitStatusesPage(observed, repository)!;
+  assert.equal(projectCommitStatusesPage(observed, repository), null);
+  const page = projectCommitStatusesPage(validateObservationSlice(
+    operation(paths.statuses),
+    observed,
+    RESPONSE_SLICES['repos/list-commit-statuses-for-ref'],
+  ), repository)!;
   assert.equal(page.has_next, true);
   assert.equal(evaluateCommitStatusPage(page, {
     repository_id: 42,
@@ -637,7 +744,12 @@ test('workflow runs reuse collection membership semantics with a repository-scop
     }],
   }, { ...RESPONSE, link: '<https://api.github.com/x?page=2>; rel="next"' }));
 
-  const page = projectWorkflowRunsPage(observed, repository)!;
+  assert.equal(projectWorkflowRunsPage(observed, repository), null);
+  const page = projectWorkflowRunsPage(validateObservationSlice(
+    operation(paths.workflowRuns),
+    observed,
+    RESPONSE_SLICES['actions/list-workflow-runs-for-repo'],
+  ), repository)!;
   assert.equal(page.subject.repository_id, 42);
   assert.equal(page.has_next, true);
   assert.equal(evaluateWorkflowRunPage(page, {
