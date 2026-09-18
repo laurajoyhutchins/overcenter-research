@@ -235,12 +235,6 @@ function evidence(observation: RawObservation): FactEvidence {
   };
 }
 
-function observed200(observation: RawObservation, operationId: string): boolean {
-  return observation.contract.operation_id === operationId
-    && observation.outcome.status === 200
-    && observation.outcome.visibility === 'observed';
-}
-
 function requestCoordinate(observation: RawObservation): { owner: string; repo: string } | null {
   const owner = observation.request.parameters.owner;
   const repo = observation.request.parameters.repo;
