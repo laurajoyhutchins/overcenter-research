@@ -5,6 +5,7 @@ import type {
 import type { State } from './facts.ts';
 import { dependencyUpstreams } from './graph.ts';
 import type { Lifecycle } from './lifecycle.ts';
+import { staticEffectConflictError } from './admission.ts';
 
 export function claimabilityError(
   state:State,
@@ -23,10 +24,11 @@ export function claimabilityError(
     return 'DEPENDENCIES_NOT_DONE';
   }
 
-  // Mechanically knowable semantic-selector and static effect-ordering errors
-  // are graph-admission invariants. Eligibility is intentionally limited to
-  // dynamic execution readiness.
-  return null;
+  // New mutations should have been rejected at admission. Keep this check as
+  // a defensive projection for legacy or externally constructed histories so
+  // an older valid v3 history cannot become executable merely because policy
+  // moved earlier.
+  return staticEffectConflictError(state,work.id);
 }
 
 export function projectWork(
