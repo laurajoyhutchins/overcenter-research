@@ -1,5 +1,6 @@
 import type { Obligation } from './model.ts';
 import { observationVerified } from './observation.ts';
+import { settlementSemantics } from './semantics.ts';
 import {
   CLAIM_SCHEMA,
   OBLIGATION_SCHEMA,
@@ -50,9 +51,11 @@ export function projectReceipt(
   if (fact.kind==='observation') {
     if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
     verified=observationVerified(work.postcondition,fact.observed);
+    const policy=settlementSemantics(work.postcondition);
     disposition=verified
       ? 'DONE'
       : fact.observed.mutation_certainty==='absent'
+        && policy.authoritativeAbsenceCanAuthorizeReplay
         ? 'READY'
         : 'RECOVERY_REQUIRED';
   } else {
