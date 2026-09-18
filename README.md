@@ -95,10 +95,17 @@ exact same canonical projection + SHA-256 digest
 ```
 
 The durable journal is explicitly checked not to contain a `status` field or any
-of the projected lifecycle labels. The test runs one obligation through claim,
-external effect, worker termination, authoritative readback, and settlement,
-then deletes the projection cache and reconstructs from the current Git authority
-ref.
+of the projected lifecycle labels. Settlement records bind a run to factual
+observation evidence; `verified`, replayable, or recovery-required disposition is
+derived during replay rather than stored as settlement state.
+
+The test uses a two-obligation dependency graph and destroys the projection cache
+at every meaningful boundary: READY/BLOCKED after definition, EXECUTING after
+claim, EXECUTING after the external effect alone, RECOVERY_REQUIRED after worker
+termination, RECOVERY_REQUIRED after observation but before settlement, and
+DONE/READY after settlement. Every time, a fresh read from the current Git fact
+authority must reproduce the exact canonical projection and digest. Claim writes
+are also exact-revision fenced with compare-and-swap.
 
 Run it directly with:
 
