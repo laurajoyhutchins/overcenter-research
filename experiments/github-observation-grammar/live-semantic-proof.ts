@@ -162,7 +162,7 @@ if (pullNumber !== null) {
 const checksOperation = op('/repos/{owner}/{repo}/commits/{ref}/check-runs');
 const checksObservation = await observeOperation(
   checksOperation,
-  { owner, repo, ref: statusRef, page: 1, per_page: 1 },
+  { owner, repo, ref: checkRef, page: 1, per_page: 1 },
   transport,
   provenance,
 );
@@ -186,7 +186,7 @@ currentFacts.push(checksPage);
 const statusOperation = op('/repos/{owner}/{repo}/commits/{ref}/statuses');
 const statusObservation = await observeOperation(
   statusOperation,
-  { owner, repo, ref: checkRef, page: 1, per_page: 1 },
+  { owner, repo, ref: statusRef, page: 1, per_page: 1 },
   transport,
   provenance,
 );
