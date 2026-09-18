@@ -62,7 +62,11 @@ export function projectWork(
     status,
     revision,
     ...(lifecycle.run
-      ? {run_id:lifecycle.run.id,claimed_revision:lifecycle.run.claimed_revision}
+      ? {
+          run_id:lifecycle.run.id,
+          claimed_revision:lifecycle.run.claimed_revision,
+          execution_generation:lifecycle.run.execution_generation,
+        }
       : {}),
   } as Work;
 
