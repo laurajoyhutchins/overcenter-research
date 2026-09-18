@@ -3,11 +3,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const STATE_REF = 'refs/overcenter/state';
-const STATE_SCHEMA = 'overcenter-git-state-v3';
+const STATE_SCHEMA = 'overcenter-git-state-v4';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v2';
 
-type StoredWorkStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
-export type WorkStatus = StoredWorkStatus | 'BLOCKED';
+type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
+export type WorkStatus = LifecycleStatus | 'BLOCKED';
 export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
 export type MutationCertainty = 'present' | 'absent' | 'uncertain';
 export type Data = Record<string, unknown>;
@@ -58,13 +58,11 @@ export interface Obligation {
   deps: string[];
   packet: Data;
   postcondition: Postcondition;
-  status: StoredWorkStatus;
   run_id?: string;
   claimed_revision?: string;
-  claim_commit?: string;
 }
 interface State { schema: typeof STATE_SCHEMA; obligations: Record<string, Obligation> }
-export interface Work extends Omit<Obligation, 'status'> {
+export interface Work extends Obligation {
   status: WorkStatus;
   revision: string;
   blocked_reason?: string;
@@ -148,9 +146,10 @@ export class GitOvercenterKernel {
     this.#validatePostcondition(postcondition);
     const head = this.#requireHead();
     const state = this.#state(head);
-    if (this.#hasInFlight(state)) throw new Error('PROJECT_BUSY');
+    const statuses=this.#projectedStatuses(state,head);
+    if (this.#hasInFlight(statuses)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
-    state.obligations[id] = { id, deps, packet, postcondition, status:'READY' };
+    state.obligations[id] = { id, deps, packet, postcondition };
     const commit = this.#commit(head, state, `overcenter: define ${id}`);
     if (!this.#cas(commit, head)) throw new Error('DEFINE_LOST');
     return commit;
@@ -159,18 +158,20 @@ export class GitOvercenterKernel {
   inspect(): Work[] {
     const head = this.#requireHead();
     const state = this.#state(head);
+    const statuses=this.#projectedStatuses(state,head);
     return Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work => this.#projectWork(state, work, head));
+      .map(work => this.#projectWork(state, work, head, statuses));
   }
 
   deriveReadyWork(): Work | null {
     const head = this.#requireHead();
     const state = this.#state(head);
+    const statuses=this.#projectedStatuses(state,head);
     const work = Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .find(candidate => this.#claimabilityError(state, candidate)===null);
-    return work ? this.#projectWork(state, work, head) : null;
+      .find(candidate => this.#claimabilityError(state, candidate, statuses)===null);
+    return work ? this.#projectWork(state, work, head, statuses) : null;
   }
 
   claim(id: string, expectedRevision: string): Run {
@@ -179,10 +180,11 @@ export class GitOvercenterKernel {
     const state = this.#state(head);
     const work = state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    const claimabilityError=this.#claimabilityError(state,work);
+    const statuses=this.#projectedStatuses(state,head);
+    const claimabilityError=this.#claimabilityError(state,work,statuses);
     if (claimabilityError) throw new Error(claimabilityError);
     const runId = randomUUID();
-    work.status='EXECUTING'; work.run_id=runId; work.claimed_revision=head;
+    work.run_id=runId; work.claimed_revision=head;
     const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`);
     if (!this.#cas(commit,head)) throw new Error('CLAIM_LOST');
     return {id:runId, obligation_id:id, claimed_revision:head, claim_commit:commit};
@@ -198,13 +200,14 @@ export class GitOvercenterKernel {
         if (prior) return prior;
         throw new Error('UNKNOWN_RUN');
       }
-      if (!['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(work.status)) {
+      const status=this.#projectedStatuses(state,head).get(work.id);
+      if (!status || !['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(status)) {
         const prior = this.receipts(runId).at(-1);
         if (prior) return prior;
         throw new Error('NOT_RESOLVABLE');
       }
 
-      const claimCommit = work.claim_commit ?? this.#findClaimCommit(runId, work, head);
+      const claimCommit = this.#findClaimCommit(runId, work, head);
       const observed = this.#observe(work.postcondition);
       const disposition: Disposition = observed.verified
         ? 'DONE'
@@ -212,12 +215,9 @@ export class GitOvercenterKernel {
           ? 'READY'
           : 'RECOVERY_REQUIRED';
       const receipt = this.#receipt(runId,work,disposition,observed.verified,observed,claimCommit);
-      work.status=disposition;
-      work.claim_commit=claimCommit;
       if (disposition==='READY') {
         delete work.run_id;
         delete work.claimed_revision;
-        delete work.claim_commit;
       }
       const commit=this.#commit(head,state,`overcenter: resolve ${work.id} ${disposition}`,receipt);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
@@ -235,14 +235,13 @@ export class GitOvercenterKernel {
         if (prior) return prior;
         throw new Error('UNKNOWN_RUN');
       }
-      if (work.status!=='EXECUTING') {
+      const status=this.#projectedStatuses(state,head).get(work.id);
+      if (status!=='EXECUTING') {
         const prior=this.receipts(runId).at(-1);
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
       }
       const claimCommit=this.#findClaimCommit(runId,work,head);
-      work.claim_commit=claimCommit;
-      work.status=disposition;
       const receipt=this.#receipt(runId,work,disposition,false,null,claimCommit,diagnostic);
       const commit=this.#commit(head,state,`overcenter: defer ${work.id} ${disposition}`,receipt);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
@@ -260,14 +259,13 @@ export class GitOvercenterKernel {
         if (prior) return prior;
         throw new Error('UNKNOWN_RUN');
       }
-      if (work.status!=='EXECUTING') {
+      const status=this.#projectedStatuses(state,head).get(work.id);
+      if (status!=='EXECUTING') {
         const prior=this.receipts(runId).at(-1);
         if (prior) return prior;
         throw new Error('RUN_NOT_EXECUTING');
       }
       const claimCommit=this.#findClaimCommit(runId,work,head);
-      work.claim_commit=claimCommit;
-      work.status='RECOVERY_REQUIRED';
       const receipt=this.#receipt(
         runId,
         work,
@@ -286,9 +284,12 @@ export class GitOvercenterKernel {
   reconcile(runId: string): Receipt { return this.resolve(runId); }
 
   receipts(runId: string | null = null): Receipt[] {
-    const head=this.#requireHead();
+    return this.#receiptsThrough(this.#requireHead(),runId);
+  }
+
+  #receiptsThrough(head:string,runId:string|null=null): Receipt[] {
     const revs=this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
-    const out: Receipt[]=[];
+    const out:Receipt[]=[];
     for (const commit of revs) {
       const file=this.#git(['show',`${commit}:receipt.json`],{allowFailure:true});
       if (!file.ok) continue;
@@ -298,10 +299,22 @@ export class GitOvercenterKernel {
     return out;
   }
 
+  #projectedStatuses(state:State,head:string): Map<string,LifecycleStatus> {
+    const statuses=new Map<string,LifecycleStatus>();
+    for (const work of Object.values(state.obligations)) {
+      statuses.set(work.id,work.run_id?'EXECUTING':'READY');
+    }
+    for (const receipt of this.#receiptsThrough(head)) {
+      const work=state.obligations[receipt.obligation_id];
+      if (work?.run_id===receipt.run_id) statuses.set(work.id,receipt.disposition);
+    }
+    return statuses;
+  }
+
   #requireHead(): string { const head=this.head(); if (!head) throw new Error('NOT_INITIALIZED'); return head; }
   #emptyState(): State { return {schema:STATE_SCHEMA,obligations:{}}; }
-  #hasInFlight(state: State): boolean {
-    return Object.values(state.obligations).some(work=>IN_FLIGHT.has(work.status));
+  #hasInFlight(statuses: Map<string,LifecycleStatus>): boolean {
+    return [...statuses.values()].some(status=>IN_FLIGHT.has(status));
   }
   #effectSemantics(
     postcondition: Postcondition,
@@ -321,11 +334,15 @@ export class GitOvercenterKernel {
     if (!work) return false;
     return work.deps.some(dep=>dep===targetId || this.#dependsOn(state,dep,targetId,seen));
   }
-  #claimabilityError(state: State, work: Obligation): string | null {
-    if (work.status!=='READY') return 'NOT_READY';
+  #claimabilityError(
+    state: State,
+    work: Obligation,
+    statuses: Map<string,LifecycleStatus>,
+  ): string | null {
+    if (statuses.get(work.id)!=='READY') return 'NOT_READY';
     const done=new Set(
       Object.values(state.obligations)
-        .filter(candidate=>candidate.status==='DONE')
+        .filter(candidate=>statuses.get(candidate.id)==='DONE')
         .map(candidate=>candidate.id),
     );
     if (!work.deps.every(dep=>done.has(dep))) return 'DEPENDENCIES_NOT_DONE';
@@ -347,10 +364,15 @@ export class GitOvercenterKernel {
     }
     return null;
   }
-  #projectWork(state: State, work: Obligation, revision: string): Work {
-    const projected={...structuredClone(work),revision} as Work;
-    if (work.status!=='READY') return projected;
-    const reason=this.#claimabilityError(state,work);
+  #projectWork(
+    state: State,
+    work: Obligation,
+    revision: string,
+    statuses: Map<string,LifecycleStatus>,
+  ): Work {
+    const projected={...structuredClone(work),status:statuses.get(work.id)!,revision} as Work;
+    if (projected.status!=='READY') return projected;
+    const reason=this.#claimabilityError(state,work,statuses);
     if (reason && reason!=='NOT_READY') {
       projected.status='BLOCKED';
       projected.blocked_reason=reason;
@@ -365,7 +387,7 @@ export class GitOvercenterKernel {
       .filter(Boolean);
     for (const commit of revs) {
       const candidate=this.#state(commit).obligations[work.id];
-      if (candidate?.run_id===runId && candidate.status==='EXECUTING') return commit;
+      if (candidate?.run_id===runId) return commit;
     }
     throw new Error('CLAIM_COMMIT_NOT_FOUND');
   }
