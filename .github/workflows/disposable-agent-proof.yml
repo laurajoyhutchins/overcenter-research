@@ -12,6 +12,7 @@ on:
       - src/git-kernel.ts
       - test/git-kernel.test.ts
       - test/disposable-agent.test.ts
+      - README.md
 
 permissions: {}
 
