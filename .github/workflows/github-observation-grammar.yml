@@ -67,6 +67,10 @@ jobs:
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/semantic-inventory.ts \
             "$RUNNER_TEMP/github-openapi.json"
+      - name: Inventory representative response schema complexity
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/response-schema-inventory.ts \
+            "$RUNNER_TEMP/github-openapi.json"
       - name: Prove live identity, immutable, mutable, pagination, conditional, and reconstruction semantics
         env:
           GITHUB_TOKEN: ${{ github.token }}
