@@ -12,6 +12,11 @@ on:
       - src/**
       - test/git-kernel.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
+      - README.md
+      - ARCHITECTURE.md
+      - experiments/README.md
+      - research/claims.md
+      - research/proof-obligations.md
   push:
     branches:
       - main
@@ -24,6 +29,11 @@ on:
       - src/**
       - test/git-kernel.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
+      - README.md
+      - ARCHITECTURE.md
+      - experiments/README.md
+      - research/claims.md
+      - research/proof-obligations.md
 
 permissions: {}
 
