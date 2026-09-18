@@ -10,6 +10,6 @@
     "test:stress": "node --experimental-strip-types --test stress/git-stress.ts"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.16.0"
   }
 }
