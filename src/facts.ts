@@ -73,7 +73,7 @@ export interface EffectReservation extends EffectReservationFact {
 export type ReceiptKind='observation'|'judgment-required'|'execution-terminated';
 
 export interface ReceiptFact {
-  schema:typeof RECEIPT_SCHEMA;
+  schema:ReceiptSchema;
   run_id:string;
   obligation_id:string;
   claimed_revision:string;

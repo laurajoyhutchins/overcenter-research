@@ -1,12 +1,13 @@
 import type { Obligation } from './model.ts';
 import {
-  observationAuthoritativelyAbsent,
+  authoritativeAbsenceEvidence,
   observationVerified,
 } from './observation.ts';
 import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
+  LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
   emptyState,
@@ -59,14 +60,29 @@ export function projectReceipt(
 
   if (fact.kind==='observation') {
     if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
-    verified=observationVerified(work.postcondition,fact.observed);
-    const policy=settlementSemantics(work.postcondition);
-    disposition=verified
-      ? 'DONE'
-      : policy.authoritativeAbsenceCanAuthorizeReplay
-        && observationAuthoritativelyAbsent(work.postcondition,fact.observed)
-        ? 'READY'
-        : 'RECOVERY_REQUIRED';
+    if (fact.schema===LEGACY_RECEIPT_SCHEMA) {
+      verified=fact.observed.mutation_certainty==='present'
+        ? observationVerified(work.postcondition,fact.observed)
+        : false;
+      disposition=verified
+        ? 'DONE'
+        : fact.observed.mutation_certainty==='absent'
+          ? 'READY'
+          : 'RECOVERY_REQUIRED';
+    } else {
+      verified=observationVerified(work.postcondition,fact.observed);
+      const policy=settlementSemantics(work.postcondition);
+      const absenceEvidence=authoritativeAbsenceEvidence(
+        work.postcondition,
+        fact.observed,
+      );
+      disposition=verified
+        ? 'DONE'
+        : absenceEvidence
+          && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind)
+          ? 'READY'
+          : 'RECOVERY_REQUIRED';
+    }
   } else {
     if (fact.observed) throw new Error('NONOBSERVATION_RECEIPT_HAS_EVIDENCE');
     disposition=fact.kind==='judgment-required' ? 'WAITING' : 'RECOVERY_REQUIRED';
@@ -226,7 +242,12 @@ export function replayProjection(commits:FactCommit[]):Projection {
 
     if (record.receipt==null) continue;
     const fact=record.receipt as ReceiptFact;
-    if (fact.schema!==RECEIPT_SCHEMA) throw new Error('INVALID_RECEIPT_SCHEMA');
+    if (
+      fact.schema!==RECEIPT_SCHEMA
+      && fact.schema!==LEGACY_RECEIPT_SCHEMA
+    ) {
+      throw new Error('INVALID_RECEIPT_SCHEMA');
+    }
     if (!['observation','judgment-required','execution-terminated'].includes(fact.kind)) {
       throw new Error('INVALID_RECEIPT_KIND');
     }

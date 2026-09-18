@@ -50,7 +50,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
     const missing=kernel.reconcile(run);
     assert.equal(missing.disposition,'RECOVERY_REQUIRED');
     assert.equal(missing.observed?.mutation_certainty,'uncertain');
-    assert.equal(missing.observed?.negative_evidence_authoritative,false);
+    assert.equal(missing.observed?.absence_evidence,undefined);
     assert.equal(missing.observed?.observation_error,'NEGATIVE_READ_NOT_AUTHORITATIVE');
     assert.equal(kernel.deriveReadyWork(),null);
     assert.equal(kernel.inspect()[0].run_id,run.id);
@@ -61,7 +61,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
     const stale=kernel.reconcile(run);
     assert.equal(stale.disposition,'RECOVERY_REQUIRED');
     assert.equal(stale.observed?.mutation_certainty,'uncertain');
-    assert.equal(stale.observed?.negative_evidence_authoritative,false);
+    assert.equal(stale.observed?.absence_evidence,undefined);
     assert.equal(stale.observed?.observation_error,'NON_MATCHING_READ_NOT_AUTHORITATIVE');
     assert.equal(kernel.deriveReadyWork(),null);
 

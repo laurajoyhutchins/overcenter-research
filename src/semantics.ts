@@ -1,6 +1,7 @@
 import type { Postcondition } from './model.ts';
 import { canonicalDigest, sha256 } from './digest.ts';
 import { githubStatusContextKey } from './providers/github-status.ts';
+import { LOCAL_FILE_ENOENT_EVIDENCE } from './evidence.ts';
 
 export interface EffectSemantics {
   resource:string;
@@ -10,14 +11,14 @@ export interface EffectSemantics {
 
 export interface SettlementSemantics {
   verifier:Postcondition['verifier'];
-  authoritativeAbsenceCanAuthorizeReplay:boolean;
+  acceptedAbsenceEvidenceKinds:readonly string[];
 }
 
 export function settlementSemantics(postcondition:Postcondition):SettlementSemantics {
   if (postcondition.verifier==='file-content-equals/v1') {
     return {
       verifier:postcondition.verifier,
-      authoritativeAbsenceCanAuthorizeReplay:true,
+      acceptedAbsenceEvidenceKinds:[LOCAL_FILE_ENOENT_EVIDENCE],
     };
   }
   if (
@@ -26,7 +27,7 @@ export function settlementSemantics(postcondition:Postcondition):SettlementSeman
   ) {
     return {
       verifier:postcondition.verifier,
-      authoritativeAbsenceCanAuthorizeReplay:false,
+      acceptedAbsenceEvidenceKinds:[],
     };
   }
   const exhaustive:never=postcondition;
