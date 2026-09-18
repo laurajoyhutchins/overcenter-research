@@ -10,6 +10,8 @@ on:
       - experiment/certified-github-status-readback
       - integration/provider-observation-core
       - integration/certified-github-ref-binding
+      - integration/certified-github-ref-binding
+      - integration/certified-github-repository-identity
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
@@ -18,10 +20,12 @@ on:
       - src/provider-observation/**
       - src/providers/github-certified-status.ts
       - src/providers/github-certified-ref.ts
+      - src/providers/github-certified-repository.ts
       - src/providers/github-contract.ts
       - src/providers/github-status.ts
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
+      - test/github-certified-repository.test.ts
       - test/provider-observation.test.ts
       - research/github-observation-grammar.md
       - package.json
@@ -37,6 +41,12 @@ on:
       - src/provider-observation/**
       - src/providers/github-certified-status.ts
       - src/providers/github-status.ts
+      - test/github-certified-repository.test.ts
+      - test/github-certified-ref.test.ts
+      - src/providers/github-contract.ts
+      - src/providers/github-certified-repository.ts
+      - src/providers/github-certified-ref.ts
+      - src/model.ts
       - test/github-certified-status.test.ts
       - test/provider-observation.test.ts
       - research/github-observation-grammar.md
@@ -69,6 +79,8 @@ jobs:
         run: npm run test:provider-observation
       - name: Certified GitHub ref binding
         run: npm run test:github-certified-ref
+      - name: Certified GitHub repository identity
+        run: npm run test:github-certified-repository
       - name: GitHub observation experiment
         run: npm run test:github-observation
 
@@ -116,6 +128,13 @@ jobs:
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/live-semantic-proof.ts \
             "$RUNNER_TEMP/github-openapi.json"
+      - name: Prove kernel repository identity uses certified observations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY_ID: 1354872053
+          GITHUB_REPOSITORY_FULL_NAME: ${{ github.repository }}
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/live-kernel-repository-identity.ts
       - name: Prove kernel commit-status readback uses certified observations
         env:
           GITHUB_TOKEN: ${{ github.token }}
