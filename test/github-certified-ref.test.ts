@@ -39,6 +39,15 @@ function provider({
   const get:GithubJsonGet=(_token,path)=>{
     calls.push(path);
     if (path==='/repositories/42') return {id:42,full_name:'acme/widget'};
+    if (path==='/repos/acme/widget') {
+      return {
+        id:42,
+        node_id:'R_42',
+        full_name:'acme/widget',
+        name:'widget',
+        owner:{login:'acme'},
+      };
+    }
     if (failure) throw failure;
     return {
       ref:'refs/heads/main',
@@ -84,7 +93,8 @@ test('exact certified GitHub ref binding settles DONE', () => {
   assert.equal(observed.ref,'refs/heads/main');
   assert.equal(observed.actual_target_sha,TARGET);
   assert.equal(receiptFor(observed,pc).disposition,'DONE');
-  assert.match(p.calls[1],/git\/ref\/heads%2Fmain$/);
+  assert.deepEqual(p.calls.slice(0,2),['/repositories/42','/repos/acme/widget']);
+  assert.match(p.calls[2],/git\/ref\/heads%2Fmain$/);
 });
 
 test('authoritative different ref target proves desired binding absent and returns READY', () => {
