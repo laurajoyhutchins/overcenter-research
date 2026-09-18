@@ -27,13 +27,17 @@ import type {
   ReceiptKind,
 } from './facts.ts';
 import {
-  claimabilityError,
-  hasInFlight,
-  obligationKey,
-  projectWork,
   validateGraph,
   withObligation,
 } from './graph.ts';
+import {
+  hasInFlight,
+  obligationKey,
+} from './lifecycle.ts';
+import {
+  claimabilityError,
+  projectWork,
+} from './eligibility.ts';
 import {
   projectReceipt,
   replayProjection,

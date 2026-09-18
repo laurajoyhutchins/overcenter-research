@@ -102,7 +102,9 @@ Important entry points:
 - [`src/git-store.ts`](./src/git-store.ts) - Git object storage, history access, and authority-ref CAS.
 - [`src/facts.ts`](./src/facts.ts) - durable fact schemas plus obligation/fact validation.
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
-- [`src/graph.ts`](./src/graph.ts) - dependency graph, lifecycle, reuse identity, and claimability.
+- [`src/graph.ts`](./src/graph.ts) - static dependency topology, validation, and ordering queries.
+- [`src/lifecycle.ts`](./src/lifecycle.ts) - semantic realization identity and lifecycle derivation.
+- [`src/eligibility.ts`](./src/eligibility.ts) - deterministic execution eligibility and BLOCKED projection.
 - [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to current project projection.
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
