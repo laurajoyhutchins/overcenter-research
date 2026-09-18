@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:unit && npm run test:experiments",
+    "test": "npm run test:unit",
     "test:unit": "node --experimental-strip-types --test test/git-kernel.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts",
     "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/github-observation-grammar/github-observation.test.ts",
     "demo": "node experiments/sqlite-baseline/demo.js",
@@ -17,7 +17,10 @@
     "test:github-observation": "node --experimental-strip-types --test experiments/github-observation-grammar/github-observation.test.ts",
     "test:projection": "node --experimental-strip-types --test test/projection-reconstruction.test.ts",
     "test:dependency-edges": "node --experimental-strip-types --test test/dependency-edge-adversarial.test.ts",
-    "test:formal": "bash formal/check.sh"
+    "test:formal": "bash formal/check.sh",
+    "proof:local": "npm run test:experiments && npm run test:stress",
+    "proof:formal": "npm run test:formal",
+    "proof:live": "gh workflow run disposable-agent-proof.yml"
   },
   "engines": {
     "node": ">=22.16.0"
