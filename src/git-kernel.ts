@@ -241,7 +241,7 @@ export class GitOvercenterKernel {
     throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
   }
 
-  defer(runId: string, disposition: 'WAITING', diagnostic: Data = {}): Receipt {
+  deferForJudgment(runId: string, diagnostic: Data = {}): Receipt {
     for (let attempt=0; attempt<16; attempt+=1) {
       const head=this.#requireHead();
       const state=this.#state(head);
@@ -256,7 +256,6 @@ export class GitOvercenterKernel {
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
       }
-      if (disposition!=='WAITING') throw new Error('UNSUPPORTED_DEFER_DISPOSITION');
       const fact=this.#receiptFact(run,work,'judgment-required',null,diagnostic);
       const receipt=this.#projectReceipt(fact,work);
       const commit=this.#commit(head,state,`overcenter: judgment required ${work.id} ${run.id}`,fact);
@@ -742,7 +741,7 @@ export async function runGitCoreLoop(kernel: GitOvercenterKernel,{execute,maxAdv
     try { outcome=await execute(work.packet,run); }
     catch(e:unknown) { outcome={kind:'execution-error',error:errorMessage(e),may_have_mutated:true}; }
     if (outcome.kind==='judgment-required') {
-      kernel.defer(run.id,'WAITING',{outcome});
+      kernel.deferForJudgment(run.id,{outcome});
       return {state:'WAITING',work:work.id,run:run.id,advances:i+1};
     }
     const receipt=kernel.resolve(run.id);
