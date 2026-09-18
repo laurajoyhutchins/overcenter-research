@@ -12,12 +12,12 @@ function required(name: string): string {
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('GITHUB_SHA');
-const agentOutcome = required('AGENT_A_OUTCOME');
+const brokerOutcome = required('EFFECT_BROKER_OUTCOME');
 const token = required('GITHUB_TOKEN');
 const stateRef = githubProofStateRef('disposable-agent');
 
-if (agentOutcome !== 'failure') {
-  throw new Error(`AGENT_A_DID_NOT_TERMINATE_AS_EXPECTED: ${agentOutcome}`);
+if (brokerOutcome !== 'failure') {
+  throw new Error(`EFFECT_BROKER_DID_NOT_TERMINATE_AS_EXPECTED: ${brokerOutcome}`);
 }
 
 const kernel = new GitOvercenterKernel(process.cwd(), {
@@ -37,19 +37,23 @@ const candidates = kernel.inspect().filter(work => {
 assert.equal(candidates.length, 1, `expected one exact unresolved execution, found ${candidates.length}`);
 const work = candidates[0];
 assert.ok(work.run_id);
+assert.equal(work.execution_generation, 2);
 assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
 if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha, sourceSha, 'settlement input identity drifted');
 
-const recovery = kernel.recoverInterrupted(work.run_id, {
+const recoveryPermit = kernel.acquireExecution(work.run_id);
+assert.equal(recoveryPermit.execution_generation, 3);
+
+const recovery = kernel.recoverInterrupted(recoveryPermit, {
   source: 'github-actions-job-supervisor',
   workflow_run_id: workflowRunId,
   workflow_run_attempt: workflowRunAttempt,
-  job: 'agent-a',
-  outcome: agentOutcome,
+  job: 'effect-broker',
+  outcome: brokerOutcome,
 });
 
-const settled = kernel.reconcile(work.run_id);
+const settled = kernel.reconcile(recoveryPermit);
 assert.equal(settled.disposition, 'DONE');
 assert.equal(settled.verified, true);
 assert.equal(settled.observed?.verifier, 'github-commit-status/v1');
@@ -70,20 +74,21 @@ if (summary) {
   appendFileSync(summary, [
     '## Trusted recovery / settlement',
     '',
-    `- Reconstructed run: \`${work.run_id}\``,
-    `- Immutable input: \`${sourceSha}\``,
-    `- Canonical repository ID: \`${work.postcondition.repository_id}\``,
-    `- Provider verifier: \`${settled.observed?.verifier}\``,
-    `- Provider status context: \`${settled.observed?.context}\``,
-    `- Provider state: \`${settled.observed?.actual_state}\``,
-    `- Final disposition: **${settled.disposition}**`,
-    '- Agent A local Git configuration and files were not consulted.',
+    `- Reconstructed run: \`${work.run_id}\`.`,
+    '- Worker generation 1 never held provider write authority.',
+    '- Effect broker generation 2 held provider write authority and terminated after mutation.',
+    `- Recovery rotated to generation \`${recoveryPermit.execution_generation}\`.`,
+    `- Immutable input: \`${sourceSha}\`.`,
+    `- Provider status context: \`${settled.observed?.context}\`.`,
+    `- Provider state: \`${settled.observed?.actual_state}\`.`,
+    `- Final disposition: **${settled.disposition}**.`,
     '',
   ].join('\n'));
 }
 
 console.log(JSON.stringify({
   recovered_run_id: work.run_id,
+  recovery_generation: recoveryPermit.execution_generation,
   recovery_commit: recovery.settlement_commit,
   settlement_commit: settled.settlement_commit,
   disposition: settled.disposition,
