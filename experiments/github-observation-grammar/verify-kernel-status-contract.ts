@@ -6,9 +6,9 @@ import {
   type ObservationOperation,
   type OpenApiDocument,
 } from './openapi.ts';
-import { RESPONSE_SLICES } from './response-slice.ts';
 import {
   GITHUB_API_VERSION,
+  GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
   GITHUB_COMMIT_STATUSES_OPERATION,
   GITHUB_OPENAPI_SHA256,
 } from '../../src/providers/github-certified-status.ts';
@@ -108,7 +108,7 @@ function summaries(operation:ObservationOperation,path:string):string[] {
     .sort();
 }
 
-const fields=RESPONSE_SLICES['repos/list-commit-statuses-for-ref'];
+const fields=GITHUB_COMMIT_STATUS_RESPONSE_SLICE;
 const verified:Record<string,string[]>={};
 for (const field of fields) {
   const expected=summaries(pinned,field.path);
