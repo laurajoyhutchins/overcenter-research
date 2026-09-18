@@ -1,4 +1,4 @@
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
 const STATE_REF='refs/overcenter/conflict-state';
 
