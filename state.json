@@ -41,7 +41,7 @@
         "context": "overcenter/conflict-guard/35310520954/1/ordered",
         "expected_state": "success"
       },
-      "status": "RECOVERY_REQUIRED",
+      "status": "DONE",
       "run_id": "b9944889-7a92-4813-bc70-6efd514f336a",
       "claimed_revision": "4ad8f46736706e5750d7ef6aa231d6f4dcc04f68",
       "claim_commit": "bdd983a293a7b7ab0a796e63697a8eff0fbb4a4c"
