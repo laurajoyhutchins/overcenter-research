@@ -58,7 +58,9 @@ test('core loop commits an effect reservation before invoking executor code', as
 
     let executorObservedReservation = false;
     const result = await runGitCoreLoop(f.kernel, {
-      execute: async (packet, run) => {
+      execute: async (...args) => {
+        assert.equal(args.length, 1, 'effect callback must not receive ExecutionPermit');
+        const [packet] = args;
         const head = f.kernel.head()!;
         const reservation = JSON.parse(
           execFileSync(
@@ -67,12 +69,9 @@ test('core loop commits an effect reservation before invoking executor code', as
             { encoding: 'utf8' },
           ),
         ) as Record<string, unknown>;
-        assert.equal(reservation.run_id, run.id);
-        assert.equal(reservation.execution_generation, run.execution_generation);
-        assert.equal(
-          reservation.execution_authority_commit,
-          run.execution_authority_commit,
-        );
+        const executing = f.kernel.inspect().find(work => work.id === 'x')!;
+        assert.equal(reservation.run_id, executing.run_id);
+        assert.equal(reservation.execution_generation, executing.execution_generation);
         executorObservedReservation = true;
         writeFileSync(String(packet.path), String(packet.content));
         return { kind: 'ok' };
