@@ -191,3 +191,177 @@ Run the generator over GitHub's pinned `2026-03-10` OpenAPI description and meas
 - difficult negative evidence: checks/statuses or another eventually consistent provider surface
 
 The useful metric is not endpoint coverage by itself. It is how much GitHub state becomes safely observable while the handwritten semantic layer remains small and explicit.
+
+## Second falsification round: semantic shapes and freshness
+
+The next experiment deliberately does not add broad endpoint support. It selects representative GitHub read shapes and asks whether the handwritten semantic layer remains small:
+
+| Shape | GitHub operation | Projection |
+| --- | --- | --- |
+| stable subject identity | `repos/get` | numeric repository identity + mutable owner/name alias |
+| mutable binding | `git/get-ref` | stable repository ID + ref -> object SHA snapshot |
+| immutable singleton | `git/get-commit` | content-addressed commit/tree/parents fact |
+| mutable entity | `pulls/get` | pull-request snapshot, not an internal PR state machine |
+| paginated collection | `checks/list-for-ref` | positive page membership with non-authoritative absence |
+
+### Observation provenance
+
+A raw observation now binds:
+
+```text
+pinned OpenAPI schema SHA-256
+API version
+operation ID
+observer identity
+local observation time
+exact materialized request coordinate
+non-secret request headers + auth class
+GitHub Date / ETag / Link / request ID
+HTTP result
+raw body
+```
+
+The bearer token is never persisted. Its presence is recorded only as an authorization class.
+
+This fixes an important evidence boundary: a projected fact identifies not only what GitHub returned, but which contract, observer, request, and response metadata justify that interpretation.
+
+The GitHub Actions observer identity is currently the exact workflow run/attempt identity. This does **not** prove the underlying GitHub App installation ID. Installation identity remains a separate authority problem rather than being invented from the token.
+
+### Stable repository identity
+
+Provider coordinates such as `owner/repo` are treated as aliases. The projected subject identity is GitHub's numeric repository ID plus node ID:
+
+```text
+github.repository(1354872053)
+        named
+laurajoyhutchins/overcenter-research
+```
+
+Downstream ref, commit, PR, and collection facts bind to the numeric repository ID. A rename therefore changes an observed alias rather than manufacturing a different repository subject.
+
+The unit proof simulates two owner/name aliases resolving to the same numeric repository ID. The live proof confirms the current repository's numeric identity. It does not rename the live repository merely to demonstrate the property.
+
+### Immutable vs mutable facts
+
+The experiment now makes stability explicit.
+
+A Git commit read by exact object ID becomes:
+
+```text
+stability = content-addressed
+```
+
+and can be reused as durable evidence after caches disappear.
+
+A ref or pull request becomes:
+
+```text
+stability = mutable-snapshot
+```
+
+and cannot be resurrected from historical evidence as current project state.
+
+That distinction feeds reconstruction directly:
+
+```text
+durable historical facts
+    |-- repository identity
+    |-- immutable commit objects
+    |
+fresh current authority
+    |-- ref bindings
+    |-- pull-request snapshots
+    |
+    v
+reconstructed projection
+```
+
+The reconstruction test intentionally supplies an old durable ref observation and no fresh ref observation. The reconstructed projection contains the durable commit but **no current ref**. Supplying fresh authority restores the current ref binding.
+
+This is stronger than choosing the newest stored timestamp. A recent historical observation is still historical.
+
+### Pull requests without a PullRequestStateMachine
+
+The pull-request semantics project only the fields currently needed by an obligation:
+
+```text
+repository_id
+pull number + stable GitHub PR id
+state
+head SHA
+base ref
+base SHA
+observed_at
+```
+
+The evaluator compares an obligation to that authoritative snapshot. No transition graph for OPEN -> MERGED -> CLOSED is introduced.
+
+This is an explicit falsification criterion: if useful GitHub entities can remain authoritative snapshots, Overcenter does not need to mirror provider lifecycle machines.
+
+### Pagination and difficult negative evidence
+
+For `checks/list-for-ref`, a page can prove that a returned check run exists and has the returned state.
+
+It cannot prove that an unseen check run does not exist:
+
+```text
+member returned on page
+    -> positive fact
+
+member absent from page
+    -> INDETERMINATE
+```
+
+This remains true even after observing a terminal page. REST pagination is not a provider snapshot transaction; concurrent mutations and authorization visibility prevent the experiment from upgrading a completed page walk into authoritative global absence.
+
+The page fact therefore carries:
+
+```text
+negative_evidence_authoritative = false
+```
+
+rather than making completeness an inference hidden in control flow.
+
+### Conditional requests / 304
+
+Conditional HTTP is modeled as a cross-cutting observation semantic.
+
+A `304 Not Modified` does not create a new bodyless provider fact. It may revalidate a prior positive observation only when all of these identities agree:
+
+```text
+provider
+API version
+operation ID
+OpenAPI schema digest
+method + request coordinate
+prior ETag
+current If-None-Match
+```
+
+When those conditions hold, the prior representation is reusable at the new observation time with an explicit `revalidated_from` link.
+
+This is useful because freshness can be refreshed cheaply without pretending that `304` itself contains the resource representation.
+
+### Current semantic compression result
+
+The handwritten semantics now cover five materially different GitHub shapes without adding GitHub resource knowledge to the Overcenter kernel:
+
+```text
+stable identity
+immutable object
+mutable binding
+mutable entity snapshot
+collection page
+conditional revalidation
+```
+
+That is evidence for semantic compression, but not yet proof that the pattern scales across the entire API.
+
+The next failure signal to watch is **semantic rule growth**, not endpoint count. If new endpoint families mostly instantiate these shapes, the boundary is holding. If each family requires a bespoke lifecycle model, completeness theory, or recovery machine, the experiment has merely relocated GitHub-specific complexity.
+
+### Remaining hard boundary
+
+Authentication provenance is intentionally incomplete.
+
+The experiment records the exact GitHub Actions run/attempt and the fact that a bearer credential was used, but it does not currently prove the GitHub App installation identity that minted that credential. Settlement-strength evidence that depends on installation-specific authority should therefore remain unproven until that identity can be obtained from an authoritative surface.
+
