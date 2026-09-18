@@ -1,40 +1,29 @@
-import { createHash } from 'node:crypto';
 import type {
   Dependency,
-  LifecycleStatus,
   Obligation,
   Run,
-  WorkStatus,
 } from './model.ts';
 import type {
   HistoricalRun,
   Receipt,
   State,
 } from './facts.ts';
+import { canonicalDigest } from './digest.ts';
 import { verifiedContentIdentity } from './semantics.ts';
 
+export type RealizationStatus =
+  | 'UNREALIZED'
+  | 'EXECUTING'
+  | 'WAITING'
+  | 'RECOVERY_REQUIRED'
+  | 'DONE';
+
 export interface Lifecycle {
-  status:LifecycleStatus;
+  status:RealizationStatus;
   run?:Run;
 }
 
-const IN_FLIGHT=new Set<WorkStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
-const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
-
-function digest(value:unknown):string {
-  const canonical=(input:unknown):unknown=>{
-    if (Array.isArray(input)) return input.map(canonical);
-    if (input && typeof input==='object') {
-      return Object.fromEntries(
-        Object.entries(input as Record<string,unknown>)
-          .sort(([a],[b])=>a.localeCompare(b))
-          .map(([key,item])=>[key,canonical(item)]),
-      );
-    }
-    return input;
-  };
-  return sha256(JSON.stringify(canonical(value)));
-}
+const IN_FLIGHT=new Set<RealizationStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
 
 function semanticDependencyIdentity(
   state:State,
@@ -86,7 +75,7 @@ export function obligationKey(
   }
   consumed.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
 
-  return digest({
+  return canonicalDigest({
     id:work.id,
     packet:work.packet,
     postcondition:work.postcondition,
@@ -116,7 +105,7 @@ export function deriveLifecycles(
     }
 
     const key=obligationKey(state,work,lifecycles,receiptsByRun);
-    let lifecycle:Lifecycle={status:'READY'};
+    let lifecycle:Lifecycle={status:'UNREALIZED'};
 
     if (key) {
       const candidates=allRuns.filter(
