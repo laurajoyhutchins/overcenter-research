@@ -6,14 +6,17 @@
   "claim_commit": "1b02f02b59bd7bf9f949419cfb33a64c5cc71f10",
   "execution_generation": 3,
   "execution_authority_commit": "486490f706994bd1dbdc0b96b906488e6f2d7458",
-  "kind": "execution-terminated",
-  "observed": null,
-  "diagnostic": {
-    "source": "github-actions-job-supervisor",
-    "workflow_run_id": "35389716245",
-    "workflow_run_attempt": "1",
-    "job": "effect-broker",
-    "outcome": "failure"
+  "kind": "observation",
+  "observed": {
+    "verifier": "github-commit-status/v1",
+    "provider": "github",
+    "repository_id": 1354872053,
+    "repository_full_name": "laurajoyhutchins/overcenter-research",
+    "commit_sha": "d7a7d31909c86741ec5af965ffca48a830917874",
+    "context": "overcenter/trust-proof/35389716245/1",
+    "expected_state": "success",
+    "actual_state": "success",
+    "mutation_certainty": "present"
   },
-  "settled_at": "2026-09-18T20:09:00.344Z"
+  "settled_at": "2026-09-18T20:09:03.276Z"
 }
