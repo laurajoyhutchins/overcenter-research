@@ -465,7 +465,7 @@ export class GitOvercenterKernel {
 
 export async function runGitCoreLoop(
   kernel:GitOvercenterKernel,
-  {preflight,execute,maxAdvances=100}:LoopOptions,
+  {preflight,effect,maxAdvances=100}:LoopOptions,
 ):Promise<LoopResult> {
   kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
@@ -506,7 +506,7 @@ export async function runGitCoreLoop(
 
     let outcome:ExecuteOutcome;
     try {
-      outcome=await execute(work.packet);
+      outcome=await effect(work.packet);
     } catch (error:unknown) {
       outcome={
         kind:'execution-error',
@@ -515,7 +515,7 @@ export async function runGitCoreLoop(
       };
     }
 
-    // Once the effect boundary has been crossed, an executor can no longer
+    // Once the effect boundary has been crossed, an effect handler can no longer
     // downgrade the attempt to a non-effectful WAITING state. Its outcome must
     // be reconciled as a potentially mutating interrupted execution.
     if (outcome.kind==='judgment-required') {
