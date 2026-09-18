@@ -10,6 +10,7 @@ on:
       - experiment/certified-github-status-readback
       - experiment/certified-github-repository-bootstrap
       - experiment/certified-github-ref-fence
+      - experiment/certified-github-pr-identity
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
@@ -19,6 +20,7 @@ on:
       - src/providers/**
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
+      - test/github-certified-pr.test.ts
       - research/github-observation-grammar.md
       - package.json
   pull_request:
@@ -112,3 +114,8 @@ jobs:
           SOURCE_SHA: ${{ github.sha }}
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/live-kernel-ref-fence.ts
+      - name: Prove kernel PR work identity uses certified observations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/live-kernel-pr-identity.ts
