@@ -1,0 +1,55 @@
+# Proof obligations
+
+Overcenter's evidence surface should answer a stricter question than "are the tests green?":
+
+> Which claim is being exercised, at which layer, and what does a green result actually establish?
+
+The evidence classes remain deliberately separate:
+
+- `npm test` — deterministic implementation invariants;
+- `npm run proof:local` — adversarial executable experiments;
+- `npm run proof:formal` — model-checked safety properties and negative controls;
+- `npm run proof:live` — real GitHub provider proofs at one exact source revision.
+
+A claim is not promoted merely because an adjacent evidence class is green.
+
+## Current obligation map
+
+| Obligation | Implementation | Local adversarial | Formal | Live provider | Current boundary |
+| --- | --- | --- | --- | --- | --- |
+| Projection is reconstructed from durable facts rather than a privileged lifecycle snapshot. | `test/projection-pure.test.ts`, `test/projection-reconstruction.test.ts` | disposable-agent reconstruction | — | disposable-agent proof | Demonstrated for the Git prototype. |
+| A claim is bound to the exact authority revision and semantic obligation identity. | `test/git-kernel.test.ts`, `test/dependency-edge-adversarial.test.ts` | CAS contention | `ExactRevisionEvidence` | disposable-agent proof | Demonstrated for Git authority; lease-generation fencing is separate. |
+| Realization state is distinct from execution eligibility. | `test/lifecycle-pure.test.ts`, `test/graph-pure.test.ts` | conflict projection | — | — | Demonstrated for the current graph/projection mechanism. |
+| Semantic dependencies invalidate or reuse downstream work according to selected upstream identity. | `test/dependency-edge-adversarial.test.ts` | — | — | — | Demonstrated for the implemented selectors, not a general realization cache. |
+| Worker-local destruction cannot manufacture or erase project truth. | kernel regression | disposable-agent experiment | — | disposable-agent proof | Demonstrated within the hosted permission boundary. |
+| External mutation uncertainty cannot authorize blind replay. | kernel regression | eventually-consistent readback | `ReplaySafety` | disposable-agent readback | Demonstrated for current adapters and modeled abstractly. |
+| Independent effects can overlap without globally serializing execution. | kernel regression | two-effect concurrency | — | — | Demonstrated locally. |
+| Canonically conflicting effects do not race by scheduler luck. | kernel regression | conflicting-effect experiment | — | — | Demonstrated for the GitHub commit-status coordinate semantics. |
+| GitHub observations come from a generated read vocabulary plus explicit handwritten semantics. | GitHub observation tests | observation grammar experiment | — | GitHub observation grammar workflow | Demonstrated for the covered Git ref slice; broad endpoint semantics remain open. |
+| A worker can receive an exact declared GitHub-object workspace and return a bounded candidate without repository authority. | — | — | — | GitHub object transport workflow | Demonstrated by the hosted transport proof; closure selection is intentionally separate. |
+| A stale execution generation is rejected even when project revision is unchanged. | **not implemented** | — | `MutationAuthoritySafety` plus `BrokenNoFence.cfg` | — | Model-checked architectural requirement, not a runtime guarantee. |
+| An unresolved authorized mutation blocks a conflicting successor effect across authority generations. | **not implemented** | eventual-consistency experiment covers the same-obligation replay hazard only | `ReservationSafety` plus `BrokenNoReservation.cfg` | — | Model-checked architectural requirement, not a runtime guarantee. |
+| `DONE` is derived from exact retained evidence rather than assigned as privileged state. | pure replay and reconstruction tests | disposable-agent settlement | `NoFalseDone` plus `BrokenNoEvidence.cfg` | disposable-agent proof | Demonstrated for the current Git receipt model; compact portable attestations remain a research target. |
+
+## Evidence discipline
+
+The maintenance rule is simple:
+
+1. A README statement under **What is proved?** needs a witness in this table.
+2. An implementation guarantee needs implementation or executable experiment evidence. A TLA+ result alone does not upgrade runtime behavior.
+3. A formal safety claim needs a checked invariant and, where practical, a negative control showing the model can express the failure.
+4. A provider claim needs real-provider evidence. Mock transport is not provider proof.
+5. `proof:live` must wait for every hosted proof and verify that every run executed the same exact source revision. Dispatch success is not proof success.
+
+## Deliberately open proof obligations
+
+The most important current gaps are not more scheduler features. They are boundaries the research already knows it needs but has not implemented generally:
+
+- runtime execution-generation fencing independent of Git revision identity;
+- runtime unresolved-effect reservations across successor authority epochs;
+- a general producer-independent realization cache keyed by complete semantic inputs;
+- compact portable transition attestations with an explicit trust-root story;
+- provider-specific negative-evidence and settlement semantics beyond the small GitHub slices already exercised;
+- liveness assumptions strong enough to justify any eventual-progress claim.
+
+These should remain visible as gaps until their corresponding evidence exists. Do not convert them into product claims by inference from neighboring tests.
