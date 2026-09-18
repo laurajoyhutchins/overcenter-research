@@ -323,6 +323,14 @@ export class GitOvercenterKernel {
         if (claim.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
         if (!state.obligations[claim.obligation_id]) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
         if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
+        const parent=this.#git(['rev-parse',`${commit}^`]).stdout.trim();
+        if (parent!==claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
+        const current=lifecycles.get(claim.obligation_id);
+        if (current?.status!=='READY') throw new Error('CLAIM_WHILE_NOT_READY');
+        const unsatisfied=state.obligations[claim.obligation_id].deps.filter(
+          dep=>lifecycles.get(dep)?.status!=='DONE',
+        );
+        if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
         const run:Run={
           id:claim.run_id,
           obligation_id:claim.obligation_id,
@@ -336,9 +344,18 @@ export class GitOvercenterKernel {
       const receiptFile=this.#git(['show',`${commit}:receipt.json`],{allowFailure:true});
       if (!receiptFile.ok) continue;
       const receipt={...JSON.parse(receiptFile.stdout) as Receipt,settlement_commit:commit};
+      if (receipt.schema!==RECEIPT_SCHEMA) throw new Error('INVALID_RECEIPT_SCHEMA');
       const run=runs.get(receipt.run_id);
       if (!run) throw new Error('RECEIPT_WITHOUT_CLAIM');
       if (run.obligation_id!==receipt.obligation_id) throw new Error('RECEIPT_OBLIGATION_MISMATCH');
+      if (receipt.claimed_revision!==run.claimed_revision) throw new Error('RECEIPT_REVISION_MISMATCH');
+      if (receipt.claim_commit!==run.claim_commit) throw new Error('RECEIPT_CLAIM_MISMATCH');
+      const current=lifecycles.get(run.obligation_id);
+      if (current?.run?.id!==run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
+      const previous=receiptsByRun.get(run.id);
+      if (previous && ['DONE','READY'].includes(previous.disposition)) {
+        throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
+      }
       receiptsByRun.set(run.id,receipt);
       lifecycles.set(
         run.obligation_id,
