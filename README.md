@@ -234,7 +234,7 @@ trusted project authority
        ▼
 potentially untrusted Agent A
   contents: read
-  statuses: write
+  statuses: write  # repository-scoped, not coordinate-scoped
        │
        ├─ repoint local origin
        ├─ rewrite local state ref
@@ -258,7 +258,9 @@ trusted recovery / settlement
        └─ settle DONE via Git CAS
 ```
 
-The execution token cannot modify `refs/overcenter/state`. The external provider status is created only after Agent A has confirmed that its attempted authority rewrite was rejected and the canonical authority ref remains at the original claim commit.
+The execution token cannot modify `refs/overcenter/state`. Its GitHub `statuses: write` permission is broader than the immutable obligation: GitHub scopes that permission at repository level, not to one SHA/context. The proof therefore establishes that Agent A cannot redefine project authority or settlement truth; it does **not** establish least-privilege provider mutation capability.
+
+The external provider status is created only after Agent A has confirmed that its attempted authority rewrite was rejected and the canonical authority ref remains at the original claim commit.
 
 Final evidence for that run:
 
@@ -292,6 +294,8 @@ success
 ```
 
 The settlement receipt records `github-commit-status/v1`, the canonical repository ID, the exact input SHA, matching status context, `actual_state: success`, and `verified: true`.
+
+Provider absence is never inferred from only the first GitHub status page. The verifier walks status pages until it either finds the target context or reaches an exhausted page. Hitting the safety page limit fails closed as uncertain rather than replayable absence. The hosted proof deliberately writes 100 newer distractor statuses after the target effect so trusted readback must cross the page-one boundary.
 
 This proves the worker does not control the definition of success, the authority coordinate used to verify it, or the exact input identity used for settlement.
 
