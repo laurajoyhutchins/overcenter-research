@@ -25,6 +25,7 @@ import type {
   EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
+  HistoricalRun,
   ObligationFact,
   ObligationInput,
   Receipt,
