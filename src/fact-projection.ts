@@ -46,7 +46,7 @@ export type ProjectionStatus =
 export interface WorkProjection {
   id: string;
   status: ProjectionStatus;
-  active_run_id?: string;
+  run_id?: string;
   blocked_reason?: string;
 }
 
@@ -241,7 +241,7 @@ export function deriveProjectProjection(
         return {
           id: definition.obligation_id,
           status: run.terminated ? 'RECOVERY_REQUIRED' : 'EXECUTING',
-          active_run_id: run.claim.run_id,
+          run_id: run.claim.run_id,
         };
       }
 
@@ -249,7 +249,7 @@ export function deriveProjectProjection(
         return {
           id: definition.obligation_id,
           status: 'RECOVERY_REQUIRED',
-          active_run_id: run!.claim.run_id,
+          run_id: run!.claim.run_id,
         };
       }
 
