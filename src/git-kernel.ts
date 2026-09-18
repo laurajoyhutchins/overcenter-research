@@ -28,7 +28,7 @@ export interface GitHubCommitStatusPostcondition {
   repository_id: number;
   commit_sha: string;
   context: string;
-  expected_state: 'success';
+  expected_state: 'error' | 'failure' | 'pending' | 'success';
 }
 export type Postcondition = FileContentPostcondition | GitRefPostcondition | GitHubCommitStatusPostcondition;
 
@@ -329,7 +329,7 @@ export class GitOvercenterKernel {
       && /^[0-9a-f]{40,64}$/i.test(p.commit_sha)
       && typeof p.context==='string'
       && p.context.length > 0
-      && p.expected_state==='success') return;
+      && ['error','failure','pending','success'].includes(p.expected_state)) return;
     throw new Error('UNSUPPORTED_POSTCONDITION');
   }
   #observe(p: Postcondition): Observation {
