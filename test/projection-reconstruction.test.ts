@@ -5,21 +5,15 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import {
-  canonicalProjection,
-  deriveProjectProjection,
-  type ProjectFact,
-  type WorkProjection,
-} from '../src/fact-projection.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
 
-const FACT_REF = 'refs/overcenter/facts';
+const STATE_REF = 'refs/overcenter/state';
 const sha256 = (value: string) =>
   createHash('sha256').update(value).digest('hex');
 
@@ -30,398 +24,158 @@ function git(repo: string, args: string[]) {
 }
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'overcenter-projection-rebuild-'));
+  const root = mkdtempSync(join(tmpdir(), 'overcenter-kernel-rebuild-'));
   const authority = join(root, 'authority.git');
-  const writer = join(root, 'writer');
   const cache = join(root, 'materialized');
   const world = join(root, 'provider-state.txt');
+  let cloneNumber = 0;
 
   execFileSync('git', ['init', '--bare', authority], { stdio: 'ignore' });
-  execFileSync('git', ['init', writer], { stdio: 'ignore' });
-  git(writer, ['config', 'user.email', 'overcenter@example.invalid']);
-  git(writer, ['config', 'user.name', 'Overcenter projection proof']);
-  git(writer, ['remote', 'add', 'origin', authority]);
+  const owner = new GitOvercenterKernel(authority);
+  owner.initialize();
 
-  writeFileSync(join(writer, 'facts.ndjson'), '');
-  git(writer, ['add', 'facts.ndjson']);
-  git(writer, ['commit', '-m', 'facts: initialize']);
-  git(writer, ['push', 'origin', `HEAD:${FACT_REF}`]);
-
-  function revision() {
-    const line = git(writer, ['ls-remote', 'origin', FACT_REF]);
-    if (!line) throw new Error('FACT_AUTHORITY_MISSING');
-    return line.split(/\s+/)[0];
+  function canonicalProjection(kernel: GitOvercenterKernel) {
+    return `${JSON.stringify(kernel.inspect(), null, 2)}\n`;
   }
 
-  function append(fact: ProjectFact) {
-    const expected = revision();
-    assert.equal(
-      git(writer, ['rev-parse', 'HEAD']),
+  function freshKernel() {
+    cloneNumber += 1;
+    const repo = join(root, `reconstructor-${cloneNumber}.git`);
+    execFileSync('git', ['init', '--bare', repo], { stdio: 'ignore' });
+    git(repo, ['remote', 'add', 'origin', authority]);
+    git(repo, ['fetch', '--no-tags', 'origin', `+${STATE_REF}:${STATE_REF}`]);
+    return { repo, kernel: new GitOvercenterKernel(repo, { remote: 'origin' }) };
+  }
+
+  function assertDefinitionOnlyState() {
+    const persisted = JSON.parse(
+      git(authority, ['show', `${STATE_REF}:state.json`]),
+    ) as {
+      obligations: Record<string, Record<string, unknown>>;
+    };
+
+    for (const obligation of Object.values(persisted.obligations)) {
+      assert.equal('status' in obligation, false);
+      assert.equal('run_id' in obligation, false);
+      assert.equal('claimed_revision' in obligation, false);
+      assert.equal('claim_commit' in obligation, false);
+    }
+  }
+
+  function assertReconstructs(expected: Array<[string, string]>) {
+    const before = canonicalProjection(owner);
+    assert.deepEqual(
+      JSON.parse(before).map((work: { id: string; status: string }) => [
+        work.id,
+        work.status,
+      ]),
       expected,
-      'writer must start from current fact authority',
     );
-    if (fact.type === 'run-claimed' && fact.based_on_revision !== expected) {
-      throw new Error('STALE_CLAIM_REVISION');
-    }
 
-    const path = join(writer, 'facts.ndjson');
-    writeFileSync(
-      path,
-      `${readFileSync(path, 'utf8')}${JSON.stringify(fact)}\n`,
-    );
-    git(writer, ['add', 'facts.ndjson']);
-    git(writer, ['commit', '-m', `fact: ${fact.type}`]);
-
-    const next = git(writer, ['rev-parse', 'HEAD']);
-    git(writer, [
-      'push',
-      `--force-with-lease=${FACT_REF}:${expected}`,
-      'origin',
-      `HEAD:${FACT_REF}`,
-    ]);
-    return next;
-  }
-
-  function loadFacts(): ProjectFact[] {
-    return git(authority, ['show', `${FACT_REF}:facts.ndjson`])
-      .split(/\n+/)
-      .filter(Boolean)
-      .map(line => JSON.parse(line) as ProjectFact);
-  }
-
-  function project() {
-    return deriveProjectProjection(loadFacts(), revision());
-  }
-
-  function materialize() {
     mkdirSync(cache, { recursive: true });
-    const projection = canonicalProjection(project());
-    writeFileSync(join(cache, 'project-projection.json'), projection);
-    return projection;
-  }
-
-  function assertReconstructs(expectedWork: WorkProjection[]) {
-    const before = materialize();
-    assert.deepEqual(JSON.parse(before).work, expectedWork);
-
-    const durableFacts = git(authority, [
-      'show',
-      `${FACT_REF}:facts.ndjson`,
-    ]);
-    assert.equal(
-      /"status"\s*:/.test(durableFacts),
-      false,
-      'durable journal must not persist projected status',
-    );
-    for (const label of [
-      'READY',
-      'EXECUTING',
-      'BLOCKED',
-      'RECOVERY_REQUIRED',
-      'DONE',
-    ]) {
-      assert.equal(
-        durableFacts.includes(label),
-        false,
-        `projection label leaked into durable facts: ${label}`,
-      );
-    }
-
+    writeFileSync(join(cache, 'project-projection.json'), before);
     const digest = sha256(before);
+    assertDefinitionOnlyState();
+
     rmSync(cache, { recursive: true, force: true });
     assert.equal(existsSync(cache), false);
 
-    const reconstructed = canonicalProjection(project());
-    assert.equal(reconstructed, before);
-    assert.equal(sha256(reconstructed), digest);
-    assert.deepEqual(JSON.parse(reconstructed).work, expectedWork);
+    const fresh = freshKernel();
+    try {
+      const reconstructed = canonicalProjection(fresh.kernel);
+      assert.equal(reconstructed, before);
+      assert.equal(sha256(reconstructed), digest);
+    } finally {
+      rmSync(fresh.repo, { recursive: true, force: true });
+    }
   }
 
   return {
     root,
     authority,
-    cache,
     world,
-    append,
-    revision,
+    owner,
     assertReconstructs,
   };
 }
 
-test('every lifecycle projection reconstructs exactly after materialization is deleted', () => {
+test('GitOvercenterKernel reconstructs the same projection after every materialization is deleted', () => {
   const f = fixture();
 
   try {
-    const expectedContent = 'effect-is-present';
-    const runId = 'run-1';
-    const observationId = 'observation-1';
-
-    f.append({
-      type: 'obligation-defined',
-      obligation_id: 'publish',
-      deps: [],
+    f.owner.define({
+      id: 'publish',
+      packet: { path: f.world, content: 'present' },
       postcondition: {
         verifier: 'file-content-equals/v1',
         path: f.world,
-        content_sha256: sha256(expectedContent),
+        content: 'present',
       },
     });
-    f.append({
-      type: 'obligation-defined',
-      obligation_id: 'verify-publish',
+    f.owner.define({
+      id: 'verify-publish',
       deps: ['publish'],
       postcondition: {
         verifier: 'file-content-equals/v1',
         path: `${f.world}.verified`,
-        content_sha256: sha256('verified'),
-      },
-    });
-    f.assertReconstructs([
-      { id: 'publish', status: 'READY' },
-      {
-        id: 'verify-publish',
-        status: 'BLOCKED',
-        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
-      },
-    ]);
-
-    const claimedRevision = f.revision();
-    f.append({
-      type: 'run-claimed',
-      obligation_id: 'publish',
-      run_id: runId,
-      based_on_revision: claimedRevision,
-    });
-    f.assertReconstructs([
-      { id: 'publish', status: 'EXECUTING', run_id: runId },
-      {
-        id: 'verify-publish',
-        status: 'BLOCKED',
-        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
-      },
-    ]);
-
-    // External reality may change without changing project truth. Until
-    // authoritative observation is recorded and settled, the run is still active.
-    writeFileSync(f.world, expectedContent);
-    f.assertReconstructs([
-      { id: 'publish', status: 'EXECUTING', run_id: runId },
-      {
-        id: 'verify-publish',
-        status: 'BLOCKED',
-        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
-      },
-    ]);
-
-    f.append({
-      type: 'worker-terminated',
-      run_id: runId,
-      reason: 'sandbox-disappeared',
-    });
-    f.assertReconstructs([
-      {
-        id: 'publish',
-        status: 'RECOVERY_REQUIRED',
-        run_id: runId,
-      },
-      {
-        id: 'verify-publish',
-        status: 'BLOCKED',
-        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
-      },
-    ]);
-
-    const authoritativeReadback = readFileSync(f.world, 'utf8');
-    f.append({
-      type: 'effect-observed',
-      run_id: runId,
-      observation_id: observationId,
-      verifier: 'file-content-equals/v1',
-      mutation_certainty: 'present',
-      actual_sha256: sha256(authoritativeReadback),
-    });
-
-    // Observation alone is evidence, not settlement.
-    f.assertReconstructs([
-      {
-        id: 'publish',
-        status: 'RECOVERY_REQUIRED',
-        run_id: runId,
-      },
-      {
-        id: 'verify-publish',
-        status: 'BLOCKED',
-        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
-      },
-    ]);
-
-    f.append({
-      type: 'run-settled',
-      run_id: runId,
-      observation_id: observationId,
-    });
-    f.assertReconstructs([
-      { id: 'publish', status: 'DONE' },
-      { id: 'verify-publish', status: 'READY' },
-    ]);
-  } finally {
-    rmSync(f.root, { recursive: true, force: true });
-  }
-});
-
-test('claim append is exact-revision fenced', () => {
-  const f = fixture();
-
-  try {
-    f.append({
-      type: 'obligation-defined',
-      obligation_id: 'x',
-      deps: [],
-      postcondition: {
-        verifier: 'file-content-equals/v1',
-        path: f.world,
-        content_sha256: sha256('x'),
+        content: 'verified',
       },
     });
 
-    assert.throws(
-      () =>
-        f.append({
-          type: 'run-claimed',
-          obligation_id: 'x',
-          run_id: 'stale',
-          based_on_revision: '0'.repeat(40),
-        }),
-      /STALE_CLAIM_REVISION/,
+    f.assertReconstructs([
+      ['publish', 'READY'],
+      ['verify-publish', 'BLOCKED'],
+    ]);
+
+    const run = f.owner.claim(
+      'publish',
+      f.owner.deriveReadyWork()!.revision,
     );
-    f.assertReconstructs([{ id: 'x', status: 'READY' }]);
+
+    const claimFact = JSON.parse(
+      git(f.authority, ['show', `${run.claim_commit}:claim.json`]),
+    ) as {
+      run_id: string;
+      obligation_id: string;
+      claimed_revision: string;
+    };
+    assert.equal(claimFact.run_id, run.id);
+    assert.equal(claimFact.obligation_id, 'publish');
+    assert.equal(claimFact.claimed_revision, run.claimed_revision);
+
+    f.assertReconstructs([
+      ['publish', 'EXECUTING'],
+      ['verify-publish', 'BLOCKED'],
+    ]);
+
+    // Provider reality changing does not alter project truth until the kernel
+    // records recovery/settlement evidence in durable authority.
+    writeFileSync(f.world, 'present');
+    f.assertReconstructs([
+      ['publish', 'EXECUTING'],
+      ['verify-publish', 'BLOCKED'],
+    ]);
+
+    const recovery = f.owner.recoverInterrupted(run.id, {
+      source: 'projection-erasure-proof',
+    });
+    assert.equal(recovery.disposition, 'RECOVERY_REQUIRED');
+    assert.equal(recovery.claim_commit, run.claim_commit);
+
+    f.assertReconstructs([
+      ['publish', 'RECOVERY_REQUIRED'],
+      ['verify-publish', 'BLOCKED'],
+    ]);
+
+    const settled = f.owner.reconcile(run.id);
+    assert.equal(settled.disposition, 'DONE');
+    assert.equal(settled.claim_commit, run.claim_commit);
+
+    f.assertReconstructs([
+      ['publish', 'DONE'],
+      ['verify-publish', 'READY'],
+    ]);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
-});
-
-test('settlement disposition is derived from factual observation evidence', () => {
-  const expected = sha256('expected');
-  const definition: ProjectFact = {
-    type: 'obligation-defined',
-    obligation_id: 'x',
-    deps: [],
-    postcondition: {
-      verifier: 'file-content-equals/v1',
-      path: '/provider/x',
-      content_sha256: expected,
-    },
-  };
-
-  const replayable: ProjectFact[] = [
-    definition,
-    {
-      type: 'run-claimed',
-      obligation_id: 'x',
-      run_id: 'r1',
-      based_on_revision: 'rev-1',
-    },
-    {
-      type: 'effect-observed',
-      run_id: 'r1',
-      observation_id: 'o1',
-      verifier: 'file-content-equals/v1',
-      mutation_certainty: 'absent',
-    },
-    { type: 'run-settled', run_id: 'r1', observation_id: 'o1' },
-  ];
-  assert.deepEqual(
-    deriveProjectProjection(replayable, 'authority-1').work,
-    [{ id: 'x', status: 'READY' }],
-  );
-
-  const uncertain: ProjectFact[] = [
-    ...replayable,
-    {
-      type: 'run-claimed',
-      obligation_id: 'x',
-      run_id: 'r2',
-      based_on_revision: 'rev-2',
-    },
-    {
-      type: 'effect-observed',
-      run_id: 'r2',
-      observation_id: 'o2',
-      verifier: 'file-content-equals/v1',
-      mutation_certainty: 'uncertain',
-    },
-    { type: 'run-settled', run_id: 'r2', observation_id: 'o2' },
-  ];
-  assert.deepEqual(
-    deriveProjectProjection(uncertain, 'authority-2').work,
-    [{ id: 'x', status: 'RECOVERY_REQUIRED', run_id: 'r2' }],
-  );
-});
-
-test('replay rejects histories that violate authority invariants', () => {
-  const definition: ProjectFact = {
-    type: 'obligation-defined',
-    obligation_id: 'x',
-    deps: [],
-    postcondition: {
-      verifier: 'file-content-equals/v1',
-      path: '/provider/x',
-      content_sha256: sha256('expected'),
-    },
-  };
-
-  assert.throws(
-    () =>
-      deriveProjectProjection(
-        [
-          definition,
-          {
-            type: 'run-claimed',
-            obligation_id: 'x',
-            run_id: 'r1',
-            based_on_revision: 'rev-1',
-          },
-          {
-            type: 'run-claimed',
-            obligation_id: 'x',
-            run_id: 'r2',
-            based_on_revision: 'rev-2',
-          },
-        ],
-        'authority',
-      ),
-    /CLAIM_WHILE_ACTIVE/,
-  );
-
-  assert.throws(
-    () =>
-      deriveProjectProjection(
-        [
-          definition,
-          {
-            type: 'run-claimed',
-            obligation_id: 'x',
-            run_id: 'r1',
-            based_on_revision: 'rev-1',
-          },
-          {
-            type: 'effect-observed',
-            run_id: 'r1',
-            observation_id: 'o1',
-            verifier: 'file-content-equals/v1',
-            mutation_certainty: 'present',
-            actual_sha256: sha256('expected'),
-          },
-          { type: 'run-settled', run_id: 'r1', observation_id: 'o1' },
-          {
-            type: 'run-claimed',
-            obligation_id: 'x',
-            run_id: 'r2',
-            based_on_revision: 'rev-2',
-          },
-        ],
-        'authority',
-      ),
-    /CLAIM_AFTER_VERIFIED/,
-  );
 });
