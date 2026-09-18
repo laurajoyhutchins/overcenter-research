@@ -17,6 +17,7 @@ jobs:
   agent-a:
     name: Agent A — claim, effect, terminate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       outcome: ${{ steps.agent.outcome }}
 
@@ -49,6 +50,7 @@ jobs:
     needs: agent-a
     if: ${{ always() && needs.agent-a.outputs.outcome == 'failure' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       AGENT_A_OUTCOME: ${{ needs.agent-a.outputs.outcome }}
 
