@@ -10,7 +10,6 @@ on:
       - experiment/certified-github-status-readback
       - integration/provider-observation-core
       - integration/certified-github-ref-binding
-      - integration/certified-github-ref-binding
       - integration/certified-github-repository-identity
     paths:
       - .github/workflows/github-observation-grammar.yml
@@ -34,20 +33,21 @@ on:
       - main
       - experiment/certified-github-status-readback
       - integration/provider-observation-core
+      - integration/certified-github-ref-binding
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
       - src/observation.ts
+      - src/model.ts
       - src/provider-observation/**
       - src/providers/github-certified-status.ts
-      - src/providers/github-status.ts
-      - test/github-certified-repository.test.ts
-      - test/github-certified-ref.test.ts
-      - src/providers/github-contract.ts
-      - src/providers/github-certified-repository.ts
       - src/providers/github-certified-ref.ts
-      - src/model.ts
+      - src/providers/github-certified-repository.ts
+      - src/providers/github-contract.ts
+      - src/providers/github-status.ts
       - test/github-certified-status.test.ts
+      - test/github-certified-ref.test.ts
+      - test/github-certified-repository.test.ts
       - test/provider-observation.test.ts
       - research/github-observation-grammar.md
       - package.json
