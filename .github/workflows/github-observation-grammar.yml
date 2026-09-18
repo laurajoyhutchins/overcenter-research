@@ -6,6 +6,7 @@ on:
       - experiment/github-observation-grammar
     paths:
       - .github/workflows/github-observation-grammar.yml
+      - scripts/github-openapi-inventory.ts
       - src/github-openapi.ts
       - src/github-semantics.ts
       - test/github-observation.test.ts
@@ -26,3 +27,19 @@ jobs:
         with:
           node-version: 22.16.0
       - run: npm test
+
+  inventory:
+    name: Derive catalog from pinned GitHub OpenAPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - name: Fetch immutable 2026-03-10 dereferenced schema
+        run: |
+          curl --fail --location --retry 3             https://raw.githubusercontent.com/github/rest-api-description/d4278c869e367f5d6d4e0f46878119128abba77b/descriptions/api.github.com/dereferenced/api.github.com.2026-03-10.deref.json             --output "$RUNNER_TEMP/github-openapi.json"
+      - name: Generate read-only observation inventory
+        run: |
+          node --experimental-strip-types scripts/github-openapi-inventory.ts             "$RUNNER_TEMP/github-openapi.json"             2026-03-10
