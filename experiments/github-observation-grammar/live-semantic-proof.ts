@@ -36,6 +36,7 @@ const repositoryName = required('GITHUB_REPOSITORY');
 const sourceRef = required('SOURCE_REF');
 const sourceSha = required('SOURCE_SHA');
 const checkRef = required('CHECK_REF');
+const statusRef = required('STATUS_REF');
 const volatileCheckRef = process.env.VOLATILE_CHECK_REF ?? null;
 const [owner, repo] = repositoryName.split('/');
 if (!owner || !repo) throw new Error('GITHUB_REPOSITORY_INVALID');
@@ -161,7 +162,7 @@ if (pullNumber !== null) {
 const checksOperation = op('/repos/{owner}/{repo}/commits/{ref}/check-runs');
 const checksObservation = await observeOperation(
   checksOperation,
-  { owner, repo, ref: checkRef, page: 1, per_page: 1 },
+  { owner, repo, ref: statusRef, page: 1, per_page: 1 },
   transport,
   provenance,
 );
@@ -195,14 +196,14 @@ assert.ok(statusPage.members.length > 0, 'stable status coordinate should expose
 const firstStatus = statusPage.members[0];
 assert.equal(evaluateCommitStatusPage(statusPage, {
   repository_id: repository.subject.id,
-  ref: checkRef,
+  ref: statusRef,
   node_id: firstStatus.node_id,
   context: firstStatus.context,
   state: firstStatus.state,
 }).state, 'SATISFIED');
 assert.equal(evaluateCommitStatusPage(statusPage, {
   repository_id: repository.subject.id,
-  ref: checkRef,
+  ref: statusRef,
   node_id: 'missing-status-node',
 }).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
 currentFacts.push(statusPage);
@@ -323,7 +324,7 @@ console.log(JSON.stringify({
     volatile_probe: volatileChecks,
   },
   commit_statuses: {
-    stable_ref: checkRef,
+    stable_ref: statusRef,
     page_members: statusPage.members.length,
     has_next: statusPage.has_next,
     positive_membership: 'SATISFIED',
