@@ -598,13 +598,15 @@ Current executable surfaces:
 
 ```text
 src/
-  git-kernel.ts              Git history / projection / claim / recovery / CAS kernel
+  git-kernel.ts              transaction policy over durable facts and authoritative readback
+  git-store.ts               Git object storage, history access, authority ref CAS
+  projection.ts              pure fact replay, lifecycle projection, graph/reuse semantics
   model.ts                   public obligation, work, run, and postcondition contract
   observation.ts             postcondition validation, authoritative readback, verification
   providers/github-status.ts GitHub commit-status provider readback
 
 test/
-  reconstruction, typed dependency identity, and focused kernel invariants
+  pure projection, reconstruction, typed dependency identity, and focused kernel invariants
 
 experiments/sqlite-baseline/
   original SQLite baseline implementation and proof
