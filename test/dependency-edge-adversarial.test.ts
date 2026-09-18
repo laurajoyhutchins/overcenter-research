@@ -573,7 +573,7 @@ test('active exact run fences amendment even when edge semantics are otherwise v
         id: 'a',
         postcondition: pc(a, 'A2'),
       }, f.kernel.authorityRevision()!),
-      /PROJECT_BUSY|AMEND_WHILE_IN_FLIGHT/,
+      /PROJECT_HAS_UNSETTLED_RUN|AMEND_WITH_UNSETTLED_RUN/,
     );
   } finally {
     rmSync(f.root, { recursive: true, force: true });
