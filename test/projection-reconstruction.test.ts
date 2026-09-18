@@ -145,15 +145,16 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
       ['verify-publish', 'BLOCKED'],
     ]);
 
-    // Provider reality changing does not alter project truth until the kernel
-    // records recovery/settlement evidence in durable authority.
+    // Reserve the provider coordinate before mutation. Both the reservation
+    // and the later lifecycle are reconstructed from durable facts.
+    f.owner.beginEffect(run);
     writeFileSync(f.world, 'present');
     f.assertReconstructs([
       ['publish', 'EXECUTING'],
       ['verify-publish', 'BLOCKED'],
     ]);
 
-    const recovery = f.owner.recoverInterrupted(run.id, {
+    const recovery = f.owner.recoverInterrupted(run, {
       source: 'projection-erasure-proof',
     });
     assert.equal(recovery.disposition, 'RECOVERY_REQUIRED');
@@ -164,7 +165,7 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
       ['verify-publish', 'BLOCKED'],
     ]);
 
-    const settled = f.owner.reconcile(run.id);
+    const settled = f.owner.reconcile(run);
     assert.equal(settled.disposition, 'DONE');
     assert.equal(settled.claim_commit, run.claim_commit);
 
