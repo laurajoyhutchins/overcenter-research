@@ -106,6 +106,19 @@ test('execution generation fences a stale permit without changing the claimed re
       first.execution_capability_sha256,
     );
 
+    const persistedAuthority = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${second.execution_authority_commit}:execution-authority.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as Record<string, unknown>;
+    assert.equal(JSON.stringify(persistedAuthority).includes(second.execution_capability), false);
+    assert.equal(
+      persistedAuthority.execution_capability_sha256,
+      second.execution_capability_sha256,
+    );
+
     assert.throws(() => f.kernel.beginEffect(first), /STALE_EXECUTION_GENERATION/);
     assert.throws(() => f.kernel.resolve(first), /STALE_EXECUTION_GENERATION/);
 
