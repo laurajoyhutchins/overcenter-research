@@ -2,16 +2,16 @@ import type {
   Obligation,
   Work,
 } from './model.ts';
-import type { State } from './facts.ts';
+import type { ObligationCatalog } from './facts.ts';
 import {
   dependencyUpstreams,
   dependsOn,
 } from './graph.ts';
 import type { Lifecycle } from './lifecycle.ts';
-import { effectSemantics } from './semantics.ts';
+import { effectConflictSemantics } from './semantics.ts';
 
 export function claimabilityError(
-  state:State,
+  catalog:ObligationCatalog,
   work:Obligation,
   lifecycles:Map<string,Lifecycle>,
 ):string|null {
@@ -19,7 +19,7 @@ export function claimabilityError(
   if (realization!=='UNREALIZED') return 'NOT_READY';
 
   const done=new Set(
-    Object.values(state.obligations)
+    Object.values(catalog.obligations)
       .filter(candidate=>lifecycles.get(candidate.id)?.status==='DONE')
       .map(candidate=>candidate.id),
   );
@@ -27,12 +27,12 @@ export function claimabilityError(
     return 'DEPENDENCIES_NOT_DONE';
   }
 
-  const semantics=effectSemantics(work.postcondition);
+  const semantics=effectConflictSemantics(work.postcondition);
   if (!semantics) return null;
 
-  for (const other of Object.values(state.obligations)) {
+  for (const other of Object.values(catalog.obligations)) {
     if (other.id===work.id) continue;
-    const otherSemantics=effectSemantics(other.postcondition);
+    const otherSemantics=effectConflictSemantics(other.postcondition);
     if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
 
     const sameDesired=otherSemantics.desired===semantics.desired;
@@ -42,15 +42,15 @@ export function claimabilityError(
       && otherSemantics.sameDesiredCommutes
     ) continue;
 
-    const ordered=dependsOn(state,work.id,other.id)
-      || dependsOn(state,other.id,work.id);
+    const ordered=dependsOn(catalog,work.id,other.id)
+      || dependsOn(catalog,other.id,work.id);
     if (!ordered) return `UNORDERED_EFFECT_CONFLICT:${work.id}:${other.id}`;
   }
   return null;
 }
 
 export function projectWork(
-  state:State,
+  catalog:ObligationCatalog,
   work:Obligation,
   revision:string,
   lifecycles:Map<string,Lifecycle>,
@@ -68,7 +68,7 @@ export function projectWork(
 
   if (lifecycle.status!=='UNREALIZED') return projected;
 
-  const reason=claimabilityError(state,work,lifecycles);
+  const reason=claimabilityError(catalog,work,lifecycles);
   if (reason && reason!=='NOT_READY') {
     projected.status='BLOCKED';
     projected.blocked_reason=reason;

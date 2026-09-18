@@ -6,10 +6,10 @@ import type {
 import type {
   HistoricalRun,
   Receipt,
-  State,
+  ObligationCatalog,
 } from './facts.ts';
 import { canonicalDigest } from './digest.ts';
-import { verifiedContentIdentity } from './semantics.ts';
+import { verifiedRealizationIdentity } from './semantics.ts';
 
 export type RealizationStatus =
   | 'UNREALIZED'
@@ -26,18 +26,18 @@ export interface Lifecycle {
 const IN_FLIGHT=new Set<RealizationStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
 
 function semanticDependencyIdentity(
-  state:State,
+  catalog:ObligationCatalog,
   edge:Extract<Dependency,{kind:'semantic'}>,
   lifecycles:Map<string,Lifecycle>,
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
-  const upstream=state.obligations[edge.upstream];
+  const upstream=catalog.obligations[edge.upstream];
   if (!upstream) throw new Error(`UNKNOWN_DEPENDENCY:${edge.upstream}`);
   const lifecycle=lifecycles.get(edge.upstream);
   if (lifecycle?.status!=='DONE' || !lifecycle.run) return null;
 
   if (edge.consumes.kind==='output' && edge.consumes.selector==='verified-content') {
-    const identity=verifiedContentIdentity(upstream.postcondition);
+    const identity=verifiedRealizationIdentity(upstream.postcondition);
     if (identity) return identity;
   }
 
@@ -53,7 +53,7 @@ function semanticDependencyIdentity(
 }
 
 export function obligationKey(
-  state:State,
+  catalog:ObligationCatalog,
   work:Obligation,
   lifecycles:Map<string,Lifecycle>,
   receiptsByRun:Map<string,Receipt>,
@@ -84,7 +84,7 @@ export function obligationKey(
 }
 
 export function deriveLifecycles(
-  state:State,
+  catalog:ObligationCatalog,
   runs:Map<string,HistoricalRun>,
   receiptsByRun:Map<string,Receipt>,
 ):Map<string,Lifecycle> {
@@ -98,13 +98,13 @@ export function deriveLifecycles(
     if (visiting.has(id)) throw new Error(`DEPENDENCY_CYCLE:${id}`);
     visiting.add(id);
 
-    const work=state.obligations[id];
+    const work=catalog.obligations[id];
     if (!work) throw new Error(`UNKNOWN_OBLIGATION:${id}`);
     for (const edge of work.dependencies) {
       if (edge.kind==='semantic') derive(edge.upstream);
     }
 
-    const key=obligationKey(state,work,lifecycles,receiptsByRun);
+    const key=obligationKey(catalog,work,lifecycles,receiptsByRun);
     let lifecycle:Lifecycle={status:'UNREALIZED'};
 
     if (key) {
@@ -134,7 +134,7 @@ export function deriveLifecycles(
     return lifecycle;
   };
 
-  for (const id of Object.keys(state.obligations)) derive(id);
+  for (const id of Object.keys(catalog.obligations)) derive(id);
   return lifecycles;
 }
 

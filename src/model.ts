@@ -1,6 +1,6 @@
 export type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
 export type WorkStatus = LifecycleStatus | 'BLOCKED';
-export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
+export type ReceiptDisposition = 'DONE' | 'ABSENT' | 'WAITING' | 'RECOVERY_REQUIRED';
 export type MutationCertainty = 'present' | 'absent' | 'uncertain';
 export type Data = Record<string, unknown>;
 

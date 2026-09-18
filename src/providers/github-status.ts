@@ -4,7 +4,7 @@ export function githubStatusContextKey(context: string): string {
   return context.toLowerCase();
 }
 
-export function githubGet(token: string, path: string): unknown {
+export function githubApiGet(token: string, path: string): unknown {
   const config = [
     `header = "Authorization: Bearer ${token}"`,
     'header = "Accept: application/vnd.github+json"',
@@ -32,7 +32,7 @@ export function findGithubCommitStatus(
 ): { context?: string; state?: string } | null {
   const target=githubStatusContextKey(context);
   for (let page=1; page<=1000; page+=1) {
-    const statuses=githubGet(
+    const statuses=githubApiGet(
       token,
       `/repos/${repositoryFullName}/commits/${commitSha}/statuses?per_page=100&page=${page}`,
     );

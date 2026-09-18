@@ -2,13 +2,13 @@ import type { Postcondition } from './model.ts';
 import { canonicalDigest, sha256 } from './digest.ts';
 import { githubStatusContextKey } from './providers/github-status.ts';
 
-export interface EffectSemantics {
+export interface EffectConflictSemantics {
   resource:string;
   desired:string;
   sameDesiredCommutes:boolean;
 }
 
-export function verifiedContentIdentity(postcondition:Postcondition):string|null {
+export function verifiedRealizationIdentity(postcondition:Postcondition):string|null {
   if (
     postcondition.verifier==='file-content-equals/v1'
     || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
@@ -27,7 +27,7 @@ export function verifiedContentIdentity(postcondition:Postcondition):string|null
   return null;
 }
 
-export function effectSemantics(postcondition:Postcondition):EffectSemantics|null {
+export function effectConflictSemantics(postcondition:Postcondition):EffectConflictSemantics|null {
   if (postcondition.verifier!=='github-commit-status/v1') return null;
   return {
     resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,

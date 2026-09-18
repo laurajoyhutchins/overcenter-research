@@ -1,10 +1,10 @@
 import type { Obligation } from './model.ts';
-import { observationVerified } from './observation.ts';
+import { observationSatisfiesPostcondition } from './observation.ts';
 import {
   CLAIM_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
-  emptyState,
+  emptyObligationCatalog,
   validateStoredObligation,
 } from './facts.ts';
 import type {
@@ -14,7 +14,7 @@ import type {
   ObligationFact,
   Receipt,
   ReceiptFact,
-  State,
+  ObligationCatalog,
 } from './facts.ts';
 import {
   dependencyUpstreams,
@@ -35,7 +35,7 @@ export interface HistoryProjection {
 }
 
 export interface Projection {
-  state:State;
+  state:ObligationCatalog;
   history:HistoryProjection;
 }
 
@@ -49,11 +49,11 @@ export function projectReceipt(
 
   if (fact.kind==='observation') {
     if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
-    verified=observationVerified(work.postcondition,fact.observed);
+    verified=observationSatisfiesPostcondition(work.postcondition,fact.observed);
     disposition=verified
       ? 'DONE'
       : fact.observed.mutation_certainty==='absent'
-        ? 'READY'
+        ? 'ABSENT'
         : 'RECOVERY_REQUIRED';
   } else {
     if (fact.observed) throw new Error('NONOBSERVATION_RECEIPT_HAS_EVIDENCE');
@@ -68,8 +68,8 @@ export function projectReceipt(
   };
 }
 
-export function replayProjection(commits:FactCommit[]):Projection {
-  const state=emptyState();
+export function reconstructProjection(commits:FactCommit[]):Projection {
+  const state=emptyObligationCatalog();
   let lifecycles=new Map<string,Lifecycle>();
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();
@@ -160,7 +160,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
       throw new Error('OBSERVATION_WHILE_NOT_RESOLVABLE');
     }
     const previous=receiptsByRun.get(run.id);
-    if (previous && ['DONE','READY'].includes(previous.disposition)) {
+    if (previous && ['DONE','ABSENT'].includes(previous.disposition)) {
       throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
     }
 

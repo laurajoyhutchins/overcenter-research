@@ -40,13 +40,13 @@ import {
 } from './eligibility.ts';
 import {
   projectReceipt,
-  replayProjection,
+  reconstructProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
 
 export type { Receipt } from './facts.ts';
 
-const STATE_REF='refs/overcenter/state';
+const DEFAULT_AUTHORITY_REF='refs/overcenter/state';
 const errorMessage=(error:unknown)=>error instanceof Error ? error.message : String(error);
 
 export class GitOvercenterKernel {
@@ -59,7 +59,7 @@ export class GitOvercenterKernel {
   constructor(
     repo:string,
     {
-      ref=STATE_REF,
+      ref=DEFAULT_AUTHORITY_REF,
       remote=null,
       githubToken=null,
     }:{ref?:string;remote?:string|null;githubToken?:string|null}={},
@@ -72,53 +72,53 @@ export class GitOvercenterKernel {
   }
 
   initialize():string {
-    const existing=this.head();
+    const existing=this.authorityRevision();
     if (existing) return existing;
     const commit=this.#store.createCommit(null,'overcenter: initialize');
     if (this.#store.cas(commit,this.#store.zeroObjectId())) return commit;
-    const winner=this.head();
+    const winner=this.authorityRevision();
     if (!winner) throw new Error('INITIALIZE_LOST');
-    this.#projection(winner);
+    this.#reconstructProjection(winner);
     return winner;
   }
 
-  head():string|null {
-    return this.#store.head();
+  authorityRevision():string|null {
+    return this.#store.refRevision();
   }
 
   define(input:ObligationInput):string {
     const obligation=normalizeObligation(input);
     const {id}=obligation;
-    const head=this.#requireHead();
-    const projection=this.#projection(head);
+    const revision=this.#requireAuthorityRevision();
+    const projection=this.#reconstructProjection(revision);
     const {state,history}=projection;
     if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
 
-    const next=withObligation(state,obligation,head);
+    const next=withObligation(state,obligation,revision);
     validateGraph(next);
     const fact:ObligationFact={schema:OBLIGATION_SCHEMA,kind:'defined',obligation};
     const commit=this.#store.createCommit(
-      head,
+      revision,
       `overcenter: define ${id}`,
       {'obligation.json':fact},
     );
-    if (!this.#store.cas(commit,head)) throw new Error('DEFINE_LOST');
+    if (!this.#store.cas(commit,revision)) throw new Error('DEFINE_LOST');
     return commit;
   }
 
   amend(input:ObligationInput,expectedRevision:string):string {
     const obligation=normalizeObligation(input);
     const {id}=obligation;
-    const head=this.#requireHead();
-    if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const projection=this.#projection(head);
+    const revision=this.#requireAuthorityRevision();
+    if (revision!==expectedRevision) throw new Error('STALE_REVISION');
+    const projection=this.#reconstructProjection(revision);
     const {state,history}=projection;
     if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
     if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
 
     const previous=state.definition_commits[id];
-    const next=withObligation(state,obligation,head);
+    const next=withObligation(state,obligation,revision);
     validateGraph(next);
     const fact:ObligationFact={
       schema:OBLIGATION_SCHEMA,
@@ -127,35 +127,35 @@ export class GitOvercenterKernel {
       previous_definition_commit:previous,
     };
     const commit=this.#store.createCommit(
-      head,
+      revision,
       `overcenter: amend ${id}`,
       {'obligation.json':fact},
     );
-    if (!this.#store.cas(commit,head)) throw new Error('AMEND_LOST');
+    if (!this.#store.cas(commit,revision)) throw new Error('AMEND_LOST');
     return commit;
   }
 
   inspect():Work[] {
-    const head=this.#requireHead();
-    const {state,history}=this.#projection(head);
+    const revision=this.#requireAuthorityRevision();
+    const {state,history}=this.#reconstructProjection(revision);
     return Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work=>projectWork(state,work,head,history.lifecycles));
+      .map(work=>projectWork(state,work,revision,history.lifecycles));
   }
 
-  deriveReadyWork():Work|null {
-    const head=this.#requireHead();
-    const {state,history}=this.#projection(head);
+  nextReadyWork():Work|null {
+    const revision=this.#requireAuthorityRevision();
+    const {state,history}=this.#reconstructProjection(revision);
     const work=Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
       .find(candidate=>claimabilityError(state,candidate,history.lifecycles)===null);
-    return work ? projectWork(state,work,head,history.lifecycles) : null;
+    return work ? projectWork(state,work,revision,history.lifecycles) : null;
   }
 
   claim(id:string,expectedRevision:string):Run {
-    const head=this.#requireHead();
-    if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const {state,history}=this.#projection(head);
+    const revision=this.#requireAuthorityRevision();
+    if (revision!==expectedRevision) throw new Error('STALE_REVISION');
+    const {state,history}=this.#reconstructProjection(revision);
     const work=state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
     const claimError=claimabilityError(state,work,history.lifecycles);
@@ -168,28 +168,28 @@ export class GitOvercenterKernel {
       schema:CLAIM_SCHEMA,
       run_id:runId,
       obligation_id:id,
-      claimed_revision:head,
+      claimed_revision:revision,
       obligation_key:key,
     };
     const commit=this.#store.createCommit(
-      head,
+      revision,
       `overcenter: claim ${id} ${runId}`,
       {'claim.json':claim},
     );
-    if (!this.#store.cas(commit,head)) throw new Error('CLAIM_LOST');
+    if (!this.#store.cas(commit,revision)) throw new Error('CLAIM_LOST');
     return {
       id:runId,
       obligation_id:id,
-      claimed_revision:head,
+      claimed_revision:revision,
       claim_commit:commit,
       obligation_key:key,
     };
   }
 
-  resolve(runId:string):Receipt {
+  reconcile(runId:string):Receipt {
     for (let attempt=0;attempt<16;attempt+=1) {
-      const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const revision=this.#requireAuthorityRevision();
+      const {state,history}=this.#reconstructProjection(revision);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
@@ -214,15 +214,15 @@ export class GitOvercenterKernel {
         `overcenter: observe ${work.id} ${run.id}`,
         {'receipt.json':fact},
       );
-      if (this.#store.cas(commit,head)) return {...receipt,settlement_commit:commit};
+      if (this.#store.cas(commit,revision)) return {...receipt,settlement_commit:commit};
     }
-    throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
+    throw new Error('RECONCILE_CONTENTION_EXHAUSTED');
   }
 
   deferForJudgment(runId:string,diagnostic:Data={}):Receipt {
     for (let attempt=0;attempt<16;attempt+=1) {
-      const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const revision=this.#requireAuthorityRevision();
+      const {state,history}=this.#reconstructProjection(revision);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
@@ -241,15 +241,15 @@ export class GitOvercenterKernel {
         `overcenter: judgment required ${work.id} ${run.id}`,
         {'receipt.json':fact},
       );
-      if (this.#store.cas(commit,head)) return {...receipt,settlement_commit:commit};
+      if (this.#store.cas(commit,revision)) return {...receipt,settlement_commit:commit};
     }
     throw new Error('DEFER_CONTENTION_EXHAUSTED');
   }
 
-  recoverInterrupted(runId:string,diagnostic:Data={}):Receipt {
+  recordExecutionTerminated(runId:string,diagnostic:Data={}):Receipt {
     for (let attempt=0;attempt<16;attempt+=1) {
-      const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const revision=this.#requireAuthorityRevision();
+      const {state,history}=this.#reconstructProjection(revision);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
@@ -274,38 +274,35 @@ export class GitOvercenterKernel {
         `overcenter: execution terminated ${work.id} ${runId}`,
         {'receipt.json':fact},
       );
-      if (this.#store.cas(commit,head)) return {...receipt,settlement_commit:commit};
+      if (this.#store.cas(commit,revision)) return {...receipt,settlement_commit:commit};
     }
-    throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
+    throw new Error('TERMINATION_RECORD_CONTENTION_EXHAUSTED');
   }
 
-  reconcile(runId:string):Receipt {
-    return this.resolve(runId);
-  }
 
   receipts(runId:string|null=null):Receipt[] {
-    const head=this.#requireHead();
-    const {history}=this.#projection(head);
+    const revision=this.#requireAuthorityRevision();
+    const {history}=this.#reconstructProjection(revision);
     return runId
       ? history.receipts.filter(receipt=>receipt.run_id===runId)
       : history.receipts;
   }
 
-  #requireHead():string {
-    const head=this.head();
-    if (!head) throw new Error('NOT_INITIALIZED');
-    return head;
+  #requireAuthorityRevision():string {
+    const revision=this.authorityRevision();
+    if (!revision) throw new Error('NOT_INITIALIZED');
+    return revision;
   }
 
-  #projection(head:string):Projection {
-    const commits:FactCommit[]=this.#store.revisions(head).map(commit=>({
+  #reconstructProjection(revision:string):Projection {
+    const commits:FactCommit[]=this.#store.revisions(revision).map(commit=>({
       commit,
       parent:this.#store.parent(commit),
       obligation:this.#store.readJson(commit,'obligation.json'),
       claim:this.#store.readJson(commit,'claim.json'),
       receipt:this.#store.readJson(commit,'receipt.json'),
     }));
-    return replayProjection(commits);
+    return reconstructProjection(commits);
   }
 
   #observe(postcondition:Postcondition):Observation {
@@ -339,7 +336,7 @@ export async function runGitCoreLoop(
 ):Promise<LoopResult> {
   kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
-    const work=kernel.deriveReadyWork();
+    const work=kernel.nextReadyWork();
     if (!work) {
       const blocked=kernel.inspect().find(candidate=>candidate.status==='BLOCKED');
       if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
@@ -375,8 +372,8 @@ export async function runGitCoreLoop(
       };
     }
 
-    const receipt=kernel.resolve(run.id);
-    if (receipt.disposition==='DONE' || receipt.disposition==='READY') continue;
+    const receipt=kernel.reconcile(run.id);
+    if (receipt.disposition==='DONE' || receipt.disposition==='ABSENT') continue;
     return {
       state:'RECOVERY_REQUIRED',
       work:work.id,

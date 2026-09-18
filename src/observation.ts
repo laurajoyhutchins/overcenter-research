@@ -1,13 +1,12 @@
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { Observation, Postcondition } from './model.ts';
-import { findGithubCommitStatus, githubGet } from './providers/github-status.ts';
+import { sha256 } from './digest.ts';
+import { findGithubCommitStatus, githubApiGet } from './providers/github-status.ts';
 
 export interface ObservationContext {
   githubToken: string | null;
 }
 
-const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 const errorMessage=(e:unknown)=>e instanceof Error ? e.message : String(e);
 
 export function validatePostcondition(p: Postcondition): void {
@@ -48,7 +47,7 @@ export function observePostcondition(
       };
     }
     try {
-      const repository=githubGet(
+      const repository=githubApiGet(
         context.githubToken,
         `/repositories/${p.repository_id}`,
       ) as { id?: number; full_name?: string };
@@ -174,7 +173,7 @@ export function observePostcondition(
   }
 }
 
-export function observationVerified(
+export function observationSatisfiesPostcondition(
   postcondition: Postcondition,
   observed: Observation,
 ): boolean {
