@@ -58,6 +58,111 @@ git push \
 
 The commit SHA is the authoritative state revision. Settlement and recovery commits carry `receipt.json`; older receipts remain reachable through Git history.
 
+## Reconstructed project projection
+
+The Git authority no longer contains a privileged current-state document.
+
+Obligation structure is recorded as immutable `obligation.json` facts:
+
+```text
+defined
+  full obligation definition
+
+amended
+  full replacement definition
+  exact previous definition commit
+```
+
+Each obligation definition contains:
+
+```text
+id
+deps
+packet
+postcondition
+```
+
+Claims are immutable `claim.json` facts that bind a run and obligation to the
+exact parent authority revision. Evidence commits carry factual `receipt.json`
+events:
+
+```text
+observation
+judgment-required
+execution-terminated
+```
+
+No authority commit contains `state.json`. Durable receipts also do not persist
+`disposition`, `verified`, or an observation-level `verified` bit.
+
+The kernel reconstructs the current graph and lifecycle by replaying Git history:
+
+```text
+obligation.json facts
+        +
+claim.json facts
+        +
+receipt.json evidence
+        ↓
+historical obligation generations
+        +
+exact run-to-generation bindings
+        ↓
+current obligation graph
+        +
+READY / EXECUTING / WAITING / RECOVERY_REQUIRED / DONE
+        +
+dependency/effect projection
+        ↓
+BLOCKED / current frontier
+```
+
+A run is interpreted against the obligation generation that was authoritative at
+its fenced `claimed_revision`, not against the current definition. The regression
+suite proves this by settling generation 1, replacing the obligation with a
+generation 2 predicate that the old observation would not satisfy, and then
+replaying the old receipt. It remains DONE because its historical meaning is
+stable.
+
+Structural replay validates unknown dependencies, dependency cycles, exact
+amendment ancestry, claim revision fencing, receipt-to-claim identity, and legal
+lifecycle transitions.
+
+The current amendment experiment is deliberately conservative: an obligation can
+be amended only when no work is in flight and no current obligation depends on it.
+That avoids silently invalidating already-derived downstream work while the
+semantics for descendant invalidation are still undefined.
+
+The destructive projection test runs against `GitOvercenterKernel` itself using
+a central bare Git authority. At each lifecycle boundary it:
+
+```text
+derive projection
+      ↓
+materialize cache
+      ↓
+DELETE cache
+      ↓
+create fresh disposable clone
+      ↓
+read current central authority
+      ↓
+replay facts
+      ↓
+assert byte-identical projection + identical SHA-256
+```
+
+Raw-history tests fail if `state.json` appears in any authority commit or if
+interpreted lifecycle fields leak back into receipts.
+
+Run the destructive proof directly with:
+
+```bash
+npm run test:projection
+```
+
+> Deleting every materialized project status must lose no project truth.
+
 ## Kernel-owned verification
 
 Agents no longer supply an observation object or verifier function to settle work.

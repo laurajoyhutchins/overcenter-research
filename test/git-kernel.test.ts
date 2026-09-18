@@ -136,3 +136,215 @@ test('all observational surfaces fail closed when authority is missing', () => {
     assert.throws(() => f.kernel.recoverInterrupted('x'), /NOT_INITIALIZED/);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
+
+test('authority history contains no state snapshot and receipts remain factual', () => {
+  const f = fixture();
+  try {
+    const path = f.path('derived-state');
+    f.kernel.define({
+      id: 'x',
+      postcondition: pc(path, 'present'),
+    });
+
+    const assertNoStateSnapshot = () => {
+      const commits = execFileSync(
+        'git',
+        ['-C', f.repo, 'rev-list', 'refs/overcenter/state'],
+        { encoding: 'utf8' },
+      ).trim().split(/\n+/).filter(Boolean);
+
+      for (const commit of commits) {
+        assert.throws(
+          () => execFileSync(
+            'git',
+            ['-C', f.repo, 'cat-file', '-e', `${commit}:state.json`],
+            { stdio: 'ignore' },
+          ),
+        );
+      }
+    };
+
+    assert.equal(f.kernel.inspect()[0].status, 'READY');
+    assertNoStateSnapshot();
+
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
+    assertNoStateSnapshot();
+
+    const recovery = f.kernel.recoverInterrupted(run.id, { source: 'test' });
+    assert.equal(recovery.disposition, 'RECOVERY_REQUIRED');
+    assert.equal(recovery.verified, false);
+    assert.equal(recovery.claim_commit, run.claim_commit);
+    assert.equal(f.kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
+    assertNoStateSnapshot();
+
+    const persistedRecovery = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${recovery.settlement_commit}:receipt.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as Record<string, unknown>;
+    assert.equal(persistedRecovery.kind, 'execution-terminated');
+    assert.equal('disposition' in persistedRecovery, false);
+    assert.equal('verified' in persistedRecovery, false);
+
+    writeFileSync(path, 'present');
+    const settled = f.kernel.reconcile(run.id);
+    assert.equal(settled.disposition, 'DONE');
+    assert.equal(settled.verified, true);
+    assert.equal(settled.claim_commit, run.claim_commit);
+    assert.equal(f.kernel.inspect()[0].status, 'DONE');
+    assertNoStateSnapshot();
+
+    const persistedSettlement = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${settled.settlement_commit}:receipt.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as {
+      kind?: string;
+      observed?: Record<string, unknown> | null;
+      [key: string]: unknown;
+    };
+    assert.equal(persistedSettlement.kind, 'observation');
+    assert.equal('disposition' in persistedSettlement, false);
+    assert.equal('verified' in persistedSettlement, false);
+    assert.ok(persistedSettlement.observed);
+    assert.equal('verified' in persistedSettlement.observed!, false);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('historical receipt stays bound to the obligation generation claimed by its run', () => {
+  const f = fixture();
+  try {
+    const path = f.path('generation');
+    f.kernel.define({
+      id: 'x',
+      packet: { generation: 1 },
+      postcondition: pc(path, 'one'),
+    });
+
+    const firstRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    writeFileSync(path, 'one');
+    const firstDone = f.kernel.resolve(firstRun.id);
+    assert.equal(firstDone.disposition, 'DONE');
+    assert.equal(firstDone.verified, true);
+
+    const beforeAmend = f.kernel.head()!;
+    f.kernel.amend({
+      id: 'x',
+      packet: { generation: 2 },
+      postcondition: pc(path, 'two'),
+    }, beforeAmend);
+
+    const amended = f.kernel.inspect()[0];
+    assert.equal(amended.status, 'READY');
+    assert.deepEqual(amended.packet, { generation: 2 });
+    assert.deepEqual(amended.postcondition, pc(path, 'two'));
+
+    // This is the hostile historical-binding assertion. The old observation
+    // matches generation 1 and does not match generation 2.
+    const oldReceipt = f.kernel.receipts(firstRun.id).at(-1)!;
+    assert.equal(oldReceipt.disposition, 'DONE');
+    assert.equal(oldReceipt.verified, true);
+    assert.equal(oldReceipt.settlement_commit, firstDone.settlement_commit);
+
+    const secondRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    writeFileSync(path, 'two');
+    const secondDone = f.kernel.resolve(secondRun.id);
+    assert.equal(secondDone.disposition, 'DONE');
+    assert.equal(secondDone.verified, true);
+    assert.equal(f.kernel.inspect()[0].status, 'DONE');
+
+    const definitionCommits = execFileSync(
+      'git',
+      ['-C', f.repo, 'rev-list', '--reverse', 'refs/overcenter/state'],
+      { encoding: 'utf8' },
+    ).trim().split(/\n+/).filter(Boolean).filter(commit => {
+      try {
+        execFileSync(
+          'git',
+          ['-C', f.repo, 'cat-file', '-e', `${commit}:obligation.json`],
+          { stdio: 'ignore' },
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    assert.equal(definitionCommits.length, 2);
+
+    const amendedFact = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${definitionCommits[1]}:obligation.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as {
+      kind: string;
+      previous_definition_commit?: string;
+      obligation: { packet: unknown };
+    };
+    assert.equal(amendedFact.kind, 'amended');
+    assert.equal(amendedFact.previous_definition_commit, definitionCommits[0]);
+    assert.deepEqual(amendedFact.obligation.packet, { generation: 2 });
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('projected terminal receipt remains idempotent after a retry is claimed', () => {
+  const f = fixture();
+  try {
+    const path = f.path('retry-idempotence');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
+
+    const firstRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    const replayable = f.kernel.resolve(firstRun.id);
+    assert.equal(replayable.disposition, 'READY');
+
+    const secondRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    const repeated = f.kernel.resolve(firstRun.id);
+
+    assert.equal(repeated.disposition, 'READY');
+    assert.equal(repeated.settlement_commit, replayable.settlement_commit);
+    assert.equal(f.kernel.inspect()[0].run_id, secondRun.id);
+    assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('judgment-required fact projects WAITING without persisting WAITING', () => {
+  const f = fixture();
+  try {
+    const path = f.path('judgment');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+
+    const waiting = f.kernel.deferForJudgment(run.id, {
+      source: 'test',
+      question: 'human judgment needed',
+    });
+
+    assert.equal(waiting.disposition, 'WAITING');
+    assert.equal(waiting.verified, false);
+    assert.equal(f.kernel.inspect()[0].status, 'WAITING');
+
+    const persisted = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${waiting.settlement_commit}:receipt.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as Record<string, unknown>;
+
+    assert.equal(persisted.kind, 'judgment-required');
+    assert.equal('disposition' in persisted, false);
+    assert.equal('verified' in persisted, false);
+    assert.equal(JSON.stringify(persisted).includes('WAITING'), false);
+
+    writeFileSync(path, 'present');
+    const settled = f.kernel.reconcile(run.id);
+    assert.equal(settled.disposition, 'DONE');
+    assert.equal(f.kernel.inspect()[0].status, 'DONE');
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
