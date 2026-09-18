@@ -170,8 +170,8 @@ if (pullNumber !== null) {
     transport,
     provenance,
   );
-  validateSlice(pullOperation, pullObservation);
-  pullFact = projectPullRequestSnapshot(pullObservation, repository);
+  const validatedPullObservation = validateSlice(pullOperation, pullObservation);
+  pullFact = projectPullRequestSnapshot(validatedPullObservation, repository);
   assert.ok(pullFact);
   assert.equal(evaluatePullRequestSnapshot(pullFact, {
     repository_id: repository.subject.id,
@@ -188,8 +188,8 @@ if (pullNumber !== null) {
     transport,
     provenance,
   );
-  validateSlice(issueOperation, issueObservation);
-  issueFact = projectIssueSnapshot(issueObservation, repository);
+  const validatedIssueObservation = validateSlice(issueOperation, issueObservation);
+  issueFact = projectIssueSnapshot(validatedIssueObservation, repository);
   assert.ok(issueFact);
   assert.equal(issueFact.is_pull_request, true);
   assert.notEqual(issueFact.subject.id, pullFact.subject.id);
