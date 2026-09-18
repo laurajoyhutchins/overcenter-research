@@ -103,9 +103,10 @@ The test uses a two-obligation dependency graph and destroys the projection cach
 at every meaningful boundary: READY/BLOCKED after definition, EXECUTING after
 claim, EXECUTING after the external effect alone, RECOVERY_REQUIRED after worker
 termination, RECOVERY_REQUIRED after observation but before settlement, and
-DONE/READY after settlement. Every time, a fresh read from the current Git fact
-authority must reproduce the exact canonical projection and digest. Claim writes
-are also exact-revision fenced with compare-and-swap.
+DONE/READY after settlement. Durable facts live in a bare central Git authority;
+a separate writer advances its fact ref with an exact leased push. Every
+reconstruction reads the current central authority ref directly and must reproduce
+the exact canonical projection and digest.
 
 Run it directly with:
 
