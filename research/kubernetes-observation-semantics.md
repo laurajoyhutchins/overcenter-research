@@ -84,6 +84,22 @@ The validator now accepts a lazy reference resolver. Path selection, primitive c
 
 This is a modest extension, not a second validation framework.
 
+### Live collection representation surprise
+
+The first hosted kind run failed for a useful reason: a real ConfigMap LIST omitted per-item `apiVersion` and `kind`. Kubernetes collection semantics say that when a resource type is queried, every member of that collection represents that resource type; `TypeMeta` fields themselves are optional. Requiring singleton representation fields inside every member was therefore too strong.
+
+The repair keeps the evidence boundary explicit:
+
+```text
+LIST operation + top-level ConfigMapList
+    → member resource type is ConfigMap/v1
+
+selected item metadata + data
+    → member coordinate / UID / resourceVersion / modeled state
+```
+
+No raw list item can independently claim another kind. The collection contract supplies the representation type, while the member body supplies the entity and state identities. This surprise is retained in the deterministic test corpus rather than normalized away.
+
 ## LIST: Kubernetes earns authoritative absence
 
 GitHub collection experiments produced this conservative rule:
@@ -175,6 +191,7 @@ Deterministic tests cover:
 - same object, changed resourceVersion;
 - same coordinate after delete/recreate, changed UID;
 - resourceVersion opacity;
+- LIST members with omitted per-item TypeMeta, with resource type derived from the collection contract;
 - one-page pagination cannot claim completeness;
 - continuation token mismatch fails completeness;
 - snapshot resourceVersion mismatch fails completeness;
@@ -193,11 +210,11 @@ Gross new experiment LOC at the first complete implementation:
 ```text
 provider observation/provenance types       53
 response-slice structural validator        206
-Kubernetes semantic rules                  232
-local adversarial tests                     125
+Kubernetes semantic rules                  253
+local adversarial tests                     137
 live provider proof                         251
                                             ---
-                                            867
+                                            900
 ```
 
 Interpret the structural number carefully:
@@ -209,7 +226,7 @@ Interpret the structural number carefully:
 Requested metrics:
 
 ```text
-new provider-specific semantic LOC          232
+new provider-specific semantic LOC          253
 new shared semantic LOC                       0
 new structural-validation LOC               206 gross
   genuinely new structural concept            1  ($ref resolution)
