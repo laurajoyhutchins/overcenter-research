@@ -61,7 +61,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Semantic dependency identity is explicit.** Control dependencies constrain executability; semantic dependencies contribute selected upstream identity to downstream meaning. Historical realizations are reused only when the current obligation key still matches.
 - **Workers are disposable.** A worker can disappear with its checkout, cache, local database, refs, and process memory; a fresh worker can reconstruct the unresolved run from authority and reconcile it.
 - **Settlement is independent of worker assertion.** Verification semantics are committed before execution and authoritative readback determines whether the required postcondition actually holds.
-- **Uncertain mutation does not authorize blind replay.** Replay permission is verifier-specific: a generic `absent` observation is insufficient unless that verifier's settlement semantics declare the absence authoritative. Hostile eventually consistent and GitHub collection-negative readback remain recovery-bound.
+- **Uncertain mutation does not authorize blind replay.** Replay requires both verifier-level authority to prove absence and observation-specific evidence that this read actually established authoritative absence. Hostile eventually consistent and GitHub collection-negative readback remain recovery-bound.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
 - **The hosted trust-boundary proof survives executor tampering.** An executor without project-authority write permission cannot redefine the obligation, authority coordinate, verification rule, or settlement truth.
@@ -104,7 +104,7 @@ Important entry points:
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
 - [`src/graph.ts`](./src/graph.ts) - provider-agnostic dependency topology, validation, and ordering queries.
-- [`src/admission.ts`](./src/admission.ts) - deterministic semantic-edge and static effect-safety checks before definitions or amendments enter authority.
+- [`src/admission.ts`](./src/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
 - [`src/lifecycle.ts`](./src/lifecycle.ts) - semantic realization identity and internal realization lifecycle (`UNREALIZED` through `DONE`).
 - [`src/eligibility.ts`](./src/eligibility.ts) - maps an unrealized obligation to public `READY` or `BLOCKED` using deterministic execution eligibility.
 - [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to current project projection.
