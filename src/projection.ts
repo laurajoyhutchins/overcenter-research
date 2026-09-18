@@ -1,5 +1,8 @@
 import type { Obligation } from './model.ts';
-import { observationVerified } from './observation.ts';
+import {
+  observationAuthoritativelyAbsent,
+  observationVerified,
+} from './observation.ts';
 import { settlementSemantics } from './semantics.ts';
 import {
   CLAIM_SCHEMA,
@@ -51,9 +54,8 @@ export function projectReceipt(
     const policy=settlementSemantics(work.postcondition);
     disposition=verified
       ? 'DONE'
-      : fact.observed.mutation_certainty==='absent'
-        && fact.observed.negative_evidence_authoritative===true
-        && policy.authoritativeAbsenceCanAuthorizeReplay
+      : policy.authoritativeAbsenceCanAuthorizeReplay
+        && observationAuthoritativelyAbsent(work.postcondition,fact.observed)
         ? 'READY'
         : 'RECOVERY_REQUIRED';
   } else {
