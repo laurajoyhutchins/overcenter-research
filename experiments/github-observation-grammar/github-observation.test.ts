@@ -274,6 +274,25 @@ test('paginated collection proves positive membership but not absence, even on a
   }).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
 });
 
+test('an empty check-run page is observation evidence, not proof that no run exists', async () => {
+  const repository = projectRepositoryIdentity(await repositoryObservation())!;
+  const empty = await observe(operation(paths.checks), {
+    owner: 'acme', repo: 'widget', ref: SHA_A, page: 1, per_page: 1,
+  }, response(200, {
+    total_count: 0,
+    check_runs: [],
+  }));
+  const page = projectCheckRunsPage(empty, repository)!;
+  assert.equal(page.members.length, 0);
+  assert.equal(page.total_count, 0);
+  assert.equal(page.negative_evidence_authoritative, false);
+  assert.deepEqual(evaluateCheckRunPage(page, {
+    repository_id: 42,
+    ref: SHA_A,
+    id: 123,
+  }).state, 'INDETERMINATE');
+});
+
 test('304 revalidates prior representation only when ETag, coordinate, and contract identity match', async () => {
   const prior = await observe(operation(paths.repo), { owner: 'acme', repo: 'widget' }, response(200, {
     id: 42, node_id: 'R_42', name: 'widget', full_name: 'acme/widget', owner: { login: 'acme' },
