@@ -3,8 +3,12 @@ import { readFileSync } from 'node:fs';
 import type { Observation, Postcondition } from './model.ts';
 import {
   observeCertifiedGithubCommitStatus,
-  type GithubJsonGet,
 } from './providers/github-certified-status.ts';
+import {
+  canonicalGithubRef,
+  observeCertifiedGithubRefTarget,
+} from './providers/github-certified-ref.ts';
+import type { GithubJsonGet } from './providers/github-status.ts';
 
 export interface ObservationContext {
   githubToken: string | null;
@@ -30,6 +34,13 @@ export function validatePostcondition(p: Postcondition): void {
     && typeof p.context==='string'
     && p.context.length > 0
     && ['error','failure','pending','success'].includes(p.expected_state)) return;
+  if (p?.verifier==='github-ref-target/v1'
+    && p.provider==='github'
+    && Number.isSafeInteger(p.repository_id)
+    && p.repository_id > 0
+    && typeof p.ref==='string'
+    && /^(?:refs\/)?(?:heads|tags)\/.+/.test(p.ref)
+    && /^[0-9a-f]{40,64}$/i.test(p.target_sha)) return;
   throw new Error('UNSUPPORTED_POSTCONDITION');
 }
 
@@ -38,6 +49,54 @@ export function observePostcondition(
   context: ObservationContext,
 ): Observation {
   validatePostcondition(p);
+
+  if (p.verifier==='github-ref-target/v1') {
+    if (!context.githubToken) {
+      return {
+        verifier:p.verifier,
+        provider:'github',
+        repository_id:p.repository_id,
+        ref:canonicalGithubRef(p.ref),
+        target_sha:p.target_sha,
+        mutation_certainty:'uncertain',
+        observation_error:'GITHUB_TOKEN_UNAVAILABLE',
+      };
+    }
+    try {
+      const binding=observeCertifiedGithubRefTarget(
+        context.githubToken,
+        {
+          repositoryId:p.repository_id,
+          ref:p.ref,
+          targetSha:p.target_sha,
+          ...(context.githubGet?{get:context.githubGet}:{}),
+          ...(context.clock?{clock:context.clock}:{}),
+        },
+      );
+      return {
+        verifier:p.verifier,
+        provider:'github',
+        repository_id:p.repository_id,
+        repository_full_name:binding.repository_full_name,
+        ref:binding.ref,
+        target_sha:p.target_sha,
+        actual_target_sha:binding.actual_target_sha,
+        mutation_certainty:binding.state==='present'?'present':'absent',
+        provider_evidence:binding.evidence,
+      };
+    } catch (e: unknown) {
+      return {
+        verifier:p.verifier,
+        provider:'github',
+        repository_id:p.repository_id,
+        ref:canonicalGithubRef(p.ref),
+        target_sha:p.target_sha,
+        mutation_certainty:'uncertain',
+        negative_evidence_authoritative:false,
+        observation_error:errorMessage(e),
+      };
+    }
+  }
 
   if (p.verifier==='github-commit-status/v1') {
     if (!context.githubToken) {
@@ -199,6 +258,18 @@ export function observationVerified(
       throw new Error('OBSERVATION_COORDINATE_MISMATCH');
     }
     return observed.actual_sha256===sha256(postcondition.content);
+  }
+
+  if (postcondition.verifier==='github-ref-target/v1') {
+    if (
+      observed.provider!=='github'
+      || observed.repository_id!==postcondition.repository_id
+      || observed.ref!==canonicalGithubRef(postcondition.ref)
+      || observed.target_sha?.toLowerCase()!==postcondition.target_sha.toLowerCase()
+    ) {
+      throw new Error('OBSERVATION_COORDINATE_MISMATCH');
+    }
+    return observed.actual_target_sha?.toLowerCase()===postcondition.target_sha.toLowerCase();
   }
 
   if (
