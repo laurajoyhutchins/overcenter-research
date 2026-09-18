@@ -80,7 +80,7 @@ A caller may later strengthen that result only if it has additional semantics pr
 
 Likewise, a transport failure remains `INDETERMINATE`.
 
-A successful positive read is stronger. If GitHub authoritatively returns that the requested ref targets SHA `B` while the obligation requires SHA `A`, the obligation is `UNSATIFIEED`.
+A successful positive read is stronger. If GitHub authoritatively returns that the requested ref targets SHA `B` while the obligation requires SHA `A`, the obligation is `UNSATISFIED`.
 
 ## What is generated vs handwritten
 
@@ -113,7 +113,55 @@ The tests establish:
 2. a successful exact ref read can prove an exact-SHA obligation;
 3. a successful mismatching ref read can prove that obligation unsatisfied;
 4. `404` is not strengthened into proof of absence; and
-5. transport failure cannot create a negative fact.
+5. transport failure cannot create a negative fact; and
+6. the concrete REST transport pins the API version and preserves raw provider response data.
+
+## Measured full-schema and live-provider result
+
+The branch now exercises the generic generator against GitHub's actual dereferenced REST description, pinned to:
+
+- API version: `2026-03-10`
+- `github/rest-api-description` source commit: `d4278c869e367f5d6d4e0f46878119128abba77b`
+- schema: `descriptions/api.github.com/dereferenced/api.github.com.2026-03-10.deref.json`
+
+Without endpoint-specific generator code, the catalog contains:
+
+- 647 read operations, all `GET` in this schema
+- 647 unique operation IDs
+- 2,263 parameters
+- 1,652 documented response outcomes
+- 518 operations marked `enabledForGitHubApps`
+
+The same CI run then used the descriptor generated for `git/get-ref` to read the branch hosting the experiment from GitHub's live REST API. The request used API version `2026-03-10`, received HTTP `200`, observed the exact branch ref and exact head commit, projected that response into a binding fact, and evaluated the exact-SHA obligation as:
+
+```text
+SATISFIED
+AUTHORITATIVE_BINDING_MATCHES
+```
+
+For the proving head `0801afd149a101f294aa25219c3474f99cc1d9cd`, the live observation was:
+
+```text
+github.ref(
+  laurajoyhutchins/overcenter-research,
+  refs/heads/experiment/github-observation-grammar
+)
+  targets
+github.commit(0801afd149a101f294aa25219c3474f99cc1d9cd)
+```
+
+This is the first end-to-end evidence that the split is viable:
+
+```text
+pinned OpenAPI
+    -> generated legal question
+    -> live authoritative provider read
+    -> small handwritten projection
+    -> fact
+    -> obligation predicate
+```
+
+It does not establish that all 647 read operations have useful settlement semantics. It establishes that the mechanical vocabulary can be broad while provider semantics remain outside the generator and outside the kernel.
 
 ## What this does not prove
 
@@ -126,7 +174,6 @@ This is not yet a complete GitHub observer. In particular it does not establish:
 - webhook-to-readback relationships;
 - authentication or GitHub App installation identity in evidence;
 - settlement-strength rules for checks, statuses, workflows, pull requests, issues, or deployments;
-- generation against the full 2026-03-10 OpenAPI document in CI.
 
 ## Next falsification step
 
