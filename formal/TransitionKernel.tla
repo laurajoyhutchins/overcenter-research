@@ -85,7 +85,7 @@ Init ==
         settlementEvidenceMatches |-> TRUE,
         settlementAcked |-> FALSE,
         evidenceValid |-> FALSE
-    ]
+        ]
 
 Acquire(w) ==
     /\ s.workerUp[w]
@@ -99,7 +99,7 @@ Acquire(w) ==
         !.leaseFence = s.fence + 1,
         !.leaseRevision = s.authorityRevision,
         !.phase = "Authorized"
-    ]
+        ]
 
 ExpireLease ==
     /\ s.leaseLive
@@ -136,7 +136,7 @@ BeginMutation(w) ==
         !.reservationViolated = s.reservationViolated \/ s.unresolved,
         !.verifiedEffect = "Unknown",
         !.verifiedRevision = NoRevision
-    ]
+        ]
 
 MutationKnownPresent ==
     /\ s.phase = "Mutating"
@@ -144,7 +144,7 @@ MutationKnownPresent ==
         !.effectTruth = "Present",
         !.mutationKnowledge = "Confirmed",
         !.phase = "EffectKnown"
-    ]
+        ]
 
 MutationKnownAbsent ==
     /\ s.phase = "Mutating"
@@ -153,7 +153,7 @@ MutationKnownAbsent ==
         !.mutationKnowledge = "None",
         !.unresolved = FALSE,
         !.phase = "Authorized"
-    ]
+        ]
 
 MutationUncertain ==
     /\ s.phase = "Mutating"
@@ -174,7 +174,7 @@ Verify(w) ==
         !.verifiedRevision = s.mutationRevision,
         !.phase = "Verified",
         !.unresolved = IF s.effectTruth = "Absent" THEN FALSE ELSE s.unresolved
-    ]
+        ]
 
 RetryMutation(w) ==
     /\ s.settlement = "None"
@@ -194,7 +194,7 @@ RetryMutation(w) ==
         !.replayWithoutAbsence = s.replayWithoutAbsence \/ ~ReplayEvidenceIsAbsence,
         !.verifiedEffect = "Unknown",
         !.verifiedRevision = NoRevision
-    ]
+        ]
 
 Settle(w) ==
     /\ s.settlement = "None"
