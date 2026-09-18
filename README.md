@@ -83,10 +83,19 @@ claim_commit
 
 A successful claim writes an immutable `claim.json` fact in the exact claim
 commit. That fact binds the run ID and obligation to the exact parent authority
-revision. Recovery and settlement commits write `receipt.json`. On every
-`inspect()`, `deriveReadyWork()`, claim, recovery, or settlement operation, the
-kernel replays those durable facts from the current authority history and derives
-the current projection:
+revision. Evidence commits write `receipt.json` facts with one of three factual
+event kinds:
+
+```text
+observation
+judgment-required
+execution-terminated
+```
+
+They do not persist `disposition`, `verified`, or an observation-level
+`verified` bit. On every `inspect()`, `deriveReadyWork()`, claim, recovery, or
+settlement operation, the kernel replays those durable facts from the current
+authority history and derives the current projection:
 
 ```text
 obligation definitions in state.json
@@ -135,12 +144,17 @@ Run it directly with:
 npm run test:projection
 ```
 
-The remaining boundary is explicit: `receipt.json` still records interpreted
-`disposition` and `verified` fields in addition to observation evidence.
-Those fields are durable evidence today, but the fact-derived model suggests they
-should be challenged next: if they can be deterministically reconstructed from
-the obligation predicate plus factual observation/recovery evidence, they should
-not be authoritative lifecycle state.
+`receipt.json` schema v3 now records factual event/evidence only. The public
+`Receipt` returned by the kernel still exposes `disposition` and `verified`
+for caller convenience, but those values are reconstructed during replay from the
+event kind, obligation predicate, and provider observation.
+
+The judgment path follows the same rule. Callers invoke
+`deferForJudgment(runId, evidence)`; they no longer request `WAITING`.
+`WAITING` is projected from the durable `judgment-required` fact.
+
+Raw-history tests fail if `disposition`, `verified`, or observation-level
+`verified` reappear in committed receipts.
 
 > Deleting every materialized project status must lose no project truth.
 
