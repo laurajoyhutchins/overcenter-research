@@ -502,6 +502,8 @@ Statuses such as `READY` and `DONE` are useful operator surfaces.
 
 They should not be confused with the deepest historical truth.
 
+The implementation distinguishes **realization state** from these operator states. An obligation with no currently valid realization or active run is internally `UNREALIZED`. Only deterministic eligibility may project `UNREALIZED` to public `READY` or `BLOCKED`. This prevents "not yet realized" from being confused with "safe to execute now."
+
 ### READY
 
 An obligation is READY when:

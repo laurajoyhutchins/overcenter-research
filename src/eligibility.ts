@@ -1,5 +1,4 @@
 import type {
-  LifecycleStatus,
   Obligation,
   Work,
 } from './model.ts';
@@ -16,7 +15,8 @@ export function claimabilityError(
   work:Obligation,
   lifecycles:Map<string,Lifecycle>,
 ):string|null {
-  if (lifecycles.get(work.id)?.status!=='READY') return 'NOT_READY';
+  const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
+  if (realization!=='UNREALIZED') return 'NOT_READY';
 
   const done=new Set(
     Object.values(state.obligations)
@@ -55,17 +55,18 @@ export function projectWork(
   revision:string,
   lifecycles:Map<string,Lifecycle>,
 ):Work {
-  const lifecycle=lifecycles.get(work.id)??{status:'READY' as LifecycleStatus};
+  const lifecycle=lifecycles.get(work.id)??{status:'UNREALIZED' as const};
+  const status=lifecycle.status==='UNREALIZED' ? 'READY' : lifecycle.status;
   const projected={
     ...structuredClone(work),
-    status:lifecycle.status,
+    status,
     revision,
     ...(lifecycle.run
       ? {run_id:lifecycle.run.id,claimed_revision:lifecycle.run.claimed_revision}
       : {}),
   } as Work;
 
-  if (projected.status!=='READY') return projected;
+  if (lifecycle.status!=='UNREALIZED') return projected;
 
   const reason=claimabilityError(state,work,lifecycles);
   if (reason && reason!=='NOT_READY') {
