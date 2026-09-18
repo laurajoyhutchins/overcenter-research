@@ -1,4 +1,40 @@
 {
   "schema": "overcenter-git-state-v3",
-  "obligations": {}
+  "obligations": {
+    "concurrency-35305708828-1-alpha": {
+      "id": "concurrency-35305708828-1-alpha",
+      "deps": [],
+      "packet": {
+        "kind": "github-actions-two-effect-proof/v1",
+        "executor": {
+          "provider": "github-actions/v1",
+          "repository_id": 1354872053,
+          "workflow_run_id": "35305708828",
+          "workflow_run_attempt": "1",
+          "slot": "alpha"
+        },
+        "exact_input": {
+          "kind": "git-commit/v1",
+          "repository_id": 1354872053,
+          "commit_sha": "d88221a234c7b6ba2beb4e1c4f8d4ca613a9280f"
+        },
+        "effect": {
+          "kind": "github-commit-status/v1",
+          "repository_id": 1354872053,
+          "commit_sha": "d88221a234c7b6ba2beb4e1c4f8d4ca613a9280f",
+          "context": "overcenter/concurrency/35305708828/1/alpha",
+          "state": "success"
+        }
+      },
+      "postcondition": {
+        "verifier": "github-commit-status/v1",
+        "provider": "github",
+        "repository_id": 1354872053,
+        "commit_sha": "d88221a234c7b6ba2beb4e1c4f8d4ca613a9280f",
+        "context": "overcenter/concurrency/35305708828/1/alpha",
+        "expected_state": "success"
+      },
+      "status": "READY"
+    }
+  }
 }
