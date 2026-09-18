@@ -113,7 +113,7 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
 function absentReceipt(
   work:Obligation,
   authoritative:boolean,
-  overrides:Record<string,unknown>={},
+  pathOverride?:string,
 ):ReceiptFact {
   const observed=work.postcondition.verifier==='github-commit-status/v1'
     ? {
@@ -124,14 +124,12 @@ function absentReceipt(
         context:work.postcondition.context,
         mutation_certainty:'absent' as const,
         negative_evidence_authoritative:authoritative,
-        ...overrides,
       }
     : {
         verifier:work.postcondition.verifier,
-        path:work.postcondition.path,
+        path:pathOverride??work.postcondition.path,
         mutation_certainty:'absent' as const,
         negative_evidence_authoritative:authoritative,
-        ...overrides,
       };
   return {
     schema:RECEIPT_SCHEMA,
@@ -162,7 +160,7 @@ test('absence authorizes replay only when the verifier declared authoritative ab
   );
   assert.throws(
     ()=>projectReceipt(
-      absentReceipt(local,true,{path:'/provider/wrong-coordinate'}),
+      absentReceipt(local,true,'/provider/wrong-coordinate'),
       local,
     ),
     /OBSERVATION_COORDINATE_MISMATCH/,
