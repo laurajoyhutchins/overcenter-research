@@ -22,8 +22,12 @@ export class GitOvercenterKernel {
     if (existing) return existing;
     const commit = this.#commit(null, this.#emptyState(), 'overcenter: initialize');
     const zero = '0'.repeat(this.#objectIdLength());
-    if (!this.#updateRef(commit, zero)) throw new Error('INITIALIZE_LOST');
-    return commit;
+    if (this.#updateRef(commit, zero)) return commit;
+
+    const winner = this.head();
+    if (!winner) throw new Error('INITIALIZE_LOST');
+    this.#state(winner);
+    return winner;
   }
 
   head() {
@@ -32,8 +36,8 @@ export class GitOvercenterKernel {
   }
 
   define({ id, deps = [], packet = {}, postcondition }) {
-    this.initialize();
     const head = this.head();
+    if (!head) throw new Error('NOT_INITIALIZED');
     const state = this.#state(head);
     if (state.active_run || this.#hasBlocker(state)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
@@ -84,8 +88,7 @@ export class GitOvercenterKernel {
     return { id: runId, obligation_id: id, claimed_revision: head, claim_commit: commit };
   }
 
-  settle(runId, { disposition, observed = {}, verified = false }) {
-    if (disposition === 'DONE' && !verified) throw new Error('UNVERIFIED_DONE');
+  settle(runId, { disposition, observed = {}, verify = null }) {
     if (!['DONE', 'READY', 'WAITING', 'RECOVERY_REQUIRED'].includes(disposition)) {
       throw new Error(`invalid disposition: ${disposition}`);
     }
@@ -99,6 +102,14 @@ export class GitOvercenterKernel {
     }
     const work = state.obligations[state.active_run.obligation_id];
     if (!work || work.status !== 'EXECUTING' || work.run_id !== runId) throw new Error('AUTHORITY_LOST');
+
+    const verified = disposition === 'DONE'
+      ? Boolean(verify?.(work.postcondition, observed))
+      : false;
+    if (disposition === 'DONE' && !verified) throw new Error('UNVERIFIED_DONE');
+    if (disposition === 'READY' && observed.mutation_certainty !== 'absent') {
+      throw new Error('REPLAY_SAFETY_UNPROVEN');
+    }
 
     work.claim_commit = head;
     const receipt = this.#receipt(runId, work, disposition, verified, observed, head);
@@ -253,12 +264,19 @@ export class GitOvercenterKernel {
 }
 
 export async function runGitCoreLoop(kernel, { execute, observe, verify, maxAdvances = 100 }) {
-  kernel.initialize();
+  if (!kernel.head()) throw new Error('NOT_INITIALIZED');
   for (let i = 0; i < maxAdvances; i += 1) {
     const work = kernel.deriveReadyWork();
     if (!work) return { state: 'IDLE', advances: i };
 
-    const run = kernel.claim(work.id, work.revision);
+    let run;
+    try {
+      run = kernel.claim(work.id, work.revision);
+    } catch (error) {
+      if (error?.message === 'STALE_REVISION' || error?.message === 'CLAIM_LOST') continue;
+      throw error;
+    }
+
     let outcome;
     try {
       outcome = await execute(work.packet, run);
@@ -266,21 +284,46 @@ export async function runGitCoreLoop(kernel, { execute, observe, verify, maxAdva
       outcome = { kind: 'execution-error', error: String(error?.message || error), may_have_mutated: true };
     }
 
-    const observed = await observe(work, run, outcome);
-    const verified = Boolean(verify(work.postcondition, observed));
-    if (verified) {
-      kernel.settle(run.id, { disposition: 'DONE', observed, verified: true });
-      continue;
-    }
-    if (observed.mutation_certainty === 'uncertain' || outcome?.may_have_mutated === true) {
+    let observed;
+    try {
+      observed = await observe(work, run, outcome);
+    } catch (error) {
+      observed = {
+        mutation_certainty: 'uncertain',
+        observation_error: String(error?.message || error),
+      };
       kernel.settle(run.id, { disposition: 'RECOVERY_REQUIRED', observed });
       return { state: 'RECOVERY_REQUIRED', work: work.id, run: run.id, advances: i + 1 };
+    }
+
+    let verified;
+    try {
+      verified = Boolean(verify(work.postcondition, observed));
+    } catch (error) {
+      const recoveryObservation = {
+        ...observed,
+        mutation_certainty: 'uncertain',
+        verification_error: String(error?.message || error),
+      };
+      kernel.settle(run.id, { disposition: 'RECOVERY_REQUIRED', observed: recoveryObservation });
+      return { state: 'RECOVERY_REQUIRED', work: work.id, run: run.id, advances: i + 1 };
+    }
+
+    if (verified) {
+      kernel.settle(run.id, { disposition: 'DONE', observed, verify });
+      continue;
     }
     if (outcome?.kind === 'judgment-required') {
       kernel.settle(run.id, { disposition: 'WAITING', observed });
       return { state: 'WAITING', work: work.id, run: run.id, advances: i + 1 };
     }
-    kernel.settle(run.id, { disposition: 'READY', observed });
+    if (observed.mutation_certainty === 'absent') {
+      kernel.settle(run.id, { disposition: 'READY', observed });
+      continue;
+    }
+
+    kernel.settle(run.id, { disposition: 'RECOVERY_REQUIRED', observed });
+    return { state: 'RECOVERY_REQUIRED', work: work.id, run: run.id, advances: i + 1 };
   }
   return { state: 'BUDGET_EXHAUSTED', advances: maxAdvances };
 }
