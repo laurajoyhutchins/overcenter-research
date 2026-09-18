@@ -67,7 +67,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **The hosted trust-boundary proof survives executor tampering.** An executor without project-authority write permission cannot redefine the obligation, authority coordinate, verification rule, or settlement truth.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
 
-The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md).
+The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
 
 ## What is not proved?
 
@@ -101,7 +101,8 @@ Important entry points:
 - [`src/git-kernel.ts`](./src/git-kernel.ts) - transaction policy over durable facts and authoritative readback.
 - [`src/git-store.ts`](./src/git-store.ts) - Git object storage, history access, and authority-ref CAS.
 - [`src/facts.ts`](./src/facts.ts) - durable fact schemas plus obligation/fact validation.
-- [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.\n- [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
+- [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
+- [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
 - [`src/graph.ts`](./src/graph.ts) - static dependency topology, validation, and ordering queries.
 - [`src/lifecycle.ts`](./src/lifecycle.ts) - semantic realization identity and internal realization lifecycle (`UNREALIZED` through `DONE`).
 - [`src/eligibility.ts`](./src/eligibility.ts) - maps an unrealized obligation to public `READY` or `BLOCKED` using deterministic execution eligibility.
@@ -121,7 +122,7 @@ The command name states what kind of evidence a green check supports:
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
-| `npm run proof:live` | Real-provider proof on GitHub-hosted runners. |
+| `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
@@ -147,11 +148,15 @@ npm run test:stress
 npm run demo:git
 ```
 
-`proof:live` dispatches `.github/workflows/disposable-agent-proof.yml`. To target a non-default branch:
+`proof:live` dispatches and waits for all three hosted proofs: the disposable-agent trust boundary, the generated GitHub observation/readback proof, and the exact GitHub-object transport proof. It resolves the requested ref once, requires every workflow run to report that exact source SHA, and fails if dispatch cannot be attributed to a concrete run or any run fails.
+
+To target a non-default branch:
 
 ```sh
 npm run proof:live -- --ref <branch>
 ```
+
+The live command is intentionally fail-closed: successful workflow dispatch is not treated as successful proof.
 
 ## Go deeper
 
