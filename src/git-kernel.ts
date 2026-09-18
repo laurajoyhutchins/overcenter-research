@@ -271,11 +271,12 @@ export class GitOvercenterKernel {
       const history=this.#history(state,head);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
-      const work=state.obligations[run.obligation_id];
-      if (!work) throw new Error('UNKNOWN_OBLIGATION');
+      const currentWork=state.obligations[run.obligation_id];
+      if (!currentWork) throw new Error('UNKNOWN_OBLIGATION');
+      const work=run.obligation;
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','READY'].includes(prior.disposition)) return prior;
-      const lifecycle=history.lifecycles.get(work.id);
+      const lifecycle=history.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId) {
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
@@ -302,10 +303,11 @@ export class GitOvercenterKernel {
       const history=this.#history(state,head);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
-      const work=state.obligations[run.obligation_id];
-      if (!work) throw new Error('UNKNOWN_OBLIGATION');
+      const currentWork=state.obligations[run.obligation_id];
+      if (!currentWork) throw new Error('UNKNOWN_OBLIGATION');
+      const work=run.obligation;
       const prior=history.receiptsByRun.get(runId);
-      const lifecycle=history.lifecycles.get(work.id);
+      const lifecycle=history.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
@@ -325,10 +327,11 @@ export class GitOvercenterKernel {
       const history=this.#history(state,head);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
-      const work=state.obligations[run.obligation_id];
-      if (!work) throw new Error('UNKNOWN_OBLIGATION');
+      const currentWork=state.obligations[run.obligation_id];
+      if (!currentWork) throw new Error('UNKNOWN_OBLIGATION');
+      const work=run.obligation;
       const prior=history.receiptsByRun.get(runId);
-      const lifecycle=history.lifecycles.get(work.id);
+      const lifecycle=history.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
         if (prior) return prior;
         throw new Error('RUN_NOT_EXECUTING');
@@ -356,34 +359,63 @@ export class GitOvercenterKernel {
   }
 
   #history(state:State,head:string): HistoryProjection {
-    const lifecycles=new Map<string,Lifecycle>(
-      Object.keys(state.obligations).map(id=>[id,{status:'READY' as LifecycleStatus}]),
-    );
-    const runs=new Map<string,Run>();
+    const replay=this.#emptyState();
+    const lifecycles=new Map<string,Lifecycle>();
+    const runs=new Map<string,HistoricalRun>();
     const receiptsByRun=new Map<string,Receipt>();
     const receipts:Receipt[]=[];
     const revs=this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
 
     for (const commit of revs) {
+      const obligationFile=this.#git(['show',`${commit}:obligation.json`],{allowFailure:true});
+      if (obligationFile.ok) {
+        const fact=JSON.parse(obligationFile.stdout) as ObligationFact;
+        if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
+        this.#validatePostcondition(fact.obligation.postcondition);
+        const id=fact.obligation.id;
+
+        if (fact.kind==='defined') {
+          if (replay.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
+        } else if (fact.kind==='amended') {
+          if (!replay.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
+          if (fact.previous_definition_commit!==replay.definition_commits[id]) {
+            throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
+          }
+          const lifecycle=lifecycles.get(id);
+          if (lifecycle && IN_FLIGHT.has(lifecycle.status)) throw new Error('AMEND_WHILE_IN_FLIGHT');
+          const dependent=Object.values(replay.obligations)
+            .find(candidate=>candidate.id!==id && this.#dependsOn(replay,candidate.id,id));
+          if (dependent) throw new Error('AMEND_HAS_DEPENDENTS');
+        } else {
+          throw new Error('INVALID_OBLIGATION_KIND');
+        }
+
+        replay.obligations[id]=structuredClone(fact.obligation);
+        replay.definition_commits[id]=commit;
+        this.#validateGraph(replay);
+        lifecycles.set(id,{status:'READY'});
+      }
+
       const claimFile=this.#git(['show',`${commit}:claim.json`],{allowFailure:true});
       if (claimFile.ok) {
         const claim=JSON.parse(claimFile.stdout) as ClaimFact;
         if (claim.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
-        if (!state.obligations[claim.obligation_id]) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
+        const obligation=replay.obligations[claim.obligation_id];
+        if (!obligation) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
         if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
         const parent=this.#git(['rev-parse',`${commit}^`]).stdout.trim();
         if (parent!==claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
         const current=lifecycles.get(claim.obligation_id);
         if (current?.status!=='READY') throw new Error('CLAIM_WHILE_NOT_READY');
-        const unsatisfied=state.obligations[claim.obligation_id].deps.filter(
-          dep=>lifecycles.get(dep)?.status!=='DONE',
-        );
+        const unsatisfied=obligation.deps.filter(dep=>lifecycles.get(dep)?.status!=='DONE');
         if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
-        const run:Run={
+        const run:HistoricalRun={
           id:claim.run_id,
           obligation_id:claim.obligation_id,
           claimed_revision:claim.claimed_revision,
           claim_commit:commit,
+          obligation:structuredClone(obligation),
+          definition_commit:replay.definition_commits[claim.obligation_id],
         };
         runs.set(run.id,run);
         lifecycles.set(run.obligation_id,{status:'EXECUTING',run});
@@ -419,8 +451,7 @@ export class GitOvercenterKernel {
       if (previous && ['DONE','READY'].includes(previous.disposition)) {
         throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
       }
-      const work=state.obligations[run.obligation_id];
-      const receipt=this.#projectReceipt(fact,work,commit);
+      const receipt=this.#projectReceipt(fact,run.obligation,commit);
       receiptsByRun.set(run.id,receipt);
       receipts.push(receipt);
       lifecycles.set(
@@ -430,11 +461,15 @@ export class GitOvercenterKernel {
           : {status:receipt.disposition,run},
       );
     }
+
+    if (JSON.stringify(replay.obligations)!==JSON.stringify(state.obligations)) {
+      throw new Error('GRAPH_REPLAY_MISMATCH');
+    }
     return {lifecycles,runs,receiptsByRun,receipts};
   }
 
   #requireHead(): string { const head=this.head(); if (!head) throw new Error('NOT_INITIALIZED'); return head; }
-  #emptyState(): State { return {schema:STATE_SCHEMA,obligations:{}}; }
+  #emptyState(): State { return {obligations:{},definition_commits:{}}; }
   #hasInFlight(lifecycles: Map<string,Lifecycle>): boolean {
     return [...lifecycles.values()].some(({status})=>IN_FLIGHT.has(status));
   }
@@ -508,8 +543,62 @@ export class GitOvercenterKernel {
     return projected;
   }
   #state(commit: string): State {
-    const state=JSON.parse(this.#git(['show',`${commit}:state.json`]).stdout) as State;
-    if (state.schema!==STATE_SCHEMA) throw new Error('INVALID_STATE_SCHEMA'); return state;
+    const state=this.#emptyState();
+    const revs=this.#git(['rev-list','--reverse',commit]).stdout.trim().split(/\n+/).filter(Boolean);
+    for (const revision of revs) {
+      const file=this.#git(['show',`${revision}:obligation.json`],{allowFailure:true});
+      if (!file.ok) continue;
+      const fact=JSON.parse(file.stdout) as ObligationFact;
+      if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
+      this.#validatePostcondition(fact.obligation.postcondition);
+      const id=fact.obligation.id;
+      if (fact.kind==='defined') {
+        if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
+      } else if (fact.kind==='amended') {
+        if (!state.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
+        if (fact.previous_definition_commit!==state.definition_commits[id]) {
+          throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
+        }
+      } else {
+        throw new Error('INVALID_OBLIGATION_KIND');
+      }
+      state.obligations[id]=structuredClone(fact.obligation);
+      state.definition_commits[id]=revision;
+      this.#validateGraph(state);
+    }
+    return state;
+  }
+
+  #withObligation(
+    state:State,
+    obligation:Obligation,
+    _kind:'defined'|'amended',
+    definitionCommit:string,
+  ): State {
+    return {
+      obligations:{...structuredClone(state.obligations),[obligation.id]:structuredClone(obligation)},
+      definition_commits:{...state.definition_commits,[obligation.id]:definitionCommit},
+    };
+  }
+
+  #validateGraph(state:State): void {
+    for (const obligation of Object.values(state.obligations)) {
+      for (const dep of obligation.deps) {
+        if (!state.obligations[dep]) throw new Error(`UNKNOWN_DEPENDENCY:${obligation.id}:${dep}`);
+      }
+    }
+
+    const visiting=new Set<string>();
+    const visited=new Set<string>();
+    const visit=(id:string) => {
+      if (visiting.has(id)) throw new Error(`DEPENDENCY_CYCLE:${id}`);
+      if (visited.has(id)) return;
+      visiting.add(id);
+      for (const dep of state.obligations[id].deps) visit(dep);
+      visiting.delete(id);
+      visited.add(id);
+    };
+    for (const id of Object.keys(state.obligations)) visit(id);
   }
   #validatePostcondition(p: Postcondition): void {
     if (p?.verifier==='file-content-equals/v1'
@@ -704,8 +793,15 @@ export class GitOvercenterKernel {
       settled_at:new Date().toISOString(),
     };
   }
-  #commit(parent:string|null,state:State,message:string,receipt:ReceiptFact|null=null,claim:ClaimFact|null=null): string {
-    const entries:Array<[string,string]>=[['state.json',this.#blob(json(state))]];
+  #commit(
+    parent:string|null,
+    message:string,
+    receipt:ReceiptFact|null=null,
+    claim:ClaimFact|null=null,
+    obligation:ObligationFact|null=null,
+  ): string {
+    const entries:Array<[string,string]>=[];
+    if (obligation) entries.push(['obligation.json',this.#blob(json(obligation))]);
     if (claim) entries.push(['claim.json',this.#blob(json(claim))]);
     if (receipt) entries.push(['receipt.json',this.#blob(json(receipt))]);
     const treeInput=entries.sort(([a],[b])=>a.localeCompare(b)).map(([name,sha])=>`100644 blob ${sha}\t${name}\n`).join('');
