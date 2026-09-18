@@ -5,7 +5,7 @@
   "scripts": {
     "test": "npm run test:unit && npm run test:experiments",
     "test:unit": "node --experimental-strip-types --test test/git-kernel.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts",
-    "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/github-observation-grammar/github-observation.test.ts",
+    "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/github-observation-grammar/github-observation.test.ts experiments/github-observation-grammar/structural-decoder.test.ts",
     "demo": "node experiments/sqlite-baseline/demo.js",
     "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts experiments/disposable-agent/disposable-agent.test.ts",
     "demo:git": "node --experimental-strip-types examples/git-demo.ts",
@@ -14,7 +14,7 @@
     "test:concurrency": "node --experimental-strip-types --test experiments/two-effect-concurrency/two-effect-concurrency.test.ts",
     "test:effect-order": "node --experimental-strip-types --test experiments/conflicting-effect/effect-ordering.test.ts",
     "test:eventual": "node --experimental-strip-types --test experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts",
-    "test:github-observation": "node --experimental-strip-types --test experiments/github-observation-grammar/github-observation.test.ts",
+    "test:github-observation": "node --experimental-strip-types --test experiments/github-observation-grammar/github-observation.test.ts experiments/github-observation-grammar/structural-decoder.test.ts",
     "test:projection": "node --experimental-strip-types --test test/projection-reconstruction.test.ts",
     "test:dependency-edges": "node --experimental-strip-types --test test/dependency-edge-adversarial.test.ts",
     "test:formal": "bash formal/check.sh"
