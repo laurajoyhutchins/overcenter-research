@@ -288,16 +288,23 @@ function numberedEntityBase<Kind extends string>(
   };
 }
 
+type CollectionOperationId =
+  | 'checks/list-for-ref'
+  | 'repos/list-commit-statuses-for-ref'
+  | 'actions/list-workflow-runs-for-repo';
+
 function collectionBase(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
-  operationId: string,
+  operationId: CollectionOperationId,
 ): {
   body: unknown;
   pagination: NonNullable<ReturnType<typeof paginationShape>>;
   evidence: FactEvidence;
 } | null {
-  if (!observed200(observation, operationId) || !sameRepositoryCoordinate(observation, repository)) return null;
+  const requiredPaths = RESPONSE_SLICES[operationId].map(field => field.path);
+  if (!structurallyValidatedFor(observation, operationId, requiredPaths)) return null;
+  if (!sameRepositoryCoordinate(observation, repository)) return null;
   const page = Number(observation.request.parameters.page ?? 1);
   const perPage = Number(observation.request.parameters.per_page ?? 30);
   const pagination = paginationShape(page, perPage, observation.response.link);
@@ -312,7 +319,7 @@ function collectionBase(
 function refCollectionBase(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
-  operationId: string,
+  operationId: Exclude<CollectionOperationId, 'actions/list-workflow-runs-for-repo'>,
 ): {
   ref: string;
   body: unknown;
@@ -466,30 +473,21 @@ export function projectCheckRunsPage(
   const base = refCollectionBase(observation, repository, 'checks/list-for-ref');
   if (!base) return null;
   const body = base.body as {
-    total_count?: unknown;
-    check_runs?: Array<{
-      id?: unknown;
-      name?: unknown;
-      head_sha?: unknown;
-      status?: unknown;
-      conclusion?: unknown;
+    total_count: number;
+    check_runs: Array<{
+      id: number;
+      name: string;
+      head_sha: string;
+      status: string;
+      conclusion: string | null;
     }>;
-  } | undefined;
-  if (!body || !Number.isSafeInteger(body.total_count) || Number(body.total_count) < 0 || !Array.isArray(body.check_runs)) return null;
+  };
+  if (body.total_count < 0) return null;
 
   const members: CheckRunMember[] = [];
   for (const run of body.check_runs) {
-    if (!Number.isSafeInteger(run.id) || Number(run.id) <= 0) return null;
-    if (typeof run.name !== 'string' || typeof run.head_sha !== 'string' || !sha.test(run.head_sha)) return null;
-    if (typeof run.status !== 'string') return null;
-    if (!(run.conclusion === null || typeof run.conclusion === 'string')) return null;
-    members.push({
-      id: Number(run.id),
-      name: run.name,
-      head_sha: run.head_sha,
-      status: run.status,
-      conclusion: run.conclusion as string | null,
-    });
+    if (run.id <= 0 || !sha.test(run.head_sha)) return null;
+    members.push({ ...run });
   }
 
   return {
@@ -500,7 +498,7 @@ export function projectCheckRunsPage(
       ref: base.ref,
     },
     members,
-    total_count: Number(body.total_count),
+    total_count: body.total_count,
     ...base.pagination,
     evidence: base.evidence,
   };
@@ -547,32 +545,12 @@ export function projectCommitStatusesPage(
   repository: RepositoryIdentityFact,
 ): CommitStatusesPageFact | null {
   const base = refCollectionBase(observation, repository, 'repos/list-commit-statuses-for-ref');
-  if (!base || !Array.isArray(base.body)) return null;
+  if (!base) return null;
 
   const members: CommitStatusMember[] = [];
-  for (const status of base.body as Array<{
-    id?: unknown;
-    node_id?: unknown;
-    state?: unknown;
-    context?: unknown;
-    target_url?: unknown;
-    created_at?: unknown;
-    updated_at?: unknown;
-  }>) {
-    if (!Number.isSafeInteger(status.id) || Number(status.id) <= 0) return null;
-    if (typeof status.node_id !== 'string' || status.node_id.length === 0) return null;
-    if (typeof status.state !== 'string' || typeof status.context !== 'string') return null;
-    if (!(status.target_url === null || typeof status.target_url === 'string')) return null;
-    if (typeof status.created_at !== 'string' || typeof status.updated_at !== 'string') return null;
-    members.push({
-      id: Number(status.id),
-      node_id: status.node_id,
-      state: status.state,
-      context: status.context,
-      target_url: status.target_url as string | null,
-      created_at: status.created_at,
-      updated_at: status.updated_at,
-    });
+  for (const status of base.body as CommitStatusMember[]) {
+    if (status.id <= 0 || status.node_id.length === 0) return null;
+    members.push({ ...status });
   }
 
   return {
@@ -595,44 +573,17 @@ export function projectWorkflowRunsPage(
   const base = collectionBase(observation, repository, 'actions/list-workflow-runs-for-repo');
   if (!base) return null;
   const body = base.body as {
-    total_count?: unknown;
-    workflow_runs?: Array<{
-      id?: unknown;
-      node_id?: unknown;
-      workflow_id?: unknown;
-      run_number?: unknown;
-      run_attempt?: unknown;
-      name?: unknown;
-      event?: unknown;
-      status?: unknown;
-      conclusion?: unknown;
-      head_sha?: unknown;
-    }>;
-  } | undefined;
-  if (!body || !Number.isSafeInteger(body.total_count) || Number(body.total_count) < 0 || !Array.isArray(body.workflow_runs)) return null;
+    total_count: number;
+    workflow_runs: WorkflowRunMember[];
+  };
+  if (body.total_count < 0) return null;
 
   const members: WorkflowRunMember[] = [];
   for (const run of body.workflow_runs) {
-    if (!Number.isSafeInteger(run.id) || Number(run.id) <= 0) return null;
-    if (typeof run.node_id !== 'string' || run.node_id.length === 0) return null;
-    if (!Number.isSafeInteger(run.workflow_id) || Number(run.workflow_id) <= 0) return null;
-    if (!Number.isSafeInteger(run.run_number) || Number(run.run_number) <= 0) return null;
-    if (!Number.isSafeInteger(run.run_attempt) || Number(run.run_attempt) <= 0) return null;
-    if (typeof run.name !== 'string' || typeof run.event !== 'string' || typeof run.status !== 'string') return null;
-    if (!(run.conclusion === null || typeof run.conclusion === 'string')) return null;
-    if (typeof run.head_sha !== 'string' || !sha.test(run.head_sha)) return null;
-    members.push({
-      id: Number(run.id),
-      node_id: run.node_id,
-      workflow_id: Number(run.workflow_id),
-      run_number: Number(run.run_number),
-      run_attempt: Number(run.run_attempt),
-      name: run.name,
-      event: run.event,
-      status: run.status,
-      conclusion: run.conclusion as string | null,
-      head_sha: run.head_sha,
-    });
+    if (run.id <= 0 || run.node_id.length === 0) return null;
+    if (run.workflow_id <= 0 || run.run_number <= 0 || run.run_attempt <= 0) return null;
+    if (!sha.test(run.head_sha)) return null;
+    members.push({ ...run });
   }
 
   return {
@@ -642,7 +593,7 @@ export function projectWorkflowRunsPage(
       repository_id: repository.subject.id,
     },
     members,
-    total_count: Number(body.total_count),
+    total_count: body.total_count,
     ...base.pagination,
     evidence: base.evidence,
   };
