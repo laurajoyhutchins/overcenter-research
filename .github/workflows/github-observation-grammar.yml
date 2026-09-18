@@ -7,9 +7,14 @@ on:
       - main
       - experiment/github-observation-grammar
       - experiment/github-observation-semantics
+      - experiment/certified-github-status-readback
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
+      - src/observation.ts
+      - src/providers/github-certified-status.ts
+      - src/providers/github-status.ts
+      - test/github-certified-status.test.ts
       - research/github-observation-grammar.md
       - package.json
   pull_request:
@@ -87,3 +92,8 @@ jobs:
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/live-semantic-proof.ts \
             "$RUNNER_TEMP/github-openapi.json"
+      - name: Prove kernel commit-status readback uses certified observations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/live-kernel-status-readback.ts
