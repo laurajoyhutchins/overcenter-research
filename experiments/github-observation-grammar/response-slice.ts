@@ -1,4 +1,4 @@
-import type { ObservationOperation } from './openapi.ts';
+import type { ObservationOperation, RawObservation } from './openapi.ts';
 
 export interface ResponseFieldSpec {
   path: string;
@@ -10,6 +10,12 @@ export interface ResponseSliceResult {
   status: string;
   validated_paths: string[];
   optional_absent_paths: string[];
+}
+
+export interface StructurallyValidatedObservation extends RawObservation {
+  structural_validation: ResponseSliceResult & {
+    schema_sha256: string;
+  };
 }
 
 type Schema = Record<string, unknown>;
@@ -166,6 +172,40 @@ export function validateResponseSlice(
     validated_paths: validatedPaths,
     optional_absent_paths: optionalAbsentPaths,
   };
+}
+
+export function validateObservationSlice(
+  operation: ObservationOperation,
+  observation: RawObservation,
+  fields: readonly ResponseFieldSpec[],
+): StructurallyValidatedObservation {
+  if (observation.contract.operation_id !== operation.operation_id) {
+    throw new Error('RESPONSE_SLICE_OPERATION_MISMATCH');
+  }
+  if (observation.outcome.status !== 200 || observation.outcome.visibility !== 'observed') {
+    throw new Error('RESPONSE_SLICE_POSITIVE_OBSERVATION_REQUIRED');
+  }
+  const structural = validateResponseSlice(operation, '200', observation.outcome.value, fields);
+  return {
+    ...observation,
+    structural_validation: {
+      ...structural,
+      schema_sha256: observation.contract.schema_sha256,
+    },
+  };
+}
+
+export function structurallyValidatedFor(
+  observation: RawObservation,
+  operationId: string,
+  requiredPaths: readonly string[],
+): observation is StructurallyValidatedObservation {
+  const structural = (observation as Partial<StructurallyValidatedObservation>).structural_validation;
+  if (!structural) return false;
+  if (structural.operation_id !== operationId || structural.status !== '200') return false;
+  if (structural.schema_sha256 !== observation.contract.schema_sha256) return false;
+  const validated = new Set(structural.validated_paths);
+  return requiredPaths.every(path => validated.has(path));
 }
 
 export const RESPONSE_SLICES = {
