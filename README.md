@@ -62,7 +62,7 @@ The commit SHA is the authoritative state revision. Settlement and recovery comm
 
 The Git authority no longer contains a privileged current-state document.
 
-Obligation structure is recorded as immutable `overcenter-git-obligation-v2` `obligation.json` facts:
+Obligation structure is recorded as immutable `overcenter-git-obligation-v3` `obligation.json` facts:
 
 ```text
 defined
@@ -81,9 +81,6 @@ dependencies
 packet
 postcondition
 ```
-
-The prototype retains `deps` as a compatibility scheduling projection of the
-typed dependency upstream IDs. Replay rejects disagreement between the two.
 
 There are only two primitive dependency semantics:
 
@@ -279,9 +276,7 @@ The executable hostile-readback experiment models a provider whose write path ca
 For this provider class, missing or stale non-matching reads are not authoritative negative evidence. They remain `uncertain`, keep the exact run in `RECOVERY_REQUIRED`, and cannot release replayable `READY` work. Only positive convergence can settle the run `DONE`. See `research/eventually-consistent-readback-experiment.md`.
 
 
-The branch now has two cross-sandbox/provider proof adapters.
-
-The earlier `git-ref-equals/v1` adapter proved hosted Git ref readback. The hardened adapter removes sandbox-local remote aliases entirely:
+The hosted provider proof uses canonical GitHub commit-status readback:
 
 ```ts
 {
@@ -578,14 +573,14 @@ The sandbox validation covers:
 - a live GitHub Actions handoff across two hosted runners with GitHub itself supplying the lifecycle fact and provider readback;
 - a hardened three-job proof where a separately authorized project authority defines and claims immutable intent before an execution agent with no Contents write permission starts;
 - executor sandbox tampering with Git config, local state, kernel source, and cache cannot alter project truth or verifier authority;
-- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration;;
+- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration;
 - hostile eventually consistent readback cannot turn stale missing or old values into replayable absence; the original run remains recovery-bound until positive convergence.
 - two independent obligations can remain `EXECUTING` simultaneously without losing exact claim identity;
 - two fresh recovery processes can settle independent effects through one CAS authority ref;
 - canonical GitHub-status effect conflicts are blocked unless graph ordering makes the sequence explicit;
 - identical desired GitHub statuses on the same canonical coordinate are explicitly modeled as commuting.
 
-The proof suite is intentionally growing; the README does not pin a historical pass count. Run `npm test` for the current focused regression set and the dedicated scripts above for handoff, concurrency, effect-ordering, and stress experiments.
+The proof suite is intentionally growing; the README does not pin a historical pass count. Hosted proofs run from current `main` against fresh per-run authority refs and may also be launched manually. Run `npm test` for the current focused regression set and the dedicated scripts above for handoff, concurrency, effect-ordering, and stress experiments.
 
 ## Repository shape
 

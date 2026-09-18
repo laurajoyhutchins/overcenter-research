@@ -24,6 +24,7 @@ const repository = required('GITHUB_REPOSITORY');
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('GITHUB_SHA');
+const stateRef = required('STATE_REF');
 
 const repositoryInfo = await github(`/repos/${repository}`);
 if (!Number.isSafeInteger(repositoryInfo.id)) throw new Error('REPOSITORY_ID_UNAVAILABLE');
@@ -31,7 +32,7 @@ if (!Number.isSafeInteger(repositoryInfo.id)) throw new Error('REPOSITORY_ID_UNA
 const proofId = `actions-trust-proof-${workflowRunId}-${workflowRunAttempt}`;
 const context = `overcenter/trust-proof/${workflowRunId}/${workflowRunAttempt}`;
 
-const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin' });
+const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });
 kernel.initialize();
 
 kernel.define({
@@ -80,6 +81,7 @@ if (summary) {
     `- Repository ID: \`${repositoryInfo.id}\``,
     `- Obligation: \`${proofId}\``,
     `- Exact input: \`${sourceSha}\``,
+    `- Authority ref: \`${stateRef}\``,
     `- Claim commit: \`${run.claim_commit}\``,
     `- Run: \`${run.id}\``,
     '- The disposable executor has not started yet.',

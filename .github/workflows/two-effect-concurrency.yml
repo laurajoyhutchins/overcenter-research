@@ -1,9 +1,10 @@
 name: Overcenter two-effect concurrency proof
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - prototype/two-effect-concurrency
+      - main
     paths:
       - .github/workflows/two-effect-concurrency.yml
       - experiments/two-effect-concurrency/authority.ts
@@ -17,6 +18,9 @@ on:
       - package.json
 
 permissions: {}
+
+env:
+  STATE_REF: refs/overcenter/concurrency-runs/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   project-authority:
