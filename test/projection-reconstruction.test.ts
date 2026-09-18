@@ -31,26 +31,32 @@ function git(repo: string, args: string[]) {
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'overcenter-projection-rebuild-'));
-  const authority = join(root, 'authority');
+  const authority = join(root, 'authority.git');
+  const writer = join(root, 'writer');
   const cache = join(root, 'materialized');
   const world = join(root, 'provider-state.txt');
 
-  execFileSync('git', ['init', authority], { stdio: 'ignore' });
-  git(authority, ['config', 'user.email', 'overcenter@example.invalid']);
-  git(authority, ['config', 'user.name', 'Overcenter projection proof']);
-  writeFileSync(join(authority, 'facts.ndjson'), '');
-  git(authority, ['add', 'facts.ndjson']);
-  git(authority, ['commit', '-m', 'facts: initialize']);
-  git(authority, ['update-ref', FACT_REF, 'HEAD']);
+  execFileSync('git', ['init', '--bare', authority], { stdio: 'ignore' });
+  execFileSync('git', ['init', writer], { stdio: 'ignore' });
+  git(writer, ['config', 'user.email', 'overcenter@example.invalid']);
+  git(writer, ['config', 'user.name', 'Overcenter projection proof']);
+  git(writer, ['remote', 'add', 'origin', authority]);
+
+  writeFileSync(join(writer, 'facts.ndjson'), '');
+  git(writer, ['add', 'facts.ndjson']);
+  git(writer, ['commit', '-m', 'facts: initialize']);
+  git(writer, ['push', 'origin', `HEAD:${FACT_REF}`]);
 
   function revision() {
-    return git(authority, ['rev-parse', FACT_REF]);
+    const line = git(writer, ['ls-remote', 'origin', FACT_REF]);
+    if (!line) throw new Error('FACT_AUTHORITY_MISSING');
+    return line.split(/\s+/)[0];
   }
 
   function append(fact: ProjectFact) {
     const expected = revision();
     assert.equal(
-      git(authority, ['rev-parse', 'HEAD']),
+      git(writer, ['rev-parse', 'HEAD']),
       expected,
       'writer must start from current fact authority',
     );
@@ -58,20 +64,21 @@ function fixture() {
       throw new Error('STALE_CLAIM_REVISION');
     }
 
-    const path = join(authority, 'facts.ndjson');
+    const path = join(writer, 'facts.ndjson');
     writeFileSync(
       path,
       `${readFileSync(path, 'utf8')}${JSON.stringify(fact)}\n`,
     );
-    git(authority, ['add', 'facts.ndjson']);
-    git(authority, ['commit', '-m', `fact: ${fact.type}`]);
+    git(writer, ['add', 'facts.ndjson']);
+    git(writer, ['commit', '-m', `fact: ${fact.type}`]);
 
-    const next = git(authority, ['rev-parse', 'HEAD']);
-    execFileSync(
-      'git',
-      ['-C', authority, 'update-ref', FACT_REF, next, expected],
-      { stdio: 'ignore' },
-    );
+    const next = git(writer, ['rev-parse', 'HEAD']);
+    git(writer, [
+      'push',
+      `--force-with-lease=${FACT_REF}:${expected}`,
+      'origin',
+      `HEAD:${FACT_REF}`,
+    ]);
     return next;
   }
 
