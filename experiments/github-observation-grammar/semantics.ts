@@ -1,5 +1,9 @@
 import type { RawObservation } from './openapi.ts';
 import {
+  RESPONSE_SLICES,
+  structurallyValidatedFor,
+} from './response-slice.ts';
+import {
   evaluateMutableEntity,
   evaluatePositiveCollectionMember,
   paginationShape,
@@ -356,15 +360,16 @@ export function projectGitRefTarget(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): GitRefTargetFact | null {
-  if (!observed200(observation, 'git/get-ref')) return null;
+  const requiredPaths = RESPONSE_SLICES['git/get-ref'].map(field => field.path);
+  if (!structurallyValidatedFor(observation, 'git/get-ref', requiredPaths)) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
+
   const body = observation.outcome.value as {
-    ref?: unknown;
-    object?: { type?: unknown; sha?: unknown };
-  } | undefined;
-  if (!body || typeof body.ref !== 'string' || !body.object) return null;
-  if (!['commit', 'tag'].includes(String(body.object.type))) return null;
-  if (typeof body.object.sha !== 'string' || !sha.test(body.object.sha)) return null;
+    ref: string;
+    object: { type: string; sha: string };
+  };
+  if (!['commit', 'tag'].includes(body.object.type)) return null;
+  if (!sha.test(body.object.sha)) return null;
 
   const requestedRef = observation.request.parameters.ref;
   if (typeof requestedRef !== 'string') return null;
