@@ -1,3 +1,5 @@
+// Provider-neutral evidence envelope only. Provider-specific identity, freshness,
+// completeness, and negative-evidence semantics belong outside this module.
 export type ObservationVisibility = 'observed' | 'not-observed' | 'indeterminate';
 
 export interface ObservationObserver {
