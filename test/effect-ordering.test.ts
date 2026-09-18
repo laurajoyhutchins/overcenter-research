@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -12,7 +12,7 @@ function fixture() {
   execFileSync('git',['init','--bare',repo],{stdio:'ignore'});
   const kernel=new GitOvercenterKernel(repo);
   kernel.initialize();
-  return {root,repo,kernel,path:(name:string)=>join(root,name)};
+  return {root,repo,kernel};
 }
 
 function statusPostcondition(state:'success'|'failure') {
@@ -26,74 +26,96 @@ function statusPostcondition(state:'success'|'failure') {
   };
 }
 
-test('unordered incompatible intents on one canonical effect resource cannot be claimed', () => {
+test('READY frontier excludes unordered incompatible canonical effects', () => {
   const f=fixture();
   try {
     f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
     f.kernel.define({id:'beta',postcondition:statusPostcondition('failure')});
-    const ready=f.kernel.deriveReadyWork()!;
-    assert.equal(ready.id,'alpha');
-    assert.throws(
-      ()=>f.kernel.claim(ready.id,ready.revision),
-      /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
-    );
+
+    assert.equal(f.kernel.deriveReadyWork(),null);
+
+    const inspected=f.kernel.inspect();
     assert.deepEqual(
-      f.kernel.inspect().map(work=>[work.id,work.status]),
-      [['alpha','READY'],['beta','READY']],
+      inspected.map(work=>[work.id,work.status]),
+      [['alpha','BLOCKED'],['beta','BLOCKED']],
+    );
+    assert.match(inspected[0].blocked_reason ?? '',/UNORDERED_EFFECT_CONFLICT/);
+    assert.match(inspected[1].blocked_reason ?? '',/UNORDERED_EFFECT_CONFLICT/);
+
+    assert.throws(
+      ()=>f.kernel.claim('alpha',inspected[0].revision),
+      /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
 });
 
-test('explicit dependency orders incompatible transitions on the same resource', () => {
+test('explicit graph order permits the canonical conflicting predecessor to be claimed', () => {
   const f=fixture();
   try {
-    const shared=f.path('shared');
-    f.kernel.define({
-      id:'alpha',
-      postcondition:{verifier:'file-content-equals/v1',path:shared,content:'A'},
-    });
+    f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
     f.kernel.define({
       id:'beta',
       deps:['alpha'],
-      postcondition:{verifier:'file-content-equals/v1',path:shared,content:'B'},
+      postcondition:statusPostcondition('failure'),
     });
 
-    const alpha=f.kernel.deriveReadyWork()!;
-    const runA=f.kernel.claim(alpha.id,alpha.revision);
-    writeFileSync(shared,'A');
-    assert.equal(f.kernel.resolve(runA.id).disposition,'DONE');
+    const alpha=f.kernel.deriveReadyWork();
+    assert.ok(alpha);
+    assert.equal(alpha.id,'alpha');
+    assert.equal(alpha.status,'READY');
 
-    const beta=f.kernel.deriveReadyWork()!;
-    assert.equal(beta.id,'beta');
-    const runB=f.kernel.claim(beta.id,beta.revision);
-    writeFileSync(shared,'B');
-    assert.equal(f.kernel.resolve(runB.id).disposition,'DONE');
+    const run=f.kernel.claim(alpha.id,alpha.revision);
+    assert.equal(run.obligation_id,'alpha');
 
-    assert.deepEqual(
-      f.kernel.inspect().map(work=>[work.id,work.status]),
-      [['alpha','DONE'],['beta','DONE']],
-    );
+    const beta=f.kernel.inspect().find(work=>work.id==='beta');
+    assert.ok(beta);
+    assert.equal(beta.status,'READY');
+    assert.equal(f.kernel.deriveReadyWork(),null);
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
 });
 
-test('identical desired state does not create a false conflict', () => {
+test('github status adapter explicitly allows identical desired state to commute', () => {
   const f=fixture();
   try {
-    const shared=f.path('shared');
-    const postcondition={verifier:'file-content-equals/v1' as const,path:shared,content:'same'};
+    const postcondition=statusPostcondition('success');
     f.kernel.define({id:'alpha',postcondition});
     f.kernel.define({id:'beta',postcondition});
 
-    const runA=f.kernel.claim('alpha',f.kernel.deriveReadyWork()!.revision);
-    const beta=f.kernel.deriveReadyWork()!;
+    const alpha=f.kernel.deriveReadyWork();
+    assert.ok(alpha);
+    const runA=f.kernel.claim(alpha.id,alpha.revision);
+
+    const beta=f.kernel.deriveReadyWork();
+    assert.ok(beta);
     assert.equal(beta.id,'beta');
     const runB=f.kernel.claim(beta.id,beta.revision);
 
     assert.notEqual(runA.id,runB.id);
+  } finally {
+    rmSync(f.root,{recursive:true,force:true});
+  }
+});
+
+test('noncanonical proof adapters do not claim generic mutation-domain semantics', () => {
+  const f=fixture();
+  try {
+    f.kernel.define({
+      id:'alpha',
+      postcondition:{verifier:'file-content-equals/v1',path:'/tmp/alias-a',content:'same'},
+    });
+    f.kernel.define({
+      id:'beta',
+      postcondition:{verifier:'file-content-equals/v1',path:'/tmp/alias-a',content:'different'},
+    });
+
+    const alpha=f.kernel.deriveReadyWork();
+    assert.ok(alpha);
+    assert.equal(alpha.id,'alpha');
+    assert.equal(alpha.status,'READY');
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
