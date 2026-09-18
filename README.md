@@ -87,18 +87,22 @@ There is no caller-provided `DONE` verifier path.
 
 The file-content verifier is intentionally only a local proof adapter, not a proposed universal evidence model.
 
-The branch now also has a real cross-sandbox provider adapter:
+The branch now has two cross-sandbox/provider proof adapters.
+
+The earlier `git-ref-equals/v1` adapter proved hosted Git ref readback. The hardened adapter removes sandbox-local remote aliases entirely:
 
 ```ts
 {
-  verifier: 'git-ref-equals/v1',
-  remote: 'origin',
-  ref: 'refs/tags/overcenter-actions-effect-<run>',
-  target_sha: '<exact commit>'
+  verifier: 'github-commit-status/v1',
+  provider: 'github',
+  repository_id: 1354872053,
+  commit_sha: '<exact input commit>',
+  context: 'overcenter/trust-proof/<workflow>/<attempt>',
+  expected_state: 'success'
 }
 ```
 
-The kernel performs `git ls-remote` itself. Exact SHA match becomes `DONE`; an absent ref becomes `READY`; a conflicting ref or unreadable provider becomes `RECOVERY_REQUIRED`.
+The numeric GitHub repository ID, exact commit, status context, and expected state are committed before the execution agent starts. The trusted verifier resolves the repository ID through fixed `api.github.com` and reads provider state from that canonical repository. Local Git configuration does not participate in verification.
 
 ## Disposable-agent handoff
 
@@ -214,6 +218,83 @@ The following settlement receipt independently records matching expected and act
 
 The overall Actions workflow concludes successfully because the deliberate Agent A process failure is treated as an observed lifecycle event rather than a failed proof.
 
+## Hardened trust-boundary proof
+
+A later hosted proof separates obligation authority from execution authority and treats the executor sandbox as potentially hostile.
+
+Workflow run `35304838786` uses three different GitHub-hosted jobs with distinct token permissions:
+
+```text
+trusted project authority
+  contents: write
+       │
+       ├─ define immutable obligation
+       └─ claim exact snapshot
+       │
+       ▼
+potentially untrusted Agent A
+  contents: read
+  statuses: write
+       │
+       ├─ repoint local origin
+       ├─ rewrite local state ref
+       ├─ replace local kernel source
+       ├─ create fake SQLite cache
+       ├─ attempt authoritative ref rewrite
+       │      └─ rejected by GitHub permissions
+       ├─ verify canonical authority did not move
+       ├─ write only the bounded commit-status effect
+       └─ terminate
+       │
+       ▼
+trusted recovery / settlement
+  contents: write
+  statuses: read
+       │
+       ├─ reconstruct exact run from Git
+       ├─ record supervisor termination fact
+       ├─ resolve canonical repository_id via api.github.com
+       ├─ read exact commit status
+       └─ settle DONE via Git CAS
+```
+
+The execution token cannot modify `refs/overcenter/state`. The external provider status is created only after Agent A has confirmed that its attempted authority rewrite was rejected and the canonical authority ref remains at the original claim commit.
+
+Final evidence for that run:
+
+```text
+workflow head:
+b0add388e13933de643d1ecbe7a9f0ac47200e43
+
+Overcenter run:
+03fd76fa-9213-4b30-9411-8b34a5da68ea
+
+claim:
+349c2eebcb079378a22bbd16bbf54ee25d1f2391
+
+recovery:
+0b4070019b46252ccdbefa78fce7b32bea0f8833
+
+settlement / authority:
+61a763dbe43af85f90bbfb1356427f3050b29ce1
+
+canonical repository_id:
+1354872053
+
+exact input:
+b0add388e13933de643d1ecbe7a9f0ac47200e43
+
+provider context:
+overcenter/trust-proof/35304838786/1
+
+provider state:
+success
+```
+
+The settlement receipt records `github-commit-status/v1`, the canonical repository ID, the exact input SHA, matching status context, `actual_state: success`, and `verified: true`.
+
+This proves the worker does not control the definition of success, the authority coordinate used to verify it, or the exact input identity used for settlement.
+
 ## Fail-closed authority
 
 Missing authority is not empty state.
@@ -275,7 +356,10 @@ The sandbox validation covers:
 - SHA-256 repositories;
 - 16 independent disposable clones contending on one central authority, with exactly one claim;
 - complete destruction of Agent A followed by successful reconstruction and settlement by fresh Agent B;
-- a live GitHub Actions handoff across two hosted runners with GitHub itself supplying the lifecycle fact and provider readback.
+- a live GitHub Actions handoff across two hosted runners with GitHub itself supplying the lifecycle fact and provider readback;
+- a hardened three-job proof where a separately authorized project authority defines and claims immutable intent before an execution agent with no Contents write permission starts;
+- executor sandbox tampering with Git config, local state, kernel source, and cache cannot alter project truth or verifier authority;
+- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration.
 
 The combined focused, handoff, and stress suites passed **17/17** in the sandbox before being committed.
 
@@ -290,6 +374,7 @@ test/kernel.test.js           SQLite proofs
 test/git-kernel.test.ts       Git kernel proofs
 test/disposable-agent.test.ts disposable-agent handoff proof
 stress/git-stress.ts          adversarial Git/clone stress tests
+actions/project-authority.ts    trusted definition/claim boundary
 actions/disposable-agent-a.ts  hosted disposable executor
 actions/disposable-agent-b.ts  hosted recovery executor
 .github/workflows/disposable-agent-proof.yml  live Actions proof
