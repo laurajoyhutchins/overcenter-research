@@ -3,10 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test",
-    "demo": "node examples/demo.js"
+    "test": "node --test test/kernel.test.js && node --experimental-strip-types --test test/git-kernel.test.ts test/disposable-agent.test.ts",
+    "demo": "node examples/demo.js",
+    "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts test/disposable-agent.test.ts",
+    "demo:git": "node --experimental-strip-types examples/git-demo.ts",
+    "test:stress": "node --experimental-strip-types --test stress/git-stress.ts",
+    "test:handoff": "node --experimental-strip-types --test test/disposable-agent.test.ts"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.16.0"
   }
 }
