@@ -28,7 +28,7 @@ The repository now has two implementations of the same loop:
 
 ```text
 src/kernel.js       SQLite-backed reference
-src/git-kernel.js   Git-object-database prototype
+src/git-kernel.ts   Git-object-database prototype
 ```
 
 The Git prototype asks a narrower question:
@@ -68,7 +68,7 @@ This is intentional. Parallel execution should not be added until it proves that
 
 ## Run it
 
-Requires Node.js 22.5 or newer and Git. There are no package dependencies.
+The Git prototype is executable TypeScript. It is validated here with Node.js 22.16.0 using Node's built-in `--experimental-strip-types` support and Git 2.47.3. There is no TypeScript compiler, loader, or package dependency in the execution path.
 
 ```sh
 npm test
@@ -77,6 +77,9 @@ npm run demo
 npm run test:git
 npm run test:stress
 npm run demo:git
+
+# Equivalent direct execution:
+node --experimental-strip-types examples/git-demo.ts
 ```
 
 ## What the Git prototype proves
@@ -151,12 +154,12 @@ That is currently the clearest piece of machinery that survives the "Git is the 
 
 ```text
 src/kernel.js            SQLite executable kernel
-src/git-kernel.js        Git object database prototype
+src/git-kernel.ts        Git object database prototype
 examples/demo.js         SQLite two-obligation demo
-examples/git-demo.js     Git-native history demo
+examples/git-demo.ts     Git-native history demo
 test/kernel.test.js      SQLite safety/recovery proofs
-test/git-kernel.test.js  Git transaction/recovery proofs
-stress/git-stress.js      adversarial concurrency/crash/recovery suite
+test/git-kernel.test.ts  Git transaction/recovery proofs
+stress/git-stress.ts      adversarial concurrency/crash/recovery suite
 research/                prior research that motivated the kernel
 ```
 
