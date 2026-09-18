@@ -25,10 +25,19 @@ export interface GitHubCommitStatusPostcondition {
   expected_state: 'error' | 'failure' | 'pending' | 'success';
 }
 
+export interface GitHubRefTargetPostcondition {
+  verifier: 'github-ref-target/v1';
+  provider: 'github';
+  repository_id: number;
+  ref: string;
+  target_sha: string;
+}
+
 export type Postcondition =
   | FileContentPostcondition
   | EventuallyConsistentFilePostcondition
-  | GitHubCommitStatusPostcondition;
+  | GitHubCommitStatusPostcondition
+  | GitHubRefTargetPostcondition;
 
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
@@ -43,6 +52,9 @@ export interface Observation extends Data {
   context?: string;
   expected_state?: string;
   actual_state?: string;
+  ref?: string;
+  target_sha?: string;
+  actual_target_sha?: string;
 }
 
 export type Dependency =
