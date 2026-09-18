@@ -110,7 +110,7 @@
         "context": "overcenter/concurrency/35310443402/1/alpha",
         "expected_state": "success"
       },
-      "status": "RECOVERY_REQUIRED",
+      "status": "DONE",
       "run_id": "42d9145c-e09a-4c57-9c4f-9a6af9246cfc",
       "claimed_revision": "304c84b1fe2df11dcc721a0e27b5a37d66f9ea71",
       "claim_commit": "5c7abb91ff9b92d1301b8092ab096f99e2a9d893"
