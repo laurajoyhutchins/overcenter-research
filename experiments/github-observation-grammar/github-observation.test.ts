@@ -29,6 +29,7 @@ import {
   sameGithubEntity,
 } from './semantics.ts';
 import { reconstructGithubProjection } from './reconstruction.ts';
+import { validateResponseSlice } from './response-slice.ts';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
@@ -550,4 +551,85 @@ test('reserved transport headers cannot be spoofed by operation parameters', asy
     }),
     /GITHUB_OBSERVATION_HEADER_RESERVED:X-GitHub-Api-Version/,
   );
+});
+
+
+test('semantic response slice rejects structural mismatches without validating unrelated response fields', () => {
+  const document: OpenApiDocument = {
+    paths: {
+      '/example': {
+        get: {
+          operationId: 'example/get',
+          responses: {
+            '200': {
+              description: 'Response',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: ['id', 'members'],
+                    properties: {
+                      id: { type: 'integer' },
+                      ignored: {
+                        type: 'object',
+                        required: ['huge', 'irrelevant'],
+                        properties: {
+                          huge: { type: 'string' },
+                          irrelevant: { type: 'string' },
+                        },
+                      },
+                      optional_note: { type: 'string', nullable: true },
+                      members: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          required: ['sha'],
+                          properties: {
+                            sha: { type: 'string', minLength: 40, maxLength: 64 },
+                            ignored_member_field: { type: 'string' },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  const operation = deriveObservationOperation(document, {
+    apiVersion: '2026-03-10',
+    method: 'get',
+    pathTemplate: '/example',
+  });
+
+  const valid = validateResponseSlice(operation, '200', {
+    id: 7,
+    ignored: {},
+    members: [{ sha: SHA_A, ignored_member_field: 123 }],
+  }, [
+    { path: 'id' },
+    { path: 'members[].sha' },
+    { path: 'optional_note', required: false },
+  ]);
+  assert.deepEqual(valid.validated_paths, ['id', 'members[].sha']);
+  assert.deepEqual(valid.optional_absent_paths, ['optional_note']);
+
+  assert.throws(() => validateResponseSlice(operation, '200', {
+    id: '7',
+    members: [{ sha: SHA_A }],
+  }, [{ path: 'id' }]), /RESPONSE_SLICE_VALUE_MISMATCH:id/);
+
+  assert.throws(() => validateResponseSlice(operation, '200', {
+    id: 7,
+    members: [{}],
+  }, [{ path: 'members[].sha' }]), /RESPONSE_SLICE_REQUIRED_FIELD_MISSING:members\[\]\.sha/);
+
+  assert.throws(() => validateResponseSlice(operation, '200', {
+    id: 7,
+    members: [],
+  }, [{ path: 'does_not_exist' }]), /RESPONSE_SLICE_SCHEMA_PATH_NOT_FOUND:does_not_exist/);
 });
