@@ -4,7 +4,7 @@ import type {
   Run,
 } from './model.ts';
 import type {
-  HistoricalRun,
+  RunRecord,
   Receipt,
   ObligationCatalog,
 } from './facts.ts';
@@ -23,7 +23,7 @@ export interface Lifecycle {
   run?:Run;
 }
 
-const IN_FLIGHT=new Set<RealizationStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
+const UNSETTLED_RUN_STATES=new Set<RealizationStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
 
 function semanticDependencyIdentity(
   catalog:ObligationCatalog,
@@ -85,7 +85,7 @@ export function obligationKey(
 
 export function deriveLifecycles(
   catalog:ObligationCatalog,
-  runs:Map<string,HistoricalRun>,
+  runs:Map<string,RunRecord>,
   receiptsByRun:Map<string,Receipt>,
 ):Map<string,Lifecycle> {
   const lifecycles=new Map<string,Lifecycle>();
@@ -138,6 +138,6 @@ export function deriveLifecycles(
   return lifecycles;
 }
 
-export function hasInFlight(lifecycles:Map<string,Lifecycle>):boolean {
-  return [...lifecycles.values()].some(({status})=>IN_FLIGHT.has(status));
+export function hasUnsettledRun(lifecycles:Map<string,Lifecycle>):boolean {
+  return [...lifecycles.values()].some(({status})=>UNSETTLED_RUN_STATES.has(status));
 }

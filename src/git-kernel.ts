@@ -31,7 +31,7 @@ import {
   withObligation,
 } from './graph.ts';
 import {
-  hasInFlight,
+  hasUnsettledRun,
   obligationKey,
 } from './lifecycle.ts';
 import {
@@ -92,7 +92,7 @@ export class GitOvercenterKernel {
     const revision=this.#requireAuthorityRevision();
     const projection=this.#reconstructProjection(revision);
     const {catalog,history}=projection;
-    if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    if (hasUnsettledRun(history.lifecycles)) throw new Error('PROJECT_BUSY');
     if (catalog.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
 
     const next=withObligation(catalog,obligation,revision);
@@ -114,7 +114,7 @@ export class GitOvercenterKernel {
     if (revision!==expectedRevision) throw new Error('STALE_REVISION');
     const projection=this.#reconstructProjection(revision);
     const {catalog,history}=projection;
-    if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    if (hasUnsettledRun(history.lifecycles)) throw new Error('PROJECT_BUSY');
     if (!catalog.obligations[id]) throw new Error(`unknown obligation: ${id}`);
 
     const previous=catalog.definition_commits[id];

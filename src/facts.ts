@@ -66,7 +66,7 @@ export interface Receipt extends ReceiptFact {
   settlement_commit?:string;
 }
 
-export interface HistoricalRun extends Run {
+export interface RunRecord extends Run {
   obligation:Obligation;
   definition_commit:string;
 }
