@@ -19,6 +19,7 @@ const openapi: OpenApiDocument = {
           { name: 'owner', in: 'path', required: true, schema: { type: 'string' } },
           { name: 'repo', in: 'path', required: true, schema: { type: 'string' } },
           { name: 'ref', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'X-Observer-Mode', in: 'header', required: false, schema: { type: 'string' } },
         ],
         responses: {
           '200': { description: 'Response', content: { 'application/json': { schema: { type: 'object' } } } },
@@ -51,6 +52,7 @@ test('OpenAPI mechanically yields a read-only GitHub observation descriptor', ()
   assert.equal(descriptor.operation_id, 'git/get-ref');
   assert.equal(descriptor.method, 'GET');
   assert.deepEqual(descriptor.parameters.map(p => [p.in, p.name]), [
+    ['header', 'X-Observer-Mode'],
     ['path', 'owner'],
     ['path', 'ref'],
     ['path', 'repo'],
@@ -72,6 +74,7 @@ test('authoritative 200 readback becomes a binding fact and satisfies exact-SHA 
     request: async input => {
       assert.equal(input.apiVersion, '2026-03-10');
       assert.equal(input.path, '/repos/acme/widget/git/ref/heads%2Fmain');
+      assert.deepEqual(input.headers, {});
       return {
         status: 200,
         body: { ref: 'refs/heads/main', object: { type: 'commit', sha: desired } },
@@ -88,6 +91,37 @@ test('authoritative 200 readback becomes a binding fact and satisfies exact-SHA 
     reason: 'AUTHORITATIVE_BINDING_MATCHES',
     fact,
   });
+});
+
+test('declared header parameters are recorded and sent while unknown parameters are rejected', async () => {
+  const observed = await observeOperation(operation(), {
+    owner: 'acme',
+    repo: 'widget',
+    ref: 'heads/main',
+    'X-Observer-Mode': 'proof',
+  }, {
+    request: async input => {
+      assert.deepEqual(input.headers, { 'X-Observer-Mode': 'proof' });
+      return {
+        status: 200,
+        body: { ref: 'refs/heads/main', object: { type: 'commit', sha: desired } },
+      };
+    },
+  });
+  assert.deepEqual(observed.request.headers, { 'X-Observer-Mode': 'proof' });
+  assert.equal(observed.request.parameters['X-Observer-Mode'], 'proof');
+
+  await assert.rejects(
+    () => observeOperation(operation(), {
+      owner: 'acme',
+      repo: 'widget',
+      ref: 'heads/main',
+      invented: 'not-on-wire',
+    }, {
+      request: async () => ({ status: 200 }),
+    }),
+    /OBSERVATION_PARAMETER_UNKNOWN:invented/,
+  );
 });
 
 test('a positive mismatching binding proves the obligation unsatisfied', async () => {
@@ -130,14 +164,18 @@ test('transport failure remains indeterminate rather than becoming negative evid
 });
 
 
-test('GitHub REST transport pins API version and returns raw provider response', async () => {
-  const calls: Array<{ url: string; init: { method: 'GET' | 'HEAD'; headers: Record<string, string> } }> = [];
+test('GitHub REST transport pins API version, sends operation headers, and disables automatic redirects', async () => {
+  const calls: Array<{
+    url: string;
+    init: { method: 'GET' | 'HEAD'; headers: Record<string, string>; redirect: 'manual' };
+  }> = [];
   const transport = new GitHubRestTransport({
     token: 'test-token',
     fetchFn: async (url, init) => {
       calls.push({ url, init });
       return {
         status: 200,
+        headers: { get: () => null },
         text: async () => JSON.stringify({ ref: 'refs/heads/main', object: { type: 'commit', sha: desired } }),
       };
     },
@@ -145,11 +183,54 @@ test('GitHub REST transport pins API version and returns raw provider response',
   const response = await transport.request({
     method: 'GET',
     path: '/repos/acme/widget/git/ref/heads%2Fmain',
+    headers: { 'X-Observer-Mode': 'proof' },
     apiVersion: '2026-03-10',
   });
   assert.equal(calls[0].url, 'https://api.github.com/repos/acme/widget/git/ref/heads%2Fmain');
+  assert.equal(calls[0].init.redirect, 'manual');
+  assert.equal(calls[0].init.headers['X-Observer-Mode'], 'proof');
   assert.equal(calls[0].init.headers['X-GitHub-Api-Version'], '2026-03-10');
   assert.equal(calls[0].init.headers.Authorization, 'Bearer test-token');
   assert.equal(response.status, 200);
   assert.equal((response.body as { ref: string }).ref, 'refs/heads/main');
+});
+
+test('redirects remain explicit indeterminate evidence and are never followed', async () => {
+  const observed = await observeOperation(operation(), {
+    owner: 'acme',
+    repo: 'widget',
+    ref: 'heads/main',
+  }, new GitHubRestTransport({
+    fetchFn: async (_url, init) => {
+      assert.equal(init.redirect, 'manual');
+      return {
+        status: 301,
+        headers: { get: name => name.toLowerCase() === 'location' ? 'https://api.github.com/repositories/123/git/ref/heads/main' : null },
+        text: async () => '',
+      };
+    },
+  }));
+
+  assert.equal(observed.outcome.visibility, 'indeterminate');
+  assert.deepEqual(observed.outcome.redirect, {
+    location: 'https://api.github.com/repositories/123/git/ref/heads/main',
+  });
+  assert.equal(projectGitRefTarget(observed), null);
+});
+
+test('reserved transport headers cannot be spoofed by operation parameters', async () => {
+  const transport = new GitHubRestTransport({
+    fetchFn: async () => {
+      throw new Error('must not reach fetch');
+    },
+  });
+  await assert.rejects(
+    () => transport.request({
+      method: 'GET',
+      path: '/repos/acme/widget',
+      headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+      apiVersion: '2026-03-10',
+    }),
+    /GITHUB_OBSERVATION_HEADER_RESERVED:X-GitHub-Api-Version/,
+  );
 });
