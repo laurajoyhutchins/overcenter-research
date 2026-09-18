@@ -72,7 +72,9 @@ run:                 bc85b322-4fa7-4fb1-a8da-3f72f1b13803
 
 ### Hardened trust-boundary proof
 
-The hosted proof was then hardened so definition/claim authority, execution capability, and recovery/settlement capability are separate.
+The first hardened hosted proof separated definition/claim authority from recovery/settlement authority, but still gave Agent A repository-scoped `statuses: write`. That proved the worker could not redefine project authority or settlement truth, not that it lacked provider mutation authority.
+
+The current workflow tightens that boundary using only GitHub Actions job permissions:
 
 ```text
 trusted project authority
@@ -81,17 +83,30 @@ trusted project authority
             ↓
 authority-untrusted Agent A
   contents: read
-  statuses: write
+  no statuses: write
+  no ExecutionPermit
   corrupt local checkout/config/cache/source
-  fail to rewrite project authority
-  perform provider effect
+  direct provider mutation attempt must fail
+  emit candidate EffectIntent
   terminate
             ↓
+trusted effect broker
+  contents: write
+  statuses: write
+  validate intent against authoritative obligation
+  acquire fresh execution generation
+  reserve effect
+  perform exact provider mutation
+  terminate before settlement
+            ↓
 trusted recovery
-  reconstruct from Git
+  acquire another fresh execution generation
+  reconstruct unresolved reservation from Git
   read canonical GitHub provider state
   settle through exact CAS
 ```
+
+This revised hosted proof is implemented on the current branch but should not be counted as live evidence until it has passed at an exact source revision.
 
 Workflow run `35304838786` demonstrated that local executor tampering does not redefine the obligation, authority ref, verifier, canonical repository identity, exact input SHA, or settlement decision.
 
