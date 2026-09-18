@@ -16,7 +16,7 @@
         "context": "overcenter/conflict/35307336227/1",
         "expected_state": "success"
       },
-      "status": "RECOVERY_REQUIRED",
+      "status": "DONE",
       "run_id": "3305c6c2-2e2e-4c2c-b456-129610f195dc",
       "claimed_revision": "d468ebdafbe7e82c5c3cf9e0a09f06897c81f17c",
       "claim_commit": "412a1074aa4d517fc2cc5bae3622c2bea43711c7"
