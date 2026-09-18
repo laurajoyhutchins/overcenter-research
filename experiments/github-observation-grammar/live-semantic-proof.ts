@@ -29,6 +29,7 @@ const repositoryName = required('GITHUB_REPOSITORY');
 const sourceRef = required('SOURCE_REF');
 const sourceSha = required('SOURCE_SHA');
 const checkRef = required('CHECK_REF');
+const volatileCheckRef = process.env.VOLATILE_CHECK_REF ?? null;
 const [owner, repo] = repositoryName.split('/');
 if (!owner || !repo) throw new Error('GITHUB_REPOSITORY_INVALID');
 const pullNumber = process.env.PULL_NUMBER ? Number(process.env.PULL_NUMBER) : null;
@@ -130,15 +131,16 @@ if (pullNumber !== null) {
   currentFacts.push(pullFact);
 }
 
+const checksOperation = op('/repos/{owner}/{repo}/commits/{ref}/check-runs');
 const checksObservation = await observeOperation(
-  op('/repos/{owner}/{repo}/commits/{ref}/check-runs'),
+  checksOperation,
   { owner, repo, ref: checkRef, page: 1, per_page: 1 },
   transport,
   provenance,
 );
 const checksPage = projectCheckRunsPage(checksObservation, repository);
 assert.ok(checksPage);
-assert.ok(checksPage.members.length > 0, 'live Actions run should expose at least one check run');
+assert.ok(checksPage.members.length > 0, 'stable check coordinate should expose at least one check run');
 const firstCheck = checksPage.members[0];
 assert.equal(evaluateCheckRunPage(checksPage, {
   repository_id: repository.subject.id,
@@ -152,6 +154,30 @@ assert.equal(evaluateCheckRunPage(checksPage, {
   id: Number.MAX_SAFE_INTEGER,
 }).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
 currentFacts.push(checksPage);
+
+let volatileChecks: { ref: string; members: number; missing_member: string } | null = null;
+if (volatileCheckRef) {
+  const volatileObservation = await observeOperation(
+    checksOperation,
+    { owner, repo, ref: volatileCheckRef, page: 1, per_page: 1 },
+    transport,
+    provenance,
+  );
+  const volatilePage = projectCheckRunsPage(volatileObservation, repository);
+  assert.ok(volatilePage);
+  const missing = evaluateCheckRunPage(volatilePage, {
+    repository_id: repository.subject.id,
+    ref: volatileCheckRef,
+    id: Number.MAX_SAFE_INTEGER,
+  });
+  assert.equal(missing.state, 'INDETERMINATE');
+  assert.equal(missing.reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
+  volatileChecks = {
+    ref: volatileCheckRef,
+    members: volatilePage.members.length,
+    missing_member: missing.state,
+  };
+}
 
 // Reconstruction deliberately refuses to resurrect mutable state from durable history.
 const durableFacts: GithubFact[] = [repository, commitFact, refFact];
@@ -194,11 +220,13 @@ console.log(JSON.stringify({
     head_sha: pullFact.head_sha,
   },
   checks: {
+    stable_ref: checkRef,
     page_members: checksPage.members.length,
     total_count: checksPage.total_count,
     has_next: checksPage.has_next,
     positive_membership: 'SATISFIED',
     missing_member: 'INDETERMINATE',
+    volatile_probe: volatileChecks,
   },
   reconstruction: {
     durable_commits: Object.keys(rebuilt.commits).length,
