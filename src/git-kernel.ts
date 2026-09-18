@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const STATE_REF = 'refs/overcenter/state';
-const STATE_SCHEMA = 'overcenter-git-state-v5';
+const OBLIGATION_SCHEMA = 'overcenter-git-obligation-v1';
 const CLAIM_SCHEMA = 'overcenter-git-claim-v1';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v3';
 
@@ -59,7 +59,22 @@ export interface Obligation {
   packet: Data;
   postcondition: Postcondition;
 }
-interface State { schema: typeof STATE_SCHEMA; obligations: Record<string, Obligation> }
+interface State {
+  obligations: Record<string, Obligation>;
+  definition_commits: Record<string, string>;
+}
+type ObligationFact =
+  | {
+      schema: typeof OBLIGATION_SCHEMA;
+      kind: 'defined';
+      obligation: Obligation;
+    }
+  | {
+      schema: typeof OBLIGATION_SCHEMA;
+      kind: 'amended';
+      obligation: Obligation;
+      previous_definition_commit: string;
+    }
 export interface Work extends Obligation {
   status: WorkStatus;
   revision: string;
@@ -90,9 +105,13 @@ interface ReceiptFact {
   diagnostic?: Data;
   settled_at: string;
 }
+interface HistoricalRun extends Run {
+  obligation: Obligation;
+  definition_commit: string;
+}
 interface HistoryProjection {
   lifecycles: Map<string,Lifecycle>;
-  runs: Map<string,Run>;
+  runs: Map<string,HistoricalRun>;
   receiptsByRun: Map<string,Receipt>;
   receipts: Receipt[];
 }
@@ -135,7 +154,7 @@ export class GitOvercenterKernel {
   initialize(): string {
     const existing = this.head();
     if (existing) return existing;
-    const commit = this.#commit(null, this.#emptyState(), 'overcenter: initialize');
+    const commit = this.#commit(null, 'overcenter: initialize');
     const zero = '0'.repeat(this.#objectIdLength());
     if (this.#cas(commit, zero)) return commit;
     const winner = this.head();
@@ -169,9 +188,44 @@ export class GitOvercenterKernel {
     const history=this.#history(state,head);
     if (this.#hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
-    state.obligations[id] = { id, deps, packet, postcondition };
-    const commit = this.#commit(head, state, `overcenter: define ${id}`);
+
+    const obligation={id,deps,packet,postcondition};
+    const next=this.#withObligation(state,obligation,'defined',head);
+    this.#validateGraph(next);
+    const fact:ObligationFact={schema:OBLIGATION_SCHEMA,kind:'defined',obligation};
+    const commit = this.#commit(head, `overcenter: define ${id}`, null, null, fact);
     if (!this.#cas(commit, head)) throw new Error('DEFINE_LOST');
+    return commit;
+  }
+
+  amend(
+    { id, deps = [], packet = {}, postcondition }: { id: string; deps?: string[]; packet?: Data; postcondition: Postcondition },
+    expectedRevision: string,
+  ): string {
+    this.#validatePostcondition(postcondition);
+    const head=this.#requireHead();
+    if (head!==expectedRevision) throw new Error('STALE_REVISION');
+    const state=this.#state(head);
+    const history=this.#history(state,head);
+    if (this.#hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
+
+    const dependents=Object.values(state.obligations)
+      .filter(candidate=>candidate.id!==id && this.#dependsOn(state,candidate.id,id));
+    if (dependents.length>0) throw new Error('AMEND_HAS_DEPENDENTS');
+
+    const obligation={id,deps,packet,postcondition};
+    const previous=state.definition_commits[id];
+    const next=this.#withObligation(state,obligation,'amended',head);
+    this.#validateGraph(next);
+    const fact:ObligationFact={
+      schema:OBLIGATION_SCHEMA,
+      kind:'amended',
+      obligation,
+      previous_definition_commit:previous,
+    };
+    const commit=this.#commit(head,`overcenter: amend ${id}`,null,null,fact);
+    if (!this.#cas(commit,head)) throw new Error('AMEND_LOST');
     return commit;
   }
 
@@ -205,7 +259,7 @@ export class GitOvercenterKernel {
     if (claimabilityError) throw new Error(claimabilityError);
     const runId = randomUUID();
     const claim:ClaimFact={schema:CLAIM_SCHEMA,run_id:runId,obligation_id:id,claimed_revision:head};
-    const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`,null,claim);
+    const commit = this.#commit(head,`overcenter: claim ${id} ${runId}`,null,claim);
     if (!this.#cas(commit,head)) throw new Error('CLAIM_LOST');
     return {id:runId, obligation_id:id, claimed_revision:head, claim_commit:commit};
   }
@@ -235,7 +289,7 @@ export class GitOvercenterKernel {
       const observed = this.#observe(work.postcondition);
       const fact = this.#receiptFact(run,work,'observation',observed);
       const receipt = this.#projectReceipt(fact,work);
-      const commit=this.#commit(head,state,`overcenter: observe ${work.id} ${run.id}`,fact);
+      const commit=this.#commit(head,`overcenter: observe ${work.id} ${run.id}`,fact);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
     throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
@@ -258,7 +312,7 @@ export class GitOvercenterKernel {
       }
       const fact=this.#receiptFact(run,work,'judgment-required',null,diagnostic);
       const receipt=this.#projectReceipt(fact,work);
-      const commit=this.#commit(head,state,`overcenter: judgment required ${work.id} ${run.id}`,fact);
+      const commit=this.#commit(head,`overcenter: judgment required ${work.id} ${run.id}`,fact);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
     throw new Error('DEFER_CONTENTION_EXHAUSTED');
@@ -287,7 +341,7 @@ export class GitOvercenterKernel {
         diagnostic,
       );
       const receipt=this.#projectReceipt(fact,work);
-      const commit=this.#commit(head,state,`overcenter: execution terminated ${work.id} ${runId}`,fact);
+      const commit=this.#commit(head,`overcenter: execution terminated ${work.id} ${runId}`,fact);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
     throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
