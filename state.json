@@ -71,7 +71,7 @@
         "context": "overcenter/concurrency/35305708828/1/beta",
         "expected_state": "success"
       },
-      "status": "RECOVERY_REQUIRED",
+      "status": "DONE",
       "run_id": "322f96bd-0dc3-4fd7-9d35-849233a6ce2a",
       "claimed_revision": "65e035b23bc1fdc92a354320ebe4097a79447c63",
       "claim_commit": "9d2bc932fc3efaa1d31c7d201e2f65acffdabc69"
