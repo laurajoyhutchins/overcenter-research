@@ -15,28 +15,32 @@ import {
   CLAIM_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
-  claimabilityError,
-  hasInFlight,
   normalizeObligation,
-  obligationKey,
-  projectReceipt,
-  projectWork,
-  replayProjection,
-  validateGraph,
-  withObligation,
-} from './projection.ts';
+} from './facts.ts';
 import type {
   ClaimFact,
   FactCommit,
   ObligationFact,
   ObligationInput,
-  Projection,
   Receipt,
   ReceiptFact,
   ReceiptKind,
+} from './facts.ts';
+import {
+  claimabilityError,
+  hasInFlight,
+  obligationKey,
+  projectWork,
+  validateGraph,
+  withObligation,
+} from './graph.ts';
+import {
+  projectReceipt,
+  replayProjection,
 } from './projection.ts';
+import type { Projection } from './projection.ts';
 
-export type { Receipt } from './projection.ts';
+export type { Receipt } from './facts.ts';
 
 const STATE_REF='refs/overcenter/state';
 const errorMessage=(error:unknown)=>error instanceof Error ? error.message : String(error);

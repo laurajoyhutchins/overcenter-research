@@ -5,10 +5,10 @@ import {
   CLAIM_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
-  obligationKey,
-  replayProjection,
-} from '../src/projection.ts';
-import type { FactCommit, ObligationFact, ReceiptFact } from '../src/projection.ts';
+} from '../src/facts.ts';
+import type { FactCommit, ObligationFact, ReceiptFact } from '../src/facts.ts';
+import { obligationKey } from '../src/graph.ts';
+import { replayProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
