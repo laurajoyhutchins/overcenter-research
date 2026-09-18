@@ -104,6 +104,18 @@ It checks the authoritative model first, then requires all five broken models to
 
 Temporary TLC state and logs live under `formal/.tlc/` and are not authoritative evidence.
 
+### Baseline exhaustive result
+
+With TLA+ Tools 1.7.4 and `MaxFence = 2`, the authoritative configuration currently explores:
+
+```text
+51,737 states generated
+10,376 distinct states
+0 states left on queue
+```
+
+TLC reports no invariant violation. The five negative controls then violate, respectively, `MutationAuthoritySafety`, `ExactRevisionEvidence`, `ReplaySafety`, `ReservationSafety`, and `NoFalseDone`.
+
 ## Interpreting `Done`
 
 `Done` is a theorem over retained facts:
