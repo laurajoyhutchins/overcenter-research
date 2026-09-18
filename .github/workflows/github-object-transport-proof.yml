@@ -1,0 +1,566 @@
+name: GitHub object transport proof
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      request_path:
+        description: Repository-relative transport request JSON
+        required: false
+        default: test/fixtures/github-object-transport-request.json
+        type: string
+
+concurrency:
+  group: github-object-transport-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  API_VERSION: '2022-11-28'
+
+jobs:
+  materialize:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'proof/github-object-transport'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      source_sha: ${{ steps.materialize.outputs.source_sha }}
+      base_tree: ${{ steps.materialize.outputs.base_tree }}
+      request_blob_sha: ${{ steps.materialize.outputs.request_blob_sha }}
+      manifest_sha256: ${{ steps.materialize.outputs.manifest_sha256 }}
+    steps:
+      - name: Materialize declared GitHub blobs
+        id: materialize
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REQUEST_PATH: ${{ inputs.request_path || 'test/fixtures/github-object-transport-request.json' }}
+          INVALID_REQUEST_PATH: test/fixtures/github-object-transport-invalid-newline-request.json
+          API_VERSION: ${{ env.API_VERSION }}
+        run: |
+          set -euo pipefail
+
+          api_get() {
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "https://api.github.com${1}"
+          }
+
+          validate_request_json() {
+            jq -e '
+              def valid_path:
+                type == "string"
+                and length > 0
+                and (startswith("/") | not)
+                and (explode | all(. >= 32 and . != 127))
+                and (split("/") | all(. != "" and . != "." and . != ".."));
+
+              .schema == "github-object-transport/request/v1"
+              and (.entries | type == "array" and length > 0)
+              and (all(.entries[];
+                (.path | valid_path)
+                and (.writable | type == "boolean")
+              ))
+              and (([.entries[].path] | unique | length) == (.entries | length))
+            ' "$1" >/dev/null
+          }
+
+          validate_path_defense_in_depth() {
+            local path="$1"
+            test -n "${path}"
+            [[ "${path}" != /* ]]
+            [[ "${path}" != *$'\n'* ]]
+            [[ "${path}" != *$'\r'* ]]
+            [[ "/${path}/" != *"/../"* ]]
+            [[ "/${path}/" != *"/./"* ]]
+          }
+
+          fetch_tree_blob_to_file() {
+            local tree_json="$1"
+            local repository_path="$2"
+            local destination="$3"
+            local entry blob_sha blob_json
+
+            entry="$(jq -c --arg path "${repository_path}" \
+              '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0] else error("path must resolve to exactly one blob") end' \
+              <<<"${tree_json}")"
+            blob_sha="$(jq -r '.sha' <<<"${entry}")"
+            blob_json="$(api_get "/repos/${REPOSITORY}/git/blobs/${blob_sha}")"
+            test "$(jq -r '.encoding' <<<"${blob_json}")" = "base64"
+            jq -r '.content' <<<"${blob_json}" | tr -d '\n' | base64 --decode > "${destination}"
+            printf '%s\n' "${blob_sha}"
+          }
+
+          commit_json="$(api_get "/repos/${REPOSITORY}/git/commits/${SOURCE_SHA}")"
+          test "$(jq -r '.sha' <<<"${commit_json}")" = "${SOURCE_SHA}"
+          base_tree="$(jq -r '.tree.sha' <<<"${commit_json}")"
+
+          tree_json="$(api_get "/repos/${REPOSITORY}/git/trees/${base_tree}?recursive=1")"
+          test "$(jq -r '.truncated' <<<"${tree_json}")" = "false"
+
+          mkdir -p capsule/workspace
+          request_blob_sha="$(fetch_tree_blob_to_file "${tree_json}" "${REQUEST_PATH}" capsule/request.json)"
+
+          # Prove path validation occurs on parsed JSON strings before any command
+          # substitution can normalize trailing newlines.
+          fetch_tree_blob_to_file "${tree_json}" "${INVALID_REQUEST_PATH}" capsule/invalid-newline-request.json >/dev/null
+          if validate_request_json capsule/invalid-newline-request.json; then
+            echo "::error::trailing-newline path fixture was incorrectly accepted"
+            exit 1
+          fi
+
+          validate_request_json capsule/request.json
+
+          printf '{"schema":"github-object-transport/input/v1","repository":%s,"source_sha":%s,"base_tree":%s,"request_path":%s,"request_blob_sha":%s,"entries":[' \
+            "$(jq -Rn --arg v "${REPOSITORY}" '$v')" \
+            "$(jq -Rn --arg v "${SOURCE_SHA}" '$v')" \
+            "$(jq -Rn --arg v "${base_tree}" '$v')" \
+            "$(jq -Rn --arg v "${REQUEST_PATH}" '$v')" \
+            "$(jq -Rn --arg v "${request_blob_sha}" '$v')" \
+            > capsule/manifest.partial
+
+          first=true
+          declare -a paths=()
+          while IFS= read -r requested; do
+            path="$(jq -r '.path' <<<"${requested}")"
+            writable="$(jq -r '.writable' <<<"${requested}")"
+            validate_path_defense_in_depth "${path}"
+
+            entry="$(jq -c --arg path "${path}" \
+              '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0] else error("declared path must resolve to exactly one blob") end' \
+              <<<"${tree_json}")"
+            mode="$(jq -r '.mode' <<<"${entry}")"
+            blob_sha="$(jq -r '.sha' <<<"${entry}")"
+            [[ "${mode}" == "100644" || "${mode}" == "100755" ]]
+
+            mkdir -p "capsule/workspace/$(dirname "${path}")"
+            blob_json="$(api_get "/repos/${REPOSITORY}/git/blobs/${blob_sha}")"
+            test "$(jq -r '.encoding' <<<"${blob_json}")" = "base64"
+            jq -r '.content' <<<"${blob_json}" | tr -d '\n' | base64 --decode > "capsule/workspace/${path}"
+            if [[ "${mode}" == "100755" ]]; then chmod 0755 "capsule/workspace/${path}"; else chmod 0644 "capsule/workspace/${path}"; fi
+
+            content_sha256="$(sha256sum "capsule/workspace/${path}" | cut -d' ' -f1)"
+            realized="$(jq -cn \
+              --arg path "${path}" \
+              --arg mode "${mode}" \
+              --arg blob_sha "${blob_sha}" \
+              --arg content_sha256 "${content_sha256}" \
+              --argjson writable "${writable}" \
+              '{path:$path,mode:$mode,blob_sha:$blob_sha,content_sha256:$content_sha256,writable:$writable}')"
+
+            if ${first}; then first=false; else printf ',' >> capsule/manifest.partial; fi
+            printf '%s' "${realized}" >> capsule/manifest.partial
+            paths+=("${path}")
+          done < <(jq -c '.entries[]' capsule/request.json)
+
+          printf ']}\n' >> capsule/manifest.partial
+          jq -S . capsule/manifest.partial > capsule/manifest.json
+          rm capsule/manifest.partial
+
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -cf capsule/workspace.tar -C capsule/workspace -- "${paths[@]}"
+          rm -rf capsule/workspace
+
+          manifest_sha256="$(sha256sum capsule/manifest.json | cut -d' ' -f1)"
+          printf '%s  %s\n' "${manifest_sha256}" manifest.json > capsule/manifest.sha256
+
+          echo "source_sha=${SOURCE_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "base_tree=${base_tree}" >> "${GITHUB_OUTPUT}"
+          echo "request_blob_sha=${request_blob_sha}" >> "${GITHUB_OUTPUT}"
+          echo "manifest_sha256=${manifest_sha256}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload immutable input capsule
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: github-object-input-capsule
+          path: capsule
+          if-no-files-found: error
+          retention-days: 1
+
+  execute:
+    needs: materialize
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Download input capsule
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: github-object-input-capsule
+          path: input
+
+      - name: Verify exact workspace and run disposable worker
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          assert_shape() {
+            local root="$1"
+            local path="$2"
+            local mode="$3"
+            local file="${root}/${path}"
+            local expected_perm actual_perm
+
+            test -f "${file}"
+            test ! -L "${file}"
+            expected_perm="${mode#100}"
+            actual_perm="$(stat -c '%a' "${file}")"
+            test "${actual_perm}" = "${expected_perm}"
+          }
+
+          assert_identity() {
+            local root="$1"
+            local entry="$2"
+            local path mode expected_sha256 actual_sha256
+
+            path="$(jq -r '.path' <<<"${entry}")"
+            mode="$(jq -r '.mode' <<<"${entry}")"
+            expected_sha256="$(jq -r '.content_sha256' <<<"${entry}")"
+            assert_shape "${root}" "${path}" "${mode}"
+            actual_sha256="$(sha256sum "${root}/${path}" | cut -d' ' -f1)"
+            test "${actual_sha256}" = "${expected_sha256}"
+          }
+
+          cd input
+          sha256sum --check manifest.sha256
+          manifest_sha256="$(cut -d' ' -f1 manifest.sha256)"
+          test "${manifest_sha256}" = "${{ needs.materialize.outputs.manifest_sha256 }}"
+
+          mkdir original work
+          tar -xf workspace.tar -C original
+          cp -a original/. work/
+
+          jq -r '.entries[].path' manifest.json | LC_ALL=C sort > expected-files
+          find original -type f -printf '%P\n' | LC_ALL=C sort > actual-files
+          diff -u expected-files actual-files
+
+          while IFS= read -r entry; do
+            assert_identity original "${entry}"
+          done < <(jq -c '.entries[]' manifest.json)
+
+          # Negative control: a mode-only mutation to a read-only entry must be
+          # detected by the same shape check used during real collection.
+          readonly_entry="$(jq -c '[.entries[] | select(.writable == false)][0] // error("proof requires one read-only entry")' manifest.json)"
+          readonly_path="$(jq -r '.path' <<<"${readonly_entry}")"
+          readonly_mode="$(jq -r '.mode' <<<"${readonly_entry}")"
+          mkdir mode-adversary
+          cp -a original/. mode-adversary/
+          chmod +x "mode-adversary/${readonly_path}"
+          if assert_shape mode-adversary "${readonly_path}" "${readonly_mode}"; then
+            echo "::error::mode-only read-only mutation was not detected"
+            exit 1
+          fi
+          rm -rf mode-adversary
+
+          # Stand-in worker mutates every writable entry, including the hidden
+          # path fixture. The executor has no repository permissions.
+          while IFS= read -r entry; do
+            path="$(jq -r '.path' <<<"${entry}")"
+            printf 'transport-proof:%s:%s:%s\n' "${RUN_ID}" "${RUN_ATTEMPT}" "${path}" > "work/${path}"
+          done < <(jq -c '.entries[] | select(.writable == true)' manifest.json)
+
+          find work -type f -printf '%P\n' | LC_ALL=C sort > final-files
+          diff -u expected-files final-files
+
+          mkdir -p ../candidate/payload
+          printf '{"schema":"github-object-transport/candidate/v1","input_manifest_sha256":%s,"source_sha":%s,"changes":[' \
+            "$(jq -Rn --arg v "${manifest_sha256}" '$v')" \
+            "$(jq -Rn --arg v "$(jq -r '.source_sha' manifest.json)" '$v')" \
+            > ../candidate/delta.partial
+
+          first=true
+          changed=0
+          while IFS= read -r entry; do
+            path="$(jq -r '.path' <<<"${entry}")"
+            mode="$(jq -r '.mode' <<<"${entry}")"
+            old_blob_sha="$(jq -r '.blob_sha' <<<"${entry}")"
+            writable="$(jq -r '.writable' <<<"${entry}")"
+            before="$(jq -r '.content_sha256' <<<"${entry}")"
+
+            # Git type/mode are part of the realized input identity and are not
+            # mutable under the current transport contract.
+            assert_shape work "${path}" "${mode}"
+
+            after="$(sha256sum "work/${path}" | cut -d' ' -f1)"
+            if [[ "${before}" == "${after}" ]]; then continue; fi
+            test "${writable}" = "true"
+            changed=1
+
+            mkdir -p "../candidate/payload/$(dirname "${path}")"
+            cp "work/${path}" "../candidate/payload/${path}"
+            change="$(jq -cn \
+              --arg path "${path}" \
+              --arg mode "${mode}" \
+              --arg old_blob_sha "${old_blob_sha}" \
+              --arg payload_sha256 "${after}" \
+              '{operation:"modify",path:$path,mode:$mode,old_blob_sha:$old_blob_sha,payload_sha256:$payload_sha256}')"
+
+            if ${first}; then first=false; else printf ',' >> ../candidate/delta.partial; fi
+            printf '%s' "${change}" >> ../candidate/delta.partial
+          done < <(jq -c '.entries[]' manifest.json)
+
+          test "${changed}" -eq 1
+          printf ']}\n' >> ../candidate/delta.partial
+          jq -S . ../candidate/delta.partial > ../candidate/delta.json
+          rm ../candidate/delta.partial
+
+      - name: Upload candidate delta
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: github-object-candidate-delta
+          path: candidate
+          if-no-files-found: error
+          retention-days: 1
+          include-hidden-files: true
+
+  publish:
+    needs: [materialize, execute]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      result_sha: ${{ steps.publish.outputs.result_sha }}
+      result_ref: ${{ steps.publish.outputs.result_ref }}
+      result_tree_sha: ${{ steps.publish.outputs.result_tree_sha }}
+    steps:
+      - name: Download trusted input capsule
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: github-object-input-capsule
+          path: input
+
+      - name: Download untrusted candidate delta
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: github-object-candidate-delta
+          path: candidate
+
+      - name: Validate delta and publish Git objects
+        id: publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          API_VERSION: ${{ env.API_VERSION }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          api_post() {
+            local endpoint="$1"
+            local body="$2"
+            curl --fail-with-body --silent --show-error \
+              -X POST \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "https://api.github.com${endpoint}" \
+              -d "${body}"
+          }
+
+          validate_path() {
+            local path="$1"
+            test -n "${path}"
+            [[ "${path}" != /* ]]
+            [[ "${path}" != *$'\n'* ]]
+            [[ "${path}" != *$'\r'* ]]
+            [[ "/${path}/" != *"/../"* ]]
+            [[ "/${path}/" != *"/./"* ]]
+          }
+
+          (cd input && sha256sum --check manifest.sha256)
+          manifest_sha256="$(cut -d' ' -f1 input/manifest.sha256)"
+          test "${manifest_sha256}" = "${{ needs.materialize.outputs.manifest_sha256 }}"
+
+          source_sha="$(jq -r '.source_sha' input/manifest.json)"
+          base_tree="$(jq -r '.base_tree' input/manifest.json)"
+          test "${source_sha}" = "${EXPECTED_SOURCE_SHA}"
+          test "${source_sha}" = "${{ needs.materialize.outputs.source_sha }}"
+          test "${base_tree}" = "${{ needs.materialize.outputs.base_tree }}"
+          test "$(jq -r '.request_blob_sha' input/manifest.json)" = "${{ needs.materialize.outputs.request_blob_sha }}"
+
+          test "$(jq -r '.schema' candidate/delta.json)" = "github-object-transport/candidate/v1"
+          test "$(jq -r '.input_manifest_sha256' candidate/delta.json)" = "${manifest_sha256}"
+          test "$(jq -r '.source_sha' candidate/delta.json)" = "${source_sha}"
+          test "$(jq '.changes | type == "array" and length > 0' candidate/delta.json)" = "true"
+          test "$(jq '([.changes[].path] | unique | length) == (.changes | length)' candidate/delta.json)" = "true"
+
+          : > tree-entries.jsonl
+          while IFS= read -r change; do
+            operation="$(jq -r '.operation' <<<"${change}")"
+            path="$(jq -r '.path' <<<"${change}")"
+            mode="$(jq -r '.mode' <<<"${change}")"
+            old_blob_sha="$(jq -r '.old_blob_sha' <<<"${change}")"
+            payload_sha256="$(jq -r '.payload_sha256' <<<"${change}")"
+            test "${operation}" = "modify"
+            validate_path "${path}"
+
+            declared="$(jq -c --arg path "${path}" \
+              '[.entries[] | select(.path == $path)] | if length == 1 then .[0] else error("candidate path is not declared exactly once") end' \
+              input/manifest.json)"
+            test "$(jq -r '.writable' <<<"${declared}")" = "true"
+            test "$(jq -r '.mode' <<<"${declared}")" = "${mode}"
+            test "$(jq -r '.blob_sha' <<<"${declared}")" = "${old_blob_sha}"
+
+            payload="candidate/payload/${path}"
+            test -f "${payload}"
+            test ! -L "${payload}"
+            test "$(sha256sum "${payload}" | cut -d' ' -f1)" = "${payload_sha256}"
+
+            encoded="$(base64 -w0 "${payload}")"
+            blob_body="$(jq -n --arg content "${encoded}" '{content:$content,encoding:"base64"}')"
+            blob_json="$(api_post "/repos/${REPOSITORY}/git/blobs" "${blob_body}")"
+            new_blob_sha="$(jq -r '.sha' <<<"${blob_json}")"
+
+            jq -cn --arg path "${path}" --arg mode "${mode}" --arg sha "${new_blob_sha}" \
+              '{path:$path,mode:$mode,type:"blob",sha:$sha}' >> tree-entries.jsonl
+          done < <(jq -c '.changes[]' candidate/delta.json)
+
+          tree_entries="$(jq -s '.' tree-entries.jsonl)"
+          tree_body="$(jq -n --arg base_tree "${base_tree}" --argjson tree "${tree_entries}" '{base_tree:$base_tree,tree:$tree}')"
+          tree_json="$(api_post "/repos/${REPOSITORY}/git/trees" "${tree_body}")"
+          result_tree_sha="$(jq -r '.sha' <<<"${tree_json}")"
+
+          commit_body="$(jq -n \
+            --arg message "Prove manifest-driven GitHub object transport run ${RUN_ID}/${RUN_ATTEMPT}" \
+            --arg tree "${result_tree_sha}" \
+            --arg parent "${source_sha}" \
+            '{message:$message,tree:$tree,parents:[$parent]}')"
+          commit_json="$(api_post "/repos/${REPOSITORY}/git/commits" "${commit_body}")"
+          result_sha="$(jq -r '.sha' <<<"${commit_json}")"
+
+          result_ref="transport-proof/result-${RUN_ID}-${RUN_ATTEMPT}"
+          ref_body="$(jq -n --arg ref "refs/heads/${result_ref}" --arg sha "${result_sha}" '{ref:$ref,sha:$sha}')"
+          api_post "/repos/${REPOSITORY}/git/refs" "${ref_body}" >/dev/null
+
+          jq -n \
+            --arg schema "github-object-transport/publish-receipt/v1" \
+            --arg source_sha "${source_sha}" \
+            --arg result_sha "${result_sha}" \
+            --arg result_ref "${result_ref}" \
+            --arg result_tree_sha "${result_tree_sha}" \
+            --arg manifest_sha256 "${manifest_sha256}" \
+            --arg request_blob_sha "${{ needs.materialize.outputs.request_blob_sha }}" \
+            '{schema:$schema,source_sha:$source_sha,result_sha:$result_sha,result_ref:$result_ref,result_tree_sha:$result_tree_sha,input_manifest_sha256:$manifest_sha256,request_blob_sha:$request_blob_sha}' \
+            > publish-receipt.json
+
+          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
+          echo "result_ref=${result_ref}" >> "${GITHUB_OUTPUT}"
+          echo "result_tree_sha=${result_tree_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload publish receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: github-object-publish-receipt
+          path: publish-receipt.json
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    needs: [materialize, execute, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download trusted input capsule
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: github-object-input-capsule
+          path: input
+
+      - name: Download candidate delta
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: github-object-candidate-delta
+          path: candidate
+
+      - name: Verify authoritative GitHub readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ needs.materialize.outputs.source_sha }}
+          RESULT_SHA: ${{ needs.publish.outputs.result_sha }}
+          RESULT_REF: ${{ needs.publish.outputs.result_ref }}
+          RESULT_TREE_SHA: ${{ needs.publish.outputs.result_tree_sha }}
+          API_VERSION: ${{ env.API_VERSION }}
+        run: |
+          set -euo pipefail
+
+          api_get() {
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "https://api.github.com${1}"
+          }
+
+          ref_json="$(api_get "/repos/${REPOSITORY}/git/ref/heads/${RESULT_REF}")"
+          test "$(jq -r '.object.sha' <<<"${ref_json}")" = "${RESULT_SHA}"
+
+          commit_json="$(api_get "/repos/${REPOSITORY}/git/commits/${RESULT_SHA}")"
+          test "$(jq -r '.parents | length' <<<"${commit_json}")" -eq 1
+          test "$(jq -r '.parents[0].sha' <<<"${commit_json}")" = "${SOURCE_SHA}"
+          test "$(jq -r '.tree.sha' <<<"${commit_json}")" = "${RESULT_TREE_SHA}"
+
+          compare_json="$(api_get "/repos/${REPOSITORY}/compare/${SOURCE_SHA}...${RESULT_SHA}")"
+          test "$(jq -r '.status' <<<"${compare_json}")" = "ahead"
+          test "$(jq -r '.ahead_by' <<<"${compare_json}")" -eq 1
+
+          jq -r '.changes[].path' candidate/delta.json | LC_ALL=C sort > expected-changed
+          jq -r '.files[].filename' <<<"${compare_json}" | LC_ALL=C sort > observed-changed
+          diff -u expected-changed observed-changed
+
+          tree_json="$(api_get "/repos/${REPOSITORY}/git/trees/${RESULT_TREE_SHA}?recursive=1")"
+          test "$(jq -r '.truncated' <<<"${tree_json}")" = "false"
+
+          # Every read-only entry must preserve the exact source blob identity.
+          while IFS= read -r entry; do
+            path="$(jq -r '.path' <<<"${entry}")"
+            source_blob_sha="$(jq -r '.blob_sha' <<<"${entry}")"
+            result_blob_sha="$(jq -r --arg path "${path}" \
+              '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0].sha else error("read-only result path missing or ambiguous") end' \
+              <<<"${tree_json}")"
+            test "${result_blob_sha}" = "${source_blob_sha}"
+          done < <(jq -c '.entries[] | select(.writable == false)' input/manifest.json)
+
+          while IFS= read -r change; do
+            path="$(jq -r '.path' <<<"${change}")"
+            expected_sha256="$(jq -r '.payload_sha256' <<<"${change}")"
+            blob_sha="$(jq -r --arg path "${path}" \
+              '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0].sha else error("result path missing or ambiguous") end' \
+              <<<"${tree_json}")"
+            blob_json="$(api_get "/repos/${REPOSITORY}/git/blobs/${blob_sha}")"
+            observed_sha256="$(jq -r '.content' <<<"${blob_json}" | tr -d '\n' | base64 --decode | sha256sum | cut -d' ' -f1)"
+            test "${observed_sha256}" = "${expected_sha256}"
+          done < <(jq -c '.changes[]' candidate/delta.json)
+
+          {
+            echo '### Manifest-driven GitHub object transport proof'
+            echo
+            echo "- source: ${SOURCE_SHA}"
+            echo "- request blob: ${{ needs.materialize.outputs.request_blob_sha }}"
+            echo "- declared inputs: $(jq '.entries | length' input/manifest.json)"
+            echo "- writable inputs: $(jq '[.entries[] | select(.writable)] | length' input/manifest.json)"
+            echo "- result: ${RESULT_SHA}"
+            echo "- result ref: ${RESULT_REF}"
+            echo "- changed paths: $(wc -l < expected-changed)"
+            echo '- executor repository permissions: {}'
+            echo '- checkout steps: none'
+            echo '- pre-shell control-character path rejection: passed'
+            echo '- exact workspace membership check: passed'
+            echo '- mode-only mutation negative control: passed'
+            echo '- hidden candidate payload transport: passed'
+            echo '- read-only source blob preservation: passed'
+            echo '- authoritative GitHub readback: passed'
+          } >> "${GITHUB_STEP_SUMMARY}"
