@@ -16,7 +16,6 @@ on:
       - src/providers/github-status.ts
       - test/git-kernel.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
-      - README.md
 
 permissions: {}
 
