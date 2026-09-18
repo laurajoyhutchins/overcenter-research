@@ -227,3 +227,48 @@ export async function observeOperation(
     };
   }
 }
+
+
+export interface FetchResponseLike {
+  status: number;
+  text(): Promise<string>;
+}
+
+export type FetchLike = (
+  url: string,
+  init: { method: 'GET' | 'HEAD'; headers: Record<string, string> },
+) => Promise<FetchResponseLike>;
+
+export class GitHubRestTransport implements ObservationTransport {
+  readonly token: string | null;
+  readonly baseUrl: string;
+  readonly fetchFn: FetchLike;
+
+  constructor({
+    token = null,
+    baseUrl = 'https://api.github.com',
+    fetchFn = globalThis.fetch as unknown as FetchLike,
+  }: { token?: string | null; baseUrl?: string; fetchFn?: FetchLike } = {}) {
+    this.token = token;
+    this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.fetchFn = fetchFn;
+  }
+
+  async request({ method, path, apiVersion }: { method: 'GET' | 'HEAD'; path: string; apiVersion: string }): Promise<{ status: number; body?: unknown }> {
+    if (!path.startsWith('/')) throw new Error('GITHUB_OBSERVATION_PATH_MUST_BE_ABSOLUTE');
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': apiVersion,
+      'User-Agent': 'overcenter-research-observer',
+    };
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
+    const response = await this.fetchFn(`${this.baseUrl}${path}`, { method, headers });
+    const text = method === 'HEAD' ? '' : await response.text();
+    if (!text) return { status: response.status };
+    try {
+      return { status: response.status, body: JSON.parse(text) };
+    } catch {
+      return { status: response.status, body: text };
+    }
+  }
+}
