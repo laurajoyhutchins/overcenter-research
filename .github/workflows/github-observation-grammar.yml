@@ -68,7 +68,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ github.head_ref || github.ref_name }}
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          CHECK_REF: ${{ github.sha }}
+          CHECK_REF: main
+          VOLATILE_CHECK_REF: ${{ github.sha }}
           PULL_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/live-semantic-proof.ts \
