@@ -64,8 +64,8 @@ export const GITHUB_COMMIT_STATUSES_OPERATION:ObservationOperation={
   operation_id:'repos/list-commit-statuses-for-ref',
   parameters:[
     {name:'owner',in:'path',required:true,schema:{type:'string'}},
-    {name:'repo',in:'path',required:true,schema:{type:'string'}},
     {name:'ref',in:'path',required:true,schema:{type:'string'}},
+    {name:'repo',in:'path',required:true,schema:{type:'string'}},
     {name:'page',in:'query',required:false,schema:{type:'integer'}},
     {name:'per_page',in:'query',required:false,schema:{type:'integer'}},
   ],
