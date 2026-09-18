@@ -176,6 +176,7 @@ export class GitOvercenterKernel {
     if (work.status !== 'READY') throw new Error('NOT_READY');
     const done = new Set(Object.values(state.obligations).filter(x=>x.status==='DONE').map(x=>x.id));
     if (!work.deps.every(d=>done.has(d))) throw new Error('DEPENDENCIES_NOT_DONE');
+    this.#assertEffectOrder(state, work);
     const runId = randomUUID();
     work.status='EXECUTING'; work.run_id=runId; work.claimed_revision=head;
     const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`);
@@ -297,6 +298,49 @@ export class GitOvercenterKernel {
   #emptyState(): State { return {schema:STATE_SCHEMA,obligations:{}}; }
   #hasInFlight(state: State): boolean {
     return Object.values(state.obligations).some(work=>IN_FLIGHT.has(work.status));
+  }
+  #effectIdentity(postcondition: Postcondition): { resource: string; desired: string } | null {
+    if (postcondition.verifier==='github-commit-status/v1') {
+      return {
+        resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${postcondition.context}`,
+        desired:postcondition.expected_state,
+      };
+    }
+    if (postcondition.verifier==='git-ref-equals/v1') {
+      return {
+        resource:`git-ref:${postcondition.remote}:${postcondition.ref}`,
+        desired:postcondition.target_sha,
+      };
+    }
+    if (postcondition.verifier==='file-content-equals/v1') {
+      return {
+        resource:`file:${postcondition.path}`,
+        desired:sha256(postcondition.content),
+      };
+    }
+    return null;
+  }
+  #dependsOn(state: State, fromId: string, targetId: string, seen = new Set<string>()): boolean {
+    if (fromId===targetId) return true;
+    if (seen.has(fromId)) return false;
+    seen.add(fromId);
+    const work=state.obligations[fromId];
+    if (!work) return false;
+    return work.deps.some(dep=>dep===targetId || this.#dependsOn(state,dep,targetId,seen));
+  }
+  #assertEffectOrder(state: State, work: Obligation): void {
+    const identity=this.#effectIdentity(work.postcondition);
+    if (!identity) return;
+    for (const other of Object.values(state.obligations)) {
+      if (other.id===work.id) continue;
+      const otherIdentity=this.#effectIdentity(other.postcondition);
+      if (!otherIdentity
+        || otherIdentity.resource!==identity.resource
+        || otherIdentity.desired===identity.desired) continue;
+      const ordered=this.#dependsOn(state,work.id,other.id)
+        || this.#dependsOn(state,other.id,work.id);
+      if (!ordered) throw new Error(`UNORDERED_EFFECT_CONFLICT:${work.id}:${other.id}`);
+    }
   }
   #findClaimCommit(runId: string, work: Obligation, head: string): string {
     if (!work.claimed_revision) throw new Error('MISSING_CLAIMED_REVISION');
