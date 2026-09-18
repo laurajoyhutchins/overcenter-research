@@ -58,3 +58,85 @@ test('static graph validation rejects unknown dependencies and cycles',()=>{
   };
   assert.throws(()=>validateGraph(cycle),/DEPENDENCY_CYCLE/);
 });
+
+test('static graph validation rejects unsupported semantic selectors before realization',()=>{
+  const state:State={
+    obligations:{
+      a:obligation('a'),
+      b:obligation('b',[{
+        kind:'semantic',
+        upstream:'a',
+        consumes:{kind:'output',selector:'ambient-file'},
+      }]),
+    },
+    definition_commits:{a:'a-def',b:'b-def'},
+  };
+
+  assert.throws(
+    ()=>validateGraph(state),
+    /UNSUPPORTED_SEMANTIC_SELECTOR:output:ambient-file/,
+  );
+});
+
+test('static graph validation rejects unordered incompatible effects at admission',()=>{
+  const status=(id:string,state:'success'|'failure'):Obligation=>({
+    id,
+    dependencies:[],
+    packet:{},
+    postcondition:{
+      verifier:'github-commit-status/v1',
+      provider:'github',
+      repository_id:123,
+      commit_sha:'a'.repeat(40),
+      context:'overcenter/admission',
+      expected_state:state,
+    },
+  });
+  const state:State={
+    obligations:{
+      alpha:status('alpha','success'),
+      beta:status('beta','failure'),
+    },
+    definition_commits:{alpha:'alpha-def',beta:'beta-def'},
+  };
+
+  assert.throws(
+    ()=>validateGraph(state),
+    /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
+  );
+});
+
+test('static graph validation accepts an explicit ordering for incompatible effects',()=>{
+  const alpha:Obligation={
+    id:'alpha',
+    dependencies:[],
+    packet:{},
+    postcondition:{
+      verifier:'github-commit-status/v1',
+      provider:'github',
+      repository_id:123,
+      commit_sha:'a'.repeat(40),
+      context:'overcenter/admission',
+      expected_state:'success',
+    },
+  };
+  const beta:Obligation={
+    id:'beta',
+    dependencies:[{kind:'control',upstream:'alpha'}],
+    packet:{},
+    postcondition:{
+      verifier:'github-commit-status/v1',
+      provider:'github',
+      repository_id:123,
+      commit_sha:'a'.repeat(40),
+      context:'overcenter/admission',
+      expected_state:'failure',
+    },
+  };
+  const state:State={
+    obligations:{alpha,beta},
+    definition_commits:{alpha:'alpha-def',beta:'beta-def'},
+  };
+
+  assert.doesNotThrow(()=>validateGraph(state));
+});
