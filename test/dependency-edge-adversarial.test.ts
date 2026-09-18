@@ -252,6 +252,52 @@ test('invalidation propagation stops when an intermediary exposes the same selec
   }
 });
 
+test('claim fact durably binds the exact semantic obligation key', () => {
+  const f = fixture();
+  try {
+    const a = f.path('a');
+    const b = f.path('b');
+
+    defineWithEdges(f.kernel, {
+      id: 'a',
+      postcondition: pc(a, 'A'),
+    });
+    defineWithEdges(f.kernel, {
+      id: 'b',
+      edges: [{
+        kind: 'semantic',
+        upstream: 'a',
+        consumes: { kind: 'output', selector: 'verified-content' },
+      }],
+      postcondition: pc(b, 'B'),
+    });
+
+    settleFile(f.kernel, 'a', a, 'A');
+    const ready = f.kernel.inspect().find(work => work.id === 'b')!;
+    assert.equal(ready.status, 'READY');
+
+    const run = f.kernel.claim('b', ready.revision);
+    const claim = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${run.claim_commit}:claim.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as {
+      schema?: string;
+      obligation_key?: string;
+      claimed_revision?: string;
+    };
+
+    assert.equal(claim.schema, 'overcenter-git-claim-v2');
+    assert.equal(claim.obligation_key, run.obligation_key);
+    assert.match(claim.obligation_key!, /^[0-9a-f]{64}$/);
+    assert.equal(claim.claimed_revision, run.claimed_revision);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
 test('semantic selector is part of durable edge meaning', () => {
   const f = fixture();
   try {
