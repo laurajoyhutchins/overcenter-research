@@ -52,6 +52,7 @@ export function projectReceipt(
     disposition=verified
       ? 'DONE'
       : fact.observed.mutation_certainty==='absent'
+        && fact.observed.negative_evidence_authoritative===true
         && policy.authoritativeAbsenceCanAuthorizeReplay
         ? 'READY'
         : 'RECOVERY_REQUIRED';
