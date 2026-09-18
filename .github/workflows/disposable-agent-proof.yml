@@ -11,6 +11,9 @@ on:
       - experiments/disposable-agent/agent-a.ts
       - experiments/disposable-agent/agent-b.ts
       - src/git-kernel.ts
+      - src/model.ts
+      - src/observation.ts
+      - src/providers/github-status.ts
       - test/git-kernel.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
       - README.md

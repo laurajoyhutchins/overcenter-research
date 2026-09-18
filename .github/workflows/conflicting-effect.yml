@@ -13,6 +13,9 @@ on:
       - experiments/conflicting-effect/guard-claim-beta.ts
       - experiments/conflicting-effect/guard-verify.ts
       - src/git-kernel.ts
+      - src/model.ts
+      - src/observation.ts
+      - src/providers/github-status.ts
       - experiments/conflicting-effect/effect-ordering.test.ts
       - package.json
 
