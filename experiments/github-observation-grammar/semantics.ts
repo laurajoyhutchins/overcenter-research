@@ -395,18 +395,20 @@ export function projectGitCommit(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): GitCommitFact | null {
-  if (!observed200(observation, 'git/get-commit')) return null;
+  const requiredPaths = RESPONSE_SLICES['git/get-commit'].map(field => field.path);
+  if (!structurallyValidatedFor(observation, 'git/get-commit', requiredPaths)) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
+
   const requestedSha = observation.request.parameters.commit_sha;
+  if (typeof requestedSha !== 'string' || !sha.test(requestedSha)) return null;
   const body = observation.outcome.value as {
-    sha?: unknown;
-    tree?: { sha?: unknown };
-    parents?: Array<{ sha?: unknown }>;
-  } | undefined;
-  if (typeof requestedSha !== 'string' || !sha.test(requestedSha) || !body) return null;
-  if (typeof body.sha !== 'string' || !sha.test(body.sha) || lower(body.sha) !== lower(requestedSha)) return null;
-  if (typeof body.tree?.sha !== 'string' || !sha.test(body.tree.sha)) return null;
-  if (!Array.isArray(body.parents) || body.parents.some(parent => typeof parent.sha !== 'string' || !sha.test(parent.sha))) return null;
+    sha: string;
+    tree: { sha: string };
+    parents: Array<{ sha: string }>;
+  };
+  if (!sha.test(body.sha) || lower(body.sha) !== lower(requestedSha)) return null;
+  if (!sha.test(body.tree.sha)) return null;
+  if (body.parents.some(parent => !sha.test(parent.sha))) return null;
 
   return {
     kind: 'immutable-object',
@@ -416,7 +418,7 @@ export function projectGitCommit(
       sha: body.sha,
     },
     tree_sha: body.tree.sha,
-    parent_shas: body.parents.map(parent => String(parent.sha)),
+    parent_shas: body.parents.map(parent => parent.sha),
     stability: 'content-addressed',
     evidence: evidence(observation),
   };
