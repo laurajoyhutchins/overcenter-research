@@ -1,0 +1,9 @@
+{
+  "schema": "github-object-transport/request/v1",
+  "entries": [
+    {
+      "path": "package.json\n",
+      "writable": false
+    }
+  ]
+}
