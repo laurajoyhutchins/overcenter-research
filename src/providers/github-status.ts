@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process';
 
+export type GithubJsonGet=(token:string,path:string)=>unknown;
+
 export function githubStatusContextKey(context: string): string {
   return context.toLowerCase();
 }
