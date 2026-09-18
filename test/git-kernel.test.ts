@@ -1,174 +1,119 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
 
-const verify = (post, observed) => post.effect === observed.effect;
-
-function repo() {
-  const dir = mkdtempSync(join(tmpdir(), 'overcenter-git-'));
-  execFileSync('git', ['init', '--bare', dir], { stdio: 'ignore' });
-  const kernel = new GitOvercenterKernel(dir);
+function fixture() {
+  const root = mkdtempSync(join(tmpdir(), 'git-kernel-v2-'));
+  const repo = join(root, 'state.git');
+  execFileSync('git', ['init', '--bare', repo], { stdio: 'ignore' });
+  const kernel = new GitOvercenterKernel(repo);
   kernel.initialize();
-  return { dir, kernel };
+  return { root, repo, kernel, path: (name: string) => join(root, name) };
 }
+const pc = (path: string, content: string) => ({ verifier: 'file-content-equals/v1' as const, path, content });
 
-function parent(dir, commit) {
-  return execFileSync('git', ['-C', dir, 'rev-parse', `${commit}^`], { encoding: 'utf8' }).trim();
-}
-
-test('Git commit SHA is the authoritative revision and claim is a child commit', () => {
-  const { dir, kernel } = repo();
+test('commit SHA is the authoritative revision and claim is its child', () => {
+  const f = fixture();
   try {
-    kernel.define({ id: 'x', postcondition: { effect: 'present' } });
-    const work = kernel.deriveReadyWork();
-    assert.equal(work.revision, kernel.head());
-    const run = kernel.claim('x', work.revision);
-    assert.equal(run.claimed_revision, work.revision);
-    assert.equal(parent(dir, run.claim_commit), work.revision);
-    assert.equal(kernel.head(), run.claim_commit);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+    f.kernel.define({ id: 'x', postcondition: pc(f.path('x'), 'yes') });
+    const w = f.kernel.deriveReadyWork()!;
+    const run = f.kernel.claim('x', w.revision);
+    const parent = execFileSync('git', ['-C', f.repo, 'rev-parse', `${run.claim_commit}^`], { encoding: 'utf8' }).trim();
+    assert.equal(parent, w.revision);
+    assert.equal(f.kernel.head(), run.claim_commit);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('two readers of one revision cannot both claim it', () => {
-  const { dir, kernel: first } = repo();
+test('kernel-owned evidence drives dependency chain to DONE', async () => {
+  const f = fixture();
   try {
-    first.define({ id: 'x', postcondition: { effect: 'present' } });
-    const second = new GitOvercenterKernel(dir);
-    const a = first.deriveReadyWork();
-    const b = second.deriveReadyWork();
-    assert.equal(a.revision, b.revision);
-    first.claim('x', a.revision);
-    assert.throws(() => second.claim('x', b.revision), /STALE_REVISION/);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
-test('drives a dependency chain to DONE with immutable receipt commits', async () => {
-  const { dir, kernel } = repo();
-  try {
-    kernel.define({ id: 'a', postcondition: { effect: 'a-present' }, packet: { effect: 'a-present' } });
-    kernel.define({ id: 'b', deps: ['a'], postcondition: { effect: 'b-present' }, packet: { effect: 'b-present' } });
-    const world = new Set();
-    const result = await runGitCoreLoop(kernel, {
-      execute: async packet => { world.add(packet.effect); return { kind: 'ok' }; },
-      observe: async work => ({ effect: world.has(work.packet.effect) ? work.packet.effect : 'absent', mutation_certainty: 'present' }),
-      verify,
+    const a = f.path('a'), b = f.path('b');
+    f.kernel.define({ id: 'a', packet: { path: a, content: 'A' }, postcondition: pc(a, 'A') });
+    f.kernel.define({ id: 'b', deps: ['a'], packet: { path: b, content: 'B' }, postcondition: pc(b, 'B') });
+    const result = await runGitCoreLoop(f.kernel, {
+      execute: async packet => {
+        writeFileSync(String(packet.path), String(packet.content));
+        return { kind: 'ok' };
+      },
     });
     assert.equal(result.state, 'IDLE');
-    assert.deepEqual(kernel.inspect().map(x => [x.id, x.status]), [['a', 'DONE'], ['b', 'DONE']]);
-    const receipts = kernel.receipts();
-    assert.equal(receipts.length, 2);
-    assert.ok(receipts.every(x => x.verified && x.disposition === 'DONE'));
-    assert.notEqual(receipts[0].settlement_commit, receipts[1].settlement_commit);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+    assert.deepEqual(f.kernel.inspect().map(x => [x.id, x.status]), [['a', 'DONE'], ['b', 'DONE']]);
+    assert.ok(f.kernel.receipts().every(x => x.verified));
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('executor success alone cannot settle DONE', async () => {
-  const { dir, kernel } = repo();
+test('wrong real effect cannot become DONE or READY', () => {
+  const f = fixture();
   try {
-    kernel.define({ id: 'x', postcondition: { effect: 'present' } });
-    const result = await runGitCoreLoop(kernel, {
-      maxAdvances: 1,
-      execute: async () => ({ kind: 'ok' }),
-      observe: async () => ({ effect: 'absent', mutation_certainty: 'absent' }),
-      verify,
-    });
-    assert.equal(result.state, 'BUDGET_EXHAUSTED');
-    assert.equal(kernel.inspect()[0].status, 'READY');
-    assert.equal(kernel.receipts().at(-1).disposition, 'READY');
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
-test('settlement refuses unverified DONE', () => {
-  const { dir, kernel } = repo();
-  try {
-    kernel.define({ id: 'x', postcondition: { effect: 'present' } });
-    const work = kernel.deriveReadyWork();
-    const run = kernel.claim('x', work.revision);
-    assert.throws(() => kernel.settle(run.id, { disposition: 'DONE', observed: { effect: 'absent' } }), /UNVERIFIED_DONE/);
-    assert.equal(kernel.inspect()[0].status, 'EXECUTING');
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
-test('uncertain external effect is not replayed', async () => {
-  const { dir, kernel } = repo();
-  try {
-    kernel.define({ id: 'x', postcondition: { effect: 'present' } });
-    let executions = 0;
-    const first = await runGitCoreLoop(kernel, {
-      execute: async () => { executions += 1; return { kind: 'timeout', may_have_mutated: true }; },
-      observe: async () => ({ effect: 'unknown', mutation_certainty: 'uncertain' }),
-      verify,
-    });
-    const second = await runGitCoreLoop(kernel, {
-      execute: async () => { executions += 1; return { kind: 'ok' }; },
-      observe: async () => ({ effect: 'present', mutation_certainty: 'present' }),
-      verify,
-    });
-    assert.equal(first.state, 'RECOVERY_REQUIRED');
-    assert.equal(second.state, 'IDLE');
-    assert.equal(executions, 1);
-    assert.equal(kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
-test('restart converts an interrupted claim into a recovery commit instead of replay', async () => {
-  const { dir, kernel } = repo();
-  try {
-    kernel.define({ id: 'x', postcondition: { effect: 'present' } });
-    const work = kernel.deriveReadyWork();
-    const run = kernel.claim('x', work.revision);
-    const restarted = new GitOvercenterKernel(dir);
-    assert.equal(restarted.recoverInterrupted(), 1);
-    assert.equal(restarted.inspect()[0].status, 'RECOVERY_REQUIRED');
-    let executions = 0;
-    await runGitCoreLoop(restarted, {
-      execute: async () => { executions += 1; return { kind: 'ok' }; },
-      observe: async () => ({ effect: 'present', mutation_certainty: 'present' }),
-      verify,
-    });
-    assert.equal(executions, 0);
-    const receipt = restarted.receipts(run.id).at(-1);
+    const path = f.path('x');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'right') });
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    writeFileSync(path, 'wrong');
+    const receipt = f.kernel.resolve(run.id);
     assert.equal(receipt.disposition, 'RECOVERY_REQUIRED');
-    assert.equal(parent(dir, receipt.settlement_commit), receipt.claim_commit);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+    assert.equal(receipt.verified, false);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('later observation reconciles uncertain work to DONE without replay', () => {
-  const { dir, kernel } = repo();
+test('authoritative absence alone makes work replayable', () => {
+  const f = fixture();
   try {
-    kernel.define({ id: 'x', postcondition: { effect: 'present' } });
-    const work = kernel.deriveReadyWork();
-    const run = kernel.claim('x', work.revision);
-    kernel.settle(run.id, { disposition: 'RECOVERY_REQUIRED', observed: { effect: 'unknown', mutation_certainty: 'uncertain' } });
-    const reconciled = kernel.reconcile(run.id, { effect: 'present', mutation_certainty: 'present' }, verify);
-    assert.equal(reconciled.disposition, 'DONE');
-    assert.equal(kernel.inspect()[0].status, 'DONE');
-    const receipts = kernel.receipts(run.id);
-    assert.deepEqual(receipts.map(x => x.disposition), ['RECOVERY_REQUIRED', 'DONE']);
-    assert.ok(receipts.every(x => x.claim_commit === run.claim_commit));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+    const path = f.path('x');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'yes') });
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    const receipt = f.kernel.resolve(run.id);
+    assert.equal(receipt.disposition, 'READY');
+    assert.equal(f.kernel.inspect()[0].status, 'READY');
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('lost settlement acknowledgement is harmless because the ref already contains DONE', async () => {
-  const { dir, kernel } = repo();
+test('stale revision claim is fenced', () => {
+  const f = fixture();
   try {
-    kernel.define({ id: 'x', postcondition: { effect: 'present' } });
-    const work = kernel.deriveReadyWork();
-    const run = kernel.claim('x', work.revision);
-    kernel.settle(run.id, { disposition: 'DONE', verify, observed: { effect: 'present', mutation_certainty: 'present' } });
-    const restarted = new GitOvercenterKernel(dir);
-    let executions = 0;
-    const result = await runGitCoreLoop(restarted, {
-      execute: async () => { executions += 1; return { kind: 'ok' }; },
-      observe: async () => ({ effect: 'present', mutation_certainty: 'present' }),
-      verify,
-    });
-    assert.equal(result.state, 'IDLE');
-    assert.equal(executions, 0);
-    assert.equal(restarted.inspect()[0].status, 'DONE');
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+    f.kernel.define({ id: 'x', postcondition: pc(f.path('x'), 'yes') });
+    assert.throws(() => f.kernel.claim('x', '0'.repeat(40)), /STALE_REVISION/);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('interrupted exact run reconciles to DONE without replay', () => {
+  const f = fixture();
+  try {
+    const path = f.path('x');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'yes') });
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    writeFileSync(path, 'yes');
+    f.kernel.recoverInterrupted(run.id, { source: 'supervisor' });
+    const receipt = f.kernel.reconcile(run.id);
+    assert.equal(receipt.disposition, 'DONE');
+    assert.equal(f.kernel.inspect()[0].status, 'DONE');
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('DONE resolution is idempotent after lost acknowledgement', () => {
+  const f = fixture();
+  try {
+    const path = f.path('x');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'yes') });
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    writeFileSync(path, 'yes');
+    const first = f.kernel.resolve(run.id);
+    const second = f.kernel.resolve(run.id);
+    assert.equal(first.disposition, 'DONE');
+    assert.equal(second.settlement_commit, first.settlement_commit);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('all observational surfaces fail closed when authority is missing', () => {
+  const f = fixture();
+  try {
+    execFileSync('git', ['-C', f.repo, 'update-ref', '-d', 'refs/overcenter/state']);
+    assert.throws(() => f.kernel.inspect(), /NOT_INITIALIZED/);
+    assert.throws(() => f.kernel.deriveReadyWork(), /NOT_INITIALIZED/);
+    assert.throws(() => f.kernel.receipts(), /NOT_INITIALIZED/);
+    assert.throws(() => f.kernel.recoverInterrupted('x'), /NOT_INITIALIZED/);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
