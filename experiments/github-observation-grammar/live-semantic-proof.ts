@@ -43,6 +43,7 @@ if (!schemaPath) throw new Error('usage: live-semantic-proof.ts <openapi.json>')
 const repositoryName = required('GITHUB_REPOSITORY');
 const sourceRef = required('SOURCE_REF');
 const sourceSha = required('SOURCE_SHA');
+const eventName = required('GITHUB_EVENT_NAME');
 const checkRef = required('CHECK_REF');
 const statusRef = required('STATUS_REF');
 const baseRef = required('BASE_REF');
@@ -140,11 +141,20 @@ const refObservation = await observeOperation(
 const validatedRefObservation = validateSlice(refOperation, refObservation);
 const refFact = projectGitRefTarget(validatedRefObservation, repository);
 assert.ok(refFact);
-assert.equal(evaluateGitRefTarget(validatedRefObservation, repository, {
+const refEvaluation = evaluateGitRefTarget(validatedRefObservation, repository, {
   repository_id: repository.subject.id,
   ref: refName,
   target_sha: sourceSha,
-}).state, 'SATISFIED');
+});
+if (eventName === 'push') {
+  // Branch-scoped concurrency cancels stale push runs, so exact event-head equality
+  // is part of the push proof.
+  assert.equal(refEvaluation.state, 'SATISFIED');
+} else {
+  // A pull_request run is keyed to refs/pull/... and can overlap a later branch
+  // push. A differing live branch binding is authoritative drift, not proof failure.
+  assert.notEqual(refEvaluation.state, 'INDETERMINATE');
+}
 
 const commitOperation = op('/repos/{owner}/{repo}/git/commits/{commit_sha}');
 const commitObservation = await observeOperation(
@@ -349,6 +359,9 @@ console.log(JSON.stringify({
   ref: {
     ref: refFact.subject.ref,
     target: refFact.object.sha,
+    expected_event_sha: sourceSha,
+    event: eventName,
+    event_head_evaluation: refEvaluation.state,
     stability: refFact.stability,
   },
   pull_request: pullFact && {
