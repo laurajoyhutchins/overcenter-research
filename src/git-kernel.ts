@@ -23,6 +23,11 @@ export interface GitRefPostcondition {
   ref: string;
   target_sha: string;
 }
+export interface EventuallyConsistentFilePostcondition {
+  verifier: 'eventually-consistent-file-content-equals/v1';
+  path: string;
+  content: string;
+}
 export interface GitHubCommitStatusPostcondition {
   verifier: 'github-commit-status/v1';
   provider: 'github';
@@ -31,7 +36,11 @@ export interface GitHubCommitStatusPostcondition {
   context: string;
   expected_state: 'error' | 'failure' | 'pending' | 'success';
 }
-export type Postcondition = FileContentPostcondition | GitRefPostcondition | GitHubCommitStatusPostcondition;
+export type Postcondition =
+  | FileContentPostcondition
+  | EventuallyConsistentFilePostcondition
+  | GitRefPostcondition
+  | GitHubCommitStatusPostcondition;
 
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
@@ -377,6 +386,9 @@ export class GitOvercenterKernel {
     if (p?.verifier==='file-content-equals/v1'
       && typeof p.path==='string'
       && typeof p.content==='string') return;
+    if (p?.verifier==='eventually-consistent-file-content-equals/v1'
+      && typeof p.path==='string'
+      && typeof p.content==='string') return;
     if (p?.verifier==='git-ref-equals/v1'
       && typeof p.remote==='string'
       && typeof p.ref==='string'
@@ -450,6 +462,55 @@ export class GitOvercenterKernel {
           commit_sha:p.commit_sha,
           context:p.context,
           expected_state:p.expected_state,
+          mutation_certainty:'uncertain',
+          verified:false,
+          observation_error:errorMessage(e),
+        };
+      }
+    }
+
+    if (p.verifier==='eventually-consistent-file-content-equals/v1') {
+      const expected=sha256(p.content);
+      try {
+        const actual=readFileSync(p.path,'utf8');
+        const actualSha=sha256(actual);
+        if (actual===p.content) {
+          return {
+            verifier:p.verifier,
+            path:p.path,
+            expected_sha256:expected,
+            actual_sha256:actualSha,
+            mutation_certainty:'present',
+            verified:true,
+          };
+        }
+        return {
+          verifier:p.verifier,
+          path:p.path,
+          expected_sha256:expected,
+          actual_sha256:actualSha,
+          mutation_certainty:'uncertain',
+          verified:false,
+          negative_evidence_authoritative:false,
+          observation_error:'NON_MATCHING_READ_NOT_AUTHORITATIVE',
+        };
+      } catch (e: unknown) {
+        const code=(e as {code?:string}).code;
+        if (code==='ENOENT') {
+          return {
+            verifier:p.verifier,
+            path:p.path,
+            expected_sha256:expected,
+            mutation_certainty:'uncertain',
+            verified:false,
+            negative_evidence_authoritative:false,
+            observation_error:'NEGATIVE_READ_NOT_AUTHORITATIVE',
+          };
+        }
+        return {
+          verifier:p.verifier,
+          path:p.path,
+          expected_sha256:expected,
           mutation_certainty:'uncertain',
           verified:false,
           observation_error:errorMessage(e),
