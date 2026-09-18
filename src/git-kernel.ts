@@ -6,7 +6,8 @@ const STATE_REF = 'refs/overcenter/state';
 const STATE_SCHEMA = 'overcenter-git-state-v3';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v2';
 
-export type WorkStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
+type StoredWorkStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
+export type WorkStatus = StoredWorkStatus | 'BLOCKED';
 export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
 export type MutationCertainty = 'present' | 'absent' | 'uncertain';
 export type Data = Record<string, unknown>;
@@ -28,7 +29,7 @@ export interface GitHubCommitStatusPostcondition {
   repository_id: number;
   commit_sha: string;
   context: string;
-  expected_state: 'success';
+  expected_state: 'error' | 'failure' | 'pending' | 'success';
 }
 export type Postcondition = FileContentPostcondition | GitRefPostcondition | GitHubCommitStatusPostcondition;
 
@@ -57,13 +58,17 @@ export interface Obligation {
   deps: string[];
   packet: Data;
   postcondition: Postcondition;
-  status: WorkStatus;
+  status: StoredWorkStatus;
   run_id?: string;
   claimed_revision?: string;
   claim_commit?: string;
 }
 interface State { schema: typeof STATE_SCHEMA; obligations: Record<string, Obligation> }
-export interface Work extends Obligation { revision: string }
+export interface Work extends Omit<Obligation, 'status'> {
+  status: WorkStatus;
+  revision: string;
+  blocked_reason?: string;
+}
 export interface Run { id: string; obligation_id: string; claimed_revision: string; claim_commit: string }
 export interface Receipt {
   schema: typeof RECEIPT_SCHEMA;
@@ -80,7 +85,7 @@ export interface Receipt {
 }
 export interface ExecuteOutcome extends Data { kind?: string; may_have_mutated?: boolean }
 export interface LoopOptions { execute: (packet: Data, run: Run) => Promise<ExecuteOutcome>; maxAdvances?: number }
-export interface LoopResult { state: 'IDLE'|'RECOVERY_REQUIRED'|'WAITING'|'BUDGET_EXHAUSTED'; advances: number; work?: string; run?: string }
+export interface LoopResult { state: 'IDLE'|'BLOCKED'|'RECOVERY_REQUIRED'|'WAITING'|'BUDGET_EXHAUSTED'; advances: number; work?: string; run?: string }
 interface GitResult { ok: boolean; stdout: string; stderr?: string }
 
 const IN_FLIGHT = new Set<WorkStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
@@ -153,18 +158,19 @@ export class GitOvercenterKernel {
 
   inspect(): Work[] {
     const head = this.#requireHead();
-    return Object.values(this.#state(head).obligations)
+    const state = this.#state(head);
+    return Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work => ({...structuredClone(work), revision: head}));
+      .map(work => this.#projectWork(state, work, head));
   }
 
   deriveReadyWork(): Work | null {
     const head = this.#requireHead();
     const state = this.#state(head);
-    const done = new Set(Object.values(state.obligations).filter(x=>x.status==='DONE').map(x=>x.id));
-    const work = Object.values(state.obligations).sort((a,b)=>a.id.localeCompare(b.id))
-      .find(x=>x.status==='READY' && x.deps.every(d=>done.has(d)));
-    return work ? {...structuredClone(work), revision: head} : null;
+    const work = Object.values(state.obligations)
+      .sort((a,b)=>a.id.localeCompare(b.id))
+      .find(candidate => this.#claimabilityError(state, candidate)===null);
+    return work ? this.#projectWork(state, work, head) : null;
   }
 
   claim(id: string, expectedRevision: string): Run {
@@ -173,9 +179,8 @@ export class GitOvercenterKernel {
     const state = this.#state(head);
     const work = state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    if (work.status !== 'READY') throw new Error('NOT_READY');
-    const done = new Set(Object.values(state.obligations).filter(x=>x.status==='DONE').map(x=>x.id));
-    if (!work.deps.every(d=>done.has(d))) throw new Error('DEPENDENCIES_NOT_DONE');
+    const claimabilityError=this.#claimabilityError(state,work);
+    if (claimabilityError) throw new Error(claimabilityError);
     const runId = randomUUID();
     work.status='EXECUTING'; work.run_id=runId; work.claimed_revision=head;
     const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`);
@@ -298,6 +303,60 @@ export class GitOvercenterKernel {
   #hasInFlight(state: State): boolean {
     return Object.values(state.obligations).some(work=>IN_FLIGHT.has(work.status));
   }
+  #effectSemantics(
+    postcondition: Postcondition,
+  ): { resource: string; desired: string; sameDesiredCommutes: boolean } | null {
+    if (postcondition.verifier!=='github-commit-status/v1') return null;
+    return {
+      resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${this.#githubStatusContextKey(postcondition.context)}`,
+      desired:postcondition.expected_state,
+      sameDesiredCommutes:true,
+    };
+  }
+  #dependsOn(state: State, fromId: string, targetId: string, seen = new Set<string>()): boolean {
+    if (fromId===targetId) return true;
+    if (seen.has(fromId)) return false;
+    seen.add(fromId);
+    const work=state.obligations[fromId];
+    if (!work) return false;
+    return work.deps.some(dep=>dep===targetId || this.#dependsOn(state,dep,targetId,seen));
+  }
+  #claimabilityError(state: State, work: Obligation): string | null {
+    if (work.status!=='READY') return 'NOT_READY';
+    const done=new Set(
+      Object.values(state.obligations)
+        .filter(candidate=>candidate.status==='DONE')
+        .map(candidate=>candidate.id),
+    );
+    if (!work.deps.every(dep=>done.has(dep))) return 'DEPENDENCIES_NOT_DONE';
+
+    const semantics=this.#effectSemantics(work.postcondition);
+    if (!semantics) return null;
+
+    for (const other of Object.values(state.obligations)) {
+      if (other.id===work.id) continue;
+      const otherSemantics=this.#effectSemantics(other.postcondition);
+      if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
+
+      const sameDesired=otherSemantics.desired===semantics.desired;
+      if (sameDesired && semantics.sameDesiredCommutes && otherSemantics.sameDesiredCommutes) continue;
+
+      const ordered=this.#dependsOn(state,work.id,other.id)
+        || this.#dependsOn(state,other.id,work.id);
+      if (!ordered) return `UNORDERED_EFFECT_CONFLICT:${work.id}:${other.id}`;
+    }
+    return null;
+  }
+  #projectWork(state: State, work: Obligation, revision: string): Work {
+    const projected={...structuredClone(work),revision} as Work;
+    if (work.status!=='READY') return projected;
+    const reason=this.#claimabilityError(state,work);
+    if (reason && reason!=='NOT_READY') {
+      projected.status='BLOCKED';
+      projected.blocked_reason=reason;
+    }
+    return projected;
+  }
   #findClaimCommit(runId: string, work: Obligation, head: string): string {
     if (!work.claimed_revision) throw new Error('MISSING_CLAIMED_REVISION');
     const revs=this.#git(['rev-list','--reverse',head,`^${work.claimed_revision}`]).stdout
@@ -329,7 +388,7 @@ export class GitOvercenterKernel {
       && /^[0-9a-f]{40,64}$/i.test(p.commit_sha)
       && typeof p.context==='string'
       && p.context.length > 0
-      && p.expected_state==='success') return;
+      && ['error','failure','pending','success'].includes(p.expected_state)) return;
     throw new Error('UNSUPPORTED_POSTCONDITION');
   }
   #observe(p: Postcondition): Observation {
@@ -525,7 +584,12 @@ export class GitOvercenterKernel {
 export async function runGitCoreLoop(kernel: GitOvercenterKernel,{execute,maxAdvances=100}:LoopOptions): Promise<LoopResult> {
   kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
-    const work=kernel.deriveReadyWork(); if (!work) return {state:'IDLE',advances:i};
+    const work=kernel.deriveReadyWork();
+    if (!work) {
+      const blocked=kernel.inspect().find(candidate=>candidate.status==='BLOCKED');
+      if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
+      return {state:'IDLE',advances:i};
+    }
     let run:Run;
     try { run=kernel.claim(work.id,work.revision); }
     catch(e:unknown) { const m=errorMessage(e); if (m==='STALE_REVISION'||m==='CLAIM_LOST') continue; throw e; }

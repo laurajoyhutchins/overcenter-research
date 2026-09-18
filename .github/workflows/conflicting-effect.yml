@@ -1,0 +1,175 @@
+name: Overcenter conflicting-effect ordering proof
+
+on:
+  push:
+    branches:
+      - prototype/conflicting-effect-boundary
+    paths:
+      - .github/workflows/conflicting-effect.yml
+      - actions/conflict-agent.ts
+      - actions/conflict-recovery.ts
+      - actions/conflict-guard-authority.ts
+      - actions/conflict-guard-claim-beta.ts
+      - actions/conflict-guard-verify.ts
+      - src/git-kernel.ts
+      - test/effect-ordering.test.ts
+      - package.json
+
+permissions: {}
+
+jobs:
+  authority:
+    name: Reject unordered conflict, claim ordered predecessor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - name: Full regression suite
+        run: npm test
+      - name: Prove unordered pair is unclaimable and claim ordered alpha
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types actions/conflict-guard-authority.ts
+
+  alpha:
+    name: Ordered alpha writes success
+    needs: authority
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: write
+    outputs:
+      outcome: ${{ steps.agent.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - id: agent
+        name: Alpha effect then terminate
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SLOT: alpha
+          STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
+          WRITE_CONTEXT_CASE: upper
+        run: node --experimental-strip-types actions/conflict-agent.ts
+
+  recover-alpha:
+    name: Settle ordered alpha
+    needs: alpha
+    if: ${{ always() && needs.alpha.outputs.outcome == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      statuses: read
+    env:
+      SLOT: alpha
+      STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
+      AGENT_OUTCOME: ${{ needs.alpha.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types actions/conflict-recovery.ts
+
+  claim-beta:
+    name: Claim ordered beta after alpha
+    needs: recover-alpha
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - run: node --experimental-strip-types actions/conflict-guard-claim-beta.ts
+
+  beta:
+    name: Ordered beta writes failure
+    needs: claim-beta
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: write
+    outputs:
+      outcome: ${{ steps.agent.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - id: agent
+        name: Beta effect then terminate
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SLOT: beta
+          STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
+        run: node --experimental-strip-types actions/conflict-agent.ts
+
+  recover-beta:
+    name: Settle ordered beta
+    needs: beta
+    if: ${{ always() && needs.beta.outputs.outcome == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      statuses: read
+    env:
+      SLOT: beta
+      STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
+      AGENT_OUTCOME: ${{ needs.beta.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types actions/conflict-recovery.ts
+
+  verify:
+    name: Verify conflict guard and explicit ordering
+    needs: recover-beta
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types actions/conflict-guard-verify.ts
