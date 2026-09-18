@@ -76,8 +76,6 @@ const CONFIGMAP_LIST_REQUIRED_PATHS = [
   'apiVersion',
   'kind',
   'metadata.resourceVersion',
-  'items[].apiVersion',
-  'items[].kind',
   'items[].metadata.name',
   'items[].metadata.namespace',
   'items[].metadata.uid',
@@ -117,6 +115,28 @@ function objectFact(value: unknown, observedAt: string, evidence: StructurallyVa
   };
 }
 
+function listItemFact(value: unknown, observedAt: string, evidence: StructurallyValidatedObservation): ConfigMapFact | null {
+  const body = record(value);
+  const metadata = record(body?.metadata);
+  const data = stringRecord(body?.data);
+  if (!metadata || !data) return null;
+  if (
+    typeof metadata.name !== 'string' || typeof metadata.namespace !== 'string' ||
+    typeof metadata.uid !== 'string' || typeof metadata.resourceVersion !== 'string'
+  ) return null;
+  return {
+    kind: 'kubernetes.configmap-snapshot',
+    coordinate: { api_group: '', resource: 'configmaps', namespace: metadata.namespace, name: metadata.name },
+    entity: { uid: metadata.uid },
+    state: { resource_version: metadata.resourceVersion },
+    api_version: 'v1',
+    object_kind: 'ConfigMap',
+    data,
+    observed_at: observedAt,
+    evidence,
+  };
+}
+
 function projectConfigMapFor(observation: RawObservation, operationId: string): ConfigMapFact | null {
   if (!structurallyValidatedFor(observation, operationId, CONFIGMAP_PATHS)) return null;
   return objectFact(observation.outcome.value, observation.observed_at, observation);
@@ -139,7 +159,7 @@ export function projectConfigMapListPage(observation: RawObservation, namespace:
   if (metadata.continue !== undefined && typeof metadata.continue !== 'string') return null;
   const members: ConfigMapFact[] = [];
   for (const item of body.items) {
-    const fact = objectFact(item, observation.observed_at, observation);
+    const fact = listItemFact(item, observation.observed_at, observation);
     if (!fact || fact.coordinate.namespace !== namespace) return null;
     members.push(fact);
   }
