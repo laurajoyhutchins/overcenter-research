@@ -1,60 +1,19 @@
-import type { ProviderObservation } from '../provider-observation/observation.ts';
 import {
   validateObservationSlice,
   type ResponseFieldSpec,
-  type StructuralOperation,
 } from '../provider-observation/response-slice.ts';
 import { GITHUB_API_VERSION, GITHUB_OPENAPI_SHA256, GITHUB_OPENAPI_SOURCE_COMMIT } from './github-contract.ts';
 import {
   observeCertifiedGithubRepositoryIdentity,
   type CertifiedGithubRepositoryEvidence,
 } from './github-certified-repository.ts';
+import {
+  githubRawObservation,
+  type GithubReadOperation,
+} from './github-observation.ts';
 import { githubGet, githubStatusContextKey, type GithubJsonGet } from './github-status.ts';
 
 export { GITHUB_API_VERSION, GITHUB_OPENAPI_SHA256, GITHUB_OPENAPI_SOURCE_COMMIT } from './github-contract.ts';
-
-interface GithubObservationParameter {
-  name:string;
-  in:'path'|'query';
-  required:boolean;
-  schema:unknown;
-}
-
-interface GithubCommitStatusesOperation extends StructuralOperation {
-  provider:'github';
-  api_version:string;
-  method:'GET';
-  path_template:string;
-  parameters:GithubObservationParameter[];
-  outcomes:Array<{
-    status:string;
-    description:string;
-    schema:unknown;
-  }>;
-  github_extensions:Record<string,unknown>;
-}
-
-interface GithubStatusObservationRequest {
-  method:'GET';
-  path_template:string;
-  path:string;
-  parameters:Record<string,string|number|boolean>;
-  headers:Record<string,string>;
-  authorization:'bearer';
-}
-
-interface GithubStatusObservationResponse {
-  date:string|null;
-  etag:string|null;
-  link:string|null;
-  request_id:string|null;
-}
-
-type GithubStatusRawObservation=ProviderObservation<
-  'github',
-  GithubStatusObservationRequest,
-  GithubStatusObservationResponse
->;
 
 export interface CertifiedGithubStatusPageEvidence {
   page:number;
@@ -109,7 +68,7 @@ export const GITHUB_COMMIT_STATUS_RESPONSE_SLICE=[
   {path:'[].updated_at'},
 ] as const satisfies readonly ResponseFieldSpec[];
 
-export const GITHUB_COMMIT_STATUSES_OPERATION:GithubCommitStatusesOperation={
+export const GITHUB_COMMIT_STATUSES_OPERATION:GithubReadOperation={
   provider:'github',
   api_version:GITHUB_API_VERSION,
   method:'GET',
@@ -145,48 +104,7 @@ export const GITHUB_COMMIT_STATUSES_OPERATION:GithubCommitStatusesOperation={
   github_extensions:{},
 };
 
-function rawStatusObservation({
-  body,
-  owner,
-  repo,
-  commitSha,
-  page,
-  observedAt,
-}:{
-  body:unknown;
-  owner:string;
-  repo:string;
-  commitSha:string;
-  page:number;
-  observedAt:string;
-}):GithubStatusRawObservation {
-  const perPage=100;
-  return {
-    contract:{
-      provider:'github',
-      api_version:GITHUB_API_VERSION,
-      operation_id:GITHUB_COMMIT_STATUSES_OPERATION.operation_id,
-      schema_sha256:GITHUB_OPENAPI_SHA256,
-    },
-    observer:{kind:'git-kernel',id:'github-commit-status/v1'},
-    observed_at:observedAt,
-    request:{
-      method:'GET',
-      path_template:GITHUB_COMMIT_STATUSES_OPERATION.path_template,
-      path:`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(commitSha)}/statuses?per_page=${perPage}&page=${page}`,
-      parameters:{owner,repo,ref:commitSha,page,per_page:perPage},
-      headers:{
-        Accept:'application/vnd.github+json',
-        'X-GitHub-Api-Version':GITHUB_API_VERSION,
-      },
-      authorization:'bearer',
-    },
-    response:{date:null,etag:null,link:null,request_id:null},
-    outcome:{status:200,visibility:'observed',value:body},
-  };
-}
-
-function certifiedMembers(observation:GithubStatusRawObservation):{
+function certifiedMembers(observation:ReturnType<typeof githubRawObservation>):{
   members:StatusMember[];
   validated_paths:string[];
   optional_absent_paths:string[];
@@ -244,7 +162,15 @@ export function observeCertifiedGithubCommitStatus(
       `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(commitSha)}/statuses?per_page=100&page=${page}`,
     );
     const observedAt=clock();
-    const raw=rawStatusObservation({body,owner,repo,commitSha,page,observedAt});
+    const perPage=100;
+    const raw=githubRawObservation({
+      operation:GITHUB_COMMIT_STATUSES_OPERATION,
+      observerId:'github-commit-status/v1',
+      path:`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(commitSha)}/statuses?per_page=${perPage}&page=${page}`,
+      parameters:{owner,repo,ref:commitSha,page,per_page:perPage},
+      body,
+      observedAt,
+    });
     const certified=certifiedMembers(raw);
     pages.push({
       page,
