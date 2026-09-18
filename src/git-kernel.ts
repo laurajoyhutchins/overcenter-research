@@ -3,7 +3,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const STATE_REF = 'refs/overcenter/state';
-const STATE_SCHEMA = 'overcenter-git-state-v4';
+const STATE_SCHEMA = 'overcenter-git-state-v5';
+const CLAIM_SCHEMA = 'overcenter-git-claim-v1';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v2';
 
 type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
@@ -58,16 +59,31 @@ export interface Obligation {
   deps: string[];
   packet: Data;
   postcondition: Postcondition;
-  run_id?: string;
-  claimed_revision?: string;
 }
 interface State { schema: typeof STATE_SCHEMA; obligations: Record<string, Obligation> }
 export interface Work extends Obligation {
   status: WorkStatus;
   revision: string;
+  run_id?: string;
+  claimed_revision?: string;
   blocked_reason?: string;
 }
 export interface Run { id: string; obligation_id: string; claimed_revision: string; claim_commit: string }
+interface ClaimFact {
+  schema: typeof CLAIM_SCHEMA;
+  run_id: string;
+  obligation_id: string;
+  claimed_revision: string;
+}
+interface Lifecycle {
+  status: LifecycleStatus;
+  run?: Run;
+}
+interface HistoryProjection {
+  lifecycles: Map<string,Lifecycle>;
+  runs: Map<string,Run>;
+  receiptsByRun: Map<string,Receipt>;
+}
 export interface Receipt {
   schema: typeof RECEIPT_SCHEMA;
   run_id: string;
@@ -146,8 +162,8 @@ export class GitOvercenterKernel {
     this.#validatePostcondition(postcondition);
     const head = this.#requireHead();
     const state = this.#state(head);
-    const statuses=this.#projectedStatuses(state,head);
-    if (this.#hasInFlight(statuses)) throw new Error('PROJECT_BUSY');
+    const history=this.#history(state,head);
+    if (this.#hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
     state.obligations[id] = { id, deps, packet, postcondition };
     const commit = this.#commit(head, state, `overcenter: define ${id}`);
@@ -158,20 +174,20 @@ export class GitOvercenterKernel {
   inspect(): Work[] {
     const head = this.#requireHead();
     const state = this.#state(head);
-    const statuses=this.#projectedStatuses(state,head);
+    const history=this.#history(state,head);
     return Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work => this.#projectWork(state, work, head, statuses));
+      .map(work => this.#projectWork(state, work, head, history.lifecycles));
   }
 
   deriveReadyWork(): Work | null {
     const head = this.#requireHead();
     const state = this.#state(head);
-    const statuses=this.#projectedStatuses(state,head);
+    const history=this.#history(state,head);
     const work = Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .find(candidate => this.#claimabilityError(state, candidate, statuses)===null);
-    return work ? this.#projectWork(state, work, head, statuses) : null;
+      .find(candidate => this.#claimabilityError(state, candidate, history.lifecycles)===null);
+    return work ? this.#projectWork(state, work, head, history.lifecycles) : null;
   }
 
   claim(id: string, expectedRevision: string): Run {
@@ -180,12 +196,12 @@ export class GitOvercenterKernel {
     const state = this.#state(head);
     const work = state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    const statuses=this.#projectedStatuses(state,head);
-    const claimabilityError=this.#claimabilityError(state,work,statuses);
+    const history=this.#history(state,head);
+    const claimabilityError=this.#claimabilityError(state,work,history.lifecycles);
     if (claimabilityError) throw new Error(claimabilityError);
     const runId = randomUUID();
-    work.run_id=runId; work.claimed_revision=head;
-    const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`);
+    const claim:ClaimFact={schema:CLAIM_SCHEMA,run_id:runId,obligation_id:id,claimed_revision:head};
+    const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`,null,claim);
     if (!this.#cas(commit,head)) throw new Error('CLAIM_LOST');
     return {id:runId, obligation_id:id, claimed_revision:head, claim_commit:commit};
   }
@@ -194,31 +210,26 @@ export class GitOvercenterKernel {
     for (let attempt=0; attempt<16; attempt+=1) {
       const head = this.#requireHead();
       const state = this.#state(head);
-      const work = Object.values(state.obligations).find(candidate => candidate.run_id===runId);
-      if (!work) {
-        const prior = this.receipts(runId).at(-1);
-        if (prior) return prior;
-        throw new Error('UNKNOWN_RUN');
-      }
-      const status=this.#projectedStatuses(state,head).get(work.id);
+      const history=this.#history(state,head);
+      const run=history.runs.get(runId);
+      if (!run) throw new Error('UNKNOWN_RUN');
+      const work=state.obligations[run.obligation_id];
+      if (!work) throw new Error('UNKNOWN_OBLIGATION');
+      const status=history.lifecycles.get(work.id)?.status;
       if (!status || !['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(status)) {
-        const prior = this.receipts(runId).at(-1);
+        const prior=history.receiptsByRun.get(runId);
         if (prior) return prior;
         throw new Error('NOT_RESOLVABLE');
       }
 
-      const claimCommit = this.#findClaimCommit(runId, work, head);
+      const claimCommit = run.claim_commit;
       const observed = this.#observe(work.postcondition);
       const disposition: Disposition = observed.verified
         ? 'DONE'
         : observed.mutation_certainty === 'absent'
           ? 'READY'
           : 'RECOVERY_REQUIRED';
-      const receipt = this.#receipt(runId,work,disposition,observed.verified,observed,claimCommit);
-      if (disposition==='READY') {
-        delete work.run_id;
-        delete work.claimed_revision;
-      }
+      const receipt = this.#receipt(run,work,disposition,observed.verified,observed,claimCommit);
       const commit=this.#commit(head,state,`overcenter: resolve ${work.id} ${disposition}`,receipt);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
@@ -229,20 +240,19 @@ export class GitOvercenterKernel {
     for (let attempt=0; attempt<16; attempt+=1) {
       const head=this.#requireHead();
       const state=this.#state(head);
-      const work=Object.values(state.obligations).find(candidate=>candidate.run_id===runId);
-      if (!work) {
-        const prior=this.receipts(runId).at(-1);
-        if (prior) return prior;
-        throw new Error('UNKNOWN_RUN');
-      }
-      const status=this.#projectedStatuses(state,head).get(work.id);
+      const history=this.#history(state,head);
+      const run=history.runs.get(runId);
+      if (!run) throw new Error('UNKNOWN_RUN');
+      const work=state.obligations[run.obligation_id];
+      if (!work) throw new Error('UNKNOWN_OBLIGATION');
+      const status=history.lifecycles.get(work.id)?.status;
       if (status!=='EXECUTING') {
-        const prior=this.receipts(runId).at(-1);
+        const prior=history.receiptsByRun.get(runId);
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
       }
-      const claimCommit=this.#findClaimCommit(runId,work,head);
-      const receipt=this.#receipt(runId,work,disposition,false,null,claimCommit,diagnostic);
+      const claimCommit=run.claim_commit;
+      const receipt=this.#receipt(run,work,disposition,false,null,claimCommit,diagnostic);
       const commit=this.#commit(head,state,`overcenter: defer ${work.id} ${disposition}`,receipt);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
@@ -253,21 +263,20 @@ export class GitOvercenterKernel {
     for (let attempt=0; attempt<16; attempt+=1) {
       const head=this.#requireHead();
       const state=this.#state(head);
-      const work=Object.values(state.obligations).find(candidate=>candidate.run_id===runId);
-      if (!work) {
-        const prior=this.receipts(runId).at(-1);
-        if (prior) return prior;
-        throw new Error('UNKNOWN_RUN');
-      }
-      const status=this.#projectedStatuses(state,head).get(work.id);
+      const history=this.#history(state,head);
+      const run=history.runs.get(runId);
+      if (!run) throw new Error('UNKNOWN_RUN');
+      const work=state.obligations[run.obligation_id];
+      if (!work) throw new Error('UNKNOWN_OBLIGATION');
+      const status=history.lifecycles.get(work.id)?.status;
       if (status!=='EXECUTING') {
-        const prior=this.receipts(runId).at(-1);
+        const prior=history.receiptsByRun.get(runId);
         if (prior) return prior;
         throw new Error('RUN_NOT_EXECUTING');
       }
-      const claimCommit=this.#findClaimCommit(runId,work,head);
+      const claimCommit=run.claim_commit;
       const receipt=this.#receipt(
-        runId,
+        run,
         work,
         'RECOVERY_REQUIRED',
         false,
@@ -299,22 +308,52 @@ export class GitOvercenterKernel {
     return out;
   }
 
-  #projectedStatuses(state:State,head:string): Map<string,LifecycleStatus> {
-    const statuses=new Map<string,LifecycleStatus>();
-    for (const work of Object.values(state.obligations)) {
-      statuses.set(work.id,work.run_id?'EXECUTING':'READY');
+  #history(state:State,head:string): HistoryProjection {
+    const lifecycles=new Map<string,Lifecycle>(
+      Object.keys(state.obligations).map(id=>[id,{status:'READY' as LifecycleStatus}]),
+    );
+    const runs=new Map<string,Run>();
+    const receiptsByRun=new Map<string,Receipt>();
+    const revs=this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
+
+    for (const commit of revs) {
+      const claimFile=this.#git(['show',`${commit}:claim.json`],{allowFailure:true});
+      if (claimFile.ok) {
+        const claim=JSON.parse(claimFile.stdout) as ClaimFact;
+        if (claim.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
+        if (!state.obligations[claim.obligation_id]) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
+        if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
+        const run:Run={
+          id:claim.run_id,
+          obligation_id:claim.obligation_id,
+          claimed_revision:claim.claimed_revision,
+          claim_commit:commit,
+        };
+        runs.set(run.id,run);
+        lifecycles.set(run.obligation_id,{status:'EXECUTING',run});
+      }
+
+      const receiptFile=this.#git(['show',`${commit}:receipt.json`],{allowFailure:true});
+      if (!receiptFile.ok) continue;
+      const receipt={...JSON.parse(receiptFile.stdout) as Receipt,settlement_commit:commit};
+      const run=runs.get(receipt.run_id);
+      if (!run) throw new Error('RECEIPT_WITHOUT_CLAIM');
+      if (run.obligation_id!==receipt.obligation_id) throw new Error('RECEIPT_OBLIGATION_MISMATCH');
+      receiptsByRun.set(run.id,receipt);
+      lifecycles.set(
+        run.obligation_id,
+        receipt.disposition==='READY'
+          ? {status:'READY'}
+          : {status:receipt.disposition,run},
+      );
     }
-    for (const receipt of this.#receiptsThrough(head)) {
-      const work=state.obligations[receipt.obligation_id];
-      if (work?.run_id===receipt.run_id) statuses.set(work.id,receipt.disposition);
-    }
-    return statuses;
+    return {lifecycles,runs,receiptsByRun};
   }
 
   #requireHead(): string { const head=this.head(); if (!head) throw new Error('NOT_INITIALIZED'); return head; }
   #emptyState(): State { return {schema:STATE_SCHEMA,obligations:{}}; }
-  #hasInFlight(statuses: Map<string,LifecycleStatus>): boolean {
-    return [...statuses.values()].some(status=>IN_FLIGHT.has(status));
+  #hasInFlight(lifecycles: Map<string,Lifecycle>): boolean {
+    return [...lifecycles.values()].some(({status})=>IN_FLIGHT.has(status));
   }
   #effectSemantics(
     postcondition: Postcondition,
@@ -337,12 +376,12 @@ export class GitOvercenterKernel {
   #claimabilityError(
     state: State,
     work: Obligation,
-    statuses: Map<string,LifecycleStatus>,
+    lifecycles: Map<string,Lifecycle>,
   ): string | null {
-    if (statuses.get(work.id)!=='READY') return 'NOT_READY';
+    if (lifecycles.get(work.id)?.status!=='READY') return 'NOT_READY';
     const done=new Set(
       Object.values(state.obligations)
-        .filter(candidate=>statuses.get(candidate.id)==='DONE')
+        .filter(candidate=>lifecycles.get(candidate.id)?.status==='DONE')
         .map(candidate=>candidate.id),
     );
     if (!work.deps.every(dep=>done.has(dep))) return 'DEPENDENCIES_NOT_DONE';
@@ -368,28 +407,22 @@ export class GitOvercenterKernel {
     state: State,
     work: Obligation,
     revision: string,
-    statuses: Map<string,LifecycleStatus>,
+    lifecycles: Map<string,Lifecycle>,
   ): Work {
-    const projected={...structuredClone(work),status:statuses.get(work.id)!,revision} as Work;
+    const lifecycle=lifecycles.get(work.id) ?? {status:'READY' as LifecycleStatus};
+    const projected={
+      ...structuredClone(work),
+      status:lifecycle.status,
+      revision,
+      ...(lifecycle.run?{run_id:lifecycle.run.id,claimed_revision:lifecycle.run.claimed_revision}:{}),
+    } as Work;
     if (projected.status!=='READY') return projected;
-    const reason=this.#claimabilityError(state,work,statuses);
+    const reason=this.#claimabilityError(state,work,lifecycles);
     if (reason && reason!=='NOT_READY') {
       projected.status='BLOCKED';
       projected.blocked_reason=reason;
     }
     return projected;
-  }
-  #findClaimCommit(runId: string, work: Obligation, head: string): string {
-    if (!work.claimed_revision) throw new Error('MISSING_CLAIMED_REVISION');
-    const revs=this.#git(['rev-list','--reverse',head,`^${work.claimed_revision}`]).stdout
-      .trim()
-      .split(/\n+/)
-      .filter(Boolean);
-    for (const commit of revs) {
-      const candidate=this.#state(commit).obligations[work.id];
-      if (candidate?.run_id===runId) return commit;
-    }
-    throw new Error('CLAIM_COMMIT_NOT_FOUND');
   }
   #state(commit: string): State {
     const state=JSON.parse(this.#git(['show',`${commit}:state.json`]).stdout) as State;
@@ -526,11 +559,12 @@ export class GitOvercenterKernel {
       return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'uncertain',verified:false,observation_error:errorMessage(e)};
     }
   }
-  #receipt(runId:string,work:Obligation,disposition:Disposition,verified:boolean,observed:Observation|null,claimCommit:string,diagnostic?:Data): Receipt {
-    return {schema:RECEIPT_SCHEMA,run_id:runId,obligation_id:work.id,claimed_revision:work.claimed_revision,claim_commit:claimCommit,disposition,verified,observed,...(diagnostic?{diagnostic}:{}),settled_at:new Date().toISOString()};
+  #receipt(run:Run,work:Obligation,disposition:Disposition,verified:boolean,observed:Observation|null,claimCommit:string,diagnostic?:Data): Receipt {
+    return {schema:RECEIPT_SCHEMA,run_id:run.id,obligation_id:work.id,claimed_revision:run.claimed_revision,claim_commit:claimCommit,disposition,verified,observed,...(diagnostic?{diagnostic}:{}),settled_at:new Date().toISOString()};
   }
-  #commit(parent:string|null,state:State,message:string,receipt:Receipt|null=null): string {
+  #commit(parent:string|null,state:State,message:string,receipt:Receipt|null=null,claim:ClaimFact|null=null): string {
     const entries:Array<[string,string]>=[['state.json',this.#blob(json(state))]];
+    if (claim) entries.push(['claim.json',this.#blob(json(claim))]);
     if (receipt) entries.push(['receipt.json',this.#blob(json(receipt))]);
     const treeInput=entries.sort(([a],[b])=>a.localeCompare(b)).map(([name,sha])=>`100644 blob ${sha}\t${name}\n`).join('');
     const tree=this.#git(['mktree'],{input:treeInput}).stdout.trim();
