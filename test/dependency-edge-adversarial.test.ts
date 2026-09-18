@@ -316,7 +316,7 @@ test('semantic selector is part of durable edge meaning', () => {
     });
 
     const fact = obligationFact(f.repo, bDefinition);
-    assert.equal(fact.schema, 'overcenter-git-obligation-v2');
+    assert.equal(fact.schema, 'overcenter-git-obligation-v3');
     const stored = fact.obligation as {
       dependencies?: Edge[];
     };
