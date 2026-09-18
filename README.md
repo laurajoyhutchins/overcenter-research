@@ -58,55 +58,76 @@ git push \
 
 The commit SHA is the authoritative state revision. Settlement and recovery commits carry `receipt.json`; older receipts remain reachable through Git history.
 
-## Fact-derived projection erasure proof
+## Derived project projection
 
-The architecture says project status is a projection. The current `GitOvercenterKernel`
-has not fully reached that model yet: its `state.json` still persists lifecycle fields
-such as `status` and `run_id`.
+The Git kernel now treats lifecycle status as a projection instead of persisted
+project state.
 
-A separate proof now makes the stronger representation test executable without
-pretending that migration is already complete:
+`state.json` schema v5 contains obligation definitions only:
 
 ```text
-durable facts in Git authority
-  obligation-defined
-  run-claimed
-  worker-terminated
-  effect-observed
-  run-settled
-        |
-        v
-derive project projection
-        |
-        v
-materialized READY / EXECUTING / RECOVERY_REQUIRED / DONE cache
-        |
-        X
-delete the entire materialization
-        |
-        v
-fresh process reads refs/overcenter/facts
-        |
-        v
-derive again
-        |
-        v
-exact same canonical projection + SHA-256 digest
+id
+deps
+packet
+postcondition
 ```
 
-The durable journal is explicitly checked not to contain a `status` field or any
-of the projected lifecycle labels. Settlement records bind a run to factual
-observation evidence; `verified`, replayable, or recovery-required disposition is
-derived during replay rather than stored as settlement state.
+It does **not** persist:
 
-The test uses a two-obligation dependency graph and destroys the projection cache
-at every meaningful boundary: READY/BLOCKED after definition, EXECUTING after
-claim, EXECUTING after the external effect alone, RECOVERY_REQUIRED after worker
-termination, RECOVERY_REQUIRED after observation but before settlement, and
-DONE/READY after settlement. Durable facts live in a bare central Git authority;
-a separate writer advances its fact ref with an exact leased push. Every
-reconstruction reads the current central authority ref directly and must reproduce
-the exact canonical projection and digest.
+```text
+status
+run_id
+claimed_revision
+claim_commit
+```
+
+A successful claim writes an immutable `claim.json` fact in the exact claim
+commit. That fact binds the run ID and obligation to the exact parent authority
+revision. Recovery and settlement commits write `receipt.json`. On every
+`inspect()`, `deriveReadyWork()`, claim, recovery, or settlement operation, the
+kernel replays those durable facts from the current authority history and derives
+the current projection:
+
+```text
+obligation definitions in state.json
+              +
+immutable claim.json facts
+              +
+durable receipt.json evidence
+              ↓
+READY / EXECUTING / WAITING / RECOVERY_REQUIRED / DONE
+              +
+dependency/effect projection
+              ↓
+BLOCKED where applicable
+```
+
+Replay verifies that claim commits are children of the revisions they claim to
+fence and that receipts bind to the exact claim revision and claim commit.
+
+The destructive projection test now runs against `GitOvercenterKernel` itself.
+It uses a central bare Git authority and repeatedly:
+
+```text
+derive projection
+      ↓
+materialize cache
+      ↓
+DELETE cache
+      ↓
+create fresh disposable clone
+      ↓
+read current central authority
+      ↓
+derive again
+      ↓
+assert byte-identical projection + identical SHA-256
+```
+
+This is exercised across a two-obligation graph at READY/BLOCKED, EXECUTING,
+unchanged provider-effect state, RECOVERY_REQUIRED, and DONE/READY boundaries.
+The test also reads committed `state.json` directly and fails if any lifecycle or
+claim-cache field reappears.
 
 Run it directly with:
 
@@ -114,12 +135,14 @@ Run it directly with:
 npm run test:projection
 ```
 
-This proves the representation rule needed for a later kernel migration:
+The remaining boundary is explicit: `receipt.json` still records interpreted
+`disposition` and `verified` fields in addition to observation evidence.
+Those fields are durable evidence today, but the fact-derived model suggests they
+should be challenged next: if they can be deterministically reconstructed from
+the obligation predicate plus factual observation/recovery evidence, they should
+not be authoritative lifecycle state.
 
 > Deleting every materialized project status must lose no project truth.
-
-It does **not** yet prove that `GitOvercenterKernel` itself no longer stores
-materialized status. That is the next conversion step.
 
 ## Kernel-owned verification
 
