@@ -21,8 +21,6 @@ on:
 
 permissions: {}
 
-env:
-  STATE_REF: refs/overcenter/proofs/conflicting-effect/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   authority:

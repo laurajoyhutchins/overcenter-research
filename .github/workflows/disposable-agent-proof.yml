@@ -19,8 +19,6 @@ on:
 
 permissions: {}
 
-env:
-  STATE_REF: refs/overcenter/proofs/disposable-agent/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   project-authority:

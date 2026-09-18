@@ -22,8 +22,6 @@ on:
 
 permissions: {}
 
-env:
-  STATE_REF: refs/overcenter/proofs/two-effect-concurrency/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   project-authority:
