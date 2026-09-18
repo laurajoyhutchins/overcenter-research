@@ -185,7 +185,41 @@ const openapi: OpenApiDocument = {
           { name: 'repo', in: 'path', required: true, schema: { type: 'string' } },
           { name: 'pull_number', in: 'path', required: true, schema: { type: 'integer' } },
         ],
-        responses: { '200': { description: 'Response' }, '404': { description: 'Not found' } },
+        responses: {
+          '200': {
+            description: 'Response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['id', 'node_id', 'number', 'state', 'head', 'base'],
+                  properties: {
+                    id: { type: 'integer' },
+                    node_id: { type: 'string', minLength: 1 },
+                    number: { type: 'integer' },
+                    state: { type: 'string' },
+                    head: {
+                      type: 'object',
+                      required: ['sha'],
+                      properties: {
+                        sha: { type: 'string', minLength: 40, maxLength: 64 },
+                      },
+                    },
+                    base: {
+                      type: 'object',
+                      required: ['ref', 'sha'],
+                      properties: {
+                        ref: { type: 'string' },
+                        sha: { type: 'string', minLength: 40, maxLength: 64 },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': { description: 'Not found' },
+        },
       },
     },
     [paths.issue]: {
@@ -196,7 +230,32 @@ const openapi: OpenApiDocument = {
           { name: 'repo', in: 'path', required: true, schema: { type: 'string' } },
           { name: 'issue_number', in: 'path', required: true, schema: { type: 'integer' } },
         ],
-        responses: { '200': { description: 'Response' }, '301': { description: 'Moved' }, '304': { description: 'Not modified' }, '404': { description: 'Not found' }, '410': { description: 'Gone' } },
+        responses: {
+          '200': {
+            description: 'Response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['id', 'node_id', 'number', 'state', 'title', 'locked'],
+                  properties: {
+                    id: { type: 'integer' },
+                    node_id: { type: 'string', minLength: 1 },
+                    number: { type: 'integer' },
+                    state: { type: 'string' },
+                    title: { type: 'string' },
+                    locked: { type: 'boolean' },
+                    pull_request: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          '301': { description: 'Moved' },
+          '304': { description: 'Not modified' },
+          '404': { description: 'Not found' },
+          '410': { description: 'Gone' },
+        },
       },
     },
     [paths.checks]: {
@@ -406,7 +465,12 @@ test('pull request is a mutable snapshot rather than an internal state machine',
     head: { sha: SHA_A },
     base: { ref: 'main', sha: SHA_B },
   }));
-  const fact = projectPullRequestSnapshot(pull, repository)!;
+  assert.equal(projectPullRequestSnapshot(pull, repository), null);
+  const fact = projectPullRequestSnapshot(validateObservationSlice(
+    operation(paths.pull),
+    pull,
+    RESPONSE_SLICES['pulls/get'],
+  ), repository)!;
   assert.equal(fact.stability, 'mutable-snapshot');
   assert.equal(evaluatePullRequestSnapshot(fact, {
     repository_id: 42, number: 17, state: 'open', head_sha: SHA_A, base_ref: 'main',
@@ -440,8 +504,16 @@ test('Pulls and Issues surfaces preserve cross-surface node identity without con
     pull_request: { url: 'https://api.github.com/repos/acme/widget/pulls/17' },
   }));
 
-  const pullFact = projectPullRequestSnapshot(pull, repository)!;
-  const issueFact = projectIssueSnapshot(issue, repository)!;
+  const pullFact = projectPullRequestSnapshot(validateObservationSlice(
+    operation(paths.pull),
+    pull,
+    RESPONSE_SLICES['pulls/get'],
+  ), repository)!;
+  const issueFact = projectIssueSnapshot(validateObservationSlice(
+    operation(paths.issue),
+    issue,
+    RESPONSE_SLICES['issues/get'],
+  ), repository)!;
   assert.notEqual(pullFact.subject.id, issueFact.subject.id);
   assert.equal(pullFact.subject.node_id, issueFact.subject.node_id);
   assert.equal(sameGithubEntity(pullFact, issueFact), true);
