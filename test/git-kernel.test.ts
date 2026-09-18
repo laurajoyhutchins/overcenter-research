@@ -71,6 +71,25 @@ test('authoritative absence alone makes work replayable', () => {
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
+test('kernel-owned Git ref verifier reads independent remote truth', () => {
+  const f = fixture();
+  try {
+    const external = f.path('external.git');
+    execFileSync('git', ['init', '--bare', external], { stdio: 'ignore' });
+    const target = f.kernel.head()!;
+    const ref = 'refs/tags/provider-proof';
+    f.kernel.define({
+      id: 'provider',
+      postcondition: { verifier: 'git-ref-equals/v1', remote: external, ref, target_sha: target },
+    });
+    const run = f.kernel.claim('provider', f.kernel.deriveReadyWork()!.revision);
+    execFileSync('git', ['-C', f.repo, 'push', external, `${target}:${ref}`], { stdio: 'ignore' });
+    const receipt = f.kernel.resolve(run.id);
+    assert.equal(receipt.disposition, 'DONE');
+    assert.equal(receipt.observed?.actual_sha, target);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
 test('stale revision claim is fenced', () => {
   const f = fixture();
   try {
