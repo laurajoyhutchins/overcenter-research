@@ -28,7 +28,7 @@ A claim is not promoted merely because an adjacent evidence class is green.
 | GitHub observations come from a generated read vocabulary plus explicit handwritten semantics. | GitHub observation tests | observation grammar experiment | — | GitHub observation grammar workflow | Demonstrated for the covered Git ref slice; broad endpoint semantics remain open. |
 | A worker can receive an exact declared GitHub-object workspace and return a bounded candidate without repository authority. | — | — | — | GitHub object transport workflow | Demonstrated by the hosted transport proof; closure selection is intentionally separate. |
 | A stale execution generation is rejected even when project revision is unchanged. | `test/git-kernel.test.ts`; execution-permit validation in `src/git-kernel.ts` | disposable-agent and destructive-recovery stress paths rotate authority after worker loss | `MutationAuthoritySafety` plus `BrokenNoFence.cfg` | — | Demonstrated at the Git kernel permit boundary. Raw provider calls and untrusted access to authority rotation remain outside the guarantee. |
-| An unresolved authorized mutation blocks a conflicting successor effect across authority generations. | kernel reservation regression tests | disposable-agent, eventual-consistency, concurrency, and Git stress experiments | `ReservationSafety` plus `BrokenNoReservation.cfg` | — | Demonstrated for effects routed through the Git kernel reservation boundary; adapter-complete enforcement remains open. |
+| An unresolved authorized mutation blocks a conflicting successor effect across authority generations. | kernel reservation regression tests; `runGitCoreLoop` commits reservation before invoking executor code and proves failed reservation prevents invocation | disposable-agent, eventual-consistency, concurrency, and Git stress experiments | `ReservationSafety` plus `BrokenNoReservation.cfg` | — | Demonstrated for the normal Git core-loop mutation path and direct callers that use the reservation boundary; arbitrary low-level provider calls remain outside the guarantee. |
 | `DONE` is derived from exact retained evidence rather than assigned as privileged state. | pure replay and reconstruction tests | disposable-agent settlement | `NoFalseDone` plus `BrokenNoEvidence.cfg` | disposable-agent proof | Demonstrated for the current Git receipt model; compact portable attestations remain a research target. |
 
 ## Evidence discipline
@@ -46,7 +46,7 @@ The maintenance rule is simple:
 
 The most important current gaps are not more scheduler features. They are boundaries the research already knows it needs but has not implemented generally:
 
-- enforcement that routes every concrete provider mutation adapter through execution-generation fencing and durable effect reservation;
+- reducing or eliminating low-level provider mutation paths that exist outside the normal reserved core-loop boundary;
 - a general producer-independent realization cache keyed by complete semantic inputs;
 - compact portable transition attestations with an explicit trust-root story;
 - provider-specific negative-evidence and settlement semantics beyond the small GitHub slices already exercised;
