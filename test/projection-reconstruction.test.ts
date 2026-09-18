@@ -141,8 +141,6 @@ test('project projection reconstructs exactly after every materialized status/ca
       observation_id: observationId,
       verifier: 'file-content-equals/v1',
       mutation_certainty: 'present',
-      predicate_holds:
-        sha256(authoritativeReadback) === sha256(expectedContent),
       actual_sha256: sha256(authoritativeReadback),
     });
 
