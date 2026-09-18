@@ -12,14 +12,19 @@ import {
 } from './openapi.ts';
 import {
   evaluateCheckRunPage,
+  evaluateCommitStatusPage,
   evaluateGitRefTarget,
+  evaluateIssueSnapshot,
   evaluatePullRequestSnapshot,
   projectCheckRunsPage,
+  projectCommitStatusesPage,
   projectGitCommit,
   projectGitRefTarget,
+  projectIssueSnapshot,
   projectPullRequestSnapshot,
   projectRepositoryIdentity,
   revalidateNotModified,
+  sameGithubEntity,
 } from './semantics.ts';
 import { reconstructGithubProjection } from './reconstruction.ts';
 
@@ -39,7 +44,9 @@ const paths = {
   ref: '/repos/{owner}/{repo}/git/ref/{ref}',
   commit: '/repos/{owner}/{repo}/git/commits/{commit_sha}',
   pull: '/repos/{owner}/{repo}/pulls/{pull_number}',
+  issue: '/repos/{owner}/{repo}/issues/{issue_number}',
   checks: '/repos/{owner}/{repo}/commits/{ref}/check-runs',
+  statuses: '/repos/{owner}/{repo}/commits/{ref}/statuses',
 };
 
 const openapi: OpenApiDocument = {
@@ -89,6 +96,17 @@ const openapi: OpenApiDocument = {
         responses: { '200': { description: 'Response' }, '404': { description: 'Not found' } },
       },
     },
+    [paths.issue]: {
+      get: {
+        operationId: 'issues/get',
+        parameters: [
+          { name: 'owner', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'repo', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'issue_number', in: 'path', required: true, schema: { type: 'integer' } },
+        ],
+        responses: { '200': { description: 'Response' }, '301': { description: 'Moved' }, '304': { description: 'Not modified' }, '404': { description: 'Not found' }, '410': { description: 'Gone' } },
+      },
+    },
     [paths.checks]: {
       get: {
         operationId: 'checks/list-for-ref',
@@ -100,6 +118,19 @@ const openapi: OpenApiDocument = {
           { name: 'per_page', in: 'query', required: false, schema: { type: 'integer' } },
         ],
         responses: { '200': { description: 'Response' }, '404': { description: 'Not found' } },
+      },
+    },
+    [paths.statuses]: {
+      get: {
+        operationId: 'repos/list-commit-statuses-for-ref',
+        parameters: [
+          { name: 'owner', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'repo', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'ref', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'page', in: 'query', required: false, schema: { type: 'integer' } },
+          { name: 'per_page', in: 'query', required: false, schema: { type: 'integer' } },
+        ],
+        responses: { '200': { description: 'Response' }, '301': { description: 'Moved' } },
       },
     },
   },
@@ -141,7 +172,7 @@ test('OpenAPI yields only read operations and auxiliary request headers remain e
     ['path', 'ref'],
     ['path', 'repo'],
   ]);
-  assert.equal(deriveObservationCatalog(openapi, '2026-03-10').length, 5);
+  assert.equal(deriveObservationCatalog(openapi, '2026-03-10').length, 7);
   assert.throws(() => deriveObservationOperation(openapi, {
     apiVersion: '2026-03-10', method: 'patch', pathTemplate: paths.ref,
   }), /OBSERVATION_OPERATION_MUST_BE_READ_ONLY/);
@@ -227,6 +258,7 @@ test('pull request is a mutable snapshot rather than an internal state machine',
     owner: 'acme', repo: 'widget', pull_number: 17,
   }, response(200, {
     id: 1700,
+    node_id: 'NODE_PR_17',
     number: 17,
     state: 'open',
     head: { sha: SHA_A },
@@ -240,6 +272,44 @@ test('pull request is a mutable snapshot rather than an internal state machine',
   assert.equal(evaluatePullRequestSnapshot(fact, {
     repository_id: 42, number: 17, state: 'closed',
   }).state, 'UNSATISFIED');
+});
+
+test('Pulls and Issues surfaces preserve cross-surface node identity without conflating numeric ids', async () => {
+  const repository = projectRepositoryIdentity(await repositoryObservation())!;
+  const pull = await observe(operation(paths.pull), {
+    owner: 'acme', repo: 'widget', pull_number: 17,
+  }, response(200, {
+    id: 1700,
+    node_id: 'NODE_SHARED_17',
+    number: 17,
+    state: 'open',
+    head: { sha: SHA_A },
+    base: { ref: 'main', sha: SHA_B },
+  }));
+  const issue = await observe(operation(paths.issue), {
+    owner: 'acme', repo: 'widget', issue_number: 17,
+  }, response(200, {
+    id: 9900,
+    node_id: 'NODE_SHARED_17',
+    number: 17,
+    state: 'open',
+    title: 'Same logical PR through Issues surface',
+    locked: false,
+    pull_request: { url: 'https://api.github.com/repos/acme/widget/pulls/17' },
+  }));
+
+  const pullFact = projectPullRequestSnapshot(pull, repository)!;
+  const issueFact = projectIssueSnapshot(issue, repository)!;
+  assert.notEqual(pullFact.subject.id, issueFact.subject.id);
+  assert.equal(pullFact.subject.node_id, issueFact.subject.node_id);
+  assert.equal(sameGithubEntity(pullFact, issueFact), true);
+  assert.equal(issueFact.is_pull_request, true);
+  assert.equal(evaluateIssueSnapshot(issueFact, {
+    repository_id: 42,
+    number: 17,
+    state: 'open',
+    title: 'Same logical PR through Issues surface',
+  }).state, 'SATISFIED');
 });
 
 test('paginated collection proves positive membership but not absence, even on a terminal page', async () => {
@@ -291,6 +361,36 @@ test('an empty check-run page is observation evidence, not proof that no run exi
     ref: SHA_A,
     id: 123,
   }).state, 'INDETERMINATE');
+});
+
+test('commit statuses reuse positive collection membership semantics without gaining authoritative absence', async () => {
+  const repository = projectRepositoryIdentity(await repositoryObservation())!;
+  const observed = await observe(operation(paths.statuses), {
+    owner: 'acme', repo: 'widget', ref: SHA_A, page: 1, per_page: 1,
+  }, response(200, [{
+    id: 501,
+    node_id: 'STATUS_501',
+    state: 'success',
+    context: 'overcenter/proof',
+    target_url: null,
+    created_at: '2026-09-18T16:00:00Z',
+    updated_at: '2026-09-18T16:01:00Z',
+  }], { ...RESPONSE, link: '<https://api.github.com/x?page=2>; rel="next"' }));
+
+  const page = projectCommitStatusesPage(observed, repository)!;
+  assert.equal(page.has_next, true);
+  assert.equal(evaluateCommitStatusPage(page, {
+    repository_id: 42,
+    ref: SHA_A,
+    node_id: 'STATUS_501',
+    context: 'overcenter/proof',
+    state: 'success',
+  }).state, 'SATISFIED');
+  assert.equal(evaluateCommitStatusPage(page, {
+    repository_id: 42,
+    ref: SHA_A,
+    node_id: 'MISSING',
+  }).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
 });
 
 test('304 revalidates prior representation only when ETag, coordinate, and contract identity match', async () => {
