@@ -204,6 +204,41 @@
       "run_id": "2d694eb9-12a6-46fa-852e-1ce4816ae3e6",
       "claimed_revision": "811d5384acbd57da7749d853e5addf8c1bbb604c",
       "claim_commit": "63235debd6efcf64606d8f19dbd5ff612592083d"
+    },
+    "actions-trust-proof-35310428073-1": {
+      "id": "actions-trust-proof-35310428073-1",
+      "deps": [],
+      "packet": {
+        "kind": "github-actions-trust-boundary-proof/v1",
+        "executor": {
+          "provider": "github-actions/v1",
+          "repository_id": 1354872053,
+          "workflow_run_id": "35310428073",
+          "workflow_run_attempt": "1",
+          "job": "agent-a"
+        },
+        "exact_input": {
+          "kind": "git-commit/v1",
+          "repository_id": 1354872053,
+          "commit_sha": "a294fb315788f5441f52e106ff86d1997ddf14e9"
+        },
+        "effect": {
+          "kind": "github-commit-status/v1",
+          "repository_id": 1354872053,
+          "commit_sha": "a294fb315788f5441f52e106ff86d1997ddf14e9",
+          "context": "overcenter/trust-proof/35310428073/1",
+          "state": "success"
+        }
+      },
+      "postcondition": {
+        "verifier": "github-commit-status/v1",
+        "provider": "github",
+        "repository_id": 1354872053,
+        "commit_sha": "a294fb315788f5441f52e106ff86d1997ddf14e9",
+        "context": "overcenter/trust-proof/35310428073/1",
+        "expected_state": "success"
+      },
+      "status": "READY"
     }
   },
   "active_run": null
