@@ -12,6 +12,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `conflicting-effect/` - provider-coordinate conflict, ordering, and commutativity.
 - `eventually-consistent-readback/` - hostile stale or negative provider readback and the no-blind-replay rule.
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
+- `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 
@@ -189,12 +190,14 @@ Identical desired states may commute. Incompatible desired states must be graph-
 
 ## Running experiments
 
-The ordinary experiment gate is part of:
+The evidence classes are deliberately separate:
 
 ```sh
-npm test
+npm test                              # fast deterministic regression only
+npm run proof:local                  # adversarial local experiments
+npm run test:kubernetes-observation # focused deterministic Kubernetes semantics
 ```
 
 Focused commands are listed in [`../README.md`](../README.md) and `package.json`.
 
-Hosted proofs live under [`../.github/workflows/`](../.github/workflows/). Their job is to exercise these experiments against real GitHub authority, not to carry a second copy of the architecture.
+Hosted proofs live under [`../.github/workflows/`](../.github/workflows/). Their job is to exercise the corresponding experiments against real provider authority, not to carry a second copy of the architecture. The Kubernetes proof is invoked explicitly by `kubernetes-observation-semantics.yml`; it is not implied by `npm test`.
