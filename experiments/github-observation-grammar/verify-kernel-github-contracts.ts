@@ -7,11 +7,13 @@ import {
   type OpenApiDocument,
 } from './openapi.ts';
 import {
-  GITHUB_API_VERSION,
   GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
   GITHUB_COMMIT_STATUSES_OPERATION,
-  GITHUB_OPENAPI_SHA256,
 } from '../../src/providers/github-certified-status.ts';
+import {
+  GITHUB_API_VERSION,
+  GITHUB_OPENAPI_SHA256,
+} from '../../src/providers/github-contract.ts';
 import {
   GITHUB_GET_REF_OPERATION,
   GITHUB_REF_RESPONSE_SLICE,
