@@ -97,7 +97,7 @@ export interface PreflightOutcome extends Data {
 
 export interface LoopOptions {
   preflight?: (packet: Data) => Promise<PreflightOutcome>;
-  execute: (packet: Data) => Promise<ExecuteOutcome>;
+  effect: (packet: Data) => Promise<ExecuteOutcome>;
   maxAdvances?: number;
 }
 
