@@ -28,6 +28,20 @@
         "expected_state": "failure"
       },
       "status": "READY"
+    },
+    "guard-35309133684-1-ordered-alpha": {
+      "id": "guard-35309133684-1-ordered-alpha",
+      "deps": [],
+      "packet": {},
+      "postcondition": {
+        "verifier": "github-commit-status/v1",
+        "provider": "github",
+        "repository_id": 1354872053,
+        "commit_sha": "76394a21f4d6342372d14ec5ffb999bd03d36098",
+        "context": "overcenter/conflict-guard/35309133684/1/ordered",
+        "expected_state": "success"
+      },
+      "status": "READY"
     }
   }
 }
