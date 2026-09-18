@@ -2,6 +2,21 @@ name: Overcenter disposable-agent trust proof
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/disposable-agent-proof.yml
+      - experiments/disposable-agent/authority.ts
+      - experiments/disposable-agent/agent-a.ts
+      - experiments/disposable-agent/effect-broker.ts
+      - experiments/disposable-agent/agent-b.ts
+      - src/**
+      - test/git-kernel.test.ts
+      - experiments/disposable-agent/disposable-agent.test.ts
+      - README.md
+      - ARCHITECTURE.md
+      - experiments/README.md
+      - research/claims.md
+      - research/proof-obligations.md
   push:
     branches:
       - main
@@ -9,13 +24,21 @@ on:
       - .github/workflows/disposable-agent-proof.yml
       - experiments/disposable-agent/authority.ts
       - experiments/disposable-agent/agent-a.ts
+      - experiments/disposable-agent/effect-broker.ts
       - experiments/disposable-agent/agent-b.ts
       - src/**
       - test/git-kernel.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
+      - README.md
+      - ARCHITECTURE.md
+      - experiments/README.md
+      - research/claims.md
+      - research/proof-obligations.md
 
 permissions: {}
 
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   project-authority:
@@ -30,6 +53,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Node 22.16
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -45,13 +69,12 @@ jobs:
         run: node --experimental-strip-types experiments/disposable-agent/authority.ts
 
   agent-a:
-    name: Agent A — authority-untrusted sandbox, provider effect, terminate
+    name: Agent A — authority-untrusted worker, emit effect intent, terminate
     needs: project-authority
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
-      statuses: write
     outputs:
       outcome: ${{ steps.agent.outcome }}
 
@@ -60,6 +83,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Node 22.16
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -73,36 +97,89 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/disposable-agent/agent-a.ts
 
+      - name: Upload candidate effect intent
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: disposable-agent-effect-intent
+          path: effect-intent.json
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Supervisor confirms Agent A terminated
         if: always()
         env:
           AGENT_OUTCOME: ${{ steps.agent.outcome }}
         run: test "$AGENT_OUTCOME" = "failure"
 
-  agent-b:
-    name: Trusted recovery — canonical provider readback and settlement
+  effect-broker:
+    name: Trusted effect broker — validate, reserve, mutate, terminate
     needs: agent-a
     if: ${{ always() && needs.agent-a.outputs.outcome == 'failure' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
-      statuses: read
-    env:
-      AGENT_A_OUTCOME: ${{ needs.agent-a.outputs.outcome }}
+      statuses: write
+    outputs:
+      outcome: ${{ steps.broker.outcome }}
 
     steps:
       - name: Fresh checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Node 22.16
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
 
-      - name: Reconstruct immutable intent and settle
+      - name: Download candidate effect intent
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: disposable-agent-effect-intent
+          path: candidate
+
+      - name: Validate intent and perform reserved provider effect
+        id: broker
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types experiments/disposable-agent/effect-broker.ts
+
+      - name: Supervisor confirms broker terminated after effect
+        if: always()
+        env:
+          BROKER_OUTCOME: ${{ steps.broker.outcome }}
+        run: test "$BROKER_OUTCOME" = "failure"
+
+  agent-b:
+    name: Trusted recovery — fresh generation, canonical readback, settlement
+    needs: effect-broker
+    if: ${{ always() && needs.effect-broker.outputs.outcome == 'failure' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      statuses: read
+    env:
+      EFFECT_BROKER_OUTCOME: ${{ needs.effect-broker.outputs.outcome }}
+
+    steps:
+      - name: Fresh checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Reconstruct unresolved effect and settle
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/disposable-agent/agent-b.ts

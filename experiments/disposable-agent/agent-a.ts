@@ -28,7 +28,7 @@ async function github(path: string, init: RequestInit = {}): Promise<Response> {
 
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
-const sourceSha = required('GITHUB_SHA');
+const sourceSha = required('SOURCE_SHA');
 const stateRef = githubProofStateRef('disposable-agent');
 const stateRefApi = stateRef.replace(/^refs\//, '');
 
@@ -44,6 +44,7 @@ const candidates = kernel.inspect().filter(work => {
 assert.equal(candidates.length, 1, `expected one immutable execution snapshot, found ${candidates.length}`);
 const work = candidates[0];
 const snapshot = structuredClone(work);
+assert.ok(snapshot.run_id);
 assert.equal(snapshot.postcondition.verifier, 'github-commit-status/v1');
 if (snapshot.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 assert.equal(snapshot.postcondition.commit_sha, sourceSha);
@@ -67,57 +68,52 @@ const attemptedAuthorityRewrite = await github(
     body: JSON.stringify({ sha: sourceSha, force: true }),
   },
 );
-assert.equal(attemptedAuthorityRewrite.ok, false, 'execution token unexpectedly rewrote project authority');
+assert.equal(attemptedAuthorityRewrite.ok, false, 'worker token unexpectedly rewrote project authority');
 
 const authoritativeRef = await github(`/repos/${repository.full_name}/git/ref/${stateRefApi}`);
 if (!authoritativeRef.ok) throw new Error(`authority read failed: ${authoritativeRef.status}`);
 const authoritative = await authoritativeRef.json() as { object: { sha: string } };
 assert.equal(authoritative.object.sha, snapshot.revision, 'sandbox tampering escaped into Git authority');
 
-const status = await github(
+const attemptedStatus = await github(
   `/repos/${repository.full_name}/statuses/${snapshot.postcondition.commit_sha}`,
   {
     method: 'POST',
     body: JSON.stringify({
       state: snapshot.postcondition.expected_state,
       context: snapshot.postcondition.context,
-      description: 'Overcenter disposable execution effect',
+      description: 'This write must be rejected for the worker job',
     }),
   },
 );
-if (status.status !== 201) throw new Error(`status creation failed ${status.status}: ${await status.text()}`);
+assert.equal(
+  attemptedStatus.status,
+  403,
+  `worker unexpectedly crossed provider mutation boundary: HTTP ${attemptedStatus.status}`,
+);
 
-for (let i = 0; i < 100; i += 1) {
-  const distractor = await github(
-    `/repos/${repository.full_name}/statuses/${snapshot.postcondition.commit_sha}`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        state: 'pending',
-        context: `${snapshot.postcondition.context}/pagination-distractor/${i}`,
-        description: 'Pagination proof distractor',
-      }),
-    },
-  );
-  if (distractor.status !== 201) {
-    throw new Error(`distractor status creation failed ${distractor.status}: ${await distractor.text()}`);
-  }
-}
+const declaredEffect = snapshot.packet.effect;
+assert.ok(declaredEffect && typeof declaredEffect === 'object');
+writeFileSync('effect-intent.json', `${JSON.stringify({
+  schema: 'overcenter-effect-intent-v1',
+  obligation_id: snapshot.id,
+  run_id: snapshot.run_id,
+  claimed_revision: snapshot.claimed_revision,
+  effect: declaredEffect,
+}, null, 2)}\n`);
 
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
   appendFileSync(summary, [
-    '## Potentially untrusted Agent A',
+    '## Authority-untrusted Agent A',
     '',
-    '- Received an already-claimed immutable obligation.',
+    '- Received the immutable work packet, not an ExecutionPermit.',
     `- Local \`origin\` was repointed to \`${attacker}\`.`,
     '- Local state ref, kernel source, and fake SQLite cache were modified.',
     `- Attempt to rewrite canonical project authority returned HTTP \`${attemptedAuthorityRewrite.status}\`.`,
-    '- Canonical authority remained at the original claim commit.',
-    `- Authorized effect coordinate: commit status \`${snapshot.postcondition.context}\` on \`${snapshot.postcondition.commit_sha}\`.`,
-    '- The GitHub token is repository-scoped for commit-status writes; it is not capability-scoped to that one coordinate.',
-    '- 100 newer distractor statuses were written so trusted readback must paginate before proving presence/absence.',
-    '- Agent A now terminates without settlement.',
+    `- Attempt to write the declared GitHub status returned HTTP \`${attemptedStatus.status}\`.`,
+    '- Emitted a candidate EffectIntent artifact for trusted validation.',
+    '- Agent A has no `statuses: write` permission.',
     '',
   ].join('\n'));
 }
@@ -126,11 +122,9 @@ console.log(JSON.stringify({
   obligation_id: snapshot.id,
   run_id: snapshot.run_id,
   immutable_revision: snapshot.revision,
-  local_origin_after_tamper: attacker,
   authority_rewrite_status: attemptedAuthorityRewrite.status,
-  provider_repository_id: snapshot.postcondition.repository_id,
-  exact_input: snapshot.postcondition.commit_sha,
-  context: snapshot.postcondition.context,
+  provider_write_status: attemptedStatus.status,
+  effect_intent: 'effect-intent.json',
 }));
 
 process.exit(86);

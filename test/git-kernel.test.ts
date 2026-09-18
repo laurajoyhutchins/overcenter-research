@@ -35,7 +35,7 @@ test('kernel-owned evidence drives dependency chain to DONE', async () => {
     f.kernel.define({ id: 'a', packet: { path: a, content: 'A' }, postcondition: pc(a, 'A') });
     f.kernel.define({ id: 'b', dependencies: [{ kind: 'control', upstream: 'a' }], packet: { path: b, content: 'B' }, postcondition: pc(b, 'B') });
     const result = await runGitCoreLoop(f.kernel, {
-      execute: async packet => {
+      effect: async packet => {
         writeFileSync(String(packet.path), String(packet.content));
         return { kind: 'ok' };
       },
@@ -46,7 +46,7 @@ test('kernel-owned evidence drives dependency chain to DONE', async () => {
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('core loop commits an effect reservation before invoking executor code', async () => {
+test('core loop commits an effect reservation before invoking effect handler', async () => {
   const f = fixture();
   try {
     const path = f.path('reserved-core-loop');
@@ -56,9 +56,11 @@ test('core loop commits an effect reservation before invoking executor code', as
       postcondition: pc(path, 'present'),
     });
 
-    let executorObservedReservation = false;
+    let effectObservedReservation = false;
     const result = await runGitCoreLoop(f.kernel, {
-      execute: async (packet, run) => {
+      effect: async (...args) => {
+        assert.equal(args.length, 1, 'effect callback must not receive ExecutionPermit');
+        const [packet] = args;
         const head = f.kernel.head()!;
         const reservation = JSON.parse(
           execFileSync(
@@ -67,25 +69,22 @@ test('core loop commits an effect reservation before invoking executor code', as
             { encoding: 'utf8' },
           ),
         ) as Record<string, unknown>;
-        assert.equal(reservation.run_id, run.id);
-        assert.equal(reservation.execution_generation, run.execution_generation);
-        assert.equal(
-          reservation.execution_authority_commit,
-          run.execution_authority_commit,
-        );
-        executorObservedReservation = true;
+        const executing = f.kernel.inspect().find(work => work.id === 'x')!;
+        assert.equal(reservation.run_id, executing.run_id);
+        assert.equal(reservation.execution_generation, executing.execution_generation);
+        effectObservedReservation = true;
         writeFileSync(String(packet.path), String(packet.content));
         return { kind: 'ok' };
       },
     });
 
-    assert.equal(executorObservedReservation, true);
+    assert.equal(effectObservedReservation, true);
     assert.equal(result.state, 'IDLE');
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('core loop never invokes executor when effect reservation cannot commit', async () => {
+test('core loop never invokes effect handler when effect reservation cannot commit', async () => {
   const f = fixture();
   try {
     const path = f.path('reservation-failure');
@@ -103,7 +102,7 @@ test('core loop never invokes executor when effect reservation cannot commit', a
           writeFileSync(lock, 'held');
           return { kind: 'execute' };
         },
-        execute: async packet => {
+        effect: async packet => {
           executions += 1;
           writeFileSync(String(packet.path), String(packet.content));
           return { kind: 'ok' };
@@ -133,7 +132,7 @@ test('preflight judgment can WAIT without opening the effect boundary', async ()
         kind: 'judgment-required',
         question: 'human choice required',
       }),
-      execute: async () => {
+      effect: async () => {
         executions += 1;
         return { kind: 'ok' };
       },
@@ -171,7 +170,7 @@ test('post-reservation judgment is recovery uncertainty, not WAITING', async () 
     });
 
     const result = await runGitCoreLoop(f.kernel, {
-      execute: async () => ({
+      effect: async () => ({
         kind: 'judgment-required',
         question: 'too late to assert no effect',
       }),

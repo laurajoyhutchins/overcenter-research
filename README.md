@@ -61,7 +61,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Projection is separable from Git transport.** Pure fact replay and lifecycle derivation are tested independently from Git object storage and authority-ref CAS.
 - **Claims are exact-revision bound.** Stale authority and stale semantic obligation identity are rejected rather than silently reinterpreted.
 - **Execution authority is independently fenced.** Within the Git kernel permit boundary, recovery can rotate an in-flight run to a new execution generation without changing its claimed revision; the old generation's ephemeral permit is then rejected.
-- **The normal core loop cannot invoke effectful executor code before reservation.** Preflight judgment happens before the effect boundary; then the kernel validates the execution permit and durably reserves the effect before invoking the executor callback. A failed reservation means provider code is never called.
+- **The normal core loop cannot invoke its effect handler before reservation.** Preflight judgment happens before the effect boundary; then the kernel validates the execution permit and durably reserves the effect before invoking the effect callback. The callback receives the work packet, not the `ExecutionPermit`; a failed reservation means provider code is never called.
 - **Unresolved effects survive authority handoff.** Effects routed through the kernel reservation boundary are durably reserved before mutation; a successor generation may reconcile the reservation but cannot issue another effect through that boundary until authoritative observation settles it.
 - **Semantic dependency identity is explicit.** Control dependencies constrain executability; semantic dependencies contribute selected upstream identity to downstream meaning. Historical realizations are reused only when the current obligation key still matches.
 - **Workers are disposable.** A worker can disappear with its checkout, cache, local database, refs, and process memory; a fresh worker can reconstruct the unresolved run from authority and reconcile it.
@@ -69,7 +69,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Uncertain mutation does not authorize blind replay.** Hostile eventually consistent readback remains recovery-bound until authoritative evidence establishes presence or safe absence.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Known provider conflicts are fenced.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are blocked, while explicitly identical effects may commute.
-- **The hosted trust-boundary proof survives executor tampering.** An executor without project-authority write permission cannot redefine the obligation, authority coordinate, verification rule, or settlement truth.
+- **The hosted trust-boundary proof separates worker authority from provider mutation authority.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, it emits a candidate effect intent, and a separate trusted broker validates, reserves, and performs the provider mutation before fresh-generation recovery settles from authoritative readback.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
 
 The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
@@ -84,9 +84,10 @@ The repository deliberately does **not** establish that:
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
-- an executor cannot misuse every provider capability it is granted;
+- every execution substrate physically separates worker credentials from provider-mutation credentials;
 - direct low-level callers outside `runGitCoreLoop` cannot bypass the execution-permit/effect-reservation API;
-- the GitHub hosted proof provides coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped.
+- the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
+- every provider or execution substrate offers an equally strong physical credential boundary; the demonstrated hosted boundary is specifically GitHub Actions job permissions.
 
 The safety claim is narrower: an uncertain or even locally hostile worker does not get to manufacture authoritative project truth merely by claiming success.
 

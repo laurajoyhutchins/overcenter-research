@@ -24,7 +24,7 @@ async function github(path: string): Promise<any> {
 const repository = required('GITHUB_REPOSITORY');
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
-const sourceSha = required('GITHUB_SHA');
+const sourceSha = required('SOURCE_SHA');
 const stateRef = githubProofStateRef('disposable-agent');
 
 const repositoryInfo = await github(`/repos/${repository}`);

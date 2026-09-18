@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "npm run test:unit",
-    "test:unit": "node --experimental-strip-types --test test/digest-pure.test.ts test/graph-pure.test.ts test/lifecycle-pure.test.ts test/git-kernel.test.ts test/projection-pure.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts test/proof-environment.test.ts",
+    "test:unit": "node --experimental-strip-types --test test/digest-pure.test.ts test/graph-pure.test.ts test/lifecycle-pure.test.ts test/git-kernel.test.ts test/projection-pure.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts test/proof-environment.test.ts test/github-actions-boundary.test.ts",
     "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/github-observation-grammar/github-observation.test.ts",
     "demo": "node experiments/sqlite-baseline/demo.js",
     "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts experiments/disposable-agent/disposable-agent.test.ts",

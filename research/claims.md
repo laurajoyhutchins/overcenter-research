@@ -150,11 +150,17 @@ Identical desired states are explicitly modeled as commuting. Incompatible desir
 
 **Status:** Demonstrated by hosted GitHub Actions proof.
 
-The authority-untrusted executor can corrupt local Git configuration, refs, kernel source, and cache without redefining the centrally committed obligation or the trusted verifier's provider coordinate.
+The prior hosted proof established that an authority-untrusted executor can corrupt local Git configuration, refs, kernel source, and cache without redefining the centrally committed obligation or the trusted verifier's provider coordinate.
+
+The current hosted workflow goes further: the worker job has `contents: read` but no `statuses: write`, emits a candidate effect intent, and a separate trusted broker job owns provider write authority and execution-generation authority. Live workflow run `35389453056` exercised this boundary at exact source revision `f8a883d6214d76b0b609eb05e3798d6238d108cc`: the worker's authority-ref rewrite and provider status-write attempts both returned HTTP 403; the broker performed the declared effect in execution generation 2; fresh recovery rotated to generation 3 and settled `DONE` from canonical GitHub readback.
 
 **Claim:**
 
-> Destruction or corruption of disposable executor-local state does not, by itself, alter authoritative project truth.
+> Destruction or corruption of disposable worker-local state does not, by itself, alter authoritative project truth.
+
+**Stronger hosted claim:**
+
+> In the demonstrated GitHub Actions boundary, the disposable worker cannot perform the provider mutation directly because GitHub does not grant that job the required write permission.
 
 ### S10. Execution-generation fencing is separate from exact revision
 
@@ -178,7 +184,7 @@ Each generation carries an ephemeral execution capability. Only its SHA-256 dige
 
 **Evidence boundary:** `test/git-kernel.test.ts` exercises unchanged-revision generation rotation and stale-permit rejection; destructive recovery experiments rotate authority after worker loss. `formal/TransitionKernel.tla` independently checks `MutationAuthoritySafety`, and `BrokenNoFence.cfg` must produce its counterexample.
 
-**Non-claim:** This does not fence arbitrary provider calls made outside the trusted kernel boundary, and `acquireExecution` itself must remain a trusted supervisor operation rather than an executor capability.
+**Non-claim:** This does not fence arbitrary provider calls made outside the trusted kernel boundary. `acquireExecution` remains a trusted broker/supervisor operation and is not part of the worker-facing contract.
 
 ### S11. An unresolved authorized effect must block conflicting successor effects
 
@@ -194,9 +200,9 @@ The reservation is committed before the trusted effect wrapper invokes mutation.
 
 **Evidence boundary:** kernel regression tests cover presence and authoritative-absence handoff; the disposable-worker, eventual-consistency, concurrency, and stress experiments exercise recovery with fresh generations. `formal/TransitionKernel.tla` independently checks `ReservationSafety`, and `BrokenNoReservation.cfg` must produce its counterexample.
 
-The normal `runGitCoreLoop` path now commits the reservation before invoking effectful executor code. A negative regression proof blocks the reservation CAS and establishes that the executor is not called.
+The normal `runGitCoreLoop` path now commits the reservation before invoking the trusted effect handler. The handler receives no `ExecutionPermit`. A negative regression proof blocks the reservation CAS and establishes that the handler is not called.
 
-**Non-claim:** Low-level experimental callers can still invoke provider code outside `runGitCoreLoop`; JavaScript itself is not a capability sandbox. The runtime guarantee applies to effects executed through the trusted reservation boundary.
+**Non-claim:** Low-level experimental callers can still invoke provider code outside `runGitCoreLoop`; JavaScript itself is not a capability sandbox. Physical denial of provider authority depends on the execution substrate. GitHub Actions job permissions demonstrate one concrete substrate boundary, not a universal one.
 
 ### S12. DONE should be derivable from evidence
 
