@@ -106,7 +106,24 @@ trusted recovery
   settle through exact CAS
 ```
 
-This revised hosted proof is implemented on the current branch but should not be counted as live evidence until it has passed at an exact source revision.
+This revised hosted proof passed as workflow run `35389453056` at exact source revision `f8a883d6214d76b0b609eb05e3798d6238d108cc`.
+
+Observed proof coordinates:
+
+```text
+workflow run:         35389453056
+source revision:      f8a883d6214d76b0b609eb05e3798d6238d108cc
+run:                  0688f8aa-b96f-41df-9866-f8041226672e
+claim:                cfbb9f334f214d7b9268448c0d424c40e8b2460c
+worker authority write: HTTP 403
+worker provider write:  HTTP 403
+broker generation:    2
+recovery generation:  3
+recovery:             3a2bd35b0ac2b19d725621d1c6aeb4c547a86195
+settlement/authority: 7bd05e5f4bf9cc2f5f8460e32ce902e1fe77b364
+provider state:       success
+final disposition:    DONE
+```
 
 Workflow run `35304838786` demonstrated that local executor tampering does not redefine the obligation, authority ref, verifier, canonical repository identity, exact input SHA, or settlement decision.
 
