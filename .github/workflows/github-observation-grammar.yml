@@ -9,6 +9,7 @@ on:
       - experiment/github-observation-semantics
       - experiment/certified-github-status-readback
       - experiment/certified-github-repository-bootstrap
+      - experiment/certified-github-ref-fence
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
@@ -17,6 +18,7 @@ on:
       - src/semantics.ts
       - src/providers/**
       - test/github-certified-status.test.ts
+      - test/github-certified-ref.test.ts
       - research/github-observation-grammar.md
       - package.json
   pull_request:
@@ -103,3 +105,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/live-kernel-status-readback.ts
+      - name: Prove kernel ref authority fence uses certified observations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/live-kernel-ref-fence.ts
