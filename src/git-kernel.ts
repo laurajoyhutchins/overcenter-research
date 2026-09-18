@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const STATE_REF = 'refs/overcenter/state';
 const STATE_SCHEMA = 'overcenter-git-state-v5';
 const CLAIM_SCHEMA = 'overcenter-git-claim-v1';
-const RECEIPT_SCHEMA = 'overcenter-git-receipt-v2';
+const RECEIPT_SCHEMA = 'overcenter-git-receipt-v3';
 
 type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
 export type WorkStatus = LifecycleStatus | 'BLOCKED';
@@ -37,7 +37,6 @@ export type Postcondition = FileContentPostcondition | GitRefPostcondition | Git
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
   mutation_certainty: MutationCertainty;
-  verified: boolean;
   path?: string;
   expected_sha256?: string;
   actual_sha256?: string;
@@ -79,22 +78,27 @@ interface Lifecycle {
   status: LifecycleStatus;
   run?: Run;
 }
+type ReceiptKind = 'observation' | 'judgment-required' | 'execution-terminated';
+interface ReceiptFact {
+  schema: typeof RECEIPT_SCHEMA;
+  run_id: string;
+  obligation_id: string;
+  claimed_revision: string;
+  claim_commit: string;
+  kind: ReceiptKind;
+  observed: Observation | null;
+  diagnostic?: Data;
+  settled_at: string;
+}
 interface HistoryProjection {
   lifecycles: Map<string,Lifecycle>;
   runs: Map<string,Run>;
   receiptsByRun: Map<string,Receipt>;
+  receipts: Receipt[];
 }
-export interface Receipt {
-  schema: typeof RECEIPT_SCHEMA;
-  run_id: string;
-  obligation_id: string;
-  claimed_revision?: string;
-  claim_commit: string;
+export interface Receipt extends ReceiptFact {
   disposition: Disposition;
   verified: boolean;
-  observed: Observation | null;
-  diagnostic?: Data;
-  settled_at: string;
   settlement_commit?: string;
 }
 export interface ExecuteOutcome extends Data { kind?: string; may_have_mutated?: boolean }
@@ -222,21 +226,16 @@ export class GitOvercenterKernel {
         throw new Error('NOT_RESOLVABLE');
       }
 
-      const claimCommit = run.claim_commit;
       const observed = this.#observe(work.postcondition);
-      const disposition: Disposition = observed.verified
-        ? 'DONE'
-        : observed.mutation_certainty === 'absent'
-          ? 'READY'
-          : 'RECOVERY_REQUIRED';
-      const receipt = this.#receipt(run,work,disposition,observed.verified,observed,claimCommit);
-      const commit=this.#commit(head,state,`overcenter: resolve ${work.id} ${disposition}`,receipt);
+      const fact = this.#receiptFact(run,work,'observation',observed);
+      const receipt = this.#projectReceipt(fact,work);
+      const commit=this.#commit(head,state,`overcenter: observe ${work.id} ${run.id}`,fact);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
     throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
   }
 
-  defer(runId: string, disposition: 'WAITING'|'RECOVERY_REQUIRED', diagnostic: Data = {}): Receipt {
+  defer(runId: string, disposition: 'WAITING', diagnostic: Data = {}): Receipt {
     for (let attempt=0; attempt<16; attempt+=1) {
       const head=this.#requireHead();
       const state=this.#state(head);
@@ -251,9 +250,10 @@ export class GitOvercenterKernel {
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
       }
-      const claimCommit=run.claim_commit;
-      const receipt=this.#receipt(run,work,disposition,false,null,claimCommit,diagnostic);
-      const commit=this.#commit(head,state,`overcenter: defer ${work.id} ${disposition}`,receipt);
+      if (disposition!=='WAITING') throw new Error('UNSUPPORTED_DEFER_DISPOSITION');
+      const fact=this.#receiptFact(run,work,'judgment-required',null,diagnostic);
+      const receipt=this.#projectReceipt(fact,work);
+      const commit=this.#commit(head,state,`overcenter: judgment required ${work.id} ${run.id}`,fact);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
     throw new Error('DEFER_CONTENTION_EXHAUSTED');
@@ -274,17 +274,15 @@ export class GitOvercenterKernel {
         if (prior) return prior;
         throw new Error('RUN_NOT_EXECUTING');
       }
-      const claimCommit=run.claim_commit;
-      const receipt=this.#receipt(
+      const fact=this.#receiptFact(
         run,
         work,
-        'RECOVERY_REQUIRED',
-        false,
+        'execution-terminated',
         null,
-        claimCommit,
-        {reason:'execution-terminated',...diagnostic},
+        diagnostic,
       );
-      const commit=this.#commit(head,state,`overcenter: recover ${work.id} ${runId}`,receipt);
+      const receipt=this.#projectReceipt(fact,work);
+      const commit=this.#commit(head,state,`overcenter: execution terminated ${work.id} ${runId}`,fact);
       if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
     throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
@@ -293,19 +291,9 @@ export class GitOvercenterKernel {
   reconcile(runId: string): Receipt { return this.resolve(runId); }
 
   receipts(runId: string | null = null): Receipt[] {
-    return this.#receiptsThrough(this.#requireHead(),runId);
-  }
-
-  #receiptsThrough(head:string,runId:string|null=null): Receipt[] {
-    const revs=this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
-    const out:Receipt[]=[];
-    for (const commit of revs) {
-      const file=this.#git(['show',`${commit}:receipt.json`],{allowFailure:true});
-      if (!file.ok) continue;
-      const receipt=JSON.parse(file.stdout) as Receipt;
-      if (!runId || receipt.run_id===runId) out.push({...receipt,settlement_commit:commit});
-    }
-    return out;
+    const head=this.#requireHead();
+    const history=this.#history(this.#state(head),head);
+    return runId ? history.receipts.filter(receipt=>receipt.run_id===runId) : history.receipts;
   }
 
   #history(state:State,head:string): HistoryProjection {
@@ -314,6 +302,7 @@ export class GitOvercenterKernel {
     );
     const runs=new Map<string,Run>();
     const receiptsByRun=new Map<string,Receipt>();
+    const receipts:Receipt[]=[];
     const revs=this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
 
     for (const commit of revs) {
@@ -343,20 +332,26 @@ export class GitOvercenterKernel {
 
       const receiptFile=this.#git(['show',`${commit}:receipt.json`],{allowFailure:true});
       if (!receiptFile.ok) continue;
-      const receipt={...JSON.parse(receiptFile.stdout) as Receipt,settlement_commit:commit};
-      if (receipt.schema!==RECEIPT_SCHEMA) throw new Error('INVALID_RECEIPT_SCHEMA');
-      const run=runs.get(receipt.run_id);
+      const fact=JSON.parse(receiptFile.stdout) as ReceiptFact;
+      if (fact.schema!==RECEIPT_SCHEMA) throw new Error('INVALID_RECEIPT_SCHEMA');
+      if (!['observation','judgment-required','execution-terminated'].includes(fact.kind)) {
+        throw new Error('INVALID_RECEIPT_KIND');
+      }
+      const run=runs.get(fact.run_id);
       if (!run) throw new Error('RECEIPT_WITHOUT_CLAIM');
-      if (run.obligation_id!==receipt.obligation_id) throw new Error('RECEIPT_OBLIGATION_MISMATCH');
-      if (receipt.claimed_revision!==run.claimed_revision) throw new Error('RECEIPT_REVISION_MISMATCH');
-      if (receipt.claim_commit!==run.claim_commit) throw new Error('RECEIPT_CLAIM_MISMATCH');
+      if (run.obligation_id!==fact.obligation_id) throw new Error('RECEIPT_OBLIGATION_MISMATCH');
+      if (fact.claimed_revision!==run.claimed_revision) throw new Error('RECEIPT_REVISION_MISMATCH');
+      if (fact.claim_commit!==run.claim_commit) throw new Error('RECEIPT_CLAIM_MISMATCH');
       const current=lifecycles.get(run.obligation_id);
       if (current?.run?.id!==run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
       const previous=receiptsByRun.get(run.id);
       if (previous && ['DONE','READY'].includes(previous.disposition)) {
         throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
       }
+      const work=state.obligations[run.obligation_id];
+      const receipt=this.#projectReceipt(fact,work,commit);
       receiptsByRun.set(run.id,receipt);
+      receipts.push(receipt);
       lifecycles.set(
         run.obligation_id,
         receipt.disposition==='READY'
@@ -364,7 +359,7 @@ export class GitOvercenterKernel {
           : {status:receipt.disposition,run},
       );
     }
-    return {lifecycles,runs,receiptsByRun};
+    return {lifecycles,runs,receiptsByRun,receipts};
   }
 
   #requireHead(): string { const head=this.head(); if (!head) throw new Error('NOT_INITIALIZED'); return head; }
@@ -475,7 +470,6 @@ export class GitOvercenterKernel {
           context:p.context,
           expected_state:p.expected_state,
           mutation_certainty:'uncertain',
-          verified:false,
           observation_error:'GITHUB_TOKEN_UNAVAILABLE',
         };
       }
@@ -499,8 +493,7 @@ export class GitOvercenterKernel {
             context:p.context,
             expected_state:p.expected_state,
             mutation_certainty:'absent',
-            verified:false,
-          };
+            };
         }
         return {
           verifier:p.verifier,
@@ -512,7 +505,6 @@ export class GitOvercenterKernel {
           expected_state:p.expected_state,
           actual_state:status.state,
           mutation_certainty:'present',
-          verified:status.state===p.expected_state,
         };
       } catch (e: unknown) {
         return {
@@ -523,7 +515,6 @@ export class GitOvercenterKernel {
           context:p.context,
           expected_state:p.expected_state,
           mutation_certainty:'uncertain',
-          verified:false,
           observation_error:errorMessage(e),
         };
       }
@@ -538,7 +529,6 @@ export class GitOvercenterKernel {
           ref:p.ref,
           expected_sha:p.target_sha,
           mutation_certainty:'uncertain',
-          verified:false,
           observation_error:listed.stderr ?? 'git ls-remote failed',
         };
       }
@@ -550,7 +540,6 @@ export class GitOvercenterKernel {
           ref:p.ref,
           expected_sha:p.target_sha,
           mutation_certainty:'absent',
-          verified:false,
         };
       }
       const actualSha=line.split(/\s+/)[0];
@@ -569,17 +558,83 @@ export class GitOvercenterKernel {
     try {
       const actual=readFileSync(p.path,'utf8');
       const actualSha=sha256(actual);
-      return {verifier:p.verifier,path:p.path,expected_sha256:expected,actual_sha256:actualSha,mutation_certainty:'present',verified:actual===p.content};
+      return {verifier:p.verifier,path:p.path,expected_sha256:expected,actual_sha256:actualSha,mutation_certainty:'present'};
     } catch (e: unknown) {
       const code=(e as {code?:string}).code;
-      if (code==='ENOENT') return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'absent',verified:false};
-      return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'uncertain',verified:false,observation_error:errorMessage(e)};
+      if (code==='ENOENT') return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'absent'};
+      return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'uncertain',observation_error:errorMessage(e)};
     }
   }
-  #receipt(run:Run,work:Obligation,disposition:Disposition,verified:boolean,observed:Observation|null,claimCommit:string,diagnostic?:Data): Receipt {
-    return {schema:RECEIPT_SCHEMA,run_id:run.id,obligation_id:work.id,claimed_revision:run.claimed_revision,claim_commit:claimCommit,disposition,verified,observed,...(diagnostic?{diagnostic}:{}),settled_at:new Date().toISOString()};
+  #observationVerified(postcondition:Postcondition,observed:Observation): boolean {
+    if (observed.verifier!==postcondition.verifier) throw new Error('OBSERVATION_VERIFIER_MISMATCH');
+    if (observed.mutation_certainty!=='present') return false;
+
+    if (postcondition.verifier==='file-content-equals/v1') {
+      if (observed.path!==postcondition.path) throw new Error('OBSERVATION_COORDINATE_MISMATCH');
+      return observed.actual_sha256===sha256(postcondition.content);
+    }
+    if (postcondition.verifier==='git-ref-equals/v1') {
+      if (observed.remote!==postcondition.remote || observed.ref!==postcondition.ref) {
+        throw new Error('OBSERVATION_COORDINATE_MISMATCH');
+      }
+      return observed.actual_sha===postcondition.target_sha;
+    }
+    if (
+      observed.provider!=='github'
+      || observed.repository_id!==postcondition.repository_id
+      || observed.commit_sha!==postcondition.commit_sha
+      || observed.context!==postcondition.context
+    ) {
+      throw new Error('OBSERVATION_COORDINATE_MISMATCH');
+    }
+    return observed.actual_state===postcondition.expected_state;
   }
-  #commit(parent:string|null,state:State,message:string,receipt:Receipt|null=null,claim:ClaimFact|null=null): string {
+
+  #projectReceipt(fact:ReceiptFact,work:Obligation,settlementCommit?:string): Receipt {
+    let disposition:Disposition;
+    let verified=false;
+
+    if (fact.kind==='observation') {
+      if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
+      verified=this.#observationVerified(work.postcondition,fact.observed);
+      disposition=verified
+        ? 'DONE'
+        : fact.observed.mutation_certainty==='absent'
+          ? 'READY'
+          : 'RECOVERY_REQUIRED';
+    } else {
+      if (fact.observed) throw new Error('NONOBSERVATION_RECEIPT_HAS_EVIDENCE');
+      disposition=fact.kind==='judgment-required' ? 'WAITING' : 'RECOVERY_REQUIRED';
+    }
+
+    return {
+      ...fact,
+      disposition,
+      verified,
+      ...(settlementCommit?{settlement_commit:settlementCommit}:{}),
+    };
+  }
+
+  #receiptFact(
+    run:Run,
+    work:Obligation,
+    kind:ReceiptKind,
+    observed:Observation|null,
+    diagnostic?:Data,
+  ): ReceiptFact {
+    return {
+      schema:RECEIPT_SCHEMA,
+      run_id:run.id,
+      obligation_id:work.id,
+      claimed_revision:run.claimed_revision,
+      claim_commit:run.claim_commit,
+      kind,
+      observed,
+      ...(diagnostic?{diagnostic}:{}),
+      settled_at:new Date().toISOString(),
+    };
+  }
+  #commit(parent:string|null,state:State,message:string,receipt:ReceiptFact|null=null,claim:ClaimFact|null=null): string {
     const entries:Array<[string,string]>=[['state.json',this.#blob(json(state))]];
     if (claim) entries.push(['claim.json',this.#blob(json(claim))]);
     if (receipt) entries.push(['receipt.json',this.#blob(json(receipt))]);
