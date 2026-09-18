@@ -107,22 +107,28 @@ Important entry points:
 - [`formal/`](./formal/) - TLA+ transaction/recovery kernel.
 - [`research/README.md`](./research/README.md) - research map.
 
-## How to run the proofs
+## Evidence ladder
+
+The command name states what kind of evidence a green check supports:
+
+| Command | Evidence |
+| --- | --- |
+| `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
+| `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
+| `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
+| `npm run proof:live` | Real-provider proof on GitHub-hosted runners. |
+
+These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
 Requirements:
 
 - Node.js 22.16.0 or newer;
 - Git;
 - Java for the TLA+ model;
-- network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar.
+- network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
+- GitHub CLI authentication for `proof:live`.
 
-Run the ordinary mechanism and experiment gate:
-
-```sh
-npm test
-```
-
-Run focused proof groups:
+The focused underlying commands remain available when debugging a particular claim:
 
 ```sh
 npm run test:projection
@@ -133,21 +139,14 @@ npm run test:concurrency
 npm run test:effect-order
 npm run test:github-observation
 npm run test:stress
-```
-
-Run the formal model and its five expected-failure negative controls:
-
-```sh
-npm run test:formal
-```
-
-Run the Git-backed demo:
-
-```sh
 npm run demo:git
 ```
 
-Hosted GitHub proofs are defined in [`.github/workflows/`](./.github/workflows/) and keep their implementation beside the corresponding experiments.
+`proof:live` dispatches `.github/workflows/disposable-agent-proof.yml`. To target a non-default branch:
+
+```sh
+npm run proof:live -- --ref <branch>
+```
 
 ## Go deeper
 
