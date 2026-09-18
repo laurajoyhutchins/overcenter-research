@@ -42,6 +42,15 @@ function provider(pages:unknown[][]):{get:GithubJsonGet;calls:string[]} {
     if (path==='/repositories/42') {
       return {id:42,full_name:'acme/widget'};
     }
+    if (path==='/repos/acme/widget') {
+      return {
+        id:42,
+        node_id:'R_42',
+        full_name:'acme/widget',
+        name:'widget',
+        owner:{login:'acme'},
+      };
+    }
     const match=/[?&]page=(\d+)/.exec(path);
     if (!match) throw new Error(`unexpected provider path: ${path}`);
     return pages[Number(match[1])-1]??[];
