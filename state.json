@@ -34,7 +34,9 @@
         "context": "overcenter/concurrency/35305708828/1/alpha",
         "expected_state": "success"
       },
-      "status": "READY"
+      "status": "EXECUTING",
+      "run_id": "ae2a0bca-4e70-483c-9482-61f074040580",
+      "claimed_revision": "30077685fb7c83b50deff8bb1618f6099323f032"
     },
     "concurrency-35305708828-1-beta": {
       "id": "concurrency-35305708828-1-beta",
