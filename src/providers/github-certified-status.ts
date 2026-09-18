@@ -79,7 +79,7 @@ export const GITHUB_COMMIT_STATUSES_OPERATION:ObservationOperation={
         required:['id','node_id','state','context','target_url','created_at','updated_at'],
         properties:{
           id:{type:'integer'},
-          node_id:{type:'string',minLength:1},
+          node_id:{type:'string'},
           state:{type:'string',enum:['error','failure','pending','success']},
           context:{type:'string'},
           target_url:{type:'string',nullable:true},
