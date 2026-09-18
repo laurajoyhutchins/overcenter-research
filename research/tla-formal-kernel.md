@@ -57,6 +57,14 @@ known outcome       uncertain outcome
                 DONE
 ```
 
+## Implementation status
+
+The first executable model now lives in [`formal/TransitionKernel.tla`](../formal/TransitionKernel.tla), with an authoritative TLC configuration, five deliberately broken negative-control configurations, and a reproducible runner in [`formal/check.sh`](../formal/check.sh).
+
+The implementation preserves the boundary proposed below: two workers, two exact revisions, one transition, one external effect, separate external truth and mutation knowledge, fenced authority, verification, settlement, recovery, durable evidence, and derived `Done`.
+
+One refinement is explicit in the executable model: a successor may acquire execution authority while an older effect remains unresolved so that it can perform recovery. The unresolved effect reservation itself remains exclusive and prevents the successor from issuing a conflicting new effect until authoritative readback resolves the predecessor attempt.
+
 ## Executive conclusion
 
 Yes. Overcenter's transaction/recovery kernel is small enough to model usefully.
@@ -1673,22 +1681,21 @@ The kernel's promise is narrower:
 
 That is both meaningful and tractable.
 
-## Recommended repository shape if implemented later
+## Implemented repository shape
 
-This research note does not implement the model.
-
-If the project decides to proceed, a small structure is enough:
+The first model is implemented with the following deliberately small structure:
 
 ```text
 formal/
   README.md
   TransitionKernel.tla
   TransitionKernel.cfg
-  traces/
-    stale-worker.md
-    lost-mutation-ack.md
-    lost-settlement-ack.md
-    revision-drift.md
+  BrokenNoFence.cfg
+  BrokenNoRevision.cfg
+  BrokenNoReplayGuard.cfg
+  BrokenNoReservation.cfg
+  BrokenNoEvidence.cfg
+  check.sh
 ```
 
 Do not create a large formal-methods subsystem.
