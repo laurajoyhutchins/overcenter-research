@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  validateObservationSlice,
   validateResponseSlice,
   type SchemaResolver,
   type StructuralOperation,
@@ -94,7 +95,6 @@ test('production structural validator binds certificate to operation and schema 
     },
   };
 
-  const {validateObservationSlice}=await import('../src/provider-observation/response-slice.ts');
   const certified=validateObservationSlice(operation,observation,[{path:'id'}]);
 
   assert.equal(certified.structural_validation.operation_id,'test/get');
