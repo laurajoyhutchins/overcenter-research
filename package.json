@@ -1,0 +1,12 @@
+{
+  "name": "overcenter-core-loop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "demo": "node examples/demo.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
