@@ -11,7 +11,7 @@ on:
       - experiments/disposable-agent/agent-b.ts
       - src/git-kernel.ts
       - test/git-kernel.test.ts
-      - test/disposable-agent.test.ts
+      - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
 
 permissions: {}

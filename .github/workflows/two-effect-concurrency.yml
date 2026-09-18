@@ -12,8 +12,8 @@ on:
       - experiments/two-effect-concurrency/verify.ts
       - src/git-kernel.ts
       - test/git-kernel.test.ts
-      - test/disposable-agent.test.ts
-      - test/two-effect-concurrency.test.ts
+      - experiments/disposable-agent/disposable-agent.test.ts
+      - experiments/two-effect-concurrency/two-effect-concurrency.test.ts
       - package.json
 
 permissions: {}

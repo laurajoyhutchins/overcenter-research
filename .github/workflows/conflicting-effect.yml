@@ -12,7 +12,7 @@ on:
       - experiments/conflicting-effect/guard-claim-beta.ts
       - experiments/conflicting-effect/guard-verify.ts
       - src/git-kernel.ts
-      - test/effect-ordering.test.ts
+      - experiments/conflicting-effect/effect-ordering.test.ts
       - package.json
 
 permissions: {}
