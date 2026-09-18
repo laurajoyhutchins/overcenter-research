@@ -41,7 +41,9 @@
         "context": "overcenter/conflict-guard/35309126212/1/ordered",
         "expected_state": "success"
       },
-      "status": "READY"
+      "status": "EXECUTING",
+      "run_id": "559fee52-e4a3-40e4-911d-4edc8f2964f6",
+      "claimed_revision": "55777abf7eab009230400016eeb6e4bb51504f6e"
     },
     "guard-35309126212-1-ordered-beta": {
       "id": "guard-35309126212-1-ordered-beta",
