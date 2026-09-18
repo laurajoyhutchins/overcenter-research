@@ -80,7 +80,7 @@ export const GITHUB_COMMIT_STATUSES_OPERATION:ObservationOperation={
         properties:{
           id:{type:'integer'},
           node_id:{type:'string'},
-          state:{type:'string',enum:['error','failure','pending','success']},
+          state:{type:'string'},
           context:{type:'string'},
           target_url:{type:'string',nullable:true},
           created_at:{type:'string'},
@@ -155,6 +155,9 @@ function certifiedMembers(observation:RawObservation):{
   for (const member of members) {
     if (member.id<=0 || member.node_id.length===0) {
       throw new Error('GITHUB_STATUS_IDENTITY_INVALID');
+    }
+    if (!['error','failure','pending','success'].includes(member.state)) {
+      throw new Error('GITHUB_STATUS_STATE_INVALID');
     }
   }
   return {
