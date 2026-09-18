@@ -11,7 +11,7 @@ function required(name: string): string {
 
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
-const sourceSha = required('GITHUB_SHA');
+const sourceSha = required('SOURCE_SHA');
 const brokerOutcome = required('EFFECT_BROKER_OUTCOME');
 const token = required('GITHUB_TOKEN');
 const stateRef = githubProofStateRef('disposable-agent');
