@@ -353,10 +353,11 @@ export class GitOvercenterKernel {
         if (repository.id!==p.repository_id || typeof repository.full_name!=='string') {
           throw new Error('GITHUB_REPOSITORY_IDENTITY_MISMATCH');
         }
-        const statuses=this.#githubGet(
-          `/repos/${repository.full_name}/commits/${p.commit_sha}/statuses?per_page=100`,
-        ) as Array<{ context?: string; state?: string }>;
-        const status=statuses.find(candidate=>candidate.context===p.context);
+        const status=this.#githubFindCommitStatus(
+          repository.full_name,
+          p.commit_sha,
+          p.context,
+        );
         if (!status) {
           return {
             verifier:p.verifier,
@@ -467,6 +468,28 @@ export class GitOvercenterKernel {
     return true;
   }
   #objectIdLength(): number { return this.#git(['rev-parse','--show-object-format']).stdout.trim()==='sha256'?64:40; }
+  #githubStatusContextKey(context: string): string { return context.toLowerCase(); }
+  #githubFindCommitStatus(
+    repositoryFullName: string,
+    commitSha: string,
+    context: string,
+  ): { context?: string; state?: string } | null {
+    const target=this.#githubStatusContextKey(context);
+    for (let page=1; page<=1000; page+=1) {
+      const statuses=this.#githubGet(
+        `/repos/${repositoryFullName}/commits/${commitSha}/statuses?per_page=100&page=${page}`,
+      );
+      if (!Array.isArray(statuses)) throw new Error('GITHUB_STATUS_RESPONSE_INVALID');
+      const typed=statuses as Array<{ context?: string; state?: string }>;
+      const match=typed.find(candidate=>
+        typeof candidate.context==='string'
+        && this.#githubStatusContextKey(candidate.context)===target
+      );
+      if (match) return match;
+      if (typed.length<100) return null;
+    }
+    throw new Error('GITHUB_STATUS_PAGINATION_EXHAUSTED');
+  }
   #githubGet(path: string): unknown {
     if (!this.githubToken) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
     const config = [
