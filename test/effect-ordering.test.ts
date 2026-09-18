@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
 
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'overcenter-effect-order-'));
@@ -46,6 +46,28 @@ test('READY frontier excludes unordered incompatible canonical effects', () => {
       ()=>f.kernel.claim('alpha',inspected[0].revision),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
+  } finally {
+    rmSync(f.root,{recursive:true,force:true});
+  }
+});
+
+test('core loop reports BLOCKED rather than IDLE for semantic conflict', async () => {
+  const f=fixture();
+  try {
+    f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
+    f.kernel.define({id:'beta',postcondition:statusPostcondition('failure')});
+
+    let executions=0;
+    const result=await runGitCoreLoop(f.kernel,{
+      execute:async ()=>{
+        executions+=1;
+        return {kind:'ok'};
+      },
+    });
+
+    assert.equal(result.state,'BLOCKED');
+    assert.equal(executions,0);
+    assert.ok(result.work==='alpha' || result.work==='beta');
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
