@@ -61,7 +61,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: alpha
-          STATE_REF: refs/overcenter/conflict-guard-state
+          STATE_REF: refs/overcenter/conflict-guard-state/${{ github.run_id }}/${{ github.run_attempt }}
         run: node --experimental-strip-types actions/conflict-agent.ts
 
   recover-alpha:
@@ -75,7 +75,7 @@ jobs:
       statuses: read
     env:
       SLOT: alpha
-      STATE_REF: refs/overcenter/conflict-guard-state
+      STATE_REF: refs/overcenter/conflict-guard-state/${{ github.run_id }}/${{ github.run_attempt }}
       AGENT_OUTCOME: ${{ needs.alpha.outputs.outcome }}
     steps:
       - uses: actions/checkout@v7
@@ -127,7 +127,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: beta
-          STATE_REF: refs/overcenter/conflict-guard-state
+          STATE_REF: refs/overcenter/conflict-guard-state/${{ github.run_id }}/${{ github.run_attempt }}
         run: node --experimental-strip-types actions/conflict-agent.ts
 
   recover-beta:
@@ -141,7 +141,7 @@ jobs:
       statuses: read
     env:
       SLOT: beta
-      STATE_REF: refs/overcenter/conflict-guard-state
+      STATE_REF: refs/overcenter/conflict-guard-state/${{ github.run_id }}/${{ github.run_attempt }}
       AGENT_OUTCOME: ${{ needs.beta.outputs.outcome }}
     steps:
       - uses: actions/checkout@v7
