@@ -70,7 +70,7 @@ If the provider cannot make negative evidence authoritative, Overcenter cannot m
 
 ## Executable trace
 
-[`test/eventually-consistent-effect.test.ts`](../test/eventually-consistent-effect.test.ts) executes this exact trace:
+[`experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts`](../experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts) executes this exact trace:
 
 ```text
 claim one run

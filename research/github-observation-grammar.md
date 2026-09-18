@@ -57,9 +57,9 @@ required_sha == observed_sha
       +-- false -> UNSATISFIED
 ```
 
-`src/github-openapi.ts` mechanically derives a read-only observation descriptor from an OpenAPI document and records the exact API version, operation ID, request coordinate, HTTP outcome, and raw value.
+`experiments/github-observation-grammar/openapi.ts` mechanically derives a read-only observation descriptor from an OpenAPI document and records the exact API version, operation ID, request coordinate, HTTP outcome, and raw value.
 
-`src/github-semantics.ts` is intentionally separate. It contains the handwritten rule that a successful `git/get-ref` response with a matching coordinate proves a `ref -> object SHA` binding.
+`experiments/github-observation-grammar/semantics.ts` is intentionally separate. It contains the handwritten rule that a successful `git/get-ref` response with a matching coordinate proves a `ref -> object SHA` binding.
 
 ## Negative evidence rule
 

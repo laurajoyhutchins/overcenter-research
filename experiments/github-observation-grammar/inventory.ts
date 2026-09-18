@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { deriveObservationCatalog, type OpenApiDocument } from '../src/github-openapi.ts';
+import { deriveObservationCatalog, type OpenApiDocument } from './openapi.ts';
 
 const [schemaPath, apiVersion = '2026-03-10'] = process.argv.slice(2);
 if (!schemaPath) throw new Error('usage: github-openapi-inventory.ts <openapi.json> [api-version]');

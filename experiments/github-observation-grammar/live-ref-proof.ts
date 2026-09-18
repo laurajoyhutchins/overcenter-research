@@ -5,8 +5,8 @@ import {
   GitHubRestTransport,
   observeOperation,
   type OpenApiDocument,
-} from '../src/github-openapi.ts';
-import { evaluateGitRefTarget } from '../src/github-semantics.ts';
+} from './openapi.ts';
+import { evaluateGitRefTarget } from './semantics.ts';
 
 const schemaPath = process.argv[2];
 if (!schemaPath) throw new Error('usage: github-ref-live-proof.ts <openapi.json>');

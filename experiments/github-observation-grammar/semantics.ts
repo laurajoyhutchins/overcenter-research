@@ -1,4 +1,4 @@
-import type { RawObservation } from './github-openapi.ts';
+import type { RawObservation } from './openapi.ts';
 
 export interface GitRefTargetFact {
   kind: 'binding';

@@ -6,8 +6,8 @@ import {
   GitHubRestTransport,
   observeOperation,
   type OpenApiDocument,
-} from '../src/github-openapi.ts';
-import { evaluateGitRefTarget, projectGitRefTarget } from '../src/github-semantics.ts';
+} from './openapi.ts';
+import { evaluateGitRefTarget, projectGitRefTarget } from './semantics.ts';
 
 const pathTemplate = '/repos/{owner}/{repo}/git/ref/{ref}';
 const openapi: OpenApiDocument = {

@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
 test('eventually consistent negative readback cannot authorize replay after an uncertain effect', () => {
   const root=mkdtempSync(join(tmpdir(),'overcenter-eventual-readback-'));
