@@ -13,7 +13,9 @@ export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
-export const RECEIPT_SCHEMA='overcenter-git-receipt-v4' as const;
+export const LEGACY_RECEIPT_SCHEMA='overcenter-git-receipt-v4' as const;
+export const RECEIPT_SCHEMA='overcenter-git-receipt-v5' as const;
+export type ReceiptSchema=typeof LEGACY_RECEIPT_SCHEMA|typeof RECEIPT_SCHEMA;
 
 export interface ObligationInput {
   id:string;

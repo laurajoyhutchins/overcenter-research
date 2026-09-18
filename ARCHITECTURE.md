@@ -592,7 +592,7 @@ Settlement authority is also declared before execution begins. Replay from absen
 - verifier-level semantics that permit authoritative negative evidence; and
 - observation-specific evidence that this read actually established authoritative absence.
 
-A generic `mutation_certainty: "absent"` field alone never reopens execution under receipt v4. The verifier must accept the concrete absence-certificate kind, and provider-specific validation must bind its subject, scope, completeness, snapshot, and provenance as required.
+A generic `mutation_certainty: "absent"` field alone never reopens execution under receipt v5. The verifier must accept the concrete absence-certificate kind, and provider-specific validation must bind its subject, scope, completeness, snapshot, and provenance as required.
 
 ### READY
 

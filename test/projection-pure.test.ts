@@ -154,13 +154,15 @@ function absentReceipt(
     obligation_id:'absence',
     claimed_revision:'revision-absence',
     claim_commit:'claim-absence',
+    execution_generation:1,
+    execution_authority_commit:'authority-absence',
     kind:'observation',
     observed,
     settled_at:'2026-09-18T00:00:00.000Z',
   };
 }
 
-test('receipt v4 requires a matching absence certificate before replay',()=>{
+test('receipt v5 requires a matching absence certificate before replay',()=>{
   const local:Obligation={
     id:'absence',
     dependencies:[],
@@ -253,7 +255,7 @@ test('receipt v4 requires a matching absence certificate before replay',()=>{
   );
 });
 
-test('legacy receipt v3 preserves its historical absence projection',()=>{
+test('legacy receipt v4 preserves its historical absence projection',()=>{
   const local:Obligation={
     id:'absence',
     dependencies:[],

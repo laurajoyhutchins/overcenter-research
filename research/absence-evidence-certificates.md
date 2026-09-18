@@ -127,16 +127,16 @@ Whether a future Kubernetes absence certificate directly carries watch-continuit
 Receipt semantics are versioned:
 
 ```text
-receipt v3
-  historical semantics
+receipt v4
+  historical execution-generation semantics
   retained for replay compatibility
 
-receipt v4
+receipt v5
   new writes
   absence-based replay requires a validated certificate
 ```
 
-This prevents the repository from silently reinterpreting already-durable v3 facts when evidence semantics become stricter.
+This prevents the repository from silently reinterpreting already-durable v4 facts when evidence semantics become stricter.
 
 ## Non-goals
 
