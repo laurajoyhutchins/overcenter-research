@@ -28,7 +28,6 @@ export type ProjectFact =
       observation_id: string;
       verifier: Postcondition['verifier'];
       mutation_certainty: 'present' | 'absent' | 'uncertain';
-      predicate_holds: boolean;
       actual_sha256?: string;
     }
   | {
@@ -133,8 +132,18 @@ export function deriveProjectProjection(
         if (!observation || observation.type !== 'effect-observed') {
           throw new Error(`SETTLEMENT_WITHOUT_OBSERVATION:${fact.run_id}`);
         }
-        if (fact.result === 'verified' && !observation.predicate_holds) {
-          throw new Error(`INVALID_VERIFIED_SETTLEMENT:${fact.run_id}`);
+        if (fact.result === 'verified') {
+          const definition = definitions.get(run.claim.obligation_id);
+          if (!definition) {
+            throw new Error(`SETTLEMENT_WITHOUT_DEFINITION:${fact.run_id}`);
+          }
+          const verifies =
+            observation.mutation_certainty === 'present'
+            && typeof observation.actual_sha256 === 'string'
+            && observation.actual_sha256 === definition.postcondition.content_sha256;
+          if (!verifies) {
+            throw new Error(`INVALID_VERIFIED_SETTLEMENT:${fact.run_id}`);
+          }
         }
         run.settlement = fact;
         break;
