@@ -6,7 +6,8 @@
     "test": "node --test",
     "demo": "node examples/demo.js",
     "test:git": "node --test test/git-kernel.test.js",
-    "demo:git": "node examples/git-demo.js"
+    "demo:git": "node examples/git-demo.js",
+    "test:stress": "node --test stress/git-stress.js"
   },
   "engines": {
     "node": ">=22.5"
