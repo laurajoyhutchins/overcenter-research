@@ -4,18 +4,25 @@ on:
   push:
     branches:
       - experiment/github-observation-grammar
+      - experiment/github-observation-semantics
     paths:
       - .github/workflows/github-observation-grammar.yml
-      - experiments/github-observation-grammar/inventory.ts
-      - experiments/github-observation-grammar/live-ref-proof.ts
-      - experiments/github-observation-grammar/openapi.ts
-      - experiments/github-observation-grammar/semantics.ts
-      - experiments/github-observation-grammar/github-observation.test.ts
+      - experiments/github-observation-grammar/**
+      - research/github-observation-grammar.md
+      - package.json
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/github-observation-grammar.yml
+      - experiments/github-observation-grammar/**
       - research/github-observation-grammar.md
       - package.json
 
 permissions:
   contents: read
+  checks: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,8 +40,8 @@ jobs:
           node-version: 22.16.0
       - run: npm test
 
-  inventory:
-    name: Pinned schema and live ref proof
+  semantics:
+    name: Pinned schema and live semantic shapes
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -47,14 +54,22 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/github/rest-api-description/d4278c869e367f5d6d4e0f46878119128abba77b/descriptions/api.github.com/dereferenced/api.github.com.2026-03-10.deref.json \
             --output "$RUNNER_TEMP/github-openapi.json"
-      - name: Generate read-only observation inventory
+      - name: Generate complete read-only observation inventory
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/inventory.ts \
             "$RUNNER_TEMP/github-openapi.json" \
             2026-03-10
-      - name: Prove live ref readback through generated descriptor
+      - name: Verify representative semantic shapes exist in the pinned contract
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/semantic-inventory.ts \
+            "$RUNNER_TEMP/github-openapi.json"
+      - name: Prove live identity, immutable, mutable, pagination, conditional, and reconstruction semantics
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CHECK_REF: ${{ github.sha }}
+          PULL_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          node --experimental-strip-types experiments/github-observation-grammar/live-ref-proof.ts \
+          node --experimental-strip-types experiments/github-observation-grammar/live-semantic-proof.ts \
             "$RUNNER_TEMP/github-openapi.json"
