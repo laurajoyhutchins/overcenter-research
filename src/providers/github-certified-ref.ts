@@ -9,6 +9,10 @@ import {
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './github-contract.ts';
+import {
+  observeCertifiedGithubRepositoryIdentity,
+  type CertifiedGithubRepositoryEvidence,
+} from './github-certified-repository.ts';
 import { githubGet, type GithubJsonGet } from './github-status.ts';
 
 interface GithubObservationParameter {
@@ -69,6 +73,7 @@ export interface CertifiedGithubRefEvidence {
   optional_absent_paths:string[];
   object_type:'commit'|'tag';
   actual_target_sha:string;
+  repository_identity:CertifiedGithubRepositoryEvidence;
 }
 
 export interface CertifiedGithubRefResult {
@@ -131,14 +136,6 @@ function apiRef(ref:string):string {
   return canonicalGithubRef(ref).slice('refs/'.length);
 }
 
-function repositoryCoordinate(fullName:string):{owner:string;repo:string} {
-  const slash=fullName.indexOf('/');
-  if (slash<=0 || slash===fullName.length-1 || fullName.indexOf('/',slash+1)!==-1) {
-    throw new Error('GITHUB_REPOSITORY_FULL_NAME_INVALID');
-  }
-  return {owner:fullName.slice(0,slash),repo:fullName.slice(slash+1)};
-}
-
 function rawRefObservation({
   body,
   owner,
@@ -197,16 +194,13 @@ export function observeCertifiedGithubRefTarget(
   const canonicalRef=canonicalGithubRef(ref);
   if (!SHA.test(targetSha)) throw new Error('GITHUB_REF_TARGET_SHA_INVALID');
 
-  const repository=get(token,`/repositories/${repositoryId}`) as {
-    id?:unknown;
-    full_name?:unknown;
-  };
-  if (repository.id!==repositoryId || typeof repository.full_name!=='string') {
-    throw new Error('GITHUB_REPOSITORY_IDENTITY_MISMATCH');
-  }
-
+  const repository=observeCertifiedGithubRepositoryIdentity(token,{
+    repositoryId,
+    get,
+    clock,
+  });
   const fullName=repository.full_name;
-  const {owner,repo}=repositoryCoordinate(fullName);
+  const {owner,repo}=repository;
   const requestRef=apiRef(canonicalRef);
   const body=get(
     token,
@@ -251,6 +245,7 @@ export function observeCertifiedGithubRefTarget(
     optional_absent_paths:certified.structural_validation.optional_absent_paths,
     object_type:value.object.type as 'commit'|'tag',
     actual_target_sha:actualTargetSha,
+    repository_identity:repository.evidence,
   };
 
   return {
