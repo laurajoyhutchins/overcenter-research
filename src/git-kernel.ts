@@ -85,7 +85,7 @@ export interface Receipt {
 }
 export interface ExecuteOutcome extends Data { kind?: string; may_have_mutated?: boolean }
 export interface LoopOptions { execute: (packet: Data, run: Run) => Promise<ExecuteOutcome>; maxAdvances?: number }
-export interface LoopResult { state: 'IDLE'|'RECOVERY_REQUIRED'|'WAITING'|'BUDGET_EXHAUSTED'; advances: number; work?: string; run?: string }
+export interface LoopResult { state: 'IDLE'|'BLOCKED'|'RECOVERY_REQUIRED'|'WAITING'|'BUDGET_EXHAUSTED'; advances: number; work?: string; run?: string }
 interface GitResult { ok: boolean; stdout: string; stderr?: string }
 
 const IN_FLIGHT = new Set<WorkStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
@@ -561,7 +561,12 @@ export class GitOvercenterKernel {
 export async function runGitCoreLoop(kernel: GitOvercenterKernel,{execute,maxAdvances=100}:LoopOptions): Promise<LoopResult> {
   kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
-    const work=kernel.deriveReadyWork(); if (!work) return {state:'IDLE',advances:i};
+    const work=kernel.deriveReadyWork();
+    if (!work) {
+      const blocked=kernel.inspect().find(candidate=>candidate.status==='BLOCKED');
+      if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
+      return {state:'IDLE',advances:i};
+    }
     let run:Run;
     try { run=kernel.claim(work.id,work.revision); }
     catch(e:unknown) { const m=errorMessage(e); if (m==='STALE_REVISION'||m==='CLAIM_LOST') continue; throw e; }
