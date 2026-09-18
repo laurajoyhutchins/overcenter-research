@@ -1,6 +1,6 @@
 import type { Postcondition } from './model.ts';
 import { canonicalDigest, sha256 } from './digest.ts';
-import { githubStatusContextKey } from './providers/github-status.ts';
+import { githubStatusContextKey } from './providers/github-rest.ts';
 
 export interface EffectSemantics {
   resource:string;
@@ -15,7 +15,7 @@ export function verifiedContentIdentity(postcondition:Postcondition):string|null
   ) {
     return `sha256:${sha256(postcondition.content)}`;
   }
-  if (postcondition.verifier==='github-commit-status/v1') {
+  if (postcondition.verifier==='github-commit-status/v2') {
     return canonicalDigest({
       provider:'github',
       repository_id:postcondition.repository_id,
@@ -28,7 +28,7 @@ export function verifiedContentIdentity(postcondition:Postcondition):string|null
 }
 
 export function effectSemantics(postcondition:Postcondition):EffectSemantics|null {
-  if (postcondition.verifier!=='github-commit-status/v1') return null;
+  if (postcondition.verifier!=='github-commit-status/v2') return null;
   return {
     resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,
     desired:postcondition.expected_state,
