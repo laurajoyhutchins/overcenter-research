@@ -1,0 +1,116 @@
+name: Overcenter conflicting-effect counterexample
+
+on:
+  push:
+    branches:
+      - prototype/conflicting-effect-boundary
+    paths:
+      - .github/workflows/conflicting-effect.yml
+      - actions/conflict-*.ts
+      - src/git-kernel.ts
+
+permissions: {}
+
+jobs:
+  authority:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22.16.0 }
+      - name: Define and claim conflicting work
+        env: { GITHUB_TOKEN: ${{ github.token }} }
+        run: node --experimental-strip-types actions/conflict-authority.ts
+
+  alpha:
+    needs: authority
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    outputs:
+      outcome: ${{ steps.agent.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22.16.0 }
+      - id: agent
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SLOT: alpha
+        run: node --experimental-strip-types actions/conflict-agent.ts
+
+  recover-alpha:
+    needs: alpha
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      statuses: read
+    env:
+      SLOT: alpha
+      AGENT_OUTCOME: ${{ needs.alpha.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22.16.0 }
+      - env: { GITHUB_TOKEN: ${{ github.token }} }
+        run: node --experimental-strip-types actions/conflict-recovery.ts
+
+  beta:
+    needs: recover-alpha
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    outputs:
+      outcome: ${{ steps.agent.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22.16.0 }
+      - id: agent
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SLOT: beta
+        run: node --experimental-strip-types actions/conflict-agent.ts
+
+  recover-beta:
+    needs: beta
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      statuses: read
+    env:
+      SLOT: beta
+      AGENT_OUTCOME: ${{ needs.beta.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22.16.0 }
+      - env: { GITHUB_TOKEN: ${{ github.token }} }
+        run: node --experimental-strip-types actions/conflict-recovery.ts
+
+  verify:
+    needs: recover-beta
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: read
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22.16.0 }
+      - env: { GITHUB_TOKEN: ${{ github.token }} }
+        run: node --experimental-strip-types actions/conflict-verify.ts
