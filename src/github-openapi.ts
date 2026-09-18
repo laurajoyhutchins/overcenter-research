@@ -63,6 +63,17 @@ export interface ObservationRequest {
   path_template: string;
   path: string;
   parameters: Record<string, string | number | boolean>;
+  headers: Record<string, string>;
+}
+
+export interface ObservationRedirect {
+  location: string | null;
+}
+
+export interface ObservationTransportResponse {
+  status: number;
+  body?: unknown;
+  redirect?: ObservationRedirect;
 }
 
 export interface RawObservation {
@@ -76,6 +87,7 @@ export interface RawObservation {
     status: number;
     visibility: ObservationVisibility;
     value?: unknown;
+    redirect?: ObservationRedirect;
   };
 }
 
@@ -83,8 +95,9 @@ export interface ObservationTransport {
   request(input: {
     method: 'GET' | 'HEAD';
     path: string;
+    headers: Record<string, string>;
     apiVersion: string;
-  }): Promise<{ status: number; body?: unknown }>;
+  }): Promise<ObservationTransportResponse>;
 }
 
 const READ_METHODS = new Set(['get', 'head']);
@@ -163,14 +176,22 @@ function encodePathValue(value: string | number | boolean): string {
 function materializeRequest(operation: ObservationOperation, values: Record<string, string | number | boolean>): ObservationRequest {
   let path = operation.path_template;
   const query = new URLSearchParams();
+  const headers: Record<string, string> = {};
+  const parameters: Record<string, string | number | boolean> = {};
+  const declared = new Set(operation.parameters.map(parameter => parameter.name));
+  for (const name of Object.keys(values)) {
+    if (!declared.has(name)) throw new Error(`OBSERVATION_PARAMETER_UNKNOWN:${name}`);
+  }
   for (const parameter of operation.parameters) {
     const value = values[parameter.name];
     if (value === undefined) {
       if (parameter.required) throw new Error(`OBSERVATION_PARAMETER_REQUIRED:${parameter.name}`);
       continue;
     }
+    parameters[parameter.name] = value;
     if (parameter.in === 'path') path = path.replace(`{${parameter.name}}`, encodePathValue(value));
     if (parameter.in === 'query') query.append(parameter.name, String(value));
+    if (parameter.in === 'header') headers[parameter.name] = String(value);
   }
   if (/\{[^}]+\}/.test(path)) throw new Error('OBSERVATION_PATH_UNRESOLVED');
   const suffix = query.toString();
@@ -178,7 +199,8 @@ function materializeRequest(operation: ObservationOperation, values: Record<stri
     method: operation.method,
     path_template: operation.path_template,
     path: suffix ? `${path}?${suffix}` : path,
-    parameters: structuredClone(values),
+    parameters,
+    headers,
   };
 }
 
@@ -192,6 +214,7 @@ export async function observeOperation(
     const response = await transport.request({
       method: operation.method,
       path: request.path,
+      headers: request.headers,
       apiVersion: operation.api_version,
     });
     const visibility: ObservationVisibility = response.status >= 200 && response.status < 300
@@ -210,6 +233,7 @@ export async function observeOperation(
         status: response.status,
         visibility,
         ...(response.body === undefined ? {} : { value: response.body }),
+        ...(response.redirect === undefined ? {} : { redirect: response.redirect }),
       },
     };
   } catch {
@@ -229,14 +253,19 @@ export async function observeOperation(
 }
 
 
+export interface FetchHeadersLike {
+  get(name: string): string | null;
+}
+
 export interface FetchResponseLike {
   status: number;
+  headers: FetchHeadersLike;
   text(): Promise<string>;
 }
 
 export type FetchLike = (
   url: string,
-  init: { method: 'GET' | 'HEAD'; headers: Record<string, string> },
+  init: { method: 'GET' | 'HEAD'; headers: Record<string, string>; redirect: 'manual' },
 ) => Promise<FetchResponseLike>;
 
 export class GitHubRestTransport implements ObservationTransport {
@@ -254,21 +283,54 @@ export class GitHubRestTransport implements ObservationTransport {
     this.fetchFn = fetchFn;
   }
 
-  async request({ method, path, apiVersion }: { method: 'GET' | 'HEAD'; path: string; apiVersion: string }): Promise<{ status: number; body?: unknown }> {
+  async request({
+    method,
+    path,
+    headers: operationHeaders,
+    apiVersion,
+  }: {
+    method: 'GET' | 'HEAD';
+    path: string;
+    headers: Record<string, string>;
+    apiVersion: string;
+  }): Promise<ObservationTransportResponse> {
     if (!path.startsWith('/')) throw new Error('GITHUB_OBSERVATION_PATH_MUST_BE_ABSOLUTE');
+    const reservedHeaders = new Set(['accept', 'authorization', 'user-agent', 'x-github-api-version']);
+    for (const name of Object.keys(operationHeaders)) {
+      if (reservedHeaders.has(name.toLowerCase())) throw new Error(`GITHUB_OBSERVATION_HEADER_RESERVED:${name}`);
+    }
     const headers: Record<string, string> = {
+      ...operationHeaders,
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': apiVersion,
       'User-Agent': 'overcenter-research-observer',
     };
     if (this.token) headers.Authorization = `Bearer ${this.token}`;
-    const response = await this.fetchFn(`${this.baseUrl}${path}`, { method, headers });
+    const response = await this.fetchFn(`${this.baseUrl}${path}`, {
+      method,
+      headers,
+      redirect: 'manual',
+    });
+    const redirect = response.status >= 300 && response.status < 400
+      ? { location: response.headers.get('location') }
+      : undefined;
     const text = method === 'HEAD' ? '' : await response.text();
-    if (!text) return { status: response.status };
+    if (!text) return {
+      status: response.status,
+      ...(redirect === undefined ? {} : { redirect }),
+    };
     try {
-      return { status: response.status, body: JSON.parse(text) };
+      return {
+        status: response.status,
+        body: JSON.parse(text),
+        ...(redirect === undefined ? {} : { redirect }),
+      };
     } catch {
-      return { status: response.status, body: text };
+      return {
+        status: response.status,
+        body: text,
+        ...(redirect === undefined ? {} : { redirect }),
+      };
     }
   }
 }
