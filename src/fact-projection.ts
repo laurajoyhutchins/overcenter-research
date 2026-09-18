@@ -34,7 +34,6 @@ export type ProjectFact =
       type: 'run-settled';
       run_id: string;
       observation_id: string;
-      result: 'verified' | 'replayable' | 'requires-recovery';
     };
 
 export type ProjectionStatus =
@@ -59,13 +58,44 @@ export interface ProjectProjection {
 type Definition = Extract<ProjectFact, { type: 'obligation-defined' }>;
 type Claim = Extract<ProjectFact, { type: 'run-claimed' }>;
 type Observation = Extract<ProjectFact, { type: 'effect-observed' }>;
-type Settlement = Extract<ProjectFact, { type: 'run-settled' }>;
+type SettlementDisposition = 'verified' | 'replayable' | 'requires-recovery';
 
 type RunState = {
   claim: Claim;
   terminated: boolean;
-  settlement?: Settlement;
+  observations: Map<string, Observation>;
+  settlement?: {
+    observation_id: string;
+    disposition: SettlementDisposition;
+  };
 };
+
+type ObligationState = {
+  definition: Definition;
+  runs: RunState[];
+};
+
+function dispositionFor(
+  definition: Definition,
+  observation: Observation,
+): SettlementDisposition {
+  if (
+    observation.mutation_certainty === 'present'
+    && observation.actual_sha256 === definition.postcondition.content_sha256
+  ) {
+    return 'verified';
+  }
+  if (observation.mutation_certainty === 'absent') return 'replayable';
+  return 'requires-recovery';
+}
+
+function latestRun(obligation: ObligationState): RunState | undefined {
+  return obligation.runs.at(-1);
+}
+
+function isSatisfied(obligation: ObligationState | undefined): boolean {
+  return latestRun(obligation)?.settlement?.disposition === 'verified';
+}
 
 export function deriveProjectProjection(
   facts: readonly ProjectFact[],
@@ -73,148 +103,171 @@ export function deriveProjectProjection(
 ): ProjectProjection {
   if (!authorityRevision) throw new Error('AUTHORITY_REVISION_REQUIRED');
 
-  const definitions = new Map<string, Definition>();
+  const obligations = new Map<string, ObligationState>();
   const runs = new Map<string, RunState>();
-  const claimsByObligation = new Map<string, Claim[]>();
-  const observations = new Map<string, Map<string, Observation>>();
 
   for (const fact of facts) {
     switch (fact.type) {
       case 'obligation-defined': {
-        if (definitions.has(fact.obligation_id)) {
+        if (obligations.has(fact.obligation_id)) {
           throw new Error(`DUPLICATE_OBLIGATION:${fact.obligation_id}`);
         }
-        definitions.set(fact.obligation_id, fact);
+        obligations.set(fact.obligation_id, {
+          definition: fact,
+          runs: [],
+        });
         break;
       }
+
       case 'run-claimed': {
-        if (!definitions.has(fact.obligation_id)) {
+        const obligation = obligations.get(fact.obligation_id);
+        if (!obligation) {
           throw new Error(`CLAIM_BEFORE_DEFINITION:${fact.obligation_id}`);
         }
-        if (runs.has(fact.run_id)) throw new Error(`DUPLICATE_RUN:${fact.run_id}`);
-        runs.set(fact.run_id, { claim: fact, terminated: false });
-        const claims = claimsByObligation.get(fact.obligation_id) ?? [];
-        claims.push(fact);
-        claimsByObligation.set(fact.obligation_id, claims);
+        if (!fact.based_on_revision) {
+          throw new Error(`CLAIM_WITHOUT_REVISION:${fact.run_id}`);
+        }
+        if (runs.has(fact.run_id)) {
+          throw new Error(`DUPLICATE_RUN:${fact.run_id}`);
+        }
+
+        const previous = latestRun(obligation);
+        if (previous && !previous.settlement) {
+          throw new Error(`CLAIM_WHILE_ACTIVE:${fact.obligation_id}`);
+        }
+        if (previous?.settlement?.disposition === 'verified') {
+          throw new Error(`CLAIM_AFTER_VERIFIED:${fact.obligation_id}`);
+        }
+        if (previous?.settlement?.disposition === 'requires-recovery') {
+          throw new Error(`CLAIM_DURING_RECOVERY:${fact.obligation_id}`);
+        }
+
+        const unsatisfied = obligation.definition.deps.filter(
+          dep => !isSatisfied(obligations.get(dep)),
+        );
+        if (unsatisfied.length > 0) {
+          throw new Error(
+            `CLAIM_WITH_UNSATISFIED_DEPENDENCIES:${fact.obligation_id}:${unsatisfied.join(',')}`,
+          );
+        }
+
+        const run: RunState = {
+          claim: fact,
+          terminated: false,
+          observations: new Map(),
+        };
+        obligation.runs.push(run);
+        runs.set(fact.run_id, run);
         break;
       }
+
       case 'worker-terminated': {
         const run = runs.get(fact.run_id);
-        if (!run) throw new Error(`TERMINATION_WITHOUT_CLAIM:${fact.run_id}`);
+        if (!run) {
+          throw new Error(`TERMINATION_WITHOUT_CLAIM:${fact.run_id}`);
+        }
+        if (run.settlement) {
+          throw new Error(`TERMINATION_AFTER_SETTLEMENT:${fact.run_id}`);
+        }
+        if (run.terminated) {
+          throw new Error(`DUPLICATE_TERMINATION:${fact.run_id}`);
+        }
         run.terminated = true;
         break;
       }
+
       case 'effect-observed': {
-        if (!runs.has(fact.run_id)) {
+        const run = runs.get(fact.run_id);
+        if (!run) {
           throw new Error(`OBSERVATION_WITHOUT_CLAIM:${fact.run_id}`);
         }
-        const runObservations =
-          observations.get(fact.run_id) ?? new Map<string, Observation>();
-        if (runObservations.has(fact.observation_id)) {
-          throw new Error(`DUPLICATE_OBSERVATION:${fact.run_id}:${fact.observation_id}`);
+        if (run.settlement) {
+          throw new Error(`OBSERVATION_AFTER_SETTLEMENT:${fact.run_id}`);
         }
-        runObservations.set(fact.observation_id, fact);
-        observations.set(fact.run_id, runObservations);
+        if (run.observations.has(fact.observation_id)) {
+          throw new Error(
+            `DUPLICATE_OBSERVATION:${fact.run_id}:${fact.observation_id}`,
+          );
+        }
+        run.observations.set(fact.observation_id, fact);
         break;
       }
+
       case 'run-settled': {
         const run = runs.get(fact.run_id);
-        if (!run) throw new Error(`SETTLEMENT_WITHOUT_CLAIM:${fact.run_id}`);
-        if (run.settlement) throw new Error(`DUPLICATE_SETTLEMENT:${fact.run_id}`);
-        const observation =
-          observations.get(fact.run_id)?.get(fact.observation_id);
+        if (!run) {
+          throw new Error(`SETTLEMENT_WITHOUT_CLAIM:${fact.run_id}`);
+        }
+        if (run.settlement) {
+          throw new Error(`DUPLICATE_SETTLEMENT:${fact.run_id}`);
+        }
+        const observation = run.observations.get(fact.observation_id);
         if (!observation) {
           throw new Error(`SETTLEMENT_WITHOUT_OBSERVATION:${fact.run_id}`);
         }
-        if (fact.result === 'verified') {
-          const definition = definitions.get(run.claim.obligation_id);
-          if (!definition) {
-            throw new Error(`SETTLEMENT_WITHOUT_DEFINITION:${fact.run_id}`);
-          }
-          const verifies =
-            observation.mutation_certainty === 'present'
-            && typeof observation.actual_sha256 === 'string'
-            && observation.actual_sha256 === definition.postcondition.content_sha256;
-          if (!verifies) {
-            throw new Error(`INVALID_VERIFIED_SETTLEMENT:${fact.run_id}`);
-          }
-        }
-        run.settlement = fact;
+        const obligation = obligations.get(run.claim.obligation_id)!;
+        run.settlement = {
+          observation_id: fact.observation_id,
+          disposition: dispositionFor(obligation.definition, observation),
+        };
         break;
       }
     }
   }
 
-  for (const definition of definitions.values()) {
-    for (const dep of definition.deps) {
-      if (!definitions.has(dep)) {
-        throw new Error(`UNKNOWN_DEPENDENCY:${definition.obligation_id}:${dep}`);
+  for (const obligation of obligations.values()) {
+    for (const dep of obligation.definition.deps) {
+      if (!obligations.has(dep)) {
+        throw new Error(
+          `UNKNOWN_DEPENDENCY:${obligation.definition.obligation_id}:${dep}`,
+        );
       }
     }
   }
 
-  const projected = new Map<string, WorkProjection>();
-  const ids = [...definitions.keys()].sort((a, b) => a.localeCompare(b));
+  const work = [...obligations.values()]
+    .sort((a, b) =>
+      a.definition.obligation_id.localeCompare(b.definition.obligation_id),
+    )
+    .map(({ definition, runs: obligationRuns }): WorkProjection => {
+      const run = obligationRuns.at(-1);
+      const disposition = run?.settlement?.disposition;
 
-  const latestSettlement = (id: string): Settlement | null => {
-    const claims = claimsByObligation.get(id) ?? [];
-    for (let index = claims.length - 1; index >= 0; index -= 1) {
-      const settlement = runs.get(claims[index].run_id)?.settlement;
-      if (settlement) return settlement;
-      if (index === claims.length - 1) return null;
-    }
-    return null;
-  };
+      if (disposition === 'verified') {
+        return { id: definition.obligation_id, status: 'DONE' };
+      }
 
-  const satisfied = (id: string) => latestSettlement(id)?.result === 'verified';
+      if (run && !run.settlement) {
+        return {
+          id: definition.obligation_id,
+          status: run.terminated ? 'RECOVERY_REQUIRED' : 'EXECUTING',
+          active_run_id: run.claim.run_id,
+        };
+      }
 
-  for (const id of ids) {
-    const definition = definitions.get(id)!;
-    const claims = claimsByObligation.get(id) ?? [];
-    const latestClaim = claims.at(-1);
-    const latestRun = latestClaim ? runs.get(latestClaim.run_id)! : undefined;
-    const settlement = latestSettlement(id);
+      if (disposition === 'requires-recovery') {
+        return {
+          id: definition.obligation_id,
+          status: 'RECOVERY_REQUIRED',
+          active_run_id: run!.claim.run_id,
+        };
+      }
 
-    if (settlement?.result === 'verified') {
-      projected.set(id, { id, status: 'DONE' });
-      continue;
-    }
+      const unsatisfied = definition.deps.filter(
+        dep => !isSatisfied(obligations.get(dep)),
+      );
+      if (unsatisfied.length > 0) {
+        return {
+          id: definition.obligation_id,
+          status: 'BLOCKED',
+          blocked_reason: `DEPENDENCIES_NOT_DONE:${unsatisfied.join(',')}`,
+        };
+      }
 
-    if (latestRun && !latestRun.settlement) {
-      projected.set(id, {
-        id,
-        status: latestRun.terminated ? 'RECOVERY_REQUIRED' : 'EXECUTING',
-        active_run_id: latestRun.claim.run_id,
-      });
-      continue;
-    }
+      return { id: definition.obligation_id, status: 'READY' };
+    });
 
-    if (latestRun?.settlement?.result === 'requires-recovery') {
-      projected.set(id, {
-        id,
-        status: 'RECOVERY_REQUIRED',
-        active_run_id: latestRun.claim.run_id,
-      });
-      continue;
-    }
-
-    const unsatisfied = definition.deps.filter(dep => !satisfied(dep));
-    if (unsatisfied.length > 0) {
-      projected.set(id, {
-        id,
-        status: 'BLOCKED',
-        blocked_reason: `DEPENDENCIES_NOT_DONE:${unsatisfied.join(',')}`,
-      });
-      continue;
-    }
-
-    projected.set(id, { id, status: 'READY' });
-  }
-
-  return {
-    authority_revision: authorityRevision,
-    work: ids.map(id => projected.get(id)!),
-  };
+  return { authority_revision: authorityRevision, work };
 }
 
 export function canonicalProjection(projection: ProjectProjection): string {
