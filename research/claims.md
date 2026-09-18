@@ -152,15 +152,15 @@ Identical desired states are explicitly modeled as commuting. Incompatible desir
 
 The prior hosted proof established that an authority-untrusted executor can corrupt local Git configuration, refs, kernel source, and cache without redefining the centrally committed obligation or the trusted verifier's provider coordinate.
 
-The current workflow goes further structurally: the worker job has `contents: read` but no `statuses: write`, emits a candidate effect intent, and a separate trusted broker job owns provider write authority and execution-generation authority. That stronger provider-capability claim remains pending until the revised hosted workflow passes at an exact source revision.
+The current hosted workflow goes further: the worker job has `contents: read` but no `statuses: write`, emits a candidate effect intent, and a separate trusted broker job owns provider write authority and execution-generation authority. Live workflow run `35389453056` exercised this boundary at exact source revision `f8a883d6214d76b0b609eb05e3798d6238d108cc`: the worker's authority-ref rewrite and provider status-write attempts both returned HTTP 403; the broker performed the declared effect in execution generation 2; fresh recovery rotated to generation 3 and settled `DONE` from canonical GitHub readback.
 
 **Claim:**
 
 > Destruction or corruption of disposable worker-local state does not, by itself, alter authoritative project truth.
 
-**Pending stronger claim:**
+**Stronger hosted claim:**
 
-> In the hosted GitHub boundary, the disposable worker cannot perform the provider mutation directly because GitHub does not grant that job the required write permission.
+> In the demonstrated GitHub Actions boundary, the disposable worker cannot perform the provider mutation directly because GitHub does not grant that job the required write permission.
 
 ### S10. Execution-generation fencing is separate from exact revision
 
@@ -202,7 +202,7 @@ The reservation is committed before the trusted effect wrapper invokes mutation.
 
 The normal `runGitCoreLoop` path now commits the reservation before invoking the trusted effect handler. The handler receives no `ExecutionPermit`. A negative regression proof blocks the reservation CAS and establishes that the handler is not called.
 
-**Non-claim:** Low-level experimental callers can still invoke provider code outside `runGitCoreLoop`; JavaScript itself is not a capability sandbox. Physical denial of provider authority depends on the execution substrate. The revised GitHub Actions proof uses separate job permissions for that boundary, but the stronger live claim remains pending a fresh hosted run.
+**Non-claim:** Low-level experimental callers can still invoke provider code outside `runGitCoreLoop`; JavaScript itself is not a capability sandbox. Physical denial of provider authority depends on the execution substrate. GitHub Actions job permissions demonstrate one concrete substrate boundary, not a universal one.
 
 ### S12. DONE should be derivable from evidence
 
