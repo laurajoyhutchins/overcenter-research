@@ -12,10 +12,15 @@ import {
 } from './response-slice.ts';
 import {
   GITHUB_API_VERSION,
-  GITHUB_COMMIT_STATUSES_OPERATION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_REPOSITORY_OPERATION,
+} from '../../src/providers/github-certified-repository.ts';
+import {
+  GITHUB_COMMIT_STATUSES_OPERATION,
 } from '../../src/providers/github-certified-status.ts';
+import {
+  GITHUB_REF_OPERATION,
+} from '../../src/providers/github-certified-ref.ts';
 
 const schemaPath=process.argv[2];
 if (!schemaPath) throw new Error('usage: verify-kernel-github-contract.ts <openapi.json>');
@@ -159,6 +164,12 @@ const repository=verifyOperation({
   fields:RESPONSE_SLICES['repos/get'],
 });
 
+const ref=verifyOperation({
+  pathTemplate:'/repos/{owner}/{repo}/git/ref/{ref}',
+  generated:GITHUB_REF_OPERATION,
+  fields:RESPONSE_SLICES['git/get-ref'],
+});
+
 const statuses=verifyOperation({
   pathTemplate:'/repos/{owner}/{repo}/commits/{ref}/statuses',
   generated:GITHUB_COMMIT_STATUSES_OPERATION,
@@ -167,5 +178,5 @@ const statuses=verifyOperation({
 
 console.log(JSON.stringify({
   schema_sha256:actualDigest,
-  operations:[repository,statuses],
+  operations:[repository,ref,statuses],
 },null,2));
