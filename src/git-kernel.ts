@@ -395,7 +395,7 @@ export class GitOvercenterKernel {
 
   #history(state:State,head:string): HistoryProjection {
     const replay=this.#emptyState();
-    const lifecycles=new Map<string,Lifecycle>();
+    let lifecycles=new Map<string,Lifecycle>();
     const runs=new Map<string,HistoricalRun>();
     const receiptsByRun=new Map<string,Receipt>();
     const receipts:Receipt[]=[];
@@ -406,8 +406,8 @@ export class GitOvercenterKernel {
       if (obligationFile.ok) {
         const fact=JSON.parse(obligationFile.stdout) as ObligationFact;
         if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
-        this.#validatePostcondition(fact.obligation.postcondition);
-        const id=fact.obligation.id;
+        const obligation=this.#normalizeStoredObligation(fact.obligation);
+        const id=obligation.id;
 
         if (fact.kind==='defined') {
           if (replay.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
@@ -416,19 +416,15 @@ export class GitOvercenterKernel {
           if (fact.previous_definition_commit!==replay.definition_commits[id]) {
             throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
           }
-          const lifecycle=lifecycles.get(id);
-          if (lifecycle && IN_FLIGHT.has(lifecycle.status)) throw new Error('AMEND_WHILE_IN_FLIGHT');
-          const dependent=Object.values(replay.obligations)
-            .find(candidate=>candidate.id!==id && this.#dependsOn(replay,candidate.id,id));
-          if (dependent) throw new Error('AMEND_HAS_DEPENDENTS');
+          if (this.#hasInFlight(lifecycles)) throw new Error('AMEND_WHILE_IN_FLIGHT');
         } else {
           throw new Error('INVALID_OBLIGATION_KIND');
         }
 
-        replay.obligations[id]=structuredClone(fact.obligation);
+        replay.obligations[id]=obligation;
         replay.definition_commits[id]=commit;
         this.#validateGraph(replay);
-        lifecycles.set(id,{status:'READY'});
+        lifecycles=this.#deriveLifecycles(replay,runs,receiptsByRun);
       }
 
       const claimFile=this.#git(['show',`${commit}:claim.json`],{allowFailure:true});
@@ -440,20 +436,28 @@ export class GitOvercenterKernel {
         if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
         const parent=this.#git(['rev-parse',`${commit}^`]).stdout.trim();
         if (parent!==claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
+
+        lifecycles=this.#deriveLifecycles(replay,runs,receiptsByRun);
         const current=lifecycles.get(claim.obligation_id);
         if (current?.status!=='READY') throw new Error('CLAIM_WHILE_NOT_READY');
         const unsatisfied=obligation.deps.filter(dep=>lifecycles.get(dep)?.status!=='DONE');
         if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
+
+        const expectedKey=this.#obligationKey(replay,obligation,lifecycles,receiptsByRun);
+        if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
+        if (claim.obligation_key!==expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
+
         const run:HistoricalRun={
           id:claim.run_id,
           obligation_id:claim.obligation_id,
           claimed_revision:claim.claimed_revision,
           claim_commit:commit,
+          obligation_key:claim.obligation_key,
           obligation:structuredClone(obligation),
           definition_commit:replay.definition_commits[claim.obligation_id],
         };
         runs.set(run.id,run);
-        lifecycles.set(run.obligation_id,{status:'EXECUTING',run});
+        lifecycles=this.#deriveLifecycles(replay,runs,receiptsByRun);
       }
 
       const receiptFile=this.#git(['show',`${commit}:receipt.json`],{allowFailure:true});
@@ -468,6 +472,8 @@ export class GitOvercenterKernel {
       if (run.obligation_id!==fact.obligation_id) throw new Error('RECEIPT_OBLIGATION_MISMATCH');
       if (fact.claimed_revision!==run.claimed_revision) throw new Error('RECEIPT_REVISION_MISMATCH');
       if (fact.claim_commit!==run.claim_commit) throw new Error('RECEIPT_CLAIM_MISMATCH');
+
+      lifecycles=this.#deriveLifecycles(replay,runs,receiptsByRun);
       const current=lifecycles.get(run.obligation_id);
       if (current?.run?.id!==run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
       if (fact.kind==='judgment-required' && current.status!=='EXECUTING') {
@@ -486,25 +492,209 @@ export class GitOvercenterKernel {
       if (previous && ['DONE','READY'].includes(previous.disposition)) {
         throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
       }
+
       const receipt=this.#projectReceipt(fact,run.obligation,commit);
       receiptsByRun.set(run.id,receipt);
       receipts.push(receipt);
-      lifecycles.set(
-        run.obligation_id,
-        receipt.disposition==='READY'
-          ? {status:'READY'}
-          : {status:receipt.disposition,run},
-      );
+      lifecycles=this.#deriveLifecycles(replay,runs,receiptsByRun);
     }
 
     if (JSON.stringify(replay.obligations)!==JSON.stringify(state.obligations)) {
       throw new Error('GRAPH_REPLAY_MISMATCH');
     }
+    lifecycles=this.#deriveLifecycles(state,runs,receiptsByRun);
     return {lifecycles,runs,receiptsByRun,receipts};
   }
 
   #requireHead(): string { const head=this.head(); if (!head) throw new Error('NOT_INITIALIZED'); return head; }
   #emptyState(): State { return {obligations:{},definition_commits:{}}; }
+
+  #normalizeObligation(input:ObligationInput): Obligation {
+    if (!input || typeof input.id!=='string' || input.id.length===0) {
+      throw new Error('INVALID_OBLIGATION_ID');
+    }
+    this.#validatePostcondition(input.postcondition);
+    const dependencies:Dependency[]=input.dependencies
+      ? structuredClone(input.dependencies)
+      : (input.deps ?? []).map(upstream=>({kind:'control' as const,upstream}));
+
+    for (const edge of dependencies) {
+      if (!edge || typeof edge.upstream!=='string' || edge.upstream.length===0) {
+        throw new Error('INVALID_DEPENDENCY');
+      }
+      if (edge.kind==='control') continue;
+      if (
+        edge.kind!=='semantic'
+        || !edge.consumes
+        || !['output','evidence'].includes(edge.consumes.kind)
+        || typeof edge.consumes.selector!=='string'
+        || edge.consumes.selector.length===0
+      ) {
+        throw new Error('INVALID_DEPENDENCY');
+      }
+    }
+
+    const deps=[...new Set(dependencies.map(edge=>edge.upstream))];
+    if (input.deps) {
+      const declared=[...new Set(input.deps)].sort();
+      const typed=[...deps].sort();
+      if (JSON.stringify(declared)!==JSON.stringify(typed)) {
+        throw new Error('DEPENDENCY_DECLARATION_MISMATCH');
+      }
+    }
+
+    return {
+      id:input.id,
+      deps,
+      dependencies,
+      packet:structuredClone(input.packet ?? {}),
+      postcondition:structuredClone(input.postcondition),
+    };
+  }
+
+  #normalizeStoredObligation(obligation:Obligation): Obligation {
+    return this.#normalizeObligation({
+      id:obligation.id,
+      deps:obligation.deps,
+      dependencies:obligation.dependencies,
+      packet:obligation.packet,
+      postcondition:obligation.postcondition,
+    });
+  }
+
+  #deriveLifecycles(
+    state:State,
+    runs:Map<string,HistoricalRun>,
+    receiptsByRun:Map<string,Receipt>,
+  ): Map<string,Lifecycle> {
+    const lifecycles=new Map<string,Lifecycle>();
+    const visiting=new Set<string>();
+    const allRuns=[...runs.values()];
+
+    const derive=(id:string):Lifecycle => {
+      const existing=lifecycles.get(id);
+      if (existing) return existing;
+      if (visiting.has(id)) throw new Error(`DEPENDENCY_CYCLE:${id}`);
+      visiting.add(id);
+
+      const work=state.obligations[id];
+      if (!work) throw new Error(`UNKNOWN_OBLIGATION:${id}`);
+      for (const edge of work.dependencies) {
+        if (edge.kind==='semantic') derive(edge.upstream);
+      }
+
+      const key=this.#obligationKey(state,work,lifecycles,receiptsByRun);
+      let lifecycle:Lifecycle={status:'READY'};
+
+      if (key) {
+        const candidates=allRuns.filter(run=>
+          run.obligation_id===id && run.obligation_key===key
+        );
+        const done=[...candidates].reverse().find(run=>
+          receiptsByRun.get(run.id)?.disposition==='DONE'
+        );
+        if (done) {
+          lifecycle={status:'DONE',run:done};
+        } else {
+          const latest=candidates.at(-1);
+          if (latest) {
+            const receipt=receiptsByRun.get(latest.id);
+            if (!receipt) lifecycle={status:'EXECUTING',run:latest};
+            else if (receipt.disposition==='WAITING') lifecycle={status:'WAITING',run:latest};
+            else if (receipt.disposition==='RECOVERY_REQUIRED') {
+              lifecycle={status:'RECOVERY_REQUIRED',run:latest};
+            }
+          }
+        }
+      }
+
+      visiting.delete(id);
+      lifecycles.set(id,lifecycle);
+      return lifecycle;
+    };
+
+    for (const id of Object.keys(state.obligations)) derive(id);
+    return lifecycles;
+  }
+
+  #obligationKey(
+    state:State,
+    work:Obligation,
+    lifecycles:Map<string,Lifecycle>,
+    receiptsByRun:Map<string,Receipt>,
+  ): string|null {
+    const semantic=work.dependencies
+      .filter((edge):edge is Extract<Dependency,{kind:'semantic'}>=>edge.kind==='semantic')
+      .map(edge=>structuredClone(edge))
+      .sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
+    const consumed:Array<{edge:Extract<Dependency,{kind:'semantic'}>;identity:string}>=[];
+    for (const edge of semantic) {
+      const identity=this.#semanticDependencyIdentity(state,edge,lifecycles,receiptsByRun);
+      if (!identity) return null;
+      consumed.push({edge,identity});
+    }
+
+    return this.#digest({
+      id:work.id,
+      packet:work.packet,
+      postcondition:work.postcondition,
+      semantic_dependencies:consumed,
+    });
+  }
+
+  #semanticDependencyIdentity(
+    state:State,
+    edge:Extract<Dependency,{kind:'semantic'}>,
+    lifecycles:Map<string,Lifecycle>,
+    receiptsByRun:Map<string,Receipt>,
+  ): string|null {
+    const upstream=state.obligations[edge.upstream];
+    if (!upstream) throw new Error(`UNKNOWN_DEPENDENCY:${edge.upstream}`);
+    const lifecycle=lifecycles.get(edge.upstream);
+    if (lifecycle?.status!=='DONE' || !lifecycle.run) return null;
+
+    if (edge.consumes.kind==='output' && edge.consumes.selector==='verified-content') {
+      if (upstream.postcondition.verifier==='file-content-equals/v1') {
+        return `sha256:${sha256(upstream.postcondition.content)}`;
+      }
+      if (upstream.postcondition.verifier==='git-ref-equals/v1') {
+        return `git-object:${upstream.postcondition.target_sha}`;
+      }
+      if (upstream.postcondition.verifier==='github-commit-status/v1') {
+        return this.#digest({
+          provider:'github',
+          repository_id:upstream.postcondition.repository_id,
+          commit_sha:upstream.postcondition.commit_sha,
+          context:this.#githubStatusContextKey(upstream.postcondition.context),
+          state:upstream.postcondition.expected_state,
+        });
+      }
+    }
+
+    if (edge.consumes.kind==='evidence' && edge.consumes.selector==='settlement-receipt') {
+      const receipt=receiptsByRun.get(lifecycle.run.id);
+      if (receipt?.disposition!=='DONE' || !receipt.settlement_commit) return null;
+      return `settlement:${receipt.settlement_commit}`;
+    }
+
+    throw new Error(`UNSUPPORTED_SEMANTIC_SELECTOR:${edge.consumes.kind}:${edge.consumes.selector}`);
+  }
+
+  #digest(value:unknown): string {
+    const canonical=(input:unknown):unknown => {
+      if (Array.isArray(input)) return input.map(canonical);
+      if (input && typeof input==='object') {
+        return Object.fromEntries(
+          Object.entries(input as Record<string,unknown>)
+            .sort(([a],[b])=>a.localeCompare(b))
+            .map(([key,item])=>[key,canonical(item)]),
+        );
+      }
+      return input;
+    };
+    return sha256(JSON.stringify(canonical(value)));
+  }
   #hasInFlight(lifecycles: Map<string,Lifecycle>): boolean {
     return [...lifecycles.values()].some(({status})=>IN_FLIGHT.has(status));
   }
