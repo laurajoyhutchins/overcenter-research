@@ -102,7 +102,7 @@ Important entry points:
 - [`src/git-store.ts`](./src/git-store.ts) - Git object storage, history access, and authority-ref CAS.
 - [`src/facts.ts`](./src/facts.ts) - durable fact schemas plus obligation/fact validation.
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.\n- [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
-- [`src/graph.ts`](./src/graph.ts) - static dependency topology, validation, and ordering queries.
+- [`src/graph.ts`](./src/graph.ts) - provider-agnostic dependency topology, validation, and ordering queries.\n- [`src/admission.ts`](./src/admission.ts) - deterministic semantic-edge and static effect-safety checks before definitions or amendments enter authority.
 - [`src/lifecycle.ts`](./src/lifecycle.ts) - semantic realization identity and internal realization lifecycle (`UNREALIZED` through `DONE`).
 - [`src/eligibility.ts`](./src/eligibility.ts) - maps an unrealized obligation to public `READY` or `BLOCKED` using deterministic execution eligibility.
 - [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to current project projection.
