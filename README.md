@@ -122,9 +122,9 @@ These are different evidence classes, not cumulative certification levels. A liv
 
 Requirements:
 
-- Node.js 22.16.0 or newer;
+- Node.js at the exact version declared in [`.node-version`](./.node-version);
 - Git;
-- Java for the TLA+ model;
+- Java 21 for the TLA+ model;
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
 - GitHub CLI authentication for `proof:live`.
 

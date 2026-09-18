@@ -22,22 +22,22 @@ on:
 permissions: {}
 
 env:
-  STATE_REF: refs/overcenter/conflict-runs/${{ github.run_id }}/${{ github.run_attempt }}
+  STATE_REF: refs/overcenter/proofs/conflicting-effect/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   authority:
     name: Reject unordered conflict, claim ordered predecessor
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - name: Full regression suite
         run: npm test
       - name: Prove unordered pair is unclaimable and claim ordered alpha
@@ -48,7 +48,7 @@ jobs:
   alpha:
     name: Ordered alpha writes success
     needs: authority
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -56,12 +56,12 @@ jobs:
     outputs:
       outcome: ${{ steps.agent.outcome }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - id: agent
         name: Alpha effect then terminate
         continue-on-error: true
@@ -75,7 +75,7 @@ jobs:
     name: Settle ordered alpha
     needs: alpha
     if: ${{ always() && needs.alpha.outputs.outcome == 'failure' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -84,12 +84,12 @@ jobs:
       SLOT: alpha
       AGENT_OUTCOME: ${{ needs.alpha.outputs.outcome }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/conflicting-effect/recovery.ts
@@ -97,23 +97,23 @@ jobs:
   claim-beta:
     name: Claim ordered beta after alpha
     needs: recover-alpha
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - run: node --experimental-strip-types experiments/conflicting-effect/guard-claim-beta.ts
 
   beta:
     name: Ordered beta writes failure
     needs: claim-beta
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -121,12 +121,12 @@ jobs:
     outputs:
       outcome: ${{ steps.agent.outcome }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - id: agent
         name: Beta effect then terminate
         continue-on-error: true
@@ -139,7 +139,7 @@ jobs:
     name: Settle ordered beta
     needs: beta
     if: ${{ always() && needs.beta.outputs.outcome == 'failure' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -148,12 +148,12 @@ jobs:
       SLOT: beta
       AGENT_OUTCOME: ${{ needs.beta.outputs.outcome }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/conflicting-effect/recovery.ts
@@ -161,18 +161,18 @@ jobs:
   verify:
     name: Verify conflict guard and explicit ordering
     needs: recover-beta
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
       statuses: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/conflicting-effect/guard-verify.ts

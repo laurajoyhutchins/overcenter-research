@@ -21,8 +21,5 @@
     "proof:local": "npm run test:experiments && npm run test:stress",
     "proof:formal": "npm run test:formal",
     "proof:live": "gh workflow run disposable-agent-proof.yml"
-  },
-  "engines": {
-    "node": ">=22.16.0"
   }
 }

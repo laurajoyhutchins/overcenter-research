@@ -17,12 +17,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  API_VERSION: '2022-11-28'
+  API_VERSION: '2026-03-10'
 
 jobs:
   materialize:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'proof/github-object-transport'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     outputs:
@@ -35,7 +34,7 @@ jobs:
         id: materialize
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REQUEST_PATH: ${{ inputs.request_path || 'experiments/github-object-transport/fixtures/request.json' }}
@@ -46,7 +45,7 @@ jobs:
 
           api_get() {
             curl --fail-with-body --silent --show-error \
-              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "https://api.github.com${1}"
@@ -185,7 +184,7 @@ jobs:
 
   execute:
     needs: materialize
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions: {}
     steps:
       - name: Download input capsule
@@ -323,7 +322,7 @@ jobs:
 
   publish:
     needs: [materialize, execute]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -347,7 +346,7 @@ jobs:
         id: publish
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           API_VERSION: ${{ env.API_VERSION }}
@@ -361,7 +360,7 @@ jobs:
             local body="$2"
             curl --fail-with-body --silent --show-error \
               -X POST \
-              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "https://api.github.com${endpoint}" \
@@ -468,7 +467,7 @@ jobs:
 
   verify:
     needs: [materialize, execute, publish]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -487,7 +486,7 @@ jobs:
       - name: Verify authoritative GitHub readback
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ needs.materialize.outputs.source_sha }}
           RESULT_SHA: ${{ needs.publish.outputs.result_sha }}
@@ -499,7 +498,7 @@ jobs:
 
           api_get() {
             curl --fail-with-body --silent --show-error \
-              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "https://api.github.com${1}"
