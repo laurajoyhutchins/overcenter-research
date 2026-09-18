@@ -5,6 +5,7 @@ import {
   paginationShape,
   sameEntityIdentity,
   type MutableEntitySnapshot,
+  type NumberedEntitySubject,
   type RefCollectionPageShape,
 } from './semantic-shapes.ts';
 
@@ -217,6 +218,59 @@ function sameRepositoryCoordinate(observation: RawObservation, repository: Repos
     && lower(coordinate.repo) === lower(repository.object.repo);
 }
 
+function numberedEntityBase<Kind extends string>(
+  observation: RawObservation,
+  repository: RepositoryIdentityFact,
+  {
+    operationId,
+    parameter,
+    kind,
+  }: { operationId: string; parameter: string; kind: Kind },
+): { subject: NumberedEntitySubject<Kind>; body: Record<string, unknown> } | null {
+  if (!observed200(observation, operationId) || !sameRepositoryCoordinate(observation, repository)) return null;
+  const requested = observation.request.parameters[parameter];
+  const body = observation.outcome.value as Record<string, unknown> | undefined;
+  if (!Number.isSafeInteger(requested) || !body) return null;
+  if (!Number.isSafeInteger(body.id) || Number(body.id) <= 0) return null;
+  if (typeof body.node_id !== 'string' || body.node_id.length === 0) return null;
+  if (!Number.isSafeInteger(body.number) || Number(body.number) !== Number(requested)) return null;
+  return {
+    subject: {
+      kind,
+      repository_id: repository.subject.id,
+      number: Number(body.number),
+      id: Number(body.id),
+      node_id: body.node_id,
+    },
+    body,
+  };
+}
+
+function refCollectionBase(
+  observation: RawObservation,
+  repository: RepositoryIdentityFact,
+  operationId: string,
+): {
+  ref: string;
+  body: unknown;
+  pagination: NonNullable<ReturnType<typeof paginationShape>>;
+  evidence: FactEvidence;
+} | null {
+  if (!observed200(observation, operationId) || !sameRepositoryCoordinate(observation, repository)) return null;
+  const ref = observation.request.parameters.ref;
+  if (typeof ref !== 'string') return null;
+  const page = Number(observation.request.parameters.page ?? 1);
+  const perPage = Number(observation.request.parameters.per_page ?? 30);
+  const pagination = paginationShape(page, perPage, observation.response.link);
+  if (!pagination) return null;
+  return {
+    ref,
+    body: observation.outcome.value,
+    pagination,
+    evidence: evidence(observation),
+  };
+}
+
 export function projectRepositoryIdentity(observation: RawObservation): RepositoryIdentityFact | null {
   if (!observed200(observation, 'repos/get')) return null;
   const coordinate = requestCoordinate(observation);
@@ -323,34 +377,24 @@ export function projectPullRequestSnapshot(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): PullRequestSnapshotFact | null {
-  if (!observed200(observation, 'pulls/get')) return null;
-  if (!sameRepositoryCoordinate(observation, repository)) return null;
-  const requested = observation.request.parameters.pull_number;
-  const body = observation.outcome.value as {
-    id?: unknown;
-    node_id?: unknown;
-    number?: unknown;
+  const base = numberedEntityBase(observation, repository, {
+    operationId: 'pulls/get',
+    parameter: 'pull_number',
+    kind: 'github.pull-request',
+  });
+  if (!base) return null;
+  const body = base.body as {
     state?: unknown;
     head?: { sha?: unknown };
     base?: { ref?: unknown; sha?: unknown };
-  } | undefined;
-  if (!Number.isSafeInteger(requested) || !body) return null;
-  if (!Number.isSafeInteger(body.id) || Number(body.id) <= 0) return null;
-  if (typeof body.node_id !== 'string' || body.node_id.length === 0) return null;
-  if (!Number.isSafeInteger(body.number) || Number(body.number) !== Number(requested)) return null;
+  };
   if (typeof body.state !== 'string') return null;
   if (typeof body.head?.sha !== 'string' || !sha.test(body.head.sha)) return null;
   if (typeof body.base?.ref !== 'string' || typeof body.base.sha !== 'string' || !sha.test(body.base.sha)) return null;
 
   return {
     kind: 'entity-snapshot',
-    subject: {
-      kind: 'github.pull-request',
-      repository_id: repository.subject.id,
-      number: Number(body.number),
-      id: Number(body.id),
-      node_id: body.node_id,
-    },
+    subject: base.subject,
     state: body.state,
     head_sha: body.head.sha,
     base_ref: body.base.ref,
@@ -364,10 +408,9 @@ export function projectCheckRunsPage(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): CheckRunsPageFact | null {
-  if (!observed200(observation, 'checks/list-for-ref')) return null;
-  if (!sameRepositoryCoordinate(observation, repository)) return null;
-  const requestedRef = observation.request.parameters.ref;
-  const body = observation.outcome.value as {
+  const base = refCollectionBase(observation, repository, 'checks/list-for-ref');
+  if (!base) return null;
+  const body = base.body as {
     total_count?: unknown;
     check_runs?: Array<{
       id?: unknown;
@@ -377,8 +420,8 @@ export function projectCheckRunsPage(
       conclusion?: unknown;
     }>;
   } | undefined;
-  if (typeof requestedRef !== 'string' || !body) return null;
-  if (!Number.isSafeInteger(body.total_count) || Number(body.total_count) < 0 || !Array.isArray(body.check_runs)) return null;
+  if (!body || !Number.isSafeInteger(body.total_count) || Number(body.total_count) < 0 || !Array.isArray(body.check_runs)) return null;
+
   const members: CheckRunMember[] = [];
   for (const run of body.check_runs) {
     if (!Number.isSafeInteger(run.id) || Number(run.id) <= 0) return null;
@@ -393,22 +436,18 @@ export function projectCheckRunsPage(
       conclusion: run.conclusion as string | null,
     });
   }
-  const page = Number(observation.request.parameters.page ?? 1);
-  const perPage = Number(observation.request.parameters.per_page ?? 30);
-  const pagination = paginationShape(page, perPage, observation.response.link);
-  if (!pagination) return null;
 
   return {
     kind: 'collection-page',
     subject: {
       kind: 'github.check-runs',
       repository_id: repository.subject.id,
-      ref: requestedRef,
+      ref: base.ref,
     },
     members,
     total_count: Number(body.total_count),
-    ...pagination,
-    evidence: evidence(observation),
+    ...base.pagination,
+    evidence: base.evidence,
   };
 }
 
@@ -416,33 +455,23 @@ export function projectIssueSnapshot(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): IssueSnapshotFact | null {
-  if (!observed200(observation, 'issues/get')) return null;
-  if (!sameRepositoryCoordinate(observation, repository)) return null;
-  const requested = observation.request.parameters.issue_number;
-  const body = observation.outcome.value as {
-    id?: unknown;
-    node_id?: unknown;
-    number?: unknown;
+  const base = numberedEntityBase(observation, repository, {
+    operationId: 'issues/get',
+    parameter: 'issue_number',
+    kind: 'github.issue',
+  });
+  if (!base) return null;
+  const body = base.body as {
     state?: unknown;
     title?: unknown;
     locked?: unknown;
     pull_request?: unknown;
-  } | undefined;
-  if (!Number.isSafeInteger(requested) || !body) return null;
-  if (!Number.isSafeInteger(body.id) || Number(body.id) <= 0) return null;
-  if (typeof body.node_id !== 'string' || body.node_id.length === 0) return null;
-  if (!Number.isSafeInteger(body.number) || Number(body.number) !== Number(requested)) return null;
+  };
   if (typeof body.state !== 'string' || typeof body.title !== 'string' || typeof body.locked !== 'boolean') return null;
 
   return {
     kind: 'entity-snapshot',
-    subject: {
-      kind: 'github.issue',
-      repository_id: repository.subject.id,
-      number: Number(body.number),
-      id: Number(body.id),
-      node_id: body.node_id,
-    },
+    subject: base.subject,
     state: body.state,
     title: body.title,
     locked: body.locked,
@@ -463,10 +492,11 @@ export function projectCommitStatusesPage(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): CommitStatusesPageFact | null {
-  if (!observed200(observation, 'repos/list-commit-statuses-for-ref')) return null;
-  if (!sameRepositoryCoordinate(observation, repository)) return null;
-  const requestedRef = observation.request.parameters.ref;
-  const body = observation.outcome.value as Array<{
+  const base = refCollectionBase(observation, repository, 'repos/list-commit-statuses-for-ref');
+  if (!base || !Array.isArray(base.body)) return null;
+
+  const members: CommitStatusMember[] = [];
+  for (const status of base.body as Array<{
     id?: unknown;
     node_id?: unknown;
     state?: unknown;
@@ -474,11 +504,7 @@ export function projectCommitStatusesPage(
     target_url?: unknown;
     created_at?: unknown;
     updated_at?: unknown;
-  }> | undefined;
-  if (typeof requestedRef !== 'string' || !Array.isArray(body)) return null;
-
-  const members: CommitStatusMember[] = [];
-  for (const status of body) {
+  }>) {
     if (!Number.isSafeInteger(status.id) || Number(status.id) <= 0) return null;
     if (typeof status.node_id !== 'string' || status.node_id.length === 0) return null;
     if (typeof status.state !== 'string' || typeof status.context !== 'string') return null;
@@ -495,21 +521,16 @@ export function projectCommitStatusesPage(
     });
   }
 
-  const page = Number(observation.request.parameters.page ?? 1);
-  const perPage = Number(observation.request.parameters.per_page ?? 30);
-  const pagination = paginationShape(page, perPage, observation.response.link);
-  if (!pagination) return null;
-
   return {
     kind: 'collection-page',
     subject: {
       kind: 'github.commit-statuses',
       repository_id: repository.subject.id,
-      ref: requestedRef,
+      ref: base.ref,
     },
     members,
-    ...pagination,
-    evidence: evidence(observation),
+    ...base.pagination,
+    evidence: base.evidence,
   };
 }
 
