@@ -20,6 +20,7 @@ on:
       - package.json
 
 permissions:
+  actions: read
   contents: read
   checks: read
   pull-requests: read
