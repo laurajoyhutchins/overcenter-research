@@ -15,6 +15,7 @@ import {
   evaluateGitRefTarget,
   evaluateIssueSnapshot,
   evaluatePullRequestSnapshot,
+  evaluateWorkflowRunPage,
   projectCheckRunsPage,
   projectCommitStatusesPage,
   projectGitCommit,
@@ -22,6 +23,7 @@ import {
   projectIssueSnapshot,
   projectPullRequestSnapshot,
   projectRepositoryIdentity,
+  projectWorkflowRunsPage,
   revalidateNotModified,
   sameGithubEntity,
   type GithubFact,
@@ -229,6 +231,31 @@ if (volatileCheckRef) {
   };
 }
 
+const workflowObservation = await observeOperation(
+  op('/repos/{owner}/{repo}/actions/runs'),
+  { owner, repo, page: 1, per_page: 1 },
+  transport,
+  provenance,
+);
+const workflowPage = projectWorkflowRunsPage(workflowObservation, repository);
+assert.ok(workflowPage);
+assert.ok(workflowPage.members.length > 0, 'repository should expose at least one workflow run');
+const firstWorkflowRun = workflowPage.members[0];
+assert.equal(evaluateWorkflowRunPage(workflowPage, {
+  repository_id: repository.subject.id,
+  node_id: firstWorkflowRun.node_id,
+  workflow_id: firstWorkflowRun.workflow_id,
+  head_sha: firstWorkflowRun.head_sha,
+  event: firstWorkflowRun.event,
+  status: firstWorkflowRun.status,
+  conclusion: firstWorkflowRun.conclusion,
+}).state, 'SATISFIED');
+assert.equal(evaluateWorkflowRunPage(workflowPage, {
+  repository_id: repository.subject.id,
+  node_id: 'missing-workflow-run-node',
+}).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
+currentFacts.push(workflowPage);
+
 // Reconstruction deliberately refuses to resurrect mutable state from durable history.
 const durableFacts: GithubFact[] = [repository, commitFact, refFact];
 const projectionWithoutFreshMutable = reconstructGithubProjection({
@@ -302,6 +329,15 @@ console.log(JSON.stringify({
     positive_membership: 'SATISFIED',
     missing_member: 'INDETERMINATE',
     first_context: firstStatus.context,
+  },
+  workflow_runs: {
+    page_members: workflowPage.members.length,
+    total_count: workflowPage.total_count,
+    has_next: workflowPage.has_next,
+    positive_membership: 'SATISFIED',
+    missing_member: 'INDETERMINATE',
+    first_run_id: firstWorkflowRun.id,
+    first_workflow_id: firstWorkflowRun.workflow_id,
   },
   reconstruction: {
     durable_commits: Object.keys(rebuilt.commits).length,
