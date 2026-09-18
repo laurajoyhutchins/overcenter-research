@@ -172,15 +172,65 @@ test('kernel state never persists lifecycle status or cached claim commit', () =
 
     const recovery = f.kernel.recoverInterrupted(run.id, { source: 'test' });
     assert.equal(recovery.disposition, 'RECOVERY_REQUIRED');
+    assert.equal(recovery.verified, false);
     assert.equal(recovery.claim_commit, run.claim_commit);
     assert.equal(f.kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
     assertDerivedOnly();
 
+    const persistedRecovery = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${recovery.settlement_commit}:receipt.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as Record<string, unknown>;
+    assert.equal(persistedRecovery.kind, 'execution-terminated');
+    assert.equal('disposition' in persistedRecovery, false);
+    assert.equal('verified' in persistedRecovery, false);
+
     writeFileSync(path, 'present');
     const settled = f.kernel.reconcile(run.id);
     assert.equal(settled.disposition, 'DONE');
+    assert.equal(settled.verified, true);
     assert.equal(settled.claim_commit, run.claim_commit);
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
     assertDerivedOnly();
+
+    const persistedSettlement = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${settled.settlement_commit}:receipt.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as {
+      kind?: string;
+      observed?: Record<string, unknown> | null;
+      [key: string]: unknown;
+    };
+    assert.equal(persistedSettlement.kind, 'observation');
+    assert.equal('disposition' in persistedSettlement, false);
+    assert.equal('verified' in persistedSettlement, false);
+    assert.ok(persistedSettlement.observed);
+    assert.equal('verified' in persistedSettlement.observed!, false);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('projected terminal receipt remains idempotent after a retry is claimed', () => {
+  const f = fixture();
+  try {
+    const path = f.path('retry-idempotence');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
+
+    const firstRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    const replayable = f.kernel.resolve(firstRun.id);
+    assert.equal(replayable.disposition, 'READY');
+
+    const secondRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    const repeated = f.kernel.resolve(firstRun.id);
+
+    assert.equal(repeated.disposition, 'READY');
+    assert.equal(repeated.settlement_commit, replayable.settlement_commit);
+    assert.equal(f.kernel.inspect()[0].run_id, secondRun.id);
+    assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
