@@ -11,7 +11,9 @@ const verify = (post, observed) => post.effect === observed.effect;
 function repo() {
   const dir = mkdtempSync(join(tmpdir(), 'overcenter-git-'));
   execFileSync('git', ['init', '--bare', dir], { stdio: 'ignore' });
-  return { dir, kernel: new GitOvercenterKernel(dir) };
+  const kernel = new GitOvercenterKernel(dir);
+  kernel.initialize();
+  return { dir, kernel };
 }
 
 function parent(dir, commit) {
@@ -157,7 +159,7 @@ test('lost settlement acknowledgement is harmless because the ref already contai
     kernel.define({ id: 'x', postcondition: { effect: 'present' } });
     const work = kernel.deriveReadyWork();
     const run = kernel.claim('x', work.revision);
-    kernel.settle(run.id, { disposition: 'DONE', verified: true, observed: { effect: 'present', mutation_certainty: 'present' } });
+    kernel.settle(run.id, { disposition: 'DONE', verify, observed: { effect: 'present', mutation_certainty: 'present' } });
     const restarted = new GitOvercenterKernel(dir);
     let executions = 0;
     const result = await runGitCoreLoop(restarted, {
