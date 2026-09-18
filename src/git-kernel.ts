@@ -465,7 +465,7 @@ export class GitOvercenterKernel {
 
 export async function runGitCoreLoop(
   kernel:GitOvercenterKernel,
-  {execute,maxAdvances=100}:LoopOptions,
+  {preflight,execute,maxAdvances=100}:LoopOptions,
 ):Promise<LoopResult> {
   kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
@@ -485,6 +485,25 @@ export async function runGitCoreLoop(
       throw error;
     }
 
+    if (preflight) {
+      const decision=await preflight(work.packet);
+      if (decision.kind==='judgment-required') {
+        kernel.deferForJudgment(run,{decision});
+        return {
+          state:'WAITING',
+          work:work.id,
+          run:run.id,
+          advances:i+1,
+        };
+      }
+      if (decision.kind!=='execute') throw new Error('INVALID_PREFLIGHT_OUTCOME');
+    }
+
+    // Crossing into the effectful executor is only legal after the kernel has
+    // validated the current execution permit and durably reserved the effect.
+    // A failed reservation therefore fails before provider code is invoked.
+    kernel.beginEffect(run);
+
     let outcome:ExecuteOutcome;
     try {
       outcome=await execute(work.packet,run);
@@ -495,10 +514,17 @@ export async function runGitCoreLoop(
         may_have_mutated:true,
       };
     }
+
+    // Once the effect boundary has been crossed, an executor can no longer
+    // downgrade the attempt to a non-effectful WAITING state. Its outcome must
+    // be reconciled as a potentially mutating interrupted execution.
     if (outcome.kind==='judgment-required') {
-      kernel.deferForJudgment(run,{outcome});
+      kernel.recoverInterrupted(run,{
+        outcome,
+        protocol_error:'JUDGMENT_AFTER_EFFECT_RESERVATION',
+      });
       return {
-        state:'WAITING',
+        state:'RECOVERY_REQUIRED',
         work:work.id,
         run:run.id,
         advances:i+1,
