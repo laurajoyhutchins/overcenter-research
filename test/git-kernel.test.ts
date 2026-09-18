@@ -136,3 +136,49 @@ test('all observational surfaces fail closed when authority is missing', () => {
     assert.throws(() => f.kernel.recoverInterrupted('x'), /NOT_INITIALIZED/);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
+
+test('kernel state never persists lifecycle status or cached claim commit', () => {
+  const f = fixture();
+  try {
+    const path = f.path('derived-state');
+    f.kernel.define({
+      id: 'x',
+      postcondition: pc(path, 'present'),
+    });
+
+    const state = () => JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', f.repo, 'show', `${f.kernel.head()}:state.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as { obligations: Record<string, Record<string, unknown>> };
+
+    const assertDerivedOnly = () => {
+      const stored = state().obligations.x;
+      assert.ok(stored);
+      assert.equal('status' in stored, false);
+      assert.equal('claim_commit' in stored, false);
+    };
+
+    assert.equal(f.kernel.inspect()[0].status, 'READY');
+    assertDerivedOnly();
+
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
+    assertDerivedOnly();
+
+    const recovery = f.kernel.recoverInterrupted(run.id, { source: 'test' });
+    assert.equal(recovery.disposition, 'RECOVERY_REQUIRED');
+    assert.equal(recovery.claim_commit, run.claim_commit);
+    assert.equal(f.kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
+    assertDerivedOnly();
+
+    writeFileSync(path, 'present');
+    const settled = f.kernel.reconcile(run.id);
+    assert.equal(settled.disposition, 'DONE');
+    assert.equal(settled.claim_commit, run.claim_commit);
+    assert.equal(f.kernel.inspect()[0].status, 'DONE');
+    assertDerivedOnly();
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
