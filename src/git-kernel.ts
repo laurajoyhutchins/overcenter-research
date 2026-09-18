@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const STATE_REF = 'refs/overcenter/state';
-const STATE_SCHEMA = 'overcenter-git-state-v2';
+const STATE_SCHEMA = 'overcenter-git-state-v3';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v2';
 
 export type WorkStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
@@ -62,8 +62,7 @@ export interface Obligation {
   claimed_revision?: string;
   claim_commit?: string;
 }
-interface ActiveRun { id: string; obligation_id: string; claimed_revision: string }
-interface State { schema: typeof STATE_SCHEMA; obligations: Record<string, Obligation>; active_run: ActiveRun | null }
+interface State { schema: typeof STATE_SCHEMA; obligations: Record<string, Obligation> }
 export interface Work extends Obligation { revision: string }
 export interface Run { id: string; obligation_id: string; claimed_revision: string; claim_commit: string }
 export interface Receipt {
@@ -84,7 +83,7 @@ export interface LoopOptions { execute: (packet: Data, run: Run) => Promise<Exec
 export interface LoopResult { state: 'IDLE'|'RECOVERY_REQUIRED'|'WAITING'|'BUDGET_EXHAUSTED'; advances: number; work?: string; run?: string }
 interface GitResult { ok: boolean; stdout: string; stderr?: string }
 
-const BLOCKERS = new Set<WorkStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
+const IN_FLIGHT = new Set<WorkStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 const json = (v: unknown) => `${JSON.stringify(v, null, 2)}\n`;
 const errorMessage = (e: unknown) => e instanceof Error ? e.message : String(e);
@@ -144,7 +143,7 @@ export class GitOvercenterKernel {
     this.#validatePostcondition(postcondition);
     const head = this.#requireHead();
     const state = this.#state(head);
-    if (state.active_run || this.#hasBlocker(state)) throw new Error('PROJECT_BUSY');
+    if (this.#hasInFlight(state)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
     state.obligations[id] = { id, deps, packet, postcondition, status:'READY' };
     const commit = this.#commit(head, state, `overcenter: define ${id}`);
@@ -162,7 +161,6 @@ export class GitOvercenterKernel {
   deriveReadyWork(): Work | null {
     const head = this.#requireHead();
     const state = this.#state(head);
-    if (state.active_run || this.#hasBlocker(state)) return null;
     const done = new Set(Object.values(state.obligations).filter(x=>x.status==='DONE').map(x=>x.id));
     const work = Object.values(state.obligations).sort((a,b)=>a.id.localeCompare(b.id))
       .find(x=>x.status==='READY' && x.deps.every(d=>done.has(d)));
@@ -173,7 +171,6 @@ export class GitOvercenterKernel {
     const head = this.#requireHead();
     if (head !== expectedRevision) throw new Error('STALE_REVISION');
     const state = this.#state(head);
-    if (state.active_run || this.#hasBlocker(state)) throw new Error('PROJECT_BUSY');
     const work = state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
     if (work.status !== 'READY') throw new Error('NOT_READY');
@@ -181,70 +178,104 @@ export class GitOvercenterKernel {
     if (!work.deps.every(d=>done.has(d))) throw new Error('DEPENDENCIES_NOT_DONE');
     const runId = randomUUID();
     work.status='EXECUTING'; work.run_id=runId; work.claimed_revision=head;
-    state.active_run={id:runId, obligation_id:id, claimed_revision:head};
     const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`);
     if (!this.#cas(commit,head)) throw new Error('CLAIM_LOST');
     return {id:runId, obligation_id:id, claimed_revision:head, claim_commit:commit};
   }
 
   resolve(runId: string): Receipt {
-    const head = this.#requireHead();
-    const state = this.#state(head);
-    const active = state.active_run?.id === runId;
-    const work = active
-      ? state.obligations[state.active_run!.obligation_id]
-      : Object.values(state.obligations).find(x=>x.run_id===runId);
-    if (!work) {
-      const prior = this.receipts(runId).at(-1);
-      if (prior) return prior;
-      throw new Error('UNKNOWN_RUN');
+    for (let attempt=0; attempt<16; attempt+=1) {
+      const head = this.#requireHead();
+      const state = this.#state(head);
+      const work = Object.values(state.obligations).find(candidate => candidate.run_id===runId);
+      if (!work) {
+        const prior = this.receipts(runId).at(-1);
+        if (prior) return prior;
+        throw new Error('UNKNOWN_RUN');
+      }
+      if (!['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(work.status)) {
+        const prior = this.receipts(runId).at(-1);
+        if (prior) return prior;
+        throw new Error('NOT_RESOLVABLE');
+      }
+
+      const claimCommit = work.claim_commit ?? this.#findClaimCommit(runId, work, head);
+      const observed = this.#observe(work.postcondition);
+      const disposition: Disposition = observed.verified
+        ? 'DONE'
+        : observed.mutation_certainty === 'absent'
+          ? 'READY'
+          : 'RECOVERY_REQUIRED';
+      const receipt = this.#receipt(runId,work,disposition,observed.verified,observed,claimCommit);
+      work.status=disposition;
+      work.claim_commit=claimCommit;
+      if (disposition==='READY') {
+        delete work.run_id;
+        delete work.claimed_revision;
+        delete work.claim_commit;
+      }
+      const commit=this.#commit(head,state,`overcenter: resolve ${work.id} ${disposition}`,receipt);
+      if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
-    if (!active && !['RECOVERY_REQUIRED','WAITING'].includes(work.status)) {
-      const prior = this.receipts(runId).at(-1);
-      if (prior) return prior;
-      throw new Error('NOT_RESOLVABLE');
-    }
-    if (!work.claim_commit) work.claim_commit = head;
-    const observed = this.#observe(work.postcondition);
-    const disposition: Disposition = observed.verified ? 'DONE' : observed.mutation_certainty === 'absent' ? 'READY' : 'RECOVERY_REQUIRED';
-    const receipt = this.#receipt(runId,work,disposition,observed.verified,observed,work.claim_commit);
-    work.status=disposition;
-    if (disposition==='READY') { delete work.run_id; delete work.claimed_revision; delete work.claim_commit; }
-    state.active_run=null;
-    const commit=this.#commit(head,state,`overcenter: resolve ${work.id} ${disposition}`,receipt);
-    if (!this.#cas(commit,head)) throw new Error('RESOLVE_LOST');
-    return {...receipt, settlement_commit:commit};
+    throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
   }
 
   defer(runId: string, disposition: 'WAITING'|'RECOVERY_REQUIRED', diagnostic: Data = {}): Receipt {
-    const head=this.#requireHead();
-    const state=this.#state(head);
-    if (!state.active_run || state.active_run.id!==runId) {
-      const prior=this.receipts(runId).at(-1); if (prior) return prior; throw new Error('UNKNOWN_RUN');
+    for (let attempt=0; attempt<16; attempt+=1) {
+      const head=this.#requireHead();
+      const state=this.#state(head);
+      const work=Object.values(state.obligations).find(candidate=>candidate.run_id===runId);
+      if (!work) {
+        const prior=this.receipts(runId).at(-1);
+        if (prior) return prior;
+        throw new Error('UNKNOWN_RUN');
+      }
+      if (work.status!=='EXECUTING') {
+        const prior=this.receipts(runId).at(-1);
+        if (prior) return prior;
+        throw new Error('AUTHORITY_LOST');
+      }
+      const claimCommit=this.#findClaimCommit(runId,work,head);
+      work.claim_commit=claimCommit;
+      work.status=disposition;
+      const receipt=this.#receipt(runId,work,disposition,false,null,claimCommit,diagnostic);
+      const commit=this.#commit(head,state,`overcenter: defer ${work.id} ${disposition}`,receipt);
+      if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
-    const work=state.obligations[state.active_run.obligation_id];
-    if (!work || work.status!=='EXECUTING' || work.run_id!==runId) throw new Error('AUTHORITY_LOST');
-    work.claim_commit=head; work.status=disposition; state.active_run=null;
-    const receipt=this.#receipt(runId,work,disposition,false,null,head,diagnostic);
-    const commit=this.#commit(head,state,`overcenter: defer ${work.id} ${disposition}`,receipt);
-    if (!this.#cas(commit,head)) throw new Error('AUTHORITY_LOST');
-    return {...receipt, settlement_commit:commit};
+    throw new Error('DEFER_CONTENTION_EXHAUSTED');
   }
 
   recoverInterrupted(runId: string, diagnostic: Data = {}): Receipt {
-    const head=this.#requireHead();
-    const state=this.#state(head);
-    if (!state.active_run) {
-      const prior=this.receipts(runId).at(-1); if (prior) return prior; throw new Error('NO_ACTIVE_RUN');
+    for (let attempt=0; attempt<16; attempt+=1) {
+      const head=this.#requireHead();
+      const state=this.#state(head);
+      const work=Object.values(state.obligations).find(candidate=>candidate.run_id===runId);
+      if (!work) {
+        const prior=this.receipts(runId).at(-1);
+        if (prior) return prior;
+        throw new Error('UNKNOWN_RUN');
+      }
+      if (work.status!=='EXECUTING') {
+        const prior=this.receipts(runId).at(-1);
+        if (prior) return prior;
+        throw new Error('RUN_NOT_EXECUTING');
+      }
+      const claimCommit=this.#findClaimCommit(runId,work,head);
+      work.claim_commit=claimCommit;
+      work.status='RECOVERY_REQUIRED';
+      const receipt=this.#receipt(
+        runId,
+        work,
+        'RECOVERY_REQUIRED',
+        false,
+        null,
+        claimCommit,
+        {reason:'execution-terminated',...diagnostic},
+      );
+      const commit=this.#commit(head,state,`overcenter: recover ${work.id} ${runId}`,receipt);
+      if (this.#cas(commit,head)) return {...receipt, settlement_commit:commit};
     }
-    if (state.active_run.id!==runId) throw new Error('RUN_ID_MISMATCH');
-    const work=state.obligations[state.active_run.obligation_id];
-    if (!work || work.status!=='EXECUTING' || work.run_id!==runId) throw new Error('CORRUPT_ACTIVE_RUN');
-    work.claim_commit=head; work.status='RECOVERY_REQUIRED'; state.active_run=null;
-    const receipt=this.#receipt(runId,work,'RECOVERY_REQUIRED',false,null,head,{reason:'execution-terminated',...diagnostic});
-    const commit=this.#commit(head,state,`overcenter: recover ${work.id} ${runId}`,receipt);
-    if (!this.#cas(commit,head)) throw new Error('RECOVERY_LOST');
-    return {...receipt, settlement_commit:commit};
+    throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
   }
 
   reconcile(runId: string): Receipt { return this.resolve(runId); }
@@ -263,8 +294,22 @@ export class GitOvercenterKernel {
   }
 
   #requireHead(): string { const head=this.head(); if (!head) throw new Error('NOT_INITIALIZED'); return head; }
-  #emptyState(): State { return {schema:STATE_SCHEMA,obligations:{},active_run:null}; }
-  #hasBlocker(state: State): boolean { return Object.values(state.obligations).some(x=>BLOCKERS.has(x.status)); }
+  #emptyState(): State { return {schema:STATE_SCHEMA,obligations:{}}; }
+  #hasInFlight(state: State): boolean {
+    return Object.values(state.obligations).some(work=>IN_FLIGHT.has(work.status));
+  }
+  #findClaimCommit(runId: string, work: Obligation, head: string): string {
+    if (!work.claimed_revision) throw new Error('MISSING_CLAIMED_REVISION');
+    const revs=this.#git(['rev-list','--reverse',head,`^${work.claimed_revision}`]).stdout
+      .trim()
+      .split(/\n+/)
+      .filter(Boolean);
+    for (const commit of revs) {
+      const candidate=this.#state(commit).obligations[work.id];
+      if (candidate?.run_id===runId && candidate.status==='EXECUTING') return commit;
+    }
+    throw new Error('CLAIM_COMMIT_NOT_FOUND');
+  }
   #state(commit: string): State {
     const state=JSON.parse(this.#git(['show',`${commit}:state.json`]).stdout) as State;
     if (state.schema!==STATE_SCHEMA) throw new Error('INVALID_STATE_SCHEMA'); return state;
