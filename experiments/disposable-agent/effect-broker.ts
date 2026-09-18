@@ -25,7 +25,7 @@ async function github(path: string, init: RequestInit = {}): Promise<Response> {
 
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
-const sourceSha = required('GITHUB_SHA');
+const sourceSha = required('SOURCE_SHA');
 const stateRef = githubProofStateRef('disposable-agent');
 
 const intent = JSON.parse(readFileSync('candidate/effect-intent.json', 'utf8')) as {
