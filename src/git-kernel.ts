@@ -1,84 +1,48 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import type {
+  Data,
+  Dependency,
+  Disposition,
+  ExecuteOutcome,
+  LifecycleStatus,
+  LoopOptions,
+  LoopResult,
+  Obligation,
+  Observation,
+  Postcondition,
+  Run,
+  Work,
+  WorkStatus,
+} from './model.ts';
+import { observePostcondition, observationVerified, validatePostcondition } from './observation.ts';
+import { githubStatusContextKey } from './providers/github-status.ts';
+
+export type {
+  Data,
+  Dependency,
+  Disposition,
+  EventuallyConsistentFilePostcondition,
+  ExecuteOutcome,
+  FileContentPostcondition,
+  GitHubCommitStatusPostcondition,
+  GitRefPostcondition,
+  LifecycleStatus,
+  LoopOptions,
+  LoopResult,
+  MutationCertainty,
+  Obligation,
+  Observation,
+  Postcondition,
+  Run,
+  Work,
+  WorkStatus,
+} from './model.ts';
 
 const STATE_REF = 'refs/overcenter/state';
 const OBLIGATION_SCHEMA = 'overcenter-git-obligation-v2';
 const CLAIM_SCHEMA = 'overcenter-git-claim-v2';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v3';
-
-type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
-export type WorkStatus = LifecycleStatus | 'BLOCKED';
-export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
-export type MutationCertainty = 'present' | 'absent' | 'uncertain';
-export type Data = Record<string, unknown>;
-
-export interface FileContentPostcondition {
-  verifier: 'file-content-equals/v1';
-  path: string;
-  content: string;
-}
-export interface EventuallyConsistentFilePostcondition {
-  verifier: 'eventually-consistent-file-content-equals/v1';
-  path: string;
-  content: string;
-}
-export interface GitRefPostcondition {
-  verifier: 'git-ref-equals/v1';
-  remote: string;
-  ref: string;
-  target_sha: string;
-}
-export interface GitHubCommitStatusPostcondition {
-  verifier: 'github-commit-status/v1';
-  provider: 'github';
-  repository_id: number;
-  commit_sha: string;
-  context: string;
-  expected_state: 'error' | 'failure' | 'pending' | 'success';
-}
-export type Postcondition =
-  | FileContentPostcondition
-  | EventuallyConsistentFilePostcondition
-  | GitRefPostcondition
-  | GitHubCommitStatusPostcondition;
-
-export interface Observation extends Data {
-  verifier: Postcondition['verifier'];
-  mutation_certainty: MutationCertainty;
-  path?: string;
-  expected_sha256?: string;
-  actual_sha256?: string;
-  remote?: string;
-  ref?: string;
-  expected_sha?: string;
-  actual_sha?: string;
-  provider?: 'github';
-  repository_id?: number;
-  repository_full_name?: string;
-  commit_sha?: string;
-  context?: string;
-  expected_state?: string;
-  actual_state?: string;
-}
-
-export type Dependency =
-  | { kind: 'control'; upstream: string }
-  | {
-      kind: 'semantic';
-      upstream: string;
-      consumes:
-        | { kind: 'output'; selector: string }
-        | { kind: 'evidence'; selector: string };
-    };
-
-export interface Obligation {
-  id: string;
-  deps: string[];
-  dependencies: Dependency[];
-  packet: Data;
-  postcondition: Postcondition;
-}
 
 interface ObligationInput {
   id: string;
@@ -103,20 +67,6 @@ type ObligationFact =
       obligation: Obligation;
       previous_definition_commit: string;
     }
-export interface Work extends Obligation {
-  status: WorkStatus;
-  revision: string;
-  run_id?: string;
-  claimed_revision?: string;
-  blocked_reason?: string;
-}
-export interface Run {
-  id: string;
-  obligation_id: string;
-  claimed_revision: string;
-  claim_commit: string;
-  obligation_key: string;
-}
 interface ClaimFact {
   schema: typeof CLAIM_SCHEMA;
   run_id: string;
@@ -155,9 +105,6 @@ export interface Receipt extends ReceiptFact {
   verified: boolean;
   settlement_commit?: string;
 }
-export interface ExecuteOutcome extends Data { kind?: string; may_have_mutated?: boolean }
-export interface LoopOptions { execute: (packet: Data, run: Run) => Promise<ExecuteOutcome>; maxAdvances?: number }
-export interface LoopResult { state: 'IDLE'|'BLOCKED'|'RECOVERY_REQUIRED'|'WAITING'|'BUDGET_EXHAUSTED'; advances: number; work?: string; run?: string }
 interface GitResult { ok: boolean; stdout: string; stderr?: string }
 
 const IN_FLIGHT = new Set<WorkStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
@@ -219,7 +166,7 @@ export class GitOvercenterKernel {
   define(input: ObligationInput): string {
     const obligation=this.#normalizeObligation(input);
     const {id,postcondition}=obligation;
-    this.#validatePostcondition(postcondition);
+    validatePostcondition(postcondition);
     const head = this.#requireHead();
     const state = this.#state(head);
     const history=this.#history(state,head);
@@ -237,7 +184,7 @@ export class GitOvercenterKernel {
   amend(input: ObligationInput, expectedRevision: string): string {
     const obligation=this.#normalizeObligation(input);
     const {id,postcondition}=obligation;
-    this.#validatePostcondition(postcondition);
+    validatePostcondition(postcondition);
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
     const state=this.#state(head);
@@ -522,7 +469,7 @@ export class GitOvercenterKernel {
     if (!input || typeof input.id!=='string' || input.id.length===0) {
       throw new Error('INVALID_OBLIGATION_ID');
     }
-    this.#validatePostcondition(input.postcondition);
+    validatePostcondition(input.postcondition);
     const dependencies:Dependency[]=input.dependencies
       ? structuredClone(input.dependencies)
       : (input.deps ?? []).map(upstream=>({kind:'control' as const,upstream}));
@@ -683,7 +630,7 @@ export class GitOvercenterKernel {
           provider:'github',
           repository_id:upstream.postcondition.repository_id,
           commit_sha:upstream.postcondition.commit_sha,
-          context:this.#githubStatusContextKey(upstream.postcondition.context),
+          context:githubStatusContextKey(upstream.postcondition.context),
           state:upstream.postcondition.expected_state,
         });
       }
@@ -720,7 +667,7 @@ export class GitOvercenterKernel {
   ): { resource: string; desired: string; sameDesiredCommutes: boolean } | null {
     if (postcondition.verifier!=='github-commit-status/v1') return null;
     return {
-      resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${this.#githubStatusContextKey(postcondition.context)}`,
+      resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,
       desired:postcondition.expected_state,
       sameDesiredCommutes:true,
     };
@@ -842,204 +789,11 @@ export class GitOvercenterKernel {
     };
     for (const id of Object.keys(state.obligations)) visit(id);
   }
-  #validatePostcondition(p: Postcondition): void {
-    if (p?.verifier==='file-content-equals/v1'
-      && typeof p.path==='string'
-      && typeof p.content==='string') return;
-    if (p?.verifier==='eventually-consistent-file-content-equals/v1'
-      && typeof p.path==='string'
-      && typeof p.content==='string') return;
-    if (p?.verifier==='git-ref-equals/v1'
-      && typeof p.remote==='string'
-      && typeof p.ref==='string'
-      && typeof p.target_sha==='string') return;
-    if (p?.verifier==='github-commit-status/v1'
-      && p.provider==='github'
-      && Number.isSafeInteger(p.repository_id)
-      && p.repository_id > 0
-      && /^[0-9a-f]{40,64}$/i.test(p.commit_sha)
-      && typeof p.context==='string'
-      && p.context.length > 0
-      && ['error','failure','pending','success'].includes(p.expected_state)) return;
-    throw new Error('UNSUPPORTED_POSTCONDITION');
-  }
   #observe(p: Postcondition): Observation {
-    this.#validatePostcondition(p);
-    if (p.verifier==='github-commit-status/v1') {
-      if (!this.githubToken) {
-        return {
-          verifier:p.verifier,
-          provider:'github',
-          repository_id:p.repository_id,
-          commit_sha:p.commit_sha,
-          context:p.context,
-          expected_state:p.expected_state,
-          mutation_certainty:'uncertain',
-          observation_error:'GITHUB_TOKEN_UNAVAILABLE',
-        };
-      }
-      try {
-        const repository=this.#githubGet(`/repositories/${p.repository_id}`) as { id?: number; full_name?: string };
-        if (repository.id!==p.repository_id || typeof repository.full_name!=='string') {
-          throw new Error('GITHUB_REPOSITORY_IDENTITY_MISMATCH');
-        }
-        const status=this.#githubFindCommitStatus(
-          repository.full_name,
-          p.commit_sha,
-          p.context,
-        );
-        if (!status) {
-          return {
-            verifier:p.verifier,
-            provider:'github',
-            repository_id:p.repository_id,
-            repository_full_name:repository.full_name,
-            commit_sha:p.commit_sha,
-            context:p.context,
-            expected_state:p.expected_state,
-            mutation_certainty:'absent',
-            };
-        }
-        return {
-          verifier:p.verifier,
-          provider:'github',
-          repository_id:p.repository_id,
-          repository_full_name:repository.full_name,
-          commit_sha:p.commit_sha,
-          context:p.context,
-          expected_state:p.expected_state,
-          actual_state:status.state,
-          mutation_certainty:'present',
-        };
-      } catch (e: unknown) {
-        return {
-          verifier:p.verifier,
-          provider:'github',
-          repository_id:p.repository_id,
-          commit_sha:p.commit_sha,
-          context:p.context,
-          expected_state:p.expected_state,
-          mutation_certainty:'uncertain',
-          observation_error:errorMessage(e),
-        };
-      }
-    }
-
-    if (p.verifier==='eventually-consistent-file-content-equals/v1') {
-      const expected=sha256(p.content);
-      try {
-        const actual=readFileSync(p.path,'utf8');
-        const actualSha=sha256(actual);
-        if (actual===p.content) {
-          return {
-            verifier:p.verifier,
-            path:p.path,
-            expected_sha256:expected,
-            actual_sha256:actualSha,
-            mutation_certainty:'present',
-          };
-        }
-        return {
-          verifier:p.verifier,
-          path:p.path,
-          expected_sha256:expected,
-          actual_sha256:actualSha,
-          mutation_certainty:'uncertain',
-          negative_evidence_authoritative:false,
-          observation_error:'NON_MATCHING_READ_NOT_AUTHORITATIVE',
-        };
-      } catch (e: unknown) {
-        const code=(e as {code?:string}).code;
-        if (code==='ENOENT') {
-          return {
-            verifier:p.verifier,
-            path:p.path,
-            expected_sha256:expected,
-            mutation_certainty:'uncertain',
-            negative_evidence_authoritative:false,
-            observation_error:'NEGATIVE_READ_NOT_AUTHORITATIVE',
-          };
-        }
-        return {
-          verifier:p.verifier,
-          path:p.path,
-          expected_sha256:expected,
-          mutation_certainty:'uncertain',
-          observation_error:errorMessage(e),
-        };
-      }
-    }
-
-    if (p.verifier==='git-ref-equals/v1') {
-      const listed=this.#git(['ls-remote',p.remote,p.ref],{allowFailure:true});
-      if (!listed.ok) {
-        return {
-          verifier:p.verifier,
-          remote:p.remote,
-          ref:p.ref,
-          expected_sha:p.target_sha,
-          mutation_certainty:'uncertain',
-          observation_error:listed.stderr ?? 'git ls-remote failed',
-        };
-      }
-      const line=listed.stdout.trim();
-      if (!line) {
-        return {
-          verifier:p.verifier,
-          remote:p.remote,
-          ref:p.ref,
-          expected_sha:p.target_sha,
-          mutation_certainty:'absent',
-        };
-      }
-      const actualSha=line.split(/\s+/)[0];
-      return {
-        verifier:p.verifier,
-        remote:p.remote,
-        ref:p.ref,
-        expected_sha:p.target_sha,
-        actual_sha:actualSha,
-        mutation_certainty:'present',
-      };
-    }
-
-    const expected=sha256(p.content);
-    try {
-      const actual=readFileSync(p.path,'utf8');
-      const actualSha=sha256(actual);
-      return {verifier:p.verifier,path:p.path,expected_sha256:expected,actual_sha256:actualSha,mutation_certainty:'present'};
-    } catch (e: unknown) {
-      const code=(e as {code?:string}).code;
-      if (code==='ENOENT') return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'absent'};
-      return {verifier:p.verifier,path:p.path,expected_sha256:expected,mutation_certainty:'uncertain',observation_error:errorMessage(e)};
-    }
-  }
-  #observationVerified(postcondition:Postcondition,observed:Observation): boolean {
-    if (observed.verifier!==postcondition.verifier) throw new Error('OBSERVATION_VERIFIER_MISMATCH');
-    if (observed.mutation_certainty!=='present') return false;
-
-    if (
-      postcondition.verifier==='file-content-equals/v1'
-      || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
-    ) {
-      if (observed.path!==postcondition.path) throw new Error('OBSERVATION_COORDINATE_MISMATCH');
-      return observed.actual_sha256===sha256(postcondition.content);
-    }
-    if (postcondition.verifier==='git-ref-equals/v1') {
-      if (observed.remote!==postcondition.remote || observed.ref!==postcondition.ref) {
-        throw new Error('OBSERVATION_COORDINATE_MISMATCH');
-      }
-      return observed.actual_sha===postcondition.target_sha;
-    }
-    if (
-      observed.provider!=='github'
-      || observed.repository_id!==postcondition.repository_id
-      || observed.commit_sha!==postcondition.commit_sha
-      || observed.context!==postcondition.context
-    ) {
-      throw new Error('OBSERVATION_COORDINATE_MISMATCH');
-    }
-    return observed.actual_state===postcondition.expected_state;
+    return observePostcondition(p,{
+      githubToken:this.githubToken,
+      gitLsRemote:(remote,ref)=>this.#git(['ls-remote',remote,ref],{allowFailure:true}),
+    });
   }
 
   #projectReceipt(fact:ReceiptFact,work:Obligation,settlementCommit?:string): Receipt {
@@ -1048,7 +802,7 @@ export class GitOvercenterKernel {
 
     if (fact.kind==='observation') {
       if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
-      verified=this.#observationVerified(work.postcondition,fact.observed);
+      verified=observationVerified(work.postcondition,fact.observed);
       disposition=verified
         ? 'DONE'
         : fact.observed.mutation_certainty==='absent'
@@ -1114,48 +868,6 @@ export class GitOvercenterKernel {
     return true;
   }
   #objectIdLength(): number { return this.#git(['rev-parse','--show-object-format']).stdout.trim()==='sha256'?64:40; }
-  #githubStatusContextKey(context: string): string { return context.toLowerCase(); }
-  #githubFindCommitStatus(
-    repositoryFullName: string,
-    commitSha: string,
-    context: string,
-  ): { context?: string; state?: string } | null {
-    const target=this.#githubStatusContextKey(context);
-    for (let page=1; page<=1000; page+=1) {
-      const statuses=this.#githubGet(
-        `/repos/${repositoryFullName}/commits/${commitSha}/statuses?per_page=100&page=${page}`,
-      );
-      if (!Array.isArray(statuses)) throw new Error('GITHUB_STATUS_RESPONSE_INVALID');
-      const typed=statuses as Array<{ context?: string; state?: string }>;
-      const match=typed.find(candidate=>
-        typeof candidate.context==='string'
-        && this.#githubStatusContextKey(candidate.context)===target
-      );
-      if (match) return match;
-      if (typed.length<100) return null;
-    }
-    throw new Error('GITHUB_STATUS_PAGINATION_EXHAUSTED');
-  }
-  #githubGet(path: string): unknown {
-    if (!this.githubToken) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
-    const config = [
-      `header = "Authorization: Bearer ${this.githubToken}"`,
-      'header = "Accept: application/vnd.github+json"',
-      'header = "X-GitHub-Api-Version: 2022-11-28"',
-      '',
-    ].join('\n');
-    try {
-      const stdout=execFileSync(
-        'curl',
-        ['--silent','--show-error','--fail-with-body','--config','-',`https://api.github.com${path}`],
-        {input:config,encoding:'utf8',stdio:['pipe','pipe','pipe']},
-      );
-      return JSON.parse(stdout);
-    } catch (e: unknown) {
-      const f=e as {stderr?:string|Buffer;stdout?:string|Buffer;message?:string};
-      throw new Error(`GITHUB_PROVIDER_READ_FAILED: ${String(f.stderr??f.stdout??f.message??'').trim()}`);
-    }
-  }
   #git(args:string[],{input=undefined,env=process.env,allowFailure=false}:{input?:string;env?:Record<string,string|undefined>;allowFailure?:boolean}={}): GitResult {
     try {
       const stdout=execFileSync('git',['-C',this.repo,...args],{input,env,encoding:'utf8',stdio:['pipe','pipe','pipe']});
