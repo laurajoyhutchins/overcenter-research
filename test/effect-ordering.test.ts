@@ -15,13 +15,13 @@ function fixture() {
   return {root,repo,kernel};
 }
 
-function statusPostcondition(state:'success'|'failure') {
+function statusPostcondition(state:'success'|'failure',context='overcenter/conflict') {
   return {
     verifier:'github-commit-status/v1' as const,
     provider:'github' as const,
     repository_id:123,
     commit_sha:'a'.repeat(40),
-    context:'overcenter/conflict',
+    context,
     expected_state:state,
   };
 }
@@ -93,8 +93,36 @@ test('explicit graph order permits the canonical conflicting predecessor to be c
 
     const beta=f.kernel.inspect().find(work=>work.id==='beta');
     assert.ok(beta);
-    assert.equal(beta.status,'READY');
+    assert.equal(beta.status,'BLOCKED');
+    assert.equal(beta.blocked_reason,'DEPENDENCIES_NOT_DONE');
     assert.equal(f.kernel.deriveReadyWork(),null);
+  } finally {
+    rmSync(f.root,{recursive:true,force:true});
+  }
+});
+
+test('GitHub status contexts differing only by case share one conflict domain', () => {
+  const f=fixture();
+  try {
+    f.kernel.define({
+      id:'alpha',
+      postcondition:statusPostcondition('success','overcenter/Build'),
+    });
+    f.kernel.define({
+      id:'beta',
+      postcondition:statusPostcondition('failure','overcenter/build'),
+    });
+
+    assert.equal(f.kernel.deriveReadyWork(),null);
+    const inspected=f.kernel.inspect();
+    assert.deepEqual(
+      inspected.map(work=>[work.id,work.status]),
+      [['alpha','BLOCKED'],['beta','BLOCKED']],
+    );
+    assert.throws(
+      ()=>f.kernel.claim('alpha',inspected[0].revision),
+      /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
+    );
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
