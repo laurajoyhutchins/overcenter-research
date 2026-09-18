@@ -16,27 +16,25 @@ on:
 
 permissions: {}
 
-env:
-  STATE_REF: refs/overcenter/disposable-runs/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   project-authority:
     name: Trusted project authority — define and claim
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
 
     steps:
       - name: Fresh checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Node 22.16
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
 
       - name: Focused regression suite
         run: npm test
@@ -49,7 +47,7 @@ jobs:
   agent-a:
     name: Agent A — authority-untrusted sandbox, provider effect, terminate
     needs: project-authority
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -59,14 +57,14 @@ jobs:
 
     steps:
       - name: Fresh checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Node 22.16
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
 
       - name: Run disposable Agent A with sandbox tampering
         id: agent
@@ -85,7 +83,7 @@ jobs:
     name: Trusted recovery — canonical provider readback and settlement
     needs: agent-a
     if: ${{ always() && needs.agent-a.outputs.outcome == 'failure' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -95,14 +93,14 @@ jobs:
 
     steps:
       - name: Fresh checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Node 22.16
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
 
       - name: Reconstruct immutable intent and settle
         env:

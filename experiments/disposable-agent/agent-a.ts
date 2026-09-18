@@ -1,3 +1,4 @@
+import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync } from 'node:fs';
@@ -28,7 +29,7 @@ async function github(path: string, init: RequestInit = {}): Promise<Response> {
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('GITHUB_SHA');
-const stateRef = required('STATE_REF');
+const stateRef = githubProofStateRef('disposable-agent');
 const stateRefApi = stateRef.replace(/^refs\//, '');
 
 const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });

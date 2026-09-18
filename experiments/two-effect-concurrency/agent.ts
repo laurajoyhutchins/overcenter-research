@@ -1,8 +1,9 @@
+import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
-const STATE_REF=required('STATE_REF');
+const STATE_REF=githubProofStateRef('two-effect-concurrency');
 
 function required(name:string):string {
   const value=process.env[name];
