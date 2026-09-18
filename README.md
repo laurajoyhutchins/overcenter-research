@@ -602,8 +602,11 @@ research/     literature, synthesis, and architectural claims
 Current executable surfaces:
 
 ```text
-src/git-kernel.ts
-  Git-backed authority / projection / recovery reference mechanism
+src/
+  git-kernel.ts              Git history / projection / claim / recovery / CAS kernel
+  model.ts                   public obligation, work, run, and postcondition contract
+  observation.ts             postcondition validation, authoritative readback, verification
+  providers/github-status.ts GitHub commit-status provider readback
 
 test/
   reconstruction, typed dependency identity, and focused kernel invariants
