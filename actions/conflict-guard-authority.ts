@@ -44,8 +44,8 @@ const statusPc=(context:string,state:'success'|'failure')=>({
 
 const uAlpha=`guard-${workflowRunId}-${attempt}-unordered-alpha`;
 const uBeta=`guard-${workflowRunId}-${attempt}-unordered-beta`;
-kernel.define({id:uAlpha,postcondition:statusPc(unorderedContext,'success')});
-kernel.define({id:uBeta,postcondition:statusPc(unorderedContext,'failure')});
+kernel.define({id:uAlpha,postcondition:statusPc(`${unorderedContext}/Build`,'success')});
+kernel.define({id:uBeta,postcondition:statusPc(`${unorderedContext}/build`,'failure')});
 
 const uWork=kernel.inspect().find(work=>work.id===uAlpha)!;
 assert.throws(
@@ -65,6 +65,6 @@ const run=kernel.claim(alpha.id,alpha.revision);
 
 console.log(JSON.stringify({
   state_ref:STATE_REF,
-  unordered:{alpha:uAlpha,beta:uBeta,context:unorderedContext},
+  unordered:{alpha:uAlpha,beta:uBeta,contexts:[`${unorderedContext}/Build`,`${unorderedContext}/build`]},
   ordered:{alpha:oAlpha,beta:oBeta,context:orderedContext,alpha_run:run},
 }));
