@@ -159,7 +159,24 @@ test('every lifecycle projection reconstructs exactly after materialization is d
         content_sha256: sha256(expectedContent),
       },
     });
-    f.assertReconstructs([{ id: 'publish', status: 'READY' }]);
+    f.append({
+      type: 'obligation-defined',
+      obligation_id: 'verify-publish',
+      deps: ['publish'],
+      postcondition: {
+        verifier: 'file-content-equals/v1',
+        path: `${f.world}.verified`,
+        content_sha256: sha256('verified'),
+      },
+    });
+    f.assertReconstructs([
+      { id: 'publish', status: 'READY' },
+      {
+        id: 'verify-publish',
+        status: 'BLOCKED',
+        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
+      },
+    ]);
 
     const claimedRevision = f.revision();
     f.append({
@@ -170,6 +187,11 @@ test('every lifecycle projection reconstructs exactly after materialization is d
     });
     f.assertReconstructs([
       { id: 'publish', status: 'EXECUTING', active_run_id: runId },
+      {
+        id: 'verify-publish',
+        status: 'BLOCKED',
+        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
+      },
     ]);
 
     // External reality may change without changing project truth. Until
@@ -177,6 +199,11 @@ test('every lifecycle projection reconstructs exactly after materialization is d
     writeFileSync(f.world, expectedContent);
     f.assertReconstructs([
       { id: 'publish', status: 'EXECUTING', active_run_id: runId },
+      {
+        id: 'verify-publish',
+        status: 'BLOCKED',
+        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
+      },
     ]);
 
     f.append({
@@ -189,6 +216,11 @@ test('every lifecycle projection reconstructs exactly after materialization is d
         id: 'publish',
         status: 'RECOVERY_REQUIRED',
         active_run_id: runId,
+      },
+      {
+        id: 'verify-publish',
+        status: 'BLOCKED',
+        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
       },
     ]);
 
@@ -209,6 +241,11 @@ test('every lifecycle projection reconstructs exactly after materialization is d
         status: 'RECOVERY_REQUIRED',
         active_run_id: runId,
       },
+      {
+        id: 'verify-publish',
+        status: 'BLOCKED',
+        blocked_reason: 'DEPENDENCIES_NOT_DONE:publish',
+      },
     ]);
 
     f.append({
@@ -216,7 +253,10 @@ test('every lifecycle projection reconstructs exactly after materialization is d
       run_id: runId,
       observation_id: observationId,
     });
-    f.assertReconstructs([{ id: 'publish', status: 'DONE' }]);
+    f.assertReconstructs([
+      { id: 'publish', status: 'DONE' },
+      { id: 'verify-publish', status: 'READY' },
+    ]);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
