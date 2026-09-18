@@ -18,12 +18,14 @@ import type {
 } from './facts.ts';
 import {
   dependencyUpstreams,
+  validateGraph,
+} from './graph.ts';
+import {
   deriveLifecycles,
   hasInFlight,
   obligationKey,
-  validateGraph,
-} from './graph.ts';
-import type { Lifecycle } from './graph.ts';
+} from './lifecycle.ts';
+import type { Lifecycle } from './lifecycle.ts';
 
 export interface HistoryProjection {
   lifecycles:Map<string,Lifecycle>;
