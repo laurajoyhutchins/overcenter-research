@@ -775,8 +775,8 @@ export class GitOvercenterKernel {
       if (!file.ok) continue;
       const fact=JSON.parse(file.stdout) as ObligationFact;
       if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
-      this.#validatePostcondition(fact.obligation.postcondition);
-      const id=fact.obligation.id;
+      const obligation=this.#normalizeStoredObligation(fact.obligation);
+      const id=obligation.id;
       if (fact.kind==='defined') {
         if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
       } else if (fact.kind==='amended') {
@@ -787,7 +787,7 @@ export class GitOvercenterKernel {
       } else {
         throw new Error('INVALID_OBLIGATION_KIND');
       }
-      state.obligations[id]=structuredClone(fact.obligation);
+      state.obligations[id]=obligation;
       state.definition_commits[id]=revision;
       this.#validateGraph(state);
     }
