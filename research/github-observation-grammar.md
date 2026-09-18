@@ -615,3 +615,137 @@ handwritten / semantic
   freshness
   obligation predicate
 ```
+
+
+## Third falsification round: full schemas versus semantic slices
+
+The next pressure was structural response decoding.
+
+The initial hypothesis was that OpenAPI might mechanically validate entire successful GitHub responses before handwritten semantics projected facts. The pinned dereferenced schema shows why that is the wrong unit.
+
+Across the eight representative `200` response schemas, the inventory traversed:
+
+```text
+repos/get                              665 schema nodes
+git/get-ref                             12
+git/get-commit                          40
+pulls/get                              678
+issues/get                             628
+checks/list-for-ref                    211
+repos/list-commit-statuses-for-ref      39
+actions/list-workflow-runs-for-repo    510
+                                      ----
+total                                 2783
+```
+
+The aggregate vocabulary includes:
+
+```text
+type / properties / required / items
+enum
+nullable
+allOf / anyOf / oneOf
+additionalProperties
+minLength / maxLength
+date-time / email / int64 / uri formats
+```
+
+The selected schemas contain 15 union branches and reach nesting depth 15. They are dereferenced, so `$ref` count is zero, but dereferencing does not make the resulting structures small.
+
+A general validator for the complete provider representation would therefore solve substantially more than Overcenter needs to know.
+
+### Semantic slices
+
+The experiment now keeps the semantic field choice handwritten but derives structural validation for only those selected paths.
+
+Examples:
+
+```text
+git/get-ref
+  ref
+  object.type
+  object.sha
+
+pulls/get
+  id
+  node_id
+  number
+  state
+  head.sha
+  base.ref
+  base.sha
+
+checks/list-for-ref
+  total_count
+  check_runs[].id
+  check_runs[].name
+  check_runs[].head_sha
+  check_runs[].status
+  check_runs[].conclusion
+```
+
+The selector walks the actual pinned OpenAPI response schema, including properties inherited through `allOf` / `anyOf` / `oneOf`, and validates the selected runtime values against the provider-declared primitive type, nullability, enum, and length constraints.
+
+Unselected fields are deliberately ignored.
+
+This keeps the split explicit:
+
+```text
+handwritten
+  which fields matter
+
+generated / mechanical
+  does GitHub's contract contain those paths?
+  does the observed value have the declared structure?
+
+handwritten
+  what proposition do those fields prove?
+```
+
+### Live result
+
+On the pull-request proof for PR #19, the slice validator accepted:
+
+```text
+10 live observations
+8 distinct GitHub operations
+60 selected paths
+0 optional selected paths absent
+```
+
+The ten observations exceed eight operations because the proof also performs repeated repository and check observations for conditional/freshness behavior.
+
+The same run still demonstrated:
+
+```text
+Pulls numeric id = 4571454605
+Issues numeric id = 5502784281
+shared node_id    = PR_kwDOUMG09c8AAAABEHrcjQ
+same entity       = true
+```
+
+and the synthetic PR merge SHA again returned zero visible check members while missing membership remained `INDETERMINATE`.
+
+### What this does not yet prove
+
+The existing resource projectors still repeat primitive shape checks internally. Therefore this round proves that structural validation **can** be moved into deterministic schema-driven software, but it has not yet reduced the 801-line handwritten `semantics.ts`.
+
+Deleting those checks immediately would be unsafe because the projectors can still be called with an unvalidated `RawObservation`.
+
+The next falsification is therefore contractual rather than endpoint-oriented:
+
+```text
+RawObservation
+      |
+schema-derived semantic-slice validation
+      v
+StructurallyValidatedObservation
+      |
+handwritten proposition projection
+      v
+Fact
+```
+
+If one or more projectors can require that validated input and materially shrink without hiding semantic choices in a configuration DSL, the architecture gains actual compression.
+
+If the wrapper/certificate machinery costs as much as the checks it replaces, this path is abstraction theater and should be abandoned.
