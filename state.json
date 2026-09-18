@@ -162,8 +162,14 @@
         "context": "overcenter/trust-proof/35304983844/1",
         "expected_state": "success"
       },
-      "status": "READY"
+      "status": "EXECUTING",
+      "run_id": "e8d297ff-75f0-4ebe-b052-501af6e9b8d3",
+      "claimed_revision": "dd5e0b5ce6b43b0f95e542e837e606ad57f1fdf7"
     }
   },
-  "active_run": null
+  "active_run": {
+    "id": "e8d297ff-75f0-4ebe-b052-501af6e9b8d3",
+    "obligation_id": "actions-trust-proof-35304983844-1",
+    "claimed_revision": "dd5e0b5ce6b43b0f95e542e837e606ad57f1fdf7"
+  }
 }
