@@ -39,6 +39,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REQUEST_PATH: ${{ inputs.request_path || 'test/fixtures/github-object-transport-request.json' }}
+          INVALID_REQUEST_PATH: test/fixtures/github-object-transport-invalid-newline-request.json
           API_VERSION: ${{ env.API_VERSION }}
         run: |
           set -euo pipefail
@@ -51,13 +52,49 @@ jobs:
               "https://api.github.com${1}"
           }
 
-          validate_path() {
+          validate_request_json() {
+            jq -e '
+              def valid_path:
+                type == "string"
+                and length > 0
+                and (startswith("/") | not)
+                and (explode | all(. >= 32 and . != 127))
+                and (split("/") | all(. != "" and . != "." and . != ".."));
+
+              .schema == "github-object-transport/request/v1"
+              and (.entries | type == "array" and length > 0)
+              and (all(.entries[];
+                (.path | valid_path)
+                and (.writable | type == "boolean")
+              ))
+              and (([.entries[].path] | unique | length) == (.entries | length))
+            ' "$1" >/dev/null
+          }
+
+          validate_path_defense_in_depth() {
             local path="$1"
             test -n "${path}"
             [[ "${path}" != /* ]]
             [[ "${path}" != *$'\n'* ]]
+            [[ "${path}" != *$'\r'* ]]
             [[ "/${path}/" != *"/../"* ]]
             [[ "/${path}/" != *"/./"* ]]
+          }
+
+          fetch_tree_blob_to_file() {
+            local tree_json="$1"
+            local repository_path="$2"
+            local destination="$3"
+            local entry blob_sha blob_json
+
+            entry="$(jq -c --arg path "${repository_path}" \
+              '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0] else error("path must resolve to exactly one blob") end' \
+              <<<"${tree_json}")"
+            blob_sha="$(jq -r '.sha' <<<"${entry}")"
+            blob_json="$(api_get "/repos/${REPOSITORY}/git/blobs/${blob_sha}")"
+            test "$(jq -r '.encoding' <<<"${blob_json}")" = "base64"
+            jq -r '.content' <<<"${blob_json}" | tr -d '\n' | base64 --decode > "${destination}"
+            printf '%s\n' "${blob_sha}"
           }
 
           commit_json="$(api_get "/repos/${REPOSITORY}/git/commits/${SOURCE_SHA}")"
@@ -67,22 +104,18 @@ jobs:
           tree_json="$(api_get "/repos/${REPOSITORY}/git/trees/${base_tree}?recursive=1")"
           test "$(jq -r '.truncated' <<<"${tree_json}")" = "false"
 
-          request_entry="$(jq -c --arg path "${REQUEST_PATH}" \
-            '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0] else error("request must resolve to exactly one blob") end' \
-            <<<"${tree_json}")"
-          request_blob_sha="$(jq -r '.sha' <<<"${request_entry}")"
-          request_blob_json="$(api_get "/repos/${REPOSITORY}/git/blobs/${request_blob_sha}")"
-          test "$(jq -r '.encoding' <<<"${request_blob_json}")" = "base64"
-
           mkdir -p capsule/workspace
-          jq -r '.content' <<<"${request_blob_json}" | tr -d '\n' | base64 --decode > capsule/request.json
+          request_blob_sha="$(fetch_tree_blob_to_file "${tree_json}" "${REQUEST_PATH}" capsule/request.json)"
 
-          jq -e '
-            .schema == "github-object-transport/request/v1"
-            and (.entries | type == "array" and length > 0)
-            and (all(.entries[]; (.path | type == "string" and length > 0) and (.writable | type == "boolean")))
-            and (([.entries[].path] | unique | length) == (.entries | length))
-          ' capsule/request.json >/dev/null
+          # Prove path validation occurs on parsed JSON strings before any command
+          # substitution can normalize trailing newlines.
+          fetch_tree_blob_to_file "${tree_json}" "${INVALID_REQUEST_PATH}" capsule/invalid-newline-request.json >/dev/null
+          if validate_request_json capsule/invalid-newline-request.json; then
+            echo "::error::trailing-newline path fixture was incorrectly accepted"
+            exit 1
+          fi
+
+          validate_request_json capsule/request.json
 
           printf '{"schema":"github-object-transport/input/v1","repository":%s,"source_sha":%s,"base_tree":%s,"request_path":%s,"request_blob_sha":%s,"entries":[' \
             "$(jq -Rn --arg v "${REPOSITORY}" '$v')" \
@@ -97,7 +130,7 @@ jobs:
           while IFS= read -r requested; do
             path="$(jq -r '.path' <<<"${requested}")"
             writable="$(jq -r '.writable' <<<"${requested}")"
-            validate_path "${path}"
+            validate_path_defense_in_depth "${path}"
 
             entry="$(jq -c --arg path "${path}" \
               '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0] else error("declared path must resolve to exactly one blob") end' \
@@ -143,7 +176,7 @@ jobs:
           echo "manifest_sha256=${manifest_sha256}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload immutable input capsule
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: github-object-input-capsule
           path: capsule
@@ -156,7 +189,7 @@ jobs:
     permissions: {}
     steps:
       - name: Download input capsule
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: github-object-input-capsule
           path: input
@@ -168,6 +201,33 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
+
+          assert_shape() {
+            local root="$1"
+            local path="$2"
+            local mode="$3"
+            local file="${root}/${path}"
+            local expected_perm actual_perm
+
+            test -f "${file}"
+            test ! -L "${file}"
+            expected_perm="${mode#100}"
+            actual_perm="$(stat -c '%a' "${file}")"
+            test "${actual_perm}" = "${expected_perm}"
+          }
+
+          assert_identity() {
+            local root="$1"
+            local entry="$2"
+            local path mode expected_sha256 actual_sha256
+
+            path="$(jq -r '.path' <<<"${entry}")"
+            mode="$(jq -r '.mode' <<<"${entry}")"
+            expected_sha256="$(jq -r '.content_sha256' <<<"${entry}")"
+            assert_shape "${root}" "${path}" "${mode}"
+            actual_sha256="$(sha256sum "${root}/${path}" | cut -d' ' -f1)"
+            test "${actual_sha256}" = "${expected_sha256}"
+          }
 
           cd input
           sha256sum --check manifest.sha256
@@ -183,15 +243,29 @@ jobs:
           diff -u expected-files actual-files
 
           while IFS= read -r entry; do
-            path="$(jq -r '.path' <<<"${entry}")"
-            mode="$(jq -r '.mode' <<<"${entry}")"
-            expected_sha256="$(jq -r '.content_sha256' <<<"${entry}")"
-            test "$(sha256sum "original/${path}" | cut -d' ' -f1)" = "${expected_sha256}"
-            if [[ "${mode}" == "100755" ]]; then test -x "original/${path}"; else test ! -x "original/${path}"; fi
+            assert_identity original "${entry}"
           done < <(jq -c '.entries[]' manifest.json)
 
-          target="$(jq -r '[.entries[] | select(.writable == true)][0].path // error("proof requires at least one writable entry")' manifest.json)"
-          printf 'transport-proof:%s:%s\n' "${RUN_ID}" "${RUN_ATTEMPT}" > "work/${target}"
+          # Negative control: a mode-only mutation to a read-only entry must be
+          # detected by the same shape check used during real collection.
+          readonly_entry="$(jq -c '[.entries[] | select(.writable == false)][0] // error("proof requires one read-only entry")' manifest.json)"
+          readonly_path="$(jq -r '.path' <<<"${readonly_entry}")"
+          readonly_mode="$(jq -r '.mode' <<<"${readonly_entry}")"
+          mkdir mode-adversary
+          cp -a original/. mode-adversary/
+          chmod +x "mode-adversary/${readonly_path}"
+          if assert_shape mode-adversary "${readonly_path}" "${readonly_mode}"; then
+            echo "::error::mode-only read-only mutation was not detected"
+            exit 1
+          fi
+          rm -rf mode-adversary
+
+          # Stand-in worker mutates every writable entry, including the hidden
+          # path fixture. The executor has no repository permissions.
+          while IFS= read -r entry; do
+            path="$(jq -r '.path' <<<"${entry}")"
+            printf 'transport-proof:%s:%s:%s\n' "${RUN_ID}" "${RUN_ATTEMPT}" "${path}" > "work/${path}"
+          done < <(jq -c '.entries[] | select(.writable == true)' manifest.json)
 
           find work -type f -printf '%P\n' | LC_ALL=C sort > final-files
           diff -u expected-files final-files
@@ -210,8 +284,12 @@ jobs:
             old_blob_sha="$(jq -r '.blob_sha' <<<"${entry}")"
             writable="$(jq -r '.writable' <<<"${entry}")"
             before="$(jq -r '.content_sha256' <<<"${entry}")"
-            after="$(sha256sum "work/${path}" | cut -d' ' -f1)"
 
+            # Git type/mode are part of the realized input identity and are not
+            # mutable under the current transport contract.
+            assert_shape work "${path}" "${mode}"
+
+            after="$(sha256sum "work/${path}" | cut -d' ' -f1)"
             if [[ "${before}" == "${after}" ]]; then continue; fi
             test "${writable}" = "true"
             changed=1
@@ -235,12 +313,13 @@ jobs:
           rm ../candidate/delta.partial
 
       - name: Upload candidate delta
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: github-object-candidate-delta
           path: candidate
           if-no-files-found: error
           retention-days: 1
+          include-hidden-files: true
 
   publish:
     needs: [materialize, execute]
@@ -253,13 +332,13 @@ jobs:
       result_tree_sha: ${{ steps.publish.outputs.result_tree_sha }}
     steps:
       - name: Download trusted input capsule
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: github-object-input-capsule
           path: input
 
       - name: Download untrusted candidate delta
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: github-object-candidate-delta
           path: candidate
@@ -294,6 +373,7 @@ jobs:
             test -n "${path}"
             [[ "${path}" != /* ]]
             [[ "${path}" != *$'\n'* ]]
+            [[ "${path}" != *$'\r'* ]]
             [[ "/${path}/" != *"/../"* ]]
             [[ "/${path}/" != *"/./"* ]]
           }
@@ -334,6 +414,7 @@ jobs:
 
             payload="candidate/payload/${path}"
             test -f "${payload}"
+            test ! -L "${payload}"
             test "$(sha256sum "${payload}" | cut -d' ' -f1)" = "${payload_sha256}"
 
             encoded="$(base64 -w0 "${payload}")"
@@ -378,7 +459,7 @@ jobs:
           echo "result_tree_sha=${result_tree_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload publish receipt
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: github-object-publish-receipt
           path: publish-receipt.json
@@ -392,13 +473,13 @@ jobs:
       contents: read
     steps:
       - name: Download trusted input capsule
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: github-object-input-capsule
           path: input
 
       - name: Download candidate delta
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: github-object-candidate-delta
           path: candidate
@@ -443,6 +524,16 @@ jobs:
           tree_json="$(api_get "/repos/${REPOSITORY}/git/trees/${RESULT_TREE_SHA}?recursive=1")"
           test "$(jq -r '.truncated' <<<"${tree_json}")" = "false"
 
+          # Every read-only entry must preserve the exact source blob identity.
+          while IFS= read -r entry; do
+            path="$(jq -r '.path' <<<"${entry}")"
+            source_blob_sha="$(jq -r '.blob_sha' <<<"${entry}")"
+            result_blob_sha="$(jq -r --arg path "${path}" \
+              '[.tree[] | select(.path == $path and .type == "blob")] | if length == 1 then .[0].sha else error("read-only result path missing or ambiguous") end' \
+              <<<"${tree_json}")"
+            test "${result_blob_sha}" = "${source_blob_sha}"
+          done < <(jq -c '.entries[] | select(.writable == false)' input/manifest.json)
+
           while IFS= read -r change; do
             path="$(jq -r '.path' <<<"${change}")"
             expected_sha256="$(jq -r '.payload_sha256' <<<"${change}")"
@@ -466,7 +557,10 @@ jobs:
             echo "- changed paths: $(wc -l < expected-changed)"
             echo '- executor repository permissions: {}'
             echo '- checkout steps: none'
+            echo '- pre-shell control-character path rejection: passed'
             echo '- exact workspace membership check: passed'
-            echo '- read-only mutation guard: passed'
+            echo '- mode-only mutation negative control: passed'
+            echo '- hidden candidate payload transport: passed'
+            echo '- read-only source blob preservation: passed'
             echo '- authoritative GitHub readback: passed'
           } >> "${GITHUB_STEP_SUMMARY}"
