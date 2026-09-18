@@ -23,6 +23,7 @@ permissions:
   contents: read
   checks: read
   pull-requests: read
+  statuses: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
