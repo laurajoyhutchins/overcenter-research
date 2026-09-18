@@ -57,6 +57,23 @@
         "expected_state": "success"
       },
       "status": "READY"
+    },
+    "conflict-35307508884-1-beta": {
+      "id": "conflict-35307508884-1-beta",
+      "deps": [],
+      "packet": {
+        "slot": "beta",
+        "expected": "failure"
+      },
+      "postcondition": {
+        "verifier": "github-commit-status/v1",
+        "provider": "github",
+        "repository_id": 1354872053,
+        "commit_sha": "26164e38338bb13b26f4b5a847ebfa79b0c76960",
+        "context": "overcenter/conflict/35307508884/1",
+        "expected_state": "failure"
+      },
+      "status": "READY"
     }
   }
 }
