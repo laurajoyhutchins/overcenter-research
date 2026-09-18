@@ -94,7 +94,7 @@ const objectFields = [
 ] as const;
 const listFields = [
   { path: 'apiVersion' }, { path: 'kind' }, { path: 'metadata.resourceVersion' }, { path: 'metadata.continue', required: false },
-  { path: 'items[].apiVersion' }, { path: 'items[].kind' }, { path: 'items[].metadata.name' },
+  { path: 'items[].metadata.name' },
   { path: 'items[].metadata.namespace' }, { path: 'items[].metadata.uid' }, { path: 'items[].metadata.resourceVersion' },
   { path: 'items[].data' },
 ] as const;
