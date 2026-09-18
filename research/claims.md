@@ -160,7 +160,7 @@ The authority-untrusted executor can corrupt local Git configuration, refs, kern
 
 **Status:** Demonstrated within the Git kernel execution-permit boundary; model-checked in the formal kernel.
 
-The distributed-fencing research shows that exact Git revision checks cannot reject a stale worker when execution authority changes without moving Git.
+The distributed-fencing research shows that an exact claimed project revision alone cannot reject a stale worker when execution authority changes while that claimed revision remains the same. The Git prototype records the authority rotation as a separate durable fact.
 
 Required predicate:
 
