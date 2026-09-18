@@ -60,7 +60,9 @@
         "context": "overcenter/conflict-guard/35310531160/1/ordered",
         "expected_state": "failure"
       },
-      "status": "READY"
+      "status": "EXECUTING",
+      "run_id": "0d47a5de-5d30-4dc6-9ac8-744940a4f5dd",
+      "claimed_revision": "8dfa64a817e2c0f1551ecd4ff9fe28683c887229"
     }
   }
 }
