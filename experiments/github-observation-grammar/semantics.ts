@@ -246,6 +246,27 @@ function numberedEntityBase<Kind extends string>(
   };
 }
 
+function collectionBase(
+  observation: RawObservation,
+  repository: RepositoryIdentityFact,
+  operationId: string,
+): {
+  body: unknown;
+  pagination: NonNullable<ReturnType<typeof paginationShape>>;
+  evidence: FactEvidence;
+} | null {
+  if (!observed200(observation, operationId) || !sameRepositoryCoordinate(observation, repository)) return null;
+  const page = Number(observation.request.parameters.page ?? 1);
+  const perPage = Number(observation.request.parameters.per_page ?? 30);
+  const pagination = paginationShape(page, perPage, observation.response.link);
+  if (!pagination) return null;
+  return {
+    body: observation.outcome.value,
+    pagination,
+    evidence: evidence(observation),
+  };
+}
+
 function refCollectionBase(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
@@ -256,19 +277,11 @@ function refCollectionBase(
   pagination: NonNullable<ReturnType<typeof paginationShape>>;
   evidence: FactEvidence;
 } | null {
-  if (!observed200(observation, operationId) || !sameRepositoryCoordinate(observation, repository)) return null;
+  const base = collectionBase(observation, repository, operationId);
+  if (!base) return null;
   const ref = observation.request.parameters.ref;
   if (typeof ref !== 'string') return null;
-  const page = Number(observation.request.parameters.page ?? 1);
-  const perPage = Number(observation.request.parameters.per_page ?? 30);
-  const pagination = paginationShape(page, perPage, observation.response.link);
-  if (!pagination) return null;
-  return {
-    ref,
-    body: observation.outcome.value,
-    pagination,
-    evidence: evidence(observation),
-  };
+  return { ref, ...base };
 }
 
 export function projectRepositoryIdentity(observation: RawObservation): RepositoryIdentityFact | null {
