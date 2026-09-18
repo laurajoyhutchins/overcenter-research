@@ -110,7 +110,7 @@ export const GITHUB_GET_REF_OPERATION:GithubRefOperation={
           required:['type','sha'],
           properties:{
             type:{type:'string'},
-            sha:{type:'string'},
+            sha:{type:'string',minLength:40,maxLength:40},
           },
         },
       },
