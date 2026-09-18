@@ -20,18 +20,14 @@ export type MutableEntitySnapshot<
   evidence: Evidence;
 } & Fields;
 
-export type RefCollectionPageShape<
+export type CollectionPageShape<
+  Subject extends { repository_id: number },
   Member,
   Evidence,
-  Kind extends string = string,
   Extra extends object = object,
 > = {
   kind: 'collection-page';
-  subject: {
-    kind: Kind;
-    repository_id: number;
-    ref: string;
-  };
+  subject: Subject;
   members: Member[];
   page: number;
   per_page: number;
@@ -75,7 +71,7 @@ export function evaluateMutableEntity<TFact, TObligation>({
 }
 
 export function evaluatePositiveCollectionMember<
-  TFact extends RefCollectionPageShape<TMember, unknown>,
+  TFact extends CollectionPageShape<{ repository_id: number }, TMember, unknown>,
   TMember,
   TObligation,
 >({
