@@ -310,6 +310,16 @@ test('Pulls and Issues surfaces preserve cross-surface node identity without con
     state: 'open',
     title: 'Same logical PR through Issues surface',
   }).state, 'SATISFIED');
+
+  const rebuilt = reconstructGithubProjection({
+    durable: [repository],
+    current: [pullFact, issueFact],
+  });
+  assert.equal(rebuilt.pull_requests['42:17'].subject.kind, 'github.pull-request');
+  assert.equal(rebuilt.issues['42:17'].subject.kind, 'github.issue');
+  const entity = rebuilt.entities['42:NODE_SHARED_17'];
+  assert.equal(entity.pull_request?.subject.id, 1700);
+  assert.equal(entity.issue?.subject.id, 9900);
 });
 
 test('paginated collection proves positive membership but not absence, even on a terminal page', async () => {
