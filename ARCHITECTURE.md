@@ -508,12 +508,17 @@ Before an obligation can enter authoritative history, graph admission now reject
 
 - unsupported semantic selectors;
 - semantic outputs the upstream verifier cannot identify;
+- missing settlement semantics for the verifier;
 - unknown dependencies and cycles;
 - statically known unordered incompatible effect coordinates.
 
-Definition or amendment failure therefore happens before the authority CAS. These defects are not represented as runtime `BLOCKED` work.
+For newly admitted work, definition or amendment failure therefore happens before the authority CAS. Existing v3 fact history is replayed under its original durable syntax semantics; defensive eligibility still fails closed on a legacy static effect conflict instead of retroactively making old authority unreplayable.
 
-Settlement authority is also verifier-specific before execution begins. A generic observation field such as `mutation_certainty: "absent"` does not itself authorize replay. The obligation's verifier semantics must declare that its negative evidence can be authoritative.
+Settlement authority is also declared before execution begins. Replay from absence requires both:
+- verifier-level semantics that permit authoritative negative evidence; and
+- observation-specific evidence that this read actually established authoritative absence.
+
+A generic `mutation_certainty: "absent"` field alone never reopens execution.
 
 ### READY
 
@@ -542,7 +547,7 @@ Examples:
 - unsatisfied dependencies;
 - a dynamic execution precondition is not currently met.
 
-Invalid graph/amendment structure and statically knowable effect conflicts are earlier admission failures, not runtime `BLOCKED` states.
+For newly admitted work, invalid graph/amendment structure and statically knowable effect conflicts are earlier admission failures. Defensive projection may still surface a legacy static conflict as `BLOCKED` so older v3 authority remains replayable without becoming executable.
 
 ### RECOVERY_REQUIRED
 
