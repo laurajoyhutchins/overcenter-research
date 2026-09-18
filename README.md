@@ -58,6 +58,61 @@ git push \
 
 The commit SHA is the authoritative state revision. Settlement and recovery commits carry `receipt.json`; older receipts remain reachable through Git history.
 
+## Fact-derived projection erasure proof
+
+The architecture says project status is a projection. The current `GitOvercenterKernel`
+has not fully reached that model yet: its `state.json` still persists lifecycle fields
+such as `status` and `run_id`.
+
+A separate proof now makes the stronger representation test executable without
+pretending that migration is already complete:
+
+```text
+durable facts in Git authority
+  obligation-defined
+  run-claimed
+  worker-terminated
+  effect-observed
+  run-settled
+        |
+        v
+derive project projection
+        |
+        v
+materialized READY / EXECUTING / RECOVERY_REQUIRED / DONE cache
+        |
+        X
+delete the entire materialization
+        |
+        v
+fresh process reads refs/overcenter/facts
+        |
+        v
+derive again
+        |
+        v
+exact same canonical projection + SHA-256 digest
+```
+
+The durable journal is explicitly checked not to contain a `status` field or any
+of the projected lifecycle labels. The test runs one obligation through claim,
+external effect, worker termination, authoritative readback, and settlement,
+then deletes the projection cache and reconstructs from the current Git authority
+ref.
+
+Run it directly with:
+
+```bash
+npm run test:projection
+```
+
+This proves the representation rule needed for a later kernel migration:
+
+> Deleting every materialized project status must lose no project truth.
+
+It does **not** yet prove that `GitOvercenterKernel` itself no longer stores
+materialized status. That is the next conversion step.
+
 ## Kernel-owned verification
 
 Agents no longer supply an observation object or verifier function to settle work.
