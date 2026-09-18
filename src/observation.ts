@@ -164,6 +164,7 @@ export function observePostcondition(
         path:p.path,
         expected_sha256:expected,
         mutation_certainty:'absent',
+        negative_evidence_authoritative:true,
       };
     }
     return {
