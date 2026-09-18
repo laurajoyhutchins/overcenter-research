@@ -153,8 +153,8 @@ const commitObservation = await observeOperation(
   transport,
   provenance,
 );
-validateSlice(commitOperation, commitObservation);
-const commitFact = projectGitCommit(commitObservation, repository);
+const validatedCommitObservation = validateSlice(commitOperation, commitObservation);
+const commitFact = projectGitCommit(validatedCommitObservation, repository);
 assert.ok(commitFact);
 assert.equal(commitFact.subject.sha.toLowerCase(), sourceSha.toLowerCase());
 assert.equal(commitFact.stability, 'content-addressed');
