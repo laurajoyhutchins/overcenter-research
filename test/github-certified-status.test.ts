@@ -4,10 +4,10 @@ import { RECEIPT_SCHEMA, type ReceiptFact } from '../src/facts.ts';
 import type { GitHubCommitStatusPostcondition, Obligation } from '../src/model.ts';
 import { observePostcondition } from '../src/observation.ts';
 import {
-  GITHUB_OPENAPI_SHA256,
   observeCertifiedGithubCommitStatus,
-  type GithubJsonGet,
 } from '../src/providers/github-certified-status.ts';
+import { GITHUB_OPENAPI_SHA256 } from '../src/providers/github-contract.ts';
+import type { GithubJsonGet } from '../src/providers/github-status.ts';
 import { projectReceipt } from '../src/projection.ts';
 
 const COMMIT='a'.repeat(40);
