@@ -54,14 +54,14 @@ function claimCommit(parent:string):FactCommit {
   };
 }
 
-test('pure replay derives READY -> EXECUTING -> DONE without Git',()=>{
+test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
   const defineRecord:FactCommit={
     commit:'define-1',
     parent:null,
     obligation:defined,
   };
   const ready=replayProjection([defineRecord]);
-  assert.equal(ready.history.lifecycles.get('a')?.status,'READY');
+  assert.equal(ready.history.lifecycles.get('a')?.status,'UNREALIZED');
 
   const claimRecord=claimCommit('define-1');
   const executing=replayProjection([defineRecord,claimRecord]);
