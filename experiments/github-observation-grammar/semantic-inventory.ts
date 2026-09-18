@@ -13,6 +13,7 @@ const cases = [
   ['/repos/{owner}/{repo}/issues/{issue_number}', 'issues/get'],
   ['/repos/{owner}/{repo}/commits/{ref}/check-runs', 'checks/list-for-ref'],
   ['/repos/{owner}/{repo}/commits/{ref}/statuses', 'repos/list-commit-statuses-for-ref'],
+  ['/repos/{owner}/{repo}/actions/runs', 'actions/list-workflow-runs-for-repo'],
 ] as const;
 
 const result = cases.map(([pathTemplate, expectedOperationId]) => {
