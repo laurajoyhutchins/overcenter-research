@@ -79,18 +79,29 @@ assert.ok(repository);
 
 // Conditional HTTP is a cross-cutting transport semantic, not a GitHub resource model.
 assert.ok(repoObservation.response.etag, 'repository response must expose ETag for conditional proof');
-const notModified = await observeOperation(
+const conditionalObservation = await observeOperation(
   repoOperation,
   { owner, repo },
   transport,
   provenance,
   { headers: { 'If-None-Match': repoObservation.response.etag } },
 );
-assert.equal(notModified.outcome.status, 304);
-const revalidatedRepositoryObservation = revalidateNotModified(repoObservation, notModified);
-assert.ok(revalidatedRepositoryObservation);
-const revalidatedRepository = projectRepositoryIdentity(revalidatedRepositoryObservation);
-assert.equal(revalidatedRepository?.subject.id, repository.subject.id);
+let refreshedRepositoryObservation: RawObservation;
+let conditionalResult: 'NOT_MODIFIED' | 'MODIFIED';
+if (conditionalObservation.outcome.status === 304) {
+  const revalidated = revalidateNotModified(repoObservation, conditionalObservation);
+  assert.ok(revalidated);
+  refreshedRepositoryObservation = revalidated;
+  conditionalResult = 'NOT_MODIFIED';
+} else {
+  // The repository representation may legitimately change between reads.
+  // In that case GitHub returns a fresh 200 representation instead of 304.
+  assert.equal(conditionalObservation.outcome.status, 200);
+  refreshedRepositoryObservation = conditionalObservation;
+  conditionalResult = 'MODIFIED';
+}
+const refreshedRepository = projectRepositoryIdentity(refreshedRepositoryObservation);
+assert.equal(refreshedRepository?.subject.id, repository.subject.id);
 
 const refName = `heads/${sourceRef}`;
 const refObservation = await observeOperation(
@@ -288,7 +299,8 @@ console.log(JSON.stringify({
     id: repository.subject.id,
     full_name: repository.object.full_name,
     etag: repoObservation.response.etag,
-    revalidated_at: revalidatedRepositoryObservation.observed_at,
+    conditional_result: conditionalResult,
+    refreshed_at: refreshedRepositoryObservation.observed_at,
   },
   commit: {
     sha: commitFact.subject.sha,
