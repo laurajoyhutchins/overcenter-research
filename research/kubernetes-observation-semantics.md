@@ -235,15 +235,54 @@ number of genuinely new generic concepts      4
   opaque state identity
   complete collection snapshot
   temporal continuity / relist requirement
-GitHub-specific assumptions deleted            0  (independent branch)
+GitHub-specific assumptions deleted            0  source deletions (independent branch)
+conceptual GitHub-shaped assumptions rejected    1  (per-item representation fields)
 provider-specific branches in shared engine    0
 ```
 
 The meaningful architectural result is marginal shape, not flattering LOC arithmetic.
 
+## Hosted provider result
+
+The first hosted run, workflow `35385898274`, failed on a real provider representation difference: LIST members omitted per-item `apiVersion` and `kind`. That failure produced the collection-context rule above and a deterministic regression.
+
+The repaired exact head `0bc689cbf49bc501a10f21faf2fa8b56336d87b1` then passed workflow `35386181382` against Kubernetes v1.35.0. The live evidence included:
+
+```text
+OpenAPI core/v1 SHA-256
+  3df67322c9df8c34a37bc526b53154be07f4adbc5a3ad44b305c3f53ca6f344f
+
+GET / mutate
+  UID d2895f14-5ccb-4525-9909-a454f820a4e1
+  resourceVersion 485 -> 486
+
+same coordinate after delete/recreate
+  UID d2895f14-5ccb-4525-9909-a454f820a4e1
+   -> ec63d9b9-edb8-4896-aab4-92c171a7c42e
+
+complete LIST
+  3 pages
+  snapshot resourceVersion 489
+  missing coordinate => authoritative ABSENT @ 489
+
+WATCH from 489
+  MODIFIED -> DELETED -> ADDED
+  continuity maintained
+  final observed resourceVersion 505
+
+reconstruction vs fresh GET
+  final UID b3d94dcc-d212-4545-b086-562b299a8d69
+  resourceVersion 505
+  exact modeled projection match
+```
+
+The stale-resourceVersion probe reported `not-reproduced` on the fresh kind cluster. Therefore the experiment does **not** claim a live 410/compaction proof. The provider contract documents that failure mode, and the deterministic replay logic proves that broken continuity requires relist, but empirical compaction remains unproven here.
+
+At that exact head, the Kubernetes workflow, repository Tests workflow, GitHub object transport proof, and hostile eventual-readback proof all completed successfully.
+
 ## Current conclusion
 
-So far Kubernetes supports the architecture and strengthens it.
+The ConfigMap experiment supports the architecture and strengthens it, with one important qualifier: the architecture is provider-general in shape, while the repository implementation still duplicates the certificate engine because PR #19 remains a separate draft branch.
 
 A good provider-general boundary now appears to be:
 
