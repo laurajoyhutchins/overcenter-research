@@ -8,7 +8,7 @@ import {
 } from '../src/facts.ts';
 import type { FactCommit, ObligationFact, ReceiptFact } from '../src/facts.ts';
 import { obligationKey } from '../src/lifecycle.ts';
-import { replayProjection } from '../src/projection.ts';
+import { projectReceipt, replayProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -106,5 +106,67 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
   assert.throws(
     ()=>replayProjection([defineRecord,claimRecord]),
     /CLAIM_REVISION_MISMATCH/,
+  );
+});
+
+function absentReceipt(verifier:Obligation['postcondition']['verifier']):ReceiptFact {
+  return {
+    schema:RECEIPT_SCHEMA,
+    run_id:'run-absence',
+    obligation_id:'absence',
+    claimed_revision:'revision-absence',
+    claim_commit:'claim-absence',
+    kind:'observation',
+    observed:{verifier,mutation_certainty:'absent'},
+    settled_at:'2026-09-18T00:00:00.000Z',
+  };
+}
+
+test('absence authorizes replay only when the verifier declared authoritative absence',()=>{
+  const local:Obligation={
+    id:'absence',
+    dependencies:[],
+    packet:{},
+    postcondition:{verifier:'file-content-equals/v1',path:'/provider/absence',content:'A'},
+  };
+  assert.equal(
+    projectReceipt(absentReceipt('file-content-equals/v1'),local).disposition,
+    'READY',
+  );
+
+  const eventual:Obligation={
+    id:'absence',
+    dependencies:[],
+    packet:{},
+    postcondition:{
+      verifier:'eventually-consistent-file-content-equals/v1',
+      path:'/provider/absence',
+      content:'A',
+    },
+  };
+  assert.equal(
+    projectReceipt(
+      absentReceipt('eventually-consistent-file-content-equals/v1'),
+      eventual,
+    ).disposition,
+    'RECOVERY_REQUIRED',
+  );
+
+  const github:Obligation={
+    id:'absence',
+    dependencies:[],
+    packet:{},
+    postcondition:{
+      verifier:'github-commit-status/v1',
+      provider:'github',
+      repository_id:123,
+      commit_sha:'a'.repeat(40),
+      context:'overcenter/absence',
+      expected_state:'success',
+    },
+  };
+  assert.equal(
+    projectReceipt(absentReceipt('github-commit-status/v1'),github).disposition,
+    'RECOVERY_REQUIRED',
   );
 });
