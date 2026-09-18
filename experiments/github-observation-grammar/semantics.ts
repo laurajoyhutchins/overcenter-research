@@ -6,7 +6,7 @@ import {
   sameEntityIdentity,
   type MutableEntitySnapshot,
   type NumberedEntitySubject,
-  type RefCollectionPageShape,
+  type CollectionPageShape,
 } from './semantic-shapes.ts';
 
 export interface FactEvidence {
@@ -96,10 +96,10 @@ export interface CheckRunMember {
   conclusion: string | null;
 }
 
-export type CheckRunsPageFact = RefCollectionPageShape<
+export type CheckRunsPageFact = CollectionPageShape<
+  { kind: 'github.check-runs'; repository_id: number; ref: string },
   CheckRunMember,
   FactEvidence,
-  'github.check-runs',
   { total_count: number }
 >;
 
@@ -113,10 +113,10 @@ export interface CommitStatusMember {
   updated_at: string;
 }
 
-export type CommitStatusesPageFact = RefCollectionPageShape<
+export type CommitStatusesPageFact = CollectionPageShape<
+  { kind: 'github.commit-statuses'; repository_id: number; ref: string },
   CommitStatusMember,
-  FactEvidence,
-  'github.commit-statuses'
+  FactEvidence
 >;
 
 export type GithubFact =
