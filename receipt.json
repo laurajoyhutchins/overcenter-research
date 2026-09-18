@@ -1,20 +1,17 @@
 {
   "schema": "overcenter-git-receipt-v3",
-  "run_id": "2055f29e-8fcc-4860-81f4-a9d7049a7571",
-  "obligation_id": "concurrency-35379401028-1-alpha",
-  "claimed_revision": "85873986b340821f7ab2511919c26812431c2289",
-  "claim_commit": "05dda7d8ce90944fc8ee6df4dfb825f6eab8159d",
-  "kind": "observation",
-  "observed": {
-    "verifier": "github-commit-status/v1",
-    "provider": "github",
-    "repository_id": 1354872053,
-    "repository_full_name": "laurajoyhutchins/overcenter-research",
-    "commit_sha": "a747ec525661ef4b2366dc6456e408dcb0e3fc8b",
-    "context": "overcenter/concurrency/35379401028/1/alpha",
-    "expected_state": "success",
-    "actual_state": "success",
-    "mutation_certainty": "present"
+  "run_id": "1e18b8d7-5dc4-488d-b8a9-b18a58fe9376",
+  "obligation_id": "concurrency-35379401028-1-beta",
+  "claimed_revision": "05dda7d8ce90944fc8ee6df4dfb825f6eab8159d",
+  "claim_commit": "8a96c8630a89ada28907e3760f28982ea1dad49b",
+  "kind": "execution-terminated",
+  "observed": null,
+  "diagnostic": {
+    "source": "github-actions-job-supervisor",
+    "workflow_run_id": "35379401028",
+    "workflow_run_attempt": "1",
+    "slot": "beta",
+    "outcome": "failure"
   },
-  "settled_at": "2026-09-18T18:19:34.791Z"
+  "settled_at": "2026-09-18T18:19:37.259Z"
 }
