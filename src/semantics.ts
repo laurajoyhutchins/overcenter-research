@@ -3,8 +3,8 @@ import { canonicalDigest, sha256 } from './digest.ts';
 import { githubStatusContextKey } from './providers/github-status.ts';
 
 export interface EffectConflictSemantics {
-  resource:string;
-  desired:string;
+  coordinate:string;
+  desiredState:string;
   sameDesiredCommutes:boolean;
 }
 
@@ -30,8 +30,8 @@ export function verifiedRealizationIdentity(postcondition:Postcondition):string|
 export function effectConflictSemantics(postcondition:Postcondition):EffectConflictSemantics|null {
   if (postcondition.verifier!=='github-commit-status/v1') return null;
   return {
-    resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,
-    desired:postcondition.expected_state,
+    coordinate:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,
+    desiredState:postcondition.expected_state,
     sameDesiredCommutes:true,
   };
 }

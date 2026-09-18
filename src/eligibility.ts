@@ -33,9 +33,9 @@ export function claimabilityError(
   for (const other of Object.values(catalog.obligations)) {
     if (other.id===work.id) continue;
     const otherSemantics=effectConflictSemantics(other.postcondition);
-    if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
+    if (!otherSemantics || otherSemantics.coordinate!==semantics.coordinate) continue;
 
-    const sameDesired=otherSemantics.desired===semantics.desired;
+    const sameDesired=otherSemantics.desiredState===semantics.desiredState;
     if (
       sameDesired
       && semantics.sameDesiredCommutes
