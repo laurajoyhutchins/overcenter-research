@@ -1,8 +1,8 @@
 {
   "schema": "overcenter-git-claim-v3",
-  "run_id": "41848718-8fd7-41a8-93b4-335100f8302d",
-  "obligation_id": "concurrency-35399274431-1-alpha",
-  "claimed_revision": "38dfc16bcf68c9dd1aec9eae1038894f29ea7fc1",
-  "obligation_key": "5bb7b69088c0ba1a10bab3885b82cc40848a83ca86297caca4b34ae271f81b3e",
-  "execution_capability_sha256": "b732897ce5247ce765d9ae9cd51def3400e9da7129b302b42853bb8b2cea3971"
+  "run_id": "915eb80c-43dd-48eb-8280-9de0d08a37b4",
+  "obligation_id": "concurrency-35399274431-1-beta",
+  "claimed_revision": "8d03a2b4ad3c3d354598f8cb322839efe68067da",
+  "obligation_key": "7002ad5d78966e0f8df107a00c6b3f350c06a8eecb91fd2cee30c587a14306ca",
+  "execution_capability_sha256": "105e9be3315644a5d322fe3f8223308a24ac9c8ec0bb577386b16feab2ba0277"
 }
