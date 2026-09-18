@@ -377,3 +377,149 @@ Therefore the job credential cannot use that endpoint to self-attest the install
 
 Settlement-strength evidence that depends on installation-specific authority remains unproven unless an independently authoritative App/JWT surface supplies that identity.
 
+
+## Third falsification round: identity overlap and marginal semantic cost
+
+The next round deliberately added surfaces that should reuse already discovered semantic shapes rather than introduce new lifecycle models:
+
+- `issues/get` as a second mutable-entity surface;
+- `repos/list-commit-statuses-for-ref` as a second ref-scoped paginated collection;
+- `actions/list-workflow-runs-for-repo` as a repository-scoped paginated collection.
+
+The result is mixed and more precise than the earlier “small handwritten semantics” hypothesis.
+
+### Cross-surface identity is not REST `id`
+
+PR #19 exposes the same logical pull request through two GitHub REST families.
+
+The live proof observed:
+
+```text
+Pulls surface
+  number   = 19
+  id       = 4571454605
+  node_id  = PR_kwDOUMG09c8AAAABEHrcjQ
+
+Issues surface
+  number   = 19
+  id       = 5502784281
+  node_id  = PR_kwDOUMG09c8AAAABEHrcjQ
+```
+
+The numeric REST IDs differ, while the GraphQL node ID is identical.
+
+Therefore a provider-wide entity identity rule such as:
+
+```text
+GitHub entity identity = REST id
+```
+
+is false.
+
+For entities exposed through multiple GitHub API families, the experiment now treats:
+
+```text
+(repository_id, node_id)
+```
+
+as the cross-surface entity key and keeps each REST numeric ID as a surface-specific alias.
+
+This also exposed a reconstruction bug. Both Pull and Issue observations had outer fact kind `entity-snapshot`. Reconstruction originally branched only on that outer kind, so an Issue snapshot could overwrite the `pull_requests` materialization while tests still passed an existence check.
+
+The reconstruction code now discriminates the typed subject and materializes:
+
+```text
+pull_requests[repository:number] -> Pull surface snapshot
+issues[repository:number]        -> Issue surface snapshot
+
+entities[repository:node_id]
+  .pull_request -> Pull surface snapshot
+  .issue        -> Issue surface snapshot
+```
+
+This is an example of why “generic fact kind” is not enough. Stable subject identity must survive provider surface aliasing without erasing the provenance of the surface that supplied each field.
+
+### Collection semantics do reuse
+
+Checks, commit statuses, and workflow runs all share the same epistemic rule:
+
+```text
+returned member
+    -> positive evidence
+
+unseen member
+    -> INDETERMINATE
+```
+
+They now use one positive-membership evaluator and one pagination rule.
+
+The collection subject itself remains typed:
+
+```text
+Check runs
+  { repository_id, ref }
+
+Commit statuses
+  { repository_id, ref }
+
+Workflow runs
+  { repository_id }
+```
+
+The collection abstraction was changed from “ref collection” to a generic typed collection subject specifically because workflow runs falsified the assumption that every useful collection is ref-scoped.
+
+This is a successful compression of the epistemic rule without erasing coordinate differences.
+
+### But response decoding remains expensive
+
+The handwritten runtime is now approximately:
+
+```text
+semantics.ts          801 lines
+semantic-shapes.ts    125 lines
+                     ----------
+total                 926 lines
+```
+
+That is not a tiny semantic layer.
+
+The growth is not primarily caused by pagination or obligation evaluation anymore. Those mechanics are shared. Most remaining growth comes from provider-specific response interpretation:
+
+- which response fields establish identity;
+- which fields are required to prove a useful proposition;
+- validation of IDs, SHAs, enums, timestamps, and nullable values;
+- endpoint-specific response envelopes;
+- mapping API-specific aliases onto stable subjects.
+
+The stronger conclusion is therefore:
+
+> GitHub's **epistemic semantics** compress into a small number of reusable rules. GitHub's **response interpretation** does not automatically compress merely because OpenAPI describes the response schema.
+
+This distinction matters architecturally.
+
+OpenAPI can generate legal questions and structural decoders. A small handwritten layer can still decide which decoded fields are semantically meaningful. But if Overcenter hand-writes full response validation for every endpoint, the adapter will still grow roughly with the number of resource families.
+
+### Revised success criterion
+
+The experiment should no longer use total endpoint coverage or even raw semantic LOC as its primary success metric.
+
+The useful split is:
+
+```text
+generated
+  legal operations
+  parameters
+  wire request
+  response structural decoding
+
+handwritten
+  stable identity choice
+  semantic field selection
+  evidence strength
+  freshness class
+  obligation predicate
+```
+
+The next architectural pressure should therefore be on generating more of the **structural response decoding** from the pinned OpenAPI schema while keeping the handwritten semantic choices explicit and typed.
+
+That would test whether the current 926-line runtime can shrink for the right reason, rather than by moving semantics into an untyped configuration DSL.
