@@ -23,9 +23,16 @@ on:
   pull_request:
     branches:
       - main
+      - experiment/certified-github-status-readback
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
+      - src/observation.ts
+      - src/provider-observation/**
+      - src/providers/github-certified-status.ts
+      - src/providers/github-status.ts
+      - test/github-certified-status.test.ts
+      - test/provider-observation.test.ts
       - research/github-observation-grammar.md
       - package.json
 
