@@ -749,3 +749,180 @@ Fact
 If one or more projectors can require that validated input and materially shrink without hiding semantic choices in a configuration DSL, the architecture gains actual compression.
 
 If the wrapper/certificate machinery costs as much as the checks it replaces, this path is abstraction theater and should be abandoned.
+
+
+## Fourth falsification round: structural certificates become an authority boundary
+
+The semantic-slice experiment is now wired into projection rather than running as a parallel assertion.
+
+Every positive fact family in the representative set follows:
+
+```text
+RawObservation
+      |
+      | pinned OpenAPI schema + selected semantic paths
+      v
+StructurallyValidatedObservation
+      |
+      | handwritten identity / coordinate / meaning checks
+      v
+Fact
+```
+
+The certificate binds:
+
+```text
+operation_id
+HTTP 200 positive observation
+OpenAPI schema SHA-256
+validated selected paths
+```
+
+A raw positive response is therefore no longer sufficient to mint a repository identity, ref binding, immutable commit fact, PR/Issue snapshot, check-run page, commit-status page, or workflow-run page.
+
+The ref test makes the distinction explicit:
+
+```text
+raw 200 git/get-ref
+    -> no fact
+    -> obligation remains INDETERMINATE
+
+same observation
++ successful schema-slice certificate
+    -> binding fact
+    -> SATISFIED or UNSATISFIED from authoritative value
+```
+
+Negative and uncertain observations do not require a fake positive certificate. For example, a raw 404 can still drive the existing conservative rule:
+
+```text
+404
+  -> not-observed
+  -> INDETERMINATE
+```
+
+### What moved out of handwritten semantics
+
+The projectors no longer repeat primitive response-shape checks for the selected fields.
+
+Examples moved into schema-driven software:
+
+```text
+repository:
+  id is integer
+  node_id / full_name / name / owner.login are strings
+
+commit:
+  sha / tree.sha / parents[].sha have string structure
+
+PR / Issue:
+  numbered identity field structure
+  state/title/locked primitive structure
+
+collections:
+  array/object membership structure
+  member field primitive types
+  nullable conclusion / target_url structure
+```
+
+Handwritten semantics still retain things the provider schema cannot decide for Overcenter:
+
+```text
+repository id must be positive
+owner/name response must match request coordinate
+full_name must agree with owner/name
+
+commit/ref SHAs must be valid object identities
+commit response SHA must equal requested immutable coordinate
+ref response coordinate must equal requested ref
+
+PR and Issue surface records sharing node_id denote the same logical GitHub entity
+
+provider collection absence is not authoritative absence
+member IDs used as identities must be positive
+mutable observations are not reusable as current state
+```
+
+### Code-cost result
+
+This round produces actual deletion from the provider semantic layer:
+
+```text
+semantics.ts before certificate migration: 801 lines
+semantics.ts after all representative families: 755 lines
+                                              -----
+                                                -46
+```
+
+The largest reduction came from collection member decoding, where repeated structural checks disappeared behind the shared certificate.
+
+But this is **not yet net source-code compression**.
+
+The generic semantic-slice implementation is currently 278 lines, while the reusable semantic-shape helpers are 125 lines. Compared with the pre-certificate state, the repository therefore contains more mechanism overall even though provider-specific semantics shrank.
+
+That matters. The current result is:
+
+```text
+trust factoring:        PROVEN USEFUL
+semantic LOC reduction: PROVEN
+net implementation LOC: NOT YET REDUCED
+```
+
+The abstraction earns its keep only if later provider operations reuse the validator and add mostly:
+
+```text
+selected semantic paths
++ small identity/meaning projection
+```
+
+rather than another validation mechanism.
+
+### A second live freshness race
+
+A PR-triggered live proof exposed another mutable-fixture race.
+
+The workflow event carried one PR head SHA, but the source branch advanced before the live ref read. The authoritative ref observation therefore correctly evaluated the stale event-head obligation as:
+
+```text
+UNSATISFIED
+```
+
+not as a proof failure and not as `INDETERMINATE`.
+
+The proof now distinguishes the two authority situations:
+
+```text
+push run
+  branch-scoped concurrency cancels stale runs
+  live ref must equal exact event SHA
+
+pull_request run
+  refs/pull/... run can overlap a later source-branch push
+  live branch may legitimately differ from event SHA
+  SATISFIED or UNSATISFIED are both authoritative observations
+  INDETERMINATE remains unacceptable for the positive read
+```
+
+This reinforces the broader rule that freshness belongs to the observation coordinate and authority epoch, not to the age of a stored event payload.
+
+### Current architectural boundary
+
+At this point the experiment supports a sharper decomposition:
+
+```text
+OpenAPI
+  -> legal observation grammar
+  -> selected response structure validation
+
+GitHub adapter semantics
+  -> identity choices
+  -> coordinate consistency
+  -> stability / freshness classification
+  -> evidence strength
+
+Overcenter kernel
+  -> obligation evaluation over facts
+  -> no GitHub resource lifecycle model
+```
+
+The next useful falsification is no longer "add another GitHub endpoint." It is to reuse the same certificate machinery in a second provider or in a substantially different GitHub response shape without adding another structural-validation engine.
