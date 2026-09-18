@@ -98,22 +98,6 @@ export function validateDependencies(dependencies:Dependency[]):void {
     ) {
       throw new Error('INVALID_DEPENDENCY');
     }
-    if (
-      edge.consumes.kind==='output'
-      && edge.consumes.selector!=='verified-content'
-    ) {
-      throw new Error(
-        `UNSUPPORTED_SEMANTIC_SELECTOR:output:${edge.consumes.selector}`,
-      );
-    }
-    if (
-      edge.consumes.kind==='evidence'
-      && edge.consumes.selector!=='settlement-receipt'
-    ) {
-      throw new Error(
-        `UNSUPPORTED_SEMANTIC_SELECTOR:evidence:${edge.consumes.selector}`,
-      );
-    }
   }
 }
 
