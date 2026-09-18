@@ -39,7 +39,10 @@ for (const work of works) {
   assert.ok(receipt);
   assert.equal(receipt.disposition,'DONE');
   assert.equal(receipt.verified,true);
-  assert.equal(receipt.claim_commit,work.claim_commit);
+  assert.equal(receipt.run_id,work.run_id);
+  assert.equal(receipt.obligation_id,work.id);
+  assert.equal(receipt.claimed_revision,work.claimed_revision);
+  assert.ok(receipt.claim_commit);
   assert.equal(receipt.observed?.actual_state,'success');
 }
 
@@ -49,7 +52,8 @@ if (summary) appendFileSync(summary,[
   '',
   ...works.map(work=>{
     const slot=(work.packet.executor as Record<string,unknown>).slot;
-    return `- ${slot}: **DONE**, run \`${work.run_id}\`, claim \`${work.claim_commit}\``;
+    const receipt=kernel.receipts(work.run_id!).at(-1)!;
+    return `- ${slot}: **DONE**, run \`${work.run_id}\`, claim \`${receipt.claim_commit}\``;
   }),
   `- Final authority: \`${kernel.head()}\``,
   '- Both effects overlapped, both workers died, and both were independently recovered through one linear Git authority ref.',
