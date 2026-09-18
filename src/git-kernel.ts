@@ -16,15 +16,25 @@ export interface FileContentPostcondition {
   path: string;
   content: string;
 }
-export type Postcondition = FileContentPostcondition;
+export interface GitRefPostcondition {
+  verifier: 'git-ref-equals/v1';
+  remote: string;
+  ref: string;
+  target_sha: string;
+}
+export type Postcondition = FileContentPostcondition | GitRefPostcondition;
 
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
   mutation_certainty: MutationCertainty;
-  path: string;
-  expected_sha256: string;
-  actual_sha256?: string;
   verified: boolean;
+  path?: string;
+  expected_sha256?: string;
+  actual_sha256?: string;
+  remote?: string;
+  ref?: string;
+  expected_sha?: string;
+  actual_sha?: string;
 }
 
 export interface Obligation {
@@ -236,10 +246,53 @@ export class GitOvercenterKernel {
     if (state.schema!==STATE_SCHEMA) throw new Error('INVALID_STATE_SCHEMA'); return state;
   }
   #validatePostcondition(p: Postcondition): void {
-    if (p?.verifier!=='file-content-equals/v1' || typeof p.path!=='string' || typeof p.content!=='string') throw new Error('UNSUPPORTED_POSTCONDITION');
+    if (p?.verifier==='file-content-equals/v1'
+      && typeof p.path==='string'
+      && typeof p.content==='string') return;
+    if (p?.verifier==='git-ref-equals/v1'
+      && typeof p.remote==='string'
+      && typeof p.ref==='string'
+      && typeof p.target_sha==='string') return;
+    throw new Error('UNSUPPORTED_POSTCONDITION');
   }
   #observe(p: Postcondition): Observation {
     this.#validatePostcondition(p);
+    if (p.verifier==='git-ref-equals/v1') {
+      const listed=this.#git(['ls-remote',p.remote,p.ref],{allowFailure:true});
+      if (!listed.ok) {
+        return {
+          verifier:p.verifier,
+          remote:p.remote,
+          ref:p.ref,
+          expected_sha:p.target_sha,
+          mutation_certainty:'uncertain',
+          verified:false,
+          observation_error:listed.stderr ?? 'git ls-remote failed',
+        };
+      }
+      const line=listed.stdout.trim();
+      if (!line) {
+        return {
+          verifier:p.verifier,
+          remote:p.remote,
+          ref:p.ref,
+          expected_sha:p.target_sha,
+          mutation_certainty:'absent',
+          verified:false,
+        };
+      }
+      const actualSha=line.split(/\s+/)[0];
+      return {
+        verifier:p.verifier,
+        remote:p.remote,
+        ref:p.ref,
+        expected_sha:p.target_sha,
+        actual_sha:actualSha,
+        mutation_certainty:'present',
+        verified:actualSha===p.target_sha,
+      };
+    }
+
     const expected=sha256(p.content);
     try {
       const actual=readFileSync(p.path,'utf8');
