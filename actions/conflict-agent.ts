@@ -34,17 +34,27 @@ const repositoryResponse=await github(`/repositories/${work.postcondition.reposi
 if (!repositoryResponse.ok) throw new Error(`repository lookup failed: ${repositoryResponse.status}`);
 const repository=await repositoryResponse.json() as {id:number;full_name:string};
 
+const writtenContext=process.env.WRITE_CONTEXT_CASE==='upper'
+  ? work.postcondition.context.toUpperCase()
+  : work.postcondition.context;
+
 const response=await github(
   `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
   {
     method:'POST',
     body:JSON.stringify({
       state:work.postcondition.expected_state,
-      context:work.postcondition.context,
+      context:writtenContext,
       description:`Conflict counterexample ${slot}`,
     }),
   },
 );
 if (response.status!==201) throw new Error(`status write failed: ${response.status} ${await response.text()}`);
-console.log(JSON.stringify({slot,run_id:work.run_id,state:work.postcondition.expected_state,context:work.postcondition.context}));
+console.log(JSON.stringify({
+  slot,
+  run_id:work.run_id,
+  state:work.postcondition.expected_state,
+  expected_context:work.postcondition.context,
+  written_context:writtenContext,
+}));
 process.exit(86);
