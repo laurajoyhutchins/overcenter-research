@@ -44,7 +44,7 @@ jobs:
         run: node --experimental-strip-types actions/project-authority.ts
 
   agent-a:
-    name: Agent A — untrusted sandbox, bounded effect, terminate
+    name: Agent A — authority-untrusted sandbox, provider effect, terminate
     needs: project-authority
     runs-on: ubuntu-latest
     timeout-minutes: 10
