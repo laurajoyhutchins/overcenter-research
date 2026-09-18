@@ -66,6 +66,10 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/github/rest-api-description/d4278c869e367f5d6d4e0f46878119128abba77b/descriptions/api.github.com/dereferenced/api.github.com.2026-03-10.deref.json \
             --output "$RUNNER_TEMP/github-openapi.json"
+      - name: Verify kernel status contract against pinned OpenAPI
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/verify-kernel-status-contract.ts \
+            "$RUNNER_TEMP/github-openapi.json"
       - name: Generate complete read-only observation inventory
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/inventory.ts \
