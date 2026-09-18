@@ -17,8 +17,7 @@ import type {
   ReceiptFact,
   State,
 } from './facts.ts';
-import { dependencyUpstreams } from './graph.ts';
-import { validateAdmission } from './admission.ts';
+import { dependencyUpstreams, validateGraph } from './graph.ts';
 import {
   deriveLifecycles,
   hasInFlight,
@@ -97,7 +96,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
 
       state.obligations[id]=obligation;
       state.definition_commits[id]=record.commit;
-      validateAdmission(state);
+      validateGraph(state);
       lifecycles=deriveLifecycles(state,runs,receiptsByRun);
     }
 
