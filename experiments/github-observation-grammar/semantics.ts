@@ -4,6 +4,8 @@ import {
   evaluatePositiveCollectionMember,
   paginationShape,
   sameEntityIdentity,
+  type MutableEntitySnapshot,
+  type RefCollectionPageShape,
 } from './semantic-shapes.ts';
 
 export interface FactEvidence {
@@ -63,39 +65,27 @@ export interface GitCommitFact {
   evidence: FactEvidence;
 }
 
-export interface PullRequestSnapshotFact {
-  kind: 'entity-snapshot';
-  subject: {
-    kind: 'github.pull-request';
-    repository_id: number;
-    number: number;
-    id: number;
-    node_id: string;
-  };
-  state: string;
-  head_sha: string;
-  base_ref: string;
-  base_sha: string;
-  stability: 'mutable-snapshot';
-  evidence: FactEvidence;
-}
+export type PullRequestSnapshotFact = MutableEntitySnapshot<
+  'github.pull-request',
+  {
+    state: string;
+    head_sha: string;
+    base_ref: string;
+    base_sha: string;
+  },
+  FactEvidence
+>;
 
-export interface IssueSnapshotFact {
-  kind: 'entity-snapshot';
-  subject: {
-    kind: 'github.issue';
-    repository_id: number;
-    number: number;
-    id: number;
-    node_id: string;
-  };
-  state: string;
-  title: string;
-  locked: boolean;
-  is_pull_request: boolean;
-  stability: 'mutable-snapshot';
-  evidence: FactEvidence;
-}
+export type IssueSnapshotFact = MutableEntitySnapshot<
+  'github.issue',
+  {
+    state: string;
+    title: string;
+    locked: boolean;
+    is_pull_request: boolean;
+  },
+  FactEvidence
+>;
 
 export interface CheckRunMember {
   id: number;
@@ -105,22 +95,12 @@ export interface CheckRunMember {
   conclusion: string | null;
 }
 
-export interface CheckRunsPageFact {
-  kind: 'collection-page';
-  subject: {
-    kind: 'github.check-runs';
-    repository_id: number;
-    ref: string;
-  };
-  members: CheckRunMember[];
-  total_count: number;
-  page: number;
-  per_page: number;
-  has_next: boolean;
-  enumeration: 'partial' | 'terminal-page-seen';
-  negative_evidence_authoritative: false;
-  evidence: FactEvidence;
-}
+export type CheckRunsPageFact = RefCollectionPageShape<
+  CheckRunMember,
+  FactEvidence,
+  'github.check-runs',
+  { total_count: number }
+>;
 
 export interface CommitStatusMember {
   id: number;
@@ -132,21 +112,11 @@ export interface CommitStatusMember {
   updated_at: string;
 }
 
-export interface CommitStatusesPageFact {
-  kind: 'collection-page';
-  subject: {
-    kind: 'github.commit-statuses';
-    repository_id: number;
-    ref: string;
-  };
-  members: CommitStatusMember[];
-  page: number;
-  per_page: number;
-  has_next: boolean;
-  enumeration: 'partial' | 'terminal-page-seen';
-  negative_evidence_authoritative: false;
-  evidence: FactEvidence;
-}
+export type CommitStatusesPageFact = RefCollectionPageShape<
+  CommitStatusMember,
+  FactEvidence,
+  'github.commit-statuses'
+>;
 
 export type GithubFact =
   | RepositoryIdentityFact
