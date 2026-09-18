@@ -8,6 +8,7 @@ import {
 } from '../src/facts.ts';
 import type { FactCommit, ObligationFact, ReceiptFact } from '../src/facts.ts';
 import { obligationKey } from '../src/lifecycle.ts';
+import { claimabilityError } from '../src/eligibility.ts';
 import { projectReceipt, replayProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
 
@@ -179,5 +180,62 @@ test('absence authorizes replay only when the verifier declared authoritative ab
   assert.equal(
     projectReceipt(absentReceipt('github-commit-status/v1',true),github).disposition,
     'RECOVERY_REQUIRED',
+  );
+});
+
+test('legacy v3 static-conflict history remains replayable but fail-closed',()=>{
+  const status=(id:string,state:'success'|'failure'):Obligation=>({
+    id,
+    dependencies:[],
+    packet:{},
+    postcondition:{
+      verifier:'github-commit-status/v1',
+      provider:'github',
+      repository_id:123,
+      commit_sha:'a'.repeat(40),
+      context:'overcenter/legacy-conflict',
+      expected_state:state,
+    },
+  });
+  const alpha=status('alpha','success');
+  const beta=status('beta','failure');
+  const projection=replayProjection([
+    {
+      commit:'define-alpha',
+      parent:null,
+      obligation:{
+        schema:OBLIGATION_SCHEMA,
+        kind:'defined',
+        obligation:alpha,
+      },
+    },
+    {
+      commit:'define-beta',
+      parent:'define-alpha',
+      obligation:{
+        schema:OBLIGATION_SCHEMA,
+        kind:'defined',
+        obligation:beta,
+      },
+    },
+  ]);
+
+  assert.equal(projection.state.obligations.alpha.id,'alpha');
+  assert.equal(projection.state.obligations.beta.id,'beta');
+  assert.equal(
+    claimabilityError(
+      projection.state,
+      alpha,
+      projection.history.lifecycles,
+    ),
+    'UNORDERED_EFFECT_CONFLICT:alpha:beta',
+  );
+  assert.equal(
+    claimabilityError(
+      projection.state,
+      beta,
+      projection.history.lifecycles,
+    ),
+    'UNORDERED_EFFECT_CONFLICT:alpha:beta',
   );
 });
