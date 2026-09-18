@@ -365,5 +365,15 @@ The next failure signal to watch is **semantic rule growth**, not endpoint count
 
 Authentication provenance is intentionally incomplete.
 
-The experiment records the exact GitHub Actions run/attempt and the fact that a bearer credential was used, but it does not currently prove the GitHub App installation identity that minted that credential. Settlement-strength evidence that depends on installation-specific authority should therefore remain unproven until that identity can be obtained from an authoritative surface.
+GitHub documents the built-in `GITHUB_TOKEN` as a GitHub App installation access token minted for each workflow job:
+
+- https://docs.github.com/en/actions/concepts/security/github_token
+
+However, GitHub's REST endpoint that returns a repository's GitHub App installation (`GET /repos/{owner}/{repo}/installation`) requires authentication as the App with a JWT and explicitly does **not** accept a GitHub App installation access token:
+
+- https://docs.github.com/en/rest/apps/apps#get-a-repository-installation-for-the-authenticated-app
+
+Therefore the job credential cannot use that endpoint to self-attest the installation ID that minted it. The experiment records the exact GitHub Actions run/attempt and bearer-auth class, but it does not infer installation identity from repository context, token shape, or the GitHub Actions App ID.
+
+Settlement-strength evidence that depends on installation-specific authority remains unproven unless an independently authoritative App/JWT surface supplies that identity.
 
