@@ -8,6 +8,31 @@ export interface EffectSemantics {
   sameDesiredCommutes:boolean;
 }
 
+export interface SettlementSemantics {
+  verifier:Postcondition['verifier'];
+  authoritativeAbsenceCanAuthorizeReplay:boolean;
+}
+
+export function settlementSemantics(postcondition:Postcondition):SettlementSemantics {
+  if (postcondition.verifier==='file-content-equals/v1') {
+    return {
+      verifier:postcondition.verifier,
+      authoritativeAbsenceCanAuthorizeReplay:true,
+    };
+  }
+  if (
+    postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+    || postcondition.verifier==='github-commit-status/v1'
+  ) {
+    return {
+      verifier:postcondition.verifier,
+      authoritativeAbsenceCanAuthorizeReplay:false,
+    };
+  }
+  const exhaustive:never=postcondition;
+  throw new Error(`UNSUPPORTED_SETTLEMENT_SEMANTICS:${String(exhaustive)}`);
+}
+
 export function verifiedContentIdentity(postcondition:Postcondition):string|null {
   if (
     postcondition.verifier==='file-content-equals/v1'
