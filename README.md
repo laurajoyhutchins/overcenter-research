@@ -58,12 +58,22 @@ git push \
 
 The commit SHA is the authoritative state revision. Settlement and recovery commits carry `receipt.json`; older receipts remain reachable through Git history.
 
-## Derived project projection
+## Reconstructed project projection
 
-The Git kernel now treats lifecycle status as a projection instead of persisted
-project state.
+The Git authority no longer contains a privileged current-state document.
 
-`state.json` schema v5 contains obligation definitions only:
+Obligation structure is recorded as immutable `obligation.json` facts:
+
+```text
+defined
+  full obligation definition
+
+amended
+  full replacement definition
+  exact previous definition commit
+```
+
+Each obligation definition contains:
 
 ```text
 id
@@ -72,19 +82,9 @@ packet
 postcondition
 ```
 
-It does **not** persist:
-
-```text
-status
-run_id
-claimed_revision
-claim_commit
-```
-
-A successful claim writes an immutable `claim.json` fact in the exact claim
-commit. That fact binds the run ID and obligation to the exact parent authority
-revision. Evidence commits write `receipt.json` facts with one of three factual
-event kinds:
+Claims are immutable `claim.json` facts that bind a run and obligation to the
+exact parent authority revision. Evidence commits carry factual `receipt.json`
+events:
 
 ```text
 observation
@@ -92,30 +92,49 @@ judgment-required
 execution-terminated
 ```
 
-They do not persist `disposition`, `verified`, or an observation-level
-`verified` bit. On every `inspect()`, `deriveReadyWork()`, claim, recovery, or
-settlement operation, the kernel replays those durable facts from the current
-authority history and derives the current projection:
+No authority commit contains `state.json`. Durable receipts also do not persist
+`disposition`, `verified`, or an observation-level `verified` bit.
+
+The kernel reconstructs the current graph and lifecycle by replaying Git history:
 
 ```text
-obligation definitions in state.json
-              +
-immutable claim.json facts
-              +
-durable receipt.json evidence
-              ↓
+obligation.json facts
+        +
+claim.json facts
+        +
+receipt.json evidence
+        ↓
+historical obligation generations
+        +
+exact run-to-generation bindings
+        ↓
+current obligation graph
+        +
 READY / EXECUTING / WAITING / RECOVERY_REQUIRED / DONE
-              +
+        +
 dependency/effect projection
-              ↓
-BLOCKED where applicable
+        ↓
+BLOCKED / current frontier
 ```
 
-Replay verifies that claim commits are children of the revisions they claim to
-fence and that receipts bind to the exact claim revision and claim commit.
+A run is interpreted against the obligation generation that was authoritative at
+its fenced `claimed_revision`, not against the current definition. The regression
+suite proves this by settling generation 1, replacing the obligation with a
+generation 2 predicate that the old observation would not satisfy, and then
+replaying the old receipt. It remains DONE because its historical meaning is
+stable.
 
-The destructive projection test now runs against `GitOvercenterKernel` itself.
-It uses a central bare Git authority and repeatedly:
+Structural replay validates unknown dependencies, dependency cycles, exact
+amendment ancestry, claim revision fencing, receipt-to-claim identity, and legal
+lifecycle transitions.
+
+The current amendment experiment is deliberately conservative: an obligation can
+be amended only when no work is in flight and no current obligation depends on it.
+That avoids silently invalidating already-derived downstream work while the
+semantics for descendant invalidation are still undefined.
+
+The destructive projection test runs against `GitOvercenterKernel` itself using
+a central bare Git authority. At each lifecycle boundary it:
 
 ```text
 derive projection
@@ -128,33 +147,19 @@ create fresh disposable clone
       ↓
 read current central authority
       ↓
-derive again
+replay facts
       ↓
 assert byte-identical projection + identical SHA-256
 ```
 
-This is exercised across a two-obligation graph at READY/BLOCKED, EXECUTING,
-unchanged provider-effect state, RECOVERY_REQUIRED, and DONE/READY boundaries.
-The test also reads committed `state.json` directly and fails if any lifecycle or
-claim-cache field reappears.
+Raw-history tests fail if `state.json` appears in any authority commit or if
+interpreted lifecycle fields leak back into receipts.
 
-Run it directly with:
+Run the destructive proof directly with:
 
 ```bash
 npm run test:projection
 ```
-
-`receipt.json` schema v3 now records factual event/evidence only. The public
-`Receipt` returned by the kernel still exposes `disposition` and `verified`
-for caller convenience, but those values are reconstructed during replay from the
-event kind, obligation predicate, and provider observation.
-
-The judgment path follows the same rule. Callers invoke
-`deferForJudgment(runId, evidence)`; they no longer request `WAITING`.
-`WAITING` is projected from the durable `judgment-required` fact.
-
-Raw-history tests fail if `disposition`, `verified`, or observation-level
-`verified` reappear in committed receipts.
 
 > Deleting every materialized project status must lose no project truth.
 
