@@ -1,5 +1,33 @@
 {
   "schema": "overcenter-git-state-v2",
-  "obligations": {},
+  "obligations": {
+    "actions-proof-35303766455-1": {
+      "id": "actions-proof-35303766455-1",
+      "deps": [],
+      "packet": {
+        "kind": "github-actions-disposable-proof/v1",
+        "executor": {
+          "provider": "github-actions/v1",
+          "repository": "laurajoyhutchins/overcenter-research",
+          "workflow_run_id": "35303766455",
+          "workflow_run_attempt": "1",
+          "job": "agent-a"
+        },
+        "effect": {
+          "kind": "git-create-ref/v1",
+          "remote": "origin",
+          "ref": "refs/tags/overcenter-actions-effect-35303766455-1",
+          "target_sha": "835b974ada11d498d84ce4cab957addfb26517a6"
+        }
+      },
+      "postcondition": {
+        "verifier": "git-ref-equals/v1",
+        "remote": "origin",
+        "ref": "refs/tags/overcenter-actions-effect-35303766455-1",
+        "target_sha": "835b974ada11d498d84ce4cab957addfb26517a6"
+      },
+      "status": "READY"
+    }
+  },
   "active_run": null
 }
