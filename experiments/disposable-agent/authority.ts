@@ -1,3 +1,4 @@
+import { githubProofStateRef } from '../proof-environment.ts';
 import { appendFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
@@ -24,7 +25,7 @@ const repository = required('GITHUB_REPOSITORY');
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('GITHUB_SHA');
-const stateRef = required('STATE_REF');
+const stateRef = githubProofStateRef('disposable-agent');
 
 const repositoryInfo = await github(`/repos/${repository}`);
 if (!Number.isSafeInteger(repositoryInfo.id)) throw new Error('REPOSITORY_ID_UNAVAILABLE');

@@ -85,7 +85,7 @@ The negative controls matter because a green model is weak evidence if the speci
 
 Requirements:
 
-- Java 11 or newer;
+- Java 21;
 - `curl` unless `TLA2TOOLS_JAR` points at an existing local jar.
 
 Run:
