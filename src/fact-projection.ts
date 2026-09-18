@@ -58,6 +58,7 @@ export interface ProjectProjection {
 
 type Definition = Extract<ProjectFact, { type: 'obligation-defined' }>;
 type Claim = Extract<ProjectFact, { type: 'run-claimed' }>;
+type Observation = Extract<ProjectFact, { type: 'effect-observed' }>;
 type Settlement = Extract<ProjectFact, { type: 'run-settled' }>;
 
 type RunState = {
@@ -75,7 +76,7 @@ export function deriveProjectProjection(
   const definitions = new Map<string, Definition>();
   const runs = new Map<string, RunState>();
   const claimsByObligation = new Map<string, Claim[]>();
-  const observations = new Map<string, Set<string>>();
+  const observations = new Map<string, Map<string, Observation>>();
 
   for (const fact of facts) {
     switch (fact.type) {
@@ -107,29 +108,22 @@ export function deriveProjectProjection(
         if (!runs.has(fact.run_id)) {
           throw new Error(`OBSERVATION_WITHOUT_CLAIM:${fact.run_id}`);
         }
-        const ids = observations.get(fact.run_id) ?? new Set<string>();
-        if (ids.has(fact.observation_id)) {
+        const runObservations =
+          observations.get(fact.run_id) ?? new Map<string, Observation>();
+        if (runObservations.has(fact.observation_id)) {
           throw new Error(`DUPLICATE_OBSERVATION:${fact.run_id}:${fact.observation_id}`);
         }
-        ids.add(fact.observation_id);
-        observations.set(fact.run_id, ids);
+        runObservations.set(fact.observation_id, fact);
+        observations.set(fact.run_id, runObservations);
         break;
       }
       case 'run-settled': {
         const run = runs.get(fact.run_id);
         if (!run) throw new Error(`SETTLEMENT_WITHOUT_CLAIM:${fact.run_id}`);
         if (run.settlement) throw new Error(`DUPLICATE_SETTLEMENT:${fact.run_id}`);
-        if (!observations.get(fact.run_id)?.has(fact.observation_id)) {
-          throw new Error(`SETTLEMENT_WITHOUT_OBSERVATION:${fact.run_id}`);
-        }
-        const observation = facts
-          .slice(0, facts.indexOf(fact))
-          .find(candidate =>
-            candidate.type === 'effect-observed'
-            && candidate.run_id === fact.run_id
-            && candidate.observation_id === fact.observation_id,
-          );
-        if (!observation || observation.type !== 'effect-observed') {
+        const observation =
+          observations.get(fact.run_id)?.get(fact.observation_id);
+        if (!observation) {
           throw new Error(`SETTLEMENT_WITHOUT_OBSERVATION:${fact.run_id}`);
         }
         if (fact.result === 'verified') {
