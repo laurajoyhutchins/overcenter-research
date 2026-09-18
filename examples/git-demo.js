@@ -7,6 +7,7 @@ import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.js';
 const dir = mkdtempSync(join(tmpdir(), 'overcenter-git-demo-'));
 execFileSync('git', ['init', '--bare', dir], { stdio: 'ignore' });
 const kernel = new GitOvercenterKernel(dir);
+kernel.initialize();
 const world = new Set();
 
 kernel.define({ id: 'write-file', packet: { effect: 'file-exists' }, postcondition: { effect: 'file-exists' } });
