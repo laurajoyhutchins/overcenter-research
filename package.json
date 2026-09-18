@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "demo": "node examples/demo.js"
+    "demo": "node examples/demo.js",
+    "test:git": "node --test test/git-kernel.test.js",
+    "demo:git": "node examples/git-demo.js"
   },
   "engines": {
     "node": ">=22.5"
