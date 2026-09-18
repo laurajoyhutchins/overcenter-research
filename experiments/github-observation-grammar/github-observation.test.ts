@@ -533,3 +533,21 @@ test('reconstruction reuses immutable facts but requires fresh authority for mut
   assert.equal(Object.keys(rebuilt.commits).length, 1);
   assert.equal(rebuilt.refs['42:refs/heads/main'].object.sha, SHA_B);
 });
+
+
+test('reserved transport headers cannot be spoofed by operation parameters', async () => {
+  const transport = new GitHubRestTransport({
+    fetchFn: async () => {
+      throw new Error('must not reach fetch');
+    },
+  });
+  await assert.rejects(
+    () => transport.request({
+      method: 'GET',
+      path: '/repos/acme/widget',
+      headers: { 'X-GitHub-Api-Version': '1900-01-01' },
+      apiVersion: '2026-03-10',
+    }),
+    /GITHUB_OBSERVATION_HEADER_RESERVED:X-GitHub-Api-Version/,
+  );
+});

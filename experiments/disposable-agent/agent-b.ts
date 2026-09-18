@@ -1,3 +1,4 @@
+import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
@@ -13,7 +14,7 @@ const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('GITHUB_SHA');
 const agentOutcome = required('AGENT_A_OUTCOME');
 const token = required('GITHUB_TOKEN');
-const stateRef = required('STATE_REF');
+const stateRef = githubProofStateRef('disposable-agent');
 
 if (agentOutcome !== 'failure') {
   throw new Error(`AGENT_A_DID_NOT_TERMINATE_AS_EXPECTED: ${agentOutcome}`);

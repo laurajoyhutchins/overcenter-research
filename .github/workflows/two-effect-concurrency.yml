@@ -11,10 +11,7 @@ on:
       - experiments/two-effect-concurrency/agent.ts
       - experiments/two-effect-concurrency/recovery.ts
       - experiments/two-effect-concurrency/verify.ts
-      - src/git-kernel.ts
-      - src/model.ts
-      - src/observation.ts
-      - src/providers/github-status.ts
+      - src/**
       - test/git-kernel.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
       - experiments/two-effect-concurrency/two-effect-concurrency.test.ts
@@ -22,27 +19,25 @@ on:
 
 permissions: {}
 
-env:
-  STATE_REF: refs/overcenter/concurrency-runs/${{ github.run_id }}/${{ github.run_attempt }}
 
 jobs:
   project-authority:
     name: Trusted authority — define and claim two effects
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
 
     steps:
       - name: Fresh checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Node 22.16
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
 
       - name: Regression and concurrency tests
         run: npm test
@@ -55,7 +50,7 @@ jobs:
   agent-alpha:
     name: Disposable Agent alpha
     needs: project-authority
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -63,12 +58,12 @@ jobs:
     outputs:
       outcome: ${{ steps.agent.outcome }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - name: Execute alpha and die
         id: agent
         continue-on-error: true
@@ -85,7 +80,7 @@ jobs:
   agent-beta:
     name: Disposable Agent beta
     needs: project-authority
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -93,12 +88,12 @@ jobs:
     outputs:
       outcome: ${{ steps.agent.outcome }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - name: Execute beta and die
         id: agent
         continue-on-error: true
@@ -116,7 +111,7 @@ jobs:
     name: Recover alpha
     needs: [agent-alpha, agent-beta]
     if: ${{ always() && needs.agent-alpha.outputs.outcome == 'failure' && needs.agent-beta.outputs.outcome == 'failure' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -125,12 +120,12 @@ jobs:
       SLOT: alpha
       AGENT_OUTCOME: ${{ needs.agent-alpha.outputs.outcome }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - name: Recover and settle alpha
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -140,7 +135,7 @@ jobs:
     name: Recover beta
     needs: [agent-alpha, agent-beta]
     if: ${{ always() && needs.agent-alpha.outputs.outcome == 'failure' && needs.agent-beta.outputs.outcome == 'failure' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -149,12 +144,12 @@ jobs:
       SLOT: beta
       AGENT_OUTCOME: ${{ needs.agent-beta.outputs.outcome }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - name: Recover and settle beta
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -164,18 +159,18 @@ jobs:
     name: Verify both settlements
     needs: [recover-alpha, recover-beta]
     if: ${{ always() && needs.recover-alpha.result == 'success' && needs.recover-beta.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
       statuses: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.16.0
+          node-version-file: '.node-version'
       - name: Read final authority
         env:
           GITHUB_TOKEN: ${{ github.token }}
