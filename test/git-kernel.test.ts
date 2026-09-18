@@ -205,6 +205,8 @@ test('authoritative absence alone makes work replayable', () => {
     f.kernel.define({ id: 'x', postcondition: pc(path, 'yes') });
     const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     const receipt = f.kernel.resolve(run);
+    assert.equal(receipt.observed?.mutation_certainty, 'absent');
+    assert.equal(receipt.observed?.negative_evidence_authoritative, true);
     assert.equal(receipt.disposition, 'READY');
     assert.equal(f.kernel.inspect()[0].status, 'READY');
   } finally { rmSync(f.root, { recursive: true, force: true }); }

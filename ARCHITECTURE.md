@@ -536,12 +536,28 @@ They should not be confused with the deepest historical truth.
 
 The implementation distinguishes **realization state** from these operator states. An obligation with no currently valid realization or active run is internally `UNREALIZED`. Only deterministic eligibility may project `UNREALIZED` to public `READY` or `BLOCKED`. This prevents "not yet realized" from being confused with "safe to execute now."
 
+Before an obligation can enter authoritative history, graph admission now rejects facts that are already mechanically known to be unsafe or meaningless:
+
+- unsupported semantic selectors;
+- semantic outputs the upstream verifier cannot identify;
+- missing settlement semantics for the verifier;
+- unknown dependencies and cycles;
+- statically known unordered incompatible effect coordinates.
+
+For newly admitted work, definition or amendment failure therefore happens before the authority CAS. Existing v3 fact history is replayed under its original durable syntax semantics; defensive eligibility still fails closed on a legacy static effect conflict instead of retroactively making old authority unreplayable.
+
+Settlement authority is also declared before execution begins. Replay from absence requires both:
+- verifier-level semantics that permit authoritative negative evidence; and
+- observation-specific evidence that this read actually established authoritative absence.
+
+A generic `mutation_certainty: "absent"` field alone never reopens execution.
+
 ### READY
 
 An obligation is READY when:
 
 - its structural prerequisites are satisfied;
-- no applicable effect conflict blocks it;
+- no dynamic eligibility condition blocks it;
 - no valid existing realization already satisfies it;
 - no unresolved prior mutation forbids replay;
 - current authority permits a new attempt.
@@ -561,8 +577,9 @@ Deterministic structure or policy says execution cannot safely proceed.
 Examples:
 
 - unsatisfied dependencies;
-- unordered conflicting effect coordinates;
-- invalid graph/amendment structure.
+- a dynamic execution precondition is not currently met.
+
+For newly admitted work, invalid graph/amendment structure and statically knowable effect conflicts are earlier admission failures. Defensive projection may still surface a legacy static conflict as `BLOCKED` so older v3 authority remains replayable without becoming executable.
 
 ### RECOVERY_REQUIRED
 

@@ -471,6 +471,38 @@ test('content-selected semantic dependency can reuse across equivalent producers
   }
 });
 
+test('unsupported semantic selector is rejected before any definition fact is committed', () => {
+  const f = fixture();
+  try {
+    const a = f.path('a');
+    const b = f.path('b');
+
+    defineWithEdges(f.kernel, {
+      id: 'a',
+      postcondition: pc(a, 'A'),
+    });
+    const acceptedHead = f.kernel.head();
+
+    assert.throws(
+      () => defineWithEdges(f.kernel, {
+        id: 'b',
+        edges: [{
+          kind: 'semantic',
+          upstream: 'a',
+          consumes: { kind: 'output', selector: 'ambient-file' },
+        }],
+        postcondition: pc(b, 'B'),
+      }),
+      /UNSUPPORTED_SEMANTIC_SELECTOR:output:ambient-file/,
+    );
+
+    assert.equal(f.kernel.head(), acceptedHead);
+    assert.equal(f.kernel.inspect().some(work => work.id === 'b'), false);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
 test('semantic edge declaration order does not change obligation identity', () => {
   const f = fixture();
   try {
