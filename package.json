@@ -20,6 +20,6 @@
     "test:formal": "bash formal/check.sh",
     "proof:local": "npm run test:experiments && npm run test:stress",
     "proof:formal": "npm run test:formal",
-    "proof:live": "gh workflow run disposable-agent-proof.yml"
+    "proof:live": "bash scripts/proof-live.sh"
   }
 }
