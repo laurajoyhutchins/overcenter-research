@@ -141,7 +141,40 @@ const openapi: OpenApiDocument = {
           { name: 'repo', in: 'path', required: true, schema: { type: 'string' } },
           { name: 'commit_sha', in: 'path', required: true, schema: { type: 'string' } },
         ],
-        responses: { '200': { description: 'Response' }, '404': { description: 'Not found' } },
+        responses: {
+          '200': {
+            description: 'Response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['sha', 'tree', 'parents'],
+                  properties: {
+                    sha: { type: 'string', minLength: 40, maxLength: 64 },
+                    tree: {
+                      type: 'object',
+                      required: ['sha'],
+                      properties: {
+                        sha: { type: 'string', minLength: 40, maxLength: 64 },
+                      },
+                    },
+                    parents: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        required: ['sha'],
+                        properties: {
+                          sha: { type: 'string', minLength: 40, maxLength: 64 },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': { description: 'Not found' },
+        },
       },
     },
     [paths.pull]: {
@@ -327,25 +360,38 @@ test('ref binding composes through stable repository identity and 404 never prov
   }), { state: 'INDETERMINATE', reason: 'NOT_VISIBLE_IS_NOT_ABSENCE' });
 });
 
-test('immutable commit projection requires request SHA, response SHA, and stable repository identity to agree', async () => {
+test('immutable commit projection requires structural certification and exact request identity', async () => {
   const repository = projectRepositoryIdentity(await repositoryObservation())!;
-  const commit = await observe(operation(paths.commit), {
+  const commitOperation = operation(paths.commit);
+  const commit = await observe(commitOperation, {
     owner: 'acme', repo: 'widget', commit_sha: SHA_A,
   }, response(200, {
     sha: SHA_A,
     tree: { sha: SHA_B },
     parents: [{ sha: SHA_C }],
   }));
-  const fact = projectGitCommit(commit, repository)!;
+
+  assert.equal(projectGitCommit(commit, repository), null);
+  const validatedCommit = validateObservationSlice(
+    commitOperation,
+    commit,
+    RESPONSE_SLICES['git/get-commit'],
+  );
+  const fact = projectGitCommit(validatedCommit, repository)!;
   assert.equal(fact.subject.repository_id, 42);
   assert.equal(fact.subject.sha, SHA_A);
   assert.equal(fact.tree_sha, SHA_B);
   assert.equal(fact.stability, 'content-addressed');
 
-  const mismatched = await observe(operation(paths.commit), {
+  const mismatched = await observe(commitOperation, {
     owner: 'acme', repo: 'widget', commit_sha: SHA_A,
   }, response(200, { sha: SHA_B, tree: { sha: SHA_C }, parents: [] }));
-  assert.equal(projectGitCommit(mismatched, repository), null);
+  const validatedMismatch = validateObservationSlice(
+    commitOperation,
+    mismatched,
+    RESPONSE_SLICES['git/get-commit'],
+  );
+  assert.equal(projectGitCommit(validatedMismatch, repository), null);
 });
 
 test('pull request is a mutable snapshot rather than an internal state machine', async () => {
@@ -588,10 +634,15 @@ test('GitHub REST transport records non-secret wire headers, auth class, respons
 
 test('reconstruction reuses immutable facts but requires fresh authority for mutable state', async () => {
   const repository = projectRepositoryIdentity(await repositoryObservation())!;
-  const commitObservation = await observe(operation(paths.commit), {
+  const commitOperation = operation(paths.commit);
+  const commitObservation = await observe(commitOperation, {
     owner: 'acme', repo: 'widget', commit_sha: SHA_A,
   }, response(200, { sha: SHA_A, tree: { sha: SHA_B }, parents: [] }));
-  const commit = projectGitCommit(commitObservation, repository)!;
+  const commit = projectGitCommit(validateObservationSlice(
+    commitOperation,
+    commitObservation,
+    RESPONSE_SLICES['git/get-commit'],
+  ), repository)!;
 
   const refOperation = operation(paths.ref);
   const oldRefObservation = await observe(refOperation, {
