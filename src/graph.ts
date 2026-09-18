@@ -9,7 +9,7 @@ export function withObligation(
   catalog:ObligationCatalog,
   obligation:Obligation,
   definitionCommit:string,
-):State {
+):ObligationCatalog {
   return {
     obligations:{
       ...structuredClone(catalog.obligations),

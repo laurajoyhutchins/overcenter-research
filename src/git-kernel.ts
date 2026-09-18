@@ -195,7 +195,7 @@ export class GitOvercenterKernel {
       if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=run.obligation;
       const prior=history.receiptsByRun.get(runId);
-      if (prior && ['DONE','READY'].includes(prior.disposition)) return prior;
+      if (prior && ['DONE','ABSENT'].includes(prior.disposition)) return prior;
       const lifecycle=history.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId) {
         if (prior) return prior;
