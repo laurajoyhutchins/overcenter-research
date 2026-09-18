@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   validateObservationStructure,
+  validateSelectedStructure,
   validateStructure,
 } from './structural-decoder.ts';
 import type {
@@ -241,6 +242,123 @@ test('observation validation rejects malformed bodies and refuses undocumented s
     problems: [{
       path: '$',
       reason: 'STRUCTURAL_RESPONSE_SCHEMA_UNAVAILABLE',
+    }],
+  });
+});
+
+
+test('selected structural validation ignores contradictory unconsumed fields', () => {
+  const schema = {
+    type: 'object',
+    required: ['id', 'metadata'],
+    properties: {
+      id: { type: 'integer' },
+      metadata: {
+        type: 'object',
+        required: ['merged_at'],
+        properties: {
+          merged_at: { type: 'string', nullable: false },
+        },
+      },
+    },
+  };
+  const live = {
+    id: 42,
+    metadata: { merged_at: null },
+  };
+
+  assert.equal(validateStructure(schema, live).state, 'INVALID');
+  assert.deepEqual(validateSelectedStructure(schema, live, {
+    properties: {
+      id: true,
+    },
+  }), {
+    state: 'VALID',
+    problems: [],
+  });
+});
+
+test('selected structural validation requires every semantically selected field even when provider schema marks it optional', () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      id: { type: 'integer' },
+      node_id: { type: 'string' },
+    },
+  };
+
+  assert.deepEqual(validateSelectedStructure(schema, { id: 42 }, {
+    properties: {
+      id: true,
+      node_id: true,
+    },
+  }), {
+    state: 'INVALID',
+    problems: [{
+      path: '$.node_id',
+      reason: 'STRUCTURAL_REQUIRED_PROPERTY_MISSING',
+    }],
+  });
+});
+
+test('selected structural validation follows nested objects and arrays without validating unrelated siblings', () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      runs: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            head: {
+              type: 'object',
+              properties: {
+                sha: { type: 'string' },
+                irrelevant: { type: 'integer' },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  const live = {
+    runs: [{
+      id: 7,
+      head: { sha: 'abc', irrelevant: 'provider-schema-contradiction' },
+    }],
+  };
+
+  assert.equal(validateSelectedStructure(schema, live, {
+    properties: {
+      runs: {
+        items: {
+          properties: {
+            id: true,
+            head: {
+              properties: {
+                sha: true,
+              },
+            },
+          },
+        },
+      },
+    },
+  }).state, 'VALID');
+});
+
+test('selected structural validation fails closed when selected schema path is unavailable', () => {
+  assert.deepEqual(validateSelectedStructure({
+    type: 'object',
+    properties: { id: { type: 'integer' } },
+  }, { id: 1 }, {
+    properties: { missing: true },
+  }), {
+    state: 'UNSUPPORTED',
+    problems: [{
+      path: '$.missing',
+      reason: 'SELECTED_SCHEMA_PROPERTY_UNAVAILABLE',
     }],
   });
 });
