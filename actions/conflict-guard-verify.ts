@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
 
 const STATE_REF=`refs/overcenter/conflict-guard-runs/${process.env.GITHUB_RUN_ID}/${process.env.GITHUB_RUN_ATTEMPT}`;
 

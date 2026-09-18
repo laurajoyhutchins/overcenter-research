@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel, runGitCoreLoop } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
 
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'overcenter-effect-order-'));

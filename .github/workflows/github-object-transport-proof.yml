@@ -9,7 +9,7 @@ on:
       request_path:
         description: Repository-relative transport request JSON
         required: false
-        default: experiments/github-object-transport/fixtures/request.json
+        default: test/fixtures/github-object-transport-request.json
         type: string
 
 concurrency:
@@ -38,8 +38,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          REQUEST_PATH: ${{ inputs.request_path || 'experiments/github-object-transport/fixtures/request.json' }}
-          INVALID_REQUEST_PATH: experiments/github-object-transport/fixtures/invalid-newline-request.json
+          REQUEST_PATH: ${{ inputs.request_path || 'test/fixtures/github-object-transport-request.json' }}
+          INVALID_REQUEST_PATH: test/fixtures/github-object-transport-invalid-newline-request.json
           API_VERSION: ${{ env.API_VERSION }}
         run: |
           set -euo pipefail

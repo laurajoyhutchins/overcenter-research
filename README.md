@@ -32,8 +32,8 @@ For the consolidated architecture and research claims, start with:
 ## Two storage experiments
 
 ```text
-experiments/sqlite-baseline/kernel.js  SQLite-backed baseline experiment
-src/git-kernel.ts                       Git-backed reference mechanism
+src/kernel.js       SQLite-backed reference
+src/git-kernel.ts   Git-backed prototype
 ```
 
 The Git prototype asks whether the core loop can reduce durable shared authority to:
@@ -57,6 +57,176 @@ git push \
 ```
 
 The commit SHA is the authoritative state revision. Settlement and recovery commits carry `receipt.json`; older receipts remain reachable through Git history.
+
+## Reconstructed project projection
+
+The Git authority no longer contains a privileged current-state document.
+
+Obligation structure is recorded as immutable `overcenter-git-obligation-v2` `obligation.json` facts:
+
+```text
+defined
+  full obligation definition
+
+amended
+  full replacement definition
+  exact previous definition commit
+```
+
+Each current obligation definition contains:
+
+```text
+id
+dependencies
+packet
+postcondition
+```
+
+The prototype retains `deps` as a compatibility scheduling projection of the
+typed dependency upstream IDs. Replay rejects disagreement between the two.
+
+There are only two primitive dependency semantics:
+
+```text
+control
+  upstream completion constrains executability
+  upstream identity does not contribute to downstream meaning
+
+semantic
+  a selector resolves an exact upstream identity
+  that selected identity contributes to the downstream obligation key
+```
+
+The current tiny selector set is:
+
+```text
+output / verified-content
+evidence / settlement-receipt
+```
+
+Artifact, provider, evidence, approval, and provenance distinctions therefore do
+not need separate primitive edge types. They belong in the semantic selector
+contract when they affect downstream meaning.
+
+Claims use `overcenter-git-claim-v2`. An immutable `claim.json` binds:
+
+```text
+run identity
+obligation identity
+exact parent authority revision
+exact semantic obligation_key
+```
+
+The obligation key is derived from the obligation's own semantic specification
+plus the selected identities of semantic dependencies. Control edges are excluded.
+
+For content-selected dependencies, producer labels are also excluded: if two
+upstream logical nodes provide the same exact selected content identity, a
+downstream realization may be reused. If producer provenance matters, the
+downstream obligation must select provenance/evidence identity instead of content
+identity.
+
+Evidence commits carry factual `receipt.json` events:
+
+```text
+observation
+judgment-required
+execution-terminated
+```
+
+No authority commit contains `state.json`. Durable receipts do not persist
+`disposition`, `verified`, or an observation-level `verified` bit.
+
+The kernel reconstructs current project truth by replaying Git history:
+
+```text
+obligation.json facts
+        +
+claim.json facts with exact obligation_key
+        +
+receipt.json evidence
+        ↓
+historical obligation generations + realizations
+        ↓
+derive current obligation keys
+        ↓
+matching historical DONE realization?
+       /                         \
+     yes                         no
+      ↓                           ↓
+     DONE                    READY / BLOCKED
+```
+
+Amendment does not write invalidation records and does not rewrite descendant
+lifecycle state. It appends a new definition. Replay recomputes the affected
+semantic identities and reuses historical realizations wherever the exact current
+obligation key still matches.
+
+This gives the intended incremental behavior:
+
+```text
+A changes
+   ↓
+recompute semantic consumer B
+   ↓
+selected identity changed?
+   ├─ yes → B gets a different obligation key
+   └─ no  → reuse B's existing realization
+
+only a changed B identity can force semantic consumers of B to reconsider
+```
+
+Historical truth remains stable. A run is interpreted against the obligation
+generation and exact `obligation_key` that were authoritative when it was
+claimed. A later amendment cannot retroactively reinterpret its receipt.
+
+Structural replay validates unknown dependencies, dependency cycles, exact
+amendment ancestry, claim revision fencing, claim obligation-key binding,
+receipt-to-claim identity, legal lifecycle transitions, and active-run amendment
+fencing.
+
+The adversarial dependency suite proves, among other cases:
+
+- control changes do not poison downstream semantic identity;
+- semantic changes invalidate only when selected identity changes;
+- invalidation stops when an intermediary selected identity remains unchanged;
+- control-to-semantic reclassification creates new meaning;
+- edge declaration order does not alter semantic identity;
+- equivalent content can be reused across different producer nodes;
+- hidden undeclared dependencies remain outside the derivation model;
+- active exact runs still fence amendment.
+
+The destructive projection test runs against `GitOvercenterKernel` itself using
+a central bare Git authority. At each lifecycle boundary it:
+
+```text
+derive projection
+      ↓
+materialize cache
+      ↓
+DELETE cache
+      ↓
+create fresh disposable clone
+      ↓
+read current central authority
+      ↓
+replay facts
+      ↓
+assert byte-identical projection + identical SHA-256
+```
+
+Raw-history tests fail if `state.json` appears in any authority commit, if
+interpreted lifecycle fields leak into receipts, or if a semantic claim omits its
+durable obligation key.
+
+Run the focused proofs directly with:
+
+```bash
+npm run test:projection
+npm run test:dependency-edges
+```
+
+> Deleting every materialized project status must lose no project truth.
 
 ## Kernel-owned verification
 
@@ -93,6 +263,21 @@ settle(run.id, {
 There is no caller-provided `DONE` verifier path.
 
 The file-content verifier is intentionally only a local proof adapter, not a proposed universal evidence model.
+
+### Hostile eventually consistent readback
+
+The executable hostile-readback experiment models a provider whose write path can succeed before its read model converges:
+
+```ts
+{
+  verifier: 'eventually-consistent-file-content-equals/v1',
+  path: '/provider/read-model/resource-42',
+  content: 'created'
+}
+```
+
+For this provider class, missing or stale non-matching reads are not authoritative negative evidence. They remain `uncertain`, keep the exact run in `RECOVERY_REQUIRED`, and cannot release replayable `READY` work. Only positive convergence can settle the run `DONE`. See `research/eventually-consistent-readback-experiment.md`.
+
 
 The branch now has two cross-sandbox/provider proof adapters.
 
@@ -359,6 +544,7 @@ Validated in the assistant sandbox with Node.js 22.16.0 and Git 2.47.3. The Type
 npm test
 npm run test:git
 npm run test:handoff
+npm run test:eventual
 npm run test:concurrency
 npm run test:effect-order
 npm run test:stress
@@ -392,7 +578,8 @@ The sandbox validation covers:
 - a live GitHub Actions handoff across two hosted runners with GitHub itself supplying the lifecycle fact and provider readback;
 - a hardened three-job proof where a separately authorized project authority defines and claims immutable intent before an execution agent with no Contents write permission starts;
 - executor sandbox tampering with Git config, local state, kernel source, and cache cannot alter project truth or verifier authority;
-- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration;
+- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration;;
+- hostile eventually consistent readback cannot turn stale missing or old values into replayable absence; the original run remains recovery-bound until positive convergence.
 - two independent obligations can remain `EXECUTING` simultaneously without losing exact claim identity;
 - two fresh recovery processes can settle independent effects through one CAS authority ref;
 - canonical GitHub-status effect conflicts are blocked unless graph ordering makes the sequence explicit;
@@ -400,56 +587,28 @@ The sandbox validation covers:
 
 The proof suite is intentionally growing; the README does not pin a historical pass count. Run `npm test` for the current focused regression set and the dedicated scripts above for handoff, concurrency, effect-ordering, and stress experiments.
 
-## Repository shape
-
-The repository separates four kinds of evidence so paths reveal what kind of truth they contain:
+## Files
 
 ```text
-src/          reusable reference mechanism
-test/         focused tests of reusable mechanism
-experiments/  executable empirical/adversarial proofs
-research/     literature, synthesis, and architectural claims
-formal/       machine-checked models when present
+src/kernel.js                 SQLite reference kernel
+src/git-kernel.ts             Git authority kernel
+examples/demo.js              SQLite demo
+examples/git-demo.ts          Git-native demo
+test/kernel.test.js           SQLite proofs
+test/git-kernel.test.ts       Git kernel proofs
+test/disposable-agent.test.ts disposable-agent handoff proof
+test/two-effect-concurrency.test.ts independent-effect concurrency/recovery proofs
+test/effect-ordering.test.ts  provider-coordinate conflict/commutativity proofs
+stress/git-stress.ts          adversarial Git/clone stress tests
+actions/project-authority.ts    trusted definition/claim boundary
+actions/disposable-agent-a.ts  hosted disposable executor
+actions/disposable-agent-b.ts  hosted recovery executor
+.github/workflows/disposable-agent-proof.yml  live Actions proof
+ARCHITECTURE.md               consolidated architecture + glossary
+research/README.md            research map
+research/claims.md            safety/liveness/provenance/reuse taxonomy
+research/durable-execution-comparison.md durable-execution comparison
+research/                     detailed prior-art notes
 ```
-
-Current executable surfaces:
-
-```text
-src/git-kernel.ts
-  Git authority/reference mechanism
-
-test/git-kernel.test.ts
-  focused Git-kernel regression tests
-
-experiments/sqlite-baseline/
-  original SQLite baseline kernel, proof, and demo
-
-experiments/disposable-agent/
-  disposable-worker handoff proof and hosted actors
-
-experiments/two-effect-concurrency/
-  independent-effect concurrency and recovery proof
-
-experiments/conflicting-effect/
-  provider-coordinate conflict and commutativity proof
-
-experiments/github-object-transport/
-  GitHub object-transport fixtures
-
-experiments/git-stress/
-  adversarial Git/clone stress experiment
-
-.github/workflows/
-  thin hosted orchestration for live proofs
-
-ARCHITECTURE.md
-  consolidated architecture and glossary
-
-research/
-  claims, comparison work, and detailed prior-art notes
-```
-
-Run `npm test` for the ordinary repository test gate. Dedicated experiment commands remain available through the `test:*` scripts in `package.json`.
-
 
 The experiment is intentionally small. New machinery should have to demonstrate that Git authority plus disposable local state cannot provide the required safety first.

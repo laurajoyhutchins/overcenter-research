@@ -6,13 +6,13 @@ on:
       - prototype/conflicting-effect-boundary
     paths:
       - .github/workflows/conflicting-effect.yml
-      - experiments/conflicting-effect/agent.ts
-      - experiments/conflicting-effect/recovery.ts
-      - experiments/conflicting-effect/guard-authority.ts
-      - experiments/conflicting-effect/guard-claim-beta.ts
-      - experiments/conflicting-effect/guard-verify.ts
+      - actions/conflict-agent.ts
+      - actions/conflict-recovery.ts
+      - actions/conflict-guard-authority.ts
+      - actions/conflict-guard-claim-beta.ts
+      - actions/conflict-guard-verify.ts
       - src/git-kernel.ts
-      - experiments/conflicting-effect/effect-ordering.test.ts
+      - test/effect-ordering.test.ts
       - package.json
 
 permissions: {}
@@ -36,7 +36,7 @@ jobs:
       - name: Prove unordered pair is unclaimable and claim ordered alpha
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types experiments/conflicting-effect/guard-authority.ts
+        run: node --experimental-strip-types actions/conflict-guard-authority.ts
 
   alpha:
     name: Ordered alpha writes success
@@ -63,7 +63,7 @@ jobs:
           SLOT: alpha
           STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
           WRITE_CONTEXT_CASE: upper
-        run: node --experimental-strip-types experiments/conflicting-effect/agent.ts
+        run: node --experimental-strip-types actions/conflict-agent.ts
 
   recover-alpha:
     name: Settle ordered alpha
@@ -87,7 +87,7 @@ jobs:
           node-version: 22.16.0
       - env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types experiments/conflicting-effect/recovery.ts
+        run: node --experimental-strip-types actions/conflict-recovery.ts
 
   claim-beta:
     name: Claim ordered beta after alpha
@@ -103,7 +103,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22.16.0
-      - run: node --experimental-strip-types experiments/conflicting-effect/guard-claim-beta.ts
+      - run: node --experimental-strip-types actions/conflict-guard-claim-beta.ts
 
   beta:
     name: Ordered beta writes failure
@@ -129,7 +129,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: beta
           STATE_REF: refs/overcenter/conflict-guard-runs/${{ github.run_id }}/${{ github.run_attempt }}
-        run: node --experimental-strip-types experiments/conflicting-effect/agent.ts
+        run: node --experimental-strip-types actions/conflict-agent.ts
 
   recover-beta:
     name: Settle ordered beta
@@ -153,7 +153,7 @@ jobs:
           node-version: 22.16.0
       - env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types experiments/conflicting-effect/recovery.ts
+        run: node --experimental-strip-types actions/conflict-recovery.ts
 
   verify:
     name: Verify conflict guard and explicit ordering
@@ -172,4 +172,4 @@ jobs:
           node-version: 22.16.0
       - env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node --experimental-strip-types experiments/conflicting-effect/guard-verify.ts
+        run: node --experimental-strip-types actions/conflict-guard-verify.ts
