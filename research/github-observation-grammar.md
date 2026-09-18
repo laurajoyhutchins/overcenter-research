@@ -80,6 +80,8 @@ A caller may later strengthen that result only if it has additional semantics pr
 
 Likewise, a transport failure remains `INDETERMINATE`.
 
+Redirects are evidence rather than transparent transport behavior. The concrete GitHub transport uses manual redirect handling; a 3xx remains `INDETERMINATE` and records its `Location` instead of silently attributing a downstream response to the original operation.
+
 A successful positive read is stronger. If GitHub authoritatively returns that the requested ref targets SHA `B` while the obligation requires SHA `A`, the obligation is `UNSATISFIED`.
 
 ## What is generated vs handwritten
@@ -89,6 +91,7 @@ Generated from OpenAPI:
 - method and path template
 - operation ID
 - path/query/header parameters
+- materialized operation-specific request headers
 - documented response statuses
 - JSON response schemas when present
 - `x-github` operation metadata
@@ -114,7 +117,9 @@ The tests establish:
 3. a successful mismatching ref read can prove that obligation unsatisfied;
 4. `404` is not strengthened into proof of absence; and
 5. transport failure cannot create a negative fact; and
-6. the concrete REST transport pins the API version and preserves raw provider response data.
+6. declared header parameters are both recorded and sent, while undeclared parameters are rejected;
+7. the concrete REST transport pins the API version and preserves raw provider response data; and
+8. redirects are not followed implicitly and remain explicit indeterminate evidence.
 
 ## Measured full-schema and live-provider result
 
