@@ -1,4 +1,4 @@
-name: Overcenter disposable-agent proof
+name: Overcenter disposable-agent trust proof
 
 on:
   push:
@@ -6,18 +6,50 @@ on:
       - prototype/git-object-database
     paths:
       - .github/workflows/disposable-agent-proof.yml
+      - actions/project-authority.ts
       - actions/disposable-agent-a.ts
       - actions/disposable-agent-b.ts
       - src/git-kernel.ts
+      - test/git-kernel.test.ts
+      - test/disposable-agent.test.ts
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
-  agent-a:
-    name: Agent A — claim, effect, terminate
+  project-authority:
+    name: Trusted project authority — define and claim
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Fresh checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Node 22.16
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.16.0
+
+      - name: Focused regression suite
+        run: npm test
+
+      - name: Define immutable obligation and claim exact snapshot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types actions/project-authority.ts
+
+  agent-a:
+    name: Agent A — untrusted sandbox, bounded effect, terminate
+    needs: project-authority
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: write
     outputs:
       outcome: ${{ steps.agent.outcome }}
 
@@ -32,25 +64,28 @@ jobs:
         with:
           node-version: 22.16.0
 
-      - name: Run disposable Agent A
+      - name: Run disposable Agent A with sandbox tampering
         id: agent
         continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types actions/disposable-agent-a.ts
 
       - name: Supervisor confirms Agent A terminated
         if: always()
         env:
           AGENT_OUTCOME: ${{ steps.agent.outcome }}
-        run: |
-          test "$AGENT_OUTCOME" = "failure"
-          test -n "$(git ls-remote origin refs/overcenter/state)"
+        run: test "$AGENT_OUTCOME" = "failure"
 
   agent-b:
-    name: Agent B — reconstruct and settle
+    name: Trusted recovery — canonical provider readback and settlement
     needs: agent-a
     if: ${{ always() && needs.agent-a.outputs.outcome == 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+      statuses: read
     env:
       AGENT_A_OUTCOME: ${{ needs.agent-a.outputs.outcome }}
 
@@ -65,5 +100,7 @@ jobs:
         with:
           node-version: 22.16.0
 
-      - name: Reconstruct from Git and settle
+      - name: Reconstruct immutable intent and settle
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types actions/disposable-agent-b.ts
