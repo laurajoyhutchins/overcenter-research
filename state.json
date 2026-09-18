@@ -180,7 +180,7 @@
         "context": "overcenter/conflict-guard/35309019031/1/ordered",
         "expected_state": "failure"
       },
-      "status": "RECOVERY_REQUIRED",
+      "status": "DONE",
       "run_id": "db9965e8-b4a6-4a8e-828d-da09aa0c611c",
       "claimed_revision": "38ac5eec65df28ac193eb34debb72f0b13dedb4c",
       "claim_commit": "ca43ea0f86e7836ea6681b3b1e53f5b8de14234c"
