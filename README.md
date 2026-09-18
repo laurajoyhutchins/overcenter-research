@@ -22,6 +22,13 @@ recompute READY work ↺
 
 The worker does **not** decide that its work succeeded.
 
+For the consolidated architecture and research claims, start with:
+
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — canonical architecture model and glossary;
+- [`research/claims.md`](./research/claims.md) — safety, liveness, provenance, and reuse claims separated explicitly;
+- [`research/durable-execution-comparison.md`](./research/durable-execution-comparison.md) — Temporal, Restate, DBOS, AWS, and what authoritative reconciliation adds beyond durable replay;
+- [`research/README.md`](./research/README.md) — map of the detailed prior-art notes.
+
 ## Two storage experiments
 
 ```text
@@ -318,11 +325,31 @@ Settlement and reconciliation are idempotent by run identity.
 
 If reconciliation commits `READY` or `DONE` but its response is lost, repeating `reconcile(runId)` returns the existing durable receipt instead of reporting `UNKNOWN_RUN`.
 
-## Current deliberate constraint
+## Current concurrency boundary
 
-The prototype permits only **one active external effect at a time**.
+The prototype no longer serializes all external effects.
 
-That keeps one linear authoritative ref sufficient. Parallel graph execution, leases, PostgreSQL, and distributed heartbeat machinery remain deliberately absent until an experiment demonstrates they are required.
+Independent obligations can remain `EXECUTING` simultaneously, and independent recovery processes can settle through the same linear Git authority ref. The ref still serializes authoritative state updates through CAS; it does **not** require the external effects themselves to run one at a time.
+
+For the canonical GitHub commit-status adapter, the kernel also models an effect-conflict domain:
+
+```text
+repository identity
++ exact commit
++ normalized status context
+```
+
+On one canonical coordinate:
+
+- identical desired states are explicitly allowed to commute;
+- incompatible desired states must be graph-ordered;
+- unordered incompatible effects project as `BLOCKED` and cannot be claimed.
+
+This is deliberately adapter-specific. The file and Git-ref proof adapters do not pretend to provide universal alias/conflict semantics for arbitrary external systems.
+
+The remaining minimality constraint is therefore not "one effect at a time." It is:
+
+> Add concurrency semantics only where the provider adapter can name the mutation coordinate and justify commutativity/conflict rules.
 
 ## Run it
 
@@ -332,6 +359,8 @@ Validated in the assistant sandbox with Node.js 22.16.0 and Git 2.47.3. The Type
 npm test
 npm run test:git
 npm run test:handoff
+npm run test:concurrency
+npm run test:effect-order
 npm run test:stress
 npm run demo:git
 ```
@@ -363,9 +392,13 @@ The sandbox validation covers:
 - a live GitHub Actions handoff across two hosted runners with GitHub itself supplying the lifecycle fact and provider readback;
 - a hardened three-job proof where a separately authorized project authority defines and claims immutable intent before an execution agent with no Contents write permission starts;
 - executor sandbox tampering with Git config, local state, kernel source, and cache cannot alter project truth or verifier authority;
-- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration.
+- canonical GitHub repository-ID + exact-commit status readback settles independently of the executor's local Git configuration;
+- two independent obligations can remain `EXECUTING` simultaneously without losing exact claim identity;
+- two fresh recovery processes can settle independent effects through one CAS authority ref;
+- canonical GitHub-status effect conflicts are blocked unless graph ordering makes the sequence explicit;
+- identical desired GitHub statuses on the same canonical coordinate are explicitly modeled as commuting.
 
-The combined focused, handoff, and stress suites passed **17/17** in the sandbox before being committed.
+The proof suite is intentionally growing; the README does not pin a historical pass count. Run `npm test` for the current focused regression set and the dedicated scripts above for handoff, concurrency, effect-ordering, and stress experiments.
 
 ## Files
 
@@ -377,12 +410,18 @@ examples/git-demo.ts          Git-native demo
 test/kernel.test.js           SQLite proofs
 test/git-kernel.test.ts       Git kernel proofs
 test/disposable-agent.test.ts disposable-agent handoff proof
+test/two-effect-concurrency.test.ts independent-effect concurrency/recovery proofs
+test/effect-ordering.test.ts  provider-coordinate conflict/commutativity proofs
 stress/git-stress.ts          adversarial Git/clone stress tests
 actions/project-authority.ts    trusted definition/claim boundary
 actions/disposable-agent-a.ts  hosted disposable executor
 actions/disposable-agent-b.ts  hosted recovery executor
 .github/workflows/disposable-agent-proof.yml  live Actions proof
-research/                     prior research
+ARCHITECTURE.md               consolidated architecture + glossary
+research/README.md            research map
+research/claims.md            safety/liveness/provenance/reuse taxonomy
+research/durable-execution-comparison.md durable-execution comparison
+research/                     detailed prior-art notes
 ```
 
 The experiment is intentionally small. New machinery should have to demonstrate that Git authority plus disposable local state cannot provide the required safety first.
