@@ -193,7 +193,7 @@ test('every lifecycle projection reconstructs exactly after materialization is d
       based_on_revision: claimedRevision,
     });
     f.assertReconstructs([
-      { id: 'publish', status: 'EXECUTING', active_run_id: runId },
+      { id: 'publish', status: 'EXECUTING', run_id: runId },
       {
         id: 'verify-publish',
         status: 'BLOCKED',
@@ -205,7 +205,7 @@ test('every lifecycle projection reconstructs exactly after materialization is d
     // authoritative observation is recorded and settled, the run is still active.
     writeFileSync(f.world, expectedContent);
     f.assertReconstructs([
-      { id: 'publish', status: 'EXECUTING', active_run_id: runId },
+      { id: 'publish', status: 'EXECUTING', run_id: runId },
       {
         id: 'verify-publish',
         status: 'BLOCKED',
@@ -222,7 +222,7 @@ test('every lifecycle projection reconstructs exactly after materialization is d
       {
         id: 'publish',
         status: 'RECOVERY_REQUIRED',
-        active_run_id: runId,
+        run_id: runId,
       },
       {
         id: 'verify-publish',
@@ -246,7 +246,7 @@ test('every lifecycle projection reconstructs exactly after materialization is d
       {
         id: 'publish',
         status: 'RECOVERY_REQUIRED',
-        active_run_id: runId,
+        run_id: runId,
       },
       {
         id: 'verify-publish',
@@ -354,7 +354,7 @@ test('settlement disposition is derived from factual observation evidence', () =
   ];
   assert.deepEqual(
     deriveProjectProjection(uncertain, 'authority-2').work,
-    [{ id: 'x', status: 'RECOVERY_REQUIRED', active_run_id: 'r2' }],
+    [{ id: 'x', status: 'RECOVERY_REQUIRED', run_id: 'r2' }],
   );
 });
 
