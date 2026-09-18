@@ -8,13 +8,15 @@ const token=process.env.GITHUB_TOKEN;
 if (!token) throw new Error('GITHUB_TOKEN_REQUIRED');
 
 const repositoryId=1354872053;
+const repositoryFullName='laurajoyhutchins/overcenter-research';
 const commitSha='b91ac6c4e64f72b83c6a8d8caa78e9482037a2d1';
 const context='overcenter/concurrency/35373921130/1/alpha';
 
 const positive=observePostcondition({
-  verifier:'github-commit-status/v1',
+  verifier:'github-commit-status/v2',
   provider:'github',
   repository_id:repositoryId,
+  repository_full_name:repositoryFullName,
   commit_sha:commitSha,
   context,
   expected_state:'success',
@@ -22,16 +24,21 @@ const positive=observePostcondition({
 
 assert.equal(positive.mutation_certainty,'present');
 assert.equal(positive.actual_state,'success');
-assert.deepEqual(positive.legacy_interpretation,{mutation_certainty:'present'});
+assert.equal(positive.repository_id,repositoryId);
+assert.equal(positive.repository_full_name,repositoryFullName);
 const positiveEvidence=positive.provider_evidence as Record<string,unknown>;
 assert.equal(positiveEvidence.schema_sha256,GITHUB_OPENAPI_SHA256);
-assert.equal(positiveEvidence.operation_id,'repos/list-commit-statuses-for-ref');
+assert.equal(positiveEvidence.status_operation_id,'repos/list-commit-statuses-for-ref');
+const repositoryEvidence=positiveEvidence.repository as Record<string,unknown>;
+assert.equal(repositoryEvidence.operation_id,'repos/get');
+assert.equal(repositoryEvidence.canonical_full_name,repositoryFullName);
 
 const missingContext=`overcenter/certified-observation/missing/${process.env.GITHUB_RUN_ID ?? 'run'}`;
 const missing=observePostcondition({
-  verifier:'github-commit-status/v1',
+  verifier:'github-commit-status/v2',
   provider:'github',
   repository_id:repositoryId,
+  repository_full_name:repositoryFullName,
   commit_sha:commitSha,
   context:missingContext,
   expected_state:'success',
@@ -40,17 +47,19 @@ const missing=observePostcondition({
 assert.equal(missing.mutation_certainty,'uncertain');
 assert.equal(missing.negative_evidence_authoritative,false);
 assert.equal(missing.observation_error,'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
-assert.deepEqual(missing.legacy_interpretation,{mutation_certainty:'absent'});
 
 console.log(JSON.stringify({
   positive:{
     repository_id:positive.repository_id,
     repository_full_name:positive.repository_full_name,
+    repository_node_id:repositoryEvidence.node_id,
+    repository_operation:repositoryEvidence.operation_id,
     commit_sha:positive.commit_sha,
     context:positive.context,
     actual_state:positive.actual_state,
     mutation_certainty:positive.mutation_certainty,
     schema_sha256:positiveEvidence.schema_sha256,
+    status_operation:positiveEvidence.status_operation_id,
     pages:(positiveEvidence.pages as unknown[]).length,
   },
   missing:{
@@ -58,6 +67,5 @@ console.log(JSON.stringify({
     mutation_certainty:missing.mutation_certainty,
     negative_evidence_authoritative:missing.negative_evidence_authoritative,
     reason:missing.observation_error,
-    legacy_interpretation:missing.legacy_interpretation,
   },
 },null,2));
