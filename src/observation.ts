@@ -22,10 +22,12 @@ export function validatePostcondition(p: Postcondition): void {
   if (p?.verifier==='eventually-consistent-file-content-equals/v1'
     && typeof p.path==='string'
     && typeof p.content==='string') return;
-  if (p?.verifier==='github-commit-status/v1'
+  if (p?.verifier==='github-commit-status/v2'
     && p.provider==='github'
     && Number.isSafeInteger(p.repository_id)
     && p.repository_id > 0
+    && typeof p.repository_full_name==='string'
+    && /^[^/]+\/[^/]+$/.test(p.repository_full_name)
     && /^[0-9a-f]{40,64}$/i.test(p.commit_sha)
     && typeof p.context==='string'
     && p.context.length > 0
@@ -39,7 +41,7 @@ export function observePostcondition(
 ): Observation {
   validatePostcondition(p);
 
-  if (p.verifier==='github-commit-status/v1') {
+  if (p.verifier==='github-commit-status/v2') {
     if (!context.githubToken) {
       return {
         verifier:p.verifier,
@@ -57,6 +59,7 @@ export function observePostcondition(
         context.githubToken,
         {
           repositoryId:p.repository_id,
+          repositoryFullName:p.repository_full_name,
           commitSha:p.commit_sha,
           context:p.context,
           ...(context.githubGet?{get:context.githubGet}:{}),
@@ -76,7 +79,6 @@ export function observePostcondition(
           negative_evidence_authoritative:false,
           observation_error:status.reason,
           provider_evidence:status.evidence,
-          legacy_interpretation:status.legacy_interpretation,
         };
       }
       return {
@@ -90,7 +92,6 @@ export function observePostcondition(
         actual_state:status.actual_state,
         mutation_certainty:'present',
         provider_evidence:status.evidence,
-        legacy_interpretation:status.legacy_interpretation,
       };
     } catch (e: unknown) {
       return {
@@ -204,6 +205,8 @@ export function observationVerified(
   if (
     observed.provider!=='github'
     || observed.repository_id!==postcondition.repository_id
+    || typeof observed.repository_full_name!=='string'
+    || observed.repository_full_name.toLowerCase()!==postcondition.repository_full_name.toLowerCase()
     || observed.commit_sha!==postcondition.commit_sha
     || observed.context!==postcondition.context
   ) {
