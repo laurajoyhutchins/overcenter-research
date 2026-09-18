@@ -45,7 +45,7 @@ export const GITHUB_REF_OPERATION:ObservationOperation={
           required:['type','sha'],
           properties:{
             type:{type:'string'},
-            sha:{type:'string'},
+            sha:{type:'string',minLength:40,maxLength:40},
           },
         },
       },
