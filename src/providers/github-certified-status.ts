@@ -5,6 +5,10 @@ import {
   type StructuralOperation,
 } from '../provider-observation/response-slice.ts';
 import { GITHUB_API_VERSION, GITHUB_OPENAPI_SHA256, GITHUB_OPENAPI_SOURCE_COMMIT } from './github-contract.ts';
+import {
+  observeCertifiedGithubRepositoryIdentity,
+  type CertifiedGithubRepositoryEvidence,
+} from './github-certified-repository.ts';
 import { githubGet, githubStatusContextKey, type GithubJsonGet } from './github-status.ts';
 
 export { GITHUB_API_VERSION, GITHUB_OPENAPI_SHA256, GITHUB_OPENAPI_SOURCE_COMMIT } from './github-contract.ts';
@@ -70,6 +74,7 @@ export interface CertifiedGithubStatusEvidence {
   repository_id:number;
   repository_full_name:string;
   commit_sha:string;
+  repository_identity:CertifiedGithubRepositoryEvidence;
   pages:CertifiedGithubStatusPageEvidence[];
 }
 
@@ -139,14 +144,6 @@ export const GITHUB_COMMIT_STATUSES_OPERATION:GithubCommitStatusesOperation={
   }],
   github_extensions:{},
 };
-
-function repositoryCoordinate(fullName:string):{owner:string;repo:string} {
-  const slash=fullName.indexOf('/');
-  if (slash<=0 || slash===fullName.length-1 || fullName.indexOf('/',slash+1)!==-1) {
-    throw new Error('GITHUB_REPOSITORY_FULL_NAME_INVALID');
-  }
-  return {owner:fullName.slice(0,slash),repo:fullName.slice(slash+1)};
-}
 
 function rawStatusObservation({
   body,
@@ -231,15 +228,13 @@ export function observeCertifiedGithubCommitStatus(
     clock?:()=>string;
   },
 ):CertifiedGithubCommitStatusResult {
-  const repository=get(token,`/repositories/${repositoryId}`) as {
-    id?:unknown;
-    full_name?:unknown;
-  };
-  if (repository.id!==repositoryId || typeof repository.full_name!=='string') {
-    throw new Error('GITHUB_REPOSITORY_IDENTITY_MISMATCH');
-  }
+  const repository=observeCertifiedGithubRepositoryIdentity(token,{
+    repositoryId,
+    get,
+    clock,
+  });
   const fullName=repository.full_name;
-  const {owner,repo}=repositoryCoordinate(fullName);
+  const {owner,repo}=repository;
   const target=githubStatusContextKey(context);
   const pages:CertifiedGithubStatusPageEvidence[]=[];
 
@@ -276,6 +271,7 @@ export function observeCertifiedGithubCommitStatus(
           repository_id:repositoryId,
           repository_full_name:fullName,
           commit_sha:commitSha,
+          repository_identity:repository.evidence,
           pages,
         },
         legacy_interpretation:{mutation_certainty:'present'},
@@ -297,6 +293,7 @@ export function observeCertifiedGithubCommitStatus(
           repository_id:repositoryId,
           repository_full_name:fullName,
           commit_sha:commitSha,
+          repository_identity:repository.evidence,
           pages,
         },
         legacy_interpretation:{mutation_certainty:'absent'},
