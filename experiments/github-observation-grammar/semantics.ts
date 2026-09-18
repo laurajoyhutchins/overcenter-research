@@ -261,21 +261,27 @@ function numberedEntityBase<Kind extends string>(
     operationId,
     parameter,
     kind,
-  }: { operationId: string; parameter: string; kind: Kind },
+  }: { operationId: 'pulls/get' | 'issues/get'; parameter: string; kind: Kind },
 ): { subject: NumberedEntitySubject<Kind>; body: Record<string, unknown> } | null {
-  if (!observed200(observation, operationId) || !sameRepositoryCoordinate(observation, repository)) return null;
+  const requiredPaths = RESPONSE_SLICES[operationId].map(field => field.path);
+  if (!structurallyValidatedFor(observation, operationId, requiredPaths)) return null;
+  if (!sameRepositoryCoordinate(observation, repository)) return null;
+
   const requested = observation.request.parameters[parameter];
-  const body = observation.outcome.value as Record<string, unknown> | undefined;
-  if (!Number.isSafeInteger(requested) || !body) return null;
-  if (!Number.isSafeInteger(body.id) || Number(body.id) <= 0) return null;
-  if (typeof body.node_id !== 'string' || body.node_id.length === 0) return null;
-  if (!Number.isSafeInteger(body.number) || Number(body.number) !== Number(requested)) return null;
+  if (!Number.isSafeInteger(requested)) return null;
+  const body = observation.outcome.value as {
+    id: number;
+    node_id: string;
+    number: number;
+  } & Record<string, unknown>;
+  if (body.id <= 0 || body.node_id.length === 0 || body.number !== requested) return null;
+
   return {
     subject: {
       kind,
       repository_id: repository.subject.id,
-      number: Number(body.number),
-      id: Number(body.id),
+      number: body.number,
+      id: body.id,
       node_id: body.node_id,
     },
     body,
@@ -435,13 +441,11 @@ export function projectPullRequestSnapshot(
   });
   if (!base) return null;
   const body = base.body as {
-    state?: unknown;
-    head?: { sha?: unknown };
-    base?: { ref?: unknown; sha?: unknown };
+    state: string;
+    head: { sha: string };
+    base: { ref: string; sha: string };
   };
-  if (typeof body.state !== 'string') return null;
-  if (typeof body.head?.sha !== 'string' || !sha.test(body.head.sha)) return null;
-  if (typeof body.base?.ref !== 'string' || typeof body.base.sha !== 'string' || !sha.test(body.base.sha)) return null;
+  if (!sha.test(body.head.sha) || !sha.test(body.base.sha)) return null;
 
   return {
     kind: 'entity-snapshot',
@@ -513,12 +517,11 @@ export function projectIssueSnapshot(
   });
   if (!base) return null;
   const body = base.body as {
-    state?: unknown;
-    title?: unknown;
-    locked?: unknown;
+    state: string;
+    title: string;
+    locked: boolean;
     pull_request?: unknown;
   };
-  if (typeof body.state !== 'string' || typeof body.title !== 'string' || typeof body.locked !== 'boolean') return null;
 
   return {
     kind: 'entity-snapshot',
