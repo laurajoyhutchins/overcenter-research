@@ -5,6 +5,7 @@ import {
 } from './graph.ts';
 import {
   effectSemantics,
+  settlementSemantics,
   verifiedContentIdentity,
 } from './semantics.ts';
 
@@ -73,6 +74,9 @@ function validateStaticEffectOrdering(state:State):void {
 
 export function validateAdmission(state:State):void {
   validateGraph(state);
+  for (const obligation of Object.values(state.obligations)) {
+    settlementSemantics(obligation.postcondition);
+  }
   validateSemanticEdges(state);
   validateStaticEffectOrdering(state);
 }
