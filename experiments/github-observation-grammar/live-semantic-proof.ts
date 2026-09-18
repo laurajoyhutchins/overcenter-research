@@ -243,7 +243,15 @@ const rebuilt = reconstructGithubProjection({
   current: JSON.parse(JSON.stringify(currentFacts)),
 });
 assert.equal(rebuilt.refs[`${repository.subject.id}:refs/heads/${sourceRef}`].object.sha.toLowerCase(), sourceSha.toLowerCase());
-if (pullNumber !== null) assert.ok(rebuilt.pull_requests[`${repository.subject.id}:${pullNumber}`]);
+if (pullNumber !== null) {
+  const surfaceKey = `${repository.subject.id}:${pullNumber}`;
+  assert.equal(rebuilt.pull_requests[surfaceKey]?.subject.kind, 'github.pull-request');
+  assert.equal(rebuilt.issues[surfaceKey]?.subject.kind, 'github.issue');
+  assert.ok(pullFact && issueFact);
+  const entityKey = `${repository.subject.id}:${pullFact.subject.node_id}`;
+  assert.equal(rebuilt.entities[entityKey]?.pull_request?.subject.id, pullFact.subject.id);
+  assert.equal(rebuilt.entities[entityKey]?.issue?.subject.id, issueFact.subject.id);
+}
 
 console.log(JSON.stringify({
   schema_sha256: schemaSha,
@@ -299,5 +307,7 @@ console.log(JSON.stringify({
     durable_commits: Object.keys(rebuilt.commits).length,
     current_refs: Object.keys(rebuilt.refs).length,
     current_pull_requests: Object.keys(rebuilt.pull_requests).length,
+    current_issues: Object.keys(rebuilt.issues).length,
+    unified_entities: Object.keys(rebuilt.entities).length,
   },
 }, null, 2));
