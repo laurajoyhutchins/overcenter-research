@@ -194,7 +194,9 @@ The reservation is committed before the trusted effect wrapper invokes mutation.
 
 **Evidence boundary:** kernel regression tests cover presence and authoritative-absence handoff; the disposable-worker, eventual-consistency, concurrency, and stress experiments exercise recovery with fresh generations. `formal/TransitionKernel.tla` independently checks `ReservationSafety`, and `BrokenNoReservation.cfg` must produce its counterexample.
 
-**Non-claim:** The generic core loop does not yet force every possible provider adapter through `beginEffect`/`performEffect`. The runtime guarantee applies to effects executed through the trusted reservation boundary.
+The normal `runGitCoreLoop` path now commits the reservation before invoking effectful executor code. A negative regression proof blocks the reservation CAS and establishes that the executor is not called.
+
+**Non-claim:** Low-level experimental callers can still invoke provider code outside `runGitCoreLoop`; JavaScript itself is not a capability sandbox. The runtime guarantee applies to effects executed through the trusted reservation boundary.
 
 ### S12. DONE should be derivable from evidence
 

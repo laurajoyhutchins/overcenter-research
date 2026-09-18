@@ -322,10 +322,16 @@ Examples:
 
 The provider may not share a transaction with Overcenter.
 
+In the reference Git core loop, non-effectful judgment is separated from execution. A preflight callback may choose `judgment-required` without receiving the execution permit. If execution proceeds, the kernel validates that permit and commits the durable effect reservation before invoking effectful executor code. Once that boundary is crossed, an executor may no longer downgrade the attempt to ordinary `WAITING`; it must be reconciled as potentially mutating.
+
 That creates the fundamental uncertainty window:
 
 ```text
 authorize
+   |
+preflight judgment
+   |
+reserve effect
    |
 provider effect
    |

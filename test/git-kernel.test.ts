@@ -46,6 +46,146 @@ test('kernel-owned evidence drives dependency chain to DONE', async () => {
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
+test('core loop commits an effect reservation before invoking executor code', async () => {
+  const f = fixture();
+  try {
+    const path = f.path('reserved-core-loop');
+    f.kernel.define({
+      id: 'x',
+      packet: { path, content: 'present' },
+      postcondition: pc(path, 'present'),
+    });
+
+    let executorObservedReservation = false;
+    const result = await runGitCoreLoop(f.kernel, {
+      execute: async (packet, run) => {
+        const head = f.kernel.head()!;
+        const reservation = JSON.parse(
+          execFileSync(
+            'git',
+            ['-C', f.repo, 'show', `${head}:effect-reservation.json`],
+            { encoding: 'utf8' },
+          ),
+        ) as Record<string, unknown>;
+        assert.equal(reservation.run_id, run.id);
+        assert.equal(reservation.execution_generation, run.execution_generation);
+        assert.equal(
+          reservation.execution_authority_commit,
+          run.execution_authority_commit,
+        );
+        executorObservedReservation = true;
+        writeFileSync(String(packet.path), String(packet.content));
+        return { kind: 'ok' };
+      },
+    });
+
+    assert.equal(executorObservedReservation, true);
+    assert.equal(result.state, 'IDLE');
+    assert.equal(f.kernel.inspect()[0].status, 'DONE');
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('core loop never invokes executor when effect reservation cannot commit', async () => {
+  const f = fixture();
+  try {
+    const path = f.path('reservation-failure');
+    const lock = join(f.repo, 'refs/overcenter/state.lock');
+    f.kernel.define({
+      id: 'x',
+      packet: { path, content: 'present' },
+      postcondition: pc(path, 'present'),
+    });
+
+    let executions = 0;
+    await assert.rejects(
+      runGitCoreLoop(f.kernel, {
+        preflight: async () => {
+          writeFileSync(lock, 'held');
+          return { kind: 'execute' };
+        },
+        execute: async packet => {
+          executions += 1;
+          writeFileSync(String(packet.path), String(packet.content));
+          return { kind: 'ok' };
+        },
+      }),
+      /EFFECT_RESERVATION_CONTENTION_EXHAUSTED/,
+    );
+
+    assert.equal(executions, 0);
+    assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('preflight judgment can WAIT without opening the effect boundary', async () => {
+  const f = fixture();
+  try {
+    const path = f.path('preflight-judgment');
+    f.kernel.define({
+      id: 'x',
+      packet: { path, content: 'present' },
+      postcondition: pc(path, 'present'),
+    });
+
+    let executions = 0;
+    const result = await runGitCoreLoop(f.kernel, {
+      preflight: async () => ({
+        kind: 'judgment-required',
+        question: 'human choice required',
+      }),
+      execute: async () => {
+        executions += 1;
+        return { kind: 'ok' };
+      },
+    });
+
+    assert.equal(result.state, 'WAITING');
+    assert.equal(executions, 0);
+    assert.equal(f.kernel.inspect()[0].status, 'WAITING');
+
+    const commits = execFileSync(
+      'git',
+      ['-C', f.repo, 'rev-list', 'refs/overcenter/state'],
+      { encoding: 'utf8' },
+    ).trim().split(/\n+/).filter(Boolean);
+    for (const commit of commits) {
+      assert.throws(
+        () => execFileSync(
+          'git',
+          ['-C', f.repo, 'cat-file', '-e', `${commit}:effect-reservation.json`],
+          { stdio: 'ignore' },
+        ),
+      );
+    }
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('post-reservation judgment is recovery uncertainty, not WAITING', async () => {
+  const f = fixture();
+  try {
+    const path = f.path('late-judgment');
+    f.kernel.define({
+      id: 'x',
+      packet: { path, content: 'present' },
+      postcondition: pc(path, 'present'),
+    });
+
+    const result = await runGitCoreLoop(f.kernel, {
+      execute: async () => ({
+        kind: 'judgment-required',
+        question: 'too late to assert no effect',
+      }),
+    });
+
+    assert.equal(result.state, 'RECOVERY_REQUIRED');
+    assert.equal(f.kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
+    assert.deepEqual(
+      f.kernel.receipts(result.run!).map(receipt => receipt.disposition),
+      ['RECOVERY_REQUIRED'],
+    );
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
 test('wrong real effect cannot become DONE or READY', () => {
   const f = fixture();
   try {

@@ -15,6 +15,8 @@ derive READY work
         ↓
 claim @ exact revision
         ↓
+reserve effect durably
+        ↓
 execute uncertain action
         ↓
 observe authoritative reality
@@ -59,6 +61,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Projection is separable from Git transport.** Pure fact replay and lifecycle derivation are tested independently from Git object storage and authority-ref CAS.
 - **Claims are exact-revision bound.** Stale authority and stale semantic obligation identity are rejected rather than silently reinterpreted.
 - **Execution authority is independently fenced.** Within the Git kernel permit boundary, recovery can rotate an in-flight run to a new execution generation without changing its claimed revision; the old generation's ephemeral permit is then rejected.
+- **The normal core loop cannot invoke effectful executor code before reservation.** Preflight judgment happens before the effect boundary; then the kernel validates the execution permit and durably reserves the effect before invoking the executor callback. A failed reservation means provider code is never called.
 - **Unresolved effects survive authority handoff.** Effects routed through the kernel reservation boundary are durably reserved before mutation; a successor generation may reconcile the reservation but cannot issue another effect through that boundary until authoritative observation settles it.
 - **Semantic dependency identity is explicit.** Control dependencies constrain executability; semantic dependencies contribute selected upstream identity to downstream meaning. Historical realizations are reused only when the current obligation key still matches.
 - **Workers are disposable.** A worker can disappear with its checkout, cache, local database, refs, and process memory; a fresh worker can reconstruct the unresolved run from authority and reconcile it.
@@ -82,7 +85,7 @@ The repository deliberately does **not** establish that:
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
 - an executor cannot misuse every provider capability it is granted;
-- all provider mutation adapters are already forced through the execution-permit/effect-reservation boundary;
+- direct low-level callers outside `runGitCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the GitHub hosted proof provides coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped.
 
 The safety claim is narrower: an uncertain or even locally hostile worker does not get to manufacture authoritative project truth merely by claiming success.
