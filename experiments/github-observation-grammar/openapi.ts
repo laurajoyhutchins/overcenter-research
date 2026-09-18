@@ -58,22 +58,48 @@ export interface ObservationOperation {
   github_extensions: JsonObject;
 }
 
+export interface ObservationObserver {
+  kind: string;
+  id: string;
+}
+
+export interface ObservationProvenance {
+  schema_sha256: string;
+  observer: ObservationObserver;
+  clock?: () => string;
+}
+
 export interface ObservationRequest {
   method: 'GET' | 'HEAD';
   path_template: string;
   path: string;
   parameters: Record<string, string | number | boolean>;
   headers: Record<string, string>;
+  authorization: 'bearer' | 'none' | 'unknown';
+}
+
+export interface ObservationResponseMetadata {
+  date: string | null;
+  etag: string | null;
+  link: string | null;
+  request_id: string | null;
 }
 
 export interface ObservationRedirect {
   location: string | null;
 }
 
+export interface ObservationTransportRequestEvidence {
+  headers: Record<string, string>;
+  authorization: 'bearer' | 'none';
+}
+
 export interface ObservationTransportResponse {
   status: number;
   body?: unknown;
   redirect?: ObservationRedirect;
+  request_evidence?: ObservationTransportRequestEvidence;
+  response: ObservationResponseMetadata;
 }
 
 export interface RawObservation {
@@ -81,13 +107,18 @@ export interface RawObservation {
     provider: 'github';
     api_version: string;
     operation_id: string;
+    schema_sha256: string;
   };
+  observer: ObservationObserver;
+  observed_at: string;
   request: ObservationRequest;
+  response: ObservationResponseMetadata;
   outcome: {
     status: number;
     visibility: ObservationVisibility;
     value?: unknown;
     redirect?: ObservationRedirect;
+    transport_error?: string;
   };
 }
 
@@ -101,6 +132,8 @@ export interface ObservationTransport {
 }
 
 const READ_METHODS = new Set(['get', 'head']);
+const SHA256 = /^[0-9a-f]{64}$/i;
+const RESERVED_REQUEST_HEADERS = new Set(['accept', 'authorization', 'user-agent', 'x-github-api-version']);
 
 function asParameter(value: OpenApiParameter): ObservationParameter {
   if (typeof value.name !== 'string' || !['path', 'query', 'header'].includes(String(value.in))) {
@@ -173,10 +206,30 @@ function encodePathValue(value: string | number | boolean): string {
   return encodeURIComponent(String(value));
 }
 
-function materializeRequest(operation: ObservationOperation, values: Record<string, string | number | boolean>): ObservationRequest {
+function mergeAuxiliaryHeaders(
+  generated: Record<string, string>,
+  auxiliary: Record<string, string>,
+): Record<string, string> {
+  const merged = { ...generated };
+  for (const [name, value] of Object.entries(auxiliary)) {
+    if (RESERVED_REQUEST_HEADERS.has(name.toLowerCase())) {
+      throw new Error(`GITHUB_OBSERVATION_HEADER_RESERVED:${name}`);
+    }
+    const collision = Object.keys(merged).find(existing => existing.toLowerCase() === name.toLowerCase());
+    if (collision) throw new Error(`OBSERVATION_HEADER_DUPLICATE:${name}`);
+    merged[name] = value;
+  }
+  return merged;
+}
+
+function materializeRequest(
+  operation: ObservationOperation,
+  values: Record<string, string | number | boolean>,
+  auxiliaryHeaders: Record<string, string> = {},
+): ObservationRequest {
   let path = operation.path_template;
   const query = new URLSearchParams();
-  const headers: Record<string, string> = {};
+  const operationHeaders: Record<string, string> = {};
   const parameters: Record<string, string | number | boolean> = {};
   const declared = new Set(operation.parameters.map(parameter => parameter.name));
   for (const name of Object.keys(values)) {
@@ -191,7 +244,7 @@ function materializeRequest(operation: ObservationOperation, values: Record<stri
     parameters[parameter.name] = value;
     if (parameter.in === 'path') path = path.replace(`{${parameter.name}}`, encodePathValue(value));
     if (parameter.in === 'query') query.append(parameter.name, String(value));
-    if (parameter.in === 'header') headers[parameter.name] = String(value);
+    if (parameter.in === 'header') operationHeaders[parameter.name] = String(value);
   }
   if (/\{[^}]+\}/.test(path)) throw new Error('OBSERVATION_PATH_UNRESOLVED');
   const suffix = query.toString();
@@ -200,16 +253,38 @@ function materializeRequest(operation: ObservationOperation, values: Record<stri
     path_template: operation.path_template,
     path: suffix ? `${path}?${suffix}` : path,
     parameters,
-    headers,
+    headers: mergeAuxiliaryHeaders(operationHeaders, auxiliaryHeaders),
+    authorization: 'unknown',
   };
 }
+
+function assertProvenance(provenance: ObservationProvenance): void {
+  if (!SHA256.test(provenance.schema_sha256)) throw new Error('OBSERVATION_SCHEMA_DIGEST_REQUIRED');
+  if (!provenance.observer || typeof provenance.observer.kind !== 'string' || provenance.observer.kind.length === 0) {
+    throw new Error('OBSERVATION_OBSERVER_KIND_REQUIRED');
+  }
+  if (typeof provenance.observer.id !== 'string' || provenance.observer.id.length === 0) {
+    throw new Error('OBSERVATION_OBSERVER_ID_REQUIRED');
+  }
+}
+
+const emptyResponseMetadata = (): ObservationResponseMetadata => ({
+  date: null,
+  etag: null,
+  link: null,
+  request_id: null,
+});
 
 export async function observeOperation(
   operation: ObservationOperation,
   values: Record<string, string | number | boolean>,
   transport: ObservationTransport,
+  provenance: ObservationProvenance,
+  { headers = {} }: { headers?: Record<string, string> } = {},
 ): Promise<RawObservation> {
-  const request = materializeRequest(operation, values);
+  assertProvenance(provenance);
+  const request = materializeRequest(operation, values, headers);
+  const clock = provenance.clock ?? (() => new Date().toISOString());
   try {
     const response = await transport.request({
       method: operation.method,
@@ -222,13 +297,22 @@ export async function observeOperation(
       : response.status === 404
         ? 'not-observed'
         : 'indeterminate';
+    const sent = response.request_evidence;
     return {
       contract: {
         provider: 'github',
         api_version: operation.api_version,
         operation_id: operation.operation_id,
+        schema_sha256: provenance.schema_sha256.toLowerCase(),
       },
-      request,
+      observer: structuredClone(provenance.observer),
+      observed_at: clock(),
+      request: {
+        ...request,
+        headers: sent ? structuredClone(sent.headers) : request.headers,
+        authorization: sent?.authorization ?? 'unknown',
+      },
+      response: response.response,
       outcome: {
         status: response.status,
         visibility,
@@ -236,22 +320,26 @@ export async function observeOperation(
         ...(response.redirect === undefined ? {} : { redirect: response.redirect }),
       },
     };
-  } catch {
+  } catch (error: unknown) {
     return {
       contract: {
         provider: 'github',
         api_version: operation.api_version,
         operation_id: operation.operation_id,
+        schema_sha256: provenance.schema_sha256.toLowerCase(),
       },
+      observer: structuredClone(provenance.observer),
+      observed_at: clock(),
       request,
+      response: emptyResponseMetadata(),
       outcome: {
         status: 0,
         visibility: 'indeterminate',
+        transport_error: error instanceof Error ? error.message : String(error),
       },
     };
   }
 }
-
 
 export interface FetchHeadersLike {
   get(name: string): string | null;
@@ -295,42 +383,46 @@ export class GitHubRestTransport implements ObservationTransport {
     apiVersion: string;
   }): Promise<ObservationTransportResponse> {
     if (!path.startsWith('/')) throw new Error('GITHUB_OBSERVATION_PATH_MUST_BE_ABSOLUTE');
-    const reservedHeaders = new Set(['accept', 'authorization', 'user-agent', 'x-github-api-version']);
     for (const name of Object.keys(operationHeaders)) {
-      if (reservedHeaders.has(name.toLowerCase())) throw new Error(`GITHUB_OBSERVATION_HEADER_RESERVED:${name}`);
+      if (RESERVED_REQUEST_HEADERS.has(name.toLowerCase())) throw new Error(`GITHUB_OBSERVATION_HEADER_RESERVED:${name}`);
     }
-    const headers: Record<string, string> = {
+    const visibleHeaders: Record<string, string> = {
       ...operationHeaders,
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': apiVersion,
       'User-Agent': 'overcenter-research-observer',
     };
-    if (this.token) headers.Authorization = `Bearer ${this.token}`;
+    const wireHeaders = { ...visibleHeaders };
+    if (this.token) wireHeaders.Authorization = `Bearer ${this.token}`;
     const response = await this.fetchFn(`${this.baseUrl}${path}`, {
       method,
-      headers,
+      headers: wireHeaders,
       redirect: 'manual',
     });
-    const redirect = response.status >= 300 && response.status < 400
+    const metadata: ObservationResponseMetadata = {
+      date: response.headers.get('date'),
+      etag: response.headers.get('etag'),
+      link: response.headers.get('link'),
+      request_id: response.headers.get('x-github-request-id'),
+    };
+    const redirect = response.status >= 300 && response.status < 400 && response.status !== 304
       ? { location: response.headers.get('location') }
       : undefined;
     const text = method === 'HEAD' ? '' : await response.text();
-    if (!text) return {
+    const common = {
       status: response.status,
+      request_evidence: {
+        headers: visibleHeaders,
+        authorization: this.token ? 'bearer' as const : 'none' as const,
+      },
+      response: metadata,
       ...(redirect === undefined ? {} : { redirect }),
     };
+    if (!text) return common;
     try {
-      return {
-        status: response.status,
-        body: JSON.parse(text),
-        ...(redirect === undefined ? {} : { redirect }),
-      };
+      return { ...common, body: JSON.parse(text) };
     } catch {
-      return {
-        status: response.status,
-        body: text,
-        ...(redirect === undefined ? {} : { redirect }),
-      };
+      return { ...common, body: text };
     }
   }
 }
