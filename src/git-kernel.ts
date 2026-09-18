@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const STATE_REF = 'refs/overcenter/state';
-const OBLIGATION_SCHEMA = 'overcenter-git-obligation-v1';
+const OBLIGATION_SCHEMA = 'overcenter-git-obligation-v2';
 const CLAIM_SCHEMA = 'overcenter-git-claim-v2';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v3';
 
