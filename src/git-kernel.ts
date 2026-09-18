@@ -624,16 +624,21 @@ export class GitOvercenterKernel {
     receiptsByRun:Map<string,Receipt>,
   ): string|null {
     const semantic=work.dependencies
-      .filter((edge):edge is Extract<Dependency,{kind:'semantic'}>=>edge.kind==='semantic')
-      .map(edge=>structuredClone(edge))
-      .sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+      .filter((edge):edge is Extract<Dependency,{kind:'semantic'}>=>edge.kind==='semantic');
 
-    const consumed:Array<{edge:Extract<Dependency,{kind:'semantic'}>;identity:string}>=[];
+    const consumed:Array<{
+      consumes:Extract<Dependency,{kind:'semantic'}>['consumes'];
+      identity:string;
+    }>=[];
     for (const edge of semantic) {
       const identity=this.#semanticDependencyIdentity(state,edge,lifecycles,receiptsByRun);
       if (!identity) return null;
-      consumed.push({edge,identity});
+      consumed.push({
+        consumes:structuredClone(edge.consumes),
+        identity,
+      });
     }
+    consumed.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
 
     return this.#digest({
       id:work.id,
