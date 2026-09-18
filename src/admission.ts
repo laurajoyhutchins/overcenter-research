@@ -42,33 +42,43 @@ function validateSemanticEdges(state:State):void {
   }
 }
 
-function validateStaticEffectOrdering(state:State):void {
-  const obligations=Object.values(state.obligations)
-    .sort((a,b)=>a.id.localeCompare(b.id));
+export function staticEffectConflictError(
+  state:State,
+  workId:string,
+):string|null {
+  const work=state.obligations[workId];
+  if (!work) return null;
+  const semantics=effectSemantics(work.postcondition);
+  if (!semantics) return null;
 
-  for (let i=0;i<obligations.length;i+=1) {
-    const left=obligations[i];
-    const leftSemantics=effectSemantics(left.postcondition);
-    if (!leftSemantics) continue;
+  for (const other of Object.values(state.obligations)
+    .sort((a,b)=>a.id.localeCompare(b.id))) {
+    if (other.id===work.id) continue;
+    const otherSemantics=effectSemantics(other.postcondition);
+    if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
 
-    for (let j=i+1;j<obligations.length;j+=1) {
-      const right=obligations[j];
-      const rightSemantics=effectSemantics(right.postcondition);
-      if (!rightSemantics || rightSemantics.resource!==leftSemantics.resource) continue;
+    const sameDesired=otherSemantics.desired===semantics.desired;
+    if (
+      sameDesired
+      && semantics.sameDesiredCommutes
+      && otherSemantics.sameDesiredCommutes
+    ) continue;
 
-      const sameDesired=rightSemantics.desired===leftSemantics.desired;
-      if (
-        sameDesired
-        && leftSemantics.sameDesiredCommutes
-        && rightSemantics.sameDesiredCommutes
-      ) continue;
-
-      const ordered=dependsOn(state,left.id,right.id)
-        || dependsOn(state,right.id,left.id);
-      if (!ordered) {
-        throw new Error(`UNORDERED_EFFECT_CONFLICT:${left.id}:${right.id}`);
-      }
+    const ordered=dependsOn(state,work.id,other.id)
+      || dependsOn(state,other.id,work.id);
+    if (!ordered) {
+      const [left,right]=[work.id,other.id].sort();
+      return `UNORDERED_EFFECT_CONFLICT:${left}:${right}`;
     }
+  }
+  return null;
+}
+
+function validateStaticEffectOrdering(state:State):void {
+  for (const obligation of Object.values(state.obligations)
+    .sort((a,b)=>a.id.localeCompare(b.id))) {
+    const error=staticEffectConflictError(state,obligation.id);
+    if (error) throw new Error(error);
   }
 }
 
