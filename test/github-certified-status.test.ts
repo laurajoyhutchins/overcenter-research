@@ -9,17 +9,33 @@ import {
   type GithubJsonGet,
 } from '../src/providers/github-certified-status.ts';
 import { projectReceipt } from '../src/projection.ts';
+import { effectSemantics, verifiedContentIdentity } from '../src/semantics.ts';
 
 const COMMIT='a'.repeat(40);
 
-function postcondition(context='overcenter/proof'):GitHubCommitStatusPostcondition {
+function postcondition(
+  context='overcenter/proof',
+  repositoryFullName='acme/widget',
+):GitHubCommitStatusPostcondition {
   return {
-    verifier:'github-commit-status/v1',
+    verifier:'github-commit-status/v2',
     provider:'github',
     repository_id:42,
+    repository_full_name:repositoryFullName,
     commit_sha:COMMIT,
     context,
     expected_state:'success',
+  };
+}
+
+function repository(overrides:Record<string,unknown>={}) {
+  return {
+    id:42,
+    node_id:'R_42',
+    full_name:'acme/widget',
+    name:'widget',
+    owner:{login:'acme'},
+    ...overrides,
   };
 }
 
@@ -35,13 +51,14 @@ function status(id:number,context:string,state:'error'|'failure'|'pending'|'succ
   };
 }
 
-function provider(pages:unknown[][]):{get:GithubJsonGet;calls:string[]} {
+function provider(
+  pages:unknown[][],
+  repositoryBody:unknown=repository(),
+):{get:GithubJsonGet;calls:string[]} {
   const calls:string[]=[];
   const get:GithubJsonGet=(_token,path)=>{
     calls.push(path);
-    if (path==='/repositories/42') {
-      return {id:42,full_name:'acme/widget'};
-    }
+    if (path==='/repos/acme/widget') return repositoryBody;
     const match=/[?&]page=(\d+)/.exec(path);
     if (!match) throw new Error(`unexpected provider path: ${path}`);
     return pages[Number(match[1])-1]??[];
@@ -69,7 +86,15 @@ function receiptFor(observed:ReturnType<typeof observePostcondition>):ReturnType
   return projectReceipt(fact,work);
 }
 
-test('certified GitHub status membership preserves positive settlement evidence', () => {
+test('repository full name is a locator, not GitHub status effect identity', () => {
+  const before=postcondition('overcenter/proof','acme/widget');
+  const after=postcondition('overcenter/proof','renamed-acme/renamed-widget');
+
+  assert.equal(verifiedContentIdentity(before),verifiedContentIdentity(after));
+  assert.deepEqual(effectSemantics(before),effectSemantics(after));
+});
+
+test('certified repository identity and status membership preserve positive settlement evidence', () => {
   const p=provider([[status(1,'Overcenter/Proof')]]);
   const observed=observePostcondition(postcondition(),{
     githubToken:'token',
@@ -79,16 +104,26 @@ test('certified GitHub status membership preserves positive settlement evidence'
 
   assert.equal(observed.mutation_certainty,'present');
   assert.equal(observed.actual_state,'success');
-  assert.deepEqual(observed.legacy_interpretation,{mutation_certainty:'present'});
+  assert.equal(observed.repository_id,42);
+  assert.equal(observed.repository_full_name,'acme/widget');
 
   const evidence=observed.provider_evidence as Record<string,unknown>;
   assert.equal(evidence.schema_sha256,GITHUB_OPENAPI_SHA256);
-  assert.equal(evidence.operation_id,'repos/list-commit-statuses-for-ref');
+  assert.equal(evidence.status_operation_id,'repos/list-commit-statuses-for-ref');
+  const repositoryEvidence=evidence.repository as Record<string,unknown>;
+  assert.equal(repositoryEvidence.operation_id,'repos/get');
+  assert.equal(repositoryEvidence.node_id,'R_42');
+  assert.equal(repositoryEvidence.canonical_full_name,'acme/widget');
   assert.equal((evidence.pages as Array<Record<string,unknown>>).length,1);
   assert.equal(receiptFor(observed).disposition,'DONE');
+  assert.deepEqual(p.calls.slice(0,2),[
+    '/repos/acme/widget',
+    `/repos/acme/widget/commits/${COMMIT}/statuses?per_page=100&page=1`,
+  ]);
+  assert.ok(!p.calls.some(path=>path.startsWith('/repositories/')));
 });
 
-test('missing commit status is indeterminate even though the legacy interpretation was absent', () => {
+test('missing commit status remains indeterminate after certified repository lookup', () => {
   const p=provider([[]]);
   const observed=observePostcondition(postcondition(),{
     githubToken:'token',
@@ -99,7 +134,21 @@ test('missing commit status is indeterminate even though the legacy interpretati
   assert.equal(observed.mutation_certainty,'uncertain');
   assert.equal(observed.negative_evidence_authoritative,false);
   assert.equal(observed.observation_error,'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
-  assert.deepEqual(observed.legacy_interpretation,{mutation_certainty:'absent'});
+  assert.equal(receiptFor(observed).disposition,'RECOVERY_REQUIRED');
+});
+
+test('repository locator cannot override stable repository identity', () => {
+  const p=provider([[status(1,'overcenter/proof')]],repository({id:43}));
+  const observed=observePostcondition(postcondition(),{
+    githubToken:'token',
+    githubGet:p.get,
+    clock:()=> '2026-09-18T16:03:30.000Z',
+  });
+
+  assert.equal(observed.mutation_certainty,'uncertain');
+  assert.equal(observed.observation_error,'GITHUB_REPOSITORY_IDENTITY_MISMATCH');
+  assert.equal(observed.provider_evidence,undefined);
+  assert.deepEqual(p.calls,['/repos/acme/widget']);
   assert.equal(receiptFor(observed).disposition,'RECOVERY_REQUIRED');
 });
 
@@ -108,6 +157,7 @@ test('certified status scan can prove membership on a later page without upgradi
   const p=provider([first,[status(101,'overcenter/proof')]]);
   const result=observeCertifiedGithubCommitStatus('token',{
     repositoryId:42,
+    repositoryFullName:'acme/widget',
     commitSha:COMMIT,
     context:'overcenter/proof',
     get:p.get,
