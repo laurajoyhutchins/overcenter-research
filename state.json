@@ -76,6 +76,41 @@
       "run_id": "322f96bd-0dc3-4fd7-9d35-849233a6ce2a",
       "claimed_revision": "65e035b23bc1fdc92a354320ebe4097a79447c63",
       "claim_commit": "9d2bc932fc3efaa1d31c7d201e2f65acffdabc69"
+    },
+    "concurrency-35310443402-1-alpha": {
+      "id": "concurrency-35310443402-1-alpha",
+      "deps": [],
+      "packet": {
+        "kind": "github-actions-two-effect-proof/v1",
+        "executor": {
+          "provider": "github-actions/v1",
+          "repository_id": 1354872053,
+          "workflow_run_id": "35310443402",
+          "workflow_run_attempt": "1",
+          "slot": "alpha"
+        },
+        "exact_input": {
+          "kind": "git-commit/v1",
+          "repository_id": 1354872053,
+          "commit_sha": "64209638f1d8136d541c53d2bbecdf819f199b0a"
+        },
+        "effect": {
+          "kind": "github-commit-status/v1",
+          "repository_id": 1354872053,
+          "commit_sha": "64209638f1d8136d541c53d2bbecdf819f199b0a",
+          "context": "overcenter/concurrency/35310443402/1/alpha",
+          "state": "success"
+        }
+      },
+      "postcondition": {
+        "verifier": "github-commit-status/v1",
+        "provider": "github",
+        "repository_id": 1354872053,
+        "commit_sha": "64209638f1d8136d541c53d2bbecdf819f199b0a",
+        "context": "overcenter/concurrency/35310443402/1/alpha",
+        "expected_state": "success"
+      },
+      "status": "READY"
     }
   }
 }
