@@ -1,11 +1,9 @@
-import type {
-  ObservationOperation,
-  RawObservation,
-} from '../../experiments/github-observation-grammar/openapi.ts';
+import type { ProviderObservation } from '../provider-observation/observation.ts';
 import {
-  RESPONSE_SLICES,
   validateObservationSlice,
-} from '../../experiments/github-observation-grammar/response-slice.ts';
+  type ResponseFieldSpec,
+  type StructuralOperation,
+} from '../provider-observation/response-slice.ts';
 import { githubGet, githubStatusContextKey } from './github-status.ts';
 
 export const GITHUB_API_VERSION='2026-03-10';
@@ -13,6 +11,49 @@ export const GITHUB_OPENAPI_SOURCE_COMMIT='d4278c869e367f5d6d4e0f46878119128abba
 export const GITHUB_OPENAPI_SHA256='9d0534e66064a95f0637d542b463a868fc60a53a8cac37eddc85d72a465b8810';
 
 export type GithubJsonGet=(token:string,path:string)=>unknown;
+
+interface GithubObservationParameter {
+  name:string;
+  in:'path'|'query';
+  required:boolean;
+  schema:unknown;
+}
+
+interface GithubCommitStatusesOperation extends StructuralOperation {
+  provider:'github';
+  api_version:string;
+  method:'GET';
+  path_template:string;
+  parameters:GithubObservationParameter[];
+  outcomes:Array<{
+    status:string;
+    description:string;
+    schema:unknown;
+  }>;
+  github_extensions:Record<string,unknown>;
+}
+
+interface GithubStatusObservationRequest {
+  method:'GET';
+  path_template:string;
+  path:string;
+  parameters:Record<string,string|number|boolean>;
+  headers:Record<string,string>;
+  authorization:'bearer';
+}
+
+interface GithubStatusObservationResponse {
+  date:string|null;
+  etag:string|null;
+  link:string|null;
+  request_id:string|null;
+}
+
+type GithubStatusRawObservation=ProviderObservation<
+  'github',
+  GithubStatusObservationRequest,
+  GithubStatusObservationResponse
+>;
 
 export interface CertifiedGithubStatusPageEvidence {
   page:number;
@@ -56,7 +97,17 @@ interface StatusMember {
   updated_at:string;
 }
 
-export const GITHUB_COMMIT_STATUSES_OPERATION:ObservationOperation={
+export const GITHUB_COMMIT_STATUS_RESPONSE_SLICE=[
+  {path:'[].id'},
+  {path:'[].node_id'},
+  {path:'[].state'},
+  {path:'[].context'},
+  {path:'[].target_url'},
+  {path:'[].created_at'},
+  {path:'[].updated_at'},
+] as const satisfies readonly ResponseFieldSpec[];
+
+export const GITHUB_COMMIT_STATUSES_OPERATION:GithubCommitStatusesOperation={
   provider:'github',
   api_version:GITHUB_API_VERSION,
   method:'GET',
@@ -114,7 +165,7 @@ function rawStatusObservation({
   commitSha:string;
   page:number;
   observedAt:string;
-}):RawObservation {
+}):GithubStatusRawObservation {
   const perPage=100;
   return {
     contract:{
@@ -141,7 +192,7 @@ function rawStatusObservation({
   };
 }
 
-function certifiedMembers(observation:RawObservation):{
+function certifiedMembers(observation:GithubStatusRawObservation):{
   members:StatusMember[];
   validated_paths:string[];
   optional_absent_paths:string[];
@@ -149,7 +200,7 @@ function certifiedMembers(observation:RawObservation):{
   const certified=validateObservationSlice(
     GITHUB_COMMIT_STATUSES_OPERATION,
     observation,
-    RESPONSE_SLICES['repos/list-commit-statuses-for-ref'],
+    GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
   );
   const members=certified.outcome.value as StatusMember[];
   for (const member of members) {
