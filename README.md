@@ -126,6 +126,8 @@ The command name states what kind of evidence a green check supports:
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
+`.github/workflows/tests.yml` enforces the first three tiers on every pull request and every push to `main`. The live tier remains separate because it exercises real provider boundaries and permissions.
+
 Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
