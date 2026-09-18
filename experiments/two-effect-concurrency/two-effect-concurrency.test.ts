@@ -56,11 +56,11 @@ test('two independent obligations can remain EXECUTING simultaneously', () => {
     f.kernel.define({id:'a',postcondition:pc(f.path('a'),'A')});
     f.kernel.define({id:'b',postcondition:pc(f.path('b'),'B')});
 
-    const first=f.kernel.deriveReadyWork()!;
+    const first=f.kernel.nextReadyWork()!;
     assert.equal(first.id,'a');
     const runA=f.kernel.claim('a',first.revision);
 
-    const second=f.kernel.deriveReadyWork()!;
+    const second=f.kernel.nextReadyWork()!;
     assert.equal(second.id,'b');
     const runB=f.kernel.claim('b',second.revision);
 
@@ -83,23 +83,23 @@ test('claim identity remains exact after later claims move authority', () => {
     f.kernel.define({id:'a',postcondition:pc(a,'A')});
     f.kernel.define({id:'b',postcondition:pc(b,'B')});
 
-    const runA=f.kernel.claim('a',f.kernel.deriveReadyWork()!.revision);
-    const runB=f.kernel.claim('b',f.kernel.deriveReadyWork()!.revision);
+    const runA=f.kernel.claim('a',f.kernel.nextReadyWork()!.revision);
+    const runB=f.kernel.claim('b',f.kernel.nextReadyWork()!.revision);
     writeFileSync(a,'A');
 
-    f.kernel.recoverInterrupted(runB.id,{source:'test',order:'first'});
-    const recoveryA=f.kernel.recoverInterrupted(runA.id,{source:'test',order:'second'});
+    f.kernel.recordExecutionTerminated(runB.id,{source:'test',order:'first'});
+    const recoveryA=f.kernel.recordExecutionTerminated(runA.id,{source:'test',order:'second'});
     assert.equal(recoveryA.claim_commit,runA.claim_commit);
 
     const bAbsent=f.kernel.reconcile(runB.id);
     const aDone=f.kernel.reconcile(runA.id);
-    assert.equal(bAbsent.disposition,'READY');
+    assert.equal(bAbsent.disposition,'ABSENT');
     assert.equal(aDone.disposition,'DONE');
     assert.equal(aDone.claim_commit,runA.claim_commit);
 
-    const retryB=f.kernel.claim('b',f.kernel.deriveReadyWork()!.revision);
+    const retryB=f.kernel.claim('b',f.kernel.nextReadyWork()!.revision);
     writeFileSync(b,'B');
-    const bDone=f.kernel.resolve(retryB.id);
+    const bDone=f.kernel.reconcile(retryB.id);
     assert.equal(bDone.disposition,'DONE');
     assert.deepEqual(
       f.kernel.inspect().map(work=>[work.id,work.status]),
@@ -117,8 +117,8 @@ test('two fresh recovery processes concurrently settle independent effects throu
     const a=f.path('a'), b=f.path('b');
     f.kernel.define({id:'a',postcondition:pc(a,'A')});
     f.kernel.define({id:'b',postcondition:pc(b,'B')});
-    const runA=f.kernel.claim('a',f.kernel.deriveReadyWork()!.revision);
-    const runB=f.kernel.claim('b',f.kernel.deriveReadyWork()!.revision);
+    const runA=f.kernel.claim('a',f.kernel.nextReadyWork()!.revision);
+    const runB=f.kernel.claim('b',f.kernel.nextReadyWork()!.revision);
     writeFileSync(a,'A');
     writeFileSync(b,'B');
 
@@ -139,7 +139,7 @@ test('two fresh recovery processes concurrently settle independent effects throu
       writeFileSync(ready,'ready');
       while (!existsSync(go)) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);
       try {
-        const receipt=kernel.resolve(runId);
+        const receipt=kernel.reconcile(runId);
         process.stdout.write(JSON.stringify({ok:true,receipt}));
       } catch (error) {
         process.stdout.write(JSON.stringify({ok:false,error:error.message}));

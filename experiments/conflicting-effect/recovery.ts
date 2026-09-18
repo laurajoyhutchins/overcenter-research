@@ -20,7 +20,7 @@ const work=kernel.inspect().find(candidate=>candidate.id.endsWith(`-${slot}`) &&
 assert.ok(work);
 assert.ok(work.run_id);
 
-kernel.recoverInterrupted(work.run_id,{source:'github-actions-job-supervisor',slot,outcome});
+kernel.recordExecutionTerminated(work.run_id,{source:'github-actions-job-supervisor',slot,outcome});
 const receipt=kernel.reconcile(work.run_id);
 assert.equal(receipt.disposition,'DONE');
 assert.equal(receipt.verified,true);

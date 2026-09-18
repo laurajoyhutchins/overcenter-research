@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { HistoricalRun, Receipt, State } from '../src/facts.ts';
+import type { HistoricalRun, ObligationCatalog, Receipt } from '../src/facts.ts';
 import { deriveLifecycles, obligationKey } from '../src/lifecycle.ts';
 import { claimabilityError, projectWork } from '../src/eligibility.ts';
 
@@ -11,7 +11,7 @@ const work:Obligation={
   packet:{},
   postcondition:{verifier:'file-content-equals/v1',path:'/provider/a',content:'A'},
 };
-const state:State={obligations:{a:work},definition_commits:{a:'define-a'}};
+const state:ObligationCatalog={obligations:{a:work},definition_commits:{a:'define-a'}};
 
 test('unrealized lifecycle becomes public READY only after eligibility',()=>{
   const lifecycles=deriveLifecycles(state,new Map(),new Map());

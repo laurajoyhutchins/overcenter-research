@@ -41,7 +41,7 @@ assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
 if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha, sourceSha, 'settlement input identity drifted');
 
-const recovery = kernel.recoverInterrupted(work.run_id, {
+const recovery = kernel.recordExecutionTerminated(work.run_id, {
   source: 'github-actions-job-supervisor',
   workflow_run_id: workflowRunId,
   workflow_run_attempt: workflowRunAttempt,
