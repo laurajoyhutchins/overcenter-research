@@ -200,8 +200,14 @@
         "context": "overcenter/trust-proof/35310377177/1",
         "expected_state": "success"
       },
-      "status": "READY"
+      "status": "EXECUTING",
+      "run_id": "2d694eb9-12a6-46fa-852e-1ce4816ae3e6",
+      "claimed_revision": "811d5384acbd57da7749d853e5addf8c1bbb604c"
     }
   },
-  "active_run": null
+  "active_run": {
+    "id": "2d694eb9-12a6-46fa-852e-1ce4816ae3e6",
+    "obligation_id": "actions-trust-proof-35310377177-1",
+    "claimed_revision": "811d5384acbd57da7749d853e5addf8c1bbb604c"
+  }
 }
