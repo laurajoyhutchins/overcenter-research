@@ -7,7 +7,7 @@ import {
   RECEIPT_SCHEMA,
 } from '../src/facts.ts';
 import type { FactCommit, ObligationFact, ReceiptFact } from '../src/facts.ts';
-import { obligationKey } from '../src/graph.ts';
+import { obligationKey } from '../src/lifecycle.ts';
 import { replayProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
 
