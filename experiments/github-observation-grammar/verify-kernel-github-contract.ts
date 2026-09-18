@@ -21,6 +21,9 @@ import {
 import {
   GITHUB_REF_OPERATION,
 } from '../../src/providers/github-certified-ref.ts';
+import {
+  GITHUB_PULL_REQUEST_OPERATION,
+} from '../../src/providers/github-certified-pr.ts';
 
 const schemaPath=process.argv[2];
 if (!schemaPath) throw new Error('usage: verify-kernel-github-contract.ts <openapi.json>');
@@ -170,6 +173,12 @@ const ref=verifyOperation({
   fields:RESPONSE_SLICES['git/get-ref'],
 });
 
+const pullRequest=verifyOperation({
+  pathTemplate:'/repos/{owner}/{repo}/pulls/{pull_number}',
+  generated:GITHUB_PULL_REQUEST_OPERATION,
+  fields:RESPONSE_SLICES['pulls/get'],
+});
+
 const statuses=verifyOperation({
   pathTemplate:'/repos/{owner}/{repo}/commits/{ref}/statuses',
   generated:GITHUB_COMMIT_STATUSES_OPERATION,
@@ -178,5 +187,5 @@ const statuses=verifyOperation({
 
 console.log(JSON.stringify({
   schema_sha256:actualDigest,
-  operations:[repository,ref,statuses],
+  operations:[repository,ref,pullRequest,statuses],
 },null,2));
