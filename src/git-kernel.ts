@@ -1,7 +1,8 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type {
   Data,
   ExecuteOutcome,
+  ExecutionPermit,
   LoopOptions,
   LoopResult,
   Observation,
@@ -13,13 +14,18 @@ import { GitFactStore } from './git-store.ts';
 import { observePostcondition } from './observation.ts';
 import {
   CLAIM_SCHEMA,
+  EFFECT_RESERVATION_SCHEMA,
+  EXECUTION_AUTHORITY_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
   normalizeObligation,
 } from './facts.ts';
 import type {
   ClaimFact,
+  EffectReservationFact,
+  ExecutionAuthorityFact,
   FactCommit,
+  HistoricalRun,
   ObligationFact,
   ObligationInput,
   Receipt,
@@ -152,7 +158,7 @@ export class GitOvercenterKernel {
     return work ? projectWork(state,work,head,history.lifecycles) : null;
   }
 
-  claim(id:string,expectedRevision:string):Run {
+  claim(id:string,expectedRevision:string):ExecutionPermit {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
     const {state,history}=this.#projection(head);
@@ -164,12 +170,15 @@ export class GitOvercenterKernel {
     if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
 
     const runId=randomUUID();
+    const executionCapability=randomUUID();
+    const executionCapabilitySha256=this.#capabilityDigest(executionCapability);
     const claim:ClaimFact={
       schema:CLAIM_SCHEMA,
       run_id:runId,
       obligation_id:id,
       claimed_revision:head,
       obligation_key:key,
+      execution_capability_sha256:executionCapabilitySha256,
     };
     const commit=this.#store.createCommit(
       head,
@@ -183,19 +192,108 @@ export class GitOvercenterKernel {
       claimed_revision:head,
       claim_commit:commit,
       obligation_key:key,
+      execution_generation:1,
+      execution_authority_commit:commit,
+      execution_capability_sha256:executionCapabilitySha256,
+      execution_capability:executionCapability,
     };
   }
 
-  resolve(runId:string):Receipt {
+  acquireExecution(runId:string):ExecutionPermit {
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const head=this.#requireHead();
+      const {history}=this.#projection(head);
+      const run=history.runs.get(runId);
+      if (!run) throw new Error('UNKNOWN_RUN');
+      const prior=history.receiptsByRun.get(runId);
+      if (prior && ['DONE','READY'].includes(prior.disposition)) {
+        throw new Error('RUN_ALREADY_TERMINAL');
+      }
+      const lifecycle=history.lifecycles.get(run.obligation_id);
+      if (
+        lifecycle?.run?.id!==runId
+        || !['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(lifecycle.status)
+      ) {
+        throw new Error('AUTHORITY_LOST');
+      }
+
+      const executionCapability=randomUUID();
+      const executionCapabilitySha256=this.#capabilityDigest(executionCapability);
+      const fact:ExecutionAuthorityFact={
+        schema:EXECUTION_AUTHORITY_SCHEMA,
+        run_id:run.id,
+        obligation_id:run.obligation_id,
+        generation:run.execution_generation+1,
+        previous_authority_commit:run.execution_authority_commit,
+        execution_capability_sha256:executionCapabilitySha256,
+      };
+      const commit=this.#store.createCommit(
+        head,
+        `overcenter: acquire execution ${run.obligation_id} ${run.id} g${fact.generation}`,
+        {'execution-authority.json':fact},
+      );
+      if (!this.#store.cas(commit,head)) continue;
+      return {
+        ...run,
+        execution_generation:fact.generation,
+        execution_authority_commit:commit,
+        execution_capability_sha256:executionCapabilitySha256,
+        execution_capability:executionCapability,
+      };
+    }
+    throw new Error('EXECUTION_AUTHORITY_CONTENTION_EXHAUSTED');
+  }
+
+  beginEffect(permit:ExecutionPermit):string {
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const head=this.#requireHead();
+      const {history}=this.#projection(head);
+      const run=this.#requireExecutionPermit(history,permit);
+      const lifecycle=history.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
+        throw new Error('RUN_NOT_EXECUTING');
+      }
+      if (history.unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('UNRESOLVED_EFFECT');
+      }
+
+      const fact:EffectReservationFact={
+        schema:EFFECT_RESERVATION_SCHEMA,
+        run_id:run.id,
+        obligation_id:run.obligation_id,
+        execution_generation:run.execution_generation,
+        execution_authority_commit:run.execution_authority_commit,
+      };
+      const commit=this.#store.createCommit(
+        head,
+        `overcenter: reserve effect ${run.obligation_id} ${run.id} g${run.execution_generation}`,
+        {'effect-reservation.json':fact},
+      );
+      if (this.#store.cas(commit,head)) return commit;
+    }
+    throw new Error('EFFECT_RESERVATION_CONTENTION_EXHAUSTED');
+  }
+
+  async performEffect<T>(
+    permit:ExecutionPermit,
+    effect:()=>Promise<T>|T,
+  ):Promise<T> {
+    this.beginEffect(permit);
+    return await effect();
+  }
+
+  resolve(permit:ExecutionPermit):Receipt {
+    const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
       const {state,history}=this.#projection(head);
-      const run=history.runs.get(runId);
-      if (!run) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-      const work=run.obligation;
+      const known=history.runs.get(runId);
+      if (!known) throw new Error('UNKNOWN_RUN');
+      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','READY'].includes(prior.disposition)) return prior;
+      const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=history.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId) {
         if (prior) return prior;
@@ -219,19 +317,24 @@ export class GitOvercenterKernel {
     throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
   }
 
-  deferForJudgment(runId:string,diagnostic:Data={}):Receipt {
+  deferForJudgment(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
+    const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
       const {state,history}=this.#projection(head);
-      const run=history.runs.get(runId);
-      if (!run) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-      const work=run.obligation;
+      const known=history.runs.get(runId);
+      if (!known) throw new Error('UNKNOWN_RUN');
+      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
+      const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=history.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
+      }
+      if (history.unresolvedReservationsByRun.has(runId)) {
+        throw new Error('UNRESOLVED_EFFECT');
       }
 
       const fact=this.#receiptFact(run,work.id,'judgment-required',null,diagnostic);
@@ -246,15 +349,17 @@ export class GitOvercenterKernel {
     throw new Error('DEFER_CONTENTION_EXHAUSTED');
   }
 
-  recoverInterrupted(runId:string,diagnostic:Data={}):Receipt {
+  recoverInterrupted(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
+    const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
       const {state,history}=this.#projection(head);
-      const run=history.runs.get(runId);
-      if (!run) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-      const work=run.obligation;
+      const known=history.runs.get(runId);
+      if (!known) throw new Error('UNKNOWN_RUN');
+      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
+      const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=history.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
         if (prior) return prior;
@@ -279,8 +384,8 @@ export class GitOvercenterKernel {
     throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
   }
 
-  reconcile(runId:string):Receipt {
-    return this.resolve(runId);
+  reconcile(permit:ExecutionPermit):Receipt {
+    return this.resolve(permit);
   }
 
   receipts(runId:string|null=null):Receipt[] {
@@ -303,6 +408,8 @@ export class GitOvercenterKernel {
       parent:this.#store.parent(commit),
       obligation:this.#store.readJson(commit,'obligation.json'),
       claim:this.#store.readJson(commit,'claim.json'),
+      execution_authority:this.#store.readJson(commit,'execution-authority.json'),
+      effect_reservation:this.#store.readJson(commit,'effect-reservation.json'),
       receipt:this.#store.readJson(commit,'receipt.json'),
     }));
     return replayProjection(commits);
@@ -310,6 +417,27 @@ export class GitOvercenterKernel {
 
   #observe(postcondition:Postcondition):Observation {
     return observePostcondition(postcondition,{githubToken:this.githubToken});
+  }
+
+  #capabilityDigest(capability:string):string {
+    return createHash('sha256').update(capability).digest('hex');
+  }
+
+  #requireExecutionPermit(
+    history:Projection['history'],
+    permit:ExecutionPermit,
+  ):HistoricalRun {
+    const run=history.runs.get(permit.id);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    if (
+      permit.execution_generation!==run.execution_generation
+      || permit.execution_authority_commit!==run.execution_authority_commit
+      || permit.execution_capability_sha256!==run.execution_capability_sha256
+      || this.#capabilityDigest(permit.execution_capability)!==run.execution_capability_sha256
+    ) {
+      throw new Error('STALE_EXECUTION_GENERATION');
+    }
+    return run;
   }
 
   #receiptFact(
@@ -325,6 +453,8 @@ export class GitOvercenterKernel {
       obligation_id:obligationId,
       claimed_revision:run.claimed_revision,
       claim_commit:run.claim_commit,
+      execution_generation:run.execution_generation,
+      execution_authority_commit:run.execution_authority_commit,
       kind,
       observed,
       ...(diagnostic?{diagnostic}:{}),
@@ -346,7 +476,7 @@ export async function runGitCoreLoop(
       return {state:'IDLE',advances:i};
     }
 
-    let run:Run;
+    let run:ExecutionPermit;
     try {
       run=kernel.claim(work.id,work.revision);
     } catch (error:unknown) {
@@ -366,7 +496,7 @@ export async function runGitCoreLoop(
       };
     }
     if (outcome.kind==='judgment-required') {
-      kernel.deferForJudgment(run.id,{outcome});
+      kernel.deferForJudgment(run,{outcome});
       return {
         state:'WAITING',
         work:work.id,
@@ -375,7 +505,7 @@ export async function runGitCoreLoop(
       };
     }
 
-    const receipt=kernel.resolve(run.id);
+    const receipt=kernel.resolve(run);
     if (receipt.disposition==='DONE' || receipt.disposition==='READY') continue;
     return {
       state:'RECOVERY_REQUIRED',

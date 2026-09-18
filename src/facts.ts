@@ -10,8 +10,10 @@ import type {
 import { validatePostcondition } from './observation.ts';
 
 export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
-export const CLAIM_SCHEMA='overcenter-git-claim-v2' as const;
-export const RECEIPT_SCHEMA='overcenter-git-receipt-v3' as const;
+export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
+export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
+export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
+export const RECEIPT_SCHEMA='overcenter-git-receipt-v4' as const;
 
 export interface ObligationInput {
   id:string;
@@ -44,6 +46,28 @@ export interface ClaimFact {
   obligation_id:string;
   claimed_revision:string;
   obligation_key:string;
+  execution_capability_sha256:string;
+}
+
+export interface ExecutionAuthorityFact {
+  schema:typeof EXECUTION_AUTHORITY_SCHEMA;
+  run_id:string;
+  obligation_id:string;
+  generation:number;
+  previous_authority_commit:string;
+  execution_capability_sha256:string;
+}
+
+export interface EffectReservationFact {
+  schema:typeof EFFECT_RESERVATION_SCHEMA;
+  run_id:string;
+  obligation_id:string;
+  execution_generation:number;
+  execution_authority_commit:string;
+}
+
+export interface EffectReservation extends EffectReservationFact {
+  reservation_commit:string;
 }
 
 export type ReceiptKind='observation'|'judgment-required'|'execution-terminated';
@@ -54,6 +78,8 @@ export interface ReceiptFact {
   obligation_id:string;
   claimed_revision:string;
   claim_commit:string;
+  execution_generation:number;
+  execution_authority_commit:string;
   kind:ReceiptKind;
   observed:Observation|null;
   diagnostic?:Data;
@@ -76,6 +102,8 @@ export interface FactCommit {
   parent:string|null;
   obligation?:unknown|null;
   claim?:unknown|null;
+  execution_authority?:unknown|null;
+  effect_reservation?:unknown|null;
   receipt?:unknown|null;
 }
 

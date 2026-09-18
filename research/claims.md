@@ -158,9 +158,9 @@ The authority-untrusted executor can corrupt local Git configuration, refs, kern
 
 ### S10. Execution-generation fencing is separate from exact revision
 
-**Status:** Architectural requirement in the implementation; model-checked in the formal kernel.
+**Status:** Demonstrated within the Git kernel execution-permit boundary; model-checked in the formal kernel.
 
-The distributed-fencing research shows that exact Git revision checks cannot reject a stale worker when execution authority changes without moving Git.
+The distributed-fencing research shows that an exact claimed project revision alone cannot reject a stale worker when execution authority changes while that claimed revision remains the same. The Git prototype records the authority rotation as a separate durable fact.
 
 Required predicate:
 
@@ -170,23 +170,31 @@ AND
 exact expected project revision
 ```
 
-**Claim target:**
+**Claim:**
 
-> A stale lease generation must be rejected at the authoritative mutation/settlement boundary even if the project revision is unchanged.
+> A stale execution generation is rejected at the kernel mutation/settlement boundary even if the claimed project revision is unchanged.
 
-**Evidence boundary:** `formal/TransitionKernel.tla` checks `MutationAuthoritySafety`, and `BrokenNoFence.cfg` must produce its counterexample. Main's Git implementation still demonstrates exact-revision CAS and disposable recovery, not the full distributed lease/fencing mechanism.
+Each generation carries an ephemeral execution capability. Only its SHA-256 digest is durable. A fresh recovery process cannot reconstruct the prior capability from Git; trusted recovery rotates the run to a successor generation and stale permits then fail closed.
+
+**Evidence boundary:** `test/git-kernel.test.ts` exercises unchanged-revision generation rotation and stale-permit rejection; destructive recovery experiments rotate authority after worker loss. `formal/TransitionKernel.tla` independently checks `MutationAuthoritySafety`, and `BrokenNoFence.cfg` must produce its counterexample.
+
+**Non-claim:** This does not fence arbitrary provider calls made outside the trusted kernel boundary, and `acquireExecution` itself must remain a trusted supervisor operation rather than an executor capability.
 
 ### S11. An unresolved authorized effect must block conflicting successor effects
 
-**Status:** Architectural requirement in the implementation; model-checked in the formal kernel.
+**Status:** Demonstrated within the Git kernel effect-reservation boundary; model-checked in the formal kernel.
 
 A new authority epoch may need to recover an older uncertain effect, but it must not issue a conflicting successor effect until that reservation is resolved.
 
-**Claim target:**
+**Claim:**
 
-> At most one unresolved authoritative mutation reservation may control a conflicting effect coordinate at a time.
+> An unresolved mutation reservation survives execution-authority rotation and blocks a successor generation from issuing another effect through that boundary until authoritative observation settles the uncertainty.
 
-**Evidence boundary:** `formal/TransitionKernel.tla` checks `ReservationSafety`, and `BrokenNoReservation.cfg` must produce its counterexample. The current Git implementation does not yet carry this reservation across execution-authority generations as a runtime mechanism.
+The reservation is committed before the trusted effect wrapper invokes mutation. Successor generations may reconcile it. Authoritative presence settles `DONE`; authoritative absence releases replay; uncertain negative evidence leaves the reservation recovery-bound.
+
+**Evidence boundary:** kernel regression tests cover presence and authoritative-absence handoff; the disposable-worker, eventual-consistency, concurrency, and stress experiments exercise recovery with fresh generations. `formal/TransitionKernel.tla` independently checks `ReservationSafety`, and `BrokenNoReservation.cfg` must produce its counterexample.
+
+**Non-claim:** The generic core loop does not yet force every possible provider adapter through `beginEffect`/`performEffect`. The runtime guarantee applies to effects executed through the trusted reservation boundary.
 
 ### S12. DONE should be derivable from evidence
 

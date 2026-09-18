@@ -68,8 +68,9 @@ test('reachable state and receipts survive aggressive GC in SHA-256 repo', () =>
     k.initialize();
     k.define({ id: 'x', postcondition: pc(path, 'yes') });
     const run = k.claim('x', k.deriveReadyWork()!.revision);
+    k.beginEffect(run);
     writeFileSync(path, 'yes');
-    k.resolve(run.id);
+    k.resolve(run);
     const head = k.head();
     assert.equal(head?.length, 64);
     execFileSync('git', ['-C', repo, 'gc', '--prune=now'], { stdio: 'ignore' });
@@ -134,14 +135,17 @@ test('fresh clone can resolve a remote claim after claimant directory is destroy
     cloneAgent(authority, a);
     const ka = new GitOvercenterKernel(a, { remote: 'origin' });
     const run = ka.claim('x', ka.deriveReadyWork()!.revision);
+    ka.beginEffect(run);
     writeFileSync(world, 'yes');
     rmSync(a, { recursive: true, force: true });
 
     const b = join(root, 'b.git');
     cloneAgent(authority, b);
     const kb = new GitOvercenterKernel(b, { remote: 'origin' });
-    kb.recoverInterrupted(run.id, { source: 'supervisor' });
-    const done = kb.reconcile(run.id);
+    const recovery = kb.acquireExecution(run.id);
+    assert.equal(recovery.execution_generation, 2);
+    kb.recoverInterrupted(recovery, { source: 'supervisor' });
+    const done = kb.reconcile(recovery);
     assert.equal(done.disposition, 'DONE');
     assert.equal(owner.inspect()[0].status, 'DONE');
   } finally { rmSync(root, { recursive: true, force: true }); }

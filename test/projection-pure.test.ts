@@ -50,6 +50,7 @@ function claimCommit(parent:string):FactCommit {
       obligation_id:'a',
       claimed_revision:parent,
       obligation_key:key,
+      execution_capability_sha256:sha256('permit-1'),
     },
   };
 }
@@ -73,6 +74,8 @@ test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
     obligation_id:'a',
     claimed_revision:'define-1',
     claim_commit:'claim-1',
+    execution_generation:1,
+    execution_authority_commit:'claim-1',
     kind:'observation',
     observed:{
       verifier:'file-content-equals/v1',

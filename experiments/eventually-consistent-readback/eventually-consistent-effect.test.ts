@@ -39,13 +39,15 @@ test('eventually consistent negative readback cannot authorize replay after an u
       }));
     };
 
-    // The provider accepts the mutation, but the caller loses the outcome.
+    // The trusted effect boundary reserves the coordinate before the provider
+    // accepts the mutation. The caller then loses the outcome.
+    kernel.beginEffect(run);
     performProviderEffect();
-    kernel.recoverInterrupted(run.id,{source:'hostile-provider-timeout'});
+    kernel.recoverInterrupted(run,{source:'hostile-provider-timeout'});
 
     // First readback is a stale 404 / missing object. Because this provider's
     // read model is eventually consistent, that negative is not authoritative.
-    const missing=kernel.reconcile(run.id);
+    const missing=kernel.reconcile(run);
     assert.equal(missing.disposition,'RECOVERY_REQUIRED');
     assert.equal(missing.observed?.mutation_certainty,'uncertain');
     assert.equal(missing.observed?.negative_evidence_authoritative,false);
@@ -56,7 +58,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
     // Readback advances, but only to an older value. A non-match is still not
     // proof that the accepted mutation failed to happen.
     writeFileSync(readModel,'old-value');
-    const stale=kernel.reconcile(run.id);
+    const stale=kernel.reconcile(run);
     assert.equal(stale.disposition,'RECOVERY_REQUIRED');
     assert.equal(stale.observed?.mutation_certainty,'uncertain');
     assert.equal(stale.observed?.negative_evidence_authoritative,false);
@@ -65,7 +67,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
 
     // Once the read model converges, the same run settles without replaying.
     writeFileSync(readModel,'created');
-    const done=kernel.reconcile(run.id);
+    const done=kernel.reconcile(run);
     assert.equal(done.disposition,'DONE');
     assert.equal(done.verified,true);
     assert.equal(done.observed?.mutation_certainty,'present');

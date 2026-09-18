@@ -2,6 +2,8 @@ import type { Obligation } from './model.ts';
 import { observationVerified } from './observation.ts';
 import {
   CLAIM_SCHEMA,
+  EFFECT_RESERVATION_SCHEMA,
+  EXECUTION_AUTHORITY_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
   emptyState,
@@ -9,6 +11,9 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
+  EffectReservation,
+  EffectReservationFact,
+  ExecutionAuthorityFact,
   FactCommit,
   HistoricalRun,
   ObligationFact,
@@ -31,6 +36,7 @@ export interface HistoryProjection {
   lifecycles:Map<string,Lifecycle>;
   runs:Map<string,HistoricalRun>;
   receiptsByRun:Map<string,Receipt>;
+  unresolvedReservationsByRun:Map<string,EffectReservation>;
   receipts:Receipt[];
 }
 
@@ -73,6 +79,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
   let lifecycles=new Map<string,Lifecycle>();
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();
+  const unresolvedReservationsByRun=new Map<string,EffectReservation>();
   const receipts:Receipt[]=[];
 
   for (const record of commits) {
@@ -119,17 +126,96 @@ export function replayProjection(commits:FactCommit[]):Projection {
       if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
       if (claim.obligation_key!==expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
 
+      if (
+        typeof claim.execution_capability_sha256!=='string'
+        || !/^[0-9a-f]{64}$/.test(claim.execution_capability_sha256)
+      ) {
+        throw new Error('INVALID_EXECUTION_CAPABILITY_DIGEST');
+      }
+
       const run:HistoricalRun={
         id:claim.run_id,
         obligation_id:claim.obligation_id,
         claimed_revision:claim.claimed_revision,
         claim_commit:record.commit,
         obligation_key:claim.obligation_key,
+        execution_generation:1,
+        execution_authority_commit:record.commit,
+        execution_capability_sha256:claim.execution_capability_sha256,
         obligation:structuredClone(obligation),
         definition_commit:state.definition_commits[claim.obligation_id],
       };
       runs.set(run.id,run);
       lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+    }
+
+    if (record.execution_authority!=null) {
+      const fact=record.execution_authority as ExecutionAuthorityFact;
+      if (fact.schema!==EXECUTION_AUTHORITY_SCHEMA) {
+        throw new Error('INVALID_EXECUTION_AUTHORITY_SCHEMA');
+      }
+      const run=runs.get(fact.run_id);
+      if (!run) throw new Error('EXECUTION_AUTHORITY_WITHOUT_CLAIM');
+      if (run.obligation_id!==fact.obligation_id) {
+        throw new Error('EXECUTION_AUTHORITY_OBLIGATION_MISMATCH');
+      }
+      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      const current=lifecycles.get(run.obligation_id);
+      if (
+        current?.run?.id!==run.id
+        || !['EXECUTING','WAITING','RECOVERY_REQUIRED'].includes(current.status)
+      ) {
+        throw new Error('EXECUTION_AUTHORITY_FOR_NONCURRENT_RUN');
+      }
+      if (fact.generation!==run.execution_generation+1) {
+        throw new Error('EXECUTION_GENERATION_NOT_SUCCESSOR');
+      }
+      if (fact.previous_authority_commit!==run.execution_authority_commit) {
+        throw new Error('EXECUTION_AUTHORITY_PREDECESSOR_MISMATCH');
+      }
+      if (
+        typeof fact.execution_capability_sha256!=='string'
+        || !/^[0-9a-f]{64}$/.test(fact.execution_capability_sha256)
+      ) {
+        throw new Error('INVALID_EXECUTION_CAPABILITY_DIGEST');
+      }
+      runs.set(run.id,{
+        ...run,
+        execution_generation:fact.generation,
+        execution_authority_commit:record.commit,
+        execution_capability_sha256:fact.execution_capability_sha256,
+      });
+      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+    }
+
+    if (record.effect_reservation!=null) {
+      const fact=record.effect_reservation as EffectReservationFact;
+      if (fact.schema!==EFFECT_RESERVATION_SCHEMA) {
+        throw new Error('INVALID_EFFECT_RESERVATION_SCHEMA');
+      }
+      const run=runs.get(fact.run_id);
+      if (!run) throw new Error('EFFECT_RESERVATION_WITHOUT_CLAIM');
+      if (run.obligation_id!==fact.obligation_id) {
+        throw new Error('EFFECT_RESERVATION_OBLIGATION_MISMATCH');
+      }
+      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      const current=lifecycles.get(run.obligation_id);
+      if (current?.run?.id!==run.id || current.status!=='EXECUTING') {
+        throw new Error('EFFECT_RESERVATION_WHILE_NOT_EXECUTING');
+      }
+      if (
+        fact.execution_generation!==run.execution_generation
+        || fact.execution_authority_commit!==run.execution_authority_commit
+      ) {
+        throw new Error('STALE_EFFECT_RESERVATION');
+      }
+      if (unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('DUPLICATE_UNRESOLVED_EFFECT');
+      }
+      unresolvedReservationsByRun.set(run.id,{
+        ...fact,
+        reservation_commit:record.commit,
+      });
     }
 
     if (record.receipt==null) continue;
@@ -143,12 +229,21 @@ export function replayProjection(commits:FactCommit[]):Projection {
     if (run.obligation_id!==fact.obligation_id) throw new Error('RECEIPT_OBLIGATION_MISMATCH');
     if (fact.claimed_revision!==run.claimed_revision) throw new Error('RECEIPT_REVISION_MISMATCH');
     if (fact.claim_commit!==run.claim_commit) throw new Error('RECEIPT_CLAIM_MISMATCH');
+    if (
+      fact.execution_generation!==run.execution_generation
+      || fact.execution_authority_commit!==run.execution_authority_commit
+    ) {
+      throw new Error('RECEIPT_EXECUTION_AUTHORITY_MISMATCH');
+    }
 
     lifecycles=deriveLifecycles(state,runs,receiptsByRun);
     const current=lifecycles.get(run.obligation_id);
     if (current?.run?.id!==run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
     if (fact.kind==='judgment-required' && current.status!=='EXECUTING') {
       throw new Error('JUDGMENT_REQUIRED_WHILE_NOT_EXECUTING');
+    }
+    if (fact.kind==='judgment-required' && unresolvedReservationsByRun.has(run.id)) {
+      throw new Error('JUDGMENT_REQUIRED_WITH_UNRESOLVED_EFFECT');
     }
     if (fact.kind==='execution-terminated' && current.status!=='EXECUTING') {
       throw new Error('EXECUTION_TERMINATED_WHILE_NOT_EXECUTING');
@@ -166,6 +261,9 @@ export function replayProjection(commits:FactCommit[]):Projection {
 
     const receipt=projectReceipt(fact,run.obligation,record.commit);
     receiptsByRun.set(run.id,receipt);
+    if (receipt.disposition==='DONE' || receipt.disposition==='READY') {
+      unresolvedReservationsByRun.delete(run.id);
+    }
     receipts.push(receipt);
     lifecycles=deriveLifecycles(state,runs,receiptsByRun);
   }
@@ -173,6 +271,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
   lifecycles=deriveLifecycles(state,runs,receiptsByRun);
   return {
     state,
-    history:{lifecycles,runs,receiptsByRun,receipts},
+    history:{lifecycles,runs,receiptsByRun,unresolvedReservationsByRun,receipts},
   };
 }
