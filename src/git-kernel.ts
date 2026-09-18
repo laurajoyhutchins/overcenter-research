@@ -6,7 +6,8 @@ const STATE_REF = 'refs/overcenter/state';
 const STATE_SCHEMA = 'overcenter-git-state-v3';
 const RECEIPT_SCHEMA = 'overcenter-git-receipt-v2';
 
-export type WorkStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
+type StoredWorkStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
+export type WorkStatus = StoredWorkStatus | 'BLOCKED';
 export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
 export type MutationCertainty = 'present' | 'absent' | 'uncertain';
 export type Data = Record<string, unknown>;
@@ -57,13 +58,17 @@ export interface Obligation {
   deps: string[];
   packet: Data;
   postcondition: Postcondition;
-  status: WorkStatus;
+  status: StoredWorkStatus;
   run_id?: string;
   claimed_revision?: string;
   claim_commit?: string;
 }
 interface State { schema: typeof STATE_SCHEMA; obligations: Record<string, Obligation> }
-export interface Work extends Obligation { revision: string }
+export interface Work extends Omit<Obligation, 'status'> {
+  status: WorkStatus;
+  revision: string;
+  blocked_reason?: string;
+}
 export interface Run { id: string; obligation_id: string; claimed_revision: string; claim_commit: string }
 export interface Receipt {
   schema: typeof RECEIPT_SCHEMA;
@@ -153,18 +158,19 @@ export class GitOvercenterKernel {
 
   inspect(): Work[] {
     const head = this.#requireHead();
-    return Object.values(this.#state(head).obligations)
+    const state = this.#state(head);
+    return Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work => ({...structuredClone(work), revision: head}));
+      .map(work => this.#projectWork(state, work, head));
   }
 
   deriveReadyWork(): Work | null {
     const head = this.#requireHead();
     const state = this.#state(head);
-    const done = new Set(Object.values(state.obligations).filter(x=>x.status==='DONE').map(x=>x.id));
-    const work = Object.values(state.obligations).sort((a,b)=>a.id.localeCompare(b.id))
-      .find(x=>x.status==='READY' && x.deps.every(d=>done.has(d)));
-    return work ? {...structuredClone(work), revision: head} : null;
+    const work = Object.values(state.obligations)
+      .sort((a,b)=>a.id.localeCompare(b.id))
+      .find(candidate => this.#claimabilityError(state, candidate)===null);
+    return work ? this.#projectWork(state, work, head) : null;
   }
 
   claim(id: string, expectedRevision: string): Run {
@@ -173,10 +179,8 @@ export class GitOvercenterKernel {
     const state = this.#state(head);
     const work = state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    if (work.status !== 'READY') throw new Error('NOT_READY');
-    const done = new Set(Object.values(state.obligations).filter(x=>x.status==='DONE').map(x=>x.id));
-    if (!work.deps.every(d=>done.has(d))) throw new Error('DEPENDENCIES_NOT_DONE');
-    this.#assertEffectOrder(state, work);
+    const claimabilityError=this.#claimabilityError(state,work);
+    if (claimabilityError) throw new Error(claimabilityError);
     const runId = randomUUID();
     work.status='EXECUTING'; work.run_id=runId; work.claimed_revision=head;
     const commit = this.#commit(head,state,`overcenter: claim ${id} ${runId}`);
@@ -299,26 +303,15 @@ export class GitOvercenterKernel {
   #hasInFlight(state: State): boolean {
     return Object.values(state.obligations).some(work=>IN_FLIGHT.has(work.status));
   }
-  #effectIdentity(postcondition: Postcondition): { resource: string; desired: string } | null {
-    if (postcondition.verifier==='github-commit-status/v1') {
-      return {
-        resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${postcondition.context}`,
-        desired:postcondition.expected_state,
-      };
-    }
-    if (postcondition.verifier==='git-ref-equals/v1') {
-      return {
-        resource:`git-ref:${postcondition.remote}:${postcondition.ref}`,
-        desired:postcondition.target_sha,
-      };
-    }
-    if (postcondition.verifier==='file-content-equals/v1') {
-      return {
-        resource:`file:${postcondition.path}`,
-        desired:sha256(postcondition.content),
-      };
-    }
-    return null;
+  #effectSemantics(
+    postcondition: Postcondition,
+  ): { resource: string; desired: string; sameDesiredCommutes: boolean } | null {
+    if (postcondition.verifier!=='github-commit-status/v1') return null;
+    return {
+      resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${postcondition.context}`,
+      desired:postcondition.expected_state,
+      sameDesiredCommutes:true,
+    };
   }
   #dependsOn(state: State, fromId: string, targetId: string, seen = new Set<string>()): boolean {
     if (fromId===targetId) return true;
@@ -328,19 +321,41 @@ export class GitOvercenterKernel {
     if (!work) return false;
     return work.deps.some(dep=>dep===targetId || this.#dependsOn(state,dep,targetId,seen));
   }
-  #assertEffectOrder(state: State, work: Obligation): void {
-    const identity=this.#effectIdentity(work.postcondition);
-    if (!identity) return;
+  #claimabilityError(state: State, work: Obligation): string | null {
+    if (work.status!=='READY') return 'NOT_READY';
+    const done=new Set(
+      Object.values(state.obligations)
+        .filter(candidate=>candidate.status==='DONE')
+        .map(candidate=>candidate.id),
+    );
+    if (!work.deps.every(dep=>done.has(dep))) return 'DEPENDENCIES_NOT_DONE';
+
+    const semantics=this.#effectSemantics(work.postcondition);
+    if (!semantics) return null;
+
     for (const other of Object.values(state.obligations)) {
       if (other.id===work.id) continue;
-      const otherIdentity=this.#effectIdentity(other.postcondition);
-      if (!otherIdentity
-        || otherIdentity.resource!==identity.resource
-        || otherIdentity.desired===identity.desired) continue;
+      const otherSemantics=this.#effectSemantics(other.postcondition);
+      if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
+
+      const sameDesired=otherSemantics.desired===semantics.desired;
+      if (sameDesired && semantics.sameDesiredCommutes && otherSemantics.sameDesiredCommutes) continue;
+
       const ordered=this.#dependsOn(state,work.id,other.id)
         || this.#dependsOn(state,other.id,work.id);
-      if (!ordered) throw new Error(`UNORDERED_EFFECT_CONFLICT:${work.id}:${other.id}`);
+      if (!ordered) return `UNORDERED_EFFECT_CONFLICT:${work.id}:${other.id}`;
     }
+    return null;
+  }
+  #projectWork(state: State, work: Obligation, revision: string): Work {
+    const projected={...structuredClone(work),revision} as Work;
+    if (work.status!=='READY') return projected;
+    const reason=this.#claimabilityError(state,work);
+    if (reason && reason!=='NOT_READY' && reason!=='DEPENDENCIES_NOT_DONE') {
+      projected.status='BLOCKED';
+      projected.blocked_reason=reason;
+    }
+    return projected;
   }
   #findClaimCommit(runId: string, work: Obligation, head: string): string {
     if (!work.claimed_revision) throw new Error('MISSING_CLAIMED_REVISION');
