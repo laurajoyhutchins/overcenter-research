@@ -16,6 +16,7 @@ import {
   evaluateGitRefTarget,
   evaluateIssueSnapshot,
   evaluatePullRequestSnapshot,
+  evaluateWorkflowRunPage,
   projectCheckRunsPage,
   projectCommitStatusesPage,
   projectGitCommit,
@@ -23,6 +24,7 @@ import {
   projectIssueSnapshot,
   projectPullRequestSnapshot,
   projectRepositoryIdentity,
+  projectWorkflowRunsPage,
   revalidateNotModified,
   sameGithubEntity,
 } from './semantics.ts';
@@ -47,6 +49,7 @@ const paths = {
   issue: '/repos/{owner}/{repo}/issues/{issue_number}',
   checks: '/repos/{owner}/{repo}/commits/{ref}/check-runs',
   statuses: '/repos/{owner}/{repo}/commits/{ref}/statuses',
+  workflowRuns: '/repos/{owner}/{repo}/actions/runs',
 };
 
 const openapi: OpenApiDocument = {
@@ -133,6 +136,18 @@ const openapi: OpenApiDocument = {
         responses: { '200': { description: 'Response' }, '301': { description: 'Moved' } },
       },
     },
+    [paths.workflowRuns]: {
+      get: {
+        operationId: 'actions/list-workflow-runs-for-repo',
+        parameters: [
+          { name: 'owner', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'repo', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'page', in: 'query', required: false, schema: { type: 'integer' } },
+          { name: 'per_page', in: 'query', required: false, schema: { type: 'integer' } },
+        ],
+        responses: { '200': { description: 'Response' } },
+      },
+    },
   },
 };
 
@@ -172,7 +187,7 @@ test('OpenAPI yields only read operations and auxiliary request headers remain e
     ['path', 'ref'],
     ['path', 'repo'],
   ]);
-  assert.equal(deriveObservationCatalog(openapi, '2026-03-10').length, 7);
+  assert.equal(deriveObservationCatalog(openapi, '2026-03-10').length, 8);
   assert.throws(() => deriveObservationOperation(openapi, {
     apiVersion: '2026-03-10', method: 'patch', pathTemplate: paths.ref,
   }), /OBSERVATION_OPERATION_MUST_BE_READ_ONLY/);
@@ -399,6 +414,44 @@ test('commit statuses reuse positive collection membership semantics without gai
   assert.equal(evaluateCommitStatusPage(page, {
     repository_id: 42,
     ref: SHA_A,
+    node_id: 'MISSING',
+  }).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
+});
+
+test('workflow runs reuse collection membership semantics with a repository-scoped coordinate', async () => {
+  const repository = projectRepositoryIdentity(await repositoryObservation())!;
+  const observed = await observe(operation(paths.workflowRuns), {
+    owner: 'acme', repo: 'widget', page: 1, per_page: 1,
+  }, response(200, {
+    total_count: 2,
+    workflow_runs: [{
+      id: 7001,
+      node_id: 'WFR_7001',
+      workflow_id: 88,
+      run_number: 12,
+      run_attempt: 1,
+      name: 'Tests',
+      event: 'push',
+      status: 'completed',
+      conclusion: 'success',
+      head_sha: SHA_A,
+    }],
+  }, { ...RESPONSE, link: '<https://api.github.com/x?page=2>; rel="next"' }));
+
+  const page = projectWorkflowRunsPage(observed, repository)!;
+  assert.equal(page.subject.repository_id, 42);
+  assert.equal(page.has_next, true);
+  assert.equal(evaluateWorkflowRunPage(page, {
+    repository_id: 42,
+    node_id: 'WFR_7001',
+    workflow_id: 88,
+    head_sha: SHA_A,
+    event: 'push',
+    status: 'completed',
+    conclusion: 'success',
+  }).state, 'SATISFIED');
+  assert.equal(evaluateWorkflowRunPage(page, {
+    repository_id: 42,
     node_id: 'MISSING',
   }).reason, 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
 });
