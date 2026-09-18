@@ -62,7 +62,7 @@ The commit SHA is the authoritative state revision. Settlement and recovery comm
 
 The Git authority no longer contains a privileged current-state document.
 
-Obligation structure is recorded as immutable `obligation.json` facts:
+Obligation structure is recorded as immutable `overcenter-git-obligation-v2` `obligation.json` facts:
 
 ```text
 defined
