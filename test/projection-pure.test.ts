@@ -35,7 +35,7 @@ function claimCommit(parent:string):FactCommit {
     {commit:parent,parent:null,obligation:defined},
   ]);
   const key=obligationKey(
-    base.state,
+    base.catalog,
     obligation,
     base.history.lifecycles,
     base.history.receiptsByRun,

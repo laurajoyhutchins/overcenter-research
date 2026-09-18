@@ -35,7 +35,7 @@ export interface HistoryProjection {
 }
 
 export interface Projection {
-  state:ObligationCatalog;
+  catalog:ObligationCatalog;
   history:HistoryProjection;
 }
 
@@ -69,7 +69,7 @@ export function projectReceipt(
 }
 
 export function reconstructProjection(commits:FactCommit[]):Projection {
-  const state=emptyObligationCatalog();
+  const catalog=emptyObligationCatalog();
   let lifecycles=new Map<string,Lifecycle>();
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();
@@ -83,10 +83,10 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
       const id=obligation.id;
 
       if (fact.kind==='defined') {
-        if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
+        if (catalog.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
       } else if (fact.kind==='amended') {
-        if (!state.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
-        if (fact.previous_definition_commit!==state.definition_commits[id]) {
+        if (!catalog.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
+        if (fact.previous_definition_commit!==catalog.definition_commits[id]) {
           throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
         }
         if (hasInFlight(lifecycles)) throw new Error('AMEND_WHILE_IN_FLIGHT');
@@ -94,28 +94,28 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
         throw new Error('INVALID_OBLIGATION_KIND');
       }
 
-      state.obligations[id]=obligation;
-      state.definition_commits[id]=record.commit;
-      validateGraph(state);
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      catalog.obligations[id]=obligation;
+      catalog.definition_commits[id]=record.commit;
+      validateGraph(catalog);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
     }
 
     if (record.claim!=null) {
       const claim=record.claim as ClaimFact;
       if (claim.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
-      const obligation=state.obligations[claim.obligation_id];
+      const obligation=catalog.obligations[claim.obligation_id];
       if (!obligation) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
       if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
       if (record.parent!==claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
 
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
       const current=lifecycles.get(claim.obligation_id);
       if (current?.status!=='UNREALIZED') throw new Error('CLAIM_WHILE_NOT_READY');
       const unsatisfied=dependencyUpstreams(obligation)
         .filter(dependency=>lifecycles.get(dependency)?.status!=='DONE');
       if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
 
-      const expectedKey=obligationKey(state,obligation,lifecycles,receiptsByRun);
+      const expectedKey=obligationKey(catalog,obligation,lifecycles,receiptsByRun);
       if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
       if (claim.obligation_key!==expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
 
@@ -126,10 +126,10 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
         claim_commit:record.commit,
         obligation_key:claim.obligation_key,
         obligation:structuredClone(obligation),
-        definition_commit:state.definition_commits[claim.obligation_id],
+        definition_commit:catalog.definition_commits[claim.obligation_id],
       };
       runs.set(run.id,run);
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
     }
 
     if (record.receipt==null) continue;
@@ -144,7 +144,7 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
     if (fact.claimed_revision!==run.claimed_revision) throw new Error('RECEIPT_REVISION_MISMATCH');
     if (fact.claim_commit!==run.claim_commit) throw new Error('RECEIPT_CLAIM_MISMATCH');
 
-    lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+    lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
     const current=lifecycles.get(run.obligation_id);
     if (current?.run?.id!==run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
     if (fact.kind==='judgment-required' && current.status!=='EXECUTING') {
@@ -167,12 +167,12 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
     const receipt=projectReceipt(fact,run.obligation,record.commit);
     receiptsByRun.set(run.id,receipt);
     receipts.push(receipt);
-    lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+    lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
   }
 
-  lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+  lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
   return {
-    state,
+    catalog,
     history:{lifecycles,runs,receiptsByRun,receipts},
   };
 }

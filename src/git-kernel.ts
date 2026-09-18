@@ -91,11 +91,11 @@ export class GitOvercenterKernel {
     const {id}=obligation;
     const revision=this.#requireAuthorityRevision();
     const projection=this.#reconstructProjection(revision);
-    const {state,history}=projection;
+    const {catalog,history}=projection;
     if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
-    if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
+    if (catalog.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
 
-    const next=withObligation(state,obligation,revision);
+    const next=withObligation(catalog,obligation,revision);
     validateGraph(next);
     const fact:ObligationFact={schema:OBLIGATION_SCHEMA,kind:'defined',obligation};
     const commit=this.#store.createCommit(
@@ -113,12 +113,12 @@ export class GitOvercenterKernel {
     const revision=this.#requireAuthorityRevision();
     if (revision!==expectedRevision) throw new Error('STALE_REVISION');
     const projection=this.#reconstructProjection(revision);
-    const {state,history}=projection;
+    const {catalog,history}=projection;
     if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
-    if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
+    if (!catalog.obligations[id]) throw new Error(`unknown obligation: ${id}`);
 
-    const previous=state.definition_commits[id];
-    const next=withObligation(state,obligation,revision);
+    const previous=catalog.definition_commits[id];
+    const next=withObligation(catalog,obligation,revision);
     validateGraph(next);
     const fact:ObligationFact={
       schema:OBLIGATION_SCHEMA,
@@ -137,30 +137,30 @@ export class GitOvercenterKernel {
 
   inspect():Work[] {
     const revision=this.#requireAuthorityRevision();
-    const {state,history}=this.#reconstructProjection(revision);
-    return Object.values(state.obligations)
+    const {catalog,history}=this.#reconstructProjection(revision);
+    return Object.values(catalog.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work=>projectWork(state,work,revision,history.lifecycles));
+      .map(work=>projectWork(catalog,work,revision,history.lifecycles));
   }
 
   nextReadyWork():Work|null {
     const revision=this.#requireAuthorityRevision();
-    const {state,history}=this.#reconstructProjection(revision);
-    const work=Object.values(state.obligations)
+    const {catalog,history}=this.#reconstructProjection(revision);
+    const work=Object.values(catalog.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .find(candidate=>claimabilityError(state,candidate,history.lifecycles)===null);
-    return work ? projectWork(state,work,revision,history.lifecycles) : null;
+      .find(candidate=>claimabilityError(catalog,candidate,history.lifecycles)===null);
+    return work ? projectWork(catalog,work,revision,history.lifecycles) : null;
   }
 
   claim(id:string,expectedRevision:string):Run {
     const revision=this.#requireAuthorityRevision();
     if (revision!==expectedRevision) throw new Error('STALE_REVISION');
-    const {state,history}=this.#reconstructProjection(revision);
-    const work=state.obligations[id];
+    const {catalog,history}=this.#reconstructProjection(revision);
+    const work=catalog.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    const claimError=claimabilityError(state,work,history.lifecycles);
+    const claimError=claimabilityError(catalog,work,history.lifecycles);
     if (claimError) throw new Error(claimError);
-    const key=obligationKey(state,work,history.lifecycles,history.receiptsByRun);
+    const key=obligationKey(catalog,work,history.lifecycles,history.receiptsByRun);
     if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
 
     const runId=randomUUID();
@@ -189,10 +189,10 @@ export class GitOvercenterKernel {
   reconcile(runId:string):Receipt {
     for (let attempt=0;attempt<16;attempt+=1) {
       const revision=this.#requireAuthorityRevision();
-      const {state,history}=this.#reconstructProjection(revision);
+      const {catalog,history}=this.#reconstructProjection(revision);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      if (!catalog.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=run.obligation;
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','ABSENT'].includes(prior.disposition)) return prior;
@@ -210,7 +210,7 @@ export class GitOvercenterKernel {
       const fact=this.#receiptFact(run,work.id,'observation',observed);
       const receipt=projectReceipt(fact,work);
       const commit=this.#store.createCommit(
-        head,
+        revision,
         `overcenter: observe ${work.id} ${run.id}`,
         {'receipt.json':fact},
       );
@@ -222,10 +222,10 @@ export class GitOvercenterKernel {
   deferForJudgment(runId:string,diagnostic:Data={}):Receipt {
     for (let attempt=0;attempt<16;attempt+=1) {
       const revision=this.#requireAuthorityRevision();
-      const {state,history}=this.#reconstructProjection(revision);
+      const {catalog,history}=this.#reconstructProjection(revision);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      if (!catalog.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=run.obligation;
       const prior=history.receiptsByRun.get(runId);
       const lifecycle=history.lifecycles.get(run.obligation_id);
@@ -237,7 +237,7 @@ export class GitOvercenterKernel {
       const fact=this.#receiptFact(run,work.id,'judgment-required',null,diagnostic);
       const receipt=projectReceipt(fact,work);
       const commit=this.#store.createCommit(
-        head,
+        revision,
         `overcenter: judgment required ${work.id} ${run.id}`,
         {'receipt.json':fact},
       );
@@ -249,10 +249,10 @@ export class GitOvercenterKernel {
   recordExecutionTerminated(runId:string,diagnostic:Data={}):Receipt {
     for (let attempt=0;attempt<16;attempt+=1) {
       const revision=this.#requireAuthorityRevision();
-      const {state,history}=this.#reconstructProjection(revision);
+      const {catalog,history}=this.#reconstructProjection(revision);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      if (!catalog.obligations[run.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=run.obligation;
       const prior=history.receiptsByRun.get(runId);
       const lifecycle=history.lifecycles.get(run.obligation_id);
@@ -270,7 +270,7 @@ export class GitOvercenterKernel {
       );
       const receipt=projectReceipt(fact,work);
       const commit=this.#store.createCommit(
-        head,
+        revision,
         `overcenter: execution terminated ${work.id} ${runId}`,
         {'receipt.json':fact},
       );
