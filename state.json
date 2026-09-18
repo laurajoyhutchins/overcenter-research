@@ -60,6 +60,33 @@
       "run_id": "b4da6695-be45-48e7-b598-b42c19eb4f60",
       "claimed_revision": "4b95f17d6d900ad524b8424973c79459148c66f6",
       "claim_commit": "9a32ef486b94a36e76145f23e88ce778776355fe"
+    },
+    "actions-proof-35304768100-1": {
+      "id": "actions-proof-35304768100-1",
+      "deps": [],
+      "packet": {
+        "kind": "github-actions-disposable-proof/v1",
+        "executor": {
+          "provider": "github-actions/v1",
+          "repository": "laurajoyhutchins/overcenter-research",
+          "workflow_run_id": "35304768100",
+          "workflow_run_attempt": "1",
+          "job": "agent-a"
+        },
+        "effect": {
+          "kind": "git-create-ref/v1",
+          "remote": "origin",
+          "ref": "refs/tags/overcenter-actions-effect-35304768100-1",
+          "target_sha": "1edeab63f1a62c7f05e5f7c27a8914c46aa450e5"
+        }
+      },
+      "postcondition": {
+        "verifier": "git-ref-equals/v1",
+        "remote": "origin",
+        "ref": "refs/tags/overcenter-actions-effect-35304768100-1",
+        "target_sha": "1edeab63f1a62c7f05e5f7c27a8914c46aa450e5"
+      },
+      "status": "READY"
     }
   },
   "active_run": null
