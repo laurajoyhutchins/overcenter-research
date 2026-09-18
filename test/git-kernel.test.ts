@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
+import { RECEIPT_SCHEMA } from '../src/facts.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'git-kernel-v2-'));
@@ -205,8 +206,13 @@ test('authoritative absence alone makes work replayable', () => {
     f.kernel.define({ id: 'x', postcondition: pc(path, 'yes') });
     const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     const receipt = f.kernel.resolve(run);
+    assert.equal(receipt.schema, RECEIPT_SCHEMA);
     assert.equal(receipt.observed?.mutation_certainty, 'absent');
-    assert.equal(receipt.observed?.negative_evidence_authoritative, true);
+    assert.equal(receipt.observed?.absence_evidence?.kind, 'local-file-enoent/v1');
+    assert.equal(receipt.observed?.absence_evidence?.subject.path, path);
+    assert.equal(receipt.observed?.absence_evidence?.completeness.result, 'ENOENT');
+    assert.equal(receipt.observed?.absence_evidence?.provenance.error_code, 'ENOENT');
+    assert.equal('negative_evidence_authoritative' in receipt.observed!, false);
     assert.equal(receipt.disposition, 'READY');
     assert.equal(f.kernel.inspect()[0].status, 'READY');
   } finally { rmSync(f.root, { recursive: true, force: true }); }

@@ -1,6 +1,14 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import type { Observation, Postcondition } from './model.ts';
+import type {
+  AbsenceEvidenceCertificate,
+  Observation,
+  Postcondition,
+} from './model.ts';
+import {
+  localFileEnoentEvidence,
+  localFileEnoentEvidenceMatches,
+} from './evidence.ts';
 import { findGithubCommitStatus, githubGet } from './providers/github-status.ts';
 
 export interface ObservationContext {
@@ -71,7 +79,6 @@ export function observePostcondition(
           context:p.context,
           expected_state:p.expected_state,
           mutation_certainty:'uncertain',
-          negative_evidence_authoritative:false,
           observation_error:'COLLECTION_ABSENCE_NOT_AUTHORITATIVE',
         };
       }
@@ -120,7 +127,6 @@ export function observePostcondition(
         expected_sha256:expected,
         actual_sha256:actualSha,
         mutation_certainty:'uncertain',
-        negative_evidence_authoritative:false,
         observation_error:'NON_MATCHING_READ_NOT_AUTHORITATIVE',
       };
     } catch (e: unknown) {
@@ -131,7 +137,6 @@ export function observePostcondition(
           path:p.path,
           expected_sha256:expected,
           mutation_certainty:'uncertain',
-          negative_evidence_authoritative:false,
           observation_error:'NEGATIVE_READ_NOT_AUTHORITATIVE',
         };
       }
@@ -164,7 +169,7 @@ export function observePostcondition(
         path:p.path,
         expected_sha256:expected,
         mutation_certainty:'absent',
-        negative_evidence_authoritative:true,
+        absence_evidence:localFileEnoentEvidence(p.path),
       };
     }
     return {
@@ -205,13 +210,30 @@ function assertObservationCoordinate(
   }
 }
 
+export function authoritativeAbsenceEvidence(
+  postcondition:Postcondition,
+  observed:Observation,
+):AbsenceEvidenceCertificate|null {
+  assertObservationCoordinate(postcondition,observed);
+  if (observed.mutation_certainty!=='absent') return null;
+
+  if (postcondition.verifier==='file-content-equals/v1') {
+    return localFileEnoentEvidenceMatches(
+      observed.absence_evidence,
+      postcondition.path,
+    )
+      ? observed.absence_evidence
+      : null;
+  }
+
+  return null;
+}
+
 export function observationAuthoritativelyAbsent(
   postcondition:Postcondition,
   observed:Observation,
 ):boolean {
-  assertObservationCoordinate(postcondition,observed);
-  return observed.mutation_certainty==='absent'
-    && observed.negative_evidence_authoritative===true;
+  return authoritativeAbsenceEvidence(postcondition,observed)!==null;
 }
 
 export function observationVerified(

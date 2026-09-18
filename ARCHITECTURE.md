@@ -410,6 +410,48 @@ A timeout is never evidence of absence.
 
 A 404 is only evidence of absence when the provider's consistency model makes it so.
 
+### Absence evidence is a certificate
+
+`absent` is a derived knowledge classification, not sufficient evidence by itself.
+
+New receipt semantics require a provenance-bearing absence certificate with this generic envelope:
+
+```text
+subject       exact coordinate claimed absent
+scope         authority boundary searched
+snapshot      provider state identity, when applicable
+completeness  why non-membership proves absence
+provenance    how the evidence was obtained / certified
+```
+
+The envelope does not make arbitrary provider claims trustworthy. Provider-specific verifier code still decides whether a certificate kind and its contents prove authoritative absence.
+
+The current local-file certificate is deliberately small:
+
+```text
+kind          local-file-enoent/v1
+subject       exact file path
+scope         direct exact-coordinate read
+snapshot      none
+completeness  ENOENT from that direct read
+provenance    node:fs readFileSync / ENOENT
+```
+
+The Kubernetes experiment fits the same envelope without weakening its stronger semantics:
+
+```text
+kind          kubernetes-complete-list-absence/v1
+subject       group/resource/namespace/name
+scope         collection group/resource/namespace
+snapshot      collection resourceVersion
+completeness  exact continuation chain to terminal page
+provenance    provider contract + structural page certificates
+```
+
+A partial LIST, broken continuation chain, or broken WATCH continuity cannot mint that certificate.
+
+Durable receipt semantics are versioned at this boundary. Receipt v4 requires certificate-backed negative evidence. Existing v3 receipts remain replayable under their historical interpretation rather than silently changing meaning.
+
 ## 9. Observation
 
 An **observation** is a read of an authoritative system at a named coordinate.
@@ -550,7 +592,7 @@ Settlement authority is also declared before execution begins. Replay from absen
 - verifier-level semantics that permit authoritative negative evidence; and
 - observation-specific evidence that this read actually established authoritative absence.
 
-A generic `mutation_certainty: "absent"` field alone never reopens execution.
+A generic `mutation_certainty: "absent"` field alone never reopens execution under receipt v5. The verifier must accept the concrete absence-certificate kind, and provider-specific validation must bind its subject, scope, completeness, snapshot, and provenance as required.
 
 ### READY
 

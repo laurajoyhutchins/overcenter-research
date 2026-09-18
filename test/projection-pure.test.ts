@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   CLAIM_SCHEMA,
+  LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
 } from '../src/facts.ts';
@@ -11,6 +12,7 @@ import { obligationKey } from '../src/lifecycle.ts';
 import { claimabilityError } from '../src/eligibility.ts';
 import { projectReceipt, replayProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
+import { localFileEnoentEvidence } from '../src/evidence.ts';
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 
@@ -115,8 +117,15 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
 
 function absentReceipt(
   work:Obligation,
-  authoritative:boolean,
-  pathOverride?:string,
+  {
+    schema=RECEIPT_SCHEMA,
+    includeCertificate=false,
+    certificatePath,
+  }:{
+    schema?:ReceiptFact['schema'];
+    includeCertificate?:boolean;
+    certificatePath?:string;
+  }={},
 ):ReceiptFact {
   const observed=work.postcondition.verifier==='github-commit-status/v1'
     ? {
@@ -126,27 +135,34 @@ function absentReceipt(
         commit_sha:work.postcondition.commit_sha,
         context:work.postcondition.context,
         mutation_certainty:'absent' as const,
-        negative_evidence_authoritative:authoritative,
       }
     : {
         verifier:work.postcondition.verifier,
-        path:pathOverride??work.postcondition.path,
+        path:work.postcondition.path,
         mutation_certainty:'absent' as const,
-        negative_evidence_authoritative:authoritative,
+        ...(includeCertificate && work.postcondition.verifier==='file-content-equals/v1'
+          ? {
+              absence_evidence:localFileEnoentEvidence(
+                certificatePath??work.postcondition.path,
+              ),
+            }
+          : {}),
       };
   return {
-    schema:RECEIPT_SCHEMA,
+    schema,
     run_id:'run-absence',
     obligation_id:'absence',
     claimed_revision:'revision-absence',
     claim_commit:'claim-absence',
+    execution_generation:1,
+    execution_authority_commit:'authority-absence',
     kind:'observation',
     observed,
     settled_at:'2026-09-18T00:00:00.000Z',
   };
 }
 
-test('absence authorizes replay only when the verifier declared authoritative absence',()=>{
+test('receipt v5 requires a matching absence certificate before replay',()=>{
   const local:Obligation={
     id:'absence',
     dependencies:[],
@@ -154,19 +170,55 @@ test('absence authorizes replay only when the verifier declared authoritative ab
     postcondition:{verifier:'file-content-equals/v1',path:'/provider/absence',content:'A'},
   };
   assert.equal(
-    projectReceipt(absentReceipt(local,true),local).disposition,
+    projectReceipt(
+      absentReceipt(local,{includeCertificate:true}),
+      local,
+    ).disposition,
     'READY',
   );
   assert.equal(
-    projectReceipt(absentReceipt(local,false),local).disposition,
+    projectReceipt(absentReceipt(local),local).disposition,
     'RECOVERY_REQUIRED',
   );
-  assert.throws(
-    ()=>projectReceipt(
-      absentReceipt(local,true,'/provider/wrong-coordinate'),
+  assert.equal(
+    projectReceipt(
+      absentReceipt(local,{
+        includeCertificate:true,
+        certificatePath:'/provider/wrong-certificate-subject',
+      }),
       local,
-    ),
-    /OBSERVATION_COORDINATE_MISMATCH/,
+    ).disposition,
+    'RECOVERY_REQUIRED',
+  );
+  const foreignCertificate=absentReceipt(local,{includeCertificate:true});
+  foreignCertificate.observed!.absence_evidence={
+    schema:'overcenter-absence-evidence-v1',
+    kind:'kubernetes-complete-list-absence/v1',
+    subject:{
+      api_group:'',
+      resource:'configmaps',
+      namespace:'proof',
+      name:'missing',
+    },
+    scope:{
+      api_group:'',
+      resource:'configmaps',
+      namespace:'proof',
+    },
+    snapshot:{resource_version:'489'},
+    completeness:{
+      kind:'complete-list',
+      page_count:3,
+      terminal_continue:'',
+    },
+    provenance:{
+      provider:'kubernetes',
+      contract:'openapi-v3',
+    },
+  };
+  assert.equal(
+    projectReceipt(foreignCertificate,local).disposition,
+    'RECOVERY_REQUIRED',
   );
 
   const eventual:Obligation={
@@ -180,10 +232,7 @@ test('absence authorizes replay only when the verifier declared authoritative ab
     },
   };
   assert.equal(
-    projectReceipt(
-      absentReceipt(eventual,true),
-      eventual,
-    ).disposition,
+    projectReceipt(absentReceipt(eventual),eventual).disposition,
     'RECOVERY_REQUIRED',
   );
 
@@ -201,9 +250,24 @@ test('absence authorizes replay only when the verifier declared authoritative ab
     },
   };
   assert.equal(
-    projectReceipt(absentReceipt(github,true),github).disposition,
+    projectReceipt(absentReceipt(github),github).disposition,
     'RECOVERY_REQUIRED',
   );
+});
+
+test('legacy receipt v4 preserves its historical absence projection',()=>{
+  const local:Obligation={
+    id:'absence',
+    dependencies:[],
+    packet:{},
+    postcondition:{verifier:'file-content-equals/v1',path:'/provider/legacy',content:'A'},
+  };
+  const legacy=absentReceipt(local,{schema:LEGACY_RECEIPT_SCHEMA});
+  legacy.observed={
+    verifier:'file-content-equals/v1',
+    mutation_certainty:'absent',
+  };
+  assert.equal(projectReceipt(legacy,local).disposition,'READY');
 });
 
 test('legacy v3 static-conflict history remains replayable but fail-closed',()=>{

@@ -4,6 +4,16 @@ export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
 export type MutationCertainty = 'present' | 'absent' | 'uncertain';
 export type Data = Record<string, unknown>;
 
+export interface AbsenceEvidenceCertificate extends Data {
+  schema: 'overcenter-absence-evidence-v1';
+  kind: string;
+  subject: Data;
+  scope: Data;
+  snapshot: Data | null;
+  completeness: Data;
+  provenance: Data;
+}
+
 export interface FileContentPostcondition {
   verifier: 'file-content-equals/v1';
   path: string;
@@ -33,6 +43,7 @@ export type Postcondition =
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
   mutation_certainty: MutationCertainty;
+  absence_evidence?: AbsenceEvidenceCertificate;
   path?: string;
   expected_sha256?: string;
   actual_sha256?: string;
