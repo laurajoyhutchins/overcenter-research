@@ -69,7 +69,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Uncertain mutation does not authorize blind replay.** Hostile eventually consistent readback remains recovery-bound until authoritative evidence establishes presence or safe absence.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Known provider conflicts are fenced.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are blocked, while explicitly identical effects may commute.
-- **The hosted trust-boundary proof survives executor tampering.** An executor without project-authority write permission cannot redefine the obligation, authority coordinate, verification rule, or settlement truth.
+- **The hosted trust-boundary proof separates worker authority from provider mutation authority.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, it emits a candidate effect intent, and a separate trusted broker validates, reserves, and performs the provider mutation before fresh-generation recovery settles from authoritative readback.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
 
 The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
@@ -87,7 +87,7 @@ The repository deliberately does **not** establish that:
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
 - direct low-level callers outside `runGitCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
-- the strengthened hosted proof that removes `statuses: write` from the worker has passed at this exact branch revision. The workflow is implemented here but still requires a fresh live run before that stronger claim is promoted.
+- every provider or execution substrate offers an equally strong physical credential boundary; the demonstrated hosted boundary is specifically GitHub Actions job permissions.
 
 The safety claim is narrower: an uncertain or even locally hostile worker does not get to manufacture authoritative project truth merely by claiming success.
 
