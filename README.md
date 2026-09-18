@@ -62,7 +62,7 @@ The commit SHA is the authoritative state revision. Settlement and recovery comm
 
 The Git authority no longer contains a privileged current-state document.
 
-Obligation structure is recorded as immutable `obligation.json` facts:
+Obligation structure is recorded as immutable `overcenter-git-obligation-v2` `obligation.json` facts:
 
 ```text
 defined
@@ -73,18 +73,60 @@ amended
   exact previous definition commit
 ```
 
-Each obligation definition contains:
+Each current obligation definition contains:
 
 ```text
 id
-deps
+dependencies
 packet
 postcondition
 ```
 
-Claims are immutable `claim.json` facts that bind a run and obligation to the
-exact parent authority revision. Evidence commits carry factual `receipt.json`
-events:
+The prototype retains `deps` as a compatibility scheduling projection of the
+typed dependency upstream IDs. Replay rejects disagreement between the two.
+
+There are only two primitive dependency semantics:
+
+```text
+control
+  upstream completion constrains executability
+  upstream identity does not contribute to downstream meaning
+
+semantic
+  a selector resolves an exact upstream identity
+  that selected identity contributes to the downstream obligation key
+```
+
+The current tiny selector set is:
+
+```text
+output / verified-content
+evidence / settlement-receipt
+```
+
+Artifact, provider, evidence, approval, and provenance distinctions therefore do
+not need separate primitive edge types. They belong in the semantic selector
+contract when they affect downstream meaning.
+
+Claims use `overcenter-git-claim-v2`. An immutable `claim.json` binds:
+
+```text
+run identity
+obligation identity
+exact parent authority revision
+exact semantic obligation_key
+```
+
+The obligation key is derived from the obligation's own semantic specification
+plus the selected identities of semantic dependencies. Control edges are excluded.
+
+For content-selected dependencies, producer labels are also excluded: if two
+upstream logical nodes provide the same exact selected content identity, a
+downstream realization may be reused. If producer provenance matters, the
+downstream obligation must select provenance/evidence identity instead of content
+identity.
+
+Evidence commits carry factual `receipt.json` events:
 
 ```text
 observation
@@ -92,46 +134,67 @@ judgment-required
 execution-terminated
 ```
 
-No authority commit contains `state.json`. Durable receipts also do not persist
+No authority commit contains `state.json`. Durable receipts do not persist
 `disposition`, `verified`, or an observation-level `verified` bit.
 
-The kernel reconstructs the current graph and lifecycle by replaying Git history:
+The kernel reconstructs current project truth by replaying Git history:
 
 ```text
 obligation.json facts
         +
-claim.json facts
+claim.json facts with exact obligation_key
         +
 receipt.json evidence
         ↓
-historical obligation generations
-        +
-exact run-to-generation bindings
+historical obligation generations + realizations
         ↓
-current obligation graph
-        +
-READY / EXECUTING / WAITING / RECOVERY_REQUIRED / DONE
-        +
-dependency/effect projection
+derive current obligation keys
         ↓
-BLOCKED / current frontier
+matching historical DONE realization?
+       /                         \
+     yes                         no
+      ↓                           ↓
+     DONE                    READY / BLOCKED
 ```
 
-A run is interpreted against the obligation generation that was authoritative at
-its fenced `claimed_revision`, not against the current definition. The regression
-suite proves this by settling generation 1, replacing the obligation with a
-generation 2 predicate that the old observation would not satisfy, and then
-replaying the old receipt. It remains DONE because its historical meaning is
-stable.
+Amendment does not write invalidation records and does not rewrite descendant
+lifecycle state. It appends a new definition. Replay recomputes the affected
+semantic identities and reuses historical realizations wherever the exact current
+obligation key still matches.
+
+This gives the intended incremental behavior:
+
+```text
+A changes
+   ↓
+recompute semantic consumer B
+   ↓
+selected identity changed?
+   ├─ yes → B gets a different obligation key
+   └─ no  → reuse B's existing realization
+
+only a changed B identity can force semantic consumers of B to reconsider
+```
+
+Historical truth remains stable. A run is interpreted against the obligation
+generation and exact `obligation_key` that were authoritative when it was
+claimed. A later amendment cannot retroactively reinterpret its receipt.
 
 Structural replay validates unknown dependencies, dependency cycles, exact
-amendment ancestry, claim revision fencing, receipt-to-claim identity, and legal
-lifecycle transitions.
+amendment ancestry, claim revision fencing, claim obligation-key binding,
+receipt-to-claim identity, legal lifecycle transitions, and active-run amendment
+fencing.
 
-The current amendment experiment is deliberately conservative: an obligation can
-be amended only when no work is in flight and no current obligation depends on it.
-That avoids silently invalidating already-derived downstream work while the
-semantics for descendant invalidation are still undefined.
+The adversarial dependency suite proves, among other cases:
+
+- control changes do not poison downstream semantic identity;
+- semantic changes invalidate only when selected identity changes;
+- invalidation stops when an intermediary selected identity remains unchanged;
+- control-to-semantic reclassification creates new meaning;
+- edge declaration order does not alter semantic identity;
+- equivalent content can be reused across different producer nodes;
+- hidden undeclared dependencies remain outside the derivation model;
+- active exact runs still fence amendment.
 
 The destructive projection test runs against `GitOvercenterKernel` itself using
 a central bare Git authority. At each lifecycle boundary it:
@@ -152,13 +215,15 @@ replay facts
 assert byte-identical projection + identical SHA-256
 ```
 
-Raw-history tests fail if `state.json` appears in any authority commit or if
-interpreted lifecycle fields leak back into receipts.
+Raw-history tests fail if `state.json` appears in any authority commit, if
+interpreted lifecycle fields leak into receipts, or if a semantic claim omits its
+durable obligation key.
 
-Run the destructive proof directly with:
+Run the focused proofs directly with:
 
 ```bash
 npm run test:projection
+npm run test:dependency-edges
 ```
 
 > Deleting every materialized project status must lose no project truth.
