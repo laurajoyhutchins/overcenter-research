@@ -1,0 +1,31 @@
+name: Formal transition kernel
+
+on:
+  pull_request:
+    paths:
+      - 'formal/**'
+      - 'research/tla-formal-kernel.md'
+      - '.github/workflows/formal-kernel.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'formal/**'
+      - 'research/tla-formal-kernel.md'
+      - '.github/workflows/formal-kernel.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tlc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Check transition kernel and negative controls
+        run: bash formal/check.sh
