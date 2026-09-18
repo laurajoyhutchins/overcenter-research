@@ -53,7 +53,7 @@ assert.throws(
   /UNORDERED_EFFECT_CONFLICT/,
 );
 const unordered=kernel.inspect().filter(work=>work.id===uAlpha||work.id===uBeta);
-assert.ok(unordered.every(work=>work.status==='READY' && !work.run_id));
+assert.ok(unordered.every(work=>work.status==='BLOCKED' && !work.run_id && work.blocked_reason?.startsWith('UNORDERED_EFFECT_CONFLICT:')));
 
 const oAlpha=`guard-${workflowRunId}-${attempt}-ordered-alpha`;
 const oBeta=`guard-${workflowRunId}-${attempt}-ordered-beta`;
