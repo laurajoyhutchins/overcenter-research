@@ -127,3 +127,28 @@ test('transport failure remains indeterminate rather than becoming negative evid
     reason: 'OBSERVATION_INDETERMINATE',
   });
 });
+
+
+test('GitHub REST transport pins API version and returns raw provider response', async () => {
+  const calls: Array<{ url: string; init: { method: 'GET' | 'HEAD'; headers: Record<string, string> } }> = [];
+  const transport = new GitHubRestTransport({
+    token: 'test-token',
+    fetchFn: async (url, init) => {
+      calls.push({ url, init });
+      return {
+        status: 200,
+        text: async () => JSON.stringify({ ref: 'refs/heads/main', object: { type: 'commit', sha: desired } }),
+      };
+    },
+  });
+  const response = await transport.request({
+    method: 'GET',
+    path: '/repos/acme/widget/git/ref/heads%2Fmain',
+    apiVersion: '2026-03-10',
+  });
+  assert.equal(calls[0].url, 'https://api.github.com/repos/acme/widget/git/ref/heads%2Fmain');
+  assert.equal(calls[0].init.headers['X-GitHub-Api-Version'], '2026-03-10');
+  assert.equal(calls[0].init.headers.Authorization, 'Bearer test-token');
+  assert.equal(response.status, 200);
+  assert.equal((response.body as { ref: string }).ref, 'refs/heads/main');
+});
