@@ -47,18 +47,15 @@ function fixture() {
     return { repo, kernel: new GitOvercenterKernel(repo, { remote: 'origin' }) };
   }
 
-  function assertDefinitionOnlyState() {
-    const persisted = JSON.parse(
-      git(authority, ['show', `${STATE_REF}:state.json`]),
-    ) as {
-      obligations: Record<string, Record<string, unknown>>;
-    };
+  function assertFactOnlyAuthority() {
+    const commits = git(authority, ['rev-list', STATE_REF])
+      .split(/\n+/)
+      .filter(Boolean);
 
-    for (const obligation of Object.values(persisted.obligations)) {
-      assert.equal('status' in obligation, false);
-      assert.equal('run_id' in obligation, false);
-      assert.equal('claimed_revision' in obligation, false);
-      assert.equal('claim_commit' in obligation, false);
+    for (const commit of commits) {
+      assert.throws(
+        () => git(authority, ['cat-file', '-e', `${commit}:state.json`]),
+      );
     }
   }
 
@@ -75,7 +72,7 @@ function fixture() {
     mkdirSync(cache, { recursive: true });
     writeFileSync(join(cache, 'project-projection.json'), before);
     const digest = sha256(before);
-    assertDefinitionOnlyState();
+    assertFactOnlyAuthority();
 
     rmSync(cache, { recursive: true, force: true });
     assert.equal(existsSync(cache), false);
