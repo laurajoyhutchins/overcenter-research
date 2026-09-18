@@ -219,9 +219,15 @@ export class GitOvercenterKernel {
       if (!run) throw new Error('UNKNOWN_RUN');
       const work=state.obligations[run.obligation_id];
       if (!work) throw new Error('UNKNOWN_OBLIGATION');
-      const status=history.lifecycles.get(work.id)?.status;
-      if (!status || !['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(status)) {
-        const prior=history.receiptsByRun.get(runId);
+      const prior=history.receiptsByRun.get(runId);
+      if (prior && ['DONE','READY'].includes(prior.disposition)) return prior;
+      const lifecycle=history.lifecycles.get(work.id);
+      if (lifecycle?.run?.id!==runId) {
+        if (prior) return prior;
+        throw new Error('AUTHORITY_LOST');
+      }
+      const status=lifecycle.status;
+      if (!['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(status)) {
         if (prior) return prior;
         throw new Error('NOT_RESOLVABLE');
       }
@@ -244,9 +250,9 @@ export class GitOvercenterKernel {
       if (!run) throw new Error('UNKNOWN_RUN');
       const work=state.obligations[run.obligation_id];
       if (!work) throw new Error('UNKNOWN_OBLIGATION');
-      const status=history.lifecycles.get(work.id)?.status;
-      if (status!=='EXECUTING') {
-        const prior=history.receiptsByRun.get(runId);
+      const prior=history.receiptsByRun.get(runId);
+      const lifecycle=history.lifecycles.get(work.id);
+      if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
       }
@@ -268,9 +274,9 @@ export class GitOvercenterKernel {
       if (!run) throw new Error('UNKNOWN_RUN');
       const work=state.obligations[run.obligation_id];
       if (!work) throw new Error('UNKNOWN_OBLIGATION');
-      const status=history.lifecycles.get(work.id)?.status;
-      if (status!=='EXECUTING') {
-        const prior=history.receiptsByRun.get(runId);
+      const prior=history.receiptsByRun.get(runId);
+      const lifecycle=history.lifecycles.get(work.id);
+      if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
         if (prior) return prior;
         throw new Error('RUN_NOT_EXECUTING');
       }
@@ -344,6 +350,18 @@ export class GitOvercenterKernel {
       if (fact.claim_commit!==run.claim_commit) throw new Error('RECEIPT_CLAIM_MISMATCH');
       const current=lifecycles.get(run.obligation_id);
       if (current?.run?.id!==run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
+      if (fact.kind==='judgment-required' && current.status!=='EXECUTING') {
+        throw new Error('JUDGMENT_REQUIRED_WHILE_NOT_EXECUTING');
+      }
+      if (fact.kind==='execution-terminated' && current.status!=='EXECUTING') {
+        throw new Error('EXECUTION_TERMINATED_WHILE_NOT_EXECUTING');
+      }
+      if (
+        fact.kind==='observation'
+        && !['EXECUTING','WAITING','RECOVERY_REQUIRED'].includes(current.status)
+      ) {
+        throw new Error('OBSERVATION_WHILE_NOT_RESOLVABLE');
+      }
       const previous=receiptsByRun.get(run.id);
       if (previous && ['DONE','READY'].includes(previous.disposition)) {
         throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
@@ -550,7 +568,6 @@ export class GitOvercenterKernel {
         expected_sha:p.target_sha,
         actual_sha:actualSha,
         mutation_certainty:'present',
-        verified:actualSha===p.target_sha,
       };
     }
 
