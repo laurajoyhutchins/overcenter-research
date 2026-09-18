@@ -29,7 +29,11 @@ import {
   sameGithubEntity,
 } from './semantics.ts';
 import { reconstructGithubProjection } from './reconstruction.ts';
-import { validateResponseSlice } from './response-slice.ts';
+import {
+  RESPONSE_SLICES,
+  validateObservationSlice,
+  validateResponseSlice,
+} from './response-slice.ts';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
@@ -74,7 +78,31 @@ const openapi: OpenApiDocument = {
           { name: 'ref', in: 'path', required: true, schema: { type: 'string' } },
           { name: 'X-Observer-Mode', in: 'header', required: false, schema: { type: 'string' } },
         ],
-        responses: { '200': { description: 'Response' }, '404': { description: 'Not found' } },
+        responses: {
+          '200': {
+            description: 'Response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['ref', 'object'],
+                  properties: {
+                    ref: { type: 'string' },
+                    object: {
+                      type: 'object',
+                      required: ['type', 'sha'],
+                      properties: {
+                        type: { type: 'string', enum: ['commit', 'tag'] },
+                        sha: { type: 'string', minLength: 40, maxLength: 64 },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': { description: 'Not found' },
+        },
       },
       patch: { operationId: 'git/update-ref', responses: { '200': { description: 'Response' } } },
     },
@@ -226,16 +254,28 @@ test('stable repository identity is numeric even when the observed owner/name al
 
 test('ref binding composes through stable repository identity and 404 never proves absence', async () => {
   const repository = projectRepositoryIdentity(await repositoryObservation())!;
-  const refObservation = await observe(operation(paths.ref), {
+  const refOperation = operation(paths.ref);
+  const refObservation = await observe(refOperation, {
     owner: 'acme', repo: 'widget', ref: 'heads/main',
   }, response(200, { ref: 'refs/heads/main', object: { type: 'commit', sha: SHA_A } }));
-  const fact = projectGitRefTarget(refObservation, repository)!;
-  assert.equal(fact.subject.repository_id, 42);
-  assert.equal(fact.object.sha, SHA_A);
+
+  assert.equal(projectGitRefTarget(refObservation, repository), null);
   assert.equal(evaluateGitRefTarget(refObservation, repository, {
     repository_id: 42, ref: 'heads/main', target_sha: SHA_A,
+  }).reason, 'OBSERVATION_DOES_NOT_PROVE_REF_BINDING');
+
+  const validatedRef = validateObservationSlice(
+    refOperation,
+    refObservation,
+    RESPONSE_SLICES['git/get-ref'],
+  );
+  const fact = projectGitRefTarget(validatedRef, repository)!;
+  assert.equal(fact.subject.repository_id, 42);
+  assert.equal(fact.object.sha, SHA_A);
+  assert.equal(evaluateGitRefTarget(validatedRef, repository, {
+    repository_id: 42, ref: 'heads/main', target_sha: SHA_A,
   }).state, 'SATISFIED');
-  assert.equal(evaluateGitRefTarget(refObservation, repository, {
+  assert.equal(evaluateGitRefTarget(validatedRef, repository, {
     repository_id: 42, ref: 'heads/main', target_sha: SHA_B,
   }).state, 'UNSATISFIED');
 
@@ -513,15 +553,24 @@ test('reconstruction reuses immutable facts but requires fresh authority for mut
   }, response(200, { sha: SHA_A, tree: { sha: SHA_B }, parents: [] }));
   const commit = projectGitCommit(commitObservation, repository)!;
 
-  const oldRefObservation = await observe(operation(paths.ref), {
+  const refOperation = operation(paths.ref);
+  const oldRefObservation = await observe(refOperation, {
     owner: 'acme', repo: 'widget', ref: 'heads/main',
   }, response(200, { ref: 'refs/heads/main', object: { type: 'commit', sha: SHA_A } }));
-  const oldRef = projectGitRefTarget(oldRefObservation, repository)!;
+  const oldRef = projectGitRefTarget(validateObservationSlice(
+    refOperation,
+    oldRefObservation,
+    RESPONSE_SLICES['git/get-ref'],
+  ), repository)!;
 
-  const freshRefObservation = await observe(operation(paths.ref), {
+  const freshRefObservation = await observe(refOperation, {
     owner: 'acme', repo: 'widget', ref: 'heads/main',
   }, response(200, { ref: 'refs/heads/main', object: { type: 'commit', sha: SHA_B } }));
-  const freshRef = projectGitRefTarget(freshRefObservation, repository)!;
+  const freshRef = projectGitRefTarget(validateObservationSlice(
+    refOperation,
+    freshRefObservation,
+    RESPONSE_SLICES['git/get-ref'],
+  ), repository)!;
 
   const withoutFresh = reconstructGithubProjection({ durable: [repository, commit, oldRef], current: [] });
   assert.equal(Object.keys(withoutFresh.commits).length, 1);
