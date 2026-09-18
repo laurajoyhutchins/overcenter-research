@@ -91,7 +91,12 @@ export interface ExecuteOutcome extends Data {
   may_have_mutated?: boolean;
 }
 
+export interface PreflightOutcome extends Data {
+  kind: 'execute' | 'judgment-required';
+}
+
 export interface LoopOptions {
+  preflight?: (packet: Data, run: ExecutionPermit) => Promise<PreflightOutcome>;
   execute: (packet: Data, run: ExecutionPermit) => Promise<ExecuteOutcome>;
   maxAdvances?: number;
 }
