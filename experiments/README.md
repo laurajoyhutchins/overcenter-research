@@ -124,9 +124,9 @@ provider context:     overcenter/trust-proof/35304838786/1
 provider state:       success
 ```
 
-The proof deliberately placed the target GitHub status behind 100 newer distractor statuses so canonical readback had to cross the first status page before settlement.
+That historical proof deliberately placed the target GitHub status behind 100 newer distractor statuses so canonical readback had to cross the first status page before settlement.
 
-Its capability claim is intentionally limited. GitHub grants `statuses: write` at repository scope, not at one SHA/context coordinate. The experiment proves that the executor cannot redefine Overcenter authority or certify its own settlement; it does not prove least-privilege provider mutation capability.
+Its capability claim was intentionally limited. GitHub grants `statuses: write` at repository scope, not at one SHA/context coordinate. The experiment proves that the executor cannot redefine Overcenter authority or certify its own settlement; it does not prove least-privilege provider mutation capability.
 
 ### Reconstructible project projection
 
