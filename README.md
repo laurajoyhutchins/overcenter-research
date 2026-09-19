@@ -4,20 +4,20 @@ Overcenter asks a narrow question:
 
 > How little trusted mechanism is required to turn uncertain agent activity into verified project truth?
 
-This repository is an executable research prototype for that question. It is not a production orchestrator.
+This repository is an executable research prototype with one deliberately narrow production-capable slice. It is not yet a complete production orchestrator.
 
-The core loop is:
+The authority loop is:
 
 ```text
-inspect authoritative facts
+inspect durable facts + current authority
         ↓
 derive READY work
         ↓
 claim @ exact revision
         ↓
-reserve effect durably
-        ↓
-execute uncertain action
+choose trusted execution boundary
+        ├── pure computation → exact ProcessSpec → isolated executor
+        └── provider effect  → durable reservation → trusted mutation
         ↓
 observe authoritative reality
         ↓
@@ -29,6 +29,27 @@ recompute project projection ↺
 ```
 
 The worker does not decide that its work succeeded.
+
+## Current production slice
+
+The supported implementation boundary is intentionally smaller than the research surface:
+
+| Concern | Current owner | Status |
+| --- | --- | --- |
+| project authority, graph, claim/recovery fencing, provider semantics, observation, settlement | TypeScript | production reference path |
+| isolated pure computation and attempt evidence | Go | admitted for the `test` workload |
+| worker filesystem/process confinement | Rust | promising experiment, not yet on the supported path |
+| semantic proofs and differential oracles | Lean, Datalog, F*, bounded model checks | evidence only; no runtime authority |
+
+The production path currently proves a real `READY → claim → isolated Go execution → independent observation → settlement` cycle, including executor death, fresh execution generation recovery, and workspace recreation. Mutable historical `DONE` is also rechecked against fresh authority before it may satisfy current project truth.
+
+Run the supported slice with:
+
+```sh
+npm run proof:production
+```
+
+That command is the same machinery CI uses: Go runtime tests, the cross-language exact-byte contract, container isolation and catastrophic-death containment, the real test-workload recovery proof, and the deterministic repository regression suite.
 
 ## What is Overcenter?
 
@@ -64,6 +85,8 @@ The executable and formal proofs currently establish bounded claims about the co
 - **The normal core loop cannot invoke its effect handler before reservation.** Preflight judgment happens before the effect boundary; then the kernel validates the execution permit and durably reserves the effect before invoking the effect callback. The callback receives the work packet, not the `ExecutionPermit`; a failed reservation means provider code is never called.
 - **Unresolved effects survive authority handoff.** Effects routed through the kernel reservation boundary are durably reserved before mutation; a successor generation may reconcile the reservation but cannot issue another effect through that boundary until authoritative observation settles it.
 - **Semantic dependency identity is explicit.** Control dependencies constrain executability; semantic dependencies contribute selected upstream identity to downstream meaning. Historical realizations are reused only when the current obligation key still matches.
+- **Historical `DONE` does not overrule current reality.** Current project reads and new claims overlay fresh realization-admissibility judgments. Authoritative contradiction can withdraw stale satisfaction, ambiguous readback blocks rather than guesses, and restored reality can reuse the same historical settlement without a repair write.
+- **Pure computation has crossed the production boundary.** The first `test` workload is claimed and fenced in TypeScript, executed through the isolated Go executor over an exact-byte Unix-socket contract, and settled only after independent TypeScript observation. Executor death reconstructs through a fresh generation rather than a durable executor queue.
 - **Workers are disposable.** A worker can disappear with its checkout, cache, local database, refs, and process memory; a fresh worker can reconstruct the unresolved run from authority and reconcile it.
 - **Settlement is independent of worker assertion.** Verification semantics are committed before execution and authoritative readback determines whether the required postcondition actually holds.
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
@@ -115,9 +138,9 @@ Important entry points:
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
 - [`src/graph.ts`](./src/graph.ts) - provider-agnostic dependency topology, validation, and ordering queries.
 - [`src/admission.ts`](./src/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
-- [`src/lifecycle.ts`](./src/lifecycle.ts) - semantic realization identity and internal realization lifecycle (`UNREALIZED` through `DONE`).
-- [`src/eligibility.ts`](./src/eligibility.ts) - maps an unrealized obligation to public `READY` or `BLOCKED` using deterministic execution eligibility.
-- [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to current project projection.
+- [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to historical project facts.
+- [`src/projector.ts`](./src/projector.ts) - the single derived project-status/claimability projection over replayed history and current judgments.
+- [`src/realization-admissibility.ts`](./src/realization-admissibility.ts) - fresh-authority classification for whether historical realizations remain usable now.
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
 - [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
@@ -138,11 +161,12 @@ The command name states what kind of evidence a green check supports:
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
+| `npm run proof:production` | Supported production slice: Go executor contract/runtime, container isolation, catastrophic-death recovery, and deterministic regression. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
-`.github/workflows/tests.yml` enforces the first three tiers on every pull request and every push to `main`. The live tier remains separate because it exercises real provider boundaries and permissions.
+`.github/workflows/tests.yml` enforces deterministic, local-adversarial, and formal evidence on every pull request and every push to `main`. `.github/workflows/computation-executor.yml` runs the same `proof:production` command exposed to developers. The live tier remains separate because it exercises real provider boundaries and permissions.
 
 Requirements:
 
