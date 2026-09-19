@@ -55,18 +55,25 @@ theorem claimObligationIndex_lookup_eq_find
   | nil =>
       simp [claimObligationIndex, findClaimObligation]
   | cons obligation rest ih =>
-      by_cases sameId : obligation.id = id
-      · simp [
+      by_cases sameId : id = obligation.id
+      · subst id
+        simp [
           claimObligationIndex,
           findClaimObligation,
-          ih,
-          sameId
+          Std.HashMap.get?_eq_getElem?,
+          Std.HashMap.getElem?_insert
         ]
-      · simp [
+      · have reverseId : obligation.id ≠ id := by
+          intro equality
+          exact sameId equality.symm
+        simp [
           claimObligationIndex,
           findClaimObligation,
-          ih,
-          sameId
+          Std.HashMap.get?_eq_getElem?,
+          Std.HashMap.getElem?_insert,
+          sameId,
+          reverseId,
+          ih
         ]
 
 private theorem findClaimObligation_mem
