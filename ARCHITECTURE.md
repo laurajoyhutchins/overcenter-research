@@ -145,7 +145,7 @@ authority
 
 There is intentionally no privileged lifecycle/status table. `READY`, `EXECUTING`, `WAITING`, `BLOCKED`, `RECOVERY_REQUIRED`, and `DONE` remain projections over durable facts plus current authoritative observation.
 
-Git implements the same contract as a reference, export/interchange format, and independent replay oracle. Git commit IDs and SQLite commit IDs are backend-local authority revisions; neither is semantic obligation identity.
+Git implements the same contract as a reference backend and independent replay oracle. Git commit IDs and SQLite commit IDs are backend-local authority revisions; neither is semantic obligation identity. Existing history is not assumed to be byte-portable between backends: facts such as claim ancestry and settlement-receipt semantic dependencies may intentionally contain those backend-local identities, so migration requires an explicit remapping proof.
 
 ## 1. Immutable project intent
 
