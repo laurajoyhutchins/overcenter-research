@@ -59,7 +59,7 @@ task UID/GID      -> workspace computation only
 
 The workspace must be mounted with permissions appropriate for the configured task UID/GID. The executor pins the workspace root as a directory descriptor and traverses task cwd components with no-follow directory opens; cwd symlink components are rejected rather than resolved through a mutable namespace.
 
-The Unix socket should live in a dedicated directory that the task UID/GID cannot write. The established one-connection lifetime means a task cannot take over the already-connected authority channel, but keeping the socket namespace outside task write authority prevents unlink/rebind denial and makes the physical boundary explicit.
+The Unix socket must live in a dedicated directory that the task UID/GID cannot write. Production startup checks the directory owner/group/mode and fails closed when the configured task identity can write it; the socket is created under a restrictive umask before its final `0660` mode is applied. The established one-connection lifetime then keeps the authority channel outside task namespace control. POSIX ACLs or other deployment mechanisms must not separately grant the task write access to that directory.
 
 `--unsafe-test-same-uid` is an explicit escape hatch for local protocol tests and is accepted only with `--stdio`. Production socket mode has no same-UID escape hatch: it requires explicit distinct task credentials and fails closed otherwise.
 
