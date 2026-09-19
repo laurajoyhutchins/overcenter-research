@@ -75,16 +75,15 @@ No effect reservation is created for this pure-computation path. That is safe on
 
 Trusted host observation is separately confined. For the production file-result path the host verifier accepts only a direct regular-file child of the configured workspace root and opens the final component with `O_NOFOLLOW`; task-created symlinks therefore cannot redirect settlement reads outside the workspace.
 
-If the executor transport dies, TypeScript records an interrupted-execution receipt. A successor reconstructs the run and process specification from durable facts, acquires a fresh execution generation, recreates the workspace, and may retry the pure computation. Provider-mutating work does not use this path.
+If the executor transport dies, TypeScript records an interrupted-execution receipt including the trusted containment identity. A successor may retry only a replay-safe test packet whose execution-context digest still matches the trusted substrate. That context binds the immutable container image, exact source snapshot, and containment profile into obligation meaning. Legacy test packets may execute once but cannot cross a lost-executor boundary.
+
+Before a successor generation is acquired, trusted recovery must prove the prior containment domain is gone. An unresolved effect reservation also blocks entry into this replay lane. The writable workspace starts empty for every production attempt; source is materialized from an exact Git revision into a read-only snapshot with no `.git` metadata. Provider-mutating work does not use this path.
 
 ## Recovery
 
 Executor state is intentionally ephemeral. A client disconnect cancels local work and ends that executor lifetime.
 
-Recovery does not reconstruct an in-memory queue. Overcenter re-reads durable facts and either:
-
-- acquires a fresh execution generation for computation known safe to repeat, or
-- follows effect observation/reconciliation when an external effect may have occurred.
+Recovery does not reconstruct an in-memory queue. Overcenter re-reads durable facts and either acquires a fresh generation only after replay identity, unresolved-effect state, and prior-containment teardown have all been checked, or follows effect observation/reconciliation when an external effect may have occurred.
 
 ## Catastrophic death
 
