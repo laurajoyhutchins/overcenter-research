@@ -115,6 +115,7 @@ async function startExecutor():Promise<ExecutorHarness> {
     '-d',
     '--name',container,
     '--label',label,
+    '--network=none',
     '--entrypoint','/usr/local/bin/overcenter-executor',
     '-v',`${control}:/control`,
     '-v',`${workspace}:/workspace`,
