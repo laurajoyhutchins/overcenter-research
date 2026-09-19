@@ -27,11 +27,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
       - name: Build isolated dogfood executor
-        run: docker build -f executor/dogfood/Dockerfile -t "$OVERCENTER_DOGFOOD_IMAGE" .
+        run: |
+          docker build \
+            --build-arg GO_IMAGE="$(node -e "const x=require('./executor/runtime-images.json'); process.stdout.write(x.go_build)")" \
+            --build-arg NODE_IMAGE="$(node -e "const x=require('./executor/runtime-images.json'); process.stdout.write(x.node_dogfood)")" \
+            --build-arg GO_VERSION="$(cat .go-version)" \
+            --build-arg NODE_VERSION="$(cat .node-version)" \
+            -f executor/dogfood/Dockerfile \
+            -t "$OVERCENTER_DOGFOOD_IMAGE" \
+            .
       - name: Let Overcenter verify this exact revision
         run: |
           set -euo pipefail

@@ -666,6 +666,7 @@ test('executor death reconstructs test work with a fresh generation and workspac
   });
 
   const first=await startExecutor(1,workdir);
+  await first.client.ready();
   const pending=runReadyTestComputation(state.kernel,first.client);
   await new Promise(resolve=>setTimeout(resolve,100));
   await first.abort();
@@ -751,6 +752,7 @@ test('legacy computation cannot replay without a bound execution context',async(
   });
 
   const first=await startExecutor(1,workdir);
+  await first.client.ready();
   const pending=runReadyTestComputation(state.kernel,first.client);
   await new Promise(resolve=>setTimeout(resolve,100));
   await first.abort();
@@ -792,6 +794,7 @@ test('replay-safe computation rejects a changed execution context before rotatin
   });
 
   const first=await startExecutor(1,workdir,testExecutionContext);
+  await first.client.ready();
   const pending=runReadyTestComputation(state.kernel,first.client);
   await new Promise(resolve=>setTimeout(resolve,100));
   await first.abort();
