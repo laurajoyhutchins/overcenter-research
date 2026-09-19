@@ -18,19 +18,64 @@ theorem key_preimage_ready_implies_unique_semantic_dependencies
   simp [keyPreimageReady] at ready
   exact ready.2
 
+theorem built_model_implies_semantic_inputs_resolved
+    (input : ObligationKeyInput)
+    (results : List KeyHashResult)
+    (consumed : List Json)
+    (built : buildObligationKeyPreimageModel input results = some consumed) :
+    rawSemanticInputsResolved input.context = true := by
+  cases readyValue : keyPreimageReady input.context with
+  | false =>
+      simp [buildObligationKeyPreimageModel, readyValue] at built
+  | true =>
+      exact key_preimage_ready_implies_semantic_inputs_resolved
+        input.context
+        readyValue
+
+theorem built_model_implies_unique_semantic_dependencies
+    (input : ObligationKeyInput)
+    (results : List KeyHashResult)
+    (consumed : List Json)
+    (built : buildObligationKeyPreimageModel input results = some consumed) :
+    semanticDependenciesUnique input.context = true := by
+  cases readyValue : keyPreimageReady input.context with
+  | false =>
+      simp [buildObligationKeyPreimageModel, readyValue] at built
+  | true =>
+      exact key_preimage_ready_implies_unique_semantic_dependencies
+        input.context
+        readyValue
+
+theorem built_preimage_has_exact_shape
+    (input : ObligationKeyInput)
+    (results : List KeyHashResult)
+    (bytes : String)
+    (built : buildObligationKeyPreimage input results = some bytes) :
+    ∃ consumed,
+      buildObligationKeyPreimageModel input results = some consumed ∧
+      bytes = serializeObligationKeyPreimage input consumed := by
+  cases modelResult : buildObligationKeyPreimageModel input results with
+  | none =>
+      simp [buildObligationKeyPreimage, modelResult] at built
+  | some consumed =>
+      have bytesEq :
+          serializeObligationKeyPreimage input consumed = bytes := by
+        simpa [buildObligationKeyPreimage, modelResult] using built
+      exact ⟨consumed, modelResult, bytesEq.symm⟩
+
 theorem built_preimage_implies_semantic_inputs_resolved
     (input : ObligationKeyInput)
     (results : List KeyHashResult)
     (bytes : String)
     (built : buildObligationKeyPreimage input results = some bytes) :
     rawSemanticInputsResolved input.context = true := by
-  cases readyValue : keyPreimageReady input.context with
-  | false =>
-      simp [buildObligationKeyPreimage, readyValue] at built
-  | true =>
-      exact key_preimage_ready_implies_semantic_inputs_resolved
-        input.context
-        readyValue
+  obtain ⟨consumed, modelBuilt, _⟩ :=
+    built_preimage_has_exact_shape input results bytes built
+  exact built_model_implies_semantic_inputs_resolved
+    input
+    results
+    consumed
+    modelBuilt
 
 theorem built_preimage_implies_unique_semantic_dependencies
     (input : ObligationKeyInput)
@@ -38,13 +83,13 @@ theorem built_preimage_implies_unique_semantic_dependencies
     (bytes : String)
     (built : buildObligationKeyPreimage input results = some bytes) :
     semanticDependenciesUnique input.context = true := by
-  cases readyValue : keyPreimageReady input.context with
-  | false =>
-      simp [buildObligationKeyPreimage, readyValue] at built
-  | true =>
-      exact key_preimage_ready_implies_unique_semantic_dependencies
-        input.context
-        readyValue
+  obtain ⟨consumed, modelBuilt, _⟩ :=
+    built_preimage_has_exact_shape input results bytes built
+  exact built_model_implies_unique_semantic_dependencies
+    input
+    results
+    consumed
+    modelBuilt
 
 private def leaf : RawClaimObligation := {
   id := "leaf"
