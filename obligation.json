@@ -1,0 +1,38 @@
+{
+  "schema": "overcenter-git-obligation-v3",
+  "kind": "defined",
+  "obligation": {
+    "id": "actions-trust-proof-35464872748-1",
+    "dependencies": [],
+    "packet": {
+      "kind": "github-actions-trust-boundary-proof/v1",
+      "executor": {
+        "provider": "github-actions/v1",
+        "repository_id": 1354872053,
+        "workflow_run_id": "35464872748",
+        "workflow_run_attempt": "1",
+        "job": "agent-a"
+      },
+      "exact_input": {
+        "kind": "git-commit/v1",
+        "repository_id": 1354872053,
+        "commit_sha": "acf9fcf64f6be758cc5844b9d3a438d5e97f0442"
+      },
+      "effect": {
+        "kind": "github-commit-status/v1",
+        "repository_id": 1354872053,
+        "commit_sha": "acf9fcf64f6be758cc5844b9d3a438d5e97f0442",
+        "context": "overcenter/trust-proof/35464872748/1",
+        "state": "success"
+      }
+    },
+    "postcondition": {
+      "verifier": "github-commit-status/v1",
+      "provider": "github",
+      "repository_id": 1354872053,
+      "commit_sha": "acf9fcf64f6be758cc5844b9d3a438d5e97f0442",
+      "context": "overcenter/trust-proof/35464872748/1",
+      "expected_state": "success"
+    }
+  }
+}
