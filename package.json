@@ -26,6 +26,7 @@
     "github:authority": "node --experimental-strip-types bin/github-authority.ts",
     "test:kubernetes-core": "node --experimental-strip-types --test test/kubernetes-core-verifier.test.ts",
     "test:github-contract": "node --experimental-strip-types --test test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts",
-    "test:go-graph-executor": "node --experimental-strip-types --test test/go-graph-executor.test.ts"
+    "test:go-graph-executor": "node --experimental-strip-types --test test/go-graph-executor.test.ts",
+    "test:go-pipeline": "node --experimental-strip-types --test test/go-pipelined-frontier.test.ts"
   }
 }
