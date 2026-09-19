@@ -1,1 +1,1 @@
-hidden-before
+transport-proof:35474967380:1:experiments/github-object-transport/fixtures/hidden.txt
