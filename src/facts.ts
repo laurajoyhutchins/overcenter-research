@@ -9,10 +9,17 @@ import type {
 } from './model.ts';
 import {
   validateObservationEnvelope,
-  validatePostcondition,
 } from './observation.ts';
+import {
+  validateCanonicalPostcondition,
+  validatePostcondition,
+} from './postconditions.ts';
 
-export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
+export const LEGACY_OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
+export const OBLIGATION_SCHEMA='overcenter-git-obligation-v4' as const;
+export type ObligationSchema=
+  | typeof LEGACY_OBLIGATION_SCHEMA
+  | typeof OBLIGATION_SCHEMA;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
@@ -34,12 +41,12 @@ export interface State {
 
 export type ObligationFact =
   | {
-      schema:typeof OBLIGATION_SCHEMA;
+      schema:ObligationSchema;
       kind:'defined';
       obligation:Obligation;
     }
   | {
-      schema:typeof OBLIGATION_SCHEMA;
+      schema:ObligationSchema;
       kind:'amended';
       obligation:Obligation;
       previous_definition_commit:string;
@@ -173,7 +180,7 @@ export function normalizeObligation(input:ObligationInput):Obligation {
   if (!input || typeof input.id!=='string' || input.id.length===0) {
     throw new Error('INVALID_OBLIGATION_ID');
   }
-  validatePostcondition(input.postcondition);
+  validateCanonicalPostcondition(input.postcondition);
   const dependencies:Dependency[]=structuredClone(input.dependencies??[]);
   validateDependencies(dependencies);
   return {
@@ -184,7 +191,10 @@ export function normalizeObligation(input:ObligationInput):Obligation {
   };
 }
 
-export function validateStoredObligation(obligation:Obligation):Obligation {
+export function validateStoredObligation(
+  obligation:Obligation,
+  {canonicalPostcondition=false}:{canonicalPostcondition?:boolean}={},
+):Obligation {
   if (!data(obligation)) throw new Error('INVALID_OBLIGATION');
   const raw=obligation as unknown as Record<string,unknown>;
   if ('deps' in raw) throw new Error('LEGACY_DEPENDENCY_PROJECTION_UNSUPPORTED');
@@ -193,19 +203,33 @@ export function validateStoredObligation(obligation:Obligation):Obligation {
   if (!Array.isArray(obligation.dependencies)) throw new Error('INVALID_DEPENDENCIES');
   if (!data(raw.packet)) throw new Error('INVALID_PACKET');
   validateDependencies(obligation.dependencies);
-  validatePostcondition(obligation.postcondition);
+  if (canonicalPostcondition) {
+    validateCanonicalPostcondition(obligation.postcondition);
+  } else {
+    validatePostcondition(obligation.postcondition);
+  }
   return structuredClone(obligation);
 }
 
 export function validateObligationFact(value:unknown):ObligationFact {
   if (!data(value)) throw new Error('INVALID_OBLIGATION_FACT');
-  if (value.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
+  if (
+    value.schema!==LEGACY_OBLIGATION_SCHEMA
+    && value.schema!==OBLIGATION_SCHEMA
+  ) {
+    throw new Error('INVALID_OBLIGATION_SCHEMA');
+  }
+  const schema=value.schema;
+  const canonicalPostcondition=schema===OBLIGATION_SCHEMA;
   if (value.kind==='defined') {
     exactKeys(value,['schema','kind','obligation'],[],'INVALID_OBLIGATION_FACT');
     return {
-      schema:OBLIGATION_SCHEMA,
+      schema,
       kind:'defined',
-      obligation:validateStoredObligation(value.obligation as Obligation),
+      obligation:validateStoredObligation(
+        value.obligation as Obligation,
+        {canonicalPostcondition},
+      ),
     };
   }
   if (value.kind==='amended') {
@@ -220,9 +244,12 @@ export function validateObligationFact(value:unknown):ObligationFact {
       'INVALID_PREVIOUS_DEFINITION_COMMIT',
     );
     return {
-      schema:OBLIGATION_SCHEMA,
+      schema,
       kind:'amended',
-      obligation:validateStoredObligation(value.obligation as Obligation),
+      obligation:validateStoredObligation(
+        value.obligation as Obligation,
+        {canonicalPostcondition},
+      ),
       previous_definition_commit:value.previous_definition_commit,
     };
   }
@@ -355,6 +382,7 @@ export type AuthorityFact =
 export function validateAuthorityFact(value:unknown):AuthorityFact {
   if (!data(value)) throw new Error('INVALID_AUTHORITY_FACT');
   switch (value.schema) {
+    case LEGACY_OBLIGATION_SCHEMA:
     case OBLIGATION_SCHEMA:
       return validateObligationFact(value);
     case CLAIM_SCHEMA:

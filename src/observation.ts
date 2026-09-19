@@ -15,12 +15,13 @@ import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
 } from './providers/github-certified-status.ts';
-import { githubGet, isGithubObjectId } from './providers/github-rest.ts';
+import { githubGet } from './providers/github-rest.ts';
 import {
   kubernetesConfigMapAbsenceEvidenceMatches,
   observeCertifiedKubernetesConfigMap,
   type KubernetesListConfigMaps,
 } from './providers/kubernetes-configmap.ts';
+import { validatePostcondition } from './postconditions.ts';
 
 export interface ObservationContext {
   githubToken: string | null;
@@ -127,43 +128,7 @@ function readLocalFile(path:string,context:ObservationContext):string {
   }
 }
 
-export function validatePostcondition(p: Postcondition): void {
-  if (p?.verifier==='file-content-equals/v1'
-    && typeof p.path==='string'
-    && typeof p.content==='string') return;
-  if (p?.verifier==='eventually-consistent-file-content-equals/v1'
-    && typeof p.path==='string'
-    && typeof p.content==='string') return;
-  if (p?.verifier==='github-commit-status/v1'
-    && p.provider==='github'
-    && Number.isSafeInteger(p.repository_id)
-    && p.repository_id > 0
-    && isGithubObjectId(p.commit_sha)
-    && typeof p.context==='string'
-    && p.context.length > 0
-    && ['error','failure','pending','success'].includes(p.expected_state)) return;
-  if (p?.verifier==='github-commit-status/v2'
-    && p.provider==='github'
-    && Number.isSafeInteger(p.repository_id)
-    && p.repository_id > 0
-    && typeof p.repository_full_name==='string'
-    && /^[^/]+\/[^/]+$/.test(p.repository_full_name)
-    && isGithubObjectId(p.commit_sha)
-    && typeof p.context==='string'
-    && p.context.length > 0
-    && ['error','failure','pending','success'].includes(p.expected_state)) return;
-  if (p?.verifier==='kubernetes-configmap-exists/v1'
-    && p.provider==='kubernetes'
-    && typeof p.authority_id==='string'
-    && p.authority_id.length > 0
-    && p.api_group===''
-    && p.resource==='configmaps'
-    && typeof p.namespace==='string'
-    && p.namespace.length > 0
-    && typeof p.name==='string'
-    && p.name.length > 0) return;
-  throw new Error('UNSUPPORTED_POSTCONDITION');
-}
+export { validatePostcondition } from './postconditions.ts';
 
 export function observePostcondition(
   p: Postcondition,
