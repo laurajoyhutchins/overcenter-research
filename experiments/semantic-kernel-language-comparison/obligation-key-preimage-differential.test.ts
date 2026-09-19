@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import test from 'node:test';
 import { sha256 } from '../../src/digest.ts';
-import type { Receipt, State } from '../../src/facts.ts';
+import { validateDependencies, type Receipt, type State } from '../../src/facts.ts';
 import {
   obligationKey,
   type Lifecycle,
@@ -264,6 +264,11 @@ function tsKey(
   lifecycles:Map<string,Lifecycle>,
   receipts:Map<string,Receipt>,
 ):string|null {
+  try {
+    validateDependencies(state.obligations[targetId].dependencies);
+  } catch {
+    return null;
+  }
   return obligationKey(
     state,
     state.obligations[targetId],
@@ -433,7 +438,7 @@ test('Unicode object-key ordering is part of the portability audition',()=>{
       'ä':2,
       A:3,
       'Ω':4,
-      nested:{'雪':1,y:2,'é':3},
+      nested:{'雪':1,y:2,'é':3,'2':'two','10':'ten','😀':'face'},
     },
   );
   const state=stateOf(target);
@@ -459,9 +464,10 @@ test('duplicate exact semantic edges fail closed at the Lean preimage boundary',
   const receipts=new Map<string,Receipt>();
   const lean=leanPreimage(rawRequest(state,'target',lifecycles,receipts));
   assert.equal(lean,null);
-  assert.ok(
+  assert.equal(
     tsKey(state,'target',lifecycles,receipts),
-    'current TypeScript key still exposes duplicate-edge syntax sensitivity',
+    null,
+    'TypeScript durable-input validation rejects the same duplicate edge',
   );
 });
 
