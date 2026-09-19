@@ -38,10 +38,12 @@ import type {
 import { withObligation } from './graph.ts';
 import { validateAdmission } from './admission.ts';
 import {
+  deriveProjectProjection,
   explainProjectWork,
   hasInFlight,
   type ProjectExplanation,
 } from './projector.ts';
+import { deriveCurrentRealizationJudgments } from './realization-admissibility.ts';
 import {
   projectReceipt,
   replayProjection,
@@ -90,7 +92,7 @@ export class GitOvercenterKernel {
     if (this.#store.cas(commit,this.#store.zeroObjectId())) return commit;
     const winner=this.head();
     if (!winner) throw new Error('INITIALIZE_LOST');
-    this.#projection(winner);
+    this.#historicalProjection(winner);
     return winner;
   }
 
@@ -102,7 +104,7 @@ export class GitOvercenterKernel {
     const obligation=normalizeObligation(input);
     const {id}=obligation;
     const head=this.#requireHead();
-    const projection=this.#projection(head);
+    const projection=this.#historicalProjection(head);
     const {state,project}=projection;
     if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
@@ -124,7 +126,7 @@ export class GitOvercenterKernel {
     const {id}=obligation;
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const projection=this.#projection(head);
+    const projection=this.#historicalProjection(head);
     const {state,project}=projection;
     if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
     if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
@@ -149,23 +151,23 @@ export class GitOvercenterKernel {
 
   inspect():Work[] {
     const head=this.#requireHead();
-    return this.#projection(head).project.work;
+    return this.#currentProjection(head).project.work;
   }
 
   deriveReadyWork():Work|null {
     const head=this.#requireHead();
-    return this.#projection(head).project.readyWork;
+    return this.#currentProjection(head).project.readyWork;
   }
 
   explain(id:string):ProjectExplanation {
     const head=this.#requireHead();
-    return explainProjectWork(this.#projection(head).project,id);
+    return explainProjectWork(this.#currentProjection(head).project,id);
   }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const {state,project}=this.#projection(head);
+    const {state,project}=this.#currentProjection(head);
     const work=state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
     const claimError=project.claimabilityErrors.get(id);
@@ -206,7 +208,7 @@ export class GitOvercenterKernel {
   acquireExecution(runId:string):ExecutionPermit {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {history,project}=this.#projection(head);
+      const {history,project}=this.#historicalProjection(head);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       const prior=history.receiptsByRun.get(runId);
@@ -251,7 +253,7 @@ export class GitOvercenterKernel {
   beginEffect(permit:ExecutionPermit):string {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {history,project}=this.#projection(head);
+      const {history,project}=this.#historicalProjection(head);
       const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
@@ -290,7 +292,7 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history,project}=this.#projection(head);
+      const {state,history,project}=this.#historicalProjection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
@@ -325,7 +327,7 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history,project}=this.#projection(head);
+      const {state,history,project}=this.#historicalProjection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
@@ -357,7 +359,7 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history,project}=this.#projection(head);
+      const {state,history,project}=this.#historicalProjection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
@@ -394,7 +396,7 @@ export class GitOvercenterKernel {
 
   receipts(runId:string|null=null):Receipt[] {
     const head=this.#requireHead();
-    const {history,project}=this.#projection(head);
+    const {history,project}=this.#historicalProjection(head);
     return runId
       ? history.receipts.filter(receipt=>receipt.run_id===runId)
       : history.receipts;
@@ -406,7 +408,7 @@ export class GitOvercenterKernel {
     return head;
   }
 
-  #projection(head:string):Projection {
+  #historicalProjection(head:string):Projection {
     const commits:FactCommit[]=this.#store.revisions(head).map(commit=>({
       commit,
       parent:this.#store.parent(commit),
@@ -417,6 +419,28 @@ export class GitOvercenterKernel {
       receipt:this.#store.readJson(commit,'receipt.json'),
     }));
     return replayProjection(commits);
+  }
+
+  #currentProjection(head:string):Projection {
+    const historical=this.#historicalProjection(head);
+    const currentRealizationJudgments=deriveCurrentRealizationJudgments({
+      state:historical.state,
+      runs:historical.history.runs,
+      receiptsByRun:historical.history.receiptsByRun,
+      semanticKeys:historical.project.semanticKeys,
+      observe:postcondition=>this.#observe(postcondition),
+    });
+    const project=deriveProjectProjection({
+      state:historical.state,
+      runs:historical.history.runs,
+      receiptsByRun:historical.history.receiptsByRun,
+      revision:head,
+      currentRealizationJudgments,
+    });
+    return {
+      ...historical,
+      project,
+    };
   }
 
   #observe(postcondition:Postcondition):Observation {
