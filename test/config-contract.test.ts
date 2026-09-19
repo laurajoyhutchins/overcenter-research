@@ -158,6 +158,15 @@ test('live provider proofs cancel superseded heads before consuming provider quo
   }
 });
 
+test('production self-dogfood does not size itself around Git reference stress',()=>{
+  const dogfood=read('bin/dogfood-evidence.ts');
+  assert.match(dogfood,/npmCli,'run','test:experiments'/);
+  assert.match(dogfood,/self-experiments/);
+  assert.doesNotMatch(dogfood,/proof:local/);
+  const pkg=JSON.parse(read('package.json')) as {scripts:Record<string,string>};
+  assert.match(pkg.scripts['proof:local'],/test:stress/);
+});
+
 test('ambient credential configuration has one GitHub token spelling',()=>{
   for (const path of executableConfigFiles()) {
     const source=read(path);
