@@ -79,6 +79,32 @@ the broker to issue a create-status mutation.
 The packet flag is deliberately not proposed as the fix. It merely demonstrates
 that no explicit effect authority exists in the current model.
 
+## Counterexample 3: readiness is an unverified worker assertion
+
+The broker does not require a realization, result digest, verifier output, or
+accepted evidence before acting on `effect-ready`.
+
+The counterexample defines a computation task that declares a required result
+digest and has no accepted realization. A bare legal signal still causes the
+provider mutation.
+
+That means `effect-ready` is currently not merely a transport notification.
+It is itself the fact that unlocks the external effect, even though it comes
+from the untrusted reasoning process.
+
+This violates the intended split:
+
+```text
+reasoning agent   -> uncertain result
+deterministic code -> verify / accept
+deterministic code -> derive transition readiness
+broker             -> execute
+```
+
+The worker should submit a result or evidence. Software should derive
+effect-readiness from accepted evidence whenever readiness is mechanically
+knowable.
+
 ## Consequence
 
 PR #81 proves useful confinement mechanics, but these two stronger claims do not
@@ -87,7 +113,9 @@ yet hold:
 1. a worker signal is bound to the authority generation under which the worker
    actually ran;
 2. a postcondition is not itself sufficient authority to mutate the thing it
-   verifies.
+   verifies;
+3. an untrusted worker assertion is not sufficient evidence that an effectful
+   transition is ready.
 
 The likely repair is:
 
