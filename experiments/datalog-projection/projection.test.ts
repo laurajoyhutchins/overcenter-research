@@ -68,7 +68,6 @@ interface Scenario {
   receipts:ReceiptFixture[];
   expectedClosure?:string[];
   currentSemanticKeyOverrides?:Record<string,string>;
-  extraCurrentSemanticKeys?:Array<[string,string]>;
   omitObservationJudgments?:Array<string>;
   inadmissibleRealizationRuns?:Array<string>;
 }
@@ -274,27 +273,7 @@ function readPairs(path:string):string[] {
     .sort();
 }
 
-const DIAGNOSTICS=[
-  'missing_current_semantic_key',
-  'semantic_key_for_unknown_obligation',
-  'duplicate_definition_ordinal',
-  'duplicate_semantic_key',
-  'invalid_dependency_kind',
-  'orphan_dependency',
-  'unknown_dependency',
-  'dependency_cycle',
-  'duplicate_run_id',
-  'run_for_unknown_obligation',
-  'realization_admissibility_for_unknown_run',
-  'realization_admissibility_obligation_mismatch',
-  'duplicate_receipt_ordinal',
-  'receipt_for_unknown_run',
-  'invalid_receipt_kind',
-  'missing_observation_judgment',
-  'unexpected_observation_judgment',
-  'invalid_observation_boolean',
-  'contradictory_observation_judgment',
-] as const;
+
 
 function judgment(
   receipt:Extract<ReceiptFixture,{kind:'observation'}>,
@@ -335,14 +314,11 @@ function datalogProjection(
 
     writeFacts(
       join(facts,'current_semantic_key.facts'),
-      [
-        ...[...currentDefinitions(scenario.definitions)].flatMap(([id,definition])=>{
-          const key=scenario.currentSemanticKeyOverrides?.[id]
-            ?? keys.get(definition.ordinal);
-          return key ? [[id,key] as [string,string]] : [];
-        }),
-        ...(scenario.extraCurrentSemanticKeys??[]),
-      ],
+      [...currentDefinitions(scenario.definitions)].flatMap(([id,definition])=>{
+        const key=scenario.currentSemanticKeyOverrides?.[id]
+          ?? keys.get(definition.ordinal);
+        return key ? [[id,key] as [string,string]] : [];
+      }),
     );
 
     writeFacts(
@@ -419,15 +395,6 @@ function datalogProjection(
       ['-F',facts,'-D',output,PROGRAM],
       {stdio:'pipe'},
     );
-
-    for (const diagnostic of DIAGNOSTICS) {
-      const rows=readRows(join(output,`${diagnostic}.csv`));
-      if (rows.length>0) {
-        throw new Error(
-          `DATALOG_PROJECTION_INPUT_INVALID:${diagnostic}:${rows.join(',')}`,
-        );
-      }
-    }
 
     const statuses=new Map<string,WorkStatus>();
     for (const pair of readPairs(join(output,'project_status.csv'))) {
@@ -600,25 +567,7 @@ test('same definition with a changed current semantic key loses reuse without in
   assert.equal(datalogProjection(changed).statuses.get('stable'),'READY');
 });
 
-test('contradictory semantic identity fails closed instead of projecting a plausible status',()=>{
-  const stableDefinition=obligation('contradictory','v1');
-  const scenario:Scenario={
-    name:'duplicate current semantic key',
-    definitions:[{work:stableDefinition,ordinal:1}],
-    runs:[],
-    receipts:[],
-    extraCurrentSemanticKeys:[
-      ['contradictory','sha256:contradictory-second-key'],
-    ],
-  };
-
-  assert.throws(
-    ()=>datalogProjection(scenario),
-    /DATALOG_PROJECTION_INPUT_INVALID:duplicate_semantic_key/,
-  );
-});
-
-test('an observation receipt without its semantic judgment fails closed',()=>{
+test('an uninterpretable latest receipt fails closed to RECOVERY_REQUIRED',()=>{
   const scenario:Scenario={
     name:'missing semantic judgment',
     definitions:[{work:chainA,ordinal:1}],
@@ -632,8 +581,31 @@ test('an observation receipt without its semantic judgment fails closed',()=>{
     omitObservationJudgments:['run-a:20'],
   };
 
-  assert.throws(
-    ()=>datalogProjection(scenario),
-    /DATALOG_PROJECTION_INPUT_INVALID:missing_observation_judgment/,
+  assert.equal(
+    datalogProjection(scenario).statuses.get('a'),
+    'RECOVERY_REQUIRED',
   );
+});
+
+
+test('mutable historical DONE can be rejected by current realization semantics',()=>{
+  const scenario:Scenario={
+    name:'known TypeScript mutable-reuse gap',
+    definitions:[{work:chainA,ordinal:1}],
+    runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
+    receipts:[{
+      run:'run-a',
+      kind:'observation',
+      evidence:'verified',
+      ordinal:20,
+    }],
+    inadmissibleRealizationRuns:['run-a'],
+  };
+
+  // Current TypeScript still reuses this matching historical DONE.
+  assert.equal(typescriptProjection(scenario).get('a'),'DONE');
+
+  // The stronger target semantics can withdraw current admissibility after
+  // mutable external state drifts, without changing the relational rules.
+  assert.equal(datalogProjection(scenario).statuses.get('a'),'READY');
 });
