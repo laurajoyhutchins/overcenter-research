@@ -370,6 +370,13 @@ test('bounded capture retains full-stream digests',async()=>{
     assert.equal(evidence.stderr_truncated,true);
     assert.equal(evidence.stdout_sha256,'sha256:'+sha256('x'.repeat(4096)));
     assert.equal(evidence.stderr_sha256,'sha256:'+sha256('y'.repeat(4096)));
+    assert.throws(
+      ()=>assertComputationEvidenceFor({
+        ...evidence,
+        stdout_base64:Buffer.from('z'.repeat(65)).toString('base64'),
+      },execution),
+      /COMPUTATION_EVIDENCE_STDOUT_BASE64_INVALID/,
+    );
   } finally {
     await harness.close();
   }
