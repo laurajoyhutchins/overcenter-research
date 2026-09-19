@@ -61,7 +61,7 @@ theorem built_preimage_has_exact_shape
       have bytesEq :
           serializeObligationKeyPreimage input consumed = bytes := by
         simpa [buildObligationKeyPreimage, modelResult] using built
-      exact ⟨consumed, modelResult, bytesEq.symm⟩
+      exact ⟨consumed, rfl, bytesEq.symm⟩
 
 theorem built_preimage_implies_semantic_inputs_resolved
     (input : ObligationKeyInput)
