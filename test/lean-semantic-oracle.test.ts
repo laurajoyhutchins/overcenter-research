@@ -9,6 +9,7 @@ import {
 import type { State } from '../src/facts.ts';
 import { validateGraph } from '../src/graph.ts';
 import type {
+  Dependency,
   Obligation,
   Postcondition,
 } from '../src/model.ts';
@@ -60,7 +61,13 @@ class LeanOracle {
         const next=this.pending.shift();
         if(!next)continue;
         try{
-          next.resolve(JSON.parse(line) as LeanComparison);
+          const value=JSON.parse(line) as LeanComparison;
+          assert.equal(
+            value.schema,
+            'overcenter-lean-claim-admission-comparison/v1',
+            'unexpected Lean oracle response schema',
+          );
+          next.resolve(value);
         }catch(error){
           next.reject(error as Error);
         }
@@ -111,17 +118,40 @@ function statusPostcondition(
   };
 }
 
+type DependencyKind='control'|'semantic';
+
+function dependency(
+  upstream:number|string,
+  kind:DependencyKind,
+):Dependency{
+  const upstreamId=typeof upstream==='number'
+    ?`n-${upstream}`
+    :upstream;
+  if(kind==='control'){
+    return {kind:'control',upstream:upstreamId};
+  }
+  return {
+    kind:'semantic',
+    upstream:upstreamId,
+    consumes:{
+      kind:'evidence',
+      selector:'settlement-receipt',
+    },
+  };
+}
+
 function obligation(
   id:string,
   upstreams:number[],
   postcondition:Postcondition=filePostcondition(id),
+  dependencyKind:DependencyKind='control',
 ):Obligation{
   return {
     id,
-    dependencies:upstreams.map(upstream=>({
-      kind:'control' as const,
-      upstream:`n-${upstream}`,
-    })),
+    dependencies:upstreams.map(upstream=>dependency(
+      upstream,
+      dependencyKind,
+    )),
     packet:{kind:'lean-semantic-oracle'},
     postcondition,
   };
@@ -138,6 +168,7 @@ interface EffectFixture {
 function stateFromDependencies(
   dependencies:number[][],
   effect:EffectFixture|null=null,
+  dependencyKind:DependencyKind='control',
 ):State{
   const obligations:Record<string,Obligation>={};
   const definition_commits:Record<string,string>={};
@@ -151,7 +182,12 @@ function stateFromDependencies(
             effect.competitorContext,
           )
         :filePostcondition(id);
-    obligations[id]=obligation(id,dependencies[i],postcondition);
+    obligations[id]=obligation(
+      id,
+      dependencies[i],
+      postcondition,
+      dependencyKind,
+    );
     definition_commits[id]=`definition-${i}`;
   }
   return {obligations,definition_commits};
@@ -244,43 +280,80 @@ test('current TypeScript graph validity agrees with pinned Lean semantic oracle'
   const oracle=new LeanOracle();
   const nodeCount=4;
   const slots=allDirectedGraphSlots(nodeCount);
+  const dependencyKinds:DependencyKind[]=['control','semantic'];
   let comparisons=0;
+  let additionalCases=0;
   try{
-    for(let mask=0;mask<(1<<slots.length);mask+=1){
-      const state=stateFromDependencies(
-        graphFromMask(nodeCount,slots,mask),
+    for(const dependencyKind of dependencyKinds){
+      for(let mask=0;mask<(1<<slots.length);mask+=1){
+        const state=stateFromDependencies(
+          graphFromMask(nodeCount,slots,mask),
+          null,
+          dependencyKind,
+        );
+        const expected=typeScriptGraphValid(state);
+        const observed=await oracle.compare(
+          leanRequest(state,'n-0'),
+        );
+        assert.equal(
+          observed.graph_acyclic,
+          expected,
+          `graph disagreement kind=${dependencyKind} mask=${mask}`,
+        );
+        comparisons+=1;
+      }
+
+      const unknown=stateFromDependencies(
+        [[],[]],
+        null,
+        dependencyKind,
       );
-      const expected=typeScriptGraphValid(state);
-      const observed=await oracle.compare(
-        leanRequest(state,'n-0'),
-      );
+      unknown.obligations['n-1'].dependencies=[
+        dependency('missing',dependencyKind),
+      ];
+      assert.equal(typeScriptGraphValid(unknown),false);
       assert.equal(
-        observed.graph_acyclic,
-        expected,
-        `graph disagreement mask=${mask}`,
+        (await oracle.compare(
+          leanRequest(unknown,'n-1'),
+        )).graph_acyclic,
+        false,
       );
-      comparisons+=1;
+      additionalCases+=1;
+
+      const selfLoop=stateFromDependencies(
+        [[]],
+        null,
+        dependencyKind,
+      );
+      selfLoop.obligations['n-0'].dependencies=[
+        dependency(0,dependencyKind),
+      ];
+      assert.equal(typeScriptGraphValid(selfLoop),false);
+      assert.equal(
+        (await oracle.compare(
+          leanRequest(selfLoop,'n-0'),
+        )).graph_acyclic,
+        false,
+      );
+      additionalCases+=1;
+
+      const duplicateEdge=stateFromDependencies(
+        [[],[0]],
+        null,
+        dependencyKind,
+      );
+      duplicateEdge.obligations['n-1'].dependencies.push(
+        dependency(0,dependencyKind),
+      );
+      assert.equal(typeScriptGraphValid(duplicateEdge),true);
+      assert.equal(
+        (await oracle.compare(
+          leanRequest(duplicateEdge,'n-1'),
+        )).graph_acyclic,
+        true,
+      );
+      additionalCases+=1;
     }
-
-    const unknown=stateFromDependencies([[],[]]);
-    unknown.obligations['n-1'].dependencies=[
-      {kind:'control',upstream:'missing'},
-    ];
-    assert.equal(typeScriptGraphValid(unknown),false);
-    assert.equal(
-      (await oracle.compare(leanRequest(unknown,'n-1'))).graph_acyclic,
-      false,
-    );
-
-    const duplicateEdge=stateFromDependencies([[],[0]]);
-    duplicateEdge.obligations['n-1'].dependencies.push(
-      {kind:'control',upstream:'n-0'},
-    );
-    assert.equal(typeScriptGraphValid(duplicateEdge),true);
-    assert.equal(
-      (await oracle.compare(leanRequest(duplicateEdge,'n-1'))).graph_acyclic,
-      true,
-    );
   }finally{
     await oracle.close();
   }
@@ -289,7 +362,8 @@ test('current TypeScript graph validity agrees with pinned Lean semantic oracle'
     oracle_sha:EXPECTED_ORACLE_SHA,
     node_count:nodeCount,
     directed_graphs:1<<slots.length,
-    additional_hostile_cases:2,
+    dependency_kinds:dependencyKinds,
+    additional_hostile_cases:additionalCases,
     comparisons,
   }));
 });
@@ -300,10 +374,12 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
   const slots=dagSlots(nodeCount);
   const forward=Array.from({length:nodeCount},(_,i)=>`n-${i}`);
   const reverse=[...forward].reverse();
+  const dependencyKinds:DependencyKind[]=['control','semantic'];
   let comparisons=0;
 
   try{
-    for(let mask=0;mask<(1<<slots.length);mask+=1){
+    for(const dependencyKind of dependencyKinds){
+      for(let mask=0;mask<(1<<slots.length);mask+=1){
       const dependencies=graphFromMask(nodeCount,slots,mask);
       for(let target=0;target<nodeCount;target+=1){
         for(let competitor=0;competitor<nodeCount;competitor+=1){
@@ -346,6 +422,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
             const state=stateFromDependencies(
               dependencies,
               scenario.fixture,
+              dependencyKind,
             );
             const expected=
               staticEffectConflict(state,`n-${target}`)!==null;
@@ -361,8 +438,13 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
               );
               assert.equal(
                 observed.optimized_effect_conflict,
+                observed.reference_effect_conflict,
+                `Lean optimized/reference disagreement kind=${dependencyKind} scenario=${scenario.name} mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
+              );
+              assert.equal(
+                observed.reference_effect_conflict,
                 expected,
-                `effect disagreement scenario=${scenario.name} mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
+                `effect disagreement kind=${dependencyKind} scenario=${scenario.name} mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
               );
               comparisons+=1;
             }
@@ -380,6 +462,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     possible_edges:slots.length,
     dags:1<<slots.length,
     target_competitor_pairs:nodeCount*(nodeCount-1),
+    dependency_kinds:dependencyKinds,
     effect_scenarios:3,
     obligation_orders:2,
     comparisons,
