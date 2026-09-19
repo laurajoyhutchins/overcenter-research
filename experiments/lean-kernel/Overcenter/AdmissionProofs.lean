@@ -3,6 +3,46 @@ import Overcenter.AdmissionGraphSpec
 
 namespace Overcenter
 
+theorem claimLifecycleIndex_lookup_eq_find
+    (lifecycles : List ClaimLifecycleFact)
+    (id : String) :
+    (claimLifecycleIndex lifecycles)[id]? =
+      findClaimLifecycle lifecycles id := by
+  induction lifecycles with
+  | nil =>
+      simp [claimLifecycleIndex, findClaimLifecycle]
+  | cons lifecycle rest ih =>
+      by_cases sameId : id = lifecycle.obligationId
+      · subst id
+        simp [
+          claimLifecycleIndex,
+          findClaimLifecycle,
+          Std.HashMap.get?_eq_getElem?,
+          Std.HashMap.getElem?_insert
+        ]
+      · have reverseId : lifecycle.obligationId ≠ id := by
+          intro equality
+          exact sameId equality.symm
+        simp [
+          claimLifecycleIndex,
+          findClaimLifecycle,
+          Std.HashMap.get?_eq_getElem?,
+          Std.HashMap.getElem?_insert,
+          sameId,
+          reverseId,
+          ih
+        ]
+
+theorem claimDependenciesDone_eq_reference
+    (ctx : ClaimContext) :
+    claimDependenciesDone ctx =
+      claimDependenciesDoneReference ctx := by
+  simp [
+    claimDependenciesDone,
+    claimDependenciesDoneReference,
+    claimLifecycleIndex_lookup_eq_find
+  ]
+
 theorem claim_admitted_implies_context_well_formed
     (ctx : ClaimContext)
     (admitted : claimAdmissible ctx = true) :
