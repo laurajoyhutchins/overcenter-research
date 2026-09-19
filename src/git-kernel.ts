@@ -29,7 +29,7 @@ import type {
   EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
-  HistoricalRun,
+  RunRecord,
   ObligationFact,
   ObligationInput,
   Receipt,
@@ -39,7 +39,7 @@ import type {
 import { withObligation } from './graph.ts';
 import { validateAdmission } from './admission.ts';
 import {
-  hasInFlight,
+  hasUnsettledRun,
   obligationKey,
 } from './lifecycle.ts';
 import {
@@ -48,7 +48,7 @@ import {
 } from './eligibility.ts';
 import {
   projectReceipt,
-  replayProjection,
+  reconstructProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
 
@@ -99,11 +99,11 @@ export class GitOvercenterKernel {
     const {id}=obligation;
     const head=this.#requireHead();
     const projection=this.#projection(head);
-    const {state,history}=projection;
-    if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
-    if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
+    const {catalog,history}=projection;
+    if (hasUnsettledRun(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    if (catalog.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
 
-    const next=withObligation(state,obligation,head);
+    const next=withObligation(catalog,obligation,head);
     validateAdmission(next);
     const fact:ObligationFact={schema:OBLIGATION_SCHEMA,kind:'defined',obligation};
     const commit=this.#store.createCommit(
@@ -121,12 +121,12 @@ export class GitOvercenterKernel {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
     const projection=this.#projection(head);
-    const {state,history}=projection;
-    if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
-    if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
+    const {catalog,history}=projection;
+    if (hasUnsettledRun(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    if (!catalog.obligations[id]) throw new Error(`unknown obligation: ${id}`);
 
-    const previous=state.definition_commits[id];
-    const next=withObligation(state,obligation,head);
+    const previous=catalog.definition_commits[id];
+    const next=withObligation(catalog,obligation,head);
     validateAdmission(next);
     const fact:ObligationFact={
       schema:OBLIGATION_SCHEMA,
@@ -145,30 +145,30 @@ export class GitOvercenterKernel {
 
   inspect():Work[] {
     const head=this.#requireHead();
-    const {state,history}=this.#projection(head);
-    return Object.values(state.obligations)
+    const {catalog,history}=this.#projection(head);
+    return Object.values(catalog.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work=>projectWork(state,work,head,history.lifecycles));
+      .map(work=>projectWork(catalog,work,head,history.lifecycles));
   }
 
   nextReadyWork():Work|null {
     const head=this.#requireHead();
-    const {state,history}=this.#projection(head);
-    const work=Object.values(state.obligations)
+    const {catalog,history}=this.#projection(head);
+    const work=Object.values(catalog.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .find(candidate=>claimabilityError(state,candidate,history.lifecycles)===null);
-    return work ? projectWork(state,work,head,history.lifecycles) : null;
+      .find(candidate=>claimabilityError(catalog,candidate,history.lifecycles)===null);
+    return work ? projectWork(catalog,work,head,history.lifecycles) : null;
   }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const {state,history}=this.#projection(head);
-    const work=state.obligations[id];
+    const {catalog,history}=this.#projection(head);
+    const work=catalog.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    const claimError=claimabilityError(state,work,history.lifecycles);
+    const claimError=claimabilityError(catalog,work,history.lifecycles);
     if (claimError) throw new Error(claimError);
-    const key=obligationKey(state,work,history.lifecycles,history.receiptsByRun);
+    const key=obligationKey(catalog,work,history.lifecycles,history.receiptsByRun);
     if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
 
     const runId=randomUUID();
@@ -288,10 +288,10 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const {catalog,history}=this.#projection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      if (!catalog.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','ABSENT'].includes(prior.disposition)) return prior;
@@ -323,10 +323,10 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const {catalog,history}=this.#projection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      if (!catalog.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       const run=this.#requireExecutionPermit(history,permit);
@@ -355,10 +355,10 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const {catalog,history}=this.#projection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+      if (!catalog.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       const run=this.#requireExecutionPermit(history,permit);
@@ -411,7 +411,7 @@ export class GitOvercenterKernel {
       effect_reservation:this.#store.readJson(commit,'effect-reservation.json'),
       receipt:this.#store.readJson(commit,'receipt.json'),
     }));
-    return replayProjection(commits);
+    return reconstructProjection(commits);
   }
 
   #observe(postcondition:Postcondition):Observation {
@@ -422,7 +422,7 @@ export class GitOvercenterKernel {
   #requireExecutionPermit(
     history:Projection['history'],
     permit:ExecutionPermit,
-  ):HistoricalRun {
+  ):RunRecord {
     const run=history.runs.get(permit.id);
     if (!run) throw new Error('UNKNOWN_RUN');
     if (
