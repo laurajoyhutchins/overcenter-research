@@ -5,11 +5,11 @@ namespace Overcenter
 theorem verifierRevision_is_material
     (obligation : Obligation)
     (revision : String)
-    (changed : revision != obligation.postcondition.verifierRevision) :
+    (changed : revision ≠ obligation.postcondition.verifierRevision) :
     obligationKey {
       obligation with
       postcondition := { obligation.postcondition with verifierRevision := revision }
-    } != obligationKey obligation := by
+    } ≠ obligationKey obligation := by
   intro equalKeys
   have equalRevision := congrArg ObligationKey.verifierRevision equalKeys
   simp [obligationKey] at equalRevision
@@ -44,7 +44,7 @@ theorem stale_key_never_reuses
     (current : Obligation)
     (historical : HistoricalRealization)
     (freshObservation : Option Observation)
-    (stale : historical.key != obligationKey current) :
+    (stale : historical.key ≠ obligationKey current) :
     reusable current historical freshObservation = false := by
   simp [reusable, stale]
 
@@ -143,7 +143,7 @@ example : reusable fileObligation mutableHistory (some exactObservation) = true 
 example : reusable fileObligation immutableHistory none = true := by decide
 
 -- Changing verifier semantics invalidates both historical identity and fresh evidence.
-example : obligationKey verifierChangedObligation != obligationKey fileObligation := by decide
+example : obligationKey verifierChangedObligation ≠ obligationKey fileObligation := by decide
 example : reusable verifierChangedObligation mutableHistory (some exactObservation) = false := by decide
 
 end Overcenter
