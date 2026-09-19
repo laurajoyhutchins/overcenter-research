@@ -132,7 +132,7 @@ test('missing commit status remains indeterminate after certified repository loo
   });
 
   assert.equal(observed.mutation_certainty,'uncertain');
-  assert.equal(observed.negative_evidence_authoritative,false);
+  assert.equal(observed.absence_evidence,undefined);
   assert.equal(observed.observation_error,'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
   assert.equal(receiptFor(observed).disposition,'RECOVERY_REQUIRED');
 });
