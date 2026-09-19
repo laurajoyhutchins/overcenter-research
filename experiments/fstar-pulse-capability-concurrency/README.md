@@ -101,3 +101,7 @@ bash experiments/fstar-pulse-capability-concurrency/check.sh
 ```
 
 The hosted workflow pins the F* release bytes used for the proof.
+
+## Current-head confirmation
+
+Exact evaluated revision `044781dba4087c8013658a68c1bb654e96809392` passed the Pulse verification workflow `35462466594`, repository Evidence `35462466575`, and disposable-agent trust proof `35462466586`. The earlier successful implementation revision remains useful history, but this is the current evaluated code identity.
