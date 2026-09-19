@@ -71,6 +71,7 @@ test('certified providers do not copy GitHub routes or response schemas',()=>{
   for (const path of [
     'src/providers/github-certified-repository.ts',
     'src/providers/github-certified-read.ts',
+    'src/providers/github-certified-observation.ts',
     'src/providers/github-certified-ref.ts',
     'src/providers/github-certified-pr.ts',
     'src/providers/github-certified-status.ts',
