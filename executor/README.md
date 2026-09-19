@@ -59,7 +59,7 @@ task UID/GID      -> workspace computation only
 
 The workspace must be mounted with permissions appropriate for the configured task UID/GID.
 
-`--unsafe-test-same-uid` is an explicit escape hatch for local protocol tests. Production socket mode otherwise fails closed rather than silently sharing the executor identity.
+`--unsafe-test-same-uid` is an explicit escape hatch for local protocol tests and is accepted only with `--stdio`. Production socket mode has no same-UID escape hatch: it requires explicit distinct task credentials and fails closed otherwise.
 
 The binary supports `--stdio` only for tests and containment experiments.
 
