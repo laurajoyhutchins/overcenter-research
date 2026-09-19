@@ -167,7 +167,12 @@ export class GitOvercenterKernel {
   }
 
   deriveReadyWork():Work|null {
-    return this.deriveReadyFrontier()[0]??null;
+    const head=this.#requireHead();
+    const {state,history}=this.#projection(head);
+    const work=Object.values(state.obligations)
+      .sort((a,b)=>a.id.localeCompare(b.id))
+      .find(candidate=>claimabilityError(state,candidate,history.lifecycles)===null);
+    return work ? projectWork(state,work,head,history.lifecycles) : null;
   }
 
   claimReadyFrontier(maxClaims=Number.MAX_SAFE_INTEGER):ExecutionPermit[] {
