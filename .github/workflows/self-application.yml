@@ -1,17 +1,14 @@
 name: Overcenter self-application
 
 on:
+  workflow_call:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: overcenter-self-application-${{ github.ref }}
+  group: overcenter-self-application-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
