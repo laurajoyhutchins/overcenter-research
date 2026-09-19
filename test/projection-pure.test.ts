@@ -8,8 +8,7 @@ import {
   RECEIPT_SCHEMA,
 } from '../src/facts.ts';
 import type { FactCommit, ObligationFact, ReceiptFact } from '../src/facts.ts';
-import { obligationKey } from '../src/lifecycle.ts';
-import { claimabilityError } from '../src/eligibility.ts';
+import { obligationKey } from '../src/semantic-identity.ts';
 import { projectReceipt, replayProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
 import { localFileEnoentEvidence } from '../src/evidence.ts';
@@ -40,7 +39,7 @@ function claimCommit(parent:string):FactCommit {
   const key=obligationKey(
     base.state,
     obligation,
-    base.history.lifecycles,
+    base.project.lifecycles,
     base.history.receiptsByRun,
   );
   assert.ok(key);
@@ -65,11 +64,11 @@ test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
     obligation:defined,
   };
   const ready=replayProjection([defineRecord]);
-  assert.equal(ready.history.lifecycles.get('a')?.status,'UNREALIZED');
+  assert.equal(ready.project.lifecycles.get('a')?.status,'UNREALIZED');
 
   const claimRecord=claimCommit('define-1');
   const executing=replayProjection([defineRecord,claimRecord]);
-  assert.equal(executing.history.lifecycles.get('a')?.status,'EXECUTING');
+  assert.equal(executing.project.lifecycles.get('a')?.status,'EXECUTING');
 
   const receipt:ReceiptFact={
     schema:RECEIPT_SCHEMA,
@@ -95,7 +94,7 @@ test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
     {commit:'receipt-1',parent:'claim-1',receipt},
   ]);
 
-  assert.equal(done.history.lifecycles.get('a')?.status,'DONE');
+  assert.equal(done.project.lifecycles.get('a')?.status,'DONE');
   assert.equal(done.history.receipts.at(-1)?.verified,true);
   assert.equal(done.history.receipts.at(-1)?.settlement_commit,'receipt-1');
 });
@@ -310,19 +309,11 @@ test('legacy v3 static-conflict history remains replayable but fail-closed',()=>
   assert.equal(projection.state.obligations.alpha.id,'alpha');
   assert.equal(projection.state.obligations.beta.id,'beta');
   assert.equal(
-    claimabilityError(
-      projection.state,
-      alpha,
-      projection.history.lifecycles,
-    ),
+    projection.project.claimabilityErrors.get(alpha.id),
     'UNORDERED_EFFECT_CONFLICT:alpha:beta',
   );
   assert.equal(
-    claimabilityError(
-      projection.state,
-      beta,
-      projection.history.lifecycles,
-    ),
+    projection.project.claimabilityErrors.get(beta.id),
     'UNORDERED_EFFECT_CONFLICT:alpha:beta',
   );
 });
