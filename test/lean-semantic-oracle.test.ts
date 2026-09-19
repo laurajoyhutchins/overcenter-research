@@ -383,7 +383,7 @@ test('current TypeScript graph validity agrees with pinned Lean semantic oracle'
     await oracle.close();
   }
 
-  console.log('LEAN_GRAPH_ORACLE +JSON.stringify({
+  console.log('LEAN_GRAPH_ORACLE '+JSON.stringify({
     oracle_sha:oracleSha,
     node_count:nodeCount,
     directed_graphs:1<<slots.length,
