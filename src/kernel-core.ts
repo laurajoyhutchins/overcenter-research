@@ -8,6 +8,7 @@ import type {
   Observation,
   Postcondition,
   Run,
+  TaskSession,
   Work,
 } from './model.ts';
 import type { DurableFactStore } from './fact-store.ts';
@@ -17,19 +18,23 @@ import {
 } from './observation.ts';
 import {
   CLAIM_SCHEMA,
+  AUTHORIZED_EFFECT_RESERVATION_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
+  REALIZATION_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
   normalizeObligation,
 } from './facts.ts';
 import type {
+  AcceptedRealization,
   ClaimFact,
   EffectReservationFact,
   ExecutionAuthorityFact,
   HistoricalRun,
   ObligationFact,
   ObligationInput,
+  RealizationFact,
   Receipt,
   ReceiptFact,
   ReceiptKind,
@@ -48,8 +53,18 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
+import { verifyWorkerResult } from './realization.ts';
+import { deriveAuthorizedProviderEffect } from './provider-effect.ts';
 
 export type { Receipt } from './facts.ts';
+
+export interface EffectReservationIdentity {
+  effect_contract:string;
+  adapter_contract_digest:string;
+  effect_digest:string;
+  realization_commit:string;
+  realization_digest:string;
+}
 
 const errorMessage=(error:unknown)=>error instanceof Error ? error.message : String(error);
 
@@ -195,12 +210,72 @@ export class KernelCore {
     };
   }
 
-  acquireExecution(runId:string):ExecutionPermit {
+  acceptRealization(
+    session:TaskSession,
+    candidate:unknown,
+  ):AcceptedRealization {
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const head=this.#requireHead();
+      const {history,project}=this.#historicalProjection(head);
+      const run=this.#requireTaskSession(history,session);
+      const lifecycle=project.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
+        throw new Error('REALIZATION_WHILE_NOT_EXECUTING');
+      }
+      if (history.unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('REALIZATION_AFTER_EFFECT_RESERVATION');
+      }
+      const existing=history.acceptedRealizationsByRun.get(run.id);
+      if (existing) return existing;
+
+      const verified=verifyWorkerResult(run.obligation,session,candidate);
+      const fact:RealizationFact={
+        schema:REALIZATION_SCHEMA,
+        run_id:run.id,
+        obligation_id:run.obligation_id,
+        claimed_revision:run.claimed_revision,
+        execution_generation:run.execution_generation,
+        execution_authority_commit:run.execution_authority_commit,
+        verifier:verified.verifier,
+        result_digest:verified.result_digest,
+      };
+      const commit=this.#store.append(
+        head,
+        `overcenter: accept realization ${run.obligation_id} ${run.id} g${run.execution_generation}`,
+        {'realization.json':fact},
+      );
+      if (commit) return {...fact,realization_commit:commit};
+    }
+    throw new Error('REALIZATION_ACCEPTANCE_CONTENTION_EXHAUSTED');
+  }
+
+  acceptedRealization(session:TaskSession):AcceptedRealization|null {
+    const head=this.#requireHead();
+    const {history}=this.#historicalProjection(head);
+    const run=this.#requireTaskSession(history,session);
+    return history.acceptedRealizationsByRun.get(run.id)??null;
+  }
+
+  acquireExecution(
+    runId:string,
+    {
+      expectedGeneration,
+      expectedAuthorityCommit,
+    }:{
+      expectedGeneration?:number;
+      expectedAuthorityCommit?:string;
+    }={},
+  ):ExecutionPermit {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
       const {history,project}=this.#historicalProjection(head);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
+      if (
+        (expectedGeneration!==undefined && run.execution_generation!==expectedGeneration)
+        || (expectedAuthorityCommit!==undefined
+          && run.execution_authority_commit!==expectedAuthorityCommit)
+      ) throw new Error('STALE_EXECUTION_SESSION');
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','READY'].includes(prior.disposition)) {
         throw new Error('RUN_ALREADY_TERMINAL');
@@ -240,10 +315,13 @@ export class KernelCore {
     throw new Error('EXECUTION_AUTHORITY_CONTENTION_EXHAUSTED');
   }
 
-  beginEffect(permit:ExecutionPermit):string {
+  beginEffect(
+    permit:ExecutionPermit,
+    identity?:EffectReservationIdentity,
+  ):string {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {history,project}=this.#historicalProjection(head);
+      const {state,history,project}=this.#historicalProjection(head);
       const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
@@ -253,13 +331,50 @@ export class KernelCore {
         throw new Error('UNRESOLVED_EFFECT');
       }
 
-      const fact:EffectReservationFact={
-        schema:EFFECT_RESERVATION_SCHEMA,
-        run_id:run.id,
-        obligation_id:run.obligation_id,
-        execution_generation:run.execution_generation,
-        execution_authority_commit:run.execution_authority_commit,
-      };
+      const expectedEffect=deriveAuthorizedProviderEffect(run.obligation);
+      let fact:EffectReservationFact;
+      if (expectedEffect) {
+        if (!identity) throw new Error('EFFECT_IDENTITY_REQUIRED');
+        if (
+          identity.effect_contract!==expectedEffect.effect_contract
+          || identity.adapter_contract_digest!==expectedEffect.adapter_contract_digest
+          || identity.effect_digest!==expectedEffect.effect_digest
+        ) throw new Error('EFFECT_IDENTITY_MISMATCH');
+        const realization=history.acceptedRealizationsByRun.get(run.id);
+        if (!realization) throw new Error('REALIZATION_REQUIRED');
+        if (
+          identity.realization_commit!==realization.realization_commit
+          || identity.realization_digest!==realization.result_digest
+        ) throw new Error('EFFECT_REALIZATION_MISMATCH');
+        fact={
+          schema:AUTHORIZED_EFFECT_RESERVATION_SCHEMA,
+          run_id:run.id,
+          obligation_id:run.obligation_id,
+          execution_generation:run.execution_generation,
+          execution_authority_commit:run.execution_authority_commit,
+          effect_contract:identity.effect_contract,
+          adapter_contract_digest:identity.adapter_contract_digest,
+          effect_digest:identity.effect_digest,
+          realization_commit:identity.realization_commit,
+          realization_digest:identity.realization_digest,
+        };
+      } else {
+        if (run.obligation.effect_authority) throw new Error('EFFECT_AUTHORITY_INVALID');
+        if (
+          'provider' in run.obligation.postcondition
+          && !state.legacy_effect_ids?.[run.obligation_id]
+        ) {
+          throw new Error('EFFECT_AUTHORITY_REQUIRED');
+        }
+        if (identity) throw new Error('UNEXPECTED_EFFECT_IDENTITY');
+        fact={
+          schema:EFFECT_RESERVATION_SCHEMA,
+          run_id:run.id,
+          obligation_id:run.obligation_id,
+          execution_generation:run.execution_generation,
+          execution_authority_commit:run.execution_authority_commit,
+        };
+      }
       const commit=this.#store.append(
         head,
         `overcenter: reserve effect ${run.obligation_id} ${run.id} g${run.execution_generation}`,
@@ -274,6 +389,13 @@ export class KernelCore {
     permit:ExecutionPermit,
     effect:()=>Promise<T>|T,
   ):Promise<T> {
+    const head=this.#requireHead();
+    const {history}=this.#historicalProjection(head);
+    const run=history.runs.get(permit.id);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    if (run.obligation.effect_authority || 'provider' in run.obligation.postcondition) {
+      throw new Error('PROVIDER_EFFECT_BROKER_REQUIRED');
+    }
     this.beginEffect(permit);
     return await effect();
   }
@@ -443,6 +565,26 @@ export class KernelCore {
     return createHash('sha256').update(capability).digest('hex');
   }
 
+  #requireTaskSession(
+    history:Projection['history'],
+    session:TaskSession,
+  ):HistoricalRun {
+    if (session.schema!=='overcenter-task-session-v2') {
+      throw new Error('INVALID_TASK_SESSION_SCHEMA');
+    }
+    const run=history.runs.get(session.run_id);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    if (
+      run.obligation_id!==session.obligation_id
+      || run.claimed_revision!==session.claimed_revision
+    ) throw new Error('TASK_SESSION_IDENTITY_MISMATCH');
+    if (
+      run.execution_generation!==session.execution_generation
+      || run.execution_authority_commit!==session.execution_authority_commit
+    ) throw new Error('TASK_SESSION_STALE');
+    return run;
+  }
+
   #requireExecutionPermit(
     history:Projection['history'],
     permit:ExecutionPermit,
@@ -496,6 +638,10 @@ export async function runCoreLoop(
       return {state:'IDLE',advances:i};
     }
 
+    if (work.effect_authority || 'provider' in work.postcondition) {
+      throw new Error('PROVIDER_EFFECT_BROKER_REQUIRED');
+    }
+
     let run:ExecutionPermit;
     try {
       run=kernel.claim(work.id,work.revision);
@@ -519,9 +665,8 @@ export async function runCoreLoop(
       if (decision.kind!=='execute') throw new Error('INVALID_PREFLIGHT_OUTCOME');
     }
 
-    // Crossing into the effectful executor is only legal after the kernel has
-    // validated the current execution permit and durably reserved the effect.
-    // A failed reservation therefore fails before provider code is invoked.
+    // This compatibility loop is restricted to non-provider local effects.
+    // Provider mutation has one explicit broker path with exact effect identity.
     kernel.beginEffect(run);
 
     let outcome:ExecuteOutcome;

@@ -198,17 +198,18 @@ try {
     assert.equal(typeof pageCount,'number');
     assert.ok((pageCount as number)>=2,'live LIST exercised pagination');
 
+    // This experiment proves provider observation and settlement, not Kubernetes
+    // mutation authority. Materialize the fixture outside the kernel, then prove
+    // that the same generic core settles from live Kubernetes evidence.
+    kubectl(
+      'create','configmap',target,
+      '-n',namespace,
+      '--from-literal=value=created-by-observation-proof',
+    );
     const second=kernel.claim(
       'ensure-configmap',
       kernel.deriveReadyWork()!.revision,
     );
-    await kernel.performEffect(second,()=>{
-      kubectl(
-        'create','configmap',target,
-        '-n',namespace,
-        '--from-literal=value=created-by-safe-replay',
-      );
-    });
     const done=kernel.resolve(second);
 
     assert.equal(done.disposition,'DONE');
@@ -233,7 +234,7 @@ try {
           absent.observed?.absence_evidence?.snapshot?.resource_version,
         page_count:pageCount,
       },
-      replay:{
+      settlement:{
         disposition:done.disposition,
         observed_uid:done.observed?.observed_uid,
         observed_resource_version:done.observed?.observed_resource_version,

@@ -5,6 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { canonicalDigest } from '../../src/digest.ts';
+import { githubCommitStatusEffectAuthority } from '../../src/provider-effect.ts';
+import type { ObligationInput } from '../../src/facts.ts';
 
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'overcenter-effect-order-'));
@@ -26,14 +29,33 @@ function statusPostcondition(state:'success'|'failure',context='overcenter/confl
   };
 }
 
+function statusEffect(
+  id:string,
+  state:'success'|'failure',
+  dependencies: NonNullable<ObligationInput['dependencies']> = [],
+  context='overcenter/conflict',
+):ObligationInput {
+  return {
+    id,
+    dependencies,
+    packet:{kind:'effect-order-proof/v1'},
+    postcondition:statusPostcondition(state,context),
+    effect_authority:githubCommitStatusEffectAuthority(),
+    result_acceptance:{
+      verifier:'canonical-json-sha256/v1',
+      expected_sha256:canonicalDigest({id,state,context}),
+    },
+  };
+}
+
 test('unordered incompatible canonical effects are rejected before definition commits', () => {
   const f=fixture();
   try {
-    f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
+    f.kernel.define(statusEffect('alpha','success'));
     const acceptedHead=f.kernel.head();
 
     assert.throws(
-      ()=>f.kernel.define({id:'beta',postcondition:statusPostcondition('failure')}),
+      ()=>f.kernel.define(statusEffect('beta','failure')),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
 
@@ -50,20 +72,16 @@ test('unordered incompatible canonical effects are rejected before definition co
 test('amendment cannot remove ordering and create a static effect conflict', () => {
   const f=fixture();
   try {
-    f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
-    f.kernel.define({
-      id:'beta',
-      dependencies:[{kind:'control',upstream:'alpha'}],
-      postcondition:statusPostcondition('failure'),
-    });
+    f.kernel.define(statusEffect('alpha','success'));
+    f.kernel.define(statusEffect(
+      'beta',
+      'failure',
+      [{kind:'control',upstream:'alpha'}],
+    ));
     const acceptedHead=f.kernel.head()!;
 
     assert.throws(
-      ()=>f.kernel.amend({
-        id:'beta',
-        dependencies:[],
-        postcondition:statusPostcondition('failure'),
-      },acceptedHead),
+      ()=>f.kernel.amend(statusEffect('beta','failure'),acceptedHead),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
 
@@ -80,12 +98,12 @@ test('amendment cannot remove ordering and create a static effect conflict', () 
 test('explicit graph order permits the canonical conflicting predecessor to be claimed', () => {
   const f=fixture();
   try {
-    f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
-    f.kernel.define({
-      id:'beta',
-      dependencies:[{kind:'control',upstream:'alpha'}],
-      postcondition:statusPostcondition('failure'),
-    });
+    f.kernel.define(statusEffect('alpha','success'));
+    f.kernel.define(statusEffect(
+      'beta',
+      'failure',
+      [{kind:'control',upstream:'alpha'}],
+    ));
 
     const alpha=f.kernel.deriveReadyWork();
     assert.ok(alpha);
@@ -108,17 +126,21 @@ test('explicit graph order permits the canonical conflicting predecessor to be c
 test('GitHub status contexts differing only by case conflict at admission', () => {
   const f=fixture();
   try {
-    f.kernel.define({
-      id:'alpha',
-      postcondition:statusPostcondition('success','overcenter/Build'),
-    });
+    f.kernel.define(statusEffect(
+      'alpha',
+      'success',
+      [],
+      'overcenter/Build',
+    ));
     const acceptedHead=f.kernel.head();
 
     assert.throws(
-      ()=>f.kernel.define({
-        id:'beta',
-        postcondition:statusPostcondition('failure','overcenter/build'),
-      }),
+      ()=>f.kernel.define(statusEffect(
+        'beta',
+        'failure',
+        [],
+        'overcenter/build',
+      )),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
 
@@ -131,9 +153,8 @@ test('GitHub status contexts differing only by case conflict at admission', () =
 test('github status adapter explicitly allows identical desired state to commute', () => {
   const f=fixture();
   try {
-    const postcondition=statusPostcondition('success');
-    f.kernel.define({id:'alpha',postcondition});
-    f.kernel.define({id:'beta',postcondition});
+    f.kernel.define(statusEffect('alpha','success'));
+    f.kernel.define(statusEffect('beta','success'));
 
     const alpha=f.kernel.deriveReadyWork();
     assert.ok(alpha);
