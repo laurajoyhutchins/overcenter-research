@@ -64,10 +64,12 @@ Oracle agreement is a separate evidence class. A green bounded differential does
 not turn a bounded result into a universal proof, and it does not prove
 provider-specific normalization that occurs before the Lean boundary.
 
-The current oracle is source-scoped rather than attached to every repository
-change because installing/building Lean is materially heavier than normal unit
-regression. Any change under `src/**` reruns it so a future helper extraction
-cannot silently escape the oracle through a stale path allowlist.
+The current oracle is scoped to production source plus its own executable
+evidence contract rather than attached to every repository change because
+installing/building Lean is materially heavier than normal unit regression. Any
+change under `src/**`, the oracle pin, this ADR, or the proof-obligation map
+reruns it so implementation or evidence drift cannot silently escape through a
+stale path allowlist.
 
 ## Rejected alternatives
 
