@@ -373,7 +373,7 @@ export function observationAuthoritativelyAbsent(
   return authoritativeAbsenceEvidence(postcondition,observed)!==null;
 }
 
-export function observationVerified(
+export function observationSatisfiesPostcondition(
   postcondition: Postcondition,
   observed: Observation,
 ): boolean {
