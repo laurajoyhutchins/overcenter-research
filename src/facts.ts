@@ -24,7 +24,7 @@ export interface ObligationInput {
   postcondition:Postcondition;
 }
 
-export interface State {
+export interface ObligationCatalog {
   obligations:Record<string,Obligation>;
   definition_commits:Record<string,string>;
 }
@@ -94,7 +94,7 @@ export interface Receipt extends ReceiptFact {
   settlement_commit?:string;
 }
 
-export interface HistoricalRun extends Run {
+export interface RunRecord extends Run {
   obligation:Obligation;
   definition_commit:string;
 }
@@ -109,7 +109,7 @@ export interface FactCommit {
   receipt?:unknown|null;
 }
 
-export function emptyState():State {
+export function emptyObligationCatalog():ObligationCatalog {
   return {obligations:{},definition_commits:{}};
 }
 
