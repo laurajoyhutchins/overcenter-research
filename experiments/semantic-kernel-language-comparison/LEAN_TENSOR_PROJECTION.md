@@ -191,3 +191,102 @@ Those require a separate experiment demonstrating useful leverage over a plausib
 - **Projection succeeds.** The formally defined graph slice can safely cross into numerical tooling.
 - **Projection is too lossy.** Required semantic distinctions cannot be represented without leaking authority or duplicating semantics.
 - **Projection is too cumbersome.** Direct graph machinery is simpler and the tensor boundary is not justified.
+
+
+## Final result
+
+**The Lean-certified typed tensor projection succeeds.**
+
+The experiment contract was frozen before implementation at:
+
+`be56d008adbbd1906708445cd216b009ef5b02cd`
+
+Evaluated implementation head:
+
+`52e530e6aaed7e244311f6d06971da8c88a0d2c7`
+
+Exact-head evidence:
+
+- typed tensor projection push run `35428316334`: **PASS**;
+- typed tensor projection PR run `35428318588`: **PASS**;
+- parent realization projection run `35428318629`: **PASS**;
+- parent semantic identity run `35428318602`: **PASS**;
+- parent obligation-key preimage run `35428318683`: **PASS**;
+- parent claim-admission run `35428318675`: **PASS**;
+- existing Lean semantic-kernel proof `35428318607`: **PASS**;
+- repository Evidence `35428318594`: **PASS**.
+
+### What was established
+
+The graph-structure slice of `RawClaimContext` can cross a formally constrained boundary as a canonical sparse typed tensor without moving graph meaning or project truth into the numerical consumer.
+
+The emitted representation preserves the three frozen dependency roles:
+
+```text
+A[0, consumer, upstream] = control
+A[1, consumer, upstream] = semantic / verified-content
+A[2, consumer, upstream] = semantic / settlement-receipt
+```
+
+The hosted differential established:
+
+- obligation declaration order does not affect the canonical projection;
+- dependency declaration order does not affect the canonical projection;
+- Unicode node ordering agrees with the language-independent control;
+- identical endpoints with different relation roles remain distinct;
+- exact duplicate dependencies fail closed;
+- unknown upstream references fail closed;
+- cycles remain representable rather than being silently turned into graph-admission policy;
+- forged tensor coordinates and forged relation codes are rejected by the Python consumer;
+- Python matrix composition and direct TypeScript traversal produce the same typed two-hop candidate set;
+- Lean rejects nonexistent two-hop proposals;
+- Lean rejects proposals bound to a stale graph view;
+- callers cannot inject trusted projection fields into the projection command.
+
+### Machine-checked boundary
+
+The implementation now constructs a proof-carrying `CertifiedGraphTensor ctx`.
+
+Lean establishes generically that:
+
+1. a certified projection is index-aligned with its canonical node list;
+2. a certified projection's `viewKey` is exactly the canonical graph-view serialization of the current `RawClaimContext`;
+3. a successful plain projection inherits those properties from the certificate;
+4. an accepted typed two-hop proposal is accompanied by a successful current projection and the exact boolean conjunction of current-view equality plus a real typed two-hop path.
+
+The numerical consumer therefore proposes facts. It does not establish them.
+
+### Findings during falsification
+
+The first hosted attempts failed before the semantic differential:
+
+- Lean 4.34 did not provide the assumed `List.get?` surface, so index lookup was made explicit;
+- the original after-the-fact proof scaffolding was brittle, so the projection was strengthened into a proof-carrying structure;
+- the protocol needed an explicit `Nat -> Json` coercion;
+- the first differential compared the full verification envelope to a payload that intentionally omitted the schema tag.
+
+These were implementation and harness defects, not exceptions to the frozen semantic contract. After repairing them, the exact frozen hostile suite passed without weakening the admission rule.
+
+### Earned boundary
+
+This experiment earns:
+
+```text
+Lean semantic graph
+       |
+       v
+canonical sparse typed tensor
+       |
+       v
+untrusted numerical search
+       |
+       v
+candidate facts
+       |
+       v
+Lean verification
+```
+
+It does **not** establish that Python or tensor machinery is useful enough to keep in production.
+
+The next experiment must answer that separate question by comparing a learned or tensor-native adversarial searcher against plausible deterministic and random controls under the same Lean-execution budget.
