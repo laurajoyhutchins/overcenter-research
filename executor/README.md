@@ -45,7 +45,21 @@ isolated worker/container
 +-------------------------------+
 ```
 
-The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate UID/container without provider credentials.
+The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate container without provider credentials.
+
+Production socket mode requires `--task-uid` and `--task-gid`. Both must differ from the executor identity; when `--socket-gid` is used to grant the trusted host access to the socket, the task GID must differ from that group too. Task processes are launched with supplementary groups cleared.
+
+A typical container boundary therefore has three distinct authorities:
+
+```text
+trusted host GID  -> Unix socket only
+executor UID/GID  -> supervisor + task launch
+task UID/GID      -> workspace computation only
+```
+
+The workspace must be mounted with permissions appropriate for the configured task UID/GID.
+
+`--unsafe-test-same-uid` is an explicit escape hatch for local protocol tests. Production socket mode otherwise fails closed rather than silently sharing the executor identity.
 
 The binary supports `--stdio` only for tests and containment experiments.
 
