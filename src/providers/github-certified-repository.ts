@@ -1,8 +1,3 @@
-import {
-  GITHUB_API_VERSION,
-  GITHUB_OPENAPI_SHA256,
-  GITHUB_OPENAPI_SOURCE_COMMIT,
-} from './github-contract.ts';
 import { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
 import { materializeGithubOperationRequest } from './github-openapi.ts';
 import { observeCertifiedGithubRead200 } from './github-certified-read.ts';
