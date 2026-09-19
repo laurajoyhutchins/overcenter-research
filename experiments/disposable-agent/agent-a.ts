@@ -5,7 +5,7 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
-import { effectReadySignal } from '../../src/execution-signal.ts';
+import { workerResult } from '../../src/realization.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -42,10 +42,9 @@ const candidates = kernel.inspect().filter(work => {
     && String(executor.workflow_run_attempt) === workflowRunAttempt
     && executor.job === 'agent-a';
 });
-assert.equal(candidates.length, 1, `expected one immutable execution snapshot, found ${candidates.length}`);
-const work = candidates[0];
-const snapshot = structuredClone(work);
-assert.ok(snapshot.run_id);
+assert.equal(candidates.length, 1);
+const snapshot = structuredClone(candidates[0]);
+assert.equal(snapshot.execution_generation,1);
 assert.equal(snapshot.postcondition.verifier, 'github-commit-status/v1');
 if (snapshot.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 assert.equal(snapshot.postcondition.commit_sha, sourceSha);
@@ -69,12 +68,12 @@ const attemptedAuthorityRewrite = await github(
     body: JSON.stringify({ sha: sourceSha, force: true }),
   },
 );
-assert.equal(attemptedAuthorityRewrite.ok, false, 'worker token unexpectedly rewrote project authority');
+assert.equal(attemptedAuthorityRewrite.status,403);
 
 const authoritativeRef = await github(`/repos/${repository.full_name}/git/ref/${stateRefApi}`);
 if (!authoritativeRef.ok) throw new Error(`authority read failed: ${authoritativeRef.status}`);
 const authoritative = await authoritativeRef.json() as { object: { sha: string } };
-assert.equal(authoritative.object.sha, snapshot.revision, 'sandbox tampering escaped into Git authority');
+assert.equal(authoritative.object.sha, snapshot.revision);
 
 const attemptedStatus = await github(
   `/repos/${repository.full_name}/statuses/${snapshot.postcondition.commit_sha}`,
@@ -87,40 +86,34 @@ const attemptedStatus = await github(
     }),
   },
 );
-assert.equal(
-  attemptedStatus.status,
-  403,
-  `worker unexpectedly crossed provider mutation boundary: HTTP ${attemptedStatus.status}`,
-);
+assert.equal(attemptedStatus.status,403);
 
-writeFileSync(
-  'effect-ready.json',
-  JSON.stringify(effectReadySignal(),null,2)+'\n',
-);
+const result=workerResult({
+  kind:'github-actions-trust-boundary-result/v1',
+  source_sha:sourceSha,
+  authority_rewrite_status:attemptedAuthorityRewrite.status,
+  provider_write_status:attemptedStatus.status,
+});
+writeFileSync('worker-result.json',JSON.stringify(result,null,2)+'\n');
 
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
   appendFileSync(summary, [
     '## Authority-untrusted Agent A',
     '',
-    '- Received the immutable work packet, not an ExecutionPermit.',
-    `- Local \`origin\` was repointed to \`${attacker}\`.`,
-    '- Local state ref, kernel source, and fake SQLite cache were modified.',
-    `- Attempt to rewrite canonical project authority returned HTTP \`${attemptedAuthorityRewrite.status}\`.`,
-    `- Attempt to write the declared GitHub status returned HTTP \`${attemptedStatus.status}\`.`,
-    '- Emitted a run-bound effect-ready signal for trusted validation.',
-    '- Agent A has no `statuses: write` permission.',
+    '- Received work state but no provider mutation credential or execution capability.',
+    `- Local authority and source were tampered with without changing canonical Git authority.`,
+    `- Authority rewrite returned HTTP \`${attemptedAuthorityRewrite.status}\`.`,
+    `- Provider write returned HTTP \`${attemptedStatus.status}\`.`,
+    '- Emitted result data only. It did not emit readiness or provider coordinates as authority.',
     '',
   ].join('\n'));
 }
 
 console.log(JSON.stringify({
-  obligation_id: snapshot.id,
-  run_id: snapshot.run_id,
-  immutable_revision: snapshot.revision,
-  authority_rewrite_status: attemptedAuthorityRewrite.status,
-  provider_write_status: attemptedStatus.status,
-  effect_ready: 'effect-ready.json',
+  obligation_id:snapshot.id,
+  generation:snapshot.execution_generation,
+  worker_result:'worker-result.json',
 }));
 
 process.exit(86);
