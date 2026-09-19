@@ -380,73 +380,74 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
   try{
     for(const dependencyKind of dependencyKinds){
       for(let mask=0;mask<(1<<slots.length);mask+=1){
-      const dependencies=graphFromMask(nodeCount,slots,mask);
-      for(let target=0;target<nodeCount;target+=1){
-        for(let competitor=0;competitor<nodeCount;competitor+=1){
-          if(target===competitor)continue;
-          const scenarios:Array<{
-            name:string;
-            fixture:EffectFixture;
-          }>=[
-            {
-              name:'conflicting-same-resource',
-              fixture:{
-                target,
-                competitor,
-                targetDesired:'success',
-                competitorDesired:'failure',
+        const dependencies=graphFromMask(nodeCount,slots,mask);
+        for(let target=0;target<nodeCount;target+=1){
+          for(let competitor=0;competitor<nodeCount;competitor+=1){
+            if(target===competitor)continue;
+            const scenarios:Array<{
+              name:string;
+              fixture:EffectFixture;
+            }>=[
+              {
+                name:'conflicting-same-resource',
+                fixture:{
+                  target,
+                  competitor,
+                  targetDesired:'success',
+                  competitorDesired:'failure',
+                },
               },
-            },
-            {
-              name:'commuting-same-desired',
-              fixture:{
-                target,
-                competitor,
-                targetDesired:'success',
-                competitorDesired:'success',
+              {
+                name:'commuting-same-desired',
+                fixture:{
+                  target,
+                  competitor,
+                  targetDesired:'success',
+                  competitorDesired:'success',
+                },
               },
-            },
-            {
-              name:'independent-different-resource',
-              fixture:{
-                target,
-                competitor,
-                targetDesired:'success',
-                competitorDesired:'failure',
-                competitorContext:'overcenter/lean-oracle/other',
+              {
+                name:'independent-different-resource',
+                fixture:{
+                  target,
+                  competitor,
+                  targetDesired:'success',
+                  competitorDesired:'failure',
+                  competitorContext:'overcenter/lean-oracle/other',
+                },
               },
-            },
-          ];
+            ];
 
-          for(const scenario of scenarios){
-            const state=stateFromDependencies(
-              dependencies,
-              scenario.fixture,
-              dependencyKind,
-            );
-            const expected=
-              staticEffectConflict(state,`n-${target}`)!==null;
+            for(const scenario of scenarios){
+              const state=stateFromDependencies(
+                dependencies,
+                scenario.fixture,
+                dependencyKind,
+              );
+              const expected=
+                staticEffectConflict(state,`n-${target}`)!==null;
 
-            for(const order of [forward,reverse]){
-              const observed=await oracle.compare(
-                leanRequest(state,`n-${target}`,order),
-              );
-              assert.equal(
-                observed.graph_acyclic,
-                true,
-                `oracle rejected canonical DAG mask=${mask}`,
-              );
-              assert.equal(
-                observed.optimized_effect_conflict,
-                observed.reference_effect_conflict,
-                `Lean optimized/reference disagreement kind=${dependencyKind} scenario=${scenario.name} mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
-              );
-              assert.equal(
-                observed.reference_effect_conflict,
-                expected,
-                `effect disagreement kind=${dependencyKind} scenario=${scenario.name} mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
-              );
-              comparisons+=1;
+              for(const order of [forward,reverse]){
+                const observed=await oracle.compare(
+                  leanRequest(state,`n-${target}`,order),
+                );
+                assert.equal(
+                  observed.graph_acyclic,
+                  true,
+                  `oracle rejected canonical DAG kind=${dependencyKind} mask=${mask}`,
+                );
+                assert.equal(
+                  observed.optimized_effect_conflict,
+                  observed.reference_effect_conflict,
+                  `Lean optimized/reference disagreement kind=${dependencyKind} scenario=${scenario.name} mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
+                );
+                assert.equal(
+                  observed.reference_effect_conflict,
+                  expected,
+                  `effect disagreement kind=${dependencyKind} scenario=${scenario.name} mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
+                );
+                comparisons+=1;
+              }
             }
           }
         }
