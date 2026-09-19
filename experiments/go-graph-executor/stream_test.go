@@ -84,9 +84,21 @@ func TestExecuteStreamPreservesCancellationEvidenceForAcceptedWork(t *testing.T)
 	}
 	close(input)
 
-	results, errs := ExecuteStream(ctx, input, 4, RunSynthetic)
-	// Let the dispatcher hand all four jobs to the four workers, then cancel.
-	time.Sleep(10 * time.Millisecond)
+	started := make(chan struct{}, 4)
+	runner := func(ctx context.Context, envelope Envelope) ([]byte, error) {
+		started <- struct{}{}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	results, errs := ExecuteStream(ctx, input, 4, runner)
+
+	for index := 0; index < 4; index++ {
+		select {
+		case <-started:
+		case <-time.After(250 * time.Millisecond):
+			t.Fatal("not all accepted jobs reached a worker before cancellation")
+		}
+	}
 	cancel()
 
 	var evidence []Evidence
