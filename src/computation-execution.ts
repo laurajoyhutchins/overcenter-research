@@ -6,6 +6,7 @@ export const COMPUTATION_EXECUTION_SCHEMA='overcenter-computation-execution-v1' 
 export const PROCESS_SPEC_SCHEMA='overcenter-process-spec-v1' as const;
 export const COMPUTATION_EVIDENCE_SCHEMA='overcenter-computation-attempt-evidence-v1' as const;
 export const EXECUTOR_COMMAND_SCHEMA='overcenter-executor-command-v1' as const;
+export const EXECUTOR_HELLO_SCHEMA='overcenter-executor-hello-v1' as const;
 
 const MAX_SPEC_BYTES=1024*1024;
 const MAX_ARG_COUNT=256;
@@ -43,6 +44,12 @@ export interface ExecutionIdentityV1 {
   run_id:string;
   execution_generation:number;
   execution_authority_commit:string;
+}
+
+export interface ExecutorHelloV1 {
+  schema:typeof EXECUTOR_HELLO_SCHEMA;
+  execution_context_sha256:string;
+  containment_id:string;
 }
 
 export type ExecutorCommandV1 =
@@ -134,6 +141,25 @@ function assertSha256Tagged(value:unknown,name:string):asserts value is string {
   if (typeof value!=='string' || !/^sha256:[0-9a-f]{64}$/.test(value)) {
     throw new Error(`${name.toUpperCase()}_INVALID`);
   }
+}
+
+export function validateExecutorHello(value:unknown):ExecutorHelloV1 {
+  assertPlainObject(value,'executor_hello');
+  assertExactKeys(value,[
+    'schema',
+    'execution_context_sha256',
+    'containment_id',
+  ],[],'executor_hello');
+  if (value.schema!==EXECUTOR_HELLO_SCHEMA) {
+    throw new Error('EXECUTOR_HELLO_SCHEMA_MISMATCH');
+  }
+  assertSha256Tagged(value.execution_context_sha256,'execution_context_sha256');
+  assertBoundedString(value.containment_id,'containment_id',512);
+  return {
+    schema:EXECUTOR_HELLO_SCHEMA,
+    execution_context_sha256:value.execution_context_sha256,
+    containment_id:value.containment_id,
+  };
 }
 
 function decodeCanonicalBase64(

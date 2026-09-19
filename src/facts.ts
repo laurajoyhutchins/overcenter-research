@@ -7,7 +7,10 @@ import type {
   Postcondition,
   Run,
 } from './model.ts';
-import { validatePostcondition } from './observation.ts';
+import {
+  validateObservationEnvelope,
+  validatePostcondition,
+} from './observation.ts';
 
 export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
@@ -113,21 +116,56 @@ export function emptyState():State {
   return {obligations:{},definition_commits:{}};
 }
 
+function data(value:unknown):value is Data {
+  return !!value && typeof value==='object' && !Array.isArray(value);
+}
+
+function exactKeys(
+  value:Record<string,unknown>,
+  required:readonly string[],
+  optional:readonly string[]=[],
+  error='INVALID_FACT_SHAPE',
+):void {
+  const allowed=new Set([...required,...optional]);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) throw new Error(`${error}:UNKNOWN_FIELD:${key}`);
+  }
+  for (const key of required) {
+    if (!(key in value)) throw new Error(`${error}:MISSING_FIELD:${key}`);
+  }
+}
+
+function nonEmptyString(value:unknown,error:string):asserts value is string {
+  if (typeof value!=='string' || value.length===0 || value.includes('\0')) {
+    throw new Error(error);
+  }
+}
+
+function positiveSafeInteger(value:unknown,error:string):asserts value is number {
+  if (!Number.isSafeInteger(value) || (value as number)<1) throw new Error(error);
+}
+
+function sha256Hex(value:unknown,error:string):asserts value is string {
+  if (typeof value!=='string' || !/^[0-9a-f]{64}$/.test(value)) throw new Error(error);
+}
+
 export function validateDependencies(dependencies:Dependency[]):void {
   for (const edge of dependencies) {
-    if (!edge || typeof edge.upstream!=='string' || edge.upstream.length===0) {
+    if (!data(edge)) throw new Error('INVALID_DEPENDENCY');
+    if (edge.kind==='control') {
+      exactKeys(edge,['kind','upstream'],[],'INVALID_DEPENDENCY');
+      nonEmptyString(edge.upstream,'INVALID_DEPENDENCY');
+      continue;
+    }
+    if (edge.kind!=='semantic') throw new Error('INVALID_DEPENDENCY');
+    exactKeys(edge,['kind','upstream','consumes'],[],'INVALID_DEPENDENCY');
+    nonEmptyString(edge.upstream,'INVALID_DEPENDENCY');
+    if (!data(edge.consumes)) throw new Error('INVALID_DEPENDENCY');
+    exactKeys(edge.consumes,['kind','selector'],[],'INVALID_DEPENDENCY_CONSUMES');
+    if (!['output','evidence'].includes(String(edge.consumes.kind))) {
       throw new Error('INVALID_DEPENDENCY');
     }
-    if (edge.kind==='control') continue;
-    if (
-      edge.kind!=='semantic'
-      || !edge.consumes
-      || !['output','evidence'].includes(edge.consumes.kind)
-      || typeof edge.consumes.selector!=='string'
-      || edge.consumes.selector.length===0
-    ) {
-      throw new Error('INVALID_DEPENDENCY');
-    }
+    nonEmptyString(edge.consumes.selector,'INVALID_DEPENDENCY');
   }
 }
 
@@ -147,17 +185,188 @@ export function normalizeObligation(input:ObligationInput):Obligation {
 }
 
 export function validateStoredObligation(obligation:Obligation):Obligation {
-  if (!obligation || typeof obligation!=='object') throw new Error('INVALID_OBLIGATION');
+  if (!data(obligation)) throw new Error('INVALID_OBLIGATION');
   const raw=obligation as unknown as Record<string,unknown>;
   if ('deps' in raw) throw new Error('LEGACY_DEPENDENCY_PROJECTION_UNSUPPORTED');
-  if (typeof obligation.id!=='string' || obligation.id.length===0) {
-    throw new Error('INVALID_OBLIGATION_ID');
-  }
+  exactKeys(raw,['id','dependencies','packet','postcondition'],[],'INVALID_OBLIGATION');
+  nonEmptyString(obligation.id,'INVALID_OBLIGATION_ID');
   if (!Array.isArray(obligation.dependencies)) throw new Error('INVALID_DEPENDENCIES');
-  if (!raw.packet || typeof raw.packet!=='object' || Array.isArray(raw.packet)) {
-    throw new Error('INVALID_PACKET');
-  }
+  if (!data(raw.packet)) throw new Error('INVALID_PACKET');
   validateDependencies(obligation.dependencies);
   validatePostcondition(obligation.postcondition);
   return structuredClone(obligation);
+}
+
+export function validateObligationFact(value:unknown):ObligationFact {
+  if (!data(value)) throw new Error('INVALID_OBLIGATION_FACT');
+  if (value.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
+  if (value.kind==='defined') {
+    exactKeys(value,['schema','kind','obligation'],[],'INVALID_OBLIGATION_FACT');
+    return {
+      schema:OBLIGATION_SCHEMA,
+      kind:'defined',
+      obligation:validateStoredObligation(value.obligation as Obligation),
+    };
+  }
+  if (value.kind==='amended') {
+    exactKeys(
+      value,
+      ['schema','kind','obligation','previous_definition_commit'],
+      [],
+      'INVALID_OBLIGATION_FACT',
+    );
+    nonEmptyString(
+      value.previous_definition_commit,
+      'INVALID_PREVIOUS_DEFINITION_COMMIT',
+    );
+    return {
+      schema:OBLIGATION_SCHEMA,
+      kind:'amended',
+      obligation:validateStoredObligation(value.obligation as Obligation),
+      previous_definition_commit:value.previous_definition_commit,
+    };
+  }
+  throw new Error('INVALID_OBLIGATION_KIND');
+}
+
+export function validateClaimFact(value:unknown):ClaimFact {
+  if (!data(value)) throw new Error('INVALID_CLAIM_FACT');
+  exactKeys(value,[
+    'schema',
+    'run_id',
+    'obligation_id',
+    'claimed_revision',
+    'obligation_key',
+    'execution_capability_sha256',
+  ],[],'INVALID_CLAIM_FACT');
+  if (value.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
+  nonEmptyString(value.run_id,'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
+  nonEmptyString(value.claimed_revision,'INVALID_CLAIMED_REVISION');
+  nonEmptyString(value.obligation_key,'INVALID_OBLIGATION_KEY');
+  sha256Hex(
+    value.execution_capability_sha256,
+    'INVALID_EXECUTION_CAPABILITY_DIGEST',
+  );
+  return structuredClone(value) as unknown as ClaimFact;
+}
+
+export function validateExecutionAuthorityFact(value:unknown):ExecutionAuthorityFact {
+  if (!data(value)) throw new Error('INVALID_EXECUTION_AUTHORITY_FACT');
+  exactKeys(value,[
+    'schema',
+    'run_id',
+    'obligation_id',
+    'generation',
+    'previous_authority_commit',
+    'execution_capability_sha256',
+  ],[],'INVALID_EXECUTION_AUTHORITY_FACT');
+  if (value.schema!==EXECUTION_AUTHORITY_SCHEMA) {
+    throw new Error('INVALID_EXECUTION_AUTHORITY_SCHEMA');
+  }
+  nonEmptyString(value.run_id,'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
+  positiveSafeInteger(value.generation,'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(
+    value.previous_authority_commit,
+    'INVALID_PREVIOUS_AUTHORITY_COMMIT',
+  );
+  sha256Hex(
+    value.execution_capability_sha256,
+    'INVALID_EXECUTION_CAPABILITY_DIGEST',
+  );
+  return structuredClone(value) as unknown as ExecutionAuthorityFact;
+}
+
+export function validateEffectReservationFact(value:unknown):EffectReservationFact {
+  if (!data(value)) throw new Error('INVALID_EFFECT_RESERVATION_FACT');
+  exactKeys(value,[
+    'schema',
+    'run_id',
+    'obligation_id',
+    'execution_generation',
+    'execution_authority_commit',
+  ],[],'INVALID_EFFECT_RESERVATION_FACT');
+  if (value.schema!==EFFECT_RESERVATION_SCHEMA) {
+    throw new Error('INVALID_EFFECT_RESERVATION_SCHEMA');
+  }
+  nonEmptyString(value.run_id,'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
+  positiveSafeInteger(value.execution_generation,'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(
+    value.execution_authority_commit,
+    'INVALID_EXECUTION_AUTHORITY_COMMIT',
+  );
+  return structuredClone(value) as unknown as EffectReservationFact;
+}
+
+export function validateReceiptFact(value:unknown):ReceiptFact {
+  if (!data(value)) throw new Error('INVALID_RECEIPT_FACT');
+  exactKeys(value,[
+    'schema',
+    'run_id',
+    'obligation_id',
+    'claimed_revision',
+    'claim_commit',
+    'execution_generation',
+    'execution_authority_commit',
+    'kind',
+    'observed',
+    'settled_at',
+  ],['diagnostic'],'INVALID_RECEIPT_FACT');
+  if (
+    value.schema!==RECEIPT_SCHEMA
+    && value.schema!==LEGACY_RECEIPT_SCHEMA
+  ) {
+    throw new Error('INVALID_RECEIPT_SCHEMA');
+  }
+  nonEmptyString(value.run_id,'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
+  nonEmptyString(value.claimed_revision,'INVALID_CLAIMED_REVISION');
+  nonEmptyString(value.claim_commit,'INVALID_CLAIM_COMMIT');
+  positiveSafeInteger(value.execution_generation,'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(
+    value.execution_authority_commit,
+    'INVALID_EXECUTION_AUTHORITY_COMMIT',
+  );
+  if (!['observation','judgment-required','execution-terminated'].includes(String(value.kind))) {
+    throw new Error('INVALID_RECEIPT_KIND');
+  }
+  if (value.observed!==null && !data(value.observed)) {
+    throw new Error('INVALID_RECEIPT_OBSERVATION');
+  }
+  if (value.schema===RECEIPT_SCHEMA && value.observed!==null) {
+    validateObservationEnvelope(value.observed);
+  }
+  if (value.diagnostic!==undefined && !data(value.diagnostic)) {
+    throw new Error('INVALID_RECEIPT_DIAGNOSTIC');
+  }
+  nonEmptyString(value.settled_at,'INVALID_SETTLED_AT');
+  return structuredClone(value) as unknown as ReceiptFact;
+}
+
+export type AuthorityFact =
+  | ObligationFact
+  | ClaimFact
+  | ExecutionAuthorityFact
+  | EffectReservationFact
+  | ReceiptFact;
+
+export function validateAuthorityFact(value:unknown):AuthorityFact {
+  if (!data(value)) throw new Error('INVALID_AUTHORITY_FACT');
+  switch (value.schema) {
+    case OBLIGATION_SCHEMA:
+      return validateObligationFact(value);
+    case CLAIM_SCHEMA:
+      return validateClaimFact(value);
+    case EXECUTION_AUTHORITY_SCHEMA:
+      return validateExecutionAuthorityFact(value);
+    case EFFECT_RESERVATION_SCHEMA:
+      return validateEffectReservationFact(value);
+    case LEGACY_RECEIPT_SCHEMA:
+    case RECEIPT_SCHEMA:
+      return validateReceiptFact(value);
+    default:
+      throw new Error('UNKNOWN_AUTHORITY_FACT_SCHEMA');
+  }
 }

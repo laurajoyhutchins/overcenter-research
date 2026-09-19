@@ -1,0 +1,180 @@
+{
+  "schema": "overcenter-observation-evidence-conformance-v1",
+  "cases": [
+    {
+      "name": "github-provider-observation-valid",
+      "kind": "provider-observation",
+      "valid": true,
+      "value": {
+        "contract": {
+          "provider": "github",
+          "api_version": "2026-03-10",
+          "operation_id": "repos/get",
+          "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "observer": {
+          "kind": "git-kernel",
+          "id": "contract-proof"
+        },
+        "observed_at": "2026-09-19T00:00:00.000Z",
+        "request": {
+          "path": "/repos/o/r"
+        },
+        "response": {},
+        "outcome": {
+          "status": 200,
+          "visibility": "observed",
+          "value": {
+            "id": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "provider-observation-unknown-field-invalid",
+      "kind": "provider-observation",
+      "valid": false,
+      "value": {
+        "contract": {
+          "provider": "github",
+          "api_version": "2026-03-10",
+          "operation_id": "repos/get",
+          "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "observer": {
+          "kind": "git-kernel",
+          "id": "contract-proof"
+        },
+        "observed_at": "2026-09-19T00:00:00.000Z",
+        "request": {},
+        "response": {},
+        "outcome": {
+          "status": 200,
+          "visibility": "observed"
+        },
+        "surprise": true
+      }
+    },
+    {
+      "name": "kubernetes-provider-extension-valid",
+      "kind": "kubernetes-provider-observation",
+      "valid": true,
+      "value": {
+        "contract": {
+          "provider": "kubernetes",
+          "api_version": "v1",
+          "operation_id": "listCoreV1NamespacedConfigMap",
+          "schema_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "observer": {
+          "kind": "test",
+          "id": "contract-proof"
+        },
+        "observed_at": "2026-09-19T00:00:00.000Z",
+        "request": {
+          "namespace": "proof",
+          "continue_token": null,
+          "limit": 100
+        },
+        "response": {},
+        "outcome": {
+          "status": 200,
+          "visibility": "observed",
+          "value": {}
+        },
+        "authority_id": "kind:test-cluster"
+      }
+    },
+    {
+      "name": "settlement-observation-valid",
+      "kind": "settlement-observation",
+      "valid": true,
+      "value": {
+        "verifier": "file-content-equals/v1",
+        "path": "/provider/a",
+        "expected_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "mutation_certainty": "absent",
+        "absence_evidence": {
+          "schema": "overcenter-absence-evidence-v1",
+          "kind": "local-file-enoent/v1",
+          "subject": {
+            "kind": "file-path",
+            "path": "/provider/a"
+          },
+          "scope": {
+            "kind": "exact-coordinate",
+            "coordinate": {
+              "kind": "file-path",
+              "path": "/provider/a"
+            }
+          },
+          "snapshot": null,
+          "completeness": {
+            "kind": "direct-coordinate-read",
+            "result": "ENOENT"
+          },
+          "provenance": {
+            "adapter": "node:fs",
+            "operation": "readFileSync",
+            "error_code": "ENOENT"
+          }
+        }
+      }
+    },
+    {
+      "name": "settlement-observation-unknown-field-invalid",
+      "kind": "settlement-observation",
+      "valid": false,
+      "value": {
+        "verifier": "file-content-equals/v1",
+        "mutation_certainty": "uncertain",
+        "surprise": true
+      }
+    },
+    {
+      "name": "absence-envelope-valid",
+      "kind": "absence-envelope",
+      "valid": true,
+      "value": {
+        "schema": "overcenter-absence-evidence-v1",
+        "kind": "hypothetical-provider-absence/v1",
+        "subject": {
+          "coordinate": "x"
+        },
+        "scope": {
+          "collection": "x"
+        },
+        "snapshot": null,
+        "completeness": {
+          "kind": "provider-specific"
+        },
+        "provenance": {
+          "provider": "hypothetical"
+        }
+      }
+    },
+    {
+      "name": "absence-envelope-unknown-field-invalid",
+      "kind": "absence-envelope",
+      "valid": false,
+      "value": {
+        "schema": "overcenter-absence-evidence-v1",
+        "kind": "hypothetical-provider-absence/v1",
+        "subject": {
+          "coordinate": "x"
+        },
+        "scope": {
+          "collection": "x"
+        },
+        "snapshot": null,
+        "completeness": {
+          "kind": "provider-specific"
+        },
+        "provenance": {
+          "provider": "hypothetical"
+        },
+        "surprise": true
+      }
+    }
+  ]
+}
