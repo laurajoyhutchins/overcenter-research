@@ -3,8 +3,8 @@
 ## Question
 
 Can a meaningful slice of Overcenter's current project projection be expressed as
-pure relational derivation over append-only durable facts, rather than as stored
-lifecycle state?
+pure relational derivation over durable facts plus current semantic identity,
+rather than as stored lifecycle state?
 
 This experiment is intentionally narrower than the TypeScript reference
 mechanism. It tests one architectural claim:
@@ -19,23 +19,28 @@ The implementation uses Soufflé Datalog 2.5.
 The experiment starts at the **semantic-key boundary**.
 
 ```text
-obligation contents
+current obligation definition
 + verifier semantics
-+ selected semantic dependency identities
++ selected upstream realization identities
         |
         | deterministic semantic layer
         v
-semantic obligation key
+current_semantic_key(obligation, key)
         |
-        v
-append-only facts
-  definition(key, ordinal)
-  dependency(definition, upstream)
-  run(key, ordinal)
-  receipt(disposition, ordinal)
-        |
-        | Soufflé
-        v
+        +-------------------------------+
+                                        |
+append-only durable history             |
+  definition(definition_id, ordinal)    |
+  dependency(definition_id, upstream)   |
+  run(key, ordinal)                     |
+  receipt(disposition, ordinal)         |
+        |                               |
+        +---------------+---------------+
+                        |
+                        v
+                  Soufflé Datalog
+                        |
+                        v
 current definition
 latest receipt
 exact-key reusable realization
@@ -48,9 +53,16 @@ READY / BLOCKED / EXECUTING /
 WAITING / RECOVERY_REQUIRED / DONE
 ```
 
+The distinction matters. A definition does **not** own one permanent semantic
+key. The same unchanged downstream definition can acquire a different current
+key when a selected upstream realization identity changes. Therefore the
+semantic key is supplied as current derived input rather than stored on the
+definition relation.
+
 Soufflé does **not** decide:
 
 - how canonical semantic hashes are computed;
+- which selected upstream identities contribute to a semantic key;
 - whether provider observations are structurally valid;
 - whether negative evidence is authoritative;
 - whether a receipt may legally be admitted;
@@ -61,18 +73,20 @@ Those remain responsibilities of the existing semantic, admission, provider,
 and authority layers.
 
 This split is deliberate. Datalog is being tested as a projection engine, not
-as a replacement for the transaction kernel.
+as a replacement for the transaction kernel or semantic verifier.
 
-## Input facts
+## Inputs
 
-All inputs are append-only.
+Durable history inputs are append-only. One additional input represents
+current semantic meaning derived by the semantic layer.
 
-### `definition(obligation, semantic_key, ordinal)`
+### `definition(obligation, definition_id, ordinal)`
 
 Each durable definition or amendment. The greatest ordinal for an obligation is
-its current definition.
+its current definition. `definition_id` identifies that exact durable
+definition; it is not the semantic obligation key.
 
-### `dependency(downstream, definition_ordinal, upstream)`
+### `dependency(downstream, definition_id, upstream)`
 
 Dependency edges belonging to one exact definition. Only edges from the current
 definition participate in the current graph.
@@ -86,6 +100,13 @@ attempted to realize.
 
 Settlement history for a run. The greatest receipt ordinal is the current
 receipt for that run.
+
+### `current_semantic_key(obligation, semantic_key)`
+
+Current semantic identity produced by the existing deterministic semantic
+layer. This relation is intentionally **not** append-only historical state.
+It is recomputed from current obligation meaning, including selected upstream
+realization identities.
 
 The ordinal is a flattened stand-in for the total order already supplied by
 authoritative Git history in the reference mechanism. The experiment does not
@@ -103,7 +124,8 @@ The program derives:
 - producer-independent exact-key `DONE` reuse;
 - current lifecycle;
 - unsatisfied dependencies;
-- public project status.
+- public project status;
+- diagnostics for missing or contradictory flattened inputs.
 
 There is intentionally no producer relation. A human, agent, or previous run
 has no semantic privilege here. If its durable realization fact carries the
@@ -121,30 +143,36 @@ The hostile fixtures cover:
 1. transitive dependency closure;
 2. historical exact-key realization reuse;
 3. semantic amendment invalidating an old `DONE` realization;
-4. an unsettled matching run remaining `EXECUTING`;
-5. `WAITING` and `RECOVERY_REQUIRED` lifecycle recovery;
-6. authoritative absence returning work to `READY`;
-7. append-only receipt history where later `DONE` supersedes an earlier
+4. the **same unchanged definition** receiving a different current semantic
+   key and therefore losing reuse;
+5. an unsettled matching run remaining `EXECUTING`;
+6. `WAITING` and `RECOVERY_REQUIRED` lifecycle recovery;
+7. authoritative absence returning work to `READY`;
+8. append-only receipt history where later `DONE` supersedes an earlier
    recovery receipt.
 
-The semantic-amendment case is the key negative control:
+The same-definition identity-change case is the important negative control:
 
 ```text
-definition a @ key K1
+downstream definition D
+        |
+current semantic key K1
         |
 old run K1 -> DONE
         |
-amend material input
-        v
-definition a @ key K2
+selected upstream realization changes
+        |
+semantic layer recomputes current key K2
+        |
+        +---- definition is still D
 
 K1 != K2
    |
    v
-old DONE is invisible to current reuse
+old DONE no longer joins current meaning
    |
    v
-READY
+derive current eligibility again
 ```
 
 No invalidation flag or cache eviction is required. The old realization remains
@@ -166,11 +194,12 @@ release package and runs the differential test.
 A green run supports a bounded implementation claim:
 
 > For the modeled lifecycle and dependency slice, current project status can be
-> recomputed declaratively from append-only facts and semantic identity, and
-> agrees with the current TypeScript reference mechanism on the tested hostile
+> recomputed declaratively from durable facts plus current semantic identity,
+> and agrees with the TypeScript reference mechanism on the tested hostile
 > histories.
 
 It does **not** prove the Datalog rules complete for all Overcenter semantics,
 nor that Soufflé should become a production dependency. If the experiment
-continues to absorb projection logic without absorbing authority or provider
-state machines, that is evidence that the architectural boundary is real.
+continues to absorb projection logic without absorbing authority, semantic
+hashing, or provider state machines, that is evidence that the architectural
+boundary is real.
