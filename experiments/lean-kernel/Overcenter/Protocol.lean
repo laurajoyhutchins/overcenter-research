@@ -2,6 +2,7 @@ import Lean.Data.Json.Parser
 import Lean.Data.Json.Printer
 import Overcenter.Proofs
 import Overcenter.ExecutionProofs
+import Overcenter.ClaimProofs
 
 open Lean
 
@@ -225,6 +226,128 @@ private def parseExecutionFacts (json : Json) : Except String (List ExecutionFac
   let facts ← json.getArr?
   facts.toList.mapM parseExecutionFact
 
+
+private def parseClaimSelector : String → Except String ClaimSemanticSelector
+  | "verified-content" => pure .verifiedContent
+  | "settlement-receipt" => pure .settlementReceipt
+  | other => throw s!"unsupported claim semantic selector: {other}"
+
+private def parseClaimDependency (json : Json) : Except String ClaimDependency := do
+  let kind ← stringField json "kind"
+  let upstream ← stringField json "upstream"
+  if kind = "control" then
+    return .control upstream
+  if kind = "semantic" then
+    return .semantic upstream (← parseClaimSelector (← stringField json "selector"))
+  throw s!"unsupported claim dependency kind: {kind}"
+
+private def parseClaimDependencies (json : Json) : Except String (List ClaimDependency) := do
+  let dependencies ← json.getArr?
+  dependencies.toList.mapM parseClaimDependency
+
+private def parseClaimObligation (json : Json) : Except String ClaimObligation := do
+  pure {
+    id := ← stringField json "id"
+    packetIdentity := ← stringField json "packet_identity"
+    postcondition := ← parsePostcondition (← field json "postcondition")
+    dependencies := ← parseClaimDependencies (← field json "dependencies")
+  }
+
+private def parseClaimObligations (json : Json) : Except String (List ClaimObligation) := do
+  let obligations ← json.getArr?
+  obligations.toList.mapM parseClaimObligation
+
+private def parseClaimSemanticIdentity
+    (selector : ClaimSemanticSelector)
+    (json : Json) : Except String ClaimSemanticIdentity := do
+  match selector with
+  | .verifiedContent =>
+      let family ← parseFamily (← stringField json "family")
+      pure (.verifiedContent
+        family
+        (← parseCoordinate family (← field json "coordinate"))
+        (← stringField json "expected"))
+  | .settlementReceipt =>
+      pure (.settlementReceipt (← stringField json "commit"))
+
+private def parseClaimSemanticInput (json : Json) : Except String ClaimSemanticInput := do
+  let selector ← parseClaimSelector (← stringField json "selector")
+  pure {
+    selector
+    identity := ← parseClaimSemanticIdentity selector (← field json "identity")
+  }
+
+private def parseClaimSemanticInputs (json : Json) : Except String (List ClaimSemanticInput) := do
+  let inputs ← json.getArr?
+  inputs.toList.mapM parseClaimSemanticInput
+
+private def parseClaimKey (json : Json) : Except String ClaimObligationKey := do
+  pure {
+    id := ← stringField json "id"
+    packetIdentity := ← stringField json "packet_identity"
+    postcondition := ← parsePostcondition (← field json "postcondition")
+    semanticInputs := ← parseClaimSemanticInputs (← field json "semantic_inputs")
+  }
+
+private def parseHistoricalClaimDisposition : String → Except String HistoricalClaimDisposition
+  | "EXECUTING" => pure .executing
+  | "WAITING" => pure .waiting
+  | "RECOVERY_REQUIRED" => pure .recoveryRequired
+  | "DONE" => pure .done
+  | "READY" => pure .ready
+  | other => throw s!"unsupported historical claim disposition: {other}"
+
+private def parseHistoricalClaimRun (json : Json) : Except String HistoricalClaimRun := do
+  pure {
+    runId := ← stringField json "run_id"
+    obligationId := ← stringField json "obligation_id"
+    key := ← parseClaimKey (← field json "key")
+    disposition := ← parseHistoricalClaimDisposition (← stringField json "disposition")
+    settlementCommit := ← optionalStringField json "settlement_commit"
+  }
+
+private def parseHistoricalClaimRuns (json : Json) : Except String (List HistoricalClaimRun) := do
+  let runs ← json.getArr?
+  runs.toList.mapM parseHistoricalClaimRun
+
+private def parseClaimCandidate (json : Json) : Except String ClaimCandidate := do
+  pure {
+    runId := ← stringField json "run_id"
+    obligationId := ← stringField json "obligation_id"
+    claimedRevision := ← stringField json "claimed_revision"
+    obligationKey := ← parseClaimKey (← field json "obligation_key")
+    capabilityDigest := ← stringField json "capability_digest"
+  }
+
+private def claimAdmissionReasonName : ClaimAdmissionError → String
+  | .unknownObligation => "UNKNOWN_OBLIGATION"
+  | .duplicateRun => "DUPLICATE_RUN"
+  | .revisionMismatch => "REVISION_MISMATCH"
+  | .claimWhileNotReady => "CLAIM_WHILE_NOT_READY"
+  | .unsatisfiedDependencies => "UNSATISFIED_DEPENDENCIES"
+  | .unresolvedSemanticDependency => "UNRESOLVED_SEMANTIC_DEPENDENCY"
+  | .obligationKeyMismatch => "OBLIGATION_KEY_MISMATCH"
+  | .invalidCapabilityDigest => "INVALID_CAPABILITY_DIGEST"
+
+private def handleClaimAdmission (request : Json) : Except String Json := do
+  let currentRevision ← stringField request "current_revision"
+  let obligations ← parseClaimObligations (← field request "obligations")
+  let runs ← parseHistoricalClaimRuns (← field request "runs")
+  let candidate ← parseClaimCandidate (← field request "candidate")
+  match admitClaim currentRevision obligations runs candidate with
+  | .accepted =>
+      pure <| Json.mkObj [
+        ("schema", "overcenter-lean-kernel/v1"),
+        ("accepted", true),
+        ("reason", Json.null)
+      ]
+  | .rejected reason =>
+      pure <| Json.mkObj [
+        ("schema", "overcenter-lean-kernel/v1"),
+        ("accepted", false),
+        ("reason", claimAdmissionReasonName reason)
+      ]
+
 private def dispositionName : Disposition → String
   | .done => "DONE"
   | .ready => "READY"
@@ -304,7 +427,9 @@ private def handleKubernetesWatchCarry (request : Json) : Except String Json := 
 
 def handleJson (request : Json) : Except String Json := do
   let command ← stringField request "command"
-  if command = "execution-replay" then
+  if command = "claim-admission" then
+    handleClaimAdmission request
+  else if command = "execution-replay" then
     handleExecutionReplay request
   else if command = "settle" then
     handleSettlement request
