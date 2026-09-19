@@ -304,6 +304,31 @@ test('production socket mode fails closed without a distinct task credential',as
   });
   assert.notEqual(overlapCode,0);
   assert.match(overlapStderr,/task gid must differ from trusted socket gid/);
+
+  const foreignUID=uid===65532?65531:65532;
+  const foreignGID=gid===65532?65531:65532;
+  const writableSocket=join(tmpdir(),`overcenter-world-writable-${executorSequence++}.sock`);
+  rmSync(writableSocket,{force:true});
+  const writable=spawn(
+    binary,
+    [
+      `--socket=${writableSocket}`,
+      `--workspace-root=${workspace}`,
+      '--concurrency=1',
+      `--task-uid=${foreignUID}`,
+      `--task-gid=${foreignGID}`,
+    ],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let writableStderr='';
+  writable.stderr.setEncoding('utf8');
+  writable.stderr.on('data',chunk=>{writableStderr+=String(chunk);});
+  const writableCode=await new Promise<number|null>((resolve,reject)=>{
+    writable.once('error',reject);
+    writable.once('close',resolve);
+  });
+  assert.notEqual(writableCode,0);
+  assert.match(writableStderr,/task must not be able to write socket directory/);
 });
 
 test('production executor receives only explicit task environment',async()=>{
