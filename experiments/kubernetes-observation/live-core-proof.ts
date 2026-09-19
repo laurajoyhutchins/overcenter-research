@@ -17,7 +17,10 @@ const target='target';
 const distractor='distractor';
 
 function kubectl(...args:string[]):string {
-  return execFileSync('kubectl',args,{encoding:'utf8'}).trim();
+  return execFileSync('kubectl',args,{
+    encoding:'utf8',
+    maxBuffer:32*1024*1024,
+  }).trim();
 }
 
 function currentClusterAuthority():string {
