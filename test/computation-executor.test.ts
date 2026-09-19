@@ -484,6 +484,64 @@ test('cancellation kills a stubborn grandchild even when its parent exits on SIG
   }
 });
 
+test('normal exit with a detached background descendant fails and cleans before reuse',async()=>{
+  const pidFile=join(workspace,'detached-exit.pid');
+  rmSync(pidFile,{force:true});
+  const execution=computationExecution(
+    permit(7),
+    spec('detached-child-exit','',{pidFile,timeoutMs:5000}),
+  );
+  const harness=await startExecutor(1);
+  const {client}=harness;
+  try {
+    const evidence=await client.execute(execution);
+    const pids=await waitForPidFile(pidFile,2);
+    assert.equal(evidence.outcome,'failed');
+    assert.match(evidence.error??'',/background descendants/);
+    await assertDead(pids);
+
+    const replacement=computationExecution(
+      permit(8),
+      {
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'/bin/true',
+        argv:[],
+        cwd:'.',
+        env:{},
+        timeout_ms:1000,
+        stdout_max_bytes:0,
+        stderr_max_bytes:0,
+      },
+    );
+    const replacementEvidence=await client.execute(replacement);
+    assert.equal(replacementEvidence.outcome,'completed');
+  } finally {
+    await harness.close();
+  }
+});
+
+test('cancellation reaps a detached process-group escape',async()=>{
+  const pidFile=join(workspace,'tree-detached.pid');
+  rmSync(pidFile,{force:true});
+  const execution=computationExecution(
+    permit(9),
+    spec('tree-detached-ignore-term','',{pidFile,timeoutMs:10_000}),
+  );
+  const harness=await startExecutor(1);
+  const {client}=harness;
+  try {
+    const pending=client.execute(execution);
+    const pids=await waitForPidFile(pidFile,2);
+    assert.ok(pids.every(alive));
+    await client.cancel(execution);
+    const evidence=await pending;
+    assert.equal(evidence.outcome,'cancelled');
+    await assertDead(pids);
+  } finally {
+    await harness.close();
+  }
+});
+
 test('a second executor cannot unlink or steal a live production socket',async()=>{
   const uid=process.getuid?.();
   const gid=process.getgid?.();
