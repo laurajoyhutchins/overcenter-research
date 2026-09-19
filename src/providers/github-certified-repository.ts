@@ -109,6 +109,4 @@ export {
 export { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
 export { GITHUB_REPOSITORY_RESPONSE_SLICE } from './github-semantics.ts';
 export type { GithubObservationOperation } from './github-openapi.ts';
-export { rawGithubObserved200 } from './github-certified-read.ts';
-export type { GithubRawObservation } from './github-certified-read.ts';
 export type { GithubJsonGet } from './github-rest.ts';
