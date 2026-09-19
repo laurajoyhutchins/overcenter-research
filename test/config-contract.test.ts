@@ -140,8 +140,15 @@ test('repository-wide test suites do not inherit host parallelism',()=>{
 test('self-application receives exact source bytes without checkout credentials',()=>{
   const workflow=read('.github/workflows/self-application.yml');
   assert.match(workflow,/persist-credentials:\s*false/);
+  assert.match(
+    workflow,
+    /--image "overcenter-self-application:\$\{\{ github\.run_id \}\}"/,
+  );
+  assert.doesNotMatch(workflow,/OVERCENTER_SELF_APPLICATION_IMAGE/);
 
   const selfApplication=read('bin/self-application-evidence.ts');
+  assert.match(selfApplication,/const image=option\('--image'\)/);
+  assert.doesNotMatch(selfApplication,/process\.env\.OVERCENTER_SELF_APPLICATION_IMAGE/);
   assert.match(selfApplication,/git',[\s\S]*?'archive','--format=tar',sourceSha/);
   assert.match(selfApplication,/sourceRoot\}:/);
   assert.doesNotMatch(selfApplication,/repoRoot\}:[^\n]*workspace\/source/);
@@ -183,6 +190,16 @@ test('ambient credential configuration has one GitHub token spelling',()=>{
   for (const path of executableConfigFiles()) {
     const source=read(path);
     assert.doesNotMatch(source,/\bGH_TOKEN\b/,path);
+  }
+});
+
+test('operator configuration does not grow ambient authority or transport aliases',()=>{
+  const forbidden=['OVERCENTER_DB','DATABASE_URL','OVERCENTER_SOCKET'];
+  for (const path of executableConfigFiles()) {
+    const source=read(path);
+    for (const name of forbidden) {
+      assert.equal(source.includes(name),false,`${path} contains forbidden ambient config ${name}`);
+    }
   }
 });
 

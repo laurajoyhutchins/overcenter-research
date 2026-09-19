@@ -34,8 +34,6 @@ import {
 } from '../src/production-containment.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
-const image=process.env.OVERCENTER_SELF_APPLICATION_IMAGE;
-if (!image) throw new Error('OVERCENTER_SELF_APPLICATION_IMAGE is required');
 
 function option(name:string):string|null {
   const index=process.argv.indexOf(name);
@@ -44,6 +42,9 @@ function option(name:string):string|null {
   if (!value || value.startsWith('--')) throw new Error(`${name} requires a value`);
   return value;
 }
+
+const image=option('--image');
+if (!image) throw new Error('--image is required');
 
 const sourceSha=option('--source-sha')?.toLowerCase();
 if (!sourceSha || !/^[0-9a-f]{40,64}$/.test(sourceSha)) {
