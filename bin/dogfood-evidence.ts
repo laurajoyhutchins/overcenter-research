@@ -113,14 +113,14 @@ function executionContextSha256():string {
 }
 
 function processSpec(
-  tier:'regression'|'local',
+  tier:'regression'|'experiments',
 ):ProcessSpecV1 {
   return {
     schema:PROCESS_SPEC_SCHEMA,
     executable:'/usr/local/bin/node',
     argv:tier==='regression'
       ? [npmCli,'test']
-      : [npmCli,'run','proof:local'],
+      : [npmCli,'run','test:experiments'],
     cwd:'source',
     env:{
       HOME:'/tmp',
@@ -293,8 +293,8 @@ function summarize(kernel:OvercenterKernel) {
 
 const regressionMarker=join(attestations,'regression.passed');
 const regressionContent=`passed:regression:${sourceSha}\n`;
-const localMarker=join(attestations,'local.passed');
-const localContent=`passed:local:${sourceSha}\n`;
+const experimentsMarker=join(attestations,'experiments.passed');
+const experimentsContent=`passed:experiments:${sourceSha}\n`;
 
 const kernel=new OvercenterKernel(stateDatabase);
 kernel.initialize();
@@ -312,17 +312,17 @@ kernel.define({
   },
 });
 kernel.define({
-  id:'self-local-proof',
+  id:'self-experiments',
   dependencies:[{kind:'control',upstream:'self-regression'}],
   packet:{
     schema:TEST_COMPUTATION_PACKET_SCHEMA,
     kind:'test',
-    process_spec:processSpec('local'),
+    process_spec:processSpec('experiments'),
   },
   postcondition:{
     verifier:'file-content-equals/v1',
-    path:localMarker,
-    content:localContent,
+    path:experimentsMarker,
+    content:experimentsContent,
   },
 });
 
@@ -353,8 +353,8 @@ try {
 
     const [marker,content]=ready.id==='self-regression'
       ? [regressionMarker,regressionContent]
-      : ready.id==='self-local-proof'
-        ? [localMarker,localContent]
+      : ready.id==='self-experiments'
+        ? [experimentsMarker,experimentsContent]
         : (()=>{throw new Error(`unexpected dogfood obligation: ${ready.id}`);})();
 
     const result=await runReadyTestComputation(
