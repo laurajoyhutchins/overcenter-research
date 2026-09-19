@@ -1,0 +1,79 @@
+name: Lean vs TypeScript claim admission
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - experiments/lean-kernel/**
+      - experiments/semantic-kernel-language-comparison/**
+      - src/admission.ts
+      - src/eligibility.ts
+      - src/graph.ts
+      - src/lifecycle.ts
+      - src/model.ts
+      - src/semantics.ts
+      - .github/workflows/lean-typescript-claim-admission.yml
+  push:
+    branches:
+      - experiment/lean-vs-typescript-claim-admission
+    paths:
+      - experiments/lean-kernel/**
+      - experiments/semantic-kernel-language-comparison/**
+      - src/admission.ts
+      - src/eligibility.ts
+      - src/graph.ts
+      - src/lifecycle.ts
+      - src/model.ts
+      - src/semantics.ts
+      - .github/workflows/lean-typescript-claim-admission.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Assert exact source revision
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Build Lean library and semantic kernel
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          lake-package-directory: experiments/lean-kernel
+          auto-config: false
+          build: true
+          test: false
+          lint: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          leanchecker: false
+
+      - name: Build claim admission executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterClaimAdmission
+
+      - name: Execute proof-bearing admission kernel
+        run: ./experiments/lean-kernel/.lake/build/bin/overcenterClaimAdmission
+
+      - name: Differential hostile cases
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/claim-admission-differential.test.ts
+
+      - name: TypeScript control regressions
+        run: >-
+          node --experimental-strip-types --test
+          test/admission-pure.test.ts
+          test/lifecycle-pure.test.ts
