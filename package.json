@@ -5,7 +5,7 @@
   "scripts": {
     "test": "npm run test:unit",
     "test:unit": "node --experimental-strip-types --test test/digest-pure.test.ts test/evidence-pure.test.ts test/graph-pure.test.ts test/admission-pure.test.ts test/lifecycle-pure.test.ts test/git-kernel.test.ts test/provider-observation.test.ts test/kubernetes-core-verifier.test.ts test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts test/github-authority-command.test.ts test/projection-pure.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts test/proof-environment.test.ts test/github-actions-boundary.test.ts",
-    "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/github-observation-grammar/github-observation.test.ts experiments/provider-observation/response-slice.test.ts experiments/kubernetes-observation/kubernetes-observation.test.ts",
+    "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/github-observation-grammar/github-observation.test.ts experiments/provider-observation/response-slice.test.ts experiments/kubernetes-observation/kubernetes-observation.test.ts experiments/provider-capability-derivation/capability.test.ts",
     "demo": "node experiments/sqlite-baseline/demo.js",
     "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts experiments/disposable-agent/disposable-agent.test.ts",
     "demo:git": "node --experimental-strip-types examples/git-demo.ts",
@@ -25,6 +25,7 @@
     "test:provider-observation": "node --experimental-strip-types --test experiments/provider-observation/response-slice.test.ts",
     "github:authority": "node --experimental-strip-types bin/github-authority.ts",
     "test:kubernetes-core": "node --experimental-strip-types --test test/kubernetes-core-verifier.test.ts",
-    "test:github-contract": "node --experimental-strip-types --test test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts"
+    "test:github-contract": "node --experimental-strip-types --test test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts",
+    "test:capability-derivation": "node --experimental-strip-types --test experiments/provider-capability-derivation/capability.test.ts"
   }
 }
