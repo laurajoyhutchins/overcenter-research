@@ -1,179 +1,110 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import test from 'node:test';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import {
+  controlDependency,
+  GitKernelFixture,
+} from './support/git-kernel-fixture.ts';
 
-const STATE_REF = 'refs/overcenter/state';
-const sha256 = (value: string) =>
-  createHash('sha256').update(value).digest('hex');
+const STATE_REF='refs/overcenter/state';
+const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 
-function git(repo: string, args: string[]) {
-  return execFileSync('git', ['-C', repo, ...args], {
-    encoding: 'utf8',
-  }).trim();
-}
+test('GitOvercenterKernel reconstructs the same projection after every materialization is deleted',()=>{
+  const f=new GitKernelFixture('overcenter-kernel-rebuild-');
+  const cache=f.path('materialized');
+  const world=f.path('provider-state.txt');
 
-function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'overcenter-kernel-rebuild-'));
-  const authority = join(root, 'authority.git');
-  const cache = join(root, 'materialized');
-  const world = join(root, 'provider-state.txt');
-  let cloneNumber = 0;
+  const canonicalProjection=()=>`${JSON.stringify(f.kernel.inspect(),null,2)}\n`;
 
-  execFileSync('git', ['init', '--bare', authority], { stdio: 'ignore' });
-  const owner = new GitOvercenterKernel(authority);
-  owner.initialize();
-
-  function canonicalProjection(kernel: GitOvercenterKernel) {
-    return `${JSON.stringify(kernel.inspect(), null, 2)}\n`;
-  }
-
-  function freshKernel() {
-    cloneNumber += 1;
-    const repo = join(root, `reconstructor-${cloneNumber}.git`);
-    execFileSync('git', ['init', '--bare', repo], { stdio: 'ignore' });
-    git(repo, ['remote', 'add', 'origin', authority]);
-    git(repo, ['fetch', '--no-tags', 'origin', `+${STATE_REF}:${STATE_REF}`]);
-    return { repo, kernel: new GitOvercenterKernel(repo, { remote: 'origin' }) };
-  }
-
-  function assertFactOnlyAuthority() {
-    const commits = git(authority, ['rev-list', STATE_REF])
-      .split(/\n+/)
-      .filter(Boolean);
-
-    for (const commit of commits) {
-      assert.throws(
-        () => git(authority, ['cat-file', '-e', `${commit}:state.json`]),
-      );
+  const assertFactOnlyAuthority=()=>{
+    for (const commit of f.git(['rev-list',STATE_REF]).split(/\n+/).filter(Boolean)) {
+      assert.throws(()=>f.git(['cat-file','-e',`${commit}:state.json`]));
     }
-  }
+  };
 
-  function assertReconstructs(expected: Array<[string, string]>) {
-    const before = canonicalProjection(owner);
+  const assertReconstructs=(expected:Array<[string,string]>)=>{
+    const before=canonicalProjection();
     assert.deepEqual(
-      JSON.parse(before).map((work: { id: string; status: string }) => [
-        work.id,
-        work.status,
-      ]),
+      JSON.parse(before).map((work:{id:string;status:string})=>[work.id,work.status]),
       expected,
     );
 
-    mkdirSync(cache, { recursive: true });
-    writeFileSync(join(cache, 'project-projection.json'), before);
-    const digest = sha256(before);
+    mkdirSync(cache,{recursive:true});
+    writeFileSync(f.path('materialized/project-projection.json'),before);
+    const digest=sha256(before);
     assertFactOnlyAuthority();
 
-    rmSync(cache, { recursive: true, force: true });
-    assert.equal(existsSync(cache), false);
+    rmSync(cache,{recursive:true,force:true});
+    assert.equal(existsSync(cache),false);
 
-    const fresh = freshKernel();
-    try {
-      const reconstructed = canonicalProjection(fresh.kernel);
-      assert.equal(reconstructed, before);
-      assert.equal(sha256(reconstructed), digest);
-    } finally {
-      rmSync(fresh.repo, { recursive: true, force: true });
-    }
-  }
-
-  return {
-    root,
-    authority,
-    world,
-    owner,
-    assertReconstructs,
+    const fresh=f.freshKernel();
+    const reconstructed=`${JSON.stringify(fresh.kernel.inspect(),null,2)}\n`;
+    assert.equal(reconstructed,before);
+    assert.equal(sha256(reconstructed),digest);
   };
-}
-
-test('GitOvercenterKernel reconstructs the same projection after every materialization is deleted', () => {
-  const f = fixture();
 
   try {
-    f.owner.define({
-      id: 'publish',
-      packet: { path: f.world, content: 'present' },
-      postcondition: {
-        verifier: 'file-content-equals/v1',
-        path: f.world,
-        content: 'present',
-      },
+    f.defineFile('publish',{
+      content:'present',
+      path:world,
+      packet:{path:world,content:'present'},
     });
-    f.owner.define({
-      id: 'verify-publish',
-      dependencies: [{ kind: 'control', upstream: 'publish' }],
-      postcondition: {
-        verifier: 'file-content-equals/v1',
-        path: `${f.world}.verified`,
-        content: 'verified',
-      },
+    f.defineFile('verify-publish',{
+      content:'verified',
+      path:`${world}.verified`,
+      dependencies:[controlDependency('publish')],
     });
 
-    f.assertReconstructs([
-      ['publish', 'READY'],
-      ['verify-publish', 'BLOCKED'],
+    assertReconstructs([
+      ['publish','READY'],
+      ['verify-publish','BLOCKED'],
     ]);
 
-    const run = f.owner.claim(
-      'publish',
-      f.owner.deriveReadyWork()!.revision,
-    );
-
-    const claimFact = JSON.parse(
-      git(f.authority, ['show', `${run.claim_commit}:claim.json`]),
+    const run=f.claim('publish');
+    const claimFact=JSON.parse(
+      f.git(['show',`${run.claim_commit}:claim.json`]),
     ) as {
-      run_id: string;
-      obligation_id: string;
-      claimed_revision: string;
+      run_id:string;
+      obligation_id:string;
+      claimed_revision:string;
     };
-    assert.equal(claimFact.run_id, run.id);
-    assert.equal(claimFact.obligation_id, 'publish');
-    assert.equal(claimFact.claimed_revision, run.claimed_revision);
+    assert.equal(claimFact.run_id,run.id);
+    assert.equal(claimFact.obligation_id,'publish');
+    assert.equal(claimFact.claimed_revision,run.claimed_revision);
 
-    f.assertReconstructs([
-      ['publish', 'EXECUTING'],
-      ['verify-publish', 'BLOCKED'],
+    assertReconstructs([
+      ['publish','EXECUTING'],
+      ['verify-publish','BLOCKED'],
     ]);
 
-    // Reserve the provider coordinate before mutation. Both the reservation
-    // and the later lifecycle are reconstructed from durable facts.
-    f.owner.beginEffect(run);
-    writeFileSync(f.world, 'present');
-    f.assertReconstructs([
-      ['publish', 'EXECUTING'],
-      ['verify-publish', 'BLOCKED'],
+    f.kernel.beginEffect(run);
+    writeFileSync(world,'present');
+    assertReconstructs([
+      ['publish','EXECUTING'],
+      ['verify-publish','BLOCKED'],
     ]);
 
-    const recovery = f.owner.recoverInterrupted(run, {
-      source: 'projection-erasure-proof',
+    const recovery=f.kernel.recoverInterrupted(run,{
+      source:'projection-erasure-proof',
     });
-    assert.equal(recovery.disposition, 'RECOVERY_REQUIRED');
-    assert.equal(recovery.claim_commit, run.claim_commit);
+    assert.equal(recovery.disposition,'RECOVERY_REQUIRED');
+    assert.equal(recovery.claim_commit,run.claim_commit);
 
-    f.assertReconstructs([
-      ['publish', 'RECOVERY_REQUIRED'],
-      ['verify-publish', 'BLOCKED'],
+    assertReconstructs([
+      ['publish','RECOVERY_REQUIRED'],
+      ['verify-publish','BLOCKED'],
     ]);
 
-    const settled = f.owner.reconcile(run);
-    assert.equal(settled.disposition, 'DONE');
-    assert.equal(settled.claim_commit, run.claim_commit);
+    const settled=f.kernel.reconcile(run);
+    assert.equal(settled.disposition,'DONE');
+    assert.equal(settled.claim_commit,run.claim_commit);
 
-    f.assertReconstructs([
-      ['publish', 'DONE'],
-      ['verify-publish', 'READY'],
+    assertReconstructs([
+      ['publish','DONE'],
+      ['verify-publish','READY'],
     ]);
   } finally {
-    rmSync(f.root, { recursive: true, force: true });
+    f.close();
   }
 });
