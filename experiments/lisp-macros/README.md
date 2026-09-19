@@ -113,6 +113,47 @@ Common Lisp earns further consideration only if all of these hold:
 
 If the only clear improvement is deletion of a tiny parser, the result should be recorded as: **S-expressions earned their keep; Lisp did not.**
 
+## Result
+
+At exact implementation head `88707f57f47cab903665a3298296d99bfeb48dbc`, GitHub Actions ran the proof with SBCL 2.2.9 and reported:
+
+```text
+Common Lisp semantic macro experiment: 21 checks passed.
+```
+
+The semantic result is positive but the language result is negative.
+
+Common Lisp preserved the coherence guarantees from the first experiment:
+
+- one coordinate role still drives effect-resource identity and absence subject/scope;
+- context stays outside those identities;
+- invalid desired/output/settlement combinations fail closed;
+- arbitrary top-level Lisp is rejected;
+- `*READ-EVAL* NIL` blocks `#.` execution;
+- trusted higher-level macros can expand into the validated core.
+
+But it did **not** make the trusted mechanism smaller.
+
+Measured as nonblank, noncomment source lines for the directly comparable compiler region:
+
+| mechanism | lines |
+| --- | ---: |
+| TypeScript parser + semantic compiler | 86 |
+| Common Lisp macro semantic core | 101 |
+| Common Lisp core + safe declaration reader | 124 |
+
+The macro-specific extension result is also not decisive. A trusted macro can construct a `DEFVERIFIER` form without changing the core compiler, but a TypeScript helper can construct the same canonical IR with comparable authority structure.
+
+The safety restriction matters. The tempting Lisp design is to load semantic source and let macros execute freely. That would enlarge the trusted build-time execution surface. Once declarations are deliberately kept inert, much of the apparent macro advantage disappears and a safe reader/whitelist boundary has to be restored explicitly.
+
+### Conclusion
+
+For this Overcenter problem:
+
+> **The semantic-role language earned its keep. Common Lisp did not.**
+
+Keep the declarative role model and canonical IR. Prefer the explicit TypeScript implementation unless a later experiment identifies a macro use that changes a stronger metric than syntax convenience or parser deletion.
+
 ## Run
 
 ```sh
