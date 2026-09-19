@@ -10,6 +10,10 @@ on:
       - package.json
       - .node-version
       - formal/lean-semantic-oracle-revision.txt
+      - docs/adr/0006-lean-semantic-reference-and-proof-oracle.md
+      - research/proof-obligations.md
+      - docs/adr/0006-lean-semantic-reference-and-proof-oracle.md
+      - research/proof-obligations.md
   push:
     branches:
       - main
