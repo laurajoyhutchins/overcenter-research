@@ -627,6 +627,10 @@ test('executor death reconstructs test work with a fresh generation and workspac
     assert.equal(recovered.state,'DONE');
     assert.equal(recovered.execution_generation,2);
     assert.equal(recovered.evidence?.execution_generation,2);
+    assert.equal(
+      recovered.execution_spec_sha256,
+      interrupted.execution_spec_sha256,
+    );
     assert.equal(recoveredKernel.inspect()[0]?.status,'DONE');
     assert.equal(readFileSync(output,'utf8'),'passed');
     assertNoEffectReservations(state.repo);
