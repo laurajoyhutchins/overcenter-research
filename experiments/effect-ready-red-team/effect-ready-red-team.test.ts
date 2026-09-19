@@ -156,3 +156,44 @@ test('counterexample: an observe-only postcondition becomes mutation authority',
     rmSync(f.root,{recursive:true,force:true});
   }
 });
+
+
+test('counterexample: bare readiness claim needs no realization evidence',async()=>{
+  const f=fixture();
+  try {
+    defineStatusObligation(
+      f.kernel,
+      'no-realization',
+      {
+        kind:'computation-requires-result/v1',
+        required_result_sha256:'deadbeef',
+        accepted_realization:null,
+      },
+    );
+
+    const work=f.kernel.inspect().find(candidate=>candidate.id==='no-realization');
+    assert.ok(work);
+    assert.equal(work.packet.accepted_realization,null);
+
+    const session=bindTaskSession(work);
+    const github=fakeGithub();
+
+    const attempt=await executeEffectReady(
+      f.kernel,
+      session,
+      effectReadySignal(),
+      {
+        githubToken:'broker-token',
+        githubFetch:github.fetchImpl,
+      },
+    );
+
+    assert.equal(github.writes(),1);
+    assert.equal(attempt.effect.state,'success');
+
+    // No result, realization, verifier output, or acceptance evidence was
+    // supplied. The untrusted readiness assertion alone triggered the effect.
+  } finally {
+    rmSync(f.root,{recursive:true,force:true});
+  }
+});
