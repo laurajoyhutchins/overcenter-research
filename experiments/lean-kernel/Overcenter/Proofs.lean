@@ -179,7 +179,7 @@ private def kubePostcondition : Postcondition := {
 
 private def kubeMember : KubernetesListMember := {
   name := "other"
-  namespace := "proof"
+  namespaceName := "proof"
   uid := "uid-other"
   resourceVersion := "487"
 }
@@ -217,7 +217,7 @@ private def kubeAbsentObservation : Observation := {
 
 private def kubeTargetMember : KubernetesListMember := {
   name := "missing"
-  namespace := "proof"
+  namespaceName := "proof"
   uid := "uid-target"
   resourceVersion := "488"
 }
@@ -281,7 +281,7 @@ private def kubeWrongNamespaceMember : Observation := {
     "missing"
     "489"
     [
-      { kubePage1 with members := [{ kubeMember with namespace := "other" }] },
+      { kubePage1 with members := [{ kubeMember with namespaceName := "other" }] },
       kubePage2
     ])
 }
