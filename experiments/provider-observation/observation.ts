@@ -1,1 +1,1 @@
-export * from '../../src/provider-observation/observation.ts';
+export * from '../../src/observation/provider.ts';

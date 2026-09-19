@@ -19,19 +19,19 @@ import {
   assertComputationEvidenceFor,
   type ComputationExecutionV1,
   type ProcessSpecV1,
-} from '../src/computation-execution.ts';
+} from '../src/execution/protocol.ts';
 import {
   TEST_COMPUTATION_PACKET_SCHEMA,
   runReadyTestComputation,
   type ComputationExecutor,
-} from '../src/computation-runner.ts';
-import {OvercenterKernel} from '../src/kernel.ts';
-import {GoExecutorClient} from '../src/go-executor-client.ts';
+} from '../src/execution/runner.ts';
+import {OvercenterKernel} from '../src/authority/kernel.ts';
+import {GoExecutorClient} from '../src/execution/go-client.ts';
 import {
   PRODUCTION_COMPUTATION_CONTAINMENT,
   productionDockerIsolationArgs,
   productionExecutorArgs,
-} from '../src/production-containment.ts';
+} from '../src/execution/containment.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
 const image=process.env.OVERCENTER_SELF_APPLICATION_IMAGE;

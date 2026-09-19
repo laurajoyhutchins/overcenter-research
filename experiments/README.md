@@ -48,7 +48,7 @@ experiments/sqlite-baseline/kernel.js
         ↓
 prove the smallest local state machine
 
-src/git-kernel.ts
+src/storage/git-kernel.ts
         ↓
 ask whether durable shared authority can collapse to
 immutable Git objects + one authority ref + CAS

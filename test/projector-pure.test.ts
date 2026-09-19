@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { HistoricalRun, Receipt, State } from '../src/facts.ts';
-import { obligationKey } from '../src/semantic-identity.ts';
-import { deriveProjectProjection } from '../src/projector.ts';
+import type { HistoricalRun, Receipt, State } from '../src/authority/facts.ts';
+import { obligationKey } from '../src/graph/identity.ts';
+import { deriveProjectProjection } from '../src/authority/project-state.ts';
 
 const work:Obligation={
   id:'a',

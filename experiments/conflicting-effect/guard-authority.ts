@@ -1,6 +1,6 @@
 import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
 
 const STATE_REF=githubProofStateRef('conflicting-effect');
 

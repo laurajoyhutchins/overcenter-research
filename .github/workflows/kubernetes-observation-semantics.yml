@@ -12,12 +12,12 @@ on:
       - experiments/kubernetes-observation/**
       - experiments/provider-observation/**
       - src/provider-observation/**
-      - src/providers/kubernetes-configmap.ts
+      - src/providers/kubernetes/configmap.ts
       - src/model.ts
-      - src/observation.ts
+      - src/observation/observe.ts
       - src/semantics.ts
-      - src/projection.ts
-      - src/git-kernel.ts
+      - src/authority/replay.ts
+      - src/storage/git-kernel.ts
       - test/kubernetes-core-verifier.test.ts
       - research/kubernetes-observation-semantics.md
       - research/kubernetes-core-verifier.md
@@ -31,12 +31,12 @@ on:
       - experiments/kubernetes-observation/**
       - experiments/provider-observation/**
       - src/provider-observation/**
-      - src/providers/kubernetes-configmap.ts
+      - src/providers/kubernetes/configmap.ts
       - src/model.ts
-      - src/observation.ts
+      - src/observation/observe.ts
       - src/semantics.ts
-      - src/projection.ts
-      - src/git-kernel.ts
+      - src/authority/replay.ts
+      - src/storage/git-kernel.ts
       - test/kubernetes-core-verifier.test.ts
       - research/kubernetes-observation-semantics.md
       - research/kubernetes-core-verifier.md

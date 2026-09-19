@@ -9,12 +9,12 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 
-import {GITHUB_API_VERSION} from '../src/providers/github-contract.ts';
+import {GITHUB_API_VERSION} from '../src/providers/github/contract.ts';
 import {
   PRODUCTION_COMPUTATION_CONTAINMENT,
   productionDockerIsolationArgs,
   productionExecutorArgs,
-} from '../src/production-containment.ts';
+} from '../src/execution/containment.ts';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 
@@ -187,7 +187,7 @@ test('ambient credential configuration has one GitHub token spelling',()=>{
 });
 
 test('GitHub REST version has one implementation authority',()=>{
-  const rest=read('src/providers/github-rest.ts');
+  const rest=read('src/providers/github/rest.ts');
   assert.match(rest,/X-GitHub-Api-Version: \$\{GITHUB_API_VERSION\}/);
   assert.deepEqual([...rest.matchAll(/\b20\d{2}-\d{2}-\d{2}\b/g)],[]);
 

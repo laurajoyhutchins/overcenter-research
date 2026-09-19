@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../src/storage/git-kernel.ts';
 import type { KubernetesConfigMapExistsPostcondition } from '../src/model.ts';
 import {
   carryKubernetesAbsenceThroughWatch,
@@ -13,7 +13,7 @@ import {
   observeCertifiedKubernetesConfigMap,
   type KubernetesConfigMapListRead,
   type KubernetesListConfigMaps,
-} from '../src/providers/kubernetes-configmap.ts';
+} from '../src/providers/kubernetes/configmap.ts';
 
 const SCHEMA_SHA='a'.repeat(64);
 const AUTHORITY='kind:test-cluster';

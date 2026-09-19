@@ -2,7 +2,7 @@
 
 This package defines the persisted logical facts from which Overcenter reconstructs project truth.
 
-Shape validity is necessary but not sufficient. A well-shaped claim can still be stale, an execution-authority fact can still name the wrong predecessor, and a receipt can still fail settlement semantics. Those history-sensitive rules remain in `src/projection.ts`.
+Shape validity is necessary but not sufficient. A well-shaped claim can still be stale, an execution-authority fact can still name the wrong predecessor, and a receipt can still fail settlement semantics. Those history-sensitive rules remain in `src/authority/replay.ts`.
 
 ## Persisted facts
 

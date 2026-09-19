@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
-import { OvercenterKernel } from '../src/kernel.ts';
-import { runCoreLoop, type KernelCore } from '../src/kernel-core.ts';
+import { GitOvercenterKernel } from '../src/storage/git-kernel.ts';
+import { OvercenterKernel } from '../src/authority/kernel.ts';
+import { runCoreLoop, type KernelCore } from '../src/authority/engine.ts';
 
 const OMIT=new Set([
   'revision',

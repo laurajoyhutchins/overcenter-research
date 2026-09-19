@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { State } from '../src/facts.ts';
+import type { State } from '../src/authority/facts.ts';
 import {
   dependencyUpstreams,
   dependsOn,
   validateGraph,
   withObligation,
-} from '../src/graph.ts';
+} from '../src/graph/topology.ts';
 
 const obligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligation=>({
   id,

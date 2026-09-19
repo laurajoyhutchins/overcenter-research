@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { State } from '../src/facts.ts';
-import { validateAdmission } from '../src/admission.ts';
+import type { State } from '../src/authority/facts.ts';
+import { validateAdmission } from '../src/authority/admission.ts';
 
 const fileObligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligation=>({
   id,

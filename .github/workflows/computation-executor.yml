@@ -11,15 +11,15 @@ on:
       - .node-version
       - contracts/computation-execution-v1/**
       - executor/**
-      - src/computation-execution.ts
-      - src/computation-runner.ts
-      - src/fact-store.ts
-      - src/kernel-core.ts
-      - src/kernel.ts
-      - src/sqlite-store.ts
-      - src/go-executor-client.ts
-      - src/production-containment.ts
-      - src/observation.ts
+      - src/execution/protocol.ts
+      - src/execution/runner.ts
+      - src/authority/store.ts
+      - src/authority/engine.ts
+      - src/authority/kernel.ts
+      - src/storage/sqlite.ts
+      - src/execution/go-client.ts
+      - src/execution/containment.ts
+      - src/observation/observe.ts
       - test/computation-executor.test.ts
       - test/computation-container.test.ts
       - test/config-contract.test.ts
@@ -34,14 +34,14 @@ on:
       - .node-version
       - contracts/computation-execution-v1/**
       - executor/**
-      - src/computation-execution.ts
-      - src/computation-runner.ts
-      - src/fact-store.ts
-      - src/kernel-core.ts
-      - src/kernel.ts
-      - src/sqlite-store.ts
-      - src/go-executor-client.ts
-      - src/production-containment.ts
+      - src/execution/protocol.ts
+      - src/execution/runner.ts
+      - src/authority/store.ts
+      - src/authority/engine.ts
+      - src/authority/kernel.ts
+      - src/storage/sqlite.ts
+      - src/execution/go-client.ts
+      - src/execution/containment.ts
       - test/computation-executor.test.ts
       - test/computation-container.test.ts
       - test/config-contract.test.ts

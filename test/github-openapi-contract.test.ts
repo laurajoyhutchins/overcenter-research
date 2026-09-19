@@ -7,10 +7,10 @@ import {
   GITHUB_PULL_REQUEST_OPERATION,
   GITHUB_REF_OPERATION,
   GITHUB_REPOSITORY_OPERATION,
-} from '../src/providers/github-operations.generated.ts';
-import { scanGithubPageCollection } from '../src/providers/github-page-collection.ts';
-import { materializeGithubOperationRequest } from '../src/providers/github-openapi.ts';
-import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github-semantics.ts';
+} from '../src/providers/github/operations.generated.ts';
+import { scanGithubPageCollection } from '../src/providers/github/page-collection.ts';
+import { materializeGithubOperationRequest } from '../src/providers/github/openapi.ts';
+import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github/semantics.ts';
 
 test('generated GitHub operation catalog is bound to semantic operation IDs',()=>{
   assert.equal(GITHUB_REPOSITORY_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.repository.operation_id);
@@ -69,12 +69,12 @@ test('GitHub request materialization is operation-driven',()=>{
 
 test('certified providers do not copy GitHub routes or response schemas',()=>{
   for (const path of [
-    'src/providers/github-certified-repository.ts',
-    'src/providers/github-certified-read.ts',
-    'src/providers/github-certified-observation.ts',
-    'src/providers/github-certified-ref.ts',
-    'src/providers/github-certified-pr.ts',
-    'src/providers/github-certified-status.ts',
+    'src/providers/github/certified-repository.ts',
+    'src/providers/github/certified-read.ts',
+    'src/providers/github/certified-observation.ts',
+    'src/providers/github/certified-ref.ts',
+    'src/providers/github/certified-pr.ts',
+    'src/providers/github/certified-status.ts',
   ]) {
     const source=readFileSync(path,'utf8');
     assert.doesNotMatch(source,/path_template\s*:\s*['\"`]/,path);
@@ -164,7 +164,7 @@ test('page collection traversal fails closed on unsupported or hostile shapes',(
 });
 
 test('certified status verifier contains no GitHub page-parameter convention',()=>{
-  const source=readFileSync('src/providers/github-certified-status.ts','utf8');
+  const source=readFileSync('src/providers/github/certified-status.ts','utf8');
   assert.doesNotMatch(source,/per_page/);
   assert.doesNotMatch(source,/default_page_size/);
   assert.equal(source.includes('page='),false);

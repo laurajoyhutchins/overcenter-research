@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { observeCertifiedGithubSemanticRead } from '../src/providers/github-certified-read.ts';
+import { observeCertifiedGithubSemanticRead } from '../src/providers/github/certified-read.ts';
 
 const SHA='a'.repeat(40);
 const repository=()=>({

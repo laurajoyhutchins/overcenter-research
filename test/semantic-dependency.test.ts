@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   semanticDependencySelection,
   type SemanticDependency,
-} from '../src/semantic-dependency.ts';
+} from '../src/graph/dependencies.ts';
 
 const edge=(consumes:SemanticDependency['consumes']):SemanticDependency=>({
   kind:'semantic',

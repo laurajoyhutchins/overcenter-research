@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -53,7 +53,7 @@ const attacker = join(tmpdir(), `overcenter-attacker-${workflowRunId}.git`);
 execFileSync('git', ['init', '--bare', attacker], { stdio: 'ignore' });
 execFileSync('git', ['remote', 'set-url', 'origin', attacker], { stdio: 'ignore' });
 execFileSync('git', ['update-ref', stateRef, sourceSha], { stdio: 'ignore' });
-writeFileSync('src/git-kernel.ts', '// Agent A locally replaced the kernel. This must not affect authority.\n');
+writeFileSync('src/storage/git-kernel.ts', '// Agent A locally replaced the kernel. This must not affect authority.\n');
 writeFileSync('agent-cache.sqlite', 'arbitrary disposable local database');
 
 const repositoryIdentity = await github(`/repositories/${snapshot.postcondition.repository_id}`);

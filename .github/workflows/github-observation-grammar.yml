@@ -14,9 +14,9 @@ on:
       - experiments/github-observation-grammar/**
       - experiments/provider-observation/**
       - src/model.ts
-      - src/observation.ts
+      - src/observation/observe.ts
       - src/semantics.ts
-      - src/github-authority-command.ts
+      - src/providers/github/authority-command.ts
       - src/provider-observation/**
       - src/providers/**
       - scripts/generate-github-operations.ts
@@ -38,9 +38,9 @@ on:
       - experiments/github-observation-grammar/**
       - experiments/provider-observation/**
       - src/model.ts
-      - src/observation.ts
+      - src/observation/observe.ts
       - src/semantics.ts
-      - src/github-authority-command.ts
+      - src/providers/github/authority-command.ts
       - src/provider-observation/**
       - src/providers/**
       - scripts/generate-github-operations.ts
@@ -101,7 +101,7 @@ jobs:
         run: |
           node --experimental-strip-types scripts/generate-github-operations.ts \
             "$RUNNER_TEMP/github-openapi.json"
-          git diff --exit-code -- src/providers/github-operations.generated.ts
+          git diff --exit-code -- src/providers/github/operations.generated.ts
       - name: Verify runtime GitHub contracts against pinned OpenAPI
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/verify-kernel-github-contract.ts \

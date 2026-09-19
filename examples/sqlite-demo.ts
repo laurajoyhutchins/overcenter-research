@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   OvercenterKernel,
   runCoreLoop,
-} from '../src/kernel.ts';
+} from '../src/authority/kernel.ts';
 
 const root=mkdtempSync(join(tmpdir(),'overcenter-sqlite-demo-'));
 const database=join(root,'overcenter.sqlite');

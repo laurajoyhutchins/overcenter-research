@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { localFileEnoentEvidence } from '../src/evidence.ts';
+import { localFileEnoentEvidence } from '../src/observation/evidence.ts';
 import type {
   HistoricalRun,
   Receipt,
   State,
-} from '../src/facts.ts';
+} from '../src/authority/facts.ts';
 import type { Obligation } from '../src/model.ts';
 import {
   classifyCurrentRealization,
   deriveCurrentRealizationJudgments,
-} from '../src/realization-admissibility.ts';
+} from '../src/authority/realization-reuse.ts';
 
 const work:Obligation={
   id:'a',

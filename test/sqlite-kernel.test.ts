@@ -8,7 +8,7 @@ import test from 'node:test';
 import {
   OvercenterKernel,
   runCoreLoop,
-} from '../src/kernel.ts';
+} from '../src/authority/kernel.ts';
 
 const pc=(path:string,content:string)=>({
   verifier:'file-content-equals/v1' as const,

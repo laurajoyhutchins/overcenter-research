@@ -7,7 +7,7 @@ on:
       - 'src/lifecycle.ts'
       - 'src/eligibility.ts'
       - 'src/model.ts'
-      - 'src/facts.ts'
+      - 'src/authority/facts.ts'
       - 'package.json'
       - '.github/workflows/datalog-projection.yml'
   push:
@@ -18,7 +18,7 @@ on:
       - 'src/lifecycle.ts'
       - 'src/eligibility.ts'
       - 'src/model.ts'
-      - 'src/facts.ts'
+      - 'src/authority/facts.ts'
       - 'package.json'
       - '.github/workflows/datalog-projection.yml'
   workflow_dispatch:

@@ -22,16 +22,16 @@ import {
   validateComputationExecution,
   validateProcessSpec,
   type ProcessSpecV1,
-} from '../src/computation-execution.ts';
+} from '../src/execution/protocol.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
   TEST_COMPUTATION_PACKET_SCHEMA,
   resumeTestComputation,
   runReadyTestComputation,
-} from '../src/computation-runner.ts';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
-import { runCoreLoop } from '../src/kernel-core.ts';
-import { GoExecutorClient } from '../src/go-executor-client.ts';
+} from '../src/execution/runner.ts';
+import { GitOvercenterKernel } from '../src/storage/git-kernel.ts';
+import { runCoreLoop } from '../src/authority/engine.ts';
+import { GoExecutorClient } from '../src/execution/go-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));

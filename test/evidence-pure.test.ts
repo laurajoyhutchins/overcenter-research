@@ -5,7 +5,7 @@ import {
   localFileEnoentEvidence,
   localFileEnoentEvidenceMatches,
   validateAbsenceEvidenceEnvelope,
-} from '../src/evidence.ts';
+} from '../src/observation/evidence.ts';
 
 test('local file ENOENT evidence carries subject, scope, completeness, and provenance',()=>{
   const evidence=localFileEnoentEvidence('/provider/a');

@@ -5,10 +5,10 @@ import {
   validateResponseSlice,
   type SchemaResolver,
   type StructuralOperation,
-} from '../src/provider-observation/response-slice.ts';
+} from '../src/observation/response-slice.ts';
 import {
   validateProviderObservationEnvelope,
-} from '../src/provider-observation/observation.ts';
+} from '../src/observation/provider.ts';
 
 test('production structural validator follows provider-supplied local refs', () => {
   const schemas:Record<string,unknown>={

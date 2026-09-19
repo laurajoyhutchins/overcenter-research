@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RECEIPT_SCHEMA, type ReceiptFact } from '../src/facts.ts';
+import { RECEIPT_SCHEMA, type ReceiptFact } from '../src/authority/facts.ts';
 import type { GitHubCommitStatusPostcondition, Obligation } from '../src/model.ts';
-import { observePostcondition } from '../src/observation.ts';
+import { observePostcondition } from '../src/observation/observe.ts';
 import {
   GITHUB_OPENAPI_SHA256,
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
-} from '../src/providers/github-certified-status.ts';
-import { projectReceipt } from '../src/projection.ts';
+} from '../src/providers/github/certified-status.ts';
+import { projectReceipt } from '../src/authority/replay.ts';
 import { effectSemantics, verifiedContentIdentity } from '../src/semantics.ts';
 
 const COMMIT='a'.repeat(40);

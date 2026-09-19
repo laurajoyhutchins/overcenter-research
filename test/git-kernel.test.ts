@@ -4,9 +4,9 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
-import { runCoreLoop } from '../src/kernel-core.ts';
-import { RECEIPT_SCHEMA } from '../src/facts.ts';
+import { GitOvercenterKernel } from '../src/storage/git-kernel.ts';
+import { runCoreLoop } from '../src/authority/engine.ts';
+import { RECEIPT_SCHEMA } from '../src/authority/facts.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'git-kernel-v2-'));

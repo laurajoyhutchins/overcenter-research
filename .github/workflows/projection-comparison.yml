@@ -4,8 +4,8 @@ on:
   pull_request:
     paths:
       - 'experiments/projection-comparison/**'
-      - 'src/projector.ts'
-      - 'src/semantic-identity.ts'
+      - 'src/authority/project-state.ts'
+      - 'src/graph/identity.ts'
       - 'package.json'
       - '.github/workflows/projection-comparison.yml'
   workflow_dispatch:

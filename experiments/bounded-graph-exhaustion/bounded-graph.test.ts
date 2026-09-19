@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {validateAdmission} from '../../src/admission.ts';
-import type {HistoricalRun, Receipt, State} from '../../src/facts.ts';
-import {dependsOn, validateGraph} from '../../src/graph.ts';
+import {validateAdmission} from '../../src/authority/admission.ts';
+import type {HistoricalRun, Receipt, State} from '../../src/authority/facts.ts';
+import {dependsOn, validateGraph} from '../../src/graph/topology.ts';
 import type {Dependency, Obligation, WorkStatus} from '../../src/model.ts';
-import {deriveProjectProjection} from '../../src/projector.ts';
-import {obligationKey} from '../../src/semantic-identity.ts';
+import {deriveProjectProjection} from '../../src/authority/project-state.ts';
+import {obligationKey} from '../../src/graph/identity.ts';
 
 type AssignedLifecycle=
   | 'UNREALIZED'

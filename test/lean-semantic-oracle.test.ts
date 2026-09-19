@@ -5,9 +5,9 @@ import test from 'node:test';
 
 import {
   staticEffectConflict,
-} from '../src/admission.ts';
-import type { State } from '../src/facts.ts';
-import { validateGraph } from '../src/graph.ts';
+} from '../src/authority/admission.ts';
+import type { State } from '../src/authority/facts.ts';
+import { validateGraph } from '../src/graph/topology.ts';
 import type {
   Dependency,
   Obligation,

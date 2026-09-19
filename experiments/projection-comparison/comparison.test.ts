@@ -16,13 +16,13 @@ import type {
   HistoricalRun,
   Receipt,
   State,
-} from '../../src/facts.ts';
-import { RECEIPT_SCHEMA } from '../../src/facts.ts';
+} from '../../src/authority/facts.ts';
+import { RECEIPT_SCHEMA } from '../../src/authority/facts.ts';
 import type {
   Dependency,
   Obligation,
 } from '../../src/model.ts';
-import { deriveProjectProjection } from '../../src/projector.ts';
+import { deriveProjectProjection } from '../../src/authority/project-state.ts';
 import { MutableStatusMachine } from './mutable-status.ts';
 import type {
   ProjectionInput,

@@ -26,20 +26,20 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   PROCESS_SPEC_SCHEMA,
   type ProcessSpecV1,
-} from '../src/computation-execution.ts';
+} from '../src/execution/protocol.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
   TEST_COMPUTATION_PACKET_SCHEMA,
   resumeTestComputation,
   runReadyTestComputation,
-} from '../src/computation-runner.ts';
-import { OvercenterKernel } from '../src/kernel.ts';
-import { GoExecutorClient } from '../src/go-executor-client.ts';
+} from '../src/execution/runner.ts';
+import { OvercenterKernel } from '../src/authority/kernel.ts';
+import { GoExecutorClient } from '../src/execution/go-client.ts';
 import {
   PRODUCTION_COMPUTATION_CONTAINMENT,
   productionDockerIsolationArgs,
   productionExecutorArgs,
-} from '../src/production-containment.ts';
+} from '../src/execution/containment.ts';
 
 const image=process.env.OVERCENTER_EXECUTOR_IMAGE;
 if (!image) {

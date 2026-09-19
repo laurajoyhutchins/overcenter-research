@@ -3,7 +3,7 @@ import {
   githubAuthorityExitCode,
   githubAuthorityUsage,
   parseGithubAuthorityCommand,
-} from '../src/github-authority-command.ts';
+} from '../src/providers/github/authority-command.ts';
 
 const token=process.env.GITHUB_TOKEN;
 if (!token) {

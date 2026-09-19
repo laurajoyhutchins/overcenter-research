@@ -12,17 +12,17 @@ import {
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
   validateAuthorityFact,
-} from '../src/facts.ts';
+} from '../src/authority/facts.ts';
 
 import {
   validateAbsenceEvidenceEnvelope,
-} from '../src/evidence.ts';
+} from '../src/observation/evidence.ts';
 import {
   validateObservationEnvelope,
-} from '../src/observation.ts';
+} from '../src/observation/observe.ts';
 import {
   validateProviderObservationEnvelope,
-} from '../src/provider-observation/observation.ts';
+} from '../src/observation/provider.ts';
 
 import {
   COMPUTATION_EVIDENCE_SCHEMA,
@@ -32,9 +32,9 @@ import {
   PROCESS_SPEC_SCHEMA,
   validateExecutorHello,
   validateProcessSpec,
-} from '../src/computation-execution.ts';
+} from '../src/execution/protocol.ts';
 
-import { GoExecutorClient } from '../src/go-executor-client.ts';
+import { GoExecutorClient } from '../src/execution/go-client.ts';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const contractDir=join(root,'contracts/computation-execution-v1');
