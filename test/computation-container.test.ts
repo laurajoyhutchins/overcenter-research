@@ -254,7 +254,9 @@ async function startIsolatedExecutor(
   };
   assert.equal(hostConfig.NetworkMode,containerProfile.network);
   assert.equal(hostConfig.ReadonlyRootfs,true);
-  assert.ok(hostConfig.SecurityOpt?.includes('no-new-privileges'));
+  assert.ok(
+    hostConfig.SecurityOpt?.some(option=>option==='no-new-privileges' || option==='no-new-privileges:true'),
+  );
   assert.deepEqual(hostConfig.CapDrop,['ALL']);
   assert.deepEqual(
     new Set(hostConfig.CapAdd??[]),
