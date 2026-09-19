@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createServer, type Socket } from 'node:net';
+import { DatabaseSync } from 'node:sqlite';
 import {
   existsSync,
   mkdtempSync,
@@ -28,7 +29,7 @@ import {
   resumeTestComputation,
   runReadyTestComputation,
 } from '../src/computation-runner.ts';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { OvercenterKernel } from '../src/kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
@@ -43,7 +44,15 @@ execFileSync('go',['build','-o',binary,'./cmd/overcenter-executor'],{
   cwd:executorDir,
   stdio:'inherit',
 });
-after(()=>rmSync(scratch,{recursive:true,force:true}));
+const kernels=new Set<OvercenterKernel>();
+after(()=>{
+  for (const kernel of kernels) {
+    try {
+      kernel.close();
+    } catch {}
+  }
+  rmSync(scratch,{recursive:true,force:true});
+});
 
 const sha256=(value:string|Buffer)=>createHash('sha256').update(value).digest('hex');
 
@@ -131,32 +140,29 @@ async function startExecutor(
 
 function kernelFixture():{
   root:string;
-  repo:string;
-  kernel:GitOvercenterKernel;
+  database:string;
+  kernel:OvercenterKernel;
 } {
   const root=join(scratch,`kernel-${kernelSequence++}`);
-  const repo=join(root,'state.git');
+  const database=join(root,'state.sqlite');
   mkdirSync(root,{recursive:true});
-  execFileSync('git',['init','--bare',repo],{stdio:'ignore'});
-  const kernel=new GitOvercenterKernel(repo);
+  const kernel=new OvercenterKernel(database);
+  kernels.add(kernel);
   kernel.initialize();
-  return {root,repo,kernel};
+  return {root,database,kernel};
 }
 
-function assertNoEffectReservations(repo:string):void {
-  const commits=execFileSync(
-    'git',
-    ['-C',repo,'rev-list','refs/overcenter/state'],
-    {encoding:'utf8'},
-  ).trim().split(/\n+/).filter(Boolean);
-  for (const commit of commits) {
-    assert.throws(
-      ()=>execFileSync(
-        'git',
-        ['-C',repo,'cat-file','-e',`${commit}:effect-reservation.json`],
-        {stdio:'ignore'},
-      ),
-    );
+function assertNoEffectReservations(database:string):void {
+  const db=new DatabaseSync(database);
+  try {
+    const row=db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM fact_commits
+      WHERE files_json LIKE '%"effect-reservation.json"%'
+    `).get() as {count:number|bigint};
+    assert.equal(Number(row.count),0);
+  } finally {
+    db.close();
   }
 }
 
@@ -521,7 +527,7 @@ test('test workload crosses Go but settles only by independent observation',asyn
     assert.equal(summary.execution_spec_sha256,result.execution_spec_sha256);
     assert.equal(summary.stdout_sha256,result.evidence?.stdout_sha256);
     assert.equal('stdout_base64' in summary,false);
-    assertNoEffectReservations(state.repo);
+    assertNoEffectReservations(state.database);
   } finally {
     await harness.close();
   }
@@ -564,7 +570,7 @@ test('successful process evidence is not project truth',async()=>{
     assert.equal(result.state,'READY');
     assert.equal(result.receipt.verified,false);
     assert.equal(state.kernel.inspect()[0]?.status,'READY');
-    assertNoEffectReservations(state.repo);
+    assertNoEffectReservations(state.database);
   } finally {
     await harness.close();
   }
@@ -606,9 +612,12 @@ test('executor death reconstructs test work with a fresh generation and workspac
   assert.ok(interrupted.transport_error);
   assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
   assert.equal(existsSync(output),false);
-  assertNoEffectReservations(state.repo);
+  assertNoEffectReservations(state.database);
 
-  const recoveredKernel=new GitOvercenterKernel(state.repo);
+  state.kernel.close();
+  kernels.delete(state.kernel);
+  const recoveredKernel=new OvercenterKernel(state.database);
+  kernels.add(recoveredKernel);
   const recoveredProjection=recoveredKernel.inspect()[0]!;
   assert.equal(recoveredProjection.status,'RECOVERY_REQUIRED');
   assert.equal(recoveredProjection.execution_generation,1);
@@ -633,7 +642,7 @@ test('executor death reconstructs test work with a fresh generation and workspac
     );
     assert.equal(recoveredKernel.inspect()[0]?.status,'DONE');
     assert.equal(readFileSync(output,'utf8'),'passed');
-    assertNoEffectReservations(state.repo);
+    assertNoEffectReservations(state.database);
   } finally {
     await second.close();
   }

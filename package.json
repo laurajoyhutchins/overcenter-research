@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "npm run test:unit",
-    "test:unit": "node --experimental-strip-types --test test/digest-pure.test.ts test/evidence-pure.test.ts test/graph-pure.test.ts test/admission-pure.test.ts test/projector-pure.test.ts test/projector-explanation.test.ts test/realization-admissibility.test.ts test/git-kernel.test.ts test/provider-observation.test.ts test/kubernetes-core-verifier.test.ts test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts test/github-authority-command.test.ts test/projection-pure.test.ts test/projector-boundary.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts test/proof-environment.test.ts test/github-actions-boundary.test.ts",
+    "test:unit": "node --experimental-strip-types --test test/digest-pure.test.ts test/evidence-pure.test.ts test/graph-pure.test.ts test/admission-pure.test.ts test/projector-pure.test.ts test/projector-explanation.test.ts test/realization-admissibility.test.ts test/fact-store-contract.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts test/git-kernel.test.ts test/provider-observation.test.ts test/kubernetes-core-verifier.test.ts test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts test/github-authority-command.test.ts test/projection-pure.test.ts test/projector-boundary.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts test/proof-environment.test.ts test/github-actions-boundary.test.ts",
     "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/current-realization-admissibility/current-realization-admissibility.test.ts experiments/github-observation-grammar/github-observation.test.ts experiments/provider-observation/response-slice.test.ts experiments/kubernetes-observation/kubernetes-observation.test.ts experiments/lisp-semantics/lisp-semantics.test.ts experiments/bounded-graph-exhaustion/bounded-graph.test.ts",
-    "demo": "node experiments/sqlite-baseline/demo.js",
+    "demo": "node --experimental-strip-types examples/sqlite-demo.ts",
     "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts experiments/disposable-agent/disposable-agent.test.ts",
     "demo:git": "node --experimental-strip-types examples/git-demo.ts",
     "test:stress": "node --experimental-strip-types --test experiments/git-stress/git-stress.test.ts",
@@ -33,6 +33,8 @@
     "test:bounded-graph": "node --experimental-strip-types --test experiments/bounded-graph-exhaustion/bounded-graph.test.ts",
     "test:computation-executor": "node --experimental-strip-types --test test/computation-executor.test.ts",
     "bench:storage-backends": "node experiments/storage-backend-bakeoff/benchmark.mjs",
-    "test:storage-backend-safety": "node experiments/storage-backend-bakeoff/safety-checks.mjs"
+    "test:storage-backend-safety": "node experiments/storage-backend-bakeoff/safety-checks.mjs",
+    "test:storage": "node --experimental-strip-types --test test/fact-store-contract.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts",
+    "demo:sqlite": "node --experimental-strip-types examples/sqlite-demo.ts"
   }
 }

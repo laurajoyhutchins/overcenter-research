@@ -117,6 +117,36 @@ authority that decides project truth
 
 The bottom row is a **projection**, not the deepest source of truth.
 
+## Durable authority implementation
+
+The authority kernel consumes a deliberately small storage contract:
+
+```text
+head()
+append(expected head, durable fact transition)
+history(head)
+```
+
+The production implementation is SQLite. It stores immutable fact commits plus one authority row. Each transition runs under `BEGIN IMMEDIATE`: validate the exact expected head, insert the immutable fact commit, advance the authority head, then commit. WAL mode and `synchronous=FULL` are enabled. A stale expected head rolls the transaction back and leaves no durable fact behind.
+
+```text
+fact_commits
+  sequence
+  commit_id
+  parent_id
+  message
+  files_json
+
+authority
+  singleton
+  head
+  sequence
+```
+
+There is intentionally no privileged lifecycle/status table. `READY`, `EXECUTING`, `WAITING`, `BLOCKED`, `RECOVERY_REQUIRED`, and `DONE` remain projections over durable facts plus current authoritative observation.
+
+Git implements the same contract as a reference backend and independent replay oracle. Git commit IDs and SQLite commit IDs are backend-local authority revisions; neither is semantic obligation identity. Existing history is not assumed to be byte-portable between backends: facts such as claim ancestry and settlement-receipt semantic dependencies may intentionally contain those backend-local identities, so migration requires an explicit remapping proof.
+
 ## 1. Immutable project intent
 
 A project graph should describe what must be true, not merely remember what a worker once did.
@@ -465,7 +495,7 @@ Examples:
 
 The provider may not share a transaction with Overcenter.
 
-In the reference Git core loop, non-effectful judgment is separated from provider mutation. A preflight callback may choose `judgment-required` without receiving the execution permit. If execution proceeds, the kernel validates that permit and commits the durable effect reservation before invoking the trusted effect handler. The handler receives the work packet, not the execution permit. Once that boundary is crossed, a late judgment result cannot downgrade the attempt to ordinary `WAITING`; it must be reconciled as potentially mutating.
+In the core loop, non-effectful judgment is separated from provider mutation. A preflight callback may choose `judgment-required` without receiving the execution permit. If execution proceeds, the kernel validates that permit and commits the durable effect reservation before invoking the trusted effect handler. The handler receives the work packet, not the execution permit. Once that boundary is crossed, a late judgment result cannot downgrade the attempt to ordinary `WAITING`; it must be reconciled as potentially mutating.
 
 That creates the fundamental uncertainty window:
 
@@ -877,7 +907,7 @@ The notes remain useful for detailed prior art. This file is the canonical cross
 
 | Term | Meaning |
 | --- | --- |
-| **Authority revision** | Exact revision of the state that is currently allowed to define project truth. In the Git experiment this is a commit reachable from the authority ref. |
+| **Authority revision** | Exact backend-local revision currently allowed to define project truth. Production uses a SQLite fact-commit ID named by the authority row; the Git reference backend uses a commit reachable from its authority ref. |
 | **Claim** | Durable reservation of one obligation for an execution attempt at an exact authority revision. |
 | **Completion certificate** | Durable evidence sufficient to derive that an obligation is satisfied for a particular graph/revision. Conceptual target; not merely a worker success flag. |
 | **Effect coordinate** | Canonical identity of the external resource/location an operation can mutate. Used to reason about conflicts, commutativity, and readback. |

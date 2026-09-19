@@ -11,7 +11,10 @@ on:
       - executor/**
       - src/computation-execution.ts
       - src/computation-runner.ts
-      - src/git-kernel.ts
+      - src/fact-store.ts
+      - src/kernel-core.ts
+      - src/kernel.ts
+      - src/sqlite-store.ts
       - src/go-executor-client.ts
       - test/computation-executor.test.ts
       - test/computation-container.test.ts
@@ -24,7 +27,10 @@ on:
       - executor/**
       - src/computation-execution.ts
       - src/computation-runner.ts
-      - src/git-kernel.ts
+      - src/fact-store.ts
+      - src/kernel-core.ts
+      - src/kernel.ts
+      - src/sqlite-store.ts
       - src/go-executor-client.ts
       - test/computation-executor.test.ts
       - test/computation-container.test.ts

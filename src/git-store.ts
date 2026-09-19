@@ -1,5 +1,11 @@
 import { execFileSync } from 'node:child_process';
 
+import {
+  factCommitFromFiles,
+  type DurableFactStore,
+} from './fact-store.ts';
+import type { FactCommit } from './facts.ts';
+
 interface GitResult {
   ok: boolean;
   stdout: string;
@@ -8,7 +14,7 @@ interface GitResult {
 
 const json=(value:unknown)=>`${JSON.stringify(value,null,2)}\n`;
 
-export class GitFactStore {
+export class GitFactStore implements DurableFactStore {
   readonly repo:string;
   readonly ref:string;
   readonly remote:string|null;
@@ -42,6 +48,37 @@ export class GitFactStore {
     );
     if (!fetched.ok) throw new Error('AUTHORITY_UNREACHABLE');
     return sha;
+  }
+
+  append(
+    expectedHead:string|null,
+    message:string,
+    files:Record<string,unknown>={},
+  ):string|null {
+    const commit=this.createCommit(expectedHead,message,files);
+    const expected=expectedHead??this.zeroObjectId();
+    return this.cas(commit,expected) ? commit : null;
+  }
+
+  history(head:string):FactCommit[] {
+    return this.revisions(head).map(commit=>{
+      const files:Record<string,unknown>={};
+      for (const path of [
+        'obligation.json',
+        'claim.json',
+        'execution-authority.json',
+        'effect-reservation.json',
+        'receipt.json',
+      ]) {
+        const value=this.readJson(commit,path);
+        if (value!=null) files[path]=value;
+      }
+      return factCommitFromFiles(
+        commit,
+        this.parent(commit),
+        files,
+      );
+    });
   }
 
   revisions(head:string):string[] {
