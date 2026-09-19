@@ -15,7 +15,7 @@ import {
   type StructuralOperation,
 } from '../provider-observation/response-slice.ts';
 
-export const KUBERNETES_CONFIGMAP_LIST_OPERATION_ID='core/v1/configmaps/list' as const;
+export const KUBERNETES_CONFIGMAP_LIST_OPERATION_ID='listCoreV1NamespacedConfigMap' as const;
 export const KUBERNETES_COMPLETE_LIST_ABSENCE='kubernetes-complete-list-absence/v1' as const;
 
 export interface KubernetesConfigMapListRequest {
