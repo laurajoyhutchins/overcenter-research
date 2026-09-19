@@ -1,215 +1,129 @@
 # Experiments
 
-This directory contains bounded executable proofs. An experiment is evidence about a specific failure mode or architectural claim, not a second implementation layer.
+This directory contains bounded executable evidence for Overcenter's architectural claims.
 
-Each experiment owns the actors, fixtures, and focused tests that change together. GitHub requires workflow YAML under `.github/workflows/`, so hosted workflow files remain there but should stay thin and invoke the corresponding experiment.
+An experiment is not a second product implementation. It exists to answer a specific question, expose a hostile case, or compare plausible alternatives. Reusable mechanism moves to `src/` only after the experiment has earned that promotion.
 
-## Experiment index
+## How to read an experiment
 
-- `sqlite-baseline/` - original SQLite-backed baseline.
-- `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
-- `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.
-- `conflicting-effect/` - provider-coordinate conflict, ordering, and commutativity.
-- `eventually-consistent-readback/` - hostile stale or negative provider readback and the no-blind-replay rule.
-- `current-realization-admissibility/` - fresh authoritative observation over historical DONE, including withdrawal, indeterminate blocking, and cache-free reconstruction.
-- `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
-- `provider-observation/` - provider-neutral observation provenance and structural-certificate engine shared by GitHub and Kubernetes experiments.
-- `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
-- `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
-- `github-object-transport/` - exact GitHub object transport fixtures.
-- `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
-- `storage-backend-bakeoff/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
-- `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
-- `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
+A useful experiment should make five things easy to find:
 
-Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/support/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
+1. **Question** - what uncertainty is being tested?
+2. **Competing hypothesis** - what plausible alternative could be better?
+3. **Hostile case** - what would falsify the desired claim?
+4. **Observed result** - what actually happened?
+5. **Boundary** - what the result does *not* justify.
 
-## Proof lineage
+The repository deliberately keeps negative results. A falsified abstraction is useful evidence.
 
-The repository began with two storage experiments:
+## Stable experiment areas
 
-```text
-experiments/sqlite-baseline/kernel.js
-        ↓
-prove the smallest local state machine
+| Area | What it tests |
+| --- | --- |
+| `sqlite-baseline/` | the original minimal local transaction/recovery state machine |
+| `disposable-agent/` | worker destruction, reconstruction, authoritative readback, and settlement |
+| `two-effect-concurrency/` | independent external effects and concurrent recovery through one authority coordinate |
+| `conflicting-effect/` | provider-coordinate conflict, ordering, and commutativity |
+| `eventually-consistent-readback/` | hostile stale/negative provider reads and the no-blind-replay rule |
+| `current-realization-admissibility/` | whether historical realizations still satisfy current authority |
+| `github-observation-grammar/` | generated GitHub observation vocabulary and exact-object readback |
+| `provider-observation/` | provider-neutral provenance and structural-certificate machinery |
+| `kubernetes-observation/` | Kubernetes identity, complete LIST snapshots, authoritative absence, and WATCH continuity |
+| `github-object-transport/` | exact GitHub object transport fixtures |
+| `git-stress/` | Git/CAS contention, clone/reconstruction, and adversarial storage behavior |
+| `storage-backend-bakeoff/` | Git versus SQLite authority performance, CAS, replay, and crash-prefix behavior |
+| `datalog-projection/` | declarative project-state projection as a differential oracle |
+| `lisp-semantics/` | semantic-coherence comparison between hand-wired implementation and canonical semantic IR |
+| `bounded-graph-exhaustion/` | exhaustive small-model graph topology and lifecycle semantics |
 
-src/git-kernel.ts
-        ↓
-ask whether durable shared authority can collapse to
-immutable Git objects + one authority ref + CAS
-```
+Other language and formal-tool experiments are intentionally non-authoritative unless separately promoted. Their job is to sharpen or falsify claims, not to collect runtimes.
 
-That progression is historical evidence, not the conceptual entry point for Overcenter. The current architecture is described in [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+## What graduated into the supported path
 
-### Disposable worker handoff
+Experiments have already changed the implementation in concrete ways.
 
-The first disposable-agent proof established this lifecycle:
+### SQLite authority
 
-```text
-central Git authority
-        ↓
-Agent A claims exact run
-        ↓
-Agent A performs external effect
-        ↓
-Agent A repo/cache/DB/process disappear
-        ↓
-supervisor records exact run termination
-        ↓
-fresh Agent B reconstructs unresolved run
-        ↓
-Agent B observes external truth independently
-        ↓
-same run settles from authoritative readback
-```
+The storage bakeoff showed that repeatedly using Git as the hot durable transaction path was unnecessarily expensive once the core semantics had become storage-neutral. SQLite now owns the supported authority path, while Git remains an independent reference/replay backend.
 
-No Agent A local state is required by Agent B.
+That promotion did **not** move project semantics into SQLite. The shared durable-fact contract and backend differential tests remain the guardrail.
 
-A hosted GitHub Actions proof then exercised the handoff across two different hosted runners. Workflow run `35303766455` left the original claim, recovery, effect identity, and settlement in Git/GitHub authority rather than passing worker-local state between jobs.
+### Go physical computation
 
-Historical coordinates from that run:
+The Go experiments justified one narrow role: physical execution of already-authorized pure computation.
+
+The admitted boundary is:
 
 ```text
-workflow run:        35303766455
-claim:               d9f2c9a20b37c2da757c0988678d61768c05e70a
-recovery:            175dbfec7219dbe9c33904b49f609d79b11add25
-settlement/authority: ae574663ed1ec321ae1121a48fe92019c5eed006
-run:                 bc85b322-4fa7-4fb1-a8da-3f72f1b13803
+TypeScript authority
+      |
+exact authorized computation
+      |
+Go executor
+      |
+attempt evidence
+      |
+TypeScript observation + settlement
 ```
 
-### Hardened trust-boundary proof
+Go does not own graph truth, provider interpretation, external mutation, or settlement.
 
-The first hardened hosted proof separated definition/claim authority from recovery/settlement authority, but still gave Agent A repository-scoped `statuses: write`. That proved the worker could not redefine project authority or settlement truth, not that it lacked provider mutation authority.
+The production profile subsequently red-teamed this boundary for forged success, namespace escape, network side effects, mutable source identity, effect/computation laundering, stale generation recovery, and catastrophic executor death. The supported slice converts those failures into fail-closed regressions.
 
-The current workflow tightens that boundary using only GitHub Actions job permissions:
+### Proof and differential oracles
 
-```text
-trusted project authority
-  define immutable obligation
-  claim exact snapshot
-            ↓
-authority-untrusted Agent A
-  contents: read
-  no statuses: write
-  no ExecutionPermit
-  corrupt local checkout/config/cache/source
-  direct provider mutation attempt must fail
-  emit candidate EffectIntent
-  terminate
-            ↓
-trusted effect broker
-  contents: write
-  statuses: write
-  validate intent against authoritative obligation
-  acquire fresh execution generation
-  reserve effect
-  perform exact provider mutation
-  terminate before settlement
-            ↓
-trusted recovery
-  acquire another fresh execution generation
-  reconstruct unresolved reservation from Git
-  read canonical GitHub provider state
-  settle through exact CAS
-```
+Lean, Datalog, F*, bounded exploration, and related formal/declarative experiments remain useful precisely because they are independent of the runtime implementation. They should not gain production authority merely because they prove or reproduce a property well.
 
-This revised hosted proof passed as workflow run `35389453056` at exact source revision `f8a883d6214d76b0b609eb05e3798d6238d108cc`.
+## Evidence classes
 
-Observed proof coordinates:
-
-```text
-workflow run:         35389453056
-source revision:      f8a883d6214d76b0b609eb05e3798d6238d108cc
-run:                  0688f8aa-b96f-41df-9866-f8041226672e
-claim:                cfbb9f334f214d7b9268448c0d424c40e8b2460c
-worker authority write: HTTP 403
-worker provider write:  HTTP 403
-broker generation:    2
-recovery generation:  3
-recovery:             3a2bd35b0ac2b19d725621d1c6aeb4c547a86195
-settlement/authority: 7bd05e5f4bf9cc2f5f8460e32ce902e1fe77b364
-provider state:       success
-final disposition:    DONE
-```
-
-Workflow run `35304838786` demonstrated that local executor tampering does not redefine the obligation, authority ref, verifier, canonical repository identity, exact input SHA, or settlement decision.
-
-Historical coordinates:
-
-```text
-workflow run:         35304838786
-workflow head:        b0add388e13933de643d1ecbe7a9f0ac47200e43
-run:                  03fd76fa-9213-4b30-9411-8b34a5da68ea
-claim:                349c2eebcb079378a22bbd16bbf54ee25d1f2391
-recovery:             0b4070019b46252ccdbefa78fce7b32bea0f8833
-settlement/authority: 61a763dbe43af85f90bbfb1356427f3050b29ce1
-repository_id:        1354872053
-provider context:     overcenter/trust-proof/35304838786/1
-provider state:       success
-```
-
-That historical proof deliberately placed the target GitHub status behind 100 newer distractor statuses so canonical readback had to cross the first status page before settlement.
-
-Its capability claim was intentionally limited. GitHub grants `statuses: write` at repository scope, not at one SHA/context coordinate. The experiment proves that the executor cannot redefine Overcenter authority or certify its own settlement; it does not prove least-privilege provider mutation capability.
-
-### Reconstructible project projection
-
-The Git authority experiment later removed privileged lifecycle state entirely.
-
-Current obligation definitions, claims, and receipts are replayed to derive the project projection. A destructive proof repeatedly:
-
-```text
-derives projection
-      ↓
-materializes a cache
-      ↓
-deletes the cache
-      ↓
-creates a fresh clone
-      ↓
-replays authority history
-      ↓
-asserts byte-identical projection + digest
-```
-
-The adversarial dependency suite exercises control versus semantic dependencies, exact obligation keys, amendment ancestry, historical realization reuse, and invalidation only when selected semantic identity actually changes.
-
-### Hostile provider readback
-
-`eventually-consistent-readback/` models a provider where a successful write may precede convergence of the read model.
-
-Missing or stale non-matching reads remain `uncertain`. They do not become authoritative evidence of absence and therefore cannot release replayable work. Only provider evidence that is strong enough for the adapter contract can settle or make retry safe.
-
-### Concurrency and effect conflict
-
-`two-effect-concurrency/` demonstrates that external effects need not be globally serialized merely because project authority commits through one CAS coordinate.
-
-`conflicting-effect/` then adds adapter-specific conflict semantics for GitHub commit statuses:
-
-```text
-repository identity
-+ exact commit
-+ normalized status context
-```
-
-Identical desired states may commute. Incompatible desired states must be graph-ordered; otherwise they remain blocked rather than racing.
-
-## Running experiments
-
-The evidence classes are deliberately separate:
+Use the root commands unless you are debugging a specific experiment:
 
 ```sh
-npm test                              # fast deterministic regression only
-npm run proof:local                  # adversarial local experiments
-npm run test:kubernetes-observation # focused deterministic Kubernetes semantics
-npm run test:lisp-semantics          # focused semantic-coherence experiment
-npm run test:datalog                # Soufflé projection differential
-npm run test:current-realization-admissibility # current DONE reuse against fresh authority
-npm run test:bounded-graph          # exhaustive bounded graph/state model
-npm run test:storage-backend-safety  # CAS + SIGKILL committed-prefix invariants
-npm run bench:storage-backends       # host-dependent Git vs SQLite performance
+npm test
+npm run proof:local
+npm run proof:formal
+npm run proof:production
+npm run proof:live
 ```
 
-Focused commands are listed in [`../README.md`](../README.md) and `package.json`.
+Focused commands include:
 
-Hosted proofs live under [`../.github/workflows/`](../.github/workflows/). Their job is to exercise the corresponding experiments against real provider authority, not to carry a second copy of the architecture. The Kubernetes proof is invoked explicitly by `kubernetes-observation-semantics.yml`; it is not implied by `npm test`.
+```sh
+npm run test:projection
+npm run test:dependency-edges
+npm run test:handoff
+npm run test:eventual
+npm run test:concurrency
+npm run test:effect-order
+npm run test:github-observation
+npm run test:kubernetes-observation
+npm run test:provider-observation
+npm run test:current-realization-admissibility
+npm run test:datalog
+npm run test:lisp-semantics
+npm run test:bounded-graph
+npm run test:storage-backend-safety
+npm run bench:storage-backends
+npm run test:stress
+```
+
+A benchmark result is not automatically a safety result. A formal result is not automatically an implementation result. A hosted result is not automatically a provider-general result. The command and experiment should make the supported claim explicit.
+
+## Where code belongs
+
+```text
+src/          reusable authoritative mechanism
+test/         focused mechanism invariants
+test/support/ reusable test plumbing
+experiments/  bounded empirical/adversarial evidence
+formal/       machine-checked models
+research/     prior art, claim taxonomy, synthesis
+```
+
+When an experiment succeeds, the default next question is not "how do we keep this implementation?" It is:
+
+> What is the smallest durable mechanism justified by the evidence?
+
+That keeps the research tree useful as an independent witness instead of letting it quietly become a second production architecture.
+
+For the current architecture, read [`../ARCHITECTURE.md`](../ARCHITECTURE.md). For the public overview and evidence ladder, return to [`../README.md`](../README.md).
