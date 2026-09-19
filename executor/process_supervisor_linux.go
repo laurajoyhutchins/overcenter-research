@@ -19,6 +19,10 @@ const (
 	orphanCleanupLimit  = 2 * time.Second
 )
 
+var errConcurrentOrphanDescendants = errors.New(
+	"orphan task descendants observed while other top-level tasks are active",
+)
+
 type processSupervisor struct {
 	mu     sync.Mutex
 	active map[int]struct{}
@@ -58,31 +62,53 @@ func (supervisor *processSupervisor) start(command *exec.Cmd) error {
 	return nil
 }
 
-func (supervisor *processSupervisor) finish(pid int) error {
+// finish removes one legitimate top-level task from the active set and checks
+// for descendants that outlived their task parent.
+//
+// When no other top-level task remains, every unregistered child belongs to a
+// completed attempt and can be killed/reaped safely. When another top-level
+// task is still active, an orphan cannot be attributed without inventing
+// cross-task authority. The worker is therefore tainted and must terminate.
+func (supervisor *processSupervisor) finish(pid int) (bool, error) {
 	supervisor.mu.Lock()
 	defer supervisor.mu.Unlock()
 
 	delete(supervisor.active, pid)
-	return supervisor.cleanupOrphansLocked()
+	orphans, err := supervisor.orphanPIDsLocked()
+	if err != nil {
+		return false, err
+	}
+	if len(orphans) == 0 {
+		return false, nil
+	}
+	if len(supervisor.active) > 0 {
+		return true, errConcurrentOrphanDescendants
+	}
+	if err := supervisor.cleanupOrphansLocked(orphans); err != nil {
+		return true, err
+	}
+	return true, nil
 }
 
-func (supervisor *processSupervisor) cleanupOrphansLocked() error {
-	deadline := time.Now().Add(orphanCleanupLimit)
-	for {
-		children, err := directChildPIDs(os.Getpid())
-		if err != nil {
-			return err
+func (supervisor *processSupervisor) orphanPIDsLocked() ([]int, error) {
+	children, err := directChildPIDs(os.Getpid())
+	if err != nil {
+		return nil, err
+	}
+	orphans := make([]int, 0, len(children))
+	for _, pid := range children {
+		if _, active := supervisor.active[pid]; !active {
+			orphans = append(orphans, pid)
 		}
-		orphans := make([]int, 0, len(children))
-		for _, pid := range children {
-			if _, active := supervisor.active[pid]; !active {
-				orphans = append(orphans, pid)
-			}
-		}
-		if len(orphans) == 0 {
-			return nil
-		}
+	}
+	return orphans, nil
+}
 
+func (supervisor *processSupervisor) cleanupOrphansLocked(initial []int) error {
+	deadline := time.Now().Add(orphanCleanupLimit)
+	orphans := initial
+
+	for len(orphans) > 0 {
 		for _, pid := range orphans {
 			if err := syscall.Kill(pid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
 				return fmt.Errorf("kill orphan descendant %d: %w", pid, err)
@@ -94,7 +120,14 @@ func (supervisor *processSupervisor) cleanupOrphansLocked() error {
 		if time.Now().After(deadline) {
 			return errors.New("orphan descendant cleanup timed out")
 		}
+
+		var err error
+		orphans, err = supervisor.orphanPIDsLocked()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func reapChildrenUntil(pids []int, deadline time.Time) error {
