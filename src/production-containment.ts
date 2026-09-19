@@ -5,7 +5,7 @@ export const PRODUCTION_CONTAINMENT_PROFILE={
   no_new_privileges:true,
   cap_drop:['ALL'],
   cap_add:['CHOWN','DAC_OVERRIDE','KILL','SETGID','SETUID'],
-  pids_limit:128,
+  pids_limit:256,
   memory_bytes:512*1024*1024,
   memory_swap_bytes:512*1024*1024,
   cpus:1,
