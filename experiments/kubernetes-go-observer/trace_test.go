@@ -2,6 +2,7 @@ package kubeobserver
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,6 +25,15 @@ func cfg(baseURL string) Config {
 
 func listBody(rv, next string) string {
 	return fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMapList","metadata":{"resourceVersion":%q,"continue":%q},"items":[]}`, rv, next)
+}
+
+func decodedBody(t *testing.T, page Page) []byte {
+	t.Helper()
+	body, err := base64.StdEncoding.DecodeString(page.Response.BodyBase64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
 }
 
 func TestCollectsCompletePaginationWithoutMintingSemantics(t *testing.T) {
@@ -67,6 +77,9 @@ func TestCollectsCompletePaginationWithoutMintingSemantics(t *testing.T) {
 	if trace.OperationID != OperationID || trace.AuthorityID != "kind:test-cluster" {
 		t.Fatalf("trace identity = %#v", trace)
 	}
+	if !strings.HasPrefix(trace.Pages[0].Response.BodySHA256, "sha256:") {
+		t.Fatalf("body digest = %q", trace.Pages[0].Response.BodySHA256)
+	}
 }
 
 func TestRecords410AndStopsWithoutInterpretingIt(t *testing.T) {
@@ -87,6 +100,9 @@ func TestRecords410AndStopsWithoutInterpretingIt(t *testing.T) {
 	}
 	if trace.Pages[0].Response.Status != 410 {
 		t.Fatalf("status=%d", trace.Pages[0].Response.Status)
+	}
+	if got := string(decodedBody(t, trace.Pages[0])); !strings.Contains(got, `"code":410`) {
+		t.Fatalf("body=%q", got)
 	}
 }
 
@@ -113,10 +129,10 @@ func TestResourceVersionDriftIsPreservedForSemanticLayer(t *testing.T) {
 			ResourceVersion string `json:"resourceVersion"`
 		} `json:"metadata"`
 	}
-	if err := json.Unmarshal(trace.Pages[0].Response.Value, &first); err != nil {
+	if err := json.Unmarshal(decodedBody(t, trace.Pages[0]), &first); err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal(trace.Pages[1].Response.Value, &second); err != nil {
+	if err := json.Unmarshal(decodedBody(t, trace.Pages[1]), &second); err != nil {
 		t.Fatal(err)
 	}
 	if first.Metadata.ResourceVersion != "500" || second.Metadata.ResourceVersion != "501" {
