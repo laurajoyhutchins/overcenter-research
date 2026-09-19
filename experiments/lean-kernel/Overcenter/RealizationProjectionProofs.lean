@@ -49,7 +49,7 @@ theorem mutable_done_requires_fresh_verification
               | some observation =>
                   cases disposition : settle input.postcondition observation with
                   | done =>
-                      exact ⟨observation, rfl, rfl⟩
+                      exact ⟨observation, rfl, disposition⟩
                   | ready =>
                       simp [
                         projectCurrentRealization,
@@ -86,7 +86,7 @@ theorem mutable_done_requires_fresh_verification
               | some observation =>
                   cases disposition : settle input.postcondition observation with
                   | done =>
-                      exact ⟨observation, rfl, rfl⟩
+                      exact ⟨observation, rfl, disposition⟩
                   | ready =>
                       simp [
                         projectCurrentRealization,
