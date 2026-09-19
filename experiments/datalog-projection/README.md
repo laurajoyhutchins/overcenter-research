@@ -93,10 +93,12 @@ Each durable definition or amendment. The greatest ordinal for an obligation is
 its current definition. `definition_id` identifies that exact durable
 definition; it is not the semantic obligation key.
 
-### `dependency(downstream, definition_id, upstream)`
+### `dependency(downstream, definition_id, upstream, kind)`
 
 Dependency edges belonging to one exact definition. Only edges from the current
-definition participate in the current graph.
+definition participate in the current graph. `kind` retains the minimal
+`control | semantic` distinction: both gate execution, but only an unresolved
+semantic edge can make the current semantic key legitimately unavailable.
 
 ### `run(run_id, obligation, semantic_key, ordinal)`
 
@@ -114,7 +116,9 @@ not an input.** The greatest receipt ordinal is the current receipt for that run
 Current semantic identity produced by the existing deterministic semantic
 layer. This relation is intentionally **not** append-only historical state.
 It is recomputed from current obligation meaning, including selected upstream
-realization identities.
+realization identities. It may be absent while a semantic dependency is not
+`DONE`; that is a normal `BLOCKED` condition, not malformed input. Once all
+semantic dependencies are resolved, a missing key fails closed.
 
 ### `observation_judgment(run_id, receipt_ordinal, verified, accepted_absence)`
 
@@ -173,7 +177,8 @@ not provide the expected disposition to Soufflé.
 
 The hostile fixtures cover:
 
-1. transitive dependency closure;
+1. transitive dependency closure and preservation of the minimal
+   control/semantic edge distinction;
 2. historical exact-key realization reuse;
 3. semantic amendment invalidating an old `DONE` realization;
 4. the **same unchanged definition** receiving a different current semantic
