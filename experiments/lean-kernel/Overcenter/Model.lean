@@ -25,11 +25,30 @@ inductive RealizationStability where
   | mutableExternal
   deriving Repr, BEq, DecidableEq
 
+inductive Coordinate where
+  | opaque (value : String)
+  | kubernetesConfigMap (authorityId : String) (namespace : String) (name : String)
+  deriving Repr, BEq, DecidableEq
+
 structure Postcondition where
   family : VerifierFamily
   verifierRevision : String
-  coordinate : String
+  coordinate : Coordinate
   expected : String
+  deriving Repr, BEq, DecidableEq
+
+structure KubernetesListMember where
+  name : String
+  namespace : String
+  uid : String
+  resourceVersion : String
+  deriving Repr, BEq, DecidableEq
+
+structure KubernetesListPage where
+  requestContinue : Option String
+  responseContinue : String
+  snapshotResourceVersion : String
+  members : List KubernetesListMember
   deriving Repr, BEq, DecidableEq
 
 inductive AbsenceEvidence where
@@ -43,14 +62,17 @@ inductive AbsenceEvidence where
       (provenanceOperation : String)
       (provenanceErrorCode : String)
   | kubernetesCompleteList
-      (coordinate : String)
-      (complete : Bool)
+      (authorityId : String)
+      (namespace : String)
+      (targetName : String)
+      (snapshotResourceVersion : String)
+      (pages : List KubernetesListPage)
   deriving Repr, BEq, DecidableEq
 
 structure Observation where
   family : VerifierFamily
   verifierRevision : String
-  coordinate : String
+  coordinate : Coordinate
   certainty : MutationCertainty
   actual : Option String
   absence : Option AbsenceEvidence := none
@@ -68,7 +90,7 @@ structure ObligationKey where
   packetIdentity : String
   family : VerifierFamily
   verifierRevision : String
-  coordinate : String
+  coordinate : Coordinate
   expected : String
   semanticInputs : List String
   deriving Repr, BEq, DecidableEq
