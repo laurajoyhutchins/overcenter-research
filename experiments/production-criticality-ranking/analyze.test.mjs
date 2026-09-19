@@ -35,5 +35,7 @@ test('ranks only production callables and derives structural authority/evidence 
   assert.equal(settle.vector.E,0,'test + experiment support closes the two-tier proxy gap');
   assert.equal(low.vector.E,1);
   assert.equal(r.calibration.agreement,1);
-  assert.ok(settle.consequenceScore>low.consequenceScore);\n  assert.ok(Number.isFinite(settle.attentionScore));\n  assert.ok(settle.consequenceRank<low.consequenceRank);
+  assert.ok(settle.consequenceScore>low.consequenceScore);
+  assert.ok(Number.isFinite(settle.attentionScore));
+  assert.ok(settle.consequenceRank<low.consequenceRank);
 });
