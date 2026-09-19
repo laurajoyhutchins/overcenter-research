@@ -34,7 +34,9 @@ For selected deterministic safety predicates:
 - CI feeds the same normalized facts to both and fails on bounded disagreement;
 - a semantic change must either continue agreeing with the pinned oracle or
   deliberately amend the semantic specification, proof obligations, and pinned
-  oracle identity.
+  oracle identity;
+- `formal/lean-semantic-oracle-revision.txt` is the single executable owner of
+  the pinned Lean revision used by CI.
 
 The first maintained oracle covers provider-independent graph validity and
 effect ordering over already-normalized effect facts. It exercises both control
