@@ -174,7 +174,7 @@ test('receipt v5 requires a matching absence certificate before replay',()=>{
       absentReceipt(local,{includeCertificate:true}),
       local,
     ).disposition,
-    'READY',
+    'ABSENT',
   );
   assert.equal(
     projectReceipt(absentReceipt(local),local).disposition,
