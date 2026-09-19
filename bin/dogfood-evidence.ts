@@ -136,6 +136,7 @@ function processSpec(
 
 interface ExecutorHarness {
   client:GoExecutorClient;
+  diagnostics:()=>Record<string,unknown>;
   close:()=>Promise<void>;
   abort:()=>Promise<void>;
 }
@@ -202,6 +203,20 @@ async function startExecutor():Promise<ExecutorHarness> {
 
   return {
     client,
+    diagnostics:()=>{
+      let state:unknown=null;
+      let cgroup='';
+      try {
+        state=JSON.parse(docker(['inspect','--format','{{json .State}}',container]));
+      } catch {}
+      try {
+        cgroup=docker([
+          'exec',container,'sh','-c',
+          'printf "pids.events\\n"; cat /sys/fs/cgroup/pids.events 2>/dev/null || true; printf "memory.events\\n"; cat /sys/fs/cgroup/memory.events 2>/dev/null || true',
+        ]);
+      } catch {}
+      return {state,cgroup};
+    },
     close:async()=>{
       await client.close();
       const code=Number.parseInt(docker(['wait',container]).trim(),10);
@@ -384,6 +399,7 @@ try {
         stderr_tail:stderr.slice(-8*1024),
         stdout_truncated:result.evidence?.stdout_truncated??false,
         stderr_truncated:result.evidence?.stderr_truncated??false,
+        containment:executor.diagnostics(),
       })+'\n');
       throw new Error(
         `self-dogfood evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
