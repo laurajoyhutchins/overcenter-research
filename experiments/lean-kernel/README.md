@@ -6,7 +6,7 @@ This experiment asks a deliberately narrow question:
 
 It does **not** rewrite Overcenter in Lean. Provider I/O, Git transport, credentials, mutation execution, and worker supervision remain outside this experiment.
 
-## First semantic slice
+## Current semantic slice
 
 The Lean kernel currently owns three decisions:
 
@@ -22,13 +22,103 @@ The implementation intentionally models the **structured semantic key**, not its
 | --- | --- | --- |
 | Verifier semantics are material identity. | Change verifier behavior without changing obligation meaning. | Change only `verifierRevision`; the obligation key must differ. |
 | `done` requires exact verification. | Wrong coordinate or uncertain read settles `done`. | Keep expected value equal while changing coordinate/certainty; settlement must require recovery. |
-| `ready` requires accepted authoritative absence. | Forged or wrong-coordinate negative evidence permits replay. | Change only the absence certificate coordinate; settlement must require recovery. |
+| `ready` requires accepted authoritative absence. | Forged or wrong-coordinate negative evidence permits replay. | Change one ENOENT certificate field; settlement must require recovery. |
 | Historical `done` is not current truth for mutable external state. | Provider state changes after settlement, but reconstruction still reuses the old completion. | A mutable historical realization with no fresh observation must not reuse. |
 | Stability is semantic policy, not historical self-assertion. | A historical record relabels mutable provider state as immutable to obtain reuse. | History contains no stability flag; the verifier family determines it. |
 | Exact immutable realizations are reusable. | Producer identity unnecessarily poisons content-addressed reuse. | Same semantic key + immutable verifier family reuses without rerunning a worker. |
 | Stale semantic identity never reuses. | Verifier revision or material semantic input changes but old completion survives. | Change the semantic key and require reuse to return false. |
 
 `Overcenter/Proofs.lean` contains both generic theorems and concrete hostile examples. Compilation is therefore part proof checking and part executable regression suite.
+
+## Native JSON boundary
+
+The compiled kernel accepts a narrow JSON request on stdin and writes one JSON decision on stdout.
+
+Example:
+
+```json
+{
+  "command": "settle",
+  "postcondition": {
+    "family": "file-content",
+    "verifier_revision": "file-content-equals/v1@semantics-1",
+    "coordinate": "/provider/a",
+    "expected": "<sha256>"
+  },
+  "observation": {
+    "family": "file-content",
+    "verifier_revision": "file-content-equals/v1@semantics-1",
+    "coordinate": "/provider/a",
+    "certainty": "present",
+    "actual": "<sha256>",
+    "absence": null
+  }
+}
+```
+
+Malformed JSON, unknown commands, unsupported verifier families, and malformed typed fields are rejected instead of defaulted.
+
+The boundary does **not** accept a caller-provided `verified: true` bit.
+
+## Differential proof
+
+`differential.test.ts` sends the same local-file settlement cases through:
+
+```text
+TypeScript projectReceipt
+          │
+          ├──────── compare disposition
+          │
+native Lean kernel
+```
+
+The current fixtures cover:
+
+- exact positive verification;
+- wrong content;
+- uncertain readback;
+- authoritative direct-coordinate ENOENT;
+- tampered completeness result;
+- tampered provenance operation.
+
+This lets us move semantic code across the language boundary without assuming that a successful Lean build means behavioral equivalence.
+
+## Known semantic gap
+
+`reuse-gap.test.ts` intentionally proves that the current TypeScript implementation and the Lean target semantics disagree about mutable historical completion:
+
+```text
+file = A
+  ↓
+settle DONE
+  ↓
+file externally changes to B
+  ↓
+fresh TypeScript reconstruction
+  ↓
+DONE          ← current behavior
+
+Lean reuse rule with no fresh observation
+  ↓
+false         ← target behavior
+```
+
+The test is a **gap witness**, not an assertion that the current TypeScript behavior is desirable. It should disappear when production reuse semantics migrate to require fresh authoritative observation for mutable external realizations.
+
+## Local-file negative evidence
+
+Local ENOENT authority is no longer represented in Lean by an abstract `complete: true` input. The Lean kernel checks the material certificate fields directly:
+
+- exact subject coordinate;
+- exact scope coordinate;
+- null snapshot;
+- `direct-coordinate-read`;
+- `ENOENT` result;
+- `node:fs`;
+- `readFileSync`;
+- `ENOENT` error code.
+
+Kubernetes absence completeness remains abstract in this slice. Its complete LIST pagination chain and WATCH-continuity semantics are the next provider-specific evidence candidate.
 
 ## Build
 
@@ -40,12 +130,19 @@ lake build
 ./.lake/build/bin/overcenterKernel
 ```
 
-CI additionally replays the generated `Overcenter.*` declarations through Lean's bundled `leanchecker` to detect environment-hacking-style unsoundness.
+CI also:
+
+1. replays generated `Overcenter.*` declarations through Lean's bundled `leanchecker`;
+2. executes the compiled native kernel;
+3. runs the TypeScript/Lean differential settlement proof;
+4. runs the mutable-reuse gap witness.
 
 ## Deliberate boundary
 
-This first experiment does **not** trust a caller-provided `verified: true` bit. The next useful integration step is to define a narrow serialized observation boundary and differential-test the Lean decisions against the TypeScript implementation before deleting any TypeScript semantics.
+This experiment does not claim that Lean proves GitHub, Kubernetes, Git, TLS, the operating system, or cryptographic implementations correct. Those systems remain evidence sources and effect substrates.
 
-The current `AbsenceEvidence.complete` field is intentionally only an abstract input to this first settlement model. Provider-specific certificate completeness remains a separate proof obligation and must move behind provider-specific Lean validation before raw external bytes could be admitted directly.
+The semantic boundary is narrower:
 
-It also does not claim that Lean proves GitHub, Kubernetes, Git, TLS, or the operating system correct. Those systems remain evidence sources and effect substrates. The Lean kernel answers the smaller question: given accepted facts and evidence, what conclusions may Overcenter derive?
+> Given admitted facts and evidence, what conclusions may Overcenter derive?
+
+The next provider-specific step is to replace the abstract Kubernetes completeness input with the actual complete-LIST / continuation / resourceVersion / WATCH evidence grammar already proved in TypeScript.
