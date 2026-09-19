@@ -55,7 +55,7 @@
 (let* ((ir (compile-declaration-string *base-source*))
        (coordinates (names (getf ir :coordinate-fields)))
        (effect (getf ir :effect))
-       (:absence (getf ir :absence)))
+       (absence (getf ir :absence)))
   (check (equal coordinates '("artifact" "source-revision"))
          "base coordinate projection")
   (check (equal (names (getf effect :resource-fields)) coordinates)
@@ -77,7 +77,7 @@
        (ir (compile-declaration-string evolved))
        (coordinates (names (getf ir :coordinate-fields)))
        (effect (getf ir :effect))
-       (:absence (getf ir :absence)))
+       (absence (getf ir :absence)))
   (check (equal coordinates
                 '("authority" "artifact" "source-revision"))
          "new coordinate appears once in the canonical coordinate set")
