@@ -366,13 +366,6 @@ export function authoritativeAbsenceEvidence(
   return null;
 }
 
-export function observationAuthoritativelyAbsent(
-  postcondition:Postcondition,
-  observed:Observation,
-):boolean {
-  return authoritativeAbsenceEvidence(postcondition,observed)!==null;
-}
-
 export function observationSatisfiesPostcondition(
   postcondition: Postcondition,
   observed: Observation,
