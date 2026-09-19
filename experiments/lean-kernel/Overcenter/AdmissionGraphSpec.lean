@@ -82,7 +82,7 @@ theorem claimStringSet_contains_iff_mem
   | nil =>
       simp [claimStringSet]
   | cons value rest ih =>
-      simp [claimStringSet, ih]
+      simpa [claimStringSet, ih, eq_comm]
 
 theorem claimTopologicalCertificateBuildValid_sound
     (ctx : ClaimContext)
