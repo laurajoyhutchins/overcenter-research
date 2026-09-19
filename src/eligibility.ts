@@ -31,6 +31,16 @@ export function claimabilityError(
   return staticEffectConflictError(state,work.id);
 }
 
+export function executableFrontier(
+  state:State,
+  lifecycles:Map<string,Lifecycle>,
+):Obligation[] {
+  return Object.values(state.obligations)
+    .filter(work=>claimabilityError(state,work,lifecycles)===null)
+    .sort((a,b)=>a.id.localeCompare(b.id))
+    .map(work=>structuredClone(work));
+}
+
 export function projectWork(
   state:State,
   work:Obligation,
