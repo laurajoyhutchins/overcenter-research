@@ -22,12 +22,22 @@ type executionCompletion struct {
 	evidence ComputationAttemptEvidenceV1
 }
 
+type TaskCredential struct {
+	UID uint32
+	GID uint32
+}
+
 type Runtime struct {
 	workspaceRoot  string
 	maxConcurrency int
+	taskCredential *TaskCredential
 }
 
-func NewRuntime(workspaceRoot string, maxConcurrency int) (*Runtime, error) {
+func NewRuntime(
+	workspaceRoot string,
+	maxConcurrency int,
+	taskCredential *TaskCredential,
+) (*Runtime, error) {
 	if maxConcurrency <= 0 {
 		return nil, errors.New("max concurrency must be positive")
 	}
@@ -38,6 +48,7 @@ func NewRuntime(workspaceRoot string, maxConcurrency int) (*Runtime, error) {
 	return &Runtime{
 		workspaceRoot:  root,
 		maxConcurrency: maxConcurrency,
+		taskCredential: taskCredential,
 	}, nil
 }
 
@@ -80,7 +91,12 @@ func (runtime *Runtime) Serve(ctx context.Context, input io.Reader, output io.Wr
 		go func() {
 			defer workers.Done()
 			for job := range jobs {
-				evidence := runProcess(job.ctx, runtime.workspaceRoot, job.validated)
+				evidence := runProcess(
+					job.ctx,
+					runtime.workspaceRoot,
+					runtime.taskCredential,
+					job.validated,
+				)
 				job.cancel()
 				select {
 				case completed <- executionCompletion{key: job.key, evidence: evidence}:
