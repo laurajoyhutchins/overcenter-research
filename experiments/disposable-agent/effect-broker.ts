@@ -72,8 +72,19 @@ const permit = kernel.acquireExecution(work.run_id);
 assert.equal(permit.execution_generation, 2);
 
 await kernel.performEffect(permit, async () => {
+  const repositoryIdentity = await github(`/repositories/${work.postcondition.repository_id}`);
+  if (!repositoryIdentity.ok) {
+    throw new Error(`repository identity read failed: ${repositoryIdentity.status}`);
+  }
+  const repository = await repositoryIdentity.json() as { id: number; full_name: string };
+  assert.equal(repository.id, work.postcondition.repository_id);
+  assert.equal(
+    repository.full_name.toLowerCase(),
+    work.postcondition.repository_full_name.toLowerCase(),
+  );
+
   const status = await github(
-    `/repos/${work.postcondition.repository_full_name}/statuses/${work.postcondition.commit_sha}`,
+    `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
     {
       method: 'POST',
       body: JSON.stringify({

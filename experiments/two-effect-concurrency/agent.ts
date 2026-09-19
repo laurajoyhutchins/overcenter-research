@@ -45,8 +45,17 @@ assert.equal(work.postcondition.verifier,'github-commit-status/v2');
 if (work.postcondition.verifier!=='github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha,sourceSha);
 
+const repositoryResponse=await github(`/repositories/${work.postcondition.repository_id}`);
+if (!repositoryResponse.ok) throw new Error(`repository lookup failed: ${repositoryResponse.status}`);
+const repository=await repositoryResponse.json() as {id:number;full_name:string};
+assert.equal(repository.id,work.postcondition.repository_id);
+assert.equal(
+  repository.full_name.toLowerCase(),
+  work.postcondition.repository_full_name.toLowerCase(),
+);
+
 const effect=await github(
-  `/repos/${work.postcondition.repository_full_name}/statuses/${work.postcondition.commit_sha}`,
+  `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
   {
     method:'POST',
     body:JSON.stringify({

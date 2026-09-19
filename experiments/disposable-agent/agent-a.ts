@@ -56,8 +56,17 @@ execFileSync('git', ['update-ref', stateRef, sourceSha], { stdio: 'ignore' });
 writeFileSync('src/git-kernel.ts', '// Agent A locally replaced the kernel. This must not affect authority.\n');
 writeFileSync('agent-cache.sqlite', 'arbitrary disposable local database');
 
+const repositoryIdentity = await github(`/repositories/${snapshot.postcondition.repository_id}`);
+if (!repositoryIdentity.ok) throw new Error(`repository identity read failed: ${repositoryIdentity.status}`);
+const repository = await repositoryIdentity.json() as { id: number; full_name: string };
+assert.equal(repository.id, snapshot.postcondition.repository_id);
+assert.equal(
+  repository.full_name.toLowerCase(),
+  snapshot.postcondition.repository_full_name.toLowerCase(),
+);
+
 const attemptedAuthorityRewrite = await github(
-  `/repos/${snapshot.postcondition.repository_full_name}/git/refs/${stateRefApi}`,
+  `/repos/${repository.full_name}/git/refs/${stateRefApi}`,
   {
     method: 'PATCH',
     body: JSON.stringify({ sha: sourceSha, force: true }),
@@ -65,13 +74,13 @@ const attemptedAuthorityRewrite = await github(
 );
 assert.equal(attemptedAuthorityRewrite.ok, false, 'worker token unexpectedly rewrote project authority');
 
-const authoritativeRef = await github(`/repos/${snapshot.postcondition.repository_full_name}/git/ref/${stateRefApi}`);
+const authoritativeRef = await github(`/repos/${repository.full_name}/git/ref/${stateRefApi}`);
 if (!authoritativeRef.ok) throw new Error(`authority read failed: ${authoritativeRef.status}`);
 const authoritative = await authoritativeRef.json() as { object: { sha: string } };
 assert.equal(authoritative.object.sha, snapshot.revision, 'sandbox tampering escaped into Git authority');
 
 const attemptedStatus = await github(
-  `/repos/${snapshot.postcondition.repository_full_name}/statuses/${snapshot.postcondition.commit_sha}`,
+  `/repos/${repository.full_name}/statuses/${snapshot.postcondition.commit_sha}`,
   {
     method: 'POST',
     body: JSON.stringify({
