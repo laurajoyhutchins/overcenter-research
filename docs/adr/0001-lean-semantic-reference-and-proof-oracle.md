@@ -153,8 +153,10 @@ The first oracle checks:
   TypeScript graph validity with Lean graph validity;
 - unknown-dependency hostile cases;
 - all 1,024 DAGs compatible with a five-node topological labeling, every
-  target/competitor effect pair, and both obligation-list directions, comparing
-  current TypeScript static-effect ordering with the Lean reference.
+  target/competitor effect pair, three normalized effect scenarios
+  (conflicting same resource, commuting same desired state, and distinct
+  resources), and both obligation-list directions, comparing current TypeScript
+  static-effect ordering with the Lean reference.
 
 A green oracle check establishes bounded semantic agreement. It does not prove
 the production implementation correct for every possible input, and it does not
