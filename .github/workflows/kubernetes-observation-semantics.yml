@@ -6,11 +6,21 @@ on:
     branches:
       - experiment/kubernetes-observation-semantics
       - experiment/provider-certificate-reuse
+      - experiment/kubernetes-core-verifier
     paths:
       - .github/workflows/kubernetes-observation-semantics.yml
       - experiments/kubernetes-observation/**
       - experiments/provider-observation/**
+      - src/provider-observation/**
+      - src/providers/kubernetes-configmap.ts
+      - src/model.ts
+      - src/observation.ts
+      - src/semantics.ts
+      - src/projection.ts
+      - src/git-kernel.ts
+      - test/kubernetes-core-verifier.test.ts
       - research/kubernetes-observation-semantics.md
+      - research/kubernetes-core-verifier.md
       - research/provider-observation-reuse.md
       - package.json
   pull_request:
@@ -20,7 +30,16 @@ on:
       - .github/workflows/kubernetes-observation-semantics.yml
       - experiments/kubernetes-observation/**
       - experiments/provider-observation/**
+      - src/provider-observation/**
+      - src/providers/kubernetes-configmap.ts
+      - src/model.ts
+      - src/observation.ts
+      - src/semantics.ts
+      - src/projection.ts
+      - src/git-kernel.ts
+      - test/kubernetes-core-verifier.test.ts
       - research/kubernetes-observation-semantics.md
+      - research/kubernetes-core-verifier.md
       - research/provider-observation-reuse.md
       - package.json
 
@@ -47,6 +66,8 @@ jobs:
         run: npm run test:provider-observation
       - name: Kubernetes observation experiment
         run: npm run test:kubernetes-observation
+      - name: Kubernetes core verifier adversaries
+        run: npm run test:kubernetes-core
 
   live-provider:
     name: Live Kubernetes provider proof
@@ -78,3 +99,5 @@ jobs:
           kubectl version
       - name: Run live Kubernetes observation proof
         run: node --experimental-strip-types experiments/kubernetes-observation/live-proof.ts
+      - name: Run live Kubernetes core settlement proof
+        run: node --experimental-strip-types experiments/kubernetes-observation/live-core-proof.ts
