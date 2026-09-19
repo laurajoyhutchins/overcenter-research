@@ -62,5 +62,5 @@ console.log(JSON.stringify({
   unordered:unordered.map(work=>({id:work.id,status:work.status})),
   ordered:ordered.map(work=>({id:work.id,status:work.status,run_id:work.run_id})),
   provider_now:latest.state,
-  authority:kernel.head(),
+  authority:kernel.authorityRevision(),
 }));
