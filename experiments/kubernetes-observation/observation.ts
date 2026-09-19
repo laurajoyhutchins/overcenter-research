@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ProviderObservation } from '../provider-observation/observation.ts';
+import type { ProviderObservation } from '../../src/provider-observation/observation.ts';
 
 export interface ObservationOperation {
   provider: 'kubernetes';
