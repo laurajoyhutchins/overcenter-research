@@ -118,6 +118,56 @@ def classifyKubernetesList
         .absent
   | _ => .indeterminate
 
+def validKubernetesWatchEvent
+    (namespaceName : String)
+    (event : KubernetesWatchEvent) : Bool :=
+  validKubernetesMember namespaceName event.member
+
+def kubernetesTargetAbsentAfterWatch
+    (targetName : String) :
+    List KubernetesWatchEvent → Bool → Bool
+  | [], absent => absent
+  | event :: rest, absent =>
+      if event.member.name != targetName then
+        kubernetesTargetAbsentAfterWatch targetName rest absent
+      else
+        match event.eventType with
+        | .added => kubernetesTargetAbsentAfterWatch targetName rest false
+        | .modified => kubernetesTargetAbsentAfterWatch targetName rest false
+        | .deleted => kubernetesTargetAbsentAfterWatch targetName rest true
+
+def kubernetesWatchLastResourceVersion
+    (startResourceVersion : String) :
+    List KubernetesWatchEvent → String
+  | [] => startResourceVersion
+  | event :: rest =>
+      kubernetesWatchLastResourceVersion event.member.resourceVersion rest
+
+def carryKubernetesAbsenceThroughWatchRaw
+    (coordinate : Coordinate)
+    (snapshotResourceVersion : String)
+    (pages : List KubernetesListPage)
+    (watch : KubernetesWatchTranscript) : Option String :=
+  match coordinate with
+  | .kubernetesConfigMap authorityId namespaceName targetName =>
+      if classifyKubernetesList coordinate snapshotResourceVersion pages != .absent then
+        none
+      else if watch.authorityId != authorityId then
+        none
+      else if watch.requestNamespace != namespaceName then
+        none
+      else if watch.startResourceVersion != snapshotResourceVersion then
+        none
+      else if watch.termination == .gone || watch.termination == .error then
+        none
+      else if !watch.events.all (validKubernetesWatchEvent namespaceName) then
+        none
+      else if !kubernetesTargetAbsentAfterWatch targetName watch.events true then
+        none
+      else
+        some (kubernetesWatchLastResourceVersion snapshotResourceVersion watch.events)
+  | _ => none
+
 def kubernetesAbsenceAuthoritative (coordinate : Coordinate) (evidence : AbsenceEvidence) : Bool :=
   match coordinate, evidence with
   | .kubernetesConfigMap authorityId namespaceName targetName,
