@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 )
 
@@ -28,7 +29,7 @@ type TaskCredential struct {
 }
 
 type Runtime struct {
-	workspaceRoot  string
+	workspaceRoot  *os.File
 	maxConcurrency int
 	taskCredential *TaskCredential
 }
@@ -41,7 +42,7 @@ func NewRuntime(
 	if maxConcurrency <= 0 {
 		return nil, errors.New("max concurrency must be positive")
 	}
-	root, err := validateWorkspaceRoot(workspaceRoot)
+	root, err := openWorkspaceRoot(workspaceRoot)
 	if err != nil {
 		return nil, err
 	}
