@@ -96,7 +96,6 @@ export interface Receipt extends ReceiptFact {
 
 export interface RunRecord extends Run {
   obligation:Obligation;
-  definition_commit:string;
 }
 
 export interface FactCommit {
