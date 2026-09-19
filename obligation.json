@@ -1,0 +1,38 @@
+{
+  "schema": "overcenter-git-obligation-v3",
+  "kind": "defined",
+  "obligation": {
+    "id": "provider-capability-confinement-35465478724-1",
+    "dependencies": [],
+    "packet": {
+      "kind": "provider-capability-confinement/v1",
+      "executor": {
+        "provider": "github-actions/v1",
+        "repository_id": 1354872053,
+        "workflow_run_id": "35465478724",
+        "workflow_run_attempt": "1",
+        "job": "hostile-worker"
+      },
+      "exact_input": {
+        "kind": "git-commit/v1",
+        "repository_id": 1354872053,
+        "commit_sha": "f3608805ff653cb978fc337ef8b8cebb2d82ee4b"
+      },
+      "effect": {
+        "kind": "github-commit-status/v1",
+        "repository_id": 1354872053,
+        "commit_sha": "f3608805ff653cb978fc337ef8b8cebb2d82ee4b",
+        "context": "overcenter/capability-confinement/35465478724/1",
+        "state": "success"
+      }
+    },
+    "postcondition": {
+      "verifier": "github-commit-status/v1",
+      "provider": "github",
+      "repository_id": 1354872053,
+      "commit_sha": "f3608805ff653cb978fc337ef8b8cebb2d82ee4b",
+      "context": "overcenter/capability-confinement/35465478724/1",
+      "expected_state": "success"
+    }
+  }
+}
