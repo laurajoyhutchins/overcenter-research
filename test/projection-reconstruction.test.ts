@@ -15,7 +15,11 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
   const cache=f.path('materialized');
   const world=f.path('provider-state.txt');
 
-  const canonicalProjection=()=>`${JSON.stringify(f.kernel.inspect(),null,2)}\n`;
+  const canonicalProjection=()=>{
+    const work=f.kernel.inspect();
+    const explanations=work.map(item=>f.kernel.explain(item.id));
+    return `${JSON.stringify({work,explanations},null,2)}\n`;
+  };
 
   const assertFactOnlyAuthority=()=>{
     for (const commit of f.git(['rev-list',STATE_REF]).split(/\n+/).filter(Boolean)) {
@@ -26,7 +30,9 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
   const assertReconstructs=(expected:Array<[string,string]>)=>{
     const before=canonicalProjection();
     assert.deepEqual(
-      JSON.parse(before).map((work:{id:string;status:string})=>[work.id,work.status]),
+      (JSON.parse(before) as {
+        work:Array<{id:string;status:string}>;
+      }).work.map(work=>[work.id,work.status]),
       expected,
     );
 
@@ -39,7 +45,11 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
     assert.equal(existsSync(cache),false);
 
     const fresh=f.freshKernel();
-    const reconstructed=`${JSON.stringify(fresh.kernel.inspect(),null,2)}\n`;
+    const freshWork=fresh.kernel.inspect();
+    const reconstructed=`${JSON.stringify({
+      work:freshWork,
+      explanations:freshWork.map(item=>fresh.kernel.explain(item.id)),
+    },null,2)}\n`;
     assert.equal(reconstructed,before);
     assert.equal(sha256(reconstructed),digest);
   };
