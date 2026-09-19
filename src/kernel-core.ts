@@ -398,6 +398,11 @@ export class KernelCore {
       : history.receipts;
   }
 
+  hasUnresolvedEffect(runId:string):boolean {
+    const head=this.#requireHead();
+    return this.#historicalProjection(head).history.unresolvedReservationsByRun.has(runId);
+  }
+
   #requireHead():string {
     const head=this.head();
     if (!head) throw new Error('NOT_INITIALIZED');
