@@ -23,7 +23,7 @@ export class GitFactStore {
     this.#git(['rev-parse','--git-dir']);
   }
 
-  head():string|null {
+  refRevision():string|null {
     if (!this.remote) {
       const result=this.#git(['rev-parse','-q','--verify',this.ref],{allowFailure:true});
       return result.ok ? result.stdout.trim() : null;
