@@ -37,6 +37,7 @@ OVERCENTER_EXECUTOR_IMAGE="$image" \
   node --experimental-strip-types --test test/computation-container.test.ts
 
 docker rm -f "$name" >/dev/null 2>&1 || true
+chmod 0777 "$work"
 docker run -d \
   --name "$name" \
   --network=none \
