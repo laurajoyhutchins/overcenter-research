@@ -114,20 +114,33 @@ export function emptyState():State {
 }
 
 export function validateDependencies(dependencies:Dependency[]):void {
+  const seen=new Set<string>();
   for (const edge of dependencies) {
     if (!edge || typeof edge.upstream!=='string' || edge.upstream.length===0) {
       throw new Error('INVALID_DEPENDENCY');
     }
-    if (edge.kind==='control') continue;
-    if (
-      edge.kind!=='semantic'
-      || !edge.consumes
-      || !['output','evidence'].includes(edge.consumes.kind)
-      || typeof edge.consumes.selector!=='string'
-      || edge.consumes.selector.length===0
-    ) {
-      throw new Error('INVALID_DEPENDENCY');
+    let identity:string;
+    if (edge.kind==='control') {
+      identity=JSON.stringify(['control',edge.upstream]);
+    } else {
+      if (
+        edge.kind!=='semantic'
+        || !edge.consumes
+        || !['output','evidence'].includes(edge.consumes.kind)
+        || typeof edge.consumes.selector!=='string'
+        || edge.consumes.selector.length===0
+      ) {
+        throw new Error('INVALID_DEPENDENCY');
+      }
+      identity=JSON.stringify([
+        'semantic',
+        edge.upstream,
+        edge.consumes.kind,
+        edge.consumes.selector,
+      ]);
     }
+    if (seen.has(identity)) throw new Error('DUPLICATE_DEPENDENCY');
+    seen.add(identity);
   }
 }
 

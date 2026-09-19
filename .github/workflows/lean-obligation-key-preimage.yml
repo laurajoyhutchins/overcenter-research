@@ -1,0 +1,89 @@
+name: Lean obligation key preimage
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - experiments/lean-kernel/**
+      - experiments/semantic-kernel-language-comparison/OBLIGATION_KEY_PREIMAGE.md
+      - experiments/semantic-kernel-language-comparison/obligation-key-preimage-differential.test.ts
+      - src/digest.ts
+      - src/lifecycle.ts
+      - src/model.ts
+      - .github/workflows/lean-obligation-key-preimage.yml
+  push:
+    branches:
+      - experiment/lean-obligation-key-preimage
+    paths:
+      - experiments/lean-kernel/**
+      - experiments/semantic-kernel-language-comparison/OBLIGATION_KEY_PREIMAGE.md
+      - experiments/semantic-kernel-language-comparison/obligation-key-preimage-differential.test.ts
+      - src/digest.ts
+      - src/lifecycle.ts
+      - src/model.ts
+      - .github/workflows/lean-obligation-key-preimage.yml
+
+permissions:
+  contents: read
+
+jobs:
+  preimage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert exact source revision
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Build Lean proof library
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          lake-package-directory: experiments/lean-kernel
+          auto-config: false
+          build: true
+          test: false
+          lint: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          leanchecker: false
+
+      - name: Build obligation key preimage executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterObligationKeyPreimage
+
+      - name: Execute proof-bearing key preimage kernel
+        run: ./experiments/lean-kernel/.lake/build/bin/overcenterObligationKeyPreimage
+
+      - name: Differential obligation key proof
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/obligation-key-preimage-differential.test.ts
+
+      - name: Build parent semantic identity executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterSemanticIdentity
+
+      - name: Parent semantic identity differential
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/semantic-identity-differential.test.ts
+
+      - name: Build parent claim admission executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterClaimAdmission
+
+      - name: Parent claim admission differential
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/claim-admission-differential.test.ts

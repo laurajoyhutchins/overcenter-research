@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { State } from '../src/facts.ts';
+import { validateDependencies, type State } from '../src/facts.ts';
 import {
   dependencyUpstreams,
   dependsOn,
@@ -57,4 +57,20 @@ test('static graph validation rejects unknown dependencies and cycles',()=>{
     definition_commits:{a:'a-def',b:'b-def'},
   };
   assert.throws(()=>validateGraph(cycle),/DEPENDENCY_CYCLE/);
+});
+
+
+test('dependency validation rejects exact duplicates but permits distinct selectors on one upstream',()=>{
+  assert.throws(
+    ()=>validateDependencies([
+      {kind:'semantic',upstream:'a',consumes:{kind:'output',selector:'verified-content'}},
+      {kind:'semantic',upstream:'a',consumes:{kind:'output',selector:'verified-content'}},
+    ]),
+    /DUPLICATE_DEPENDENCY/,
+  );
+
+  assert.doesNotThrow(()=>validateDependencies([
+    {kind:'semantic',upstream:'a',consumes:{kind:'output',selector:'verified-content'}},
+    {kind:'semantic',upstream:'a',consumes:{kind:'evidence',selector:'settlement-receipt'}},
+  ]));
 });

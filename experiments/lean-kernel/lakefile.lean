@@ -15,3 +15,6 @@ lean_exe overcenterClaimAdmission where
 
 lean_exe overcenterSemanticIdentity where
   root := `SemanticIdentityMain
+
+lean_exe overcenterObligationKeyPreimage where
+  root := `KeyPreimageMain

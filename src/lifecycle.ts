@@ -8,7 +8,7 @@ import type {
   Receipt,
   State,
 } from './facts.ts';
-import { canonicalDigest } from './digest.ts';
+import { canonicalDigest, canonicalStringCompare } from './digest.ts';
 import { verifiedContentIdentity } from './semantics.ts';
 
 export type RealizationStatus =
@@ -73,7 +73,7 @@ export function obligationKey(
       identity,
     });
   }
-  consumed.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  consumed.sort((a,b)=>canonicalStringCompare(JSON.stringify(a),JSON.stringify(b)));
 
   return canonicalDigest({
     id:work.id,
