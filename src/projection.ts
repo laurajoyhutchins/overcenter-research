@@ -67,7 +67,7 @@ export function projectReceipt(
       disposition=verified
         ? 'DONE'
         : fact.observed.mutation_certainty==='absent'
-          ? 'READY'
+          ? 'ABSENT'
           : 'RECOVERY_REQUIRED';
     } else {
       verified=observationVerified(work.postcondition,fact.observed);
@@ -80,7 +80,7 @@ export function projectReceipt(
         ? 'DONE'
         : absenceEvidence
           && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind)
-          ? 'READY'
+          ? 'ABSENT'
           : 'RECOVERY_REQUIRED';
     }
   } else {
@@ -282,13 +282,13 @@ export function replayProjection(commits:FactCommit[]):Projection {
       throw new Error('OBSERVATION_WHILE_NOT_RESOLVABLE');
     }
     const previous=receiptsByRun.get(run.id);
-    if (previous && ['DONE','READY'].includes(previous.disposition)) {
+    if (previous && ['DONE','ABSENT'].includes(previous.disposition)) {
       throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
     }
 
     const receipt=projectReceipt(fact,run.obligation,record.commit);
     receiptsByRun.set(run.id,receipt);
-    if (receipt.disposition==='DONE' || receipt.disposition==='READY') {
+    if (receipt.disposition==='DONE' || receipt.disposition==='ABSENT') {
       unresolvedReservationsByRun.delete(run.id);
     }
     receipts.push(receipt);
