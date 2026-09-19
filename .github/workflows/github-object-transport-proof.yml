@@ -13,7 +13,7 @@ on:
         type: string
 
 concurrency:
-  group: github-object-transport-proof-${{ github.event.pull_request.number || github.ref }}
+  group: github-object-transport-proof-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 env:
