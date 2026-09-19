@@ -3,6 +3,7 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 import { canonicalDigest } from '../../src/digest.ts';
 import { bindTaskSession } from '../../src/effect-broker.ts';
+import { githubCommitStatusEffectAuthority } from '../../src/provider-effect.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -69,9 +70,7 @@ kernel.define({
     context,
     expected_state: 'success',
   },
-  effect_authority:{
-    contract:'github-commit-status/set-from-postcondition/v1',
-  },
+  effect_authority:githubCommitStatusEffectAuthority(),
   result_acceptance:{
     verifier:'canonical-json-sha256/v1',
     expected_sha256:canonicalDigest(expectedResult),
