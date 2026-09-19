@@ -3,7 +3,7 @@
 ## Question
 
 Can a meaningful slice of Overcenter's current project projection be expressed as
-pure relational derivation over durable facts plus current semantic identity,
+pure relational derivation over durable history plus recomputed semantic judgments,
 rather than as stored lifecycle state?
 
 This experiment is intentionally narrower than the TypeScript reference
@@ -33,7 +33,11 @@ append-only durable history             |
   definition(definition_id, ordinal)    |
   dependency(definition_id, upstream)   |
   run(key, ordinal)                     |
-  receipt(disposition, ordinal)         |
+  receipt(kind, ordinal)                |
+        |                               |
+semantic judgments                      |
+  current_semantic_key                  |
+  observation_judgment                  |
         |                               |
         +---------------+---------------+
                         |
@@ -77,8 +81,9 @@ as a replacement for the transaction kernel or semantic verifier.
 
 ## Inputs
 
-Durable history inputs are append-only. One additional input represents
-current semantic meaning derived by the semantic layer.
+Durable history inputs are append-only. Two recomputed inputs carry semantic
+judgments owned outside Datalog: current obligation identity and the meaning of
+an observation receipt. Neither is stored lifecycle state.
 
 ### `definition(obligation, definition_id, ordinal)`
 
@@ -96,10 +101,11 @@ definition participate in the current graph.
 Historical executions keyed by the exact semantic obligation identity they
 attempted to realize.
 
-### `receipt(run_id, disposition, ordinal)`
+### `receipt(run_id, kind, ordinal)`
 
-Settlement history for a run. The greatest receipt ordinal is the current
-receipt for that run.
+Durable receipt history for a run. This carries the stored receipt kind only:
+`observation`, `judgment-required`, or `execution-terminated`. **Disposition is
+not an input.** The greatest receipt ordinal is the current receipt for that run.
 
 ### `current_semantic_key(obligation, semantic_key)`
 
@@ -107,6 +113,14 @@ Current semantic identity produced by the existing deterministic semantic
 layer. This relation is intentionally **not** append-only historical state.
 It is recomputed from current obligation meaning, including selected upstream
 realization identities.
+
+### `observation_judgment(run_id, receipt_ordinal, verified, accepted_absence)`
+
+A recomputed semantic judgment over one durable observation receipt. Provider
+and verifier code owns whether the exact postcondition is verified and whether
+negative evidence is authoritative and accepted by policy. Datalog maps those
+facts to settlement disposition. A missing or contradictory judgment fails
+closed.
 
 The ordinal is a flattened stand-in for the total order already supplied by
 authoritative Git history in the reference mechanism. The experiment does not
@@ -119,6 +133,8 @@ The program derives:
 - the current definition for every obligation;
 - current dependency edges;
 - transitive dependency closure;
+- the settlement disposition of each receipt from receipt kind plus normalized
+  observation judgment;
 - the latest receipt for every run;
 - historical runs whose semantic key still matches current meaning;
 - producer-independent exact-key `DONE` reuse;
@@ -136,7 +152,9 @@ reusable.
 
 `projection.test.ts` flattens bounded histories into Soufflé facts and compares
 the resulting project status against the existing TypeScript
-`deriveLifecycles() + projectWork()` implementation.
+`projectReceipt() + deriveLifecycles() + projectWork()` implementation. The
+fixtures provide raw receipt kinds and concrete observation evidence; they do
+not provide the expected disposition to Soufflé.
 
 The hostile fixtures cover:
 
@@ -148,8 +166,11 @@ The hostile fixtures cover:
 5. an unsettled matching run remaining `EXECUTING`;
 6. `WAITING` and `RECOVERY_REQUIRED` lifecycle recovery;
 7. authoritative absence returning work to `READY`;
-8. append-only receipt history where later `DONE` supersedes an earlier
-   recovery receipt.
+8. uncertain observation remaining `RECOVERY_REQUIRED`;
+9. append-only receipt history where later verified evidence supersedes an
+   earlier recovery receipt;
+10. missing semantic judgment, contradictory identity, and impossible
+    run-after-`DONE` history all failing closed.
 
 The same-definition identity-change case is the important negative control:
 
@@ -194,8 +215,9 @@ release package and runs the differential test.
 A green run supports a bounded implementation claim:
 
 > For the modeled lifecycle and dependency slice, current project status can be
-> recomputed declaratively from durable facts plus current semantic identity,
-> and agrees with the TypeScript reference mechanism on the tested hostile
+> recomputed declaratively from durable history plus normalized semantic
+> judgments, without accepting lifecycle or disposition as input, and agrees
+> with the TypeScript reference mechanism on the tested hostile
 > histories.
 
 It does **not** prove the Datalog rules complete for all Overcenter semantics,
