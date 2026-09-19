@@ -40,7 +40,12 @@ const errorMessage=(e:unknown)=>e instanceof Error ? e.message : String(e);
 function readLocalFile(path:string,context:ObservationContext):string {
   if (!context.localFileRoot) return readFileSync(path,'utf8');
 
-  const root=realpathSync(context.localFileRoot);
+  let root:string;
+  try {
+    root=realpathSync(context.localFileRoot);
+  } catch {
+    throw new Error('LOCAL_FILE_CONFINEMENT_ROOT_UNAVAILABLE');
+  }
   const target=resolve(path);
   if (dirname(target)!==root) {
     throw new Error('LOCAL_FILE_OUTSIDE_CONFINED_ROOT');
