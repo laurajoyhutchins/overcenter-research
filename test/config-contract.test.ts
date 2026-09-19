@@ -182,7 +182,7 @@ test('production launchers do not restate containment policy literals',()=>{
     '--network=none',
     '--read-only',
     '--cap-drop=ALL',
-    '--pids-limit=64',
+    '--pids-limit=128',
     '--task-uid=65532',
     '--task-gid=65532',
   ];
