@@ -168,7 +168,9 @@ func serveUnixSocket(
 	if err != nil {
 		return err
 	}
+	oldUmask := syscall.Umask(0o117)
 	listener, err := net.ListenUnix("unix", address)
+	syscall.Umask(oldUmask)
 	if err != nil {
 		return err
 	}
