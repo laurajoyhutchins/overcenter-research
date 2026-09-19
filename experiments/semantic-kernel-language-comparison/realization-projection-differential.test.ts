@@ -249,9 +249,9 @@ test('Lean realization projection agrees with corrected TypeScript control on ho
   const postcondition=filePostcondition();
   const cases:Array<{name:string;input:ProjectionRequest;expected:ProjectionResult}>=[
     {
-      name:'producer-independent fresh realization',
+      name:'bare fresh observation is not a key-bound realization',
       input:{postcondition,currentKey:'key-a',runs:[],freshObservation:present()},
-      expected:{lifecycle:'DONE',sourceRunId:null},
+      expected:{lifecycle:'UNREALIZED',sourceRunId:null},
     },
     {
       name:'mutable historical DONE without fresh evidence',
@@ -354,9 +354,9 @@ test('Lean realization projection agrees with corrected TypeScript control on ho
       expected:{lifecycle:'DONE',sourceRunId:'run-new'},
     },
     {
-      name:'stale producer can be replaced by producer-independent current truth',
+      name:'fresh output cannot launder a stale semantic key',
       input:{postcondition,currentKey:'key-b',runs:[done('run-old','key-a')],freshObservation:present()},
-      expected:{lifecycle:'DONE',sourceRunId:null},
+      expected:{lifecycle:'UNREALIZED',sourceRunId:null},
     },
     {
       name:'uncertainty with no known prior realization remains unrealized',
@@ -508,7 +508,7 @@ const semanticReceipt=(upstream:string):Dependency=>({
   consumes:{kind:'evidence',selector:'settlement-receipt'},
 });
 
-test('producer-independent DONE feeds verified-content identity but cannot invent a settlement receipt',()=>{
+test('key-bound runless DONE can feed verified-content identity but cannot invent a settlement receipt',()=>{
   const upstream:Obligation={
     id:'upstream',
     dependencies:[],
