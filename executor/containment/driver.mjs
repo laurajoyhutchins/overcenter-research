@@ -36,7 +36,7 @@ const command={
 
 const executor=spawn(
   '/usr/local/bin/overcenter-executor',
-  ['--workspace-root='+workspace,'--concurrency=1'],
+  ['--stdio','--workspace-root='+workspace,'--concurrency=1'],
   {stdio:['pipe','ignore','inherit'],env:{}},
 );
 executor.stdin.write(JSON.stringify(command)+'\n');
