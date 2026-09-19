@@ -7,6 +7,7 @@ Start with:
 1. [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — canonical cross-note architecture and glossary.
 2. [`claims.md`](./claims.md) — separates safety, liveness, provenance, and reuse claims.
 3. [`durable-execution-comparison.md`](./durable-execution-comparison.md) — Temporal, Restate, DBOS, AWS, and the boundary between durable replay and authoritative project truth.
+4. [`../docs/adr/README.md`](../docs/adr/README.md) — accepted architecture decisions derived from experiments and research.
 
 Then use the detailed notes for the specific invariant they contribute:
 

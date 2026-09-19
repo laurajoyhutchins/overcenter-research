@@ -1,7 +1,4 @@
-import type {
-  Dependency,
-  Obligation,
-} from './model.ts';
+import type { Obligation } from './model.ts';
 import type {
   Receipt,
   State,
@@ -9,10 +6,14 @@ import type {
 import type { Lifecycle } from './projector.ts';
 import { canonicalDigest } from './digest.ts';
 import { verifiedContentIdentity } from './semantics.ts';
+import {
+  semanticDependencySelection,
+  type SemanticDependency,
+} from './semantic-dependency.ts';
 
 function semanticDependencyIdentity(
   state:State,
-  edge:Extract<Dependency,{kind:'semantic'}>,
+  edge:SemanticDependency,
   lifecycles:Map<string,Lifecycle>,
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
@@ -21,20 +22,18 @@ function semanticDependencyIdentity(
   const lifecycle=lifecycles.get(edge.upstream);
   if (lifecycle?.status!=='DONE' || !lifecycle.run) return null;
 
-  if (edge.consumes.kind==='output' && edge.consumes.selector==='verified-content') {
+  const selection=semanticDependencySelection(edge);
+  if (selection==='verified-content') {
     const identity=verifiedContentIdentity(upstream.postcondition);
     if (identity) return identity;
+    throw new Error(
+      `UNAVAILABLE_SEMANTIC_OUTPUT:${edge.upstream}:verified-content`,
+    );
   }
 
-  if (edge.consumes.kind==='evidence' && edge.consumes.selector==='settlement-receipt') {
-    const receipt=receiptsByRun.get(lifecycle.run.id);
-    if (receipt?.disposition!=='DONE' || !receipt.settlement_commit) return null;
-    return `settlement:${receipt.settlement_commit}`;
-  }
-
-  throw new Error(
-    `UNSUPPORTED_SEMANTIC_SELECTOR:${edge.consumes.kind}:${edge.consumes.selector}`,
-  );
+  const receipt=receiptsByRun.get(lifecycle.run.id);
+  if (receipt?.disposition!=='DONE' || !receipt.settlement_commit) return null;
+  return `settlement:${receipt.settlement_commit}`;
 }
 
 export function obligationKey(
@@ -44,10 +43,10 @@ export function obligationKey(
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
   const semantic=work.dependencies
-    .filter((edge):edge is Extract<Dependency,{kind:'semantic'}>=>edge.kind==='semantic');
+    .filter((edge):edge is SemanticDependency=>edge.kind==='semantic');
 
   const consumed:Array<{
-    consumes:Extract<Dependency,{kind:'semantic'}>['consumes'];
+    consumes:SemanticDependency['consumes'];
     identity:string;
   }>=[];
   for (const edge of semantic) {

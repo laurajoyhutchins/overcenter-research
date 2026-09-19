@@ -2,7 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { runCoreLoop } from '../src/kernel-core.ts';
 
 const root = mkdtempSync(join(tmpdir(), 'overcenter-git-demo-'));
 const repo = join(root, 'state.git');
@@ -28,7 +29,7 @@ kernel.define({
 console.log('state ref before:', kernel.head());
 console.log('before:', kernel.inspect().map(({ id, status }) => ({ id, status })));
 
-const result = await runGitCoreLoop(kernel, {
+const result = await runCoreLoop(kernel, {
   effect: async packet => {
     writeFileSync(String(packet.path), String(packet.content));
     return { kind: 'ok' };
