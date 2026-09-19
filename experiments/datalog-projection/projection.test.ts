@@ -241,15 +241,26 @@ function typescriptProjection(scenario:Scenario):Map<string,WorkStatus> {
   }
 
   const inadmissible=new Set(scenario.inadmissibleRealizationRuns??[]);
-  const admissible=new Set(
-    [...runs.keys()].filter(runId=>!inadmissible.has(runId)),
+  const currentRealizationJudgments=new Map(
+    [...runs.keys()].map(runId=>[
+      runId,
+      inadmissible.has(runId)
+        ? {
+            state:'rejected' as const,
+            reason:'CURRENT_POSTCONDITION_NOT_VERIFIED' as const,
+          }
+        : {
+            state:'admissible' as const,
+            reason:'CURRENT_POSTCONDITION_VERIFIED' as const,
+          },
+    ]),
   );
   const project=deriveProjectProjection({
     state,
     runs,
     receiptsByRun:receipts,
     revision:'current-revision',
-    admissibleRealizationRuns:admissible,
+    currentRealizationJudgments,
   });
   return new Map(project.work.map(work=>[work.id,work.status]));
 }
