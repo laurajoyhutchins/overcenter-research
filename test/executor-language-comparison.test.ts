@@ -191,6 +191,32 @@ test('TypeScript alternative independently enforces bounded concurrency',async()
   assert.equal(peak,4);
 });
 
+test('TypeScript rejects duplicate execution identity without running it twice',async()=>{
+  const first=envelope(90,{result:'once'});
+  const calls:{count:number}={count:0};
+  const runner:TypeScriptRunner=async()=>{
+    calls.count+=1;
+    await new Promise(resolve=>setTimeout(resolve,10));
+    return Buffer.from('once');
+  };
+  async function* source() {
+    yield first;
+    yield structuredClone(first);
+  }
+  await assert.rejects(async()=>{
+    for await (const _item of executeTypeScriptStream(
+      new AbortController().signal,
+      source(),
+      2,
+      runner,
+    )) {
+      // Duplicate validation must terminate the stream before a second run.
+    }
+  },/duplicate execution identity/);
+  await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(calls.count,1);
+});
+
 test('both reject a forged spec digest before starting a child',async()=>{
   const pidFiles=[join(scratch,'forged-go.pid'),join(scratch,'forged-ts.pid')];
   const goWork=[envelope(100,{fixture,mode:'complete',result:'no',pid_file:pidFiles[0]},{
@@ -207,6 +233,28 @@ test('both reject a forged spec digest before starting a child',async()=>{
   assert.notEqual(ts.code,0);
   assert.equal(existsSync(pidFiles[0]),false,'Go started forged work');
   assert.equal(existsSync(pidFiles[1]),false,'TypeScript started forged work');
+});
+
+test('both escalate to SIGKILL when process trees ignore SIGTERM',async()=>{
+  const goPidFiles=Array.from({length:2},(_,index)=>join(scratch,`go-ignore-term-${index}.pid`));
+  const tsPidFiles=Array.from({length:2},(_,index)=>join(scratch,`ts-ignore-term-${index}.pid`));
+  const goWork=goPidFiles.map((pidFile,index)=>envelope(400+index,{
+    fixture,mode:'grandchild-ignore-term',pid_file:pidFile,
+  }));
+  const tsWork=tsPidFiles.map((pidFile,index)=>envelope(500+index,{
+    fixture,mode:'grandchild-ignore-term',pid_file:pidFile,
+  }));
+
+  const [go,ts]=await Promise.all([
+    run(goSupervised,['--concurrency=2','--timeout=800ms'],goWork),
+    run(process.execPath,tsArgs({concurrency:2,timeoutMillis:800}),tsWork),
+  ]);
+  assert.equal(go.code,0,go.stderr);
+  assert.equal(ts.code,0,ts.stderr);
+  assert.ok(parseEvidence(go.stdout).every(item=>item.outcome==='cancelled'));
+  assert.ok(parseEvidence(ts.stdout).every(item=>item.outcome==='cancelled'));
+  await assertPidsDie(goPidFiles);
+  await assertPidsDie(tsPidFiles);
 });
 
 test('both cancel process groups without orphaning grandchildren',async()=>{
