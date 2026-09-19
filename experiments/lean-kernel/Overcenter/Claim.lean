@@ -248,7 +248,7 @@ def claimDependenciesDone
 
 def validCapabilityDigest (digest : String) : Bool :=
   digest.length == 64 &&
-  digest.data.all (fun char => "0123456789abcdef".contains char)
+  digest.toList.all (fun char => "0123456789abcdef".contains char)
 
 def admitClaim
     (currentRevision : String)
