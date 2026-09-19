@@ -334,7 +334,7 @@ private def claimDependsOnIndexed
     targetId
     (obligationCount + 1)
 
-def claimUnorderedEffectConflict (ctx : ClaimContext) : Bool :=
+def claimUnorderedEffectConflictReference (ctx : ClaimContext) : Bool :=
   match findClaimObligation ctx.obligations ctx.targetId with
   | none => true
   | some target =>
@@ -361,6 +361,91 @@ def claimUnorderedEffectConflict (ctx : ClaimContext) : Bool :=
                       ctx.obligations.length
                       other.id
                       target.id))
+
+private def claimDescendantsFromOrder
+    (obligationIndex : Std.HashMap String ClaimObligation)
+    (targetId : String) :
+    List String →
+    Std.HashSet String →
+    Std.HashSet String
+  | [], descendants => descendants
+  | id :: rest, descendants =>
+      let related :=
+        id == targetId ||
+        match obligationIndex[id]? with
+        | none => false
+        | some obligation =>
+            obligation.dependencies.any (fun dependency =>
+              descendants.contains dependency.upstream)
+      let descendants :=
+        if related then
+          descendants.insert id
+        else
+          descendants
+      claimDescendantsFromOrder
+        obligationIndex
+        targetId
+        rest
+        descendants
+
+private def claimAncestorsFromReverseOrder
+    (dependents : Std.HashMap String (List String))
+    (targetId : String) :
+    List String →
+    Std.HashSet String →
+    Std.HashSet String
+  | [], ancestors => ancestors
+  | id :: rest, ancestors =>
+      let related :=
+        id == targetId ||
+        ((dependents[id]?).getD []).any (fun dependent =>
+          ancestors.contains dependent)
+      let ancestors :=
+        if related then
+          ancestors.insert id
+        else
+          ancestors
+      claimAncestorsFromReverseOrder
+        dependents
+        targetId
+        rest
+        ancestors
+
+def claimUnorderedEffectConflict (ctx : ClaimContext) : Bool :=
+  match findClaimObligation ctx.obligations ctx.targetId with
+  | none => true
+  | some target =>
+      match target.effect with
+      | none => false
+      | some targetEffect =>
+          match claimGraphTopologicalOrder? ctx with
+          | none => true
+          | some order =>
+              let obligationIndex :=
+                claimObligationIndex ctx.obligations
+              let dependents := claimDependentsIndex ctx
+              let descendants :=
+                claimDescendantsFromOrder
+                  obligationIndex
+                  target.id
+                  order
+                  (claimStringSet [])
+              let ancestors :=
+                claimAncestorsFromReverseOrder
+                  dependents
+                  target.id
+                  order.reverse
+                  (claimStringSet [])
+              ctx.obligations.any (fun other =>
+                if other.id == target.id then
+                  false
+                else
+                  match other.effect with
+                  | none => false
+                  | some otherEffect =>
+                      claimEffectsConflict targetEffect otherEffect &&
+                      !(ancestors.contains other.id ||
+                        descendants.contains other.id))
 
 def claimAdmissible (ctx : ClaimContext) : Bool :=
   claimContextWellFormed ctx &&
