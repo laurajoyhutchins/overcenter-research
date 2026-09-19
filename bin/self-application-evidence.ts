@@ -62,7 +62,7 @@ if (checkedOutSha!==sourceSha) {
   );
 }
 
-const scratch=mkdtempSync(join(tmpdir(),'overcenter-self-self-application-'));
+const scratch=mkdtempSync(join(tmpdir(),'overcenter-self-application-'));
 const workspace=join(scratch,'workspace');
 const attestations=join(scratch,'authority-attestations');
 const control=join(scratch,'control');
@@ -94,7 +94,7 @@ mkdirSync(control,{recursive:true});
 chmodSync(control,0o750);
 
 let sequence=0;
-const label=`overcenter.self-self-application=${process.pid}`;
+const label=`overcenter.self-application=${process.pid}`;
 const npmCli='/usr/local/lib/node_modules/npm/bin/npm-cli.js';
 
 function docker(args:string[]):string {
@@ -144,7 +144,7 @@ interface ExecutorHarness {
 async function startExecutor():Promise<ExecutorHarness> {
   const id=sequence++;
   const socketPath=join(control,`executor-${id}.sock`);
-  const container=`overcenter-self-self-application-${process.pid}-${id}`;
+  const container=`overcenter-self-application-${process.pid}-${id}`;
   const containmentId=`overcenter-self-application-${randomUUID()}`;
   const contextSha256=executionContextSha256();
   const gid=process.getgid?.();
@@ -342,11 +342,11 @@ try {
         status:work.status,
         explanation:kernel.explain(work.id),
       }));
-      throw new Error(`self-self-application stalled: ${JSON.stringify(details)}`);
+      throw new Error(`self-application stalled: ${JSON.stringify(details)}`);
     }
     if (attempted.has(ready.id)) {
       throw new Error(
-        `self-self-application task remained READY after one exact attempt: ${JSON.stringify(kernel.explain(ready.id))}`,
+        `self-application task remained READY after one exact attempt: ${JSON.stringify(kernel.explain(ready.id))}`,
       );
     }
     attempted.add(ready.id);
@@ -362,7 +362,7 @@ try {
       attestingExecutor(executor.client,marker,content),
     );
     if (!result || result.work_id!==ready.id) {
-      throw new Error('self-self-application scheduler/executor disagreement');
+      throw new Error('self-application scheduler/executor disagreement');
     }
 
     process.stdout.write(JSON.stringify({
@@ -402,7 +402,7 @@ try {
         containment:executor.diagnostics(),
       })+'\n');
       throw new Error(
-        `self-self-application evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
+        `self-application evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
       );
     }
   }
@@ -433,7 +433,7 @@ try {
   assert.ok(receipts.every(receipt=>receipt.disposition==='DONE' && receipt.verified));
 
   const report={
-    schema:'overcenter-self-self-application-v1',
+    schema:'overcenter-self-application-v1',
     source_sha:sourceSha,
     authority_head:authorityHead,
     work:reconstructedWork,
