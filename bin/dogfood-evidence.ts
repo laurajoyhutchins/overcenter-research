@@ -14,11 +14,14 @@ import {fileURLToPath} from 'node:url';
 
 import {
   PROCESS_SPEC_SCHEMA,
+  assertComputationEvidenceFor,
+  type ComputationExecutionV1,
   type ProcessSpecV1,
 } from '../src/computation-execution.ts';
 import {
   TEST_COMPUTATION_PACKET_SCHEMA,
   runReadyTestComputation,
+  type ComputationExecutor,
 } from '../src/computation-runner.ts';
 import {GitOvercenterKernel} from '../src/git-kernel.ts';
 import {GoExecutorClient} from '../src/go-executor-client.ts';
@@ -43,10 +46,12 @@ const reportPath=option('--report');
 
 const scratch=mkdtempSync(join(tmpdir(),'overcenter-self-dogfood-'));
 const workspace=join(scratch,'workspace');
+const attestations=join(scratch,'authority-attestations');
 const control=join(scratch,'control');
 const stateRepo=join(scratch,'state.git');
 mkdirSync(workspace,{recursive:true});
 chmodSync(workspace,0o777);
+mkdirSync(attestations,{recursive:true});
 mkdirSync(control,{recursive:true});
 chmodSync(control,0o750);
 execFileSync('git',['init','--bare',stateRepo],{stdio:'ignore'});
@@ -68,7 +73,6 @@ function processSpec(
       '/dogfood-task.mjs',
       tier,
       sourceSha,
-      `/workspace/${tier}.passed`,
     ],
     cwd:'.',
     env:{},
@@ -157,6 +161,25 @@ async function startExecutor():Promise<ExecutorHarness> {
   };
 }
 
+function attestingExecutor(
+  client:GoExecutorClient,
+  marker:string,
+  content:string,
+):ComputationExecutor {
+  return {
+    execute:async(execution:ComputationExecutionV1)=>{
+      const evidence=await client.execute(execution);
+      assertComputationEvidenceFor(evidence,execution);
+      if (evidence.outcome==='completed' && evidence.exit_code===0) {
+        // This path is intentionally outside every task/container mount. The
+        // task cannot manufacture the postcondition that settles itself.
+        writeFileSync(marker,content);
+      }
+      return evidence;
+    },
+  };
+}
+
 function assertNoEffectReservations():void {
   const output=execFileSync(
     'git',
@@ -189,10 +212,13 @@ function summarize(kernel:GitOvercenterKernel) {
   }));
 }
 
+const regressionMarker=join(attestations,'regression.passed');
+const regressionContent=`passed:regression:${sourceSha}\n`;
+const localMarker=join(attestations,'local.passed');
+const localContent=`passed:local:${sourceSha}\n`;
+
 const kernel=new GitOvercenterKernel(stateRepo);
 kernel.initialize();
-
-const regressionMarker=join(workspace,'regression.passed');
 kernel.define({
   id:'self-regression',
   packet:{
@@ -203,11 +229,9 @@ kernel.define({
   postcondition:{
     verifier:'file-content-equals/v1',
     path:regressionMarker,
-    content:`passed:regression:${sourceSha}\n`,
+    content:regressionContent,
   },
 });
-
-const localMarker=join(workspace,'local.passed');
 kernel.define({
   id:'self-local-proof',
   dependencies:[{kind:'control',upstream:'self-regression'}],
@@ -219,7 +243,7 @@ kernel.define({
   postcondition:{
     verifier:'file-content-equals/v1',
     path:localMarker,
-    content:`passed:local:${sourceSha}\n`,
+    content:localContent,
   },
 });
 
@@ -248,7 +272,16 @@ try {
     }
     attempted.add(ready.id);
 
-    const result=await runReadyTestComputation(kernel,executor.client);
+    const [marker,content]=ready.id==='self-regression'
+      ? [regressionMarker,regressionContent]
+      : ready.id==='self-local-proof'
+        ? [localMarker,localContent]
+        : (()=>{throw new Error(`unexpected dogfood obligation: ${ready.id}`);})();
+
+    const result=await runReadyTestComputation(
+      kernel,
+      attestingExecutor(executor.client,marker,content),
+    );
     if (!result || result.work_id!==ready.id) {
       throw new Error('self-dogfood scheduler/executor disagreement');
     }
@@ -304,6 +337,7 @@ try {
     work:reconstructedWork,
     receipts,
     reconstructed:true,
+    authority_attestations_outside_task_workspace:true,
     external_effect_reservations:0,
   };
   const serialized=JSON.stringify(report,null,2)+'\n';
