@@ -9,7 +9,7 @@ import {
   type GithubJsonGet,
 } from '../src/providers/github-certified-status.ts';
 import { projectReceipt } from '../src/projection.ts';
-import { effectSemantics, verifiedContentIdentity } from '../src/semantics.ts';
+import { effectConflictSemantics, verifiedRealizationIdentity } from '../src/semantics.ts';
 
 const COMMIT='a'.repeat(40);
 
@@ -90,8 +90,8 @@ test('repository full name is a locator, not GitHub status effect identity', () 
   const before=postcondition('overcenter/proof','acme/widget');
   const after=postcondition('overcenter/proof','renamed-acme/renamed-widget');
 
-  assert.equal(verifiedContentIdentity(before),verifiedContentIdentity(after));
-  assert.deepEqual(effectSemantics(before),effectSemantics(after));
+  assert.equal(verifiedRealizationIdentity(before),verifiedRealizationIdentity(after));
+  assert.deepEqual(effectConflictSemantics(before),effectConflictSemantics(after));
 });
 
 test('certified repository identity and status membership preserve positive settlement evidence', () => {
