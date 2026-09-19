@@ -118,6 +118,11 @@ private def nodeIndexAux
 def nodeIndex? (nodeIds : List String) (needle : String) : Option Nat :=
   nodeIndexAux needle nodeIds 0
 
+def nodeAt? : List String → Nat → Option String
+  | [], _ => none
+  | head :: _, 0 => some head
+  | _ :: tail, index + 1 => nodeAt? tail index
+
 def tensorEntryFor
     (nodeIds : List String)
     (edge : GraphViewEdge) : Option GraphTensorEntry := do
@@ -134,8 +139,8 @@ def tensorEntryFor
 def tensorEntryAligned
     (projection : GraphTensorProjection)
     (entry : GraphTensorEntry) : Bool :=
-  projection.nodeIds.get? entry.sourceIndex == some entry.sourceId &&
-  projection.nodeIds.get? entry.targetIndex == some entry.targetId
+  nodeAt? projection.nodeIds entry.sourceIndex == some entry.sourceId &&
+  nodeAt? projection.nodeIds entry.targetIndex == some entry.targetId
 
 def tensorAligned (projection : GraphTensorProjection) : Bool :=
   projection.entries.all (tensorEntryAligned projection)
