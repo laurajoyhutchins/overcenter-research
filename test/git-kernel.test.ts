@@ -330,6 +330,31 @@ test('interrupted exact run reconciles to DONE without replay', () => {
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
+test('supervisor rotates execution authority before recovering a dead worker', () => {
+  const f = fixture();
+  try {
+    const path = f.path('supervisor-recovery');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'yes') });
+    const worker = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    writeFileSync(path, 'yes');
+
+    const supervisor = f.kernel.acquireExecution(worker.id);
+    assert.equal(supervisor.id, worker.id);
+    assert.equal(supervisor.execution_generation, worker.execution_generation + 1);
+    assert.throws(
+      () => f.kernel.recoverInterrupted(worker, { source: 'stale-worker' }),
+      /STALE_EXECUTION_GENERATION/,
+    );
+
+    const recovery = f.kernel.recoverInterrupted(supervisor, { source: 'supervisor' });
+    assert.equal(recovery.disposition, 'RECOVERY_REQUIRED');
+    const settled = f.kernel.reconcile(supervisor);
+    assert.equal(settled.disposition, 'DONE');
+    assert.equal(settled.verified, true);
+    assert.equal(f.kernel.inspect()[0].status, 'DONE');
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
 test('DONE resolution is idempotent after lost acknowledgement', () => {
   const f = fixture();
   try {
