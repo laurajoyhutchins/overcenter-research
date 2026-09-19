@@ -96,15 +96,25 @@ func waitAfterCancellation(command *exec.Cmd, wait <-chan error) error {
 
 	timer := time.NewTimer(terminationGrace)
 	defer timer.Stop()
+
+	var waitErr error
+	parentExited := false
 	select {
-	case err := <-wait:
-		return err
+	case waitErr = <-wait:
+		parentExited = true
+		// The parent exiting does not prove its process group is empty.
+		// Give descendants the same grace period before fencing the group.
+		<-timer.C
 	case <-timer.C:
-		if err := killProcessGroup(command.Process.Pid, syscall.SIGKILL); err != nil {
-			return err
-		}
-		return <-wait
 	}
+
+	if err := killProcessGroup(command.Process.Pid, syscall.SIGKILL); err != nil {
+		return err
+	}
+	if !parentExited {
+		waitErr = <-wait
+	}
+	return waitErr
 }
 
 func runProcess(ctx context.Context, workspaceRoot string, validated validatedExecution) ComputationAttemptEvidenceV1 {
