@@ -18,7 +18,7 @@
   (destructuring-bind (name type &rest roles) spec
     (unless roles (fail "FIELD_WITHOUT_ROLE" (symbol-name name)))
     (dolist (role roles)
-      (unless (member role '(coordinate desired output context))
+      (unless (member role '(:coordinate :desired :output :context))
         (fail "INVALID_FIELD_ROLE" (symbol-name role))))
     (unless (= (length roles) (length (remove-duplicates roles)))
       (fail "DUPLICATE_FIELD_ROLE" (symbol-name name)))
@@ -32,17 +32,17 @@
       (destructuring-bind (absence absence-kind) absence-form
         (destructuring-bind (settlement settlement-policy) settlement-form
           (destructuring-bind (verify op observed right) verify-form
-            (unless (and (eq fields 'fields)
-                         (eq observes 'observes)
-                         (eq absence 'absence)
-                         (eq settlement 'settlement)
-                         (eq verify 'verify))
+            (unless (and (eq fields :fields)
+                         (eq observes :observes)
+                         (eq absence :absence)
+                         (eq settlement :settlement)
+                         (eq verify :verify))
               (fail "INVALID_FORM_ORDER"))
             (let* ((specs (mapcar #'normalize-field raw-fields))
                    (names (mapcar #'first specs))
-                   (coordinates (semantic-fields specs 'coordinate))
-                   (desired (semantic-fields specs 'desired))
-                   (outputs (semantic-fields specs 'output))
+                   (coordinates (semantic-fields specs :coordinate))
+                   (desired (semantic-fields specs :desired))
+                   (outputs (semantic-fields specs :output))
                    (observations
                      (mapcar
                        (lambda (spec)
@@ -57,45 +57,45 @@
                 (fail "EXPECTED_ONE_DESIRED_FIELD"))
               (unless (= (length outputs) 1)
                 (fail "EXPECTED_ONE_OUTPUT_FIELD"))
-              (unless (and (eq op 'eq) (eq right 'desired))
+              (unless (and (eq op 'eq) (eq right :desired))
                 (fail "INVALID_VERIFY"))
               (unless (member observed observations)
                 (fail "UNKNOWN_VERIFY_OBSERVATION" (symbol-name observed)))
               (let ((absence-ir
-                      (unless (eq absence-kind 'none)
+                      (unless (eq absence-kind :none)
                         (list :evidence-kind absence-kind
                               :subject-fields coordinates
                               :scope-fields coordinates)))
                     (effect-ir
                       (cond
-                        ((equal effect-form '(effect none))
+                        ((equal effect-form '(:effect :none))
                          (list :kind 'none))
                         ((and (= (length effect-form) 4)
-                              (eq (first effect-form) 'effect)
-                              (eq (second effect-form) 'same-coordinate)
-                              (eq (third effect-form) 'commutes)
-                              (member (fourth effect-form) '(true false)))
-                         (list :kind 'same-coordinate
+                              (eq (first effect-form) :effect)
+                              (eq (second effect-form) :same-coordinate)
+                              (eq (third effect-form) :commutes)
+                              (member (fourth effect-form) '(t nil)))
+                         (list :kind :same-coordinate
                                :resource-fields coordinates
                                :desired-field (first desired)
                                :same-desired-commutes
-                                 (eq (fourth effect-form) 'true)))
+                                 (fourth effect-form)))
                         (t (fail "INVALID_EFFECT")))))
                 (unless (member settlement-policy
-                                '(present-only present-or-declared-absence))
+                                '(:present-only :present-or-declared-absence))
                   (fail "INVALID_SETTLEMENT_POLICY"))
-                (when (and absence-ir (eq settlement-policy 'present-only))
+                (when (and absence-ir (eq settlement-policy :present-only))
                   (fail "DECLARED_ABSENCE_UNUSED_BY_SETTLEMENT"))
                 (when (and (null absence-ir)
                            (eq settlement-policy
-                               'present-or-declared-absence))
+                               :present-or-declared-absence))
                   (fail "SETTLEMENT_REQUIRES_DECLARED_ABSENCE"))
                 (let ((ir
                         (list
                           :verifier name
                           :fields specs
                           :coordinate-fields coordinates
-                          :output (list :selector 'verified-content
+                          :output (list :selector :verified-content
                                         :field (first outputs))
                           :absence absence-ir
                           :effect effect-ir
