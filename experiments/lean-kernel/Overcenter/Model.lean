@@ -1,6 +1,7 @@
 namespace Overcenter
 
 inductive VerifierFamily where
+  | immutableArtifact
   | fileContent
   | eventuallyConsistentFileContent
   | githubCommitStatus
@@ -70,7 +71,6 @@ structure ObligationKey where
 
 structure HistoricalRealization where
   key : ObligationKey
-  stability : RealizationStability
   disposition : Disposition
   deriving Repr, BEq, DecidableEq
 
