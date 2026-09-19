@@ -222,3 +222,258 @@ settlement-receipt    -> still requires exact run + exact DONE receipt + commit
 ```
 
 The correction is frozen before challenger implementation.
+
+
+## Final result
+
+**Lean earns current realization projection.**
+
+Evaluated implementation head:
+
+`3ced4d0b6be709fbbbf75cecf9e792847337abb6`
+
+Exact-head evidence:
+
+- realization projection push run `35427385176`: **PASS**
+- realization projection PR run `35427387191`: same exact head, dedicated workflow
+- semantic identity `35427387184`: **PASS**
+- obligation-key preimage `35427387233`: **PASS**
+- claim admission `35427387222`: **PASS**
+- existing Lean semantic kernel `35427387185`: **PASS**
+- repository Evidence `35427387228`:
+  - fast deterministic regression: **PASS**
+  - adversarial local proofs: **PASS**
+  - TLA+ safety proof: **PASS**
+
+The dedicated projector workflow exercised:
+
+- proof compilation;
+- native projector execution;
+- corrected TypeScript differential;
+- producer-independent semantic identity;
+- parent semantic identity differential;
+- parent obligation-key preimage differential;
+- parent claim-admission differential.
+
+## What the experiment established
+
+### 1. Historical replay and current realization truth are different projections
+
+The existing runtime gap remains deliberately visible:
+
+```text
+historical DONE
+external mutable state drifts
+fresh GitOvercenterKernel reconstruction
+→ historical projection still says DONE
+```
+
+That is not the desired current-truth projection.
+
+The corrected architecture is:
+
+```text
+durable facts
+    ↓
+historical replay
+    ↓
+historical execution legality
+    +
+current semantic key
+    +
+fresh normalized observation
+    ↓
+current realization projection
+```
+
+Deleting materialized state is therefore expected to reconstruct the same **current** projection only when both durable history and current authoritative observations are the same.
+
+If external reality changes, current projection may and should change.
+
+### 2. Mutable DONE now has a machine-checked freshness invariant
+
+Lean proves generically:
+
+> If a mutable-external realization projects DONE, there exists a fresh observation and Lean's own settlement semantics classify that observation DONE.
+
+It also proves that a mutable realization with no fresh observation cannot project DONE.
+
+This closes the semantic hole demonstrated by `reuse-gap.test.ts` without treating failed reuse as permission to execute.
+
+For a matching historical mutable DONE:
+
+```text
+fresh verified       -> DONE
+fresh authoritative absence -> UNREALIZED
+fresh uncertain      -> RECOVERY_REQUIRED
+no fresh observation -> RECOVERY_REQUIRED
+```
+
+### 3. Current truth is producer-independent
+
+Fresh authoritative verification may establish:
+
+```text
+DONE
+source_run_id = null
+```
+
+even when no Overcenter run produced the state.
+
+That forced a useful correction in both semantic identity implementations:
+
+```text
+DONE + no run
+    │
+    ├── verified-content       -> may resolve
+    └── settlement-receipt     -> unresolved
+```
+
+A producer run is provenance, not a prerequisite for observable realization truth.
+
+This is the missing bridge from worker-independent execution to producer-independent realization reuse: the satisfying producer may be an agent, a human, an earlier run, or anything else capable of creating the exact verified state.
+
+### 4. Failed reuse is not automatically safe re-execution
+
+The experiment preserves an important asymmetry.
+
+For a known historical DONE realization:
+
+```text
+uncertain current readback
+        ↓
+RECOVERY_REQUIRED
+```
+
+For a never-realized obligation:
+
+```text
+uncertain/non-verifying current observation
+        ↓
+UNREALIZED
+```
+
+The latter remains executable under normal admission/effect policy.
+
+Without this distinction, providers whose collection APIs cannot prove negative evidence, such as the tested GitHub status semantics, could deadlock before their first mutation.
+
+### 5. Stale active execution cannot disappear
+
+A nonterminal execution remains safety-relevant even when:
+
+- the current semantic key changes; or
+- the current semantic key becomes unresolved.
+
+Those cases project RECOVERY_REQUIRED rather than UNREALIZED.
+
+That prevents semantic-key drift from erasing a possibly mutating execution attempt and accidentally admitting a second attempt.
+
+## State-model finding
+
+The existing operator word `RECOVERY_REQUIRED` remains usable, but the existing notion of a single associated `run` is not sufficient for current realization projection.
+
+The experiment therefore makes two identities explicit:
+
+```text
+source_run_id
+    provenance supporting the realization judgment
+
+execution_run_id
+    live execution authority, if one exists
+```
+
+For uncertain revalidation of a historical DONE:
+
+```text
+lifecycle        = RECOVERY_REQUIRED
+source_run_id    = old terminal run
+execution_run_id = null
+```
+
+For a stale active execution:
+
+```text
+lifecycle        = RECOVERY_REQUIRED
+source_run_id    = active run
+execution_run_id = active run
+```
+
+This distinction is material. A runtime adapter must never pass a terminal historical source run to execution-authority recovery merely because the operator status says RECOVERY_REQUIRED.
+
+So the lifecycle vocabulary does **not** need another top-level status, but production migration needs realization provenance and execution authority represented separately.
+
+## TypeScript null hypothesis
+
+A corrected TypeScript implementation can express the same projection rules and agrees with Lean on the frozen hostile suite.
+
+TypeScript therefore does not lose because the rules are impossible to implement there.
+
+Lean earns the boundary because:
+
+1. this is truth-deciding semantic composition contiguous with the already-earned settlement / identity / key / admission kernel;
+2. the key mutable-DONE freshness invariant is machine checked generically rather than represented only by cases;
+3. keeping this decision in TypeScript would leave two authorities for whether a realization is currently true;
+4. the Lean implementation consumes existing semantic decisions rather than growing provider-specific machinery.
+
+The appropriate production shape is one semantic authority, not permanent differential voting.
+
+## Earned semantic boundary after this experiment
+
+```text
+authenticated provider / durable facts
+                │
+                ▼
+TypeScript deterministic normalization
+  transport
+  schema / structural validation
+  provider-local evidence normalization
+                │
+                ▼
+Lean semantic core
+  provider evidence meaning already modeled
+  settlement
+  current realization projection
+  producer-independent realization truth
+  semantic identity
+  obligation-key preimage
+  claim admission
+  execution legality
+                │
+                ▼
+commodity / physical mechanisms
+  SHA-256
+  Git / GitHub / Kubernetes transport
+  credentials
+  CAS / commit mechanics
+  Go physical computation executor where earned
+```
+
+## Production consequence
+
+This experiment does **not** silently replace `replayProjection()` or `deriveLifecycles()`.
+
+A production migration should preserve historical replay for validating the durable event stream and add a current-realization layer consumed by:
+
+- inspect;
+- frontier derivation;
+- semantic identity;
+- claim admission.
+
+After migration, the old TypeScript truth-deciding duplicates should be deleted or retained only as differential tests. Running two production authorities indefinitely would weaken the result.
+
+## Interpretation
+
+This appears to be the natural inward boundary we were looking for.
+
+What remains outside Lean is now predominantly deterministic infrastructure or provider-owned normalization:
+
+- authenticated I/O;
+- structural schema validation;
+- provider request construction;
+- cryptographic primitives;
+- Git transport;
+- CAS;
+- credentials;
+- physical mutation and execution.
+
+Further migration into Lean should not proceed by momentum. It should require discovery of another concrete truth-deciding judgment outside this boundary and a new falsifiable experiment showing why that judgment belongs inside.
