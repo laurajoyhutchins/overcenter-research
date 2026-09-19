@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process';
 
+import { GITHUB_API_VERSION } from './github-contract.ts';
+
 export type GithubJsonGet=(token:string,path:string)=>unknown;
 
 export function githubStatusContextKey(context:string):string {
@@ -14,7 +16,7 @@ export function githubGet(token:string,path:string):unknown {
   const config=[
     `header = "Authorization: Bearer ${token}"`,
     'header = "Accept: application/vnd.github+json"',
-    'header = "X-GitHub-Api-Version: 2026-03-10"',
+    `header = "X-GitHub-Api-Version: ${GITHUB_API_VERSION}"`,
     '',
   ].join('\n');
   try {
