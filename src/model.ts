@@ -49,10 +49,21 @@ export type GitHubCommitStatusPostcondition =
   | GitHubCommitStatusPostconditionV1
   | GitHubCommitStatusPostconditionV2;
 
+export interface KubernetesConfigMapExistsPostcondition {
+  verifier: 'kubernetes-configmap-exists/v1';
+  provider: 'kubernetes';
+  authority_id: string;
+  api_group: '';
+  resource: 'configmaps';
+  namespace: string;
+  name: string;
+}
+
 export type Postcondition =
   | FileContentPostcondition
   | EventuallyConsistentFilePostcondition
-  | GitHubCommitStatusPostcondition;
+  | GitHubCommitStatusPostcondition
+  | KubernetesConfigMapExistsPostcondition;
 
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
@@ -61,7 +72,15 @@ export interface Observation extends Data {
   path?: string;
   expected_sha256?: string;
   actual_sha256?: string;
-  provider?: 'github';
+  provider?: 'github' | 'kubernetes';
+  authority_id?: string;
+  api_group?: string;
+  resource?: string;
+  namespace?: string;
+  name?: string;
+  observed_uid?: string;
+  observed_resource_version?: string;
+  snapshot_resource_version?: string;
   repository_id?: number;
   repository_full_name?: string;
   commit_sha?: string;
