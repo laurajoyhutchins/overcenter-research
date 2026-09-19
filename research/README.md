@@ -7,6 +7,7 @@ Start with:
 1. [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — canonical cross-note architecture and glossary.
 2. [`claims.md`](./claims.md) — separates safety, liveness, provenance, and reuse claims.
 3. [`durable-execution-comparison.md`](./durable-execution-comparison.md) — Temporal, Restate, DBOS, AWS, and the boundary between durable replay and authoritative project truth.
+4. [`../docs/adr/README.md`](../docs/adr/README.md) — accepted architecture decisions derived from experiments and research.
 
 Then use the detailed notes for the specific invariant they contribute:
 
@@ -24,7 +25,6 @@ Then use the detailed notes for the specific invariant they contribute:
 | [TLA+ formal kernel](./tla-formal-kernel.md) | What is the smallest state machine that captures authority, uncertainty, replay, verification, and settlement safety? |
 | [Transition attestations](./transition-attestations.md) | What evidence should survive after execution machinery is discarded? |
 | [Absence evidence certificates](./absence-evidence-certificates.md) | How should provider-specific negative evidence carry subject, scope, snapshot, completeness, and provenance without collapsing to a boolean? |
-| [Evidence-backed deduplication](./evidence-backed-deduplication.md) | When should parallel experimental implementations collapse to one production owner, and when is duplication still valuable evidence? |
 
 The synthesis is deliberately selective:
 
