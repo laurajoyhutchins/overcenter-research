@@ -105,11 +105,12 @@ def claimGraphReferencesKnown (ctx : ClaimContext) : Bool :=
     obligation.dependencies.all (fun dependency =>
       obligationIds.contains dependency.upstream))
 
-private def claimObligationIndexFromList
-    (obligations : List ClaimObligation) :
-    Std.HashMap String ClaimObligation :=
-  (Std.HashMap.emptyWithCapacity obligations.length).insertMany
-    (obligations.map (fun obligation => (obligation.id, obligation)))
+def claimObligationIndex :
+    List ClaimObligation →
+    Std.HashMap String ClaimObligation
+  | [] => Std.HashMap.emptyWithCapacity 0
+  | obligation :: rest =>
+      (claimObligationIndex rest).insert obligation.id obligation
 
 private def claimDependentsIndex (ctx : ClaimContext) :
     Std.HashMap String (List String) :=
@@ -210,19 +211,19 @@ def claimStringSet : List String → Std.HashSet String
   | value :: rest => (claimStringSet rest).insert value
 
 def claimTopologicalCertificateBuildValid
-    (ctx : ClaimContext) :
+    (obligationIndex : Std.HashMap String ClaimObligation) :
     Std.HashSet String →
     List String →
     Bool
   | _, [] => true
   | seen, id :: rest =>
-      match findClaimObligation ctx.obligations id with
+      match obligationIndex[id]? with
       | none => false
       | some obligation =>
           obligation.dependencies.all (fun dependency =>
             seen.contains dependency.upstream) &&
           claimTopologicalCertificateBuildValid
-            ctx
+            obligationIndex
             (seen.insert id)
             rest
 
@@ -230,10 +231,11 @@ def claimTopologicalCertificateValid
     (ctx : ClaimContext)
     (order : List String) : Bool :=
   let orderIds := claimStringSet order
+  let obligationIndex := claimObligationIndex ctx.obligations
   ctx.obligations.all (fun obligation =>
     orderIds.contains obligation.id) &&
   claimTopologicalCertificateBuildValid
-    ctx
+    obligationIndex
     (claimStringSet [])
     order
 
@@ -323,7 +325,7 @@ def claimUnorderedEffectConflict (ctx : ClaimContext) : Bool :=
       | none => false
       | some targetEffect =>
           let obligationIndex :=
-            claimObligationIndexFromList ctx.obligations
+            claimObligationIndex ctx.obligations
           ctx.obligations.any (fun other =>
             if other.id == target.id then
               false
