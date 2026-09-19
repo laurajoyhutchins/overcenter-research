@@ -22,9 +22,11 @@ interface PendingExecution {
 export interface GoExecutorClientOptions {
   socketPath:string;
   maxConcurrency:number;
+  executionContextSha256?:string;
 }
 
 export class GoExecutorClient {
+  readonly executionContextSha256?:string;
   readonly #socket:Socket;
   readonly #maxConcurrency:number;
   readonly #pending=new Map<string,PendingExecution>();
@@ -38,6 +40,7 @@ export class GoExecutorClient {
   constructor({
     socketPath,
     maxConcurrency,
+    executionContextSha256,
   }:GoExecutorClientOptions) {
     if (!socketPath.startsWith('/')) {
       throw new Error('GO_EXECUTOR_SOCKET_MUST_BE_ABSOLUTE');
@@ -45,6 +48,13 @@ export class GoExecutorClient {
     if (!Number.isSafeInteger(maxConcurrency) || maxConcurrency<=0) {
       throw new Error('GO_EXECUTOR_CONCURRENCY_INVALID');
     }
+    if (
+      executionContextSha256!==undefined
+      && !/^sha256:[0-9a-f]{64}$/.test(executionContextSha256)
+    ) {
+      throw new Error('GO_EXECUTOR_EXECUTION_CONTEXT_INVALID');
+    }
+    this.executionContextSha256=executionContextSha256;
     this.#maxConcurrency=maxConcurrency;
     this.#socket=createConnection({path:socketPath});
 
