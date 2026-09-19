@@ -1,0 +1,10 @@
+{
+  "schema": "overcenter-git-realization-v1",
+  "run_id": "b8f61709-57fa-4e4e-970d-1fe3d516e3f5",
+  "obligation_id": "provider-capability-confinement-35431966606-1",
+  "claimed_revision": "9e2520d144b5a297724ce2e60666b39106d0ffa4",
+  "execution_generation": 1,
+  "execution_authority_commit": "660bc8421091f0dc50509bf238d2dfe19584fe65",
+  "verifier": "canonical-json-sha256/v1",
+  "result_digest": "63321439ffc008d6e3c744568cdb8a5458ff8d1de71e08458faea527d54116c5"
+}
