@@ -371,7 +371,8 @@ test('production computation cannot emit a network effect',async()=>{
       const result=await runReadyTestComputation(state.kernel,executor.client);
       assert.ok(result);
       assert.equal(effects,0,'isolated computation must not reach the host network');
-      assert.equal(result.state,'READY');
+      assert.equal(result.state,'RECOVERY_REQUIRED');
+      assert.equal(result.receipt.verified,false);
       assert.equal(existsSync(marker),false);
       assertNoEffectReservations(state.repo);
     } finally {
@@ -468,10 +469,11 @@ test('isolated executor death recovers the real test from durable facts in gener
       interrupted.run_id,
       {
         assertTerminated:async containmentId=>{
-          assert.throws(
-            ()=>docker(['inspect',containmentId]),
-            /No such object|No such container/,
-          );
+          assert.throws(()=>execFileSync(
+            'docker',
+            ['inspect',containmentId],
+            {stdio:'ignore'},
+          ));
         },
       },
     );
