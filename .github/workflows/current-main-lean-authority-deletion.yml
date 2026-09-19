@@ -1,0 +1,70 @@
+name: Current-main Lean authority deletion
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/current-main-lean-authority-deletion
+    paths:
+      - experiments/current-main-lean-authority-deletion/**
+      - .github/workflows/current-main-lean-authority-deletion.yml
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact current-main experiment
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Assert exact experiment source
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Checkout pinned Lean reference
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: laurajoyhutchins/overcenter-research
+          ref: 0c5db60f2dc14af93f554fd9f870181261ce5f11
+          path: lean-reference
+
+      - name: Assert pinned Lean reference
+        working-directory: lean-reference
+        run: >-
+          test "$(git rev-parse HEAD)" =
+          "0c5db60f2dc14af93f554fd9f870181261ce5f11"
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install Lean toolchain
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          lake-package-directory: lean-reference/experiments/lean-kernel
+          auto-config: false
+          build: true
+          test: false
+          lint: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          leanchecker: false
+
+      - name: Build pinned Lean executables
+        working-directory: lean-reference/experiments/lean-kernel
+        run: lake build overcenterClaimAdmission overcenterClaimAdmissionServer
+
+      - name: Run authority-deletion replay experiment
+        env:
+          LEAN_ONE_SHOT_BIN: ./lean-reference/experiments/lean-kernel/.lake/build/bin/overcenterClaimAdmission
+          LEAN_PERSISTENT_BIN: ./lean-reference/experiments/lean-kernel/.lake/build/bin/overcenterClaimAdmissionServer
+        run: >-
+          node --experimental-strip-types
+          experiments/current-main-lean-authority-deletion/benchmark.ts
