@@ -121,3 +121,29 @@ A poor calibration result is evidence against the formula or the callable-level 
 ## First live-run lesson
 
 The initial live run is intentionally allowed to falsify the model. In particular, calibration should not be forced to 100% by weight-tuning when one human judgment names a branch-level semantic claim that the callable-level population cannot represent. A monotone ranking cannot repair missing dimensions or the wrong unit boundary; those disagreements are evidence for the next experiment.
+
+
+## Mutation probe
+
+The callable ranking deliberately does not treat ordinary reachability as proof that hostile cases are defended. A separate targeted mutation probe uses StrykerJS 10.0.0 against the semantic regions that either rank unexpectedly high or anchor the calibration corpus:
+
+- canonical digest construction;
+- semantic identity;
+- DONE-candidate realization reuse;
+- durable effect reservation;
+- settlement;
+- exact execution-permit fencing; and
+- verification / authoritative-absence predicates.
+
+This is an independent validation layer, not another ranking coefficient. It mutates expressions and branches inside those regions and runs the ordinary unit suite against every generated mutant. The result is reported per semantic region as killed, survived, uncovered, timeout/error, and mutation score.
+
+A surviving mutant is useful evidence that the current `E` proxy overstates protection. A fully killed region is evidence that reachable tests actually distinguish at least the mutation operators Stryker generated there. Neither outcome changes the criticality score automatically; the purpose of this pass is to determine whether mutation evidence is stable enough to replace the v1 binary support proxy.
+
+Run it with:
+
+```sh
+npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0
+node --test experiments/production-criticality-ranking/summarize-mutation.test.mjs
+npx stryker run experiments/production-criticality-ranking/stryker.config.mjs
+node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-summary.md
+```

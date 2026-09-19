@@ -1,0 +1,52 @@
+name: Criticality mutation probe
+
+on:
+  pull_request:
+    paths:
+      - 'src/digest.ts'
+      - 'src/semantic-identity.ts'
+      - 'src/projector.ts'
+      - 'src/kernel-core.ts'
+      - 'src/observation.ts'
+      - 'experiments/production-criticality-ranking/**'
+      - '.github/workflows/production-criticality-mutation-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Install pinned mutation engine
+        run: npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0
+      - name: Prove mutation summarizer
+        run: node --test experiments/production-criticality-ranking/summarize-mutation.test.mjs
+      - name: Probe hostile mutations
+        run: npx stryker run experiments/production-criticality-ranking/stryker.config.mjs
+      - name: Summarize semantic regions
+        if: always()
+        run: |
+          if [[ -f mutation.json ]]; then
+            node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-summary.md
+          fi
+      - name: Show mutation summary
+        if: always()
+        run: cat mutation-summary.md || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-criticality-mutation-probe
+          path: |
+            mutation.json
+            mutation-summary.md
+          if-no-files-found: ignore
