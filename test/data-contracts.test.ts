@@ -209,6 +209,35 @@ test('durable authority contract preserves backend-neutral logical facts',()=>{
     RECEIPT_SCHEMA,
   ]);
   assert.equal(authorityContract.compatibility.receipt.write,RECEIPT_SCHEMA);
+
+  assert.equal(
+    authoritySchema.$defs.DefinedObligationFact.properties.schema.const,
+    OBLIGATION_SCHEMA,
+  );
+  assert.equal(
+    authoritySchema.$defs.AmendedObligationFact.properties.schema.const,
+    OBLIGATION_SCHEMA,
+  );
+  assert.equal(
+    authoritySchema.$defs.ClaimFact.properties.schema.const,
+    CLAIM_SCHEMA,
+  );
+  assert.equal(
+    authoritySchema.$defs.ExecutionAuthorityFact.properties.schema.const,
+    EXECUTION_AUTHORITY_SCHEMA,
+  );
+  assert.equal(
+    authoritySchema.$defs.EffectReservationFact.properties.schema.const,
+    EFFECT_RESERVATION_SCHEMA,
+  );
+  assert.equal(
+    authoritySchema.$defs.ReceiptFactV4.properties.schema.const,
+    LEGACY_RECEIPT_SCHEMA,
+  );
+  assert.equal(
+    authoritySchema.$defs.ReceiptFactV5.properties.schema.const,
+    RECEIPT_SCHEMA,
+  );
 });
 
 test('authority fact conformance corpus runs against the production envelope validators',()=>{
