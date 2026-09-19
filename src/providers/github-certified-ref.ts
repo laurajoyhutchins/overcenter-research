@@ -1,4 +1,3 @@
-import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
@@ -9,9 +8,9 @@ import { materializeGithubOperationRequest } from './github-openapi.ts';
 import { GITHUB_REF_RESPONSE_SLICE } from './github-semantics.ts';
 import {
   observeCertifiedGithubRepository,
-  rawGithubObserved200,
   type CertifiedGithubRepositoryEvidence,
 } from './github-certified-repository.ts';
+import { observeCertifiedGithubRead200 } from './github-certified-read.ts';
 import {
   githubGet,
   isGithubObjectId,
@@ -95,21 +94,15 @@ export function observeCertifiedGithubRefFence(
       repo,
       ref:requestedRef,
     });
-    const body=get(token,request.path);
-    const observedAt=clock();
-    const raw=rawGithubObserved200({
+    const {observed_at:observedAt,certified}=observeCertifiedGithubRead200({
+      token,
       operation:GITHUB_REF_OPERATION,
-      path:request.path,
-      parameters:request.parameters,
-      body,
-      observedAt,
+      request,
+      fields:GITHUB_REF_RESPONSE_SLICE,
+      get,
+      clock,
       observerId:'github-ref-fence/v1',
     });
-    const certified=validateObservationSlice(
-      GITHUB_REF_OPERATION,
-      raw,
-      GITHUB_REF_RESPONSE_SLICE,
-    );
     const value=certified.outcome.value as {
       ref:string;
       object:{type:string;sha:string};
