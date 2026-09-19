@@ -94,7 +94,9 @@ The safety claim is narrower: an uncertain or even locally hostile worker does n
 ## Repository map
 
 ```text
-src/          reusable reference mechanism
+src/          reusable reference mechanism and trusted executor client
+contracts/    versioned cross-language execution contracts
+executor/     Go physical computation executor
 test/         focused invariants of that mechanism
 experiments/  executable empirical and adversarial proofs
 formal/       machine-checked safety model and negative controls
@@ -118,6 +120,10 @@ Important entry points:
 - [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to current project projection.
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
+- [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
+- [`src/go-executor-client.ts`](./src/go-executor-client.ts) - Unix-socket client for an isolated physical executor.
+- [`contracts/computation-execution-v1/`](./contracts/computation-execution-v1/) - shared versioned wire contract and conformance corpus.
+- [`executor/`](./executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
 - [`formal/`](./formal/) - TLA+ transaction/recovery kernel.
 - [`research/README.md`](./research/README.md) - research map.
@@ -140,6 +146,8 @@ These are different evidence classes, not cumulative certification levels. A liv
 Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
+- Go at the version declared in [`executor/go.mod`](./executor/go.mod) for the physical computation executor;
+- Docker for the catastrophic executor-death containment proof;
 - Git;
 - Java 21 for the TLA+ model;
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
@@ -156,6 +164,7 @@ npm run test:concurrency
 npm run test:effect-order
 npm run test:github-observation
 npm run test:stress
+npm run test:computation-executor
 npm run demo:git
 ```
 
