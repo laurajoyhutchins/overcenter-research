@@ -14,6 +14,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
 - `provider-observation/` - provider-neutral observation provenance and structural-certificate engine shared by GitHub and Kubernetes experiments.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
+- `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 
@@ -197,6 +198,7 @@ The evidence classes are deliberately separate:
 npm test                              # fast deterministic regression only
 npm run proof:local                  # adversarial local experiments
 npm run test:kubernetes-observation # focused deterministic Kubernetes semantics
+npm run test:lisp-semantics             # focused semantic-coherence experiment
 ```
 
 Focused commands are listed in [`../README.md`](../README.md) and `package.json`.
