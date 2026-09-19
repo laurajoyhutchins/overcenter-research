@@ -30,13 +30,13 @@ interface GithubObservationResponse {
   request_id:string|null;
 }
 
-export type GithubRawObservation=ProviderObservation<
+type GithubRawObservation=ProviderObservation<
   'github',
   GithubObservationRequest,
   GithubObservationResponse
 >;
 
-export function rawGithubObserved200({
+function rawGithubObserved200({
   operation,
   path,
   parameters,
