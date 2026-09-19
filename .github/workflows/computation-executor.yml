@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - .github/workflows/computation-executor.yml
+      - .go-version
+      - .node-version
       - contracts/computation-execution-v1/**
       - executor/**
       - src/computation-execution.ts
@@ -16,15 +18,20 @@ on:
       - src/kernel.ts
       - src/sqlite-store.ts
       - src/go-executor-client.ts
+      - src/production-containment.ts
       - src/observation.ts
       - test/computation-executor.test.ts
       - test/computation-container.test.ts
+      - test/config-contract.test.ts
       - test/fixtures/computation-child.mjs
       - package.json
       - scripts/proof-production.sh
+      - bin/prove-computation-containment.ts
   pull_request:
     paths:
       - .github/workflows/computation-executor.yml
+      - .go-version
+      - .node-version
       - contracts/computation-execution-v1/**
       - executor/**
       - src/computation-execution.ts
@@ -34,8 +41,10 @@ on:
       - src/kernel.ts
       - src/sqlite-store.ts
       - src/go-executor-client.ts
+      - src/production-containment.ts
       - test/computation-executor.test.ts
       - test/computation-container.test.ts
+      - test/config-contract.test.ts
       - test/fixtures/computation-child.mjs
       - package.json
 
@@ -60,7 +69,7 @@ jobs:
           node-version-file: '.node-version'
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: executor/go.mod
+          go-version-file: '.go-version'
           cache: false
       - name: Production slice proof
         run: npm run proof:production
