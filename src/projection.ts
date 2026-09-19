@@ -1,4 +1,5 @@
 import type { Obligation } from './model.ts';
+import { sha256 } from './digest.ts';
 import {
   authoritativeAbsenceEvidence,
   observationVerified,
@@ -37,6 +38,7 @@ import {
 } from './lifecycle.ts';
 import type { Lifecycle } from './lifecycle.ts';
 import {
+  REALIZATION_ARTIFACT_PATH,
   validateVerifiedRealizationFact,
   type VerifiedRealizationFact,
 } from './realization.ts';
@@ -48,6 +50,7 @@ export interface HistoryProjection {
   unresolvedReservationsByRun:Map<string,EffectReservation>;
   receipts:Receipt[];
   realizations:VerifiedRealizationFact[];
+  realizationCommitsByIdentity:Map<string,string>;
 }
 
 export interface Projection {
@@ -109,6 +112,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
   const unresolvedReservationsByRun=new Map<string,EffectReservation>();
   const receipts:Receipt[]=[];
   const realizations:VerifiedRealizationFact[]=[];
+  const realizationCommitsByIdentity=new Map<string,string>();
 
   for (const record of commits) {
     if (record.obligation!=null) {
@@ -249,7 +253,17 @@ export function replayProjection(commits:FactCommit[]):Projection {
     if (record.realization!=null) {
       lifecycles=deriveLifecycles(state,runs,receiptsByRun,realizations);
       if (hasInFlight(lifecycles)) throw new Error('REALIZATION_WHILE_IN_FLIGHT');
-      realizations.push(validateVerifiedRealizationFact(record.realization));
+      const realization=validateVerifiedRealizationFact(record.realization);
+      if (record.realization_artifact==null) {
+        throw new Error(`REALIZATION_ARTIFACT_MISSING:${REALIZATION_ARTIFACT_PATH}`);
+      }
+      if (sha256(record.realization_artifact)!==realization.evidence.output_sha256) {
+        throw new Error('REALIZATION_ARTIFACT_DIGEST_MISMATCH');
+      }
+      realizations.push(realization);
+      if (!realizationCommitsByIdentity.has(realization.realization_identity)) {
+        realizationCommitsByIdentity.set(realization.realization_identity,record.commit);
+      }
       lifecycles=deriveLifecycles(state,runs,receiptsByRun,realizations);
     }
 
@@ -311,6 +325,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
   lifecycles=deriveLifecycles(state,runs,receiptsByRun,realizations);
   return {
     state,
-    history:{lifecycles,runs,receiptsByRun,unresolvedReservationsByRun,receipts,realizations},
+    history:{lifecycles,runs,receiptsByRun,unresolvedReservationsByRun,receipts,realizations,realizationCommitsByIdentity},
   };
 }

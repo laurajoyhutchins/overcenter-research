@@ -110,6 +110,7 @@ export interface FactCommit {
   effect_reservation?:unknown|null;
   receipt?:unknown|null;
   realization?:unknown|null;
+  realization_artifact?:string|null;
 }
 
 export function emptyState():State {

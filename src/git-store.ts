@@ -58,13 +58,25 @@ export class GitFactStore {
     return result.ok ? JSON.parse(result.stdout) : null;
   }
 
+  readText(commit:string,path:string):string|null {
+    const result=this.#git(['show',`${commit}:${path}`],{allowFailure:true});
+    return result.ok ? result.stdout : null;
+  }
+
   createCommit(
     parent:string|null,
     message:string,
     files:Record<string,unknown>={},
+    rawFiles:Record<string,string>={},
   ):string {
-    const entries=Object.entries(files)
-      .map(([name,value])=>[name,this.#blob(json(value))] as const)
+    const names=[...Object.keys(files),...Object.keys(rawFiles)];
+    if (new Set(names).size!==names.length) throw new Error('DUPLICATE_COMMIT_PATH');
+    const entries=[
+      ...Object.entries(files)
+        .map(([name,value])=>[name,this.#blob(json(value))] as const),
+      ...Object.entries(rawFiles)
+        .map(([name,value])=>[name,this.#blob(value)] as const),
+    ]
       .sort(([a],[b])=>a.localeCompare(b));
     const treeInput=entries
       .map(([name,sha])=>`100644 blob ${sha}\t${name}\n`)

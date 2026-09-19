@@ -2,6 +2,7 @@ import { canonicalDigest, sha256 } from './digest.ts';
 
 export const VERIFIED_REALIZATION_SCHEMA='overcenter-verified-realization-v1' as const;
 export const REALIZATION_KEY_SCHEMA='overcenter-realization-key-v1' as const;
+export const REALIZATION_ARTIFACT_PATH='realization.artifact' as const;
 
 export type ReuseMode='content-addressed'|'external-effect';
 

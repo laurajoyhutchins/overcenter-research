@@ -52,6 +52,7 @@ import {
 } from './projection.ts';
 import type { Projection } from './projection.ts';
 import {
+  REALIZATION_ARTIFACT_PATH,
   verifyRealizationCandidate,
   type RealizationCandidate,
   type VerifiedRealizationFact,
@@ -182,6 +183,7 @@ export class GitOvercenterKernel {
       head,
       `overcenter: realize ${id} ${fact.realization_identity}`,
       {'realization.json':fact},
+      {[REALIZATION_ARTIFACT_PATH]:candidate.content},
     );
     if (!this.#store.cas(commit,head)) throw new Error('REALIZATION_LOST');
     return {commit,fact};
@@ -442,6 +444,23 @@ export class GitOvercenterKernel {
       : history.receipts;
   }
 
+  materializeRealization(realizationIdentity:string):string {
+    if (!/^sha256:[0-9a-f]{64}$/.test(realizationIdentity)) {
+      throw new Error('INVALID_REALIZATION_IDENTITY');
+    }
+    const head=this.#requireHead();
+    const {history}=this.#projection(head);
+    const commit=history.realizationCommitsByIdentity.get(realizationIdentity);
+    if (!commit) throw new Error('REALIZATION_NOT_FOUND');
+    const content=this.#store.readText(commit,REALIZATION_ARTIFACT_PATH);
+    if (content==null) throw new Error('REALIZATION_ARTIFACT_MISSING');
+    const digest=createHash('sha256').update(content).digest('hex');
+    if (`sha256:${digest}`!==realizationIdentity) {
+      throw new Error('REALIZATION_ARTIFACT_DIGEST_MISMATCH');
+    }
+    return content;
+  }
+
   #requireHead():string {
     const head=this.head();
     if (!head) throw new Error('NOT_INITIALIZED');
@@ -458,6 +477,7 @@ export class GitOvercenterKernel {
       effect_reservation:this.#store.readJson(commit,'effect-reservation.json'),
       receipt:this.#store.readJson(commit,'receipt.json'),
       realization:this.#store.readJson(commit,'realization.json'),
+      realization_artifact:this.#store.readText(commit,REALIZATION_ARTIFACT_PATH),
     }));
     return replayProjection(commits);
   }
