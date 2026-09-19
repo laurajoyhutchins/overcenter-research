@@ -267,7 +267,7 @@ test('legacy receipt v4 preserves its historical absence projection',()=>{
     verifier:'file-content-equals/v1',
     mutation_certainty:'absent',
   };
-  assert.equal(projectReceipt(legacy,local).disposition,'READY');
+  assert.equal(projectReceipt(legacy,local).disposition,'ABSENT');
 });
 
 test('legacy v3 static-conflict history remains replayable but fail-closed',()=>{
