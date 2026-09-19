@@ -1,0 +1,494 @@
+{
+  "schema": "overcenter-experiment-registry/v1",
+  "standard": "Maintained experiments must be explainable and reproducible from repository state alone.",
+  "entries": [
+    {
+      "id": "bounded-graph-exhaustion",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/bounded-graph-exhaustion",
+      "readme": "experiments/bounded-graph-exhaustion/README.md",
+      "question": "Can small graph state spaces be exhausted instead of sampled?",
+      "claim": "Bounded graph/projection behavior agrees with independent reference relations.",
+      "contrast": "Hand-picked graph examples only.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:bounded-graph"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "conflicting-effect",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/conflicting-effect",
+      "readme": "experiments/conflicting-effect/README.md",
+      "question": "Must incompatible effects on one canonical provider coordinate be ordered?",
+      "claim": "Unordered incompatible GitHub status effects are rejected; explicitly ordered effects may settle sequentially.",
+      "contrast": "Allow provider last-write-wins races.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:effect-order"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "pending",
+        "evaluated_revision": null,
+        "artifacts": [
+          "Main run 35463403321 falsified the obsolete assertion that both mutable postconditions remain currently DONE."
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "current-realization-admissibility",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/current-realization-admissibility",
+      "readme": "experiments/current-realization-admissibility/README.md",
+      "question": "What should current truth say when historical DONE remains but external reality changes?",
+      "claim": "Fresh authority can preserve, withdraw, or make historical reuse indeterminate without lifecycle repair mutations.",
+      "contrast": "Treat historical DONE as permanently current.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:current-realization-admissibility"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "datalog-projection",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/datalog-projection",
+      "readme": "experiments/datalog-projection/README.md",
+      "question": "Can project status be derived relationally instead of stored?",
+      "claim": "Souffle derives the modeled projection from facts plus current judgments without lifecycle input.",
+      "contrast": "Authoritative mutable lifecycle rows.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:datalog"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403296"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "disposable-agent",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/disposable-agent",
+      "readme": "experiments/disposable-agent/README.md",
+      "question": "Can a fresh worker recover after the original worker disappears?",
+      "claim": "Exact durable authority is sufficient for fresh-worker reconstruction and settlement.",
+      "contrast": "Recovery from worker-local state.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:handoff"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403293"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "eventually-consistent-readback",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/eventually-consistent-readback",
+      "readme": "experiments/eventually-consistent-readback/README.md",
+      "question": "May stale or negative eventually-consistent readback authorize replay after uncertain mutation?",
+      "claim": "Non-authoritative negative or stale readback remains recovery-bound and cannot authorize blind replay.",
+      "contrast": "Treat any negative read as retry-safe.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:eventual"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "git-stress",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/git-stress",
+      "readme": "experiments/git-stress/README.md",
+      "question": "Do Git authority invariants survive lock, GC, clone, object-format, and CAS adversaries?",
+      "claim": "The tested Git reference backend fails closed and preserves single-winner authority.",
+      "contrast": "Happy-path/single-process testing only.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:stress"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "github-object-transport",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/github-object-transport",
+      "readme": "experiments/github-object-transport/README.md",
+      "question": "Can a worker receive exactly declared GitHub bytes without a checkout or repository credential?",
+      "claim": "Manifest-bound bytes plus permission-separated publication make task scope and result readback independently checkable.",
+      "contrast": "Give the worker a normal checkout and trust path discipline.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:github-object-transport"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "pending",
+        "evaluated_revision": null,
+        "artifacts": [
+          "Hosted workflow remains the permission-bound proof; this change adds experiment-owned deterministic contract code."
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "github-observation-grammar",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/github-observation-grammar",
+      "readme": "experiments/github-observation-grammar/README.md",
+      "question": "Can GitHub read semantics use a schema-derived observation grammar plus explicit semantic projections?",
+      "claim": "Pinned structural contracts plus semantic projections cover the tested GitHub readback shapes.",
+      "contrast": "Hand-wire endpoint response assumptions.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:github-observation"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403282"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "kubernetes-observation",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/kubernetes-observation",
+      "readme": "experiments/kubernetes-observation/README.md",
+      "question": "Does the observation/certificate architecture survive Kubernetes identity and continuity semantics?",
+      "claim": "The ConfigMap slice fits the generic certificate boundary with complete LIST and WATCH continuity.",
+      "contrast": "Assume provider generality from GitHub alone.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:kubernetes-observation"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "historical",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "Deterministic semantics on current main; live provider workflow is separately dispatchable."
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "lisp-semantics",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/lisp-semantics",
+      "readme": "experiments/lisp-semantics/README.md",
+      "question": "Can one declarative role definition reduce semantic projection drift?",
+      "claim": "One role declaration updates related projections together in the hostile evolution tested.",
+      "contrast": "Independent TypeScript projection functions.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:lisp-semantics"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "projection-bakeoff",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/projection-bakeoff",
+      "readme": "experiments/projection-bakeoff/README.md",
+      "question": "Does derived status beat authoritative mutable lifecycle on reconstruction and repair burden?",
+      "claim": "TypeScript, status-free SQL, and Datalog reconstruct without status repair; mutable lifecycle becomes stale and needs repair writes.",
+      "contrast": "Mutable SQLite lifecycle versus three derived implementations.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:projection-bakeoff"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "historical",
+        "evaluated_revision": "d1cb01b9a553513961029a92b652e2c43426c729",
+        "artifacts": [
+          "GitHub Actions run 35424249863"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "sqlite-baseline",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/sqlite-baseline",
+      "readme": "experiments/sqlite-baseline/README.md",
+      "question": "What is the smallest state machine that demonstrates the original recovery/settlement invariants?",
+      "claim": "The compact baseline demonstrates exact fencing, observation settlement, interruption recovery, and no blind replay.",
+      "contrast": "Start directly from later distributed machinery.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "node --test experiments/sqlite-baseline/kernel.test.js"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "storage-backend-bakeoff",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/storage-backend-bakeoff",
+      "readme": "experiments/storage-backend-bakeoff/README.md",
+      "question": "Does Git belong on the frequent durable-fact hot path?",
+      "claim": "SQLite preserves the tested immutable-history/CAS/crash-prefix properties without Git's per-fact write cost.",
+      "contrast": "Current Git path, batched Git replay, append-only SQLite.",
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run test:storage-backend-safety && npm run bench:storage-backends"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "historical",
+        "evaluated_revision": "7b5cac8e4ad67a093b63ad74e5fb1c84d89a679e",
+        "artifacts": [
+          "experiments/storage-backend-bakeoff/results/2026-09-19.md"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "two-effect-concurrency",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/two-effect-concurrency",
+      "readme": "experiments/two-effect-concurrency/README.md",
+      "question": "Does serialized project authority require globally serialized independent effects?",
+      "claim": "Independent effects may overlap and settle through one CAS authority while retaining exact claim identity.",
+      "contrast": "Global effect serialization.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:concurrency"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "See experiment README for additional material prerequisites."
+      ],
+      "success_criteria": [
+        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "artifacts": [
+          "GitHub Actions run 35463403309"
+        ]
+      },
+      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "non_claims": [
+        "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "provider-observation",
+      "kind": "support",
+      "status": "maintained",
+      "directory": "experiments/provider-observation",
+      "readme": "experiments/provider-observation/README.md",
+      "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
+    }
+  ]
+}
