@@ -66,15 +66,21 @@ function typedState(n:number,code:number):State {
   const dependencies=Array.from({length:n},()=>[] as Dependency[]);
   let remaining=code;
   for (const [downstream,upstream] of edgeSlots(n)) {
-    const trit=remaining%3;
-    remaining=Math.floor(remaining/3);
-    if (trit===1) {
+    const edgeKind=remaining%4;
+    remaining=Math.floor(remaining/4);
+    if (edgeKind===1) {
       dependencies[downstream].push({kind:'control',upstream:id(upstream)});
-    } else if (trit===2) {
+    } else if (edgeKind===2) {
       dependencies[downstream].push({
         kind:'semantic',
         upstream:id(upstream),
         consumes:{kind:'output',selector:'verified-content'},
+      });
+    } else if (edgeKind===3) {
+      dependencies[downstream].push({
+        kind:'semantic',
+        upstream:id(upstream),
+        consumes:{kind:'evidence',selector:'settlement-receipt'},
       });
     }
   }
@@ -283,6 +289,29 @@ function semanticDescendants(state:State,root:string):Set<string> {
   return lost;
 }
 
+function expectedDoneAfterSameOutputResettlement(
+  state:State,
+  n:number,
+  changed:number,
+):Set<string> {
+  const done=new Set<string>([id(changed)]);
+  for (let i=0;i<n;i++) {
+    if (i===changed) continue;
+    const semantic=state.obligations[id(i)].dependencies
+      .filter((edge):edge is Extract<Dependency,{kind:'semantic'}>=>
+        edge.kind==='semantic',
+      );
+    if (!semantic.every(edge=>done.has(edge.upstream))) continue;
+    const consumesNewSettlement=semantic.some(edge=>
+      edge.upstream===id(changed)
+      && edge.consumes.kind==='evidence'
+      && edge.consumes.selector==='settlement-receipt',
+    );
+    if (!consumesNewSettlement) done.add(id(i));
+  }
+  return done;
+}
+
 test('every ordered DAG through six nodes agrees with an independent reachability model',()=>{
   let graphs=0;
   for (let n=1;n<=6;n++) {
@@ -427,7 +456,7 @@ test('every typed DAG through four nodes invalidates exactly the semantic descen
   let typedGraphs=0;
   let mutations=0;
   for (let n=1;n<=4;n++) {
-    const graphCount=3**(n*(n-1)/2);
+    const graphCount=4**(n*(n-1)/2);
     for (let code=0;code<graphCount;code++) {
       const state=typedState(n,code);
       validateAdmission(state);
@@ -474,13 +503,13 @@ test('every typed DAG through four nodes invalidates exactly the semantic descen
       typedGraphs++;
     }
   }
-  assert.deepEqual({typedGraphs,mutations},{typedGraphs:760,mutations:3_004});
+  assert.deepEqual({typedGraphs,mutations},{typedGraphs:4_165,mutations:16_585});
 });
 
-test('same-output resettlement restores every historical semantic realization through four nodes',()=>{
+test('same-output resettlement preserves exactly the semantic identities that remain stable',()=>{
   let resumptions=0;
   for (let n=1;n<=4;n++) {
-    const graphCount=3**(n*(n-1)/2);
+    const graphCount=4**(n*(n-1)/2);
     for (let code=0;code<graphCount;code++) {
       const state=typedState(n,code);
       const baseline=fullyDoneHistory(state,n);
@@ -512,13 +541,24 @@ test('same-output resettlement restores every historical semantic realization th
           receiptsByRun:receipts,
           revision:'packet-resettled',
         });
-        assert.ok(
-          after.work.every(work=>work.status==='DONE'),
-          `same-output reuse mismatch n=${n} code=${code} changed=${changed}`,
+        const expectedDone=expectedDoneAfterSameOutputResettlement(
+          state,
+          n,
+          changed,
+        );
+        const actualDone=new Set(
+          after.work
+            .filter(work=>work.status==='DONE')
+            .map(work=>work.id),
+        );
+        assert.deepEqual(
+          actualDone,
+          expectedDone,
+          `semantic identity reuse mismatch n=${n} code=${code} changed=${changed}`,
         );
         resumptions++;
       }
     }
   }
-  assert.equal(resumptions,3_004);
+  assert.equal(resumptions,16_585);
 });
