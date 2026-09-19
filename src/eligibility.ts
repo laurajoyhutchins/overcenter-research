@@ -4,13 +4,13 @@ import type {
 } from './model.ts';
 import type { State } from './facts.ts';
 import { dependencyUpstreams } from './graph.ts';
-import type { Lifecycle } from './lifecycle.ts';
+import type { CurrentLifecycle } from './current-realization.ts';
 import { staticEffectConflictError } from './admission.ts';
 
 export function claimabilityError(
   state:State,
   work:Obligation,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,CurrentLifecycle>,
 ):string|null {
   const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
   if (realization!=='UNREALIZED') return 'NOT_READY';
@@ -35,19 +35,22 @@ export function projectWork(
   state:State,
   work:Obligation,
   revision:string,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,CurrentLifecycle>,
 ):Work {
   const lifecycle=lifecycles.get(work.id)??{status:'UNREALIZED' as const};
   const status=lifecycle.status==='UNREALIZED' ? 'READY' : lifecycle.status;
+  const executionRun=lifecycle.executionRun;
+  const sourceRun=lifecycle.sourceRun;
   const projected={
     ...structuredClone(work),
     status,
     revision,
-    ...(lifecycle.run
+    ...(sourceRun?{source_run_id:sourceRun.id}:{}),
+    ...(executionRun
       ? {
-          run_id:lifecycle.run.id,
-          claimed_revision:lifecycle.run.claimed_revision,
-          execution_generation:lifecycle.run.execution_generation,
+          run_id:executionRun.id,
+          claimed_revision:executionRun.claimed_revision,
+          execution_generation:executionRun.execution_generation,
         }
       : {}),
   } as Work;
