@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
+import {createHash,randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {
   chmodSync,
@@ -75,6 +76,22 @@ function docker(args:string[]):string {
   return execFileSync('docker',args,{encoding:'utf8'});
 }
 
+function executionContextSha256():string {
+  const imageId=docker(['image','inspect',image!,'--format','{{.Id}}']).trim();
+  const bytes=JSON.stringify({
+    schema:'overcenter-dogfood-execution-context-v1',
+    image_id:imageId,
+    source_sha:sourceSha,
+    containment:{
+      network:'none',
+      task_uid:65532,
+      task_gid:65532,
+      source:'read-only',
+    },
+  });
+  return 'sha256:'+createHash('sha256').update(bytes).digest('hex');
+}
+
 function processSpec(
   tier:'regression'|'local',
 ):ProcessSpecV1 {
@@ -107,6 +124,8 @@ async function startExecutor():Promise<ExecutorHarness> {
   const id=sequence++;
   const socketPath=join(control,`executor-${id}.sock`);
   const container=`overcenter-self-dogfood-${process.pid}-${id}`;
+  const containmentId=`overcenter-dogfood-${randomUUID()}`;
+  const contextSha256=executionContextSha256();
   const gid=process.getgid?.();
   if (gid===undefined) throw new Error('host gid unavailable');
 
@@ -115,6 +134,7 @@ async function startExecutor():Promise<ExecutorHarness> {
     '-d',
     '--name',container,
     '--label',label,
+    '--label',`overcenter.containment=${containmentId}`,
     '--network=none',
     '--entrypoint','/usr/local/bin/overcenter-executor',
     '-v',`${control}:/control`,
@@ -127,6 +147,8 @@ async function startExecutor():Promise<ExecutorHarness> {
     '--task-uid=65532',
     '--task-gid=65532',
     `--socket-gid=${gid}`,
+    `--execution-context-sha256=${contextSha256}`,
+    `--containment-id=${containmentId}`,
   ]);
 
   const deadline=Date.now()+10_000;
@@ -144,7 +166,13 @@ async function startExecutor():Promise<ExecutorHarness> {
   }
   if (!existsSync(socketPath)) throw new Error('dogfood executor socket never appeared');
 
-  const client=new GoExecutorClient({socketPath,maxConcurrency:1});
+  const client=new GoExecutorClient({
+    socketPath,
+    maxConcurrency:1,
+    executionContextSha256:contextSha256,
+    containmentId,
+  });
+  await client.ready();
   const remove=():void=>{
     try {
       execFileSync('docker',['rm',container],{stdio:'ignore'});
