@@ -27,7 +27,7 @@ The values stored in the references are unimportant. The ownership structure is 
 
 ### Disjoint authority may run concurrently
 
-`independent_parallel` starts with exclusive authority over two distinct coordinates:
+`independent_parallel` starts with exclusive authority over two separable coordinates:
 
 ```text
 left |-> v1    **    right |-> v2
@@ -41,7 +41,7 @@ left |-> v1    **    right |-> v2
 left |-> v1+1  **  right |-> v2+1
 ```
 
-Pulse must prove that the heap capability can be separated into the two worker preconditions and recombined afterward.
+Pulse proves that the heap capability can be separated into the two worker preconditions and recombined afterward.
 
 ### Conflicting authority is legal when ordered
 
@@ -61,17 +61,23 @@ effect A + effect B = forbidden
 
 ### Conflicting authority may not be split concurrently
 
-`same_coordinate_parallel` deliberately gives two parallel branches the same exclusive mutation capability. It is annotated `[@@expect_failure]`.
+`HostileAlias.fst` calls the verified `independent_parallel` function with the same concrete coordinate in both argument positions while possessing only one exclusive `pts_to` capability.
 
-The module verifies only if Pulse rejects that attempted split.
+The runner requires that this module fail compilation specifically because Pulse reports that it **cannot prove the second `pts_to coordinate before`** obligation. An unrelated compiler or syntax failure does not count.
 
 ## What success means
 
 A green run supports this bounded claim:
 
-> If mutation authority is represented as an exclusive separation-logic resource, parallel execution is admissible when the required resources are disjoint, while conflicting operations require explicit sequencing.
+> If mutation authority is represented as an exclusive separation-logic resource, parallel execution is admissible when the required resources are separable, while conflicting operations require explicit sequencing.
 
-That is stronger than checking a scheduler's runtime bookkeeping after the fact. The parallel program itself is unverifiable unless the capability decomposition is valid.
+That is stronger than checking a scheduler's runtime bookkeeping after the fact. A caller cannot alias one exclusive mutation capability into two parallel workers while remaining verified.
+
+## Safety, not liveness
+
+Pulse's current `par` primitive is divergence-typed, so `independent_parallel` is explicitly declared `divergent`.
+
+Accordingly this experiment proves a **safety** property about capability separation. It does not prove that parallel workers terminate or that Overcenter eventually makes progress. That distinction matches Overcenter's existing separation of safety claims from liveness claims.
 
 ## What this does not prove
 
@@ -88,7 +94,7 @@ Those are the bridge from the proof model to the real execution substrate.
 
 ## Run
 
-With an F* distribution that includes Pulse:
+With the pinned F* distribution that includes Pulse:
 
 ```sh
 bash experiments/fstar-pulse-capability-concurrency/check.sh
