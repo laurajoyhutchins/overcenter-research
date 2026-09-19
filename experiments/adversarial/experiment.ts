@@ -7,15 +7,17 @@ import type { Dependency, ExecutionPermit, Work } from '../../src/model.ts';
 
 const STATE_REF='refs/overcenter/state';
 
+type FileSpec={
+  content:string;
+  packet?:Record<string,unknown>;
+  dependencies?:Dependency[];
+  consistency?:'strong'|'eventual';
+};
+
 export const semantic=(upstream:string):Dependency=>({
   kind:'semantic',
   upstream,
   consumes:{kind:'output',selector:'verified-content'},
-});
-
-export const control=(upstream:string):Dependency=>({
-  kind:'control',
-  upstream,
 });
 
 export class Experiment {
@@ -36,60 +38,12 @@ export class Experiment {
     return join(this.root,`${id}.txt`);
   }
 
-  define(
-    id:string,
-    {
-      content,
-      packet={},
-      dependencies=[],
-      consistency='strong',
-    }:{
-      content:string;
-      packet?:Record<string,unknown>;
-      dependencies?:Dependency[];
-      consistency?:'strong'|'eventual';
-    },
-  ):string {
-    return this.kernel.define({
-      id,
-      packet,
-      dependencies,
-      postcondition:{
-        verifier:consistency==='eventual'
-          ? 'eventually-consistent-file-content-equals/v1'
-          : 'file-content-equals/v1',
-        path:this.path(id),
-        content,
-      },
-    });
+  define(id:string,spec:FileSpec):string {
+    return this.kernel.define(this.#obligation(id,spec));
   }
 
-  amend(
-    id:string,
-    {
-      content,
-      packet={},
-      dependencies=[],
-      consistency='strong',
-    }:{
-      content:string;
-      packet?:Record<string,unknown>;
-      dependencies?:Dependency[];
-      consistency?:'strong'|'eventual';
-    },
-  ):string {
-    return this.kernel.amend({
-      id,
-      packet,
-      dependencies,
-      postcondition:{
-        verifier:consistency==='eventual'
-          ? 'eventually-consistent-file-content-equals/v1'
-          : 'file-content-equals/v1',
-        path:this.path(id),
-        content,
-      },
-    },this.kernel.head()!);
+  amend(id:string,spec:FileSpec):string {
+    return this.kernel.amend(this.#obligation(id,spec),this.kernel.head()!);
   }
 
   work(id:string,snapshot:Work[]=this.kernel.inspect()):Work {
@@ -145,5 +99,25 @@ export class Experiment {
 
   close():void {
     rmSync(this.root,{recursive:true,force:true});
+  }
+
+  #obligation(id:string,{
+    content,
+    packet={},
+    dependencies=[],
+    consistency='strong',
+  }:FileSpec) {
+    return {
+      id,
+      packet,
+      dependencies,
+      postcondition:{
+        verifier:consistency==='eventual'
+          ? 'eventually-consistent-file-content-equals/v1' as const
+          : 'file-content-equals/v1' as const,
+        path:this.path(id),
+        content,
+      },
+    };
   }
 }
