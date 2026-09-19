@@ -316,10 +316,69 @@ export function executionIdentityKey(identity:ExecutionIdentityV1):string {
   ].join('/');
 }
 
+
+export function validateComputationEvidence(value:unknown):ComputationAttemptEvidenceV1 {
+  assertPlainObject(value,'computation_evidence');
+  assertExactKeys(value,[
+    'schema',
+    'run_id',
+    'obligation_id',
+    'claimed_revision',
+    'execution_generation',
+    'execution_authority_commit',
+    'execution_capability_sha256',
+    'execution_spec_sha256',
+    'outcome',
+    'stdout_sha256',
+    'stdout_truncated',
+    'stderr_sha256',
+    'stderr_truncated',
+  ],[
+    'exit_code',
+    'signal',
+    'stdout_base64',
+    'stderr_base64',
+    'error',
+  ],'computation_evidence');
+
+  if (value.schema!==COMPUTATION_EVIDENCE_SCHEMA) {
+    throw new Error('COMPUTATION_EVIDENCE_SCHEMA_MISMATCH');
+  }
+  assertBoundedString(value.run_id,'run_id',256);
+  assertBoundedString(value.obligation_id,'obligation_id',512);
+  assertBoundedString(value.claimed_revision,'claimed_revision',256);
+  assertSafeIntegerRange(value.execution_generation,'execution_generation',1,Number.MAX_SAFE_INTEGER);
+  assertBoundedString(value.execution_authority_commit,'execution_authority_commit',256);
+  assertSha256Hex(value.execution_capability_sha256,'execution_capability_sha256');
+  assertSha256Tagged(value.execution_spec_sha256,'execution_spec_sha256');
+  if (!['completed','failed','cancelled'].includes(String(value.outcome))) {
+    throw new Error('COMPUTATION_EVIDENCE_OUTCOME_INVALID');
+  }
+  if (value.exit_code!==undefined) {
+    assertSafeIntegerRange(value.exit_code,'exit_code',0,255);
+  }
+  if (value.signal!==undefined && (typeof value.signal!=='string' || value.signal.length===0)) {
+    throw new Error('COMPUTATION_EVIDENCE_SIGNAL_INVALID');
+  }
+  if (value.stdout_base64!==undefined) decodeCanonicalBase64(value.stdout_base64);
+  if (value.stderr_base64!==undefined) decodeCanonicalBase64(value.stderr_base64);
+  assertSha256Tagged(value.stdout_sha256,'stdout_sha256');
+  assertSha256Tagged(value.stderr_sha256,'stderr_sha256');
+  if (typeof value.stdout_truncated!=='boolean' || typeof value.stderr_truncated!=='boolean') {
+    throw new Error('COMPUTATION_EVIDENCE_TRUNCATION_INVALID');
+  }
+  if (value.error!==undefined && typeof value.error!=='string') {
+    throw new Error('COMPUTATION_EVIDENCE_ERROR_INVALID');
+  }
+
+  return value as unknown as ComputationAttemptEvidenceV1;
+}
+
 export function assertComputationEvidenceFor(
   evidence:ComputationAttemptEvidenceV1,
   execution:ComputationExecutionV1,
 ):void {
+  validateComputationEvidence(evidence);
   if (evidence.schema!==COMPUTATION_EVIDENCE_SCHEMA) {
     throw new Error('COMPUTATION_EVIDENCE_SCHEMA_MISMATCH');
   }
