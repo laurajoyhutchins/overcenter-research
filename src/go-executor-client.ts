@@ -13,6 +13,38 @@ import {
   type ExecutorCommandV1,
 } from './computation-execution.ts';
 
+const EXECUTOR_HELLO_SCHEMA='overcenter-executor-hello-v1' as const;
+
+interface ExecutorHelloV1 {
+  schema:typeof EXECUTOR_HELLO_SCHEMA;
+  execution_context_sha256:string;
+  containment_id:string;
+}
+
+function validateExecutorHello(value:unknown):ExecutorHelloV1 {
+  if (!value || typeof value!=='object' || Array.isArray(value)) {
+    throw new Error('GO_EXECUTOR_HELLO_INVALID');
+  }
+  const raw=value as Record<string,unknown>;
+  const keys=Object.keys(raw).sort();
+  const expected=['containment_id','execution_context_sha256','schema'];
+  if (keys.length!==expected.length || keys.some((key,index)=>key!==expected[index])) {
+    throw new Error('GO_EXECUTOR_HELLO_SHAPE_INVALID');
+  }
+  if (
+    raw.schema!==EXECUTOR_HELLO_SCHEMA
+    || typeof raw.execution_context_sha256!=='string'
+    || !/^sha256:[0-9a-f]{64}$/.test(raw.execution_context_sha256)
+    || typeof raw.containment_id!=='string'
+    || raw.containment_id.length===0
+    || raw.containment_id.length>512
+    || raw.containment_id.includes('\0')
+  ) {
+    throw new Error('GO_EXECUTOR_HELLO_INVALID');
+  }
+  return raw as unknown as ExecutorHelloV1;
+}
+
 interface PendingExecution {
   execution:ComputationExecutionV1;
   resolve:(evidence:ComputationAttemptEvidenceV1)=>void;
@@ -22,9 +54,20 @@ interface PendingExecution {
 export interface GoExecutorClientOptions {
   socketPath:string;
   maxConcurrency:number;
+  executionContextSha256?:string;
+  containmentId?:string;
 }
 
 export class GoExecutorClient {
+  executionContextSha256?:string;
+  containmentId?:string;
+  readonly #expectedExecutionContextSha256?:string;
+  readonly #expectedContainmentId?:string;
+  readonly #helloRequired:boolean;
+  #helloSeen=false;
+  readonly #ready:Promise<void>;
+  #resolveReady!:()=>void;
+  #rejectReady!:(error:Error)=>void;
   readonly #socket:Socket;
   readonly #maxConcurrency:number;
   readonly #pending=new Map<string,PendingExecution>();
@@ -38,6 +81,8 @@ export class GoExecutorClient {
   constructor({
     socketPath,
     maxConcurrency,
+    executionContextSha256,
+    containmentId,
   }:GoExecutorClientOptions) {
     if (!socketPath.startsWith('/')) {
       throw new Error('GO_EXECUTOR_SOCKET_MUST_BE_ABSOLUTE');
@@ -45,18 +90,59 @@ export class GoExecutorClient {
     if (!Number.isSafeInteger(maxConcurrency) || maxConcurrency<=0) {
       throw new Error('GO_EXECUTOR_CONCURRENCY_INVALID');
     }
+    if (
+      executionContextSha256!==undefined
+      && !/^sha256:[0-9a-f]{64}$/.test(executionContextSha256)
+    ) {
+      throw new Error('GO_EXECUTOR_EXECUTION_CONTEXT_INVALID');
+    }
+    if (
+      containmentId!==undefined
+      && (containmentId.length===0 || containmentId.length>512 || containmentId.includes('\0'))
+    ) {
+      throw new Error('GO_EXECUTOR_CONTAINMENT_ID_INVALID');
+    }
+    if ((executionContextSha256===undefined)!==(containmentId===undefined)) {
+      throw new Error('GO_EXECUTOR_ATTESTATION_PAIR_REQUIRED');
+    }
+    this.#expectedExecutionContextSha256=executionContextSha256;
+    this.#expectedContainmentId=containmentId;
+    this.#helloRequired=executionContextSha256!==undefined;
+    this.#ready=new Promise<void>((resolve,reject)=>{
+      this.#resolveReady=resolve;
+      this.#rejectReady=reject;
+    });
+    void this.#ready.catch(()=>{});
     this.#maxConcurrency=maxConcurrency;
     this.#socket=createConnection({path:socketPath});
 
     this.#connected=new Promise((resolve,reject)=>{
-      this.#socket.once('connect',resolve);
+      this.#socket.once('connect',()=>{
+        resolve();
+        if (!this.#helloRequired) this.#resolveReady();
+      });
       this.#socket.once('error',reject);
     });
 
     const lines=createInterface({input:this.#socket,crlfDelay:Infinity});
     lines.on('line',line=>{
       try {
-        const evidence=validateComputationEvidence(JSON.parse(line));
+        const parsed:unknown=JSON.parse(line);
+        if (this.#helloRequired && !this.#helloSeen) {
+          const hello=validateExecutorHello(parsed);
+          if (
+            hello.execution_context_sha256!==this.#expectedExecutionContextSha256
+            || hello.containment_id!==this.#expectedContainmentId
+          ) {
+            throw new Error('GO_EXECUTOR_ATTESTATION_MISMATCH');
+          }
+          this.#helloSeen=true;
+          this.executionContextSha256=hello.execution_context_sha256;
+          this.containmentId=hello.containment_id;
+          this.#resolveReady();
+          return;
+        }
+        const evidence=validateComputationEvidence(parsed);
         const key=executionIdentityKey({
           run_id:evidence.run_id,
           execution_generation:evidence.execution_generation,
@@ -94,9 +180,15 @@ export class GoExecutorClient {
     });
   }
 
+  async ready():Promise<void> {
+    await this.#connected;
+    await this.#ready;
+    if (this.#terminalError) throw this.#terminalError;
+  }
+
   async execute(execution:ComputationExecutionV1):Promise<ComputationAttemptEvidenceV1> {
     validateComputationExecution(execution);
-    await this.#connected;
+    await this.ready();
     await this.#acquireCapacity();
     if (this.#terminalError) {
       this.#releaseCapacity();
@@ -134,7 +226,7 @@ export class GoExecutorClient {
 
   async cancel(execution:ComputationExecutionV1):Promise<void> {
     validateComputationExecution(execution);
-    await this.#connected;
+    await this.ready();
     const command:ExecutorCommandV1={
       schema:EXECUTOR_COMMAND_SCHEMA,
       kind:'cancel',
@@ -147,7 +239,7 @@ export class GoExecutorClient {
     if (this.#pending.size>0) {
       throw new Error('GO_EXECUTOR_CLOSE_WITH_PENDING_EXECUTIONS');
     }
-    await this.#connected;
+    await this.ready();
     this.#closing=true;
     this.#socket.end();
     await this.#closed;
@@ -183,6 +275,7 @@ export class GoExecutorClient {
   #fail(error:Error):void {
     if (this.#terminalError) return;
     this.#terminalError=error;
+    this.#rejectReady(error);
     for (const pending of this.#pending.values()) {
       pending.reject(error);
       this.#releaseCapacity();
