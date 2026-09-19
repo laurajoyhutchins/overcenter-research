@@ -125,7 +125,7 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
 
       catalog.obligations[id]=obligation;
       catalog.definition_commits[id]=record.commit;
-      validateGraph(state);
+      validateGraph(catalog);
       lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
     }
 
