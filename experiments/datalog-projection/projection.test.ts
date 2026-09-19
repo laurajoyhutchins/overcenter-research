@@ -129,19 +129,13 @@ function semanticKeys(
   const keys=new Map<number,string>();
 
   for (const definition of definitions) {
-    assert.equal(
-      definition.work.dependencies.some(edge=>edge.kind==='semantic'),
-      false,
-      'the Datalog slice consumes current semantic identity rather than deriving it',
-    );
     const key=obligationKey(
       state,
       definition.work,
       new Map(),
       new Map(),
     );
-    assert.ok(key);
-    keys.set(definition.ordinal,key);
+    if (key) keys.set(definition.ordinal,key);
   }
   return keys;
 }
@@ -285,6 +279,7 @@ const DIAGNOSTICS=[
   'semantic_key_for_unknown_obligation',
   'duplicate_definition_ordinal',
   'duplicate_semantic_key',
+  'invalid_dependency_kind',
   'orphan_dependency',
   'unknown_dependency',
   'dependency_cycle',
@@ -341,11 +336,11 @@ function datalogProjection(
     writeFacts(
       join(facts,'current_semantic_key.facts'),
       [
-        ...[...currentDefinitions(scenario.definitions)].map(([id,definition])=>[
-          id,
-          scenario.currentSemanticKeyOverrides?.[id]
-            ?? keys.get(definition.ordinal)!,
-        ] as [string,string]),
+        ...[...currentDefinitions(scenario.definitions)].flatMap(([id,definition])=>{
+          const key=scenario.currentSemanticKeyOverrides?.[id]
+            ?? keys.get(definition.ordinal);
+          return key ? [[id,key] as [string,string]] : [];
+        }),
         ...(scenario.extraCurrentSemanticKeys??[]),
       ],
     );
@@ -357,6 +352,7 @@ function datalogProjection(
           definition.work.id,
           `definition-${definition.ordinal}`,
           edge.upstream,
+          edge.kind,
         ]),
       ),
     );
@@ -458,6 +454,11 @@ function datalogProjection(
 const chainA=obligation('a','v1');
 const chainB=obligation('b','v1',[{kind:'control',upstream:'a'}]);
 const chainC=obligation('c','v1',[{kind:'control',upstream:'b'}]);
+const semanticB=obligation('semantic-b','v1',[{
+  kind:'semantic',
+  upstream:'a',
+  consumes:{kind:'output',selector:'verified-content'},
+}]);
 
 const scenarios:Scenario[]=[
   {
@@ -476,6 +477,15 @@ const scenarios:Scenario[]=[
       {run:'old-run-b',kind:'observation',evidence:'verified',ordinal:21},
     ],
     expectedClosure:['b->a','c->a','c->b'],
+  },
+  {
+    name:'unresolved semantic dependency may legitimately have no current key',
+    definitions:[
+      {work:chainA,ordinal:1},
+      {work:semanticB,ordinal:2},
+    ],
+    runs:[],
+    receipts:[],
   },
   {
     name:'material amendment invalidates historical DONE',
