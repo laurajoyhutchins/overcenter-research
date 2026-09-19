@@ -1,4 +1,4 @@
-import type { Work } from './model.ts';
+import type { EffectAuthority, Obligation } from './model.ts';
 import { canonicalDigest } from './digest.ts';
 import { GITHUB_COMMIT_STATUS_EFFECT_CONTRACT } from './effect-authority.ts';
 import {
@@ -24,18 +24,31 @@ export interface ProviderEffectExecutionContext {
   githubFetch?:typeof fetch;
 }
 
+export function githubCommitStatusEffectAuthority():EffectAuthority {
+  return {
+    contract:GITHUB_COMMIT_STATUS_EFFECT_CONTRACT,
+    adapter_contract_digest:GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST,
+  };
+}
+
 export function deriveAuthorizedProviderEffect(
-  work:Work,
+  work:Obligation,
 ):AuthorizedProviderEffect|null {
   const authority=work.effect_authority;
   if (!authority) return null;
 
   if (authority.contract===GITHUB_COMMIT_STATUS_EFFECT_CONTRACT) {
+    if (
+      authority.adapter_contract_digest
+      !==GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST
+    ) {
+      throw new Error('EFFECT_ADAPTER_CONTRACT_MISMATCH');
+    }
     const effect=deriveGithubCommitStatusEffect(work.postcondition);
     if (!effect) throw new Error('EFFECT_AUTHORITY_POSTCONDITION_MISMATCH');
     const payload={
       effect_contract:authority.contract,
-      adapter_contract_digest:GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST,
+      adapter_contract_digest:authority.adapter_contract_digest,
       effect,
     };
     return {
