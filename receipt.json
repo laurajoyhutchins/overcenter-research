@@ -6,12 +6,17 @@
   "claim_commit": "e55cbaa3babe4e9ee71d983a3835372fbd574740",
   "execution_generation": 2,
   "execution_authority_commit": "ba052ce0ff55e166ef6fac7cc3e626aae5955beb",
-  "kind": "execution-terminated",
-  "observed": null,
-  "diagnostic": {
-    "source": "github-actions-job-supervisor",
-    "slot": "beta",
-    "outcome": "failure"
+  "kind": "observation",
+  "observed": {
+    "verifier": "github-commit-status/v1",
+    "provider": "github",
+    "repository_id": 1354872053,
+    "commit_sha": "2060d5a7ee53368bb9bfec1b094cf7dbfe63e739",
+    "context": "overcenter/conflict-guard/35468752656/1/ordered",
+    "expected_state": "failure",
+    "mutation_certainty": "uncertain",
+    "observation_error": "GITHUB_PROVIDER_READ_FAILED: curl: (22) The requested URL returned error: 403"
   },
-  "settled_at": "2026-09-19T21:23:18.588Z"
+  "diagnostic": {},
+  "settled_at": "2026-09-19T21:23:20.799Z"
 }
