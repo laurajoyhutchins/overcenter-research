@@ -20,6 +20,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
+- `categorical-graph-laws/` - bounded falsification and confirmation of reachability, control-subdivision, and disjoint-union laws.
 
 Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/support/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 
@@ -205,6 +206,7 @@ npm run test:lisp-semantics          # focused semantic-coherence experiment
 npm run test:datalog                # Soufflé projection differential
 npm run test:current-realization-admissibility # current DONE reuse against fresh authority
 npm run test:bounded-graph          # exhaustive bounded graph/state model
+npm run test:categorical-graph-laws # bounded categorical law experiment
 ```
 
 Focused commands are listed in [`../README.md`](../README.md) and `package.json`.
