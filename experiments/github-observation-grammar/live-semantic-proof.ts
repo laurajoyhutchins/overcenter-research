@@ -31,12 +31,14 @@ import {
 } from './semantics.ts';
 import { reconstructGithubProjection } from './reconstruction.ts';
 import {
-  RESPONSE_SLICES,
   validateObservationSlice,
   validateResponseSlice,
+  type CertifiedObservation,
   type ResponseSliceResult,
-  type StructurallyValidatedObservation,
-} from './response-slice.ts';
+} from '../provider-observation/response-slice.ts';
+import { RESPONSE_SLICES } from './response-slices.ts';
+
+type StructurallyValidatedObservation = CertifiedObservation<RawObservation>;
 
 const schemaPath = process.argv[2];
 if (!schemaPath) throw new Error('usage: live-semantic-proof.ts <openapi.json>');

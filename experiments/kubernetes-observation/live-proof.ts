@@ -3,7 +3,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { ObservationOperation, RawObservation } from './observation.ts';
 import { sha256 } from './observation.ts';
-import { validateObservationSlice, type SchemaResolver } from './response-slice.ts';
+import { validateObservationSlice, type SchemaResolver } from '../provider-observation/response-slice.ts';
 import {
   assembleCompleteList,
   evaluateSnapshotMembership,
@@ -46,6 +46,7 @@ function raw(operation: ObservationOperation, path: string, query: Record<string
     observer,
     observed_at: new Date().toISOString(),
     request: { method: 'GET', path, query },
+    response: {},
     outcome: {
       status,
       visibility: status === 200 ? 'observed' : status === 404 ? 'not-observed' : 'indeterminate',
