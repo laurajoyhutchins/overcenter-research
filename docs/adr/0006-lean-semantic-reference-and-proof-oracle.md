@@ -37,7 +37,10 @@ For selected deterministic safety predicates:
   oracle identity.
 
 The first maintained oracle covers provider-independent graph validity and
-effect ordering over already-normalized effect facts.
+effect ordering over already-normalized effect facts. It exercises both control
+and semantic dependency edges. For effect ordering, TypeScript is compared to
+the retained Lean reference relation; the optimized Lean classifier must also
+agree with that reference.
 
 Provider-specific interpretation remains ordinary adapter software. In
 particular, TypeScript owns GitHub effect-coordinate normalization; Lean receives
@@ -59,8 +62,10 @@ Oracle agreement is a separate evidence class. A green bounded differential does
 not turn a bounded result into a universal proof, and it does not prove
 provider-specific normalization that occurs before the Lean boundary.
 
-The current oracle is intentionally path-scoped because installing/building Lean
-is materially heavier than normal unit regression.
+The current oracle is source-scoped rather than attached to every repository
+change because installing/building Lean is materially heavier than normal unit
+regression. Any change under `src/**` reruns it so a future helper extraction
+cannot silently escape the oracle through a stale path allowlist.
 
 ## Rejected alternatives
 
