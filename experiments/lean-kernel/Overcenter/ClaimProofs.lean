@@ -1,3 +1,4 @@
+import Std.Tactic
 import Overcenter.Claim
 
 namespace Overcenter
@@ -86,7 +87,7 @@ example :
       "revision-a"
       graph
       [upstreamDone]
-      (candidateFor downstreamControl [upstreamDone]) = .accepted := by decide
+      (candidateFor downstreamControl [upstreamDone]) = .accepted := by native_decide
 
 example :
     admitClaim
@@ -94,7 +95,7 @@ example :
       graph
       [upstreamReady]
       (candidateFor downstreamControl [upstreamReady]) =
-        .rejected .unsatisfiedDependencies := by decide
+        .rejected .unsatisfiedDependencies := by native_decide
 
 example :
     admitClaim
@@ -103,7 +104,7 @@ example :
       [upstreamDone]
       { candidateFor downstreamControl [upstreamDone] with
         claimedRevision := "stale-revision" } =
-        .rejected .revisionMismatch := by decide
+        .rejected .revisionMismatch := by native_decide
 
 example :
     admitClaim
@@ -112,7 +113,7 @@ example :
       [upstreamDone]
       { candidateFor downstreamControl [upstreamDone] with
         parentRevision := "stale-parent" } =
-        .rejected .revisionMismatch := by decide
+        .rejected .revisionMismatch := by native_decide
 
 example :
     admitClaim
@@ -121,7 +122,7 @@ example :
       [upstreamDone]
       { candidateFor downstreamControl [upstreamDone] with
         obligationKey := upstreamKey } =
-        .rejected .obligationKeyMismatch := by decide
+        .rejected .obligationKeyMismatch := by native_decide
 
 example :
     admitClaim
@@ -130,7 +131,7 @@ example :
       [upstreamDone]
       { candidateFor downstreamControl [upstreamDone] with
         capabilityDigest := "not-a-digest" } =
-        .rejected .invalidCapabilityDigest := by decide
+        .rejected .invalidCapabilityDigest := by native_decide
 
 example :
     admitClaim
@@ -139,7 +140,7 @@ example :
       [upstreamDone]
       { candidateFor downstreamControl [upstreamDone] with
         runId := "run-upstream" } =
-        .rejected .duplicateRun := by decide
+        .rejected .duplicateRun := by native_decide
 
 example :
     deriveClaimObligationKey graph [upstreamDone] downstreamOutput (graph.length + 1) =
@@ -154,7 +155,7 @@ example :
             (.opaque "/provider/upstream")
             "sha256:upstream"
         }]
-      } := by decide
+      } := by native_decide
 
 example :
     deriveClaimObligationKey graph [upstreamDone] downstreamReceipt (graph.length + 1) =
@@ -166,12 +167,12 @@ example :
           selector := .settlementReceipt
           identity := .settlementReceipt "settlement-upstream"
         }]
-      } := by decide
+      } := by native_decide
 
 -- A READY settlement is not a realized dependency and cannot supply semantic identity.
 example :
     deriveClaimObligationKey graph [upstreamReady] downstreamOutput (graph.length + 1) =
-      none := by decide
+      none := by native_decide
 
 -- Changing verified upstream output changes the downstream semantic key.
 private def changedUpstream : ClaimObligation := {
@@ -194,7 +195,7 @@ private def changedUpstreamDone : HistoricalClaimRun := {
 
 example :
     deriveClaimObligationKey changedGraph [changedUpstreamDone] downstreamOutput (changedGraph.length + 1)
-    != deriveClaimObligationKey graph [upstreamDone] downstreamOutput (graph.length + 1) := by decide
+    != deriveClaimObligationKey graph [upstreamDone] downstreamOutput (graph.length + 1) := by native_decide
 
 -- Changing only the settlement receipt changes evidence-consuming downstream meaning.
 private def newerSettlement : HistoricalClaimRun := {
@@ -205,6 +206,6 @@ private def newerSettlement : HistoricalClaimRun := {
 
 example :
     deriveClaimObligationKey graph [newerSettlement] downstreamReceipt (graph.length + 1)
-    != deriveClaimObligationKey graph [upstreamDone] downstreamReceipt (graph.length + 1) := by decide
+    != deriveClaimObligationKey graph [upstreamDone] downstreamReceipt (graph.length + 1) := by native_decide
 
 end Overcenter
