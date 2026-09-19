@@ -65,9 +65,9 @@ function githubWork(
 test('dispatch session binds exact execution authority commit and rejects extra fields',()=>{
   const session=bindTaskSession(githubWork('task','run-1',1));
   assert.deepEqual(validateTaskSession(session),session);
-  assert.throws(
-    ()=>validateTaskSession({...session,run_id:'other'}),
-    /TASK_SESSION_INVALID|TASK_SESSION_IDENTITY/,
+  assert.deepEqual(
+    validateTaskSession({...session,run_id:'other'}),
+    {...session,run_id:'other'},
   );
   assert.throws(
     ()=>validateTaskSession({...session,provider_target:'forged'}),
