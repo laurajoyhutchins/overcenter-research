@@ -30,21 +30,46 @@ def verifies (postcondition : Postcondition) (observation : Observation) : Bool 
   observation.certainty == .present &&
   observation.actual == some postcondition.expected
 
-def acceptsAbsenceKind (family : VerifierFamily) (kind : AbsenceKind) : Bool :=
-  match family, kind with
-  | .fileContent, .localFileEnoent => true
-  | .kubernetesConfigMapExists, .kubernetesCompleteList => true
-  | _, _ => false
+def localFileEnoentAuthoritative (coordinate : String) (evidence : AbsenceEvidence) : Bool :=
+  match evidence with
+  | .localFileEnoent
+      subjectCoordinate
+      scopeCoordinate
+      snapshotIsNull
+      completenessKind
+      completenessResult
+      provenanceAdapter
+      provenanceOperation
+      provenanceErrorCode =>
+      subjectCoordinate == coordinate &&
+      scopeCoordinate == coordinate &&
+      snapshotIsNull &&
+      completenessKind == "direct-coordinate-read" &&
+      completenessResult == "ENOENT" &&
+      provenanceAdapter == "node:fs" &&
+      provenanceOperation == "readFileSync" &&
+      provenanceErrorCode == "ENOENT"
+  | _ => false
+
+def kubernetesAbsenceAuthoritative (coordinate : String) (evidence : AbsenceEvidence) : Bool :=
+  match evidence with
+  | .kubernetesCompleteList evidenceCoordinate complete =>
+      evidenceCoordinate == coordinate && complete
+  | _ => false
 
 def authoritativeAbsence (postcondition : Postcondition) (observation : Observation) : Bool :=
-  match observation.absence with
-  | none => false
-  | some evidence =>
-      sameObservationCoordinate postcondition observation &&
-      observation.certainty == .absent &&
-      evidence.coordinate == postcondition.coordinate &&
-      evidence.complete &&
-      acceptsAbsenceKind postcondition.family evidence.kind
+  if !sameObservationCoordinate postcondition observation then
+    false
+  else if observation.certainty != .absent then
+    false
+  else
+    match observation.absence with
+    | none => false
+    | some evidence =>
+        match postcondition.family with
+        | .fileContent => localFileEnoentAuthoritative postcondition.coordinate evidence
+        | .kubernetesConfigMapExists => kubernetesAbsenceAuthoritative postcondition.coordinate evidence
+        | _ => false
 
 def settle (postcondition : Postcondition) (observation : Observation) : Disposition :=
   match verifies postcondition observation with
