@@ -5,6 +5,25 @@ module OvercenterRubyScenarios
   ROOT = File.expand_path("../../..", __dir__)
   DRIVER = File.join(ROOT, "experiments", "ruby-scenarios", "driver.ts")
 
+  class ProviderScript
+    def initialize(scenario, id)
+      @scenario = scenario
+      @id = id
+    end
+
+    def write_accepted
+      @scenario.__provider_effect(@id)
+    end
+
+    def worker_dies
+      @scenario.__interrupt(@id)
+    end
+
+    def readback(state, as:)
+      @scenario.__readback(@id, state, as)
+    end
+  end
+
   class Scenario
     def initialize(name)
       @name = name
@@ -30,24 +49,40 @@ module OvercenterRubyScenarios
       }
     end
 
-    def obligation(id, content:, dependencies: [], packet: {})
+    def obligation(id, content:, dependencies: [], packet: {}, consistency: :strong)
       @operations << {
         "op" => "define",
         "id" => id.to_s,
         "content" => content,
+        "consistency" => consistency.to_s,
         "dependencies" => dependencies,
         "packet" => packet
       }
     end
 
-    def amend(id, content:, dependencies: [], packet: {})
+    def amend(id, content:, dependencies: [], packet: {}, consistency: :strong)
       @operations << {
         "op" => "amend",
         "id" => id.to_s,
         "content" => content,
+        "consistency" => consistency.to_s,
         "dependencies" => dependencies,
         "packet" => packet
       }
+    end
+
+    def provider(kind, id, expected:, packet: {}, &block)
+      unless kind == :eventually_consistent_file
+        raise "unsupported scenario provider: #{kind}"
+      end
+
+      obligation(
+        id,
+        content: expected,
+        packet: packet,
+        consistency: :eventual
+      )
+      ProviderScript.new(self, id.to_s).instance_eval(&block)
     end
 
     def settle(id)
@@ -69,6 +104,37 @@ module OvercenterRubyScenarios
         "op" => "reconstruct",
         "name" => name.to_s
       }
+    end
+
+    def __provider_effect(id)
+      @operations << {
+        "op" => "provider-effect",
+        "id" => id.to_s
+      }
+    end
+
+    def __interrupt(id)
+      @operations << {
+        "op" => "interrupt",
+        "id" => id.to_s
+      }
+    end
+
+    def __readback(id, state, name)
+      operation = {
+        "op" => "readback",
+        "id" => id.to_s,
+        "name" => name.to_s
+      }
+
+      case state
+      when :missing, :expected
+        operation["state"] = state.to_s
+      else
+        operation["state"] = "value"
+        operation["value"] = state.to_s
+      end
+      @operations << operation
     end
 
     def expect_status(checkpoint, id, status)
@@ -107,6 +173,44 @@ module OvercenterRubyScenarios
         next if earlier == later
 
         raise "expected #{left} and #{right} projections to be byte-equivalent JSON values"
+      end
+    end
+
+    def expect_readback(name, disposition:, certainty:, error: nil, absence_evidence: :any)
+      @expectations << lambda do |result|
+        receipt = result.fetch("readbacks").fetch(name.to_s)
+        observed = receipt.fetch("observed")
+
+        unless receipt.fetch("disposition") == disposition
+          raise "expected #{name} disposition #{disposition}, got #{receipt.fetch("disposition")}"
+        end
+        unless observed.fetch("mutation_certainty") == certainty
+          raise "expected #{name} certainty #{certainty}, got #{observed.fetch("mutation_certainty")}"
+        end
+        unless observed["observation_error"] == error
+          raise "expected #{name} error #{error.inspect}, got #{observed["observation_error"].inspect}"
+        end
+        unless absence_evidence == :any || observed["absence_evidence"] == absence_evidence
+          raise "expected #{name} absence evidence #{absence_evidence.inspect}, got #{observed["absence_evidence"].inspect}"
+        end
+      end
+    end
+
+    def expect_effect_attempts(id, count)
+      @expectations << lambda do |result|
+        actual = result.fetch("effect_attempts").fetch(id.to_s, 0)
+        next if actual == count
+
+        raise "expected #{id} effect attempts #{count}, got #{actual}"
+      end
+    end
+
+    def expect_receipts(id, *dispositions)
+      @expectations << lambda do |result|
+        actual = result.fetch("receipts").fetch(id.to_s)
+        next if actual == dispositions
+
+        raise "expected #{id} receipts #{dispositions.inspect}, got #{actual.inspect}"
       end
     end
 
