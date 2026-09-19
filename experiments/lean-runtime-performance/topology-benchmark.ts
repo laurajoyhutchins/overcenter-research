@@ -180,6 +180,39 @@ class Server{
   }
 }
 
+async function runLeanOnlyCase(
+  p:Server,
+  topology:string,
+  size:number,
+  fixture:any,
+  expected:boolean,
+){
+  const persistent=await p.request(fixture.request);
+  const shot=timed(()=>JSON.parse(execFileSync(oneShot,[],{
+    input:JSON.stringify(fixture.request),
+    encoding:'utf8',
+    timeout:60_000,
+    maxBuffer:64*1024*1024,
+  })));
+
+  if(persistent.value.admitted!==expected)throw new Error(
+    `Lean persistent parity failure topology=${topology} size=${size}`,
+  );
+  if(shot.value.admitted!==expected)throw new Error(
+    `Lean one-shot parity failure topology=${topology} size=${size}`,
+  );
+
+  console.log('TOPOLOGY_ROW '+JSON.stringify({
+    topology,
+    obligations:size,
+    edges:fixture.edgeCount,
+    expected_admitted:expected,
+    typescript_ms:null,
+    lean_persistent_ms:persistent.ms,
+    lean_one_shot_ms:shot.ms,
+  }));
+}
+
 async function runCase(
   p:Server,
   topology:string,
@@ -233,6 +266,15 @@ try{
   }
   for(const size of [25,50,100,200,400]){
     await runCase(p,'ordered-effects',size,orderedEffects(size),true);
+  }
+  for(const size of [1_000,2_000,5_000,10_000]){
+    await runLeanOnlyCase(
+      p,
+      'ordered-effects-large',
+      size,
+      orderedEffects(size),
+      true,
+    );
   }
   for(const size of [25,100,400]){
     await runCase(p,'unordered-effects',size,unorderedEffects(size),false);
