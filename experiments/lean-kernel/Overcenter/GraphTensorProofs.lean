@@ -51,15 +51,15 @@ theorem verified_two_hop_requires_current_view_and_path
         ctx viewKey sourceId targetId leftRelation rightRelation = true) :
     ∃ projection,
       buildGraphTensor ctx = some projection ∧
-      (projection.viewKey == viewKey) = true ∧
-      (hasTypedTwoHop (graphView ctx)
-        sourceId targetId leftRelation rightRelation) = true := by
+      ((projection.viewKey == viewKey) &&
+        hasTypedTwoHop (graphView ctx)
+          sourceId targetId leftRelation rightRelation) = true := by
   unfold verifyTypedTwoHop at verified
   cases built : buildGraphTensor ctx with
   | none =>
       simp [built] at verified
   | some projection =>
       rw [built] at verified
-      exact ⟨projection, built, Bool.and_eq_true.mp verified⟩
+      exact ⟨projection, rfl, verified⟩
 
 end Overcenter
