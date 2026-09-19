@@ -18,7 +18,7 @@ gh workflow run conflicting-effect.yml
 ```
 
 ## Evidence
-Main run `35463403321` falsified the obsolete final assertion that both mutable postconditions remain currently DONE. Exact corrected-head evidence is required before this returns to green.
+Main run `35463403321` falsified the obsolete final assertion that both mutable postconditions remain currently DONE. The corrected complete proof passed at exact revision `570e776aadb131589c9a47309d923e06b476e436` in run `35465653746`.
 
 ## Interpretation and non-claims
 Ordering constrains mutation legality; current-realization admissibility is separate. This does not prove coordinate-scoped GitHub credentials or identical provider histories.
