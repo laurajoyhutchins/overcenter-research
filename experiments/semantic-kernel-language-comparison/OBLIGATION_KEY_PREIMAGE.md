@@ -167,3 +167,149 @@ Before judging the language audition, the TypeScript null hypothesis will theref
 These are not Lean accommodations. They remove behavior that is unsuitable for a provider- and language-independent durable identity. The repaired TypeScript implementation remains the control for the final audition.
 
 Changing canonical ordering can change keys for obligations whose JSON object keys sort differently under the old locale-sensitive rule. A production migration would therefore require an explicit compatibility / key-version plan. This research branch does not silently claim migration compatibility.
+
+
+## Final result
+
+**Lean earns obligation-key preimage construction under the repaired language-independent key contract.**
+
+Final evaluated implementation head:
+
+`c3476292abb82bdae2af1b0e2465513f7c08106e`
+
+Exact-head evidence:
+
+- obligation-key preimage PR audition `35426149675`: **PASS**
+- parent semantic-identity audition `35426149684`: **PASS**
+- parent claim-admission audition `35426149712`: **PASS**
+- existing Lean semantic-kernel proof `35426149725`: **PASS**
+- repository Evidence `35426149797`:
+  - fast deterministic regression: **PASS**
+  - adversarial local proofs: **PASS**
+  - TLA+ safety proof: **PASS**
+
+The dedicated audition proves parity across:
+
+- every current postcondition family;
+- file, eventually-consistent file, GitHub, Kubernetes, and settlement semantic identity paths;
+- multiple semantic dependencies supplied in different declaration orders;
+- same upstream consumed through distinct selectors;
+- nested packet objects;
+- arrays whose order remains significant;
+- booleans, nulls, integers, empty strings, escaping, Unicode values;
+- Unicode object keys;
+- integer-like object keys that JavaScript normally reorders during property enumeration;
+- unresolved semantic inputs;
+- unsupported selectors;
+- duplicate dependency rejection;
+- forged caller key/preimage data;
+- missing, extra, or duplicate SHA-256-oracle responses.
+
+### Generic proof result
+
+The executable Lean kernel now separates key construction into:
+
+```text
+buildObligationKeyPreimageModel
+        ↓
+sorted resolved semantic dependencies
+        ↓
+serializeObligationKeyPreimage
+        ↓
+exact preimage bytes
+```
+
+Machine-checked theorems establish that successful preimage construction implies:
+
+1. semantic inputs were derivable;
+2. exact semantic dependency records are unique;
+3. there exists an explicit successfully constructed semantic-dependency model;
+4. the returned bytes are exactly the serialization of that model together with the original target `id`, `packet`, and `postcondition`.
+
+This is stronger than a finite parity suite because the structural relationship between successful construction and the serialized identity object is part of the executable proof.
+
+## The TypeScript null hypothesis was improved before it lost
+
+This audition did not compare Lean against a knowingly defective TypeScript implementation.
+
+The hostile suite first falsified the existing TypeScript key contract at head
+`c20fcfadeb4d0fe472d373a3200f8dcef5c2ba7a` in run `35425839111`.
+
+Two problems were made explicit:
+
+### 1. Locale-sensitive canonicalization
+
+`String.localeCompare` was being used to decide durable JSON object-key order.
+
+That produced a real cross-language key divergence on Unicode keys:
+
+```text
+Lean       b8d140f43be5d9c40339c221d5f038cf89dd350a3398ed3e908aa80f0e95344d
+TypeScript b34c0fd339630fc8f1a30f909ea6d1e8fa6193a98064b68946ffee8af6ab2b9a
+```
+
+The TypeScript control was repaired to use an explicit Unicode-scalar lexical comparator and a recursive byte-producing canonical JSON serializer.
+
+The serializer does not reconstruct a JavaScript object before `JSON.stringify`, so integer-like keys cannot be silently reordered by JavaScript property-enumeration semantics.
+
+### 2. Duplicate-edge syntax sensitivity
+
+Graph reachability already treats repeated upstream dependencies as set-like, but the previous obligation key hashed exact duplicate semantic edges multiple times.
+
+Stored-obligation validation now rejects exact duplicate dependency records while still permitting distinct selectors against the same upstream.
+
+Both repairs have ordinary TypeScript unit tests independent of the Lean experiment.
+
+After those repairs, Lean still reproduced the corrected TypeScript key byte-for-byte throughout the hostile suite.
+
+## Earned production boundary
+
+The evidence now supports this division:
+
+```text
+authenticated provider / durable facts
+                |
+                v
+TypeScript deterministic normalization
+  provider parsing / schema validation
+  primitive source normalization
+                |
+                v
+Lean semantic kernel
+  selector meaning
+  realization / receipt binding
+  semantic identity material
+  nested identity hash preimages
+  semantic dependency composition
+  canonical obligation-key preimage
+  claim admission
+                |
+                v
+SHA-256 primitive
+                |
+                v
+TypeScript integration / durable mutation
+  Git / GitHub / Kubernetes transport
+  credentials
+  CAS / commit mechanics
+```
+
+The SHA-256 implementation itself has not been auditioned. Lean chooses every byte string submitted to the hash primitive and validates the oracle response set; it does not need to own cryptographic implementation machinery to own the semantics of identity.
+
+## Migration consequence
+
+The canonicalization repair changes durable identity semantics for inputs whose object-key ordering differs under the old locale-sensitive behavior.
+
+Therefore this result is **not** authorization to silently replace the existing production key algorithm.
+
+Any production adoption needs an explicit key-semantics version or compatibility transition so historical realizations remain interpretable. Old and new key algorithms must not be ambiguously mixed.
+
+## Interpretation
+
+The TypeScript null hypothesis loses this bounded semantic role.
+
+More importantly, the experiment shows why the language boundary is useful: Lean did not merely reproduce the implementation. Trying to reproduce the durable identity contract from another executable semantics forced hidden assumptions about collation, JavaScript object enumeration, and duplicate-edge meaning into explicit falsifiable rules.
+
+TypeScript remains the appropriate default for ordinary integration software. Lean has now earned a coherent proof-bearing semantic core extending through obligation identity composition and claim admission.
+
+The next incision should not be automatic. The remaining TypeScript boundary consists mostly of authenticated external normalization, cryptographic primitives, transport, and durable mutation mechanics. Moving further inward should require a new experiment showing that a semantic judgment still remains on the TypeScript side, rather than migrating deterministic infrastructure simply because Lean can express it.
