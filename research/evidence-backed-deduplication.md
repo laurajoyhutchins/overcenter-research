@@ -199,7 +199,7 @@ structural certificate
 
 The [provider observation reuse experiment](./provider-observation-reuse.md) already established the architectural boundary behind this sequence. GitHub and Kubernetes shared the observation envelope and structural certificate engine successfully, while provider-specific identity, completeness, freshness, and negative-evidence meaning remained local. In that experiment the corresponding second-provider observation/validator infrastructure fell from roughly 259 LOC in the standalone Kubernetes branch to roughly 101 LOC of shared/factored infrastructure plus provider-local semantics.
 
-The production GitHub observers had already adopted the shared provider-general certificate engine, but they still repeated the GitHub-local transport-to-certificate plumbing around it. `observeCertifiedGithubRead200()` now owns that mechanical sequence once.
+The production GitHub observers had already adopted the shared provider-general certificate engine, but they still repeated the GitHub-local transport-to-certificate plumbing around it. `observeCertifiedGithubRead200()` now owns that mechanical sequence once. Current `main` also added the broader positive-only `observeCertifiedGithubSemanticRead()` surface; that reader now composes the same low-level certificate path rather than becoming a second implementation of it.
 
 It deliberately does **not** own:
 
