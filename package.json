@@ -35,6 +35,7 @@
     "bench:storage-backends": "node experiments/storage-backend-bakeoff/benchmark.mjs",
     "test:storage-backend-safety": "node experiments/storage-backend-bakeoff/safety-checks.mjs",
     "test:storage": "node --experimental-strip-types --test test/fact-store-contract.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts",
-    "demo:sqlite": "node --experimental-strip-types examples/sqlite-demo.ts"
+    "demo:sqlite": "node --experimental-strip-types examples/sqlite-demo.ts",
+    "proof:production": "bash scripts/proof-production.sh"
   }
 }
