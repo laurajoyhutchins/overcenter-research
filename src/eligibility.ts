@@ -7,7 +7,7 @@ import { dependencyUpstreams } from './graph.ts';
 import type { RealizationLifecycle } from './lifecycle.ts';
 import { staticEffectConflictError } from './admission.ts';
 
-export function claimabilityError(
+export function claimBlockReason(
   catalog:ObligationCatalog,
   work:Obligation,
   lifecycles:Map<string,RealizationLifecycle>,
@@ -54,7 +54,7 @@ export function projectWork(
 
   if (lifecycle.status!=='UNREALIZED') return projected;
 
-  const reason=claimabilityError(state,work,lifecycles);
+  const reason=claimBlockReason(catalog,work,lifecycles);
   if (reason && reason!=='NOT_READY') {
     projected.status='BLOCKED';
     projected.blocked_reason=reason;
