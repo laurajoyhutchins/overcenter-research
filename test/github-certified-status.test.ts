@@ -118,7 +118,7 @@ test('certified repository identity and status membership preserve positive sett
   assert.equal(receiptFor(observed).disposition,'DONE');
   assert.deepEqual(p.calls.slice(0,2),[
     '/repos/acme/widget',
-    `/repos/acme/widget/commits/${COMMIT}/statuses?per_page=100&page=1`,
+    `/repos/acme/widget/commits/${COMMIT}/statuses?page=1&per_page=100`,
   ]);
   assert.ok(!p.calls.some(path=>path.startsWith('/repositories/')));
 });

@@ -1,32 +1,17 @@
 import type { ProviderObservation } from '../provider-observation/observation.ts';
-import {
-  validateObservationSlice,
-  type ResponseFieldSpec,
-  type StructuralOperation,
-} from '../provider-observation/response-slice.ts';
+import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './github-contract.ts';
+import { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
+import {
+  materializeGithubOperationRequest,
+  type GithubObservationOperation,
+} from './github-openapi.ts';
+import { GITHUB_REPOSITORY_RESPONSE_SLICE } from './github-semantics.ts';
 import { githubGet, type GithubJsonGet } from './github-rest.ts';
-
-interface GithubObservationParameter {
-  name:string;
-  in:'path'|'query';
-  required:boolean;
-  schema:unknown;
-}
-
-export interface GithubObservationOperation extends StructuralOperation {
-  provider:'github';
-  api_version:string;
-  method:'GET';
-  path_template:string;
-  parameters:GithubObservationParameter[];
-  outcomes:Array<{status:string;description:string;schema:unknown}>;
-  github_extensions:Record<string,unknown>;
-}
 
 interface GithubObservationRequest {
   method:'GET';
@@ -72,46 +57,6 @@ export interface CertifiedGithubRepository {
   evidence:CertifiedGithubRepositoryEvidence;
 }
 
-export const GITHUB_REPOSITORY_RESPONSE_SLICE=[
-  {path:'id'},
-  {path:'node_id'},
-  {path:'full_name'},
-  {path:'name'},
-  {path:'owner.login'},
-] as const satisfies readonly ResponseFieldSpec[];
-
-export const GITHUB_REPOSITORY_OPERATION:GithubObservationOperation={
-  provider:'github',
-  api_version:GITHUB_API_VERSION,
-  method:'GET',
-  path_template:'/repos/{owner}/{repo}',
-  operation_id:'repos/get',
-  parameters:[
-    {name:'owner',in:'path',required:true,schema:{type:'string'}},
-    {name:'repo',in:'path',required:true,schema:{type:'string'}},
-  ],
-  outcomes:[{
-    status:'200',
-    description:'Response',
-    schema:{
-      type:'object',
-      required:['id','node_id','full_name','name','owner'],
-      properties:{
-        id:{type:'integer'},
-        node_id:{type:'string'},
-        full_name:{type:'string'},
-        name:{type:'string'},
-        owner:{
-          type:'object',
-          required:['login'],
-          properties:{login:{type:'string'}},
-        },
-      },
-    },
-  }],
-  github_extensions:{},
-};
-
 export function githubRepositoryCoordinate(fullName:string):{owner:string;repo:string} {
   const slash=fullName.indexOf('/');
   if (slash<=0 || slash===fullName.length-1 || fullName.indexOf('/',slash+1)!==-1) {
@@ -135,6 +80,7 @@ export function rawGithubObserved200({
   observedAt:string;
   observerId:string;
 }):GithubRawObservation {
+  if (operation.method!=='GET') throw new Error('GITHUB_CERTIFIED_READ_REQUIRES_GET');
   return {
     contract:{
       provider:'github',
@@ -177,13 +123,13 @@ export function observeCertifiedGithubRepository(
   },
 ):CertifiedGithubRepository {
   const {owner,repo}=githubRepositoryCoordinate(repositoryFullName);
-  const path=`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
-  const body=get(token,path);
+  const request=materializeGithubOperationRequest(GITHUB_REPOSITORY_OPERATION,{owner,repo});
+  const body=get(token,request.path);
   const observedAt=clock();
   const raw=rawGithubObserved200({
     operation:GITHUB_REPOSITORY_OPERATION,
-    path,
-    parameters:{owner,repo},
+    path:request.path,
+    parameters:request.parameters,
     body,
     observedAt,
     observerId,
@@ -238,4 +184,7 @@ export {
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './github-contract.ts';
+export { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
+export { GITHUB_REPOSITORY_RESPONSE_SLICE } from './github-semantics.ts';
+export type { GithubObservationOperation } from './github-openapi.ts';
 export type { GithubJsonGet } from './github-rest.ts';

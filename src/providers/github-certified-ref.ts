@@ -1,60 +1,20 @@
-import {
-  validateObservationSlice,
-  type ResponseFieldSpec,
-} from '../provider-observation/response-slice.ts';
+import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './github-contract.ts';
+import { GITHUB_REF_OPERATION } from './github-operations.generated.ts';
+import { materializeGithubOperationRequest } from './github-openapi.ts';
+import { GITHUB_REF_RESPONSE_SLICE } from './github-semantics.ts';
 import {
   observeCertifiedGithubRepository,
   rawGithubObserved200,
   type CertifiedGithubRepositoryEvidence,
-  type GithubObservationOperation,
 } from './github-certified-repository.ts';
 import { githubGet, type GithubJsonGet } from './github-rest.ts';
 
 const SHA=/^[0-9a-f]{40,64}$/i;
-
-export const GITHUB_REF_RESPONSE_SLICE=[
-  {path:'ref'},
-  {path:'object.type'},
-  {path:'object.sha'},
-] as const satisfies readonly ResponseFieldSpec[];
-
-export const GITHUB_REF_OPERATION:GithubObservationOperation={
-  provider:'github',
-  api_version:GITHUB_API_VERSION,
-  method:'GET',
-  path_template:'/repos/{owner}/{repo}/git/ref/{ref}',
-  operation_id:'git/get-ref',
-  parameters:[
-    {name:'owner',in:'path',required:true,schema:{type:'string'}},
-    {name:'ref',in:'path',required:true,schema:{type:'string'}},
-    {name:'repo',in:'path',required:true,schema:{type:'string'}},
-  ],
-  outcomes:[{
-    status:'200',
-    description:'Response',
-    schema:{
-      type:'object',
-      required:['ref','object'],
-      properties:{
-        ref:{type:'string'},
-        object:{
-          type:'object',
-          required:['type','sha'],
-          properties:{
-            type:{type:'string'},
-            sha:{type:'string',minLength:40,maxLength:40},
-          },
-        },
-      },
-    },
-  }],
-  github_extensions:{},
-};
 
 export interface CertifiedGithubRefEvidence {
   provider:'github';
@@ -127,13 +87,17 @@ export function observeCertifiedGithubRefFence(
       observerId:'github-ref-fence/v1',
     });
     const {owner,repo}=repository.fact.object;
-    const path=`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/${encodeURIComponent(requestedRef)}`;
-    const body=get(token,path);
+    const request=materializeGithubOperationRequest(GITHUB_REF_OPERATION,{
+      owner,
+      repo,
+      ref:requestedRef,
+    });
+    const body=get(token,request.path);
     const observedAt=clock();
     const raw=rawGithubObserved200({
       operation:GITHUB_REF_OPERATION,
-      path,
-      parameters:{owner,repo,ref:requestedRef},
+      path:request.path,
+      parameters:request.parameters,
       body,
       observedAt,
       observerId:'github-ref-fence/v1',
@@ -194,3 +158,6 @@ export function observeCertifiedGithubRefFence(
     };
   }
 }
+
+export { GITHUB_REF_OPERATION } from './github-operations.generated.ts';
+export { GITHUB_REF_RESPONSE_SLICE } from './github-semantics.ts';
