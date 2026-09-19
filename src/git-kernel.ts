@@ -54,21 +54,17 @@ import type { Projection } from './projection.ts';
 
 export type { Receipt } from './facts.ts';
 
-const STATE_REF='refs/overcenter/state';
+const DEFAULT_AUTHORITY_REF='refs/overcenter/state';
 const errorMessage=(error:unknown)=>error instanceof Error ? error.message : String(error);
 
 export class GitOvercenterKernel {
-  readonly repo:string;
-  readonly ref:string;
-  readonly remote:string|null;
-  readonly githubToken:string|null;
-  readonly observationContext:ObservationContext;
+  readonly #observationContext:ObservationContext;
   readonly #store:GitFactStore;
 
   constructor(
     repo:string,
     {
-      ref=STATE_REF,
+      ref=DEFAULT_AUTHORITY_REF,
       remote=null,
       githubToken=null,
       observationContext={},
@@ -79,27 +75,23 @@ export class GitOvercenterKernel {
       observationContext?:Omit<ObservationContext,'githubToken'>;
     }={},
   ) {
-    this.repo=repo;
-    this.ref=ref;
-    this.remote=remote;
-    this.githubToken=githubToken;
-    this.observationContext={githubToken,...observationContext};
+    this.#observationContext={githubToken,...observationContext};
     this.#store=new GitFactStore(repo,{ref,remote});
   }
 
   initialize():string {
-    const existing=this.head();
+    const existing=this.authorityRevision();
     if (existing) return existing;
     const commit=this.#store.createCommit(null,'overcenter: initialize');
     if (this.#store.cas(commit,this.#store.zeroObjectId())) return commit;
-    const winner=this.head();
+    const winner=this.authorityRevision();
     if (!winner) throw new Error('INITIALIZE_LOST');
     this.#projection(winner);
     return winner;
   }
 
-  head():string|null {
-    return this.#store.head();
+  authorityRevision():string|null {
+    return this.#store.refRevision();
   }
 
   define(input:ObligationInput):string {
@@ -404,7 +396,7 @@ export class GitOvercenterKernel {
   }
 
   #requireHead():string {
-    const head=this.head();
+    const head=this.authorityRevision();
     if (!head) throw new Error('NOT_INITIALIZED');
     return head;
   }
@@ -423,7 +415,7 @@ export class GitOvercenterKernel {
   }
 
   #observe(postcondition:Postcondition):Observation {
-    return observePostcondition(postcondition,this.observationContext);
+    return observePostcondition(postcondition,this.#observationContext);
   }
 
 
