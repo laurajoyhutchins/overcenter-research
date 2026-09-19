@@ -2,7 +2,7 @@
   "schema": "overcenter-git-execution-authority-v1",
   "run_id": "dded24b4-4ed4-42b1-81d2-c98c8089a55b",
   "obligation_id": "provider-capability-confinement-35425488290-1",
-  "generation": 3,
-  "previous_authority_commit": "a97c3582ac7cc207b6152826145ab4afbbcced38",
-  "execution_capability_sha256": "6c64951128f2691cc40a3451fa65ab5d36b33aff8d274ed74943a2b29d07b046"
+  "generation": 4,
+  "previous_authority_commit": "4ec136a7aa23dc7ae4b835c147f4a3b31ed0ccca",
+  "execution_capability_sha256": "86502cb189935caad6d8baef51ea8ebefb79a4ed4ed324944331d5475892feff"
 }
