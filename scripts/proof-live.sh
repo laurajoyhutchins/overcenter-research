@@ -59,6 +59,7 @@ WORKFLOWS=(
   github-observation-grammar.yml
   github-object-transport-proof.yml
   github-settlement-equivalence.yml
+  provider-capability-confinement.yml
 )
 
 echo "Live proof revision: $REPO@$REF = $EXPECTED_SHA"
