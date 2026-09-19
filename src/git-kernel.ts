@@ -1,4 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { sha256 } from './digest.ts';
 import type {
   Data,
   ExecuteOutcome,
@@ -180,7 +181,7 @@ export class GitOvercenterKernel {
 
     const runId=randomUUID();
     const executionCapability=randomUUID();
-    const executionCapabilitySha256=this.#capabilityDigest(executionCapability);
+    const executionCapabilitySha256=sha256(executionCapability);
     const claim:ClaimFact={
       schema:CLAIM_SCHEMA,
       run_id:runId,
@@ -227,7 +228,7 @@ export class GitOvercenterKernel {
       }
 
       const executionCapability=randomUUID();
-      const executionCapabilitySha256=this.#capabilityDigest(executionCapability);
+      const executionCapabilitySha256=sha256(executionCapability);
       const fact:ExecutionAuthorityFact={
         schema:EXECUTION_AUTHORITY_SCHEMA,
         run_id:run.id,
@@ -425,9 +426,6 @@ export class GitOvercenterKernel {
     return observePostcondition(postcondition,this.observationContext);
   }
 
-  #capabilityDigest(capability:string):string {
-    return createHash('sha256').update(capability).digest('hex');
-  }
 
   #requireExecutionPermit(
     history:Projection['history'],
@@ -439,7 +437,7 @@ export class GitOvercenterKernel {
       permit.execution_generation!==run.execution_generation
       || permit.execution_authority_commit!==run.execution_authority_commit
       || permit.execution_capability_sha256!==run.execution_capability_sha256
-      || this.#capabilityDigest(permit.execution_capability)!==run.execution_capability_sha256
+      || sha256(permit.execution_capability)!==run.execution_capability_sha256
     ) {
       throw new Error('STALE_EXECUTION_GENERATION');
     }
