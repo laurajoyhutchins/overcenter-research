@@ -24,7 +24,11 @@ function semanticDependencyIdentity(
 
   const selection=semanticDependencySelection(edge);
   if (selection==='verified-content') {
-    return verifiedContentIdentity(upstream.postcondition);
+    const identity=verifiedContentIdentity(upstream.postcondition);
+    if (identity) return identity;
+    throw new Error(
+      `UNAVAILABLE_SEMANTIC_OUTPUT:${edge.upstream}:verified-content`,
+    );
   }
 
   const receipt=receiptsByRun.get(lifecycle.run.id);
