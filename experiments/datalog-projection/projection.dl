@@ -14,7 +14,12 @@
 .decl current_semantic_key(obligation:symbol, semantic_key:symbol)
 .input current_semantic_key
 
-.decl dependency(downstream:symbol, definition_id:symbol, upstream:symbol)
+.decl dependency(
+    downstream:symbol,
+    definition_id:symbol,
+    upstream:symbol,
+    kind:symbol
+)
 .input dependency
 
 .decl run(run_id:symbol, obligation:symbol, semantic_key:symbol, ordinal:number)
@@ -56,17 +61,17 @@ current_definition(O, DefinitionId, N) :-
 .decl current_obligation(obligation:symbol)
 current_obligation(O) :- current_definition(O, DefinitionId, N).
 
-.decl current_dependency(downstream:symbol, upstream:symbol)
-current_dependency(D, U) :-
+.decl current_dependency(downstream:symbol, upstream:symbol, kind:symbol)
+current_dependency(D, U, Kind) :-
     current_definition(D, DefinitionId, N),
-    dependency(D, DefinitionId, U).
+    dependency(D, DefinitionId, U, Kind).
 
 // ----- Dependency closure -------------------------------------------------
 
 .decl dependency_closure(downstream:symbol, upstream:symbol)
-dependency_closure(D, U) :- current_dependency(D, U).
+dependency_closure(D, U) :- current_dependency(D, U, Kind).
 dependency_closure(D, U) :-
-    current_dependency(D, M),
+    current_dependency(D, M, Kind),
     dependency_closure(M, U).
 
 .output dependency_closure
@@ -191,8 +196,18 @@ unrealized(O) :-
 .decl unsatisfied_dependency(obligation:symbol, upstream:symbol)
 unsatisfied_dependency(O, U) :-
     unrealized(O),
-    current_dependency(O, U),
+    current_dependency(O, U, Kind),
     !done(U).
+
+.decl unresolved_semantic_dependency(obligation:symbol, upstream:symbol)
+unresolved_semantic_dependency(O, U) :-
+    current_obligation(O),
+    current_dependency(O, U, "semantic"),
+    !done(U).
+
+.decl has_unresolved_semantic_dependency(obligation:symbol)
+has_unresolved_semantic_dependency(O) :-
+    unresolved_semantic_dependency(O, U).
 
 .decl has_unsatisfied_dependency(obligation:symbol)
 has_unsatisfied_dependency(O) :- unsatisfied_dependency(O, U).
@@ -216,7 +231,8 @@ ready(O) :-
 .decl missing_current_semantic_key(obligation:symbol)
 missing_current_semantic_key(O) :-
     current_obligation(O),
-    !current_semantic_key(O, _).
+    !current_semantic_key(O, _),
+    !has_unresolved_semantic_dependency(O).
 
 .decl semantic_key_for_unknown_obligation(obligation:symbol)
 semantic_key_for_unknown_obligation(O) :-
@@ -235,14 +251,23 @@ duplicate_semantic_key(O) :-
     current_semantic_key(O, K2),
     K != K2.
 
+.decl known_dependency_kind(kind:symbol)
+known_dependency_kind("control").
+known_dependency_kind("semantic").
+
+.decl invalid_dependency_kind(obligation:symbol, upstream:symbol)
+invalid_dependency_kind(O, U) :-
+    current_dependency(O, U, Kind),
+    !known_dependency_kind(Kind).
+
 .decl orphan_dependency(obligation:symbol, definition_id:symbol)
 orphan_dependency(O, DefinitionId) :-
-    dependency(O, DefinitionId, U),
+    dependency(O, DefinitionId, U, Kind),
     !definition(O, DefinitionId, _).
 
 .decl unknown_dependency(obligation:symbol, upstream:symbol)
 unknown_dependency(O, U) :-
-    current_dependency(O, U),
+    current_dependency(O, U, Kind),
     !current_obligation(U).
 
 .decl dependency_cycle(obligation:symbol)
@@ -329,6 +354,7 @@ invalid_input("invalid") :- missing_current_semantic_key(O).
 invalid_input("invalid") :- semantic_key_for_unknown_obligation(O).
 invalid_input("invalid") :- duplicate_definition_ordinal(O, N).
 invalid_input("invalid") :- duplicate_semantic_key(O).
+invalid_input("invalid") :- invalid_dependency_kind(O, U).
 invalid_input("invalid") :- orphan_dependency(O, DefinitionId).
 invalid_input("invalid") :- unknown_dependency(O, U).
 invalid_input("invalid") :- dependency_cycle(O).
@@ -373,6 +399,7 @@ project_status(O, "READY") :-
 .output semantic_key_for_unknown_obligation
 .output duplicate_definition_ordinal
 .output duplicate_semantic_key
+.output invalid_dependency_kind
 .output orphan_dependency
 .output unknown_dependency
 .output dependency_cycle
