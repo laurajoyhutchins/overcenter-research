@@ -13,7 +13,7 @@ The Lean kernel now owns four decisions:
 1. **Obligation identity material** — verifier semantics are explicit identity.
 2. **Settlement** — admitted observations become `done`, `ready`, or `recoveryRequired`.
 3. **Realization reuse** — immutable realizations may reuse exact identity; mutable external realizations require fresh verification.
-4. **Kubernetes LIST interpretation** — raw page/member evidence becomes `PRESENT`, `ABSENT`, or `INDETERMINATE`.
+4. **Kubernetes LIST/WATCH interpretation** — raw page/member evidence becomes `PRESENT`, `ABSENT`, or `INDETERMINATE`, and LIST-proved absence can be carried only through an exact-bound WATCH transcript that still ends absent.
 
 The structured semantic key is modeled directly. Cryptographic compression of that key is deliberately outside this slice.
 
@@ -144,9 +144,22 @@ Lean validates the material direct-coordinate ENOENT certificate fields itself:
 
 ## Kubernetes boundary
 
-Complete LIST semantics are no longer abstract in Lean.
+Complete LIST and WATCH semantics are no longer abstract booleans in Lean.
 
-The remaining Kubernetes temporal question is **WATCH continuity**. A future slice should determine exactly what transport evidence is sufficient to carry an absence fact from LIST snapshot resourceVersion `R` through a WATCH without smuggling a `continuity: maintained` assertion across the boundary.
+For LIST, the kernel derives completeness from page authority, request namespace, continuation chaining, exact snapshot `resourceVersion`, terminal pagination, member identity fields, and target membership.
+
+For WATCH, the kernel starts from an actually absent LIST snapshot and requires:
+
+- exact authority and namespace;
+- exact WATCH start `resourceVersion` equal to the LIST snapshot;
+- a concrete ordered event transcript;
+- valid event member identity;
+- no `gone` or transport-error termination;
+- the target-state fold to end absent.
+
+`resourceVersion` remains opaque. Lean does not compare it numerically; stream order plus exact start binding carry the semantic meaning.
+
+The TypeScript WATCH adapter currently summarizes this as `continuity: maintained` plus target-event types. `kubernetes-watch-differential.test.ts` confirms that the Lean raw-transcript interpretation agrees with that summary on their overlapping cases, while Lean requires the stronger raw transcript at its own boundary.
 
 ## Build
 
@@ -164,7 +177,9 @@ CI:
 4. differential-tests local-file settlement;
 5. executes the mutable-reuse gap witness;
 6. adversarially tests serialized Kubernetes evidence;
-7. differential-tests Kubernetes provider interpretation against TypeScript.
+7. differential-tests Kubernetes provider interpretation against TypeScript;
+8. adversarially tests raw Kubernetes WATCH carry;
+9. differential-tests WATCH carry against the current TypeScript summary semantics.
 
 ## Deliberate boundary
 
@@ -175,3 +190,7 @@ The boundary is:
 > Given these authenticated provider bytes / durable facts, what conclusions may Overcenter derive?
 
 That is intentionally much smaller than “Lean runs the orchestrator.”
+
+## Next core slice
+
+Provider evidence now reaches a useful stopping point. The next experiment moves inward: durable fact replay and execution-generation fencing. The goal is for Lean to decide whether a claim, authority rotation, effect reservation, or receipt is admissible from prior durable facts, then differential-test that reducer against `replayProjection`.
