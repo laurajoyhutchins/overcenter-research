@@ -108,8 +108,7 @@ function processSpec(
       OVERCENTER_SOURCE_SHA:sourceSha,
       PATH:'/usr/local/bin:/usr/bin:/bin',
     },
-    // Temporary short budget while diagnosing contained self-regression.
-    timeout_ms:tier==='regression' ? 90_000 : 600_000,
+    timeout_ms:tier==='regression' ? 180_000 : 600_000,
     stdout_max_bytes:512*1024,
     stderr_max_bytes:512*1024,
   };
