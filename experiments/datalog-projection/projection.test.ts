@@ -52,6 +52,7 @@ interface Scenario {
   runs:RunFixture[];
   receipts:ReceiptFixture[];
   expectedClosure?:string[];
+  currentSemanticKeyOverrides?:Record<string,string>;
 }
 
 const PROGRAM=join(
@@ -242,8 +243,17 @@ function datalogProjection(
       join(facts,'definition.facts'),
       scenario.definitions.map(definition=>[
         definition.work.id,
-        keys.get(definition.ordinal)!,
+        `definition-${definition.ordinal}`,
         definition.ordinal,
+      ]),
+    );
+
+    writeFacts(
+      join(facts,'current_semantic_key.facts'),
+      [...currentDefinitions(scenario.definitions)].map(([id,definition])=>[
+        id,
+        scenario.currentSemanticKeyOverrides?.[id]
+          ?? keys.get(definition.ordinal)!,
       ]),
     );
 
@@ -252,7 +262,7 @@ function datalogProjection(
       scenario.definitions.flatMap(definition=>
         definition.work.dependencies.map(edge=>[
           definition.work.id,
-          definition.ordinal,
+          `definition-${definition.ordinal}`,
           edge.upstream,
         ]),
       ),
@@ -406,4 +416,27 @@ test('changing only material semantic identity removes reuse',()=>{
 
   assert.equal(expected.get('a'),'READY');
   assert.equal(actual.statuses.get('a'),'READY');
+});
+
+test('current semantic identity may change while the definition stays identical',()=>{
+  const stableDefinition=obligation('stable','v1');
+  const baseline:Scenario={
+    name:'same definition, same semantic key',
+    definitions:[{work:stableDefinition,ordinal:1}],
+    runs:[{id:'old-done',obligation:'stable',definitionOrdinal:1,ordinal:10}],
+    receipts:[{run:'old-done',disposition:'DONE',ordinal:20}],
+  };
+
+  const reused=datalogProjection(baseline);
+  assert.equal(reused.statuses.get('stable'),'DONE');
+
+  const changed:Scenario={
+    ...baseline,
+    name:'same definition, changed upstream-derived semantic key',
+    currentSemanticKeyOverrides:{
+      stable:'sha256:upstream-identity-changed',
+    },
+  };
+  const invalidated=datalogProjection(changed);
+  assert.equal(invalidated.statuses.get('stable'),'READY');
 });
