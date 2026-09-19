@@ -25,7 +25,7 @@ test('commit SHA is the authoritative revision and claim is its child', () => {
     const run = f.kernel.claim('x', w.revision);
     const parent = execFileSync('git', ['-C', f.repo, 'rev-parse', `${run.claim_commit}^`], { encoding: 'utf8' }).trim();
     assert.equal(parent, w.revision);
-    assert.equal(f.kernel.head(), run.claim_commit);
+    assert.equal(f.kernel.authorityRevision(), run.claim_commit);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
@@ -62,7 +62,7 @@ test('core loop commits an effect reservation before invoking effect handler', a
       effect: async (...args) => {
         assert.equal(args.length, 1, 'effect callback must not receive ExecutionPermit');
         const [packet] = args;
-        const head = f.kernel.head()!;
+        const head = f.kernel.authorityRevision()!;
         const reservation = JSON.parse(
           execFileSync(
             'git',
@@ -450,7 +450,7 @@ test('historical receipt stays bound to the obligation generation claimed by its
     assert.equal(firstDone.disposition, 'DONE');
     assert.equal(firstDone.verified, true);
 
-    const beforeAmend = f.kernel.head()!;
+    const beforeAmend = f.kernel.authorityRevision()!;
     f.kernel.amend({
       id: 'x',
       packet: { generation: 2 },
