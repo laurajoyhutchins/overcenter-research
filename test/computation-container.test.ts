@@ -259,7 +259,7 @@ async function startIsolatedExecutor(
   );
   assert.deepEqual(hostConfig.CapDrop,['ALL']);
   assert.deepEqual(
-    new Set(hostConfig.CapAdd??[]),
+    new Set((hostConfig.CapAdd??[]).map(capability=>capability.replace(/^CAP_/,'').toUpperCase())),
     new Set(containerProfile.cap_add),
   );
   assert.equal(hostConfig.PidsLimit,containerProfile.pids_limit);
