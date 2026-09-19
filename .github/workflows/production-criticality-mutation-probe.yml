@@ -12,6 +12,10 @@ on:
       - '.github/workflows/production-criticality-mutation-probe.yml'
   workflow_dispatch:
 
+concurrency:
+  group: criticality-mutation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

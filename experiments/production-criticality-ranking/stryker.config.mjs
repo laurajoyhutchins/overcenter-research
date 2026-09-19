@@ -5,7 +5,7 @@ export default {
   ],
   testRunner: 'command',
   commandRunner: {
-    command: 'npm test',
+    command: 'node --experimental-strip-types --test test/digest-pure.test.ts test/projector-pure.test.ts test/projector-explanation.test.ts test/realization-admissibility.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts',
   },
   coverageAnalysis: 'off',
   concurrency: 4,
