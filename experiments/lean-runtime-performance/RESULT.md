@@ -265,3 +265,209 @@ Three additional limits should be retained in the record:
 3. The TypeScript comparator is not a perfectly identical computational slice: it includes current TypeScript admission validation plus `obligationKey` construction, while the Lean protocol decides normalized claim admission. Absolute Lean latency gates remain useful; direct TypeScript/Lean ratios should not be treated as a clean language benchmark.
 
 No concurrency/load test, target-deployment-environment benchmark, or production-port benchmark has yet been performed.
+
+
+---
+
+## Final topology repair and proof-backed indexed kernel
+
+The self-review correction above triggered a second optimization round. The frozen
+latency thresholds were not changed.
+
+The repair proceeded adversary by adversary rather than assuming that the first
+indexing change generalized.
+
+### 1. Graph acyclicity
+
+The repeated per-edge reachability check was replaced with an indexed Kahn-style
+topological traversal.
+
+Kahn's result is not trusted directly. It produces a candidate topological order,
+and an independent certificate checker verifies that:
+
+- every obligation is covered;
+- every dependency occurs earlier than its consumer.
+
+The proposition-level specification is independent of Kahn's implementation.
+The compiled theorem:
+
+`claimGraphAcyclic_sound`
+
+establishes that an accepted executable acyclicity decision implies the existence
+of an independently defined topological ordering.
+
+The obligation hash index is also tied back to the original list lookup by the
+compiled theorem:
+
+`claimObligationIndex_lookup_eq_find`
+
+so the optimized lookup is not a second semantic authority.
+
+The original 400-node chain counterexample changed from:
+
+- persistent: **69.481 ms**
+- one-shot: **104.843 ms**
+
+to low-single-digit persistent latency and roughly process-startup-bounded
+one-shot latency.
+
+### 2. Wide dependency fan-in
+
+A 10,000-obligation fixture in which the target directly depends on every other
+obligation exposed another quadratic path: each dependency status was resolved
+by a fresh linear lifecycle-list lookup.
+
+The optimized path builds a first-occurrence-preserving lifecycle hash index.
+Two compiled theorems bind it to the original semantics:
+
+- `claimLifecycleIndex_lookup_eq_find`
+- `claimDependenciesDone_eq_reference`
+
+Before:
+
+| Obligations | persistent |
+| ---: | ---: |
+| 2,000 | 22.219 ms |
+| 5,000 | 103.305 ms |
+| 10,000 | **367.163 ms** |
+
+After the proved index substitution, a representative exact-head run measured:
+
+| Obligations | persistent |
+| ---: | ---: |
+| 2,000 | 9.944 ms |
+| 5,000 | 25.129 ms |
+| 10,000 | **53.087 ms** |
+
+A later final-head run measured 54.462 ms at 10,000. The resulting curve is
+consistent with approximately linear growth over this range.
+
+### 3. Ordered effect reachability
+
+The retained implementation asked a fresh reachability question for every
+conflicting effect. A long ordered effect chain exposed the resulting quadratic
+tail:
+
+| Obligations | reference-style persistent |
+| ---: | ---: |
+| 1,000 | 22.069 ms |
+| 2,000 | 83.569 ms |
+| 5,000 | 505.160 ms |
+| 10,000 | **1,973.769 ms** |
+
+The optimized implementation reuses the graph's topological order:
+
+1. one forward pass marks obligations that depend on the target;
+2. one reverse pass marks obligations on which the target depends;
+3. each effect comparison becomes two hash-set membership checks.
+
+The repeated-search implementation remains in the source as
+`claimUnorderedEffectConflictReference`.
+
+Unlike the obligation and lifecycle indexes, this optimized effect classifier
+does **not yet have a universal equivalence theorem** to the retained reference.
+Its current evidence is differential.
+
+### Exhaustive small-DAG differential
+
+A test-only comparison executable reuses the exact production parser but does
+not add another production command.
+
+CI exhausts:
+
+- all **1,024** DAGs compatible with a fixed five-node topological labeling;
+- every target / competing-effect ordered pair (**20** per DAG);
+- forward and reverse obligation-list order;
+- dependency-completion reference parity alongside effect-order parity.
+
+That is **40,960** exact optimized-vs-reference comparisons per CI attempt.
+
+Final exact head:
+
+`3e438674551a6df487821e124f64e86bf30ebf06`
+
+GitHub Actions run:
+
+`35464387969`
+
+All three attempts on this exact SHA passed the complete 40,960-case
+differential gate.
+
+This is strong bounded regression evidence, but it is deliberately not described
+as a universal proof.
+
+### Final ordered-effect stress
+
+Across the three exact-SHA attempts:
+
+| Obligations | Attempt 1 persistent | Attempt 2 persistent | Attempt 3 persistent |
+| ---: | ---: | ---: | ---: |
+| 1,000 | 9.158 ms | 9.274 ms | 9.286 ms |
+| 2,000 | 18.244 ms | 19.063 ms | 18.526 ms |
+| 5,000 | 43.039 ms | 42.878 ms | 43.350 ms |
+| 10,000 | **91.721 ms** | **90.884 ms** | **94.028 ms** |
+
+The previous 10,000-node result was 1,973.769 ms persistent. The optimized
+classification therefore removes the observed quadratic effect-order tail over
+the measured range.
+
+### Final frozen production gate
+
+The final algorithmic shape was executed three times on the same exact SHA.
+
+| Attempt | TypeScript p95 | Lean one-shot p95 | Lean persistent p95 | one-shot max RSS | Gate |
+| ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | 1.673 ms | **49.191 ms** | **3.735 ms** | 68,892 KiB | PASS |
+| 2 | 1.582 ms | **46.442 ms** | **3.717 ms** | 68,796 KiB | PASS |
+| 3 | 1.734 ms | **49.347 ms** | **3.579 ms** | 68,856 KiB | PASS |
+
+All three final-head attempts pass every frozen criterion:
+
+- correctness parity: PASS;
+- one-shot 1,000-obligation p95 <= 50 ms: PASS;
+- persistent 1,000-obligation p95 <= 20 ms: PASS;
+- one-shot maximum RSS <= 128 MiB: PASS.
+
+The one-shot margin is intentionally reported as narrow. Two of the three p95
+measurements are within one millisecond of the precommitted ceiling. The
+persistent shape has much larger latency margin.
+
+The 10,000-obligation flat stress case on these attempts remained approximately
+37–40 ms persistent. That case still has only five observations per run and
+should be interpreted as stress evidence, not a statistically stable p95.
+
+## Final corrected conclusion
+
+The earlier self-review correction is now itself superseded for the measured
+experimental kernel.
+
+The evidence supports:
+
+**The compiled Lean claim-admission kernel now satisfies the frozen runtime gate
+on three final exact-SHA attempts and no longer shows pathological scaling on the
+measured chain, fan-in, fan-out, layered, dense, or ordered-effect adversaries.**
+
+The strongest correctness evidence is not uniform across every predicate:
+
+- graph-acyclic acceptance has an independent proposition-level soundness proof;
+- optimized obligation lookup is proved equal to the original list lookup;
+- optimized lifecycle lookup and dependency completion are proved equal to their
+  retained list-based reference semantics;
+- optimized effect ordering has 40,960 exhaustive small-DAG differential
+  comparisons plus large stress fixtures, but not yet a universal equivalence
+  theorem to the retained reference.
+
+Therefore this experiment justifies the **runtime and algorithmic viability** of
+Lean for the bounded claim-admission truth-deciding role. It does not by itself
+justify a production merge into current `main`.
+
+Remaining production-integration evidence is separate:
+
+- port the earned semantic slice onto current architecture rather than merging
+  this divergent experimental lineage wholesale;
+- preserve exact normalized-input and authority boundaries;
+- rerun the proof/differential/performance suite on the ported revision;
+- measure the actual deployment substrate and concurrency/load behavior;
+- if formal assurance for effect ordering is required at the same level as graph
+  acyclicity, add a universal soundness/equivalence theorem rather than treating
+  bounded exhaustive differential evidence as proof.
