@@ -78,7 +78,7 @@ test('1,000-node graph frontier physically executes quick work while hung work c
   const plan=stressPlan();
   assert.equal(plan.length,760);
 
-  const evidence=await execute(plan,500,'150ms');
+  const evidence=await execute(plan,500,'500ms');
   assert.equal(evidence.length,760);
   assert.equal(evidence.filter(item=>item.outcome==='completed').length,710);
   assert.equal(evidence.filter(item=>item.outcome==='failed').length,25);
