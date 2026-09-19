@@ -104,7 +104,7 @@ U0 RunTests()
   ClearScenario;
   BuildCanonicalChain;
   Expect(IsReady(0), "root is ready");
-  Expect(ReadyCount == 1, "fresh chain has one ready obligation");
+  Expect(ReadyCount() == 1, "fresh chain has one ready obligation");
 
   /*
     Scenario 2:
@@ -114,7 +114,7 @@ U0 RunTests()
   Satisfied[1] = TRUE;
   Satisfied[2] = TRUE;
   Expect(IsReady(3), "execute becomes ready after prerequisites");
-  Expect(ReadyCount == 1, "only execute is ready");
+  Expect(ReadyCount() == 1, "only execute is ready");
   PrintFrontier;
 
   /*
@@ -148,7 +148,7 @@ U0 RunTests()
   Satisfied[3] = TRUE;
   Satisfied[4] = TRUE;
   Satisfied[5] = TRUE;
-  Expect(ReadyCount == 0, "fully satisfied graph has empty frontier");
+  Expect(ReadyCount() == 0, "fully satisfied graph has empty frontier");
 
   "\nHolyC frontier checks complete: %d failure(s).\n", FailureCount;
 }
