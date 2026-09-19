@@ -2,21 +2,21 @@ import type {
   Obligation,
   Work,
 } from './model.ts';
-import type { State } from './facts.ts';
+import type { ObligationCatalog } from './facts.ts';
 import { dependencyUpstreams } from './graph.ts';
-import type { Lifecycle } from './lifecycle.ts';
+import type { RealizationLifecycle } from './lifecycle.ts';
 import { staticEffectConflictError } from './admission.ts';
 
 export function claimabilityError(
-  state:State,
+  catalog:ObligationCatalog,
   work:Obligation,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationLifecycle>,
 ):string|null {
   const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
   if (realization!=='UNREALIZED') return 'NOT_READY';
 
   const done=new Set(
-    Object.values(state.obligations)
+    Object.values(catalog.obligations)
       .filter(candidate=>lifecycles.get(candidate.id)?.status==='DONE')
       .map(candidate=>candidate.id),
   );
@@ -28,14 +28,14 @@ export function claimabilityError(
   // a defensive projection for legacy or externally constructed histories so
   // an older valid v3 history cannot become executable merely because policy
   // moved earlier.
-  return staticEffectConflictError(state,work.id);
+  return staticEffectConflictError(catalog,work.id);
 }
 
 export function projectWork(
-  state:State,
+  catalog:ObligationCatalog,
   work:Obligation,
   revision:string,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationLifecycle>,
 ):Work {
   const lifecycle=lifecycles.get(work.id)??{status:'UNREALIZED' as const};
   const status=lifecycle.status==='UNREALIZED' ? 'READY' : lifecycle.status;
