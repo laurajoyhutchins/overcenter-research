@@ -47,7 +47,7 @@ private def parseCoordinate (family : VerifierFamily) (json : Json) : Except Str
   | _ =>
       pure (.opaque (← json.getStr?))
 
-private def parsePostcondition (json : Json) : Except String Postcondition := do
+def parsePostcondition (json : Json) : Except String Postcondition := do
   let family ← parseFamily (← stringField json "family")
   pure {
     family
@@ -134,7 +134,7 @@ private def parseAbsence (json : Json) : Except String (Option AbsenceEvidence) 
       (← parseKubernetesPages (← field json "pages")))
   throw s!"unsupported absence evidence kind: {kind}"
 
-private def parseObservation (json : Json) : Except String Observation := do
+def parseObservation (json : Json) : Except String Observation := do
   let family ← parseFamily (← stringField json "family")
   pure {
     family
@@ -148,7 +148,7 @@ private def parseObservation (json : Json) : Except String Observation := do
 private def natField (json : Json) (name : String) : Except String Nat := do
   (← field json name).getNat?
 
-private def parseExecutionStatus : String → Except String ExecutionStatus
+def parseExecutionStatus : String → Except String ExecutionStatus
   | "EXECUTING" => pure .executing
   | "WAITING" => pure .waiting
   | "RECOVERY_REQUIRED" => pure .recoveryRequired
@@ -156,7 +156,7 @@ private def parseExecutionStatus : String → Except String ExecutionStatus
   | "READY" => pure .ready
   | other => throw s!"unsupported execution status: {other}"
 
-private def executionStatusName : ExecutionStatus → String
+def executionStatusName : ExecutionStatus → String
   | .executing => "EXECUTING"
   | .waiting => "WAITING"
   | .recoveryRequired => "RECOVERY_REQUIRED"

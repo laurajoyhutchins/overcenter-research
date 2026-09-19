@@ -1,0 +1,98 @@
+name: Lean realization projection
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - experiments/lean-kernel/**
+      - experiments/semantic-kernel-language-comparison/REALIZATION_PROJECTION.md
+      - experiments/semantic-kernel-language-comparison/realization-projection-differential.test.ts
+      - src/lifecycle.ts
+      - src/projection.ts
+      - src/observation.ts
+      - .github/workflows/lean-realization-projection.yml
+  push:
+    branches:
+      - experiment/lean-realization-projection
+    paths:
+      - experiments/lean-kernel/**
+      - experiments/semantic-kernel-language-comparison/REALIZATION_PROJECTION.md
+      - experiments/semantic-kernel-language-comparison/realization-projection-differential.test.ts
+      - src/lifecycle.ts
+      - src/projection.ts
+      - src/observation.ts
+      - .github/workflows/lean-realization-projection.yml
+
+permissions:
+  contents: read
+
+jobs:
+  realization:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Assert exact source revision
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Build Lean proof library
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          lake-package-directory: experiments/lean-kernel
+          auto-config: false
+          build: true
+          test: false
+          lint: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          leanchecker: false
+
+      - name: Build realization projection executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterRealizationProjection
+
+      - name: Execute proof-bearing realization projector
+        run: ./experiments/lean-kernel/.lake/build/bin/overcenterRealizationProjection
+
+      - name: Build semantic identity executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterSemanticIdentity
+
+      - name: Differential realization projection proof
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/realization-projection-differential.test.ts
+
+      - name: Parent semantic identity differential
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/semantic-identity-differential.test.ts
+
+      - name: Build obligation key preimage executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterObligationKeyPreimage
+
+      - name: Parent obligation key preimage differential
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/obligation-key-preimage-differential.test.ts
+
+      - name: Build claim admission executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterClaimAdmission
+
+      - name: Parent claim admission differential
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/claim-admission-differential.test.ts
