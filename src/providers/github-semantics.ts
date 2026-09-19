@@ -510,3 +510,5 @@ export const GITHUB_RELEASE_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.release.re
 export const GITHUB_RELEASE_ASSET_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.release_asset.response_slice;
 export const GITHUB_DEPLOYMENT_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.deployment.response_slice;
 export const GITHUB_DEPLOYMENT_STATUS_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.deployment_status.response_slice;
+// Preserve the established public name while the registry key remains plural.
+export const GITHUB_COMMIT_STATUS_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.commit_statuses.response_slice;
