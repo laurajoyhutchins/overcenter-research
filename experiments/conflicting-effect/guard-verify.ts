@@ -26,7 +26,7 @@ async function github(path:string):Promise<any> {
 const workflowRunId=required('GITHUB_RUN_ID');
 const attempt=required('GITHUB_RUN_ATTEMPT');
 const token=required('GITHUB_TOKEN');
-const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF,githubToken:token});
+const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF,observationContext:{githubToken:token}});
 const prefix=`guard-${workflowRunId}-${attempt}-`;
 const works=kernel.inspect().filter(work=>work.id.startsWith(prefix));
 assert.equal(works.length,4);
