@@ -99,13 +99,14 @@ function filePostcondition(id:string):Postcondition{
 
 function statusPostcondition(
   desired:'success'|'failure',
+  context='overcenter/lean-oracle',
 ):Postcondition{
   return {
     verifier:'github-commit-status/v1',
     provider:'github',
     repository_id:123,
     commit_sha:'a'.repeat(40),
-    context:'overcenter/lean-oracle',
+    context,
     expected_state:desired,
   };
 }
@@ -126,19 +127,29 @@ function obligation(
   };
 }
 
+interface EffectFixture {
+  target:number;
+  competitor:number;
+  targetDesired:'success'|'failure';
+  competitorDesired:'success'|'failure';
+  competitorContext?:string;
+}
+
 function stateFromDependencies(
   dependencies:number[][],
-  effectTarget:number|null=null,
-  effectCompetitor:number|null=null,
+  effect:EffectFixture|null=null,
 ):State{
   const obligations:Record<string,Obligation>={};
   const definition_commits:Record<string,string>={};
   for(let i=0;i<dependencies.length;i+=1){
     const id=`n-${i}`;
-    const postcondition=i===effectTarget
-      ?statusPostcondition('success')
-      :i===effectCompetitor
-        ?statusPostcondition('failure')
+    const postcondition=i===effect?.target
+      ?statusPostcondition(effect.targetDesired)
+      :i===effect?.competitor
+        ?statusPostcondition(
+            effect.competitorDesired,
+            effect.competitorContext,
+          )
         :filePostcondition(id);
     obligations[id]=obligation(id,dependencies[i],postcondition);
     definition_commits[id]=`definition-${i}`;
@@ -297,29 +308,64 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
       for(let target=0;target<nodeCount;target+=1){
         for(let competitor=0;competitor<nodeCount;competitor+=1){
           if(target===competitor)continue;
-          const state=stateFromDependencies(
-            dependencies,
-            target,
-            competitor,
-          );
-          const expected=
-            staticEffectConflict(state,`n-${target}`)!==null;
+          const scenarios:Array<{
+            name:string;
+            fixture:EffectFixture;
+          }>=[
+            {
+              name:'conflicting-same-resource',
+              fixture:{
+                target,
+                competitor,
+                targetDesired:'success',
+                competitorDesired:'failure',
+              },
+            },
+            {
+              name:'commuting-same-desired',
+              fixture:{
+                target,
+                competitor,
+                targetDesired:'success',
+                competitorDesired:'success',
+              },
+            },
+            {
+              name:'independent-different-resource',
+              fixture:{
+                target,
+                competitor,
+                targetDesired:'success',
+                competitorDesired:'failure',
+                competitorContext:'overcenter/lean-oracle/other',
+              },
+            },
+          ];
 
-          for(const order of [forward,reverse]){
-            const observed=await oracle.compare(
-              leanRequest(state,`n-${target}`,order),
+          for(const scenario of scenarios){
+            const state=stateFromDependencies(
+              dependencies,
+              scenario.fixture,
             );
-            assert.equal(
-              observed.graph_acyclic,
-              true,
-              `oracle rejected canonical DAG mask=${mask}`,
-            );
-            assert.equal(
-              observed.optimized_effect_conflict,
-              expected,
-              `effect disagreement mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
-            );
-            comparisons+=1;
+            const expected=
+              staticEffectConflict(state,`n-${target}`)!==null;
+
+            for(const order of [forward,reverse]){
+              const observed=await oracle.compare(
+                leanRequest(state,`n-${target}`,order),
+              );
+              assert.equal(
+                observed.graph_acyclic,
+                true,
+                `oracle rejected canonical DAG mask=${mask}`,
+              );
+              assert.equal(
+                observed.optimized_effect_conflict,
+                expected,
+                `effect disagreement scenario=${scenario.name} mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
+              );
+              comparisons+=1;
+            }
           }
         }
       }
@@ -334,6 +380,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     possible_edges:slots.length,
     dags:1<<slots.length,
     target_competitor_pairs:nodeCount*(nodeCount-1),
+    effect_scenarios:3,
     obligation_orders:2,
     comparisons,
   }));
