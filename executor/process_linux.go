@@ -156,7 +156,8 @@ func runProcess(
 		command.SysProcAttr.Credential = &syscall.Credential{
 			Uid:         taskCredential.UID,
 			Gid:         taskCredential.GID,
-			NoSetGroups: true,
+			Groups:      []uint32{taskCredential.GID},
+			NoSetGroups: false,
 		}
 	}
 
