@@ -24,6 +24,7 @@ export interface ObservationContext {
   githubToken: string | null;
   githubGet?: GithubJsonGet;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
+  kubernetesListLimit?: number;
   clock?: () => string;
 }
 
@@ -182,6 +183,9 @@ export function observePostcondition(
     }
     const result=observeCertifiedKubernetesConfigMap(p,{
       list:context.kubernetesListConfigMaps,
+      ...(context.kubernetesListLimit===undefined
+        ? {}
+        : {limit:context.kubernetesListLimit}),
     });
     if (result.state==='present') {
       return {
