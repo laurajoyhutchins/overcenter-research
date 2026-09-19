@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import type {
   KubernetesConfigMapListRead,
   KubernetesListConfigMaps,
@@ -25,9 +27,24 @@ export interface GoKubernetesListTrace {
     };
     response:{
       status:number;
-      value?:unknown;
+      body_base64:string;
+      body_sha256:string;
     };
   }>;
+}
+
+function decodeExactBody(
+  response:GoKubernetesListTrace['pages'][number]['response'],
+):Buffer {
+  const body=Buffer.from(response.body_base64,'base64');
+  if (body.toString('base64')!==response.body_base64) {
+    throw new Error('KUBERNETES_GO_TRACE_BODY_BASE64_INVALID');
+  }
+  const digest=`sha256:${createHash('sha256').update(body).digest('hex')}`;
+  if (digest!==response.body_sha256) {
+    throw new Error('KUBERNETES_GO_TRACE_BODY_DIGEST_MISMATCH');
+  }
+  return body;
 }
 
 export function kubernetesListFromGoTrace(
@@ -76,7 +93,17 @@ export function kubernetesListFromGoTrace(
     const page=pagesByContinue.get(key);
     if (!page) throw new Error('KUBERNETES_GO_TRACE_PAGE_MISSING');
 
+    const body=decodeExactBody(page.response);
     const status=page.response.status;
+    let value:unknown;
+    if (status===200) {
+      try {
+        value=JSON.parse(body.toString('utf8'));
+      } catch {
+        throw new Error('KUBERNETES_GO_TRACE_SUCCESS_BODY_NOT_JSON');
+      }
+    }
+
     const read:KubernetesConfigMapListRead={
       operation,
       resolve_ref:resolveRef,
@@ -96,17 +123,18 @@ export function kubernetesListFromGoTrace(
           limit:page.request.limit,
           path:page.request.path,
         },
-        response:{},
+        response:{
+          body_sha256:page.response.body_sha256,
+        },
         outcome:status===200
           ? {
               status,
               visibility:'observed',
-              value:page.response.value,
+              value,
             }
           : {
               status,
               visibility:'indeterminate',
-              value:page.response.value,
             },
       },
     };
