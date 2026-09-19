@@ -19,6 +19,7 @@ Then use the detailed notes for the specific invariant they contribute:
 | [Git transaction substrate](./git-transaction-substrate.md) | How little durable shared authority is sufficient for the prototype? |
 | [Kubernetes / Flux reconciliation](./kubernetes-flux-reconciliation-prior-art.md) | How should desired state, observed state, reconciliation, generations, and conditions influence the outer loop? |
 | [Kubernetes observation semantics](./kubernetes-observation-semantics.md) | Can structural certificates carry provider identity, complete snapshots, authoritative absence, and WATCH continuity across a second provider? |
+| [Provider observation reuse](./provider-observation-reuse.md) | Which observation/certificate mechanics actually generalize across GitHub and Kubernetes without flattening provider meaning? |
 | [Petri nets / workflow correctness](./petri-nets-workflow-correctness.md) | What structural graph properties can be proven mechanically, especially across amendments? |
 | [TLA+ formal kernel](./tla-formal-kernel.md) | What is the smallest state machine that captures authority, uncertainty, replay, verification, and settlement safety? |
 | [Transition attestations](./transition-attestations.md) | What evidence should survive after execution machinery is discarded? |

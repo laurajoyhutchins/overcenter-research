@@ -1,8 +1,6 @@
 import type { RawObservation } from './openapi.ts';
-import {
-  RESPONSE_SLICES,
-  structurallyValidatedFor,
-} from './response-slice.ts';
+import { structurallyValidatedFor } from '../provider-observation/response-slice.ts';
+import { RESPONSE_SLICES } from './response-slices.ts';
 import {
   evaluateMutableEntity,
   evaluatePositiveCollectionMember,

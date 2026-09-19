@@ -1,6 +1,12 @@
-export type JsonObject = Record<string, unknown>;
-export type ObservationVisibility = 'observed' | 'not-observed' | 'indeterminate';
+import type {
+  ObservationObserver,
+  ObservationVisibility,
+  ProviderObservation,
+} from '../provider-observation/observation.ts';
 
+export type { ObservationObserver, ObservationVisibility };
+
+export type JsonObject = Record<string, unknown>;
 interface OpenApiParameter extends JsonObject {
   name?: string;
   in?: string;
@@ -58,11 +64,6 @@ export interface ObservationOperation {
   github_extensions: JsonObject;
 }
 
-export interface ObservationObserver {
-  kind: string;
-  id: string;
-}
-
 export interface ObservationProvenance {
   schema_sha256: string;
   observer: ObservationObserver;
@@ -102,25 +103,12 @@ export interface ObservationTransportResponse {
   response: ObservationResponseMetadata;
 }
 
-export interface RawObservation {
-  contract: {
-    provider: 'github';
-    api_version: string;
-    operation_id: string;
-    schema_sha256: string;
-  };
-  observer: ObservationObserver;
-  observed_at: string;
-  request: ObservationRequest;
-  response: ObservationResponseMetadata;
-  outcome: {
-    status: number;
-    visibility: ObservationVisibility;
-    value?: unknown;
-    redirect?: ObservationRedirect;
-    transport_error?: string;
-  };
-}
+export type RawObservation = ProviderObservation<
+  'github',
+  ObservationRequest,
+  ObservationResponseMetadata,
+  { redirect?: ObservationRedirect }
+>;
 
 export interface ObservationTransport {
   request(input: {

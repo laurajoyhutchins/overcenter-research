@@ -1,5 +1,7 @@
 import type { RawObservation } from './observation.ts';
-import { structurallyValidatedFor, type StructurallyValidatedObservation } from './response-slice.ts';
+import { structurallyValidatedFor, type CertifiedObservation } from '../provider-observation/response-slice.ts';
+
+type StructurallyValidatedObservation = CertifiedObservation<RawObservation>;
 
 export interface KubernetesCoordinate {
   api_group: '';

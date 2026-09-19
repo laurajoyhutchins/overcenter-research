@@ -30,10 +30,10 @@ import {
 } from './semantics.ts';
 import { reconstructGithubProjection } from './reconstruction.ts';
 import {
-  RESPONSE_SLICES,
   validateObservationSlice,
   validateResponseSlice,
-} from './response-slice.ts';
+} from '../provider-observation/response-slice.ts';
+import { RESPONSE_SLICES } from './response-slices.ts';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);

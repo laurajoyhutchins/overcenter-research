@@ -7,10 +7,13 @@ on:
       - main
       - experiment/github-observation-grammar
       - experiment/github-observation-semantics
+      - experiment/provider-certificate-reuse
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
+      - experiments/provider-observation/**
       - research/github-observation-grammar.md
+      - research/provider-observation-reuse.md
       - package.json
   pull_request:
     branches:
@@ -18,7 +21,9 @@ on:
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
+      - experiments/provider-observation/**
       - research/github-observation-grammar.md
+      - research/provider-observation-reuse.md
       - package.json
 
 permissions:
@@ -44,6 +49,8 @@ jobs:
           node-version-file: '.node-version'
       - name: Fast deterministic regression
         run: npm test
+      - name: Shared observation certificate adversaries
+        run: npm run test:provider-observation
       - name: GitHub observation experiment
         run: npm run test:github-observation
 

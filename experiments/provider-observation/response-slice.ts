@@ -1,9 +1,22 @@
-import type { ObservationOperation, RawObservation } from './observation.ts';
+import type { ProviderObservation } from './observation.ts';
 
 export interface ResponseFieldSpec {
   path: string;
   required?: boolean;
 }
+
+export interface StructuralOperation {
+  operation_id: string;
+  outcomes: Array<{
+    status: string;
+    schema: unknown;
+  }>;
+}
+
+export type StructuralObservation = Pick<
+  ProviderObservation<string, unknown, unknown>,
+  'contract' | 'outcome'
+>;
 
 export interface ResponseSliceResult {
   operation_id: string;
@@ -12,12 +25,20 @@ export interface ResponseSliceResult {
   optional_absent_paths: string[];
 }
 
-export interface StructurallyValidatedObservation extends RawObservation {
-  structural_validation: ResponseSliceResult & { schema_sha256: string };
-}
+export type CertifiedObservation<T extends StructuralObservation = StructuralObservation> = T & {
+  structural_validation: ResponseSliceResult & {
+    schema_sha256: string;
+  };
+};
 
 type Schema = Record<string, unknown>;
 export type SchemaResolver = (ref: string) => unknown;
+
+function object(value: unknown): Schema | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Schema
+    : null;
+}
 
 function resolved(schema: unknown, resolveRef?: SchemaResolver): unknown {
   let current = schema;
@@ -32,13 +53,11 @@ function resolved(schema: unknown, resolveRef?: SchemaResolver): unknown {
   throw new Error('RESPONSE_SLICE_SCHEMA_REF_DEPTH');
 }
 
-function object(value: unknown): Schema | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Schema
-    : null;
-}
-
-function branches(schema: unknown, keyword: 'allOf' | 'anyOf' | 'oneOf', resolveRef?: SchemaResolver): unknown[] {
+function branches(
+  schema: unknown,
+  keyword: 'allOf' | 'anyOf' | 'oneOf',
+  resolveRef?: SchemaResolver,
+): unknown[] {
   const value = object(resolved(schema, resolveRef))?.[keyword];
   return Array.isArray(value) ? value : [];
 }
@@ -49,7 +68,9 @@ function propertySchemas(schema: unknown, name: string, resolveRef?: SchemaResol
   const properties = object(current?.properties);
   if (properties && Object.hasOwn(properties, name)) found.push(properties[name]);
   for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
-    for (const branch of branches(schema, keyword, resolveRef)) found.push(...propertySchemas(branch, name, resolveRef));
+    for (const branch of branches(schema, keyword, resolveRef)) {
+      found.push(...propertySchemas(branch, name, resolveRef));
+    }
   }
   return found;
 }
@@ -59,7 +80,9 @@ function itemSchemas(schema: unknown, resolveRef?: SchemaResolver): unknown[] {
   const current = object(resolved(schema, resolveRef));
   if (current && Object.hasOwn(current, 'items')) found.push(current.items);
   for (const keyword of ['allOf', 'anyOf', 'oneOf'] as const) {
-    for (const branch of branches(schema, keyword, resolveRef)) found.push(...itemSchemas(branch, resolveRef));
+    for (const branch of branches(schema, keyword, resolveRef)) {
+      found.push(...itemSchemas(branch, resolveRef));
+    }
   }
   return found;
 }
@@ -78,12 +101,15 @@ function primitiveTypeMatches(type: string, value: unknown): boolean {
 function schemaMatches(schema: unknown, value: unknown, resolveRef?: SchemaResolver): boolean {
   const current = object(resolved(schema, resolveRef));
   if (!current) return true;
+
   if (value === null && current.nullable === true) return true;
 
   const all = branches(schema, 'allOf', resolveRef);
   if (all.length > 0 && !all.every(branch => schemaMatches(branch, value, resolveRef))) return false;
+
   const any = branches(schema, 'anyOf', resolveRef);
   if (any.length > 0 && !any.some(branch => schemaMatches(branch, value, resolveRef))) return false;
+
   const one = branches(schema, 'oneOf', resolveRef);
   if (one.length > 0 && !one.some(branch => schemaMatches(branch, value, resolveRef))) return false;
 
@@ -93,11 +119,14 @@ function schemaMatches(schema: unknown, value: unknown, resolveRef?: SchemaResol
     const types = type.filter(candidate => typeof candidate === 'string') as string[];
     if (types.length > 0 && !types.some(candidate => primitiveTypeMatches(candidate, value))) return false;
   }
+
   if (Array.isArray(current.enum) && !current.enum.some(candidate => Object.is(candidate, value))) return false;
+
   if (typeof value === 'string') {
     if (typeof current.minLength === 'number' && value.length < current.minLength) return false;
     if (typeof current.maxLength === 'number' && value.length > current.maxLength) return false;
   }
+
   return true;
 }
 
@@ -126,6 +155,7 @@ function validatePath(
   }
 
   const [segment, ...rest] = segments;
+
   if (segment === '[]') {
     const items = schemaCandidates.flatMap(schema => itemSchemas(schema, resolveRef));
     assertSchemaCandidates(items, fullPath);
@@ -146,7 +176,9 @@ function validatePath(
   }
 
   const child = body[name];
-  if (!arrayProperty) return validatePath(properties, child, rest, fullPath, required, resolveRef);
+  if (!arrayProperty) {
+    return validatePath(properties, child, rest, fullPath, required, resolveRef);
+  }
 
   const items = properties.flatMap(schema => itemSchemas(schema, resolveRef));
   assertSchemaCandidates(items, fullPath);
@@ -156,7 +188,7 @@ function validatePath(
 }
 
 export function validateResponseSlice(
-  operation: ObservationOperation,
+  operation: StructuralOperation,
   status: string,
   body: unknown,
   fields: readonly ResponseFieldSpec[],
@@ -168,36 +200,62 @@ export function validateResponseSlice(
   const validatedPaths: string[] = [];
   const optionalAbsentPaths: string[] = [];
   for (const field of fields) {
-    const result = validatePath([schema], body, parsePath(field.path), field.path, field.required !== false, resolveRef);
+    const result = validatePath(
+      [schema],
+      body,
+      parsePath(field.path),
+      field.path,
+      field.required !== false,
+      resolveRef,
+    );
     if (result === 'validated') validatedPaths.push(field.path);
     else optionalAbsentPaths.push(field.path);
   }
-  return { operation_id: operation.operation_id, status, validated_paths: validatedPaths, optional_absent_paths: optionalAbsentPaths };
-}
 
-export function validateObservationSlice(
-  operation: ObservationOperation,
-  observation: RawObservation,
-  fields: readonly ResponseFieldSpec[],
-  resolveRef?: SchemaResolver,
-): StructurallyValidatedObservation {
-  if (observation.contract.operation_id !== operation.operation_id) throw new Error('RESPONSE_SLICE_OPERATION_MISMATCH');
-  if (observation.outcome.status !== 200 || observation.outcome.visibility !== 'observed') {
-    throw new Error('RESPONSE_SLICE_POSITIVE_OBSERVATION_REQUIRED');
-  }
-  const structural = validateResponseSlice(operation, '200', observation.outcome.value, fields, resolveRef);
   return {
-    ...observation,
-    structural_validation: { ...structural, schema_sha256: observation.contract.schema_sha256 },
+    operation_id: operation.operation_id,
+    status,
+    validated_paths: validatedPaths,
+    optional_absent_paths: optionalAbsentPaths,
   };
 }
 
-export function structurallyValidatedFor(
-  observation: RawObservation,
+export function validateObservationSlice<T extends StructuralObservation>(
+  operation: StructuralOperation,
+  observation: T,
+  fields: readonly ResponseFieldSpec[],
+  resolveRef?: SchemaResolver,
+): CertifiedObservation<T> {
+  if (observation.contract.operation_id !== operation.operation_id) {
+    throw new Error('RESPONSE_SLICE_OPERATION_MISMATCH');
+  }
+  if (observation.outcome.status !== 200 || observation.outcome.visibility !== 'observed') {
+    throw new Error('RESPONSE_SLICE_POSITIVE_OBSERVATION_REQUIRED');
+  }
+
+  const structural = validateResponseSlice(
+    operation,
+    '200',
+    observation.outcome.value,
+    fields,
+    resolveRef,
+  );
+
+  return {
+    ...observation,
+    structural_validation: {
+      ...structural,
+      schema_sha256: observation.contract.schema_sha256,
+    },
+  };
+}
+
+export function structurallyValidatedFor<T extends StructuralObservation>(
+  observation: T,
   operationId: string,
   requiredPaths: readonly string[],
-): observation is StructurallyValidatedObservation {
-  const structural = (observation as Partial<StructurallyValidatedObservation>).structural_validation;
+): observation is CertifiedObservation<T> {
+  const structural = (observation as Partial<CertifiedObservation<T>>).structural_validation;
   if (!structural) return false;
   if (structural.operation_id !== operationId || structural.status !== '200') return false;
   if (structural.schema_sha256 !== observation.contract.schema_sha256) return false;

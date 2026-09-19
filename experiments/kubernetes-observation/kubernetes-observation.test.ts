@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ObservationOperation, RawObservation } from './observation.ts';
-import { validateObservationSlice } from './response-slice.ts';
+import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   assembleCompleteList,
   evaluateSnapshotMembership,
@@ -37,7 +37,7 @@ const getOp: ObservationOperation = { provider: 'kubernetes', api_version: 'v1',
 const listOp: ObservationOperation = { provider: 'kubernetes', api_version: 'v1', method: 'GET', path_template: '', operation_id: 'core/v1/configmaps/list', outcomes: [{ status: '200', schema: listSchema }] };
 
 function raw(operation: ObservationOperation, value: unknown, query: Record<string, string> = {}): RawObservation {
-  return { contract: { provider: 'kubernetes', api_version: 'v1', operation_id: operation.operation_id, schema_sha256: 'a'.repeat(64) }, observer: { kind: 'test', id: 'unit' }, observed_at: '2026-09-18T19:00:00Z', request: { method: 'GET', path: '/api/v1/namespaces/default/configmaps', query }, outcome: { status: 200, visibility: 'observed', value } };
+  return { contract: { provider: 'kubernetes', api_version: 'v1', operation_id: operation.operation_id, schema_sha256: 'a'.repeat(64) }, observer: { kind: 'test', id: 'unit' }, observed_at: '2026-09-18T19:00:00Z', request: { method: 'GET', path: '/api/v1/namespaces/default/configmaps', query }, response: {}, outcome: { status: 200, visibility: 'observed', value } };
 }
 function cm(uid: string, rv: string, data = { value: rv }) {
   return { apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 'proof', namespace: 'default', uid, resourceVersion: rv }, data };
