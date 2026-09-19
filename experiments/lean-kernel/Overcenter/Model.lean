@@ -53,6 +53,33 @@ structure KubernetesListPage where
   members : List KubernetesListMember
   deriving Repr, BEq, DecidableEq
 
+inductive KubernetesWatchEventType where
+  | added
+  | modified
+  | deleted
+  deriving Repr, BEq, DecidableEq
+
+inductive KubernetesWatchTermination where
+  | clientStop
+  | eof
+  | timeout
+  | gone
+  | error
+  deriving Repr, BEq, DecidableEq
+
+structure KubernetesWatchEvent where
+  eventType : KubernetesWatchEventType
+  member : KubernetesListMember
+  deriving Repr, BEq, DecidableEq
+
+structure KubernetesWatchTranscript where
+  authorityId : String
+  requestNamespace : String
+  startResourceVersion : String
+  termination : KubernetesWatchTermination
+  events : List KubernetesWatchEvent
+  deriving Repr, BEq, DecidableEq
+
 inductive AbsenceEvidence where
   | localFileEnoent
       (subjectCoordinate : String)
