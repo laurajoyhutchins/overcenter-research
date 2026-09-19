@@ -70,7 +70,8 @@ test('certificate binds provider contracts, resource, operation, and semantics d
   assert.equal(certificate.verifier_contract,'github-commit-status/v1');
   assert.equal(certificate.coordinate_contract,'github-commit-status-coordinate/v1');
   assert.equal(certificate.observation_contract,'github-commit-status-observation/v1');
-  assert.equal(certificate.operation_class,'github-commit-status/set-state/v1');
+  assert.equal(certificate.operation_class,'github-rest:create-commit-status@2026-03-10');
+  assert.match(certificate.provider_contract_digest,/^[0-9a-f]{64}$/);
   assert.match(certificate.resource,/^github-status:123:/);
   assert.equal(certificate.operation,'success');
   assert.equal(certificate.equivalence_class,'same-desired-under-overcenter-settlement');
