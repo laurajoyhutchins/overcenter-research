@@ -28,3 +28,4 @@ Use one ADR per decision. Do not accumulate unrelated decisions into a rolling a
 | [ADR-0003](./0003-github-object-identity.md) | Accepted | Give GitHub object-ID grammar and equality one provider-wide owner. |
 | [ADR-0004](./0004-certified-github-read-plumbing.md) | Accepted | Share mechanical GitHub observation/certification plumbing without sharing provider meaning. |
 | [ADR-0005](./0005-independent-oracles-remain-independent.md) | Accepted | Preserve independent experimental oracles and reference implementations when their independence is evidence. |
+| [ADR-0006](./0006-lean-semantic-reference-and-proof-oracle.md) | Accepted | Use Lean as an executable semantic reference and proof oracle, not a production runtime dependency. |
