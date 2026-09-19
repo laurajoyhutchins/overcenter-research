@@ -345,17 +345,24 @@ try {
     })+'\n');
 
     if (result.state!=='DONE') {
-      const decodeTail=(value:string|undefined):string=>{
-        if (!value) return '';
-        const text=Buffer.from(value,'base64').toString('utf8');
-        return text.slice(-16*1024);
-      };
+      const decode=(value:string|undefined):string=>
+        value ? Buffer.from(value,'base64').toString('utf8') : '';
+      const stdout=decode(result.evidence?.stdout_base64);
+      const stderr=decode(result.evidence?.stderr_base64);
+      const failureLines=stdout.split('\n');
+      const failureIndexes=failureLines
+        .map((line,index)=>line.startsWith('not ok ')?index:-1)
+        .filter(index=>index>=0);
+      const failureExcerpts=failureIndexes.map(index=>
+        failureLines.slice(Math.max(0,index-2),Math.min(failureLines.length,index+24)).join('\n'),
+      );
       process.stderr.write(JSON.stringify({
         event:'dogfood-attempt-diagnostics',
         work_id:result.work_id,
         outcome:result.evidence?.outcome??'transport-failure',
-        stdout_tail:decodeTail(result.evidence?.stdout_base64),
-        stderr_tail:decodeTail(result.evidence?.stderr_base64),
+        failure_excerpts:failureExcerpts,
+        stdout_tail:stdout.slice(-8*1024),
+        stderr_tail:stderr.slice(-8*1024),
         stdout_truncated:result.evidence?.stdout_truncated??false,
         stderr_truncated:result.evidence?.stderr_truncated??false,
       })+'\n');
