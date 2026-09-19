@@ -158,7 +158,7 @@ export class GitOvercenterKernel {
       .map(work=>projectWork(state,work,head,history.lifecycles));
   }
 
-  deriveReadyWork():Work|null {
+  nextReadyWork():Work|null {
     const head=this.#requireHead();
     const {state,history}=this.#projection(head);
     const work=Object.values(state.obligations)
@@ -215,7 +215,7 @@ export class GitOvercenterKernel {
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       const prior=history.receiptsByRun.get(runId);
-      if (prior && ['DONE','READY'].includes(prior.disposition)) {
+      if (prior && ['DONE','ABSENT'].includes(prior.disposition)) {
         throw new Error('RUN_ALREADY_TERMINAL');
       }
       const lifecycle=history.lifecycles.get(run.obligation_id);
@@ -291,7 +291,7 @@ export class GitOvercenterKernel {
     return await effect();
   }
 
-  resolve(permit:ExecutionPermit):Receipt {
+  reconcile(permit:ExecutionPermit):Receipt {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
@@ -301,7 +301,7 @@ export class GitOvercenterKernel {
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
-      if (prior && ['DONE','READY'].includes(prior.disposition)) return prior;
+      if (prior && ['DONE','ABSENT'].includes(prior.disposition)) return prior;
       const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=history.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId) {
@@ -358,7 +358,7 @@ export class GitOvercenterKernel {
     throw new Error('DEFER_CONTENTION_EXHAUSTED');
   }
 
-  recoverInterrupted(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
+  recordExecutionTerminated(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
@@ -393,9 +393,6 @@ export class GitOvercenterKernel {
     throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
   }
 
-  reconcile(permit:ExecutionPermit):Receipt {
-    return this.resolve(permit);
-  }
 
   receipts(runId:string|null=null):Receipt[] {
     const head=this.#requireHead();
@@ -478,7 +475,7 @@ export async function runGitCoreLoop(
 ):Promise<LoopResult> {
   kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
-    const work=kernel.deriveReadyWork();
+    const work=kernel.nextReadyWork();
     if (!work) {
       const blocked=kernel.inspect().find(candidate=>candidate.status==='BLOCKED');
       if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
@@ -528,7 +525,7 @@ export async function runGitCoreLoop(
     // downgrade the attempt to a non-effectful WAITING state. Its outcome must
     // be reconciled as a potentially mutating interrupted execution.
     if (outcome.kind==='judgment-required') {
-      kernel.recoverInterrupted(run,{
+      kernel.recordExecutionTerminated(run,{
         outcome,
         protocol_error:'JUDGMENT_AFTER_EFFECT_RESERVATION',
       });
@@ -540,8 +537,8 @@ export async function runGitCoreLoop(
       };
     }
 
-    const receipt=kernel.resolve(run);
-    if (receipt.disposition==='DONE' || receipt.disposition==='READY') continue;
+    const receipt=kernel.reconcile(run);
+    if (receipt.disposition==='DONE' || receipt.disposition==='ABSENT') continue;
     return {
       state:'RECOVERY_REQUIRED',
       work:work.id,
