@@ -20,6 +20,7 @@ structure RealizationRun where
 structure CurrentRealization where
   lifecycle : RealizationLifecycle
   sourceRunId : Option String := none
+  executionRunId : Option String := none
   deriving Repr, BEq, DecidableEq
 
 structure RealizationProjectionInput where
@@ -53,9 +54,21 @@ def latestMatchingDoneRun
 
 def currentFromExecution (run : RealizationRun) : CurrentRealization :=
   match run.status with
-  | .executing => { lifecycle := .executing, sourceRunId := some run.runId }
-  | .waiting => { lifecycle := .waiting, sourceRunId := some run.runId }
-  | .recoveryRequired => { lifecycle := .recoveryRequired, sourceRunId := some run.runId }
+  | .executing => {
+      lifecycle := .executing
+      sourceRunId := some run.runId
+      executionRunId := some run.runId
+    }
+  | .waiting => {
+      lifecycle := .waiting
+      sourceRunId := some run.runId
+      executionRunId := some run.runId
+    }
+  | .recoveryRequired => {
+      lifecycle := .recoveryRequired
+      sourceRunId := some run.runId
+      executionRunId := some run.runId
+    }
   | .done => { lifecycle := .unrealized }
   | .ready => { lifecycle := .unrealized }
 
@@ -96,12 +109,20 @@ def projectCurrentRealization
   | some active =>
       match input.currentKey with
       | none =>
-          { lifecycle := .recoveryRequired, sourceRunId := some active.runId }
+          {
+            lifecycle := .recoveryRequired
+            sourceRunId := some active.runId
+            executionRunId := some active.runId
+          }
       | some key =>
           if active.obligationKey == key then
             currentFromExecution active
           else
-            { lifecycle := .recoveryRequired, sourceRunId := some active.runId }
+            {
+            lifecycle := .recoveryRequired
+            sourceRunId := some active.runId
+            executionRunId := some active.runId
+          }
   | none =>
       match input.currentKey with
       | none => { lifecycle := .unrealized }
