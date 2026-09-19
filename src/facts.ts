@@ -193,7 +193,7 @@ export function normalizeObligation(input:ObligationInput):Obligation {
 
 export function validateStoredObligation(
   obligation:Obligation,
-  {canonicalPostcondition=false}:{canonicalPostcondition?:boolean}={},
+  {canonicalPostcondition=true}:{canonicalPostcondition?:boolean}={},
 ):Obligation {
   if (!data(obligation)) throw new Error('INVALID_OBLIGATION');
   const raw=obligation as unknown as Record<string,unknown>;
