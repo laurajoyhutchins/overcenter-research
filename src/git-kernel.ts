@@ -536,6 +536,8 @@ export async function runGitCoreLoop(
       continue;
     }
 
+    if (!effect) throw new Error('EFFECT_HANDLER_REQUIRED');
+
     let run:ExecutionPermit;
     try {
       run=kernel.claim(work.id,work.revision);
@@ -558,8 +560,6 @@ export async function runGitCoreLoop(
       }
       if (decision.kind!=='execute') throw new Error('INVALID_PREFLIGHT_OUTCOME');
     }
-
-    if (!effect) throw new Error('EFFECT_HANDLER_REQUIRED');
 
     // Crossing into the effectful executor is only legal after the kernel has
     // validated the current execution permit and durably reserved the effect.
