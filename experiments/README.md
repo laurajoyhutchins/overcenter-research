@@ -20,6 +20,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `fstar-pulse-capability-concurrency/` - separation-logic proof that disjoint mutation authority may run concurrently while aliasing one exclusive capability fails.
 - `provider-capability-derivation/` - derives physical effect footprints and semantic compatibility from production provider semantics, then cross-checks graph admission.
 - `provider-capability-confinement/` - proves the worker has no provider mutation credential and can emit only a run-bound effect-ready signal; the trusted broker derives the effect from authority, fences stale sessions, executes once, and blocks replay.
+- `effect-ready-red-team/` - counterexamples showing late session binding lets stale worker signals inherit newer authority and postconditions currently mint mutation authority.
 - `settlement-equivalence-witness/` - binds unordered same-resource execution to exact observation/settlement equivalence evidence.
 - `github-settlement-equivalence/` - live provider proof that physically distinct same-state GitHub status writes derive the same settlement truth while mixed states remain order-sensitive.
 
