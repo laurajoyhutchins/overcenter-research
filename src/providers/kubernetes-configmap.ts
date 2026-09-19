@@ -147,6 +147,32 @@ function certificateBaseMatches(
   if (!Number.isSafeInteger(pageCount) || (pageCount as number)<=0) return false;
   if (provenance.pages.length!==pageCount) return false;
   if (!matchesSha256(completeness.page_chain_digest)) return false;
+  if (completeness.page_chain_digest!==sha256Digest(provenance.pages)) return false;
+
+  const pageSnapshotResourceVersion=completeness.kind==='complete-list-plus-watch'
+    ? completeness.watch_start_resource_version
+    : snapshot.resource_version;
+  if (typeof pageSnapshotResourceVersion!=='string') return false;
+
+  for (let index=0;index<provenance.pages.length;index+=1) {
+    const page=data(provenance.pages[index]);
+    if (!page) return false;
+    if (page.page!==index+1) return false;
+    if (page.snapshot_resource_version!==pageSnapshotResourceVersion) return false;
+    if (index===0 && page.request_continue!==null) return false;
+    if (
+      index>0
+      && page.request_continue!==data(provenance.pages[index-1])?.response_continue
+    ) return false;
+    if (
+      index<provenance.pages.length-1
+      && (
+        typeof page.response_continue!=='string'
+        || page.response_continue.length===0
+      )
+    ) return false;
+  }
+  if (data(provenance.pages.at(-1))?.response_continue!=='') return false;
 
   return true;
 }
