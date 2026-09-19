@@ -1,3 +1,4 @@
+import Std.Data.HashSet.Lemmas
 import Overcenter.Admission
 
 namespace Overcenter
@@ -7,7 +8,8 @@ A proposition-level topological construction. The seen list contains obligation 
 that occur earlier in the proposed order. Each next obligation may be appended only
 when every dependency is already in seen.
 
-This is intentionally separate from Kahn's executable implementation.
+This is intentionally separate from Kahn's executable implementation and from the
+hash-set representation used by the certificate checker.
 -/
 inductive ClaimTopologicalBuild
     (ctx : ClaimContext) :
@@ -71,11 +73,25 @@ private theorem findClaimObligation_id_exact
     (List.find?_eq_some_iff_append.mp hfind).1
   simpa using hp
 
+theorem claimStringSet_contains_iff_mem
+    (values : List String)
+    (id : String) :
+    (claimStringSet values).contains id = true ↔
+      id ∈ values := by
+  induction values with
+  | nil =>
+      simp [claimStringSet]
+  | cons value rest ih =>
+      simp [claimStringSet, ih]
+
 theorem claimTopologicalCertificateBuildValid_sound
     (ctx : ClaimContext)
     (seen order : List String)
     (accepted :
-      claimTopologicalCertificateBuildValid ctx seen order = true) :
+      claimTopologicalCertificateBuildValid
+        ctx
+        (claimStringSet seen)
+        order = true) :
     ClaimTopologicalBuild ctx seen order := by
   induction order generalizing seen with
   | nil =>
@@ -91,10 +107,10 @@ theorem claimTopologicalCertificateBuildValid_sound
       | some obligation =>
           have parts :
               obligation.dependencies.all (fun dependency =>
-                seen.contains dependency.upstream) = true ∧
+                (claimStringSet seen).contains dependency.upstream) = true ∧
               claimTopologicalCertificateBuildValid
                 ctx
-                (id :: seen)
+                ((claimStringSet seen).insert id)
                 rest = true := by
             simpa [
               claimTopologicalCertificateBuildValid,
@@ -106,11 +122,20 @@ theorem claimTopologicalCertificateBuildValid_sound
                 dependency.upstream ∈ seen := by
             intro dependency dependency_mem
             have contained :
-                seen.contains dependency.upstream = true :=
+                (claimStringSet seen).contains dependency.upstream = true :=
               (List.all_eq_true.mp parts.1)
                 dependency
                 dependency_mem
-            exact List.mem_of_elem_eq_true contained
+            exact
+              (claimStringSet_contains_iff_mem
+                seen
+                dependency.upstream).mp contained
+          have restAccepted :
+              claimTopologicalCertificateBuildValid
+                ctx
+                (claimStringSet (id :: seen))
+                rest = true := by
+            simpa [claimStringSet] using parts.2
           exact ClaimTopologicalBuild.step
             seen
             id
@@ -119,7 +144,7 @@ theorem claimTopologicalCertificateBuildValid_sound
             (findClaimObligation_mem hfind)
             (findClaimObligation_id_exact hfind)
             dependencies_precede
-            (ih (id :: seen) parts.2)
+            (ih (id :: seen) restAccepted)
 
 theorem claimTopologicalCertificateValid_sound
     (ctx : ClaimContext)
@@ -129,17 +154,23 @@ theorem claimTopologicalCertificateValid_sound
     ClaimHasTopologicalOrder ctx := by
   have parts :
       ctx.obligations.all (fun obligation =>
-        order.contains obligation.id) = true ∧
-      claimTopologicalCertificateBuildValid ctx [] order = true := by
+        (claimStringSet order).contains obligation.id) = true ∧
+      claimTopologicalCertificateBuildValid
+        ctx
+        (claimStringSet [])
+        order = true := by
     simpa [claimTopologicalCertificateValid] using accepted
   refine ⟨order, ?_, ?_⟩
   · intro obligation obligation_mem
     have contained :
-        order.contains obligation.id = true :=
+        (claimStringSet order).contains obligation.id = true :=
       (List.all_eq_true.mp parts.1)
         obligation
         obligation_mem
-    exact List.mem_of_elem_eq_true contained
+    exact
+      (claimStringSet_contains_iff_mem
+        order
+        obligation.id).mp contained
   · exact
       claimTopologicalCertificateBuildValid_sound
         ctx
