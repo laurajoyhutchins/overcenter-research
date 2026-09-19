@@ -51,7 +51,9 @@ func serveUnixSocket(ctx context.Context, runtime *executor.Runtime, socketPath 
 	if err := os.MkdirAll(filepath.Dir(socketPath), 0o750); err != nil {
 		return err
 	}
-	if err := os.Remove(socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Lstat(socketPath); err == nil {
+		return errors.New("socket path already exists")
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
