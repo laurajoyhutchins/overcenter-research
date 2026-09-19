@@ -674,6 +674,7 @@ test('production Go executor source contains no provider or settlement machinery
     'protocol.go',
     'capture.go',
     'process_linux.go',
+    'process_supervisor_linux.go',
     'executor.go',
     'cmd/overcenter-executor/main.go',
   ];
