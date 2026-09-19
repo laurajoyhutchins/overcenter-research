@@ -7,7 +7,7 @@
 
 Overcenter had a backend-specific `runGitCoreLoop` name in addition to the storage-neutral `runCoreLoop`. Both represented the same project-transition semantics.
 
-The [storage backend bake-off](../../experiments/storage-backend-bakeoff/README.md) and its [2026-09-19 results](../../experiments/storage-backend-bakeoff/results/2026-09-19.md) showed that Git and SQLite can preserve the same append-only fact semantics, exact compare-and-swap authority, canonical replay, and crash-safe committed prefixes while having very different performance characteristics.
+The [storage backend comparison](../../experiments/storage-backend-comparison/README.md) and its [2026-09-19 results](../../experiments/storage-backend-comparison/results/2026-09-19.md) showed that Git and SQLite can preserve the same append-only fact semantics, exact compare-and-swap authority, canonical replay, and crash-safe committed prefixes while having very different performance characteristics.
 
 The follow-on backend differential test in [`test/kernel-backend-differential.test.ts`](../../test/kernel-backend-differential.test.ts) checks the same logical transitions through both stores.
 

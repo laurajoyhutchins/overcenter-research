@@ -37,7 +37,7 @@ import { projectWithSql } from './sql-projector.ts';
 const PROGRAM=join(
   process.cwd(),
   'experiments',
-  'projection-bakeoff',
+  'projection-comparison',
   'project.dl',
 );
 
@@ -188,7 +188,7 @@ function writeFacts(
 }
 
 function projectWithDatalog(input:ProjectionInput):StatusMap {
-  const root=mkdtempSync(join(tmpdir(),'overcenter-projection-bakeoff-'));
+  const root=mkdtempSync(join(tmpdir(),'overcenter-projection-comparison-'));
   const facts=join(root,'facts');
   const output=join(root,'output');
   mkdirSync(facts);

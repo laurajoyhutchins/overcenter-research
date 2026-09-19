@@ -1,4 +1,4 @@
-# Projection implementation bake-off
+# Projection implementation comparison
 
 ## Question
 
@@ -105,7 +105,7 @@ the derived-projection family for purposes of this experiment.
 Requires Soufflé 2.5:
 
 ```sh
-npm run test:projection-bakeoff
+npm run test:projection-comparison
 ```
 
 The GitHub Actions workflow pins the exact Soufflé package bytes and verifies
