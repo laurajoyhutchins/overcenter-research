@@ -15,6 +15,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `provider-observation/` - provider-neutral observation provenance and structural-certificate engine shared by GitHub and Kubernetes experiments.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
+- `lisp-macros/` - Common Lisp follow-up: real macro expansion versus the explicit S-expression compiler, with declarations kept non-executable.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 
