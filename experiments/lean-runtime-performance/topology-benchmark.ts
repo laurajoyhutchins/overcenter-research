@@ -225,6 +225,9 @@ try{
     await runCase(p,'fan-out',size,fanOut(size),true);
     await runCase(p,'layered',size,layered(size),true);
   }
+  for(const size of [2_000,5_000,10_000]){
+    await runCase(p,'fan-in-large',size,fanIn(size),true);
+  }
   for(const size of [25,50,100,200]){
     await runCase(p,'dense',size,dense(size),true);
   }
