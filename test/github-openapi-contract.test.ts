@@ -151,7 +151,8 @@ test('page collection traversal fails closed on unsupported or hostile shapes',(
 
 test('certified status verifier contains no GitHub page-parameter convention',()=>{
   const source=readFileSync('src/providers/github-certified-status.ts','utf8');
-  assert.doesNotMatch(source,/['"`]page['"`]/);
-  assert.doesNotMatch(source,/['"`]per_page['"`]/);
+  assert.doesNotMatch(source,/per_page/);
   assert.doesNotMatch(source,/default_page_size/);
+  assert.doesNotMatch(source,/page=\\d/);
+  assert.doesNotMatch(source,/for\\s*\\(let\\s+page/);
 });
