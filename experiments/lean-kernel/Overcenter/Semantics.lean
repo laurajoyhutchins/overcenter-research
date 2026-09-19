@@ -2,6 +2,12 @@ import Overcenter.Model
 
 namespace Overcenter
 
+inductive KubernetesListState where
+  | present
+  | absent
+  | indeterminate
+  deriving Repr, BEq, DecidableEq
+
 def obligationKey (obligation : Obligation) : ObligationKey := {
   id := obligation.id
   packetIdentity := obligation.packetIdentity
@@ -53,39 +59,61 @@ def localFileEnoentAuthoritative (coordinate : Coordinate) (evidence : AbsenceEv
   | _, _ => false
 
 def validKubernetesMember
-    (namespaceName targetName : String)
+    (namespaceName : String)
     (member : KubernetesListMember) : Bool :=
   !member.name.isEmpty &&
   member.namespaceName == namespaceName &&
   !member.uid.isEmpty &&
-  !member.resourceVersion.isEmpty &&
-  member.name != targetName
+  !member.resourceVersion.isEmpty
 
 def validKubernetesPage
-    (namespaceName targetName snapshotResourceVersion : String)
+    (namespaceName snapshotResourceVersion : String)
     (expectedRequest : Option String)
     (page : KubernetesListPage) : Bool :=
   page.requestContinue == expectedRequest &&
   page.snapshotResourceVersion == snapshotResourceVersion &&
-  page.members.all (validKubernetesMember namespaceName targetName)
+  page.members.all (validKubernetesMember namespaceName)
 
 def validKubernetesPages
-    (namespaceName targetName snapshotResourceVersion : String)
+    (namespaceName snapshotResourceVersion : String)
     (expectedRequest : Option String) :
     List KubernetesListPage → Bool
   | [] => false
   | page :: [] =>
-      validKubernetesPage namespaceName targetName snapshotResourceVersion expectedRequest page &&
+      validKubernetesPage namespaceName snapshotResourceVersion expectedRequest page &&
       page.responseContinue == ""
   | page :: next :: rest =>
-      validKubernetesPage namespaceName targetName snapshotResourceVersion expectedRequest page &&
+      validKubernetesPage namespaceName snapshotResourceVersion expectedRequest page &&
       !page.responseContinue.isEmpty &&
       validKubernetesPages
         namespaceName
-        targetName
         snapshotResourceVersion
         (some page.responseContinue)
         (next :: rest)
+
+def kubernetesTargetPresent
+    (namespaceName targetName : String)
+    (pages : List KubernetesListPage) : Bool :=
+  pages.any (fun page =>
+    page.members.any (fun member =>
+      member.namespaceName == namespaceName &&
+      member.name == targetName))
+
+def classifyKubernetesList
+    (coordinate : Coordinate)
+    (snapshotResourceVersion : String)
+    (pages : List KubernetesListPage) : KubernetesListState :=
+  match coordinate with
+  | .kubernetesConfigMap _ namespaceName targetName =>
+      if snapshotResourceVersion.isEmpty then
+        .indeterminate
+      else if !validKubernetesPages namespaceName snapshotResourceVersion none pages then
+        .indeterminate
+      else if kubernetesTargetPresent namespaceName targetName pages then
+        .present
+      else
+        .absent
+  | _ => .indeterminate
 
 def kubernetesAbsenceAuthoritative (coordinate : Coordinate) (evidence : AbsenceEvidence) : Bool :=
   match coordinate, evidence with
@@ -99,8 +127,7 @@ def kubernetesAbsenceAuthoritative (coordinate : Coordinate) (evidence : Absence
       evidenceAuthorityId == authorityId &&
       evidenceNamespace == namespaceName &&
       evidenceTargetName == targetName &&
-      !snapshotResourceVersion.isEmpty &&
-      validKubernetesPages namespaceName targetName snapshotResourceVersion none pages
+      classifyKubernetesList coordinate snapshotResourceVersion pages == .absent
   | _, _ => false
 
 def authoritativeAbsence (postcondition : Postcondition) (observation : Observation) : Bool :=
