@@ -136,13 +136,17 @@ function assertSha256Tagged(value:unknown,name:string):asserts value is string {
   }
 }
 
-function decodeCanonicalBase64(value:unknown):Buffer {
+function decodeCanonicalBase64(
+  value:unknown,
+  maxBytes=MAX_SPEC_BYTES,
+  errorCode='EXECUTION_SPEC_BASE64_INVALID',
+):Buffer {
   if (typeof value!=='string' || value.length===0) {
-    throw new Error('EXECUTION_SPEC_BASE64_INVALID');
+    throw new Error(errorCode);
   }
   const bytes=Buffer.from(value,'base64');
-  if (bytes.length===0 || bytes.length>MAX_SPEC_BYTES || bytes.toString('base64')!==value) {
-    throw new Error('EXECUTION_SPEC_BASE64_INVALID');
+  if (bytes.length===0 || bytes.length>maxBytes || bytes.toString('base64')!==value) {
+    throw new Error(errorCode);
   }
   return bytes;
 }
@@ -360,8 +364,20 @@ export function validateComputationEvidence(value:unknown):ComputationAttemptEvi
   if (value.signal!==undefined && (typeof value.signal!=='string' || value.signal.length===0)) {
     throw new Error('COMPUTATION_EVIDENCE_SIGNAL_INVALID');
   }
-  if (value.stdout_base64!==undefined) decodeCanonicalBase64(value.stdout_base64);
-  if (value.stderr_base64!==undefined) decodeCanonicalBase64(value.stderr_base64);
+  if (value.stdout_base64!==undefined) {
+    decodeCanonicalBase64(
+      value.stdout_base64,
+      MAX_CAPTURE_BYTES,
+      'COMPUTATION_EVIDENCE_STDOUT_BASE64_INVALID',
+    );
+  }
+  if (value.stderr_base64!==undefined) {
+    decodeCanonicalBase64(
+      value.stderr_base64,
+      MAX_CAPTURE_BYTES,
+      'COMPUTATION_EVIDENCE_STDERR_BASE64_INVALID',
+    );
+  }
   assertSha256Tagged(value.stdout_sha256,'stdout_sha256');
   assertSha256Tagged(value.stderr_sha256,'stderr_sha256');
   if (typeof value.stdout_truncated!=='boolean' || typeof value.stderr_truncated!=='boolean') {
