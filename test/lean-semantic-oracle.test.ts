@@ -224,6 +224,7 @@ function leanRequest(
     target_id:targetId,
     obligations:order.map(id=>{
       const item=state.obligations[id];
+      if (!item) throw new Error(`LEAN_ORACLE_ORDER_UNKNOWN_OBLIGATION:${id}`);
       return {
         id:item.id,
         dependencies:item.dependencies.map(edge=>({
@@ -479,6 +480,9 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
       }
     }
 
+    const threeForward=forward.slice(0,3);
+    const threeReverse=[...threeForward].reverse();
+
     const mixedOrdered=stateFromDependencies(
       [[],[0],[1]],
       {
@@ -491,7 +495,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     mixedOrdered.obligations['n-1'].dependencies=[
       dependency(0,'semantic'),
     ];
-    for(const order of [forward,reverse]){
+    for(const order of [threeForward,threeReverse]){
       const observed=await oracle.compare(
         leanRequest(mixedOrdered,'n-2',order),
       );
@@ -518,7 +522,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     mixedUnordered.obligations['n-2'].dependencies=[
       dependency(1,'semantic'),
     ];
-    for(const order of [forward,reverse]){
+    for(const order of [threeForward,threeReverse]){
       const observed=await oracle.compare(
         leanRequest(mixedUnordered,'n-2',order),
       );
@@ -544,7 +548,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     );
     multiEffectConflict.obligations['n-2'].postcondition=
       statusPostcondition('failure');
-    for(const order of [forward,reverse]){
+    for(const order of [threeForward,threeReverse]){
       const observed=await oracle.compare(
         leanRequest(multiEffectConflict,'n-0',order),
       );
@@ -573,7 +577,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
         'failure',
         'overcenter/lean-oracle/other',
       );
-    for(const order of [forward,reverse]){
+    for(const order of [threeForward,threeReverse]){
       const observed=await oracle.compare(
         leanRequest(multiEffectSafe,'n-0',order),
       );
