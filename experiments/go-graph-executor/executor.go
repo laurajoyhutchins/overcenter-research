@@ -21,6 +21,7 @@ type Envelope struct {
 	ExecutionAuthorityCommit  string          `json:"execution_authority_commit"`
 	ExecutionCapability       string          `json:"execution_capability"`
 	ExecutionCapabilitySHA256 string          `json:"execution_capability_sha256"`
+	EffectReservationCommit   string          `json:"effect_reservation_commit,omitempty"`
 	ExecutionSpecSHA256       string          `json:"execution_spec_sha256"`
 	ExecutionSpec             json.RawMessage `json:"execution_spec"`
 }
@@ -41,6 +42,7 @@ type Evidence struct {
 	ExecutionGeneration       int     `json:"execution_generation"`
 	ExecutionAuthorityCommit  string  `json:"execution_authority_commit"`
 	ExecutionCapabilitySHA256 string  `json:"execution_capability_sha256"`
+	EffectReservationCommit   string  `json:"effect_reservation_commit,omitempty"`
 	ExecutionSpecSHA256       string  `json:"execution_spec_sha256"`
 	Outcome                   Outcome `json:"outcome"`
 	OutputBase64              string  `json:"output_base64,omitempty"`
@@ -136,6 +138,7 @@ func executeOne(ctx context.Context, envelope Envelope, runner Runner) Evidence 
 		ExecutionGeneration:       envelope.ExecutionGeneration,
 		ExecutionAuthorityCommit:  envelope.ExecutionAuthorityCommit,
 		ExecutionCapabilitySHA256: envelope.ExecutionCapabilitySHA256,
+		EffectReservationCommit:   envelope.EffectReservationCommit,
 		ExecutionSpecSHA256:       envelope.ExecutionSpecSHA256,
 	}
 
