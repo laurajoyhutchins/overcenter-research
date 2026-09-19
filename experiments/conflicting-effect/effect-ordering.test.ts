@@ -32,7 +32,7 @@ function statusPostcondition(state:'success'|'failure',context='overcenter/confl
 function statusEffect(
   id:string,
   state:'success'|'failure',
-  dependencies:NonNullable<ObligationInput['dependencies']>=[],
+  dependencies: NonNullable<ObligationInput['dependencies']> = [],
   context='overcenter/conflict',
 ):ObligationInput {
   return {
