@@ -1,3 +1,5 @@
+> **Graduated by PR #81.** The experiment justified a smaller production boundary: the worker emits only an `effect-ready` signal, while the trusted side binds the task session, checks generation, and derives the provider effect from authority. The richer experiment request object below is retained as evidence, not as the current production interface.
+
 # Provider capability confinement
 
 ## Question
