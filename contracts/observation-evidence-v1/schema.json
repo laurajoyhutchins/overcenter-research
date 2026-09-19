@@ -1,0 +1,808 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://overcenter.dev/contracts/observation-evidence-v1/schema.json",
+  "title": "Overcenter observation and evidence v1",
+  "$defs": {
+    "ObservationObserver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ProviderOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "visibility"
+      ],
+      "properties": {
+        "status": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "visibility": {
+          "enum": [
+            "observed",
+            "not-observed",
+            "indeterminate"
+          ]
+        },
+        "value": {},
+        "transport_error": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "KubernetesProviderObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "observer",
+        "observed_at",
+        "request",
+        "response",
+        "outcome",
+        "authority_id"
+      ],
+      "properties": {
+        "contract": {
+          "$ref": "#/$defs/KubernetesProviderContract"
+        },
+        "observer": {
+          "$ref": "#/$defs/ObservationObserver"
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": true,
+          "x-overcenter-providerOwned": true
+        },
+        "response": {
+          "type": "object",
+          "additionalProperties": true,
+          "x-overcenter-providerOwned": true
+        },
+        "outcome": {
+          "$ref": "#/$defs/ProviderOutcome"
+        },
+        "authority_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "structural_validation": {
+          "$ref": "#/$defs/StructuralValidationCertificate"
+        },
+        "revalidated_from": {
+          "$ref": "#/$defs/RevalidationProvenance"
+        }
+      }
+    },
+    "ProviderObservation": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/GenericProviderObservation"
+        },
+        {
+          "$ref": "#/$defs/KubernetesProviderObservation"
+        }
+      ]
+    },
+    "AbsenceEvidenceEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "subject",
+        "scope",
+        "snapshot",
+        "completeness",
+        "provenance"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-absence-evidence-v1"
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject": {
+          "type": "object",
+          "additionalProperties": true,
+          "x-overcenter-kindOwned": true
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": true,
+          "x-overcenter-kindOwned": true
+        },
+        "snapshot": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": true,
+              "x-overcenter-kindOwned": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completeness": {
+          "type": "object",
+          "additionalProperties": true,
+          "x-overcenter-kindOwned": true
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": true,
+          "x-overcenter-kindOwned": true
+        }
+      }
+    },
+    "FileCoordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path"
+      ],
+      "properties": {
+        "kind": {
+          "const": "file-path"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "LocalFileEnoentEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "subject",
+        "scope",
+        "snapshot",
+        "completeness",
+        "provenance"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-absence-evidence-v1"
+        },
+        "kind": {
+          "const": "local-file-enoent/v1"
+        },
+        "subject": {
+          "$ref": "#/$defs/FileCoordinate"
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "coordinate"
+          ],
+          "properties": {
+            "kind": {
+              "const": "exact-coordinate"
+            },
+            "coordinate": {
+              "$ref": "#/$defs/FileCoordinate"
+            }
+          }
+        },
+        "snapshot": {
+          "type": "null"
+        },
+        "completeness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "result"
+          ],
+          "properties": {
+            "kind": {
+              "const": "direct-coordinate-read"
+            },
+            "result": {
+              "const": "ENOENT"
+            }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "adapter",
+            "operation",
+            "error_code"
+          ],
+          "properties": {
+            "adapter": {
+              "const": "node:fs"
+            },
+            "operation": {
+              "const": "readFileSync"
+            },
+            "error_code": {
+              "const": "ENOENT"
+            }
+          }
+        }
+      }
+    },
+    "KubernetesSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "authority_id",
+        "api_group",
+        "resource",
+        "namespace",
+        "name"
+      ],
+      "properties": {
+        "provider": {
+          "const": "kubernetes"
+        },
+        "authority_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "api_group": {
+          "const": ""
+        },
+        "resource": {
+          "const": "configmaps"
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "KubernetesScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "authority_id",
+        "api_group",
+        "resource",
+        "namespace"
+      ],
+      "properties": {
+        "provider": {
+          "const": "kubernetes"
+        },
+        "authority_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "api_group": {
+          "const": ""
+        },
+        "resource": {
+          "const": "configmaps"
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "KubernetesPageEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page",
+        "request_continue",
+        "response_continue",
+        "snapshot_resource_version",
+        "schema_sha256",
+        "validated_paths",
+        "optional_absent_paths"
+      ],
+      "properties": {
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "request_continue": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "response_continue": {
+          "type": "string"
+        },
+        "snapshot_resource_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "validated_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optional_absent_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "KubernetesProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "authority_id",
+        "operation_id",
+        "pages"
+      ],
+      "properties": {
+        "provider": {
+          "const": "kubernetes"
+        },
+        "authority_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_id": {
+          "const": "listCoreV1NamespacedConfigMap"
+        },
+        "pages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/KubernetesPageEvidence"
+          }
+        }
+      }
+    },
+    "KubernetesCompleteList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "page_count",
+        "terminal_continue",
+        "page_chain_digest"
+      ],
+      "properties": {
+        "kind": {
+          "const": "complete-list"
+        },
+        "page_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terminal_continue": {
+          "const": ""
+        },
+        "page_chain_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "KubernetesCompleteListPlusWatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "page_count",
+        "terminal_continue",
+        "page_chain_digest",
+        "watch_start_resource_version",
+        "watch_last_resource_version",
+        "watch_continuity",
+        "watch_termination",
+        "watch_events_digest"
+      ],
+      "properties": {
+        "kind": {
+          "const": "complete-list-plus-watch"
+        },
+        "page_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terminal_continue": {
+          "const": ""
+        },
+        "page_chain_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "watch_start_resource_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "watch_last_resource_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "watch_continuity": {
+          "const": "maintained"
+        },
+        "watch_termination": {
+          "enum": [
+            "client-stop",
+            "eof",
+            "timeout"
+          ]
+        },
+        "watch_events_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "KubernetesCompleteListAbsence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "subject",
+        "scope",
+        "snapshot",
+        "completeness",
+        "provenance"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-absence-evidence-v1"
+        },
+        "kind": {
+          "const": "kubernetes-complete-list-absence/v1"
+        },
+        "subject": {
+          "$ref": "#/$defs/KubernetesSubject"
+        },
+        "scope": {
+          "$ref": "#/$defs/KubernetesScope"
+        },
+        "snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "resource_version"
+          ],
+          "properties": {
+            "resource_version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "completeness": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/KubernetesCompleteList"
+            },
+            {
+              "$ref": "#/$defs/KubernetesCompleteListPlusWatch"
+            }
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/KubernetesProvenance"
+        }
+      }
+    },
+    "KnownAuthoritativeAbsenceEvidence": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LocalFileEnoentEvidence"
+        },
+        {
+          "$ref": "#/$defs/KubernetesCompleteListAbsence"
+        }
+      ]
+    },
+    "SettlementObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verifier",
+        "mutation_certainty"
+      ],
+      "properties": {
+        "verifier": {
+          "enum": [
+            "file-content-equals/v1",
+            "eventually-consistent-file-content-equals/v1",
+            "github-commit-status/v1",
+            "github-commit-status/v2",
+            "kubernetes-configmap-exists/v1"
+          ]
+        },
+        "mutation_certainty": {
+          "enum": [
+            "present",
+            "absent",
+            "uncertain"
+          ]
+        },
+        "absence_evidence": {
+          "$ref": "#/$defs/AbsenceEvidenceEnvelope"
+        },
+        "path": {
+          "type": "string"
+        },
+        "expected_sha256": {
+          "type": "string"
+        },
+        "actual_sha256": {
+          "type": "string"
+        },
+        "provider": {
+          "enum": [
+            "github",
+            "kubernetes"
+          ]
+        },
+        "authority_id": {
+          "type": "string"
+        },
+        "api_group": {
+          "type": "string"
+        },
+        "resource": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "observed_uid": {
+          "type": "string"
+        },
+        "observed_resource_version": {
+          "type": "string"
+        },
+        "snapshot_resource_version": {
+          "type": "string"
+        },
+        "repository_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "repository_full_name": {
+          "type": "string"
+        },
+        "commit_sha": {
+          "type": "string"
+        },
+        "context": {
+          "type": "string"
+        },
+        "expected_state": {
+          "type": "string"
+        },
+        "actual_state": {
+          "type": "string"
+        },
+        "observation_error": {
+          "type": "string"
+        },
+        "provider_evidence": {
+          "type": "object",
+          "additionalProperties": true,
+          "x-overcenter-providerOwned": true
+        }
+      }
+    },
+    "StructuralValidationCertificate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "status",
+        "validated_paths",
+        "optional_absent_paths",
+        "schema_sha256"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validated_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optional_absent_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "RevalidationProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_at",
+        "etag"
+      ],
+      "properties": {
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "etag": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "GenericProviderContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "api_version",
+        "operation_id",
+        "schema_sha256"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "api_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "KubernetesProviderContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "api_version",
+        "operation_id",
+        "schema_sha256"
+      ],
+      "properties": {
+        "provider": {
+          "const": "kubernetes"
+        },
+        "api_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "GenericProviderObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "observer",
+        "observed_at",
+        "request",
+        "response",
+        "outcome"
+      ],
+      "properties": {
+        "contract": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/GenericProviderContract"
+            },
+            {
+              "properties": {
+                "provider": {
+                  "not": {
+                    "const": "kubernetes"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "observer": {
+          "$ref": "#/$defs/ObservationObserver"
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request": {
+          "type": "object",
+          "x-overcenter-providerOwned": true,
+          "additionalProperties": true
+        },
+        "response": {
+          "type": "object",
+          "x-overcenter-providerOwned": true,
+          "additionalProperties": true
+        },
+        "outcome": {
+          "$ref": "#/$defs/ProviderOutcome"
+        },
+        "structural_validation": {
+          "$ref": "#/$defs/StructuralValidationCertificate"
+        },
+        "revalidated_from": {
+          "$ref": "#/$defs/RevalidationProvenance"
+        }
+      }
+    }
+  }
+}

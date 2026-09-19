@@ -87,6 +87,20 @@ function data(value:unknown):Record<string,unknown>|null {
     : null;
 }
 
+function exactKeys(
+  value:Record<string,unknown>,
+  required:readonly string[],
+  optional:readonly string[]=[],
+):boolean {
+  const allowed=new Set([...required,...optional]);
+  return Object.keys(value).every(key=>allowed.has(key))
+    && required.every(key=>Object.hasOwn(value,key));
+}
+
+function stringArray(value:unknown):value is string[] {
+  return Array.isArray(value) && value.every(member=>typeof member==='string');
+}
+
 function sha256Digest(value:unknown):string {
   return `sha256:${canonicalDigest(value)}`;
 }
@@ -111,6 +125,36 @@ function certificateBaseMatches(
   const snapshot=value.snapshot;
   const completeness=value.completeness;
   const provenance=value.provenance;
+
+  if (!exactKeys(subject,[
+    'provider','authority_id','api_group','resource','namespace','name',
+  ])) return false;
+  if (!exactKeys(scope,[
+    'provider','authority_id','api_group','resource','namespace',
+  ])) return false;
+  if (!snapshot || !exactKeys(snapshot,['resource_version'])) return false;
+  if (!exactKeys(provenance,[
+    'provider','authority_id','operation_id','pages',
+  ])) return false;
+
+  if (completeness.kind==='complete-list') {
+    if (!exactKeys(completeness,[
+      'kind','page_count','terminal_continue','page_chain_digest',
+    ])) return false;
+  } else if (completeness.kind==='complete-list-plus-watch') {
+    if (!exactKeys(completeness,[
+      'kind','page_count','terminal_continue','page_chain_digest',
+      'watch_start_resource_version','watch_last_resource_version',
+      'watch_continuity','watch_termination','watch_events_digest',
+    ])) return false;
+    if (
+      completeness.watch_continuity!=='maintained'
+      || !['client-stop','eof','timeout'].includes(String(completeness.watch_termination))
+      || !matchesSha256(completeness.watch_events_digest)
+    ) return false;
+  } else {
+    return false;
+  }
 
   if (
     subject.provider!=='kubernetes'
@@ -157,7 +201,19 @@ function certificateBaseMatches(
   for (let index=0;index<provenance.pages.length;index+=1) {
     const page=data(provenance.pages[index]);
     if (!page) return false;
+    if (!exactKeys(page,[
+      'page','request_continue','response_continue','snapshot_resource_version',
+      'schema_sha256','validated_paths','optional_absent_paths',
+    ])) return false;
     if (page.page!==index+1) return false;
+    if (page.request_continue!==null && typeof page.request_continue!=='string') return false;
+    if (typeof page.response_continue!=='string') return false;
+    if (
+      typeof page.schema_sha256!=='string'
+      || !/^[0-9a-f]{64}$/.test(page.schema_sha256)
+      || !stringArray(page.validated_paths)
+      || !stringArray(page.optional_absent_paths)
+    ) return false;
     if (page.snapshot_resource_version!==pageSnapshotResourceVersion) return false;
     if (index===0 && page.request_continue!==null) return false;
     if (
@@ -297,6 +353,7 @@ export function observeCertifiedKubernetesConfigMap(
         observation,
         LIST_RESPONSE_SLICE,
         resolveRef,
+        {topLevelExtensions:['authority_id']},
       );
       const body=data(certified.outcome.value);
       const metadata=data(body?.metadata);

@@ -4,6 +4,19 @@ This contract is the production boundary between Overcenter's trusted TypeScript
 
 The executor receives only already-authorized computation. It does not receive graph edges, lifecycle transitions, settlement instructions, provider mutation authority, or provider credentials.
 
+## Machine-readable contract
+
+This directory is an ODCS-inspired contract package rather than a prose-only protocol note.
+
+- `contract.json` owns contract identity, lifecycle, compatibility, semantic identity, quality evidence, and authoritative-definition references.
+- `schema.json` is authoritative for mechanically knowable wire structure, including the declared `x-overcenter-*` validation annotations.
+- `process-spec-conformance.json` carries executable positive and hostile examples.
+- this README explains semantics and trust boundaries that are not usefully expressed as field constraints.
+
+If prose and the machine-readable wire structure disagree, the machine-readable structure wins and the contract regression must fail until the implementations and explanation are repaired. TypeScript and Go remain independent implementations that must prove conformance; neither implementation is the contract merely because it compiled first.
+
+A generic JSON Schema validator that ignores `x-overcenter-*` annotations is not a conforming validator for this contract. Those annotations carry byte limits, canonical-base64 requirements, NUL rejection, and path constraints that JSON Schema cannot express portably enough for this boundary.
+
 ## Executor hello
 
 Production Unix-socket sessions begin with one trusted-peer identity record:

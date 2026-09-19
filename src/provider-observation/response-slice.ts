@@ -1,4 +1,9 @@
-import type { ProviderObservation } from './observation.ts';
+import {
+  validateProviderObservationEnvelope,
+  type ProviderObservation,
+  type ProviderObservationValidationOptions,
+  type ProviderStructuralValidation,
+} from './observation.ts';
 
 export interface ResponseFieldSpec {
   path: string;
@@ -13,10 +18,7 @@ export interface StructuralOperation {
   }>;
 }
 
-export type StructuralObservation = Pick<
-  ProviderObservation<string, unknown, unknown>,
-  'contract' | 'outcome'
->;
+export type StructuralObservation = ProviderObservation<string, unknown, unknown>;
 
 export interface ResponseSliceResult {
   operation_id: string;
@@ -26,9 +28,7 @@ export interface ResponseSliceResult {
 }
 
 export type CertifiedObservation<T extends StructuralObservation = StructuralObservation> = T & {
-  structural_validation: ResponseSliceResult & {
-    schema_sha256: string;
-  };
+  structural_validation:ProviderStructuralValidation;
 };
 
 type Schema = Record<string, unknown>;
@@ -225,7 +225,9 @@ export function validateObservationSlice<T extends StructuralObservation>(
   observation: T,
   fields: readonly ResponseFieldSpec[],
   resolveRef?: SchemaResolver,
+  validationOptions?: ProviderObservationValidationOptions,
 ): CertifiedObservation<T> {
+  validateProviderObservationEnvelope(observation,validationOptions);
   if (observation.contract.operation_id !== operation.operation_id) {
     throw new Error('RESPONSE_SLICE_OPERATION_MISMATCH');
   }

@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://overcenter.dev/contracts/authority-facts-v1/schema.json",
+  "title": "Overcenter durable authority facts v1",
+  "description": "Persisted logical fact envelopes. Shape validity is necessary but not sufficient for replay validity.",
+  "$defs": {
+    "Sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ControlDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "upstream"
+      ],
+      "properties": {
+        "kind": {
+          "const": "control"
+        },
+        "upstream": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "SemanticConsumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "selector"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "output",
+            "evidence"
+          ]
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "SemanticDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "upstream",
+        "consumes"
+      ],
+      "properties": {
+        "kind": {
+          "const": "semantic"
+        },
+        "upstream": {
+          "type": "string",
+          "minLength": 1
+        },
+        "consumes": {
+          "$ref": "#/$defs/SemanticConsumption"
+        }
+      }
+    },
+    "Dependency": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ControlDependency"
+        },
+        {
+          "$ref": "#/$defs/SemanticDependency"
+        }
+      ]
+    },
+    "Obligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "dependencies",
+        "packet",
+        "postcondition"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Dependency"
+          }
+        },
+        "packet": {
+          "type": "object",
+          "x-overcenter-openBoundary": true,
+          "additionalProperties": true,
+          "description": "Application-defined packet; intentionally open but authoritative by value."
+        },
+        "postcondition": {
+          "type": "object",
+          "x-overcenter-openBoundary": true,
+          "additionalProperties": true,
+          "required": [
+            "verifier"
+          ],
+          "description": "Verifier-owned postcondition contract; intentionally open here."
+        }
+      }
+    },
+    "DefinedObligationFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "obligation"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-obligation-v3"
+        },
+        "kind": {
+          "const": "defined"
+        },
+        "obligation": {
+          "$ref": "#/$defs/Obligation"
+        }
+      }
+    },
+    "AmendedObligationFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "obligation",
+        "previous_definition_commit"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-obligation-v3"
+        },
+        "kind": {
+          "const": "amended"
+        },
+        "obligation": {
+          "$ref": "#/$defs/Obligation"
+        },
+        "previous_definition_commit": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ObligationFact": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/DefinedObligationFact"
+        },
+        {
+          "$ref": "#/$defs/AmendedObligationFact"
+        }
+      ]
+    },
+    "ClaimFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "obligation_key",
+        "execution_capability_sha256"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-claim-v3"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "obligation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claimed_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "obligation_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_capability_sha256": {
+          "$ref": "#/$defs/Sha256Hex"
+        }
+      }
+    },
+    "ExecutionAuthorityFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "run_id",
+        "obligation_id",
+        "generation",
+        "previous_authority_commit",
+        "execution_capability_sha256"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-execution-authority-v1"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "obligation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "previous_authority_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_capability_sha256": {
+          "$ref": "#/$defs/Sha256Hex"
+        }
+      }
+    },
+    "EffectReservationFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "run_id",
+        "obligation_id",
+        "execution_generation",
+        "execution_authority_commit"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-effect-reservation-v1"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "obligation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "execution_authority_commit": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "DiagnosticPayload": {
+      "type": "object",
+      "x-overcenter-openBoundary": true,
+      "additionalProperties": true,
+      "description": "Non-authoritative diagnostic payload."
+    },
+    "ReceiptFactV4": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "claim_commit",
+        "execution_generation",
+        "execution_authority_commit",
+        "kind",
+        "observed",
+        "settled_at"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-receipt-v4"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "obligation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claimed_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "execution_authority_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "observation",
+            "judgment-required",
+            "execution-terminated"
+          ]
+        },
+        "observed": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LegacyObservationPayload"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostic": {
+          "$ref": "#/$defs/DiagnosticPayload"
+        },
+        "settled_at": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ReceiptFactV5": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "claim_commit",
+        "execution_generation",
+        "execution_authority_commit",
+        "kind",
+        "observed",
+        "settled_at"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-receipt-v5"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "obligation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claimed_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "execution_authority_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "observation",
+            "judgment-required",
+            "execution-terminated"
+          ]
+        },
+        "observed": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CurrentObservationPayload"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostic": {
+          "$ref": "#/$defs/DiagnosticPayload"
+        },
+        "settled_at": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ReceiptFact": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ReceiptFactV4"
+        },
+        {
+          "$ref": "#/$defs/ReceiptFactV5"
+        }
+      ]
+    },
+    "AuthorityFact": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ObligationFact"
+        },
+        {
+          "$ref": "#/$defs/ClaimFact"
+        },
+        {
+          "$ref": "#/$defs/ExecutionAuthorityFact"
+        },
+        {
+          "$ref": "#/$defs/EffectReservationFact"
+        },
+        {
+          "$ref": "#/$defs/ReceiptFact"
+        }
+      ]
+    },
+    "LegacyObservationPayload": {
+      "type": "object",
+      "x-overcenter-openBoundary": true,
+      "additionalProperties": true,
+      "description": "Historical receipt-v4 observation payload. Permissive on read for compatibility."
+    },
+    "CurrentObservationPayload": {
+      "$ref": "../observation-evidence-v1/schema.json#/$defs/SettlementObservation"
+    }
+  }
+}

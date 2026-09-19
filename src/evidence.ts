@@ -10,10 +10,23 @@ function isData(value:unknown):value is Data {
   return !!value && typeof value==='object' && !Array.isArray(value);
 }
 
+function exactKeys(
+  value:Data,
+  required:readonly string[],
+  optional:readonly string[]=[],
+):boolean {
+  const allowed=new Set([...required,...optional]);
+  return Object.keys(value).every(key=>allowed.has(key))
+    && required.every(key=>Object.hasOwn(value,key));
+}
+
 export function validateAbsenceEvidenceEnvelope(
   value:unknown,
 ):asserts value is AbsenceEvidenceCertificate {
   if (!isData(value)) throw new Error('INVALID_ABSENCE_EVIDENCE');
+  if (!exactKeys(value,[
+    'schema','kind','subject','scope','snapshot','completeness','provenance',
+  ])) throw new Error('INVALID_ABSENCE_EVIDENCE_SHAPE');
   if (value.schema!==ABSENCE_EVIDENCE_SCHEMA) {
     throw new Error('INVALID_ABSENCE_EVIDENCE_SCHEMA');
   }
@@ -39,22 +52,13 @@ export function localFileEnoentEvidence(
   return {
     schema:ABSENCE_EVIDENCE_SCHEMA,
     kind:LOCAL_FILE_ENOENT_EVIDENCE,
-    subject:{
-      kind:'file-path',
-      path,
-    },
+    subject:{kind:'file-path',path},
     scope:{
       kind:'exact-coordinate',
-      coordinate:{
-        kind:'file-path',
-        path,
-      },
+      coordinate:{kind:'file-path',path},
     },
     snapshot:null,
-    completeness:{
-      kind:'direct-coordinate-read',
-      result:'ENOENT',
-    },
+    completeness:{kind:'direct-coordinate-read',result:'ENOENT'},
     provenance:{
       adapter:'node:fs',
       operation:'readFileSync',
@@ -73,10 +77,16 @@ export function localFileEnoentEvidenceMatches(
     return false;
   }
   if (value.kind!==LOCAL_FILE_ENOENT_EVIDENCE) return false;
+  if (!exactKeys(value.subject,['kind','path'])) return false;
+  if (!exactKeys(value.scope,['kind','coordinate'])) return false;
+  if (!isData(value.scope.coordinate)) return false;
+  if (!exactKeys(value.scope.coordinate,['kind','path'])) return false;
+  if (!exactKeys(value.completeness,['kind','result'])) return false;
+  if (!exactKeys(value.provenance,['adapter','operation','error_code'])) return false;
+
   return value.subject.kind==='file-path'
     && value.subject.path===path
     && value.scope.kind==='exact-coordinate'
-    && isData(value.scope.coordinate)
     && value.scope.coordinate.kind==='file-path'
     && value.scope.coordinate.path===path
     && value.snapshot===null

@@ -92,3 +92,24 @@ test('envelope can carry Kubernetes-style snapshot provenance without granting i
   assert.doesNotThrow(()=>validateAbsenceEvidenceEnvelope(evidence));
   assert.equal(localFileEnoentEvidenceMatches(evidence,'/provider/a'),false);
 });
+
+
+test('absence envelope rejects unknown outer fields',()=>{
+  const evidence={
+    ...localFileEnoentEvidence('/provider/a'),
+    surprise:true,
+  };
+  assert.throws(
+    ()=>validateAbsenceEvidenceEnvelope(evidence),
+    /INVALID_ABSENCE_EVIDENCE_SHAPE/,
+  );
+});
+
+test('local absence authority rejects unknown nested certificate fields',()=>{
+  const evidence=localFileEnoentEvidence('/provider/a');
+  evidence.provenance={
+    ...evidence.provenance,
+    surprise:true,
+  };
+  assert.equal(localFileEnoentEvidenceMatches(evidence,'/provider/a'),false);
+});

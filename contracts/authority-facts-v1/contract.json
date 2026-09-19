@@ -1,0 +1,212 @@
+{
+  "apiVersion": "overcenter.dev/data-contract/v1",
+  "kind": "DataContract",
+  "id": "authority-facts",
+  "version": "1.0.0",
+  "status": "active",
+  "description": {
+    "purpose": "Define the durable fact vocabulary from which Overcenter reconstructs project truth.",
+    "limitations": "This contract defines persisted fact structure and semantic roles. It does not make a fact valid in history merely because its JSON shape is valid; replay still enforces ordering, fencing, graph, observation, and settlement semantics."
+  },
+  "participants": {
+    "producers": [
+      "typescript-authority"
+    ],
+    "consumers": [
+      "projection",
+      "git-fact-store",
+      "sqlite-fact-store"
+    ]
+  },
+  "schema": {
+    "format": "json-schema",
+    "draft": "https://json-schema.org/draft/2020-12/schema",
+    "path": "./schema.json",
+    "entrypoint": "#/$defs/AuthorityFact",
+    "wireDiscriminators": [
+      "overcenter-git-obligation-v3",
+      "overcenter-git-claim-v3",
+      "overcenter-git-execution-authority-v1",
+      "overcenter-git-effect-reservation-v1",
+      "overcenter-git-receipt-v4",
+      "overcenter-git-receipt-v5"
+    ],
+    "validationExtensions": [
+      "x-overcenter-openBoundary"
+    ]
+  },
+  "compatibility": {
+    "outerFactUnknownFields": "reject",
+    "receipt": {
+      "read": [
+        "overcenter-git-receipt-v4",
+        "overcenter-git-receipt-v5"
+      ],
+      "write": "overcenter-git-receipt-v5"
+    },
+    "changeRule": "Incompatible outer-envelope or semantic-role changes require a new persisted discriminator. Existing discriminators are immutable historical contracts."
+  },
+  "governance": {
+    "structureAuthority": "./schema.json",
+    "semanticsAuthority": "./contract.json and ./README.md",
+    "replayAuthority": "../../src/projection.ts",
+    "conflictPolicy": "machine-readable-structure-wins",
+    "generatedOutputIsNotVerifiedOutput": true
+  },
+  "storageIndependence": {
+    "logicalFiles": {
+      "obligation": "obligation.json",
+      "claim": "claim.json",
+      "executionAuthority": "execution-authority.json",
+      "effectReservation": "effect-reservation.json",
+      "receipt": "receipt.json"
+    },
+    "backends": [
+      "git",
+      "sqlite"
+    ],
+    "backendLocalCommitIdentity": true,
+    "legacyWirePrefix": "The persisted 'overcenter-git-*' names are historical discriminators, not a declaration that Git owns the logical fact model."
+  },
+  "openBoundaries": [
+    {
+      "path": "Obligation.packet",
+      "role": "application-payload",
+      "authoritative": true,
+      "identityImpact": "included by value in obligation semantic identity",
+      "closure": "intentionally-open"
+    },
+    {
+      "path": "Obligation.postcondition",
+      "role": "verifier-contract",
+      "authoritative": true,
+      "identityImpact": "included by value in obligation semantic identity",
+      "closure": "owned by verifier/observation contracts"
+    },
+    {
+      "path": "ReceiptFact.observed",
+      "role": "observation-evidence",
+      "authoritative": true,
+      "identityImpact": "does not alter the claimed obligation identity; participates in settlement",
+      "closure": "receipt-v5 owned by ../observation-evidence-v1; receipt-v4 remains legacy-permissive",
+      "contractRef": "../observation-evidence-v1/schema.json#/$defs/SettlementObservation"
+    },
+    {
+      "path": "ReceiptFact.diagnostic",
+      "role": "diagnostic",
+      "authoritative": false,
+      "identityImpact": "none",
+      "closure": "intentionally-open"
+    }
+  ],
+  "semanticRoles": {
+    "obligationFact": {
+      "definitionFields": [
+        "kind",
+        "obligation"
+      ],
+      "fencingFields": [
+        "previous_definition_commit"
+      ],
+      "note": "previous_definition_commit exists only for amendments."
+    },
+    "claimFact": {
+      "authorityBindingFields": [
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "obligation_key",
+        "execution_capability_sha256"
+      ]
+    },
+    "executionAuthorityFact": {
+      "authorityBindingFields": [
+        "run_id",
+        "obligation_id",
+        "generation",
+        "previous_authority_commit",
+        "execution_capability_sha256"
+      ]
+    },
+    "effectReservationFact": {
+      "authorityBindingFields": [
+        "run_id",
+        "obligation_id",
+        "execution_generation",
+        "execution_authority_commit"
+      ],
+      "meaning": "Durably records that the exact execution generation crossed the provider-effect boundary."
+    },
+    "receiptFact": {
+      "authorityBindingFields": [
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "claim_commit",
+        "execution_generation",
+        "execution_authority_commit"
+      ],
+      "resultFields": [
+        "kind",
+        "observed"
+      ],
+      "auditFields": [
+        "settled_at"
+      ],
+      "diagnosticFields": [
+        "diagnostic"
+      ],
+      "derivedFieldsExcluded": [
+        "disposition",
+        "verified",
+        "settlement_commit"
+      ]
+    }
+  },
+  "quality": [
+    {
+      "id": "authority-fact-conformance",
+      "type": "conformance-corpus",
+      "path": "./authority-fact-conformance.json"
+    },
+    {
+      "id": "contract-regression",
+      "type": "executable",
+      "path": "../../test/data-contracts.test.ts"
+    },
+    {
+      "id": "storage-contract",
+      "type": "executable",
+      "path": "../../test/fact-store-contract.test.ts"
+    },
+    {
+      "id": "projection-replay",
+      "type": "executable",
+      "path": "../../test/projection-pure.test.ts"
+    },
+    {
+      "id": "backend-differential",
+      "type": "executable",
+      "path": "../../test/kernel-backend-differential.test.ts"
+    }
+  ],
+  "authoritativeDefinitions": [
+    {
+      "type": "wire-schema",
+      "path": "./schema.json"
+    },
+    {
+      "type": "runtime-validator",
+      "path": "../../src/facts.ts"
+    },
+    {
+      "type": "replay-semantics",
+      "path": "../../src/projection.ts"
+    },
+    {
+      "type": "storage-interface",
+      "path": "../../src/fact-store.ts"
+    }
+  ],
+  "extensions": {}
+}
