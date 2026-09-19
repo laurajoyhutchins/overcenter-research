@@ -195,7 +195,7 @@ Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
 - Go at the exact runtime version declared in [`.go-version`](./.go-version) for the physical computation executor (`executor/go.mod` remains the Go language/module compatibility declaration);
-- Docker for the catastrophic executor-death containment proof;
+- Docker for the catastrophic executor-death containment proof; executor base images are pinned by immutable digest in [`executor/runtime-images.json`](./executor/runtime-images.json);
 - Git;
 - Java 21 for the TLA+ model;
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
