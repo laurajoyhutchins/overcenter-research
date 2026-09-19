@@ -32,7 +32,10 @@ export type ProjectExplanation =
       reason:{
         kind:'claimable';
         semantic_key:string;
-        dependencies:string[];
+        dependencies:Array<{
+          obligation_id:string;
+          status:'DONE';
+        }>;
         released_by?:{
           run_id:string;
           disposition:'READY';
@@ -280,6 +283,15 @@ function projectWork(
   return projected;
 }
 
+function requiredStatus(
+  statusById:Map<string,WorkStatus>,
+  obligationId:string,
+):WorkStatus {
+  const status=statusById.get(obligationId);
+  if (!status) throw new Error(`EXPLANATION_DEPENDENCY_STATUS_MISSING:${obligationId}`);
+  return status;
+}
+
 function conflictObligations(code:string):string[] {
   const [kind,...ids]=code.split(':');
   return kind==='UNORDERED_EFFECT_CONFLICT' ? ids : [];
@@ -377,7 +389,7 @@ function deriveExplanation(
           kind:'unsatisfied-dependencies',
           dependencies:claimability.unsatisfiedDependencies.map(id=>({
             obligation_id:id,
-            status:statusById.get(id)??'BLOCKED',
+            status:requiredStatus(statusById,id),
           })),
         },
       };
@@ -398,13 +410,19 @@ function deriveExplanation(
     if (!claimability.error) {
       throw new Error(`EXPLANATION_BLOCKED_WITHOUT_REASON:${obligation.id}`);
     }
+    const conflicts=conflictObligations(claimability.error);
+    if (conflicts.length===0) {
+      throw new Error(
+        `EXPLANATION_UNSUPPORTED_BLOCK_REASON:${obligation.id}:${claimability.error}`,
+      );
+    }
     return {
       obligation_id:obligation.id,
       status:'BLOCKED',
       reason:{
         kind:'static-effect-conflict',
         code:claimability.error,
-        conflicting_obligations:conflictObligations(claimability.error),
+        conflicting_obligations:conflicts,
       },
     };
   }
@@ -420,7 +438,10 @@ function deriveExplanation(
     reason:{
       kind:'claimable',
       semantic_key:semanticKey,
-      dependencies:dependencyUpstreams(obligation),
+      dependencies:dependencyUpstreams(obligation).map(id=>({
+        obligation_id:id,
+        status:'DONE' as const,
+      })),
       ...(latest && receipt?.disposition==='READY'
         ? {
             released_by:{
