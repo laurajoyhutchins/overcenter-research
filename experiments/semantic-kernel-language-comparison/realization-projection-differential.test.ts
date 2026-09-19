@@ -424,7 +424,7 @@ test('current external reality deliberately changes current projection',()=>{
   );
 });
 
-test('existing runtime gap is historical replay, not corrected current projection',()=>{
+test('runtime current projection closes the historical mutable-reuse gap',()=>{
   const root=mkdtempSync(join(tmpdir(),'overcenter-realization-projection-'));
   const repo=join(root,'authority.git');
   const external=join(root,'mutable.txt');
@@ -447,12 +447,11 @@ test('existing runtime gap is historical replay, not corrected current projectio
 
     writeFileSync(external,'B');
 
-    const historical=new GitOvercenterKernel(repo);
-    assert.equal(
-      historical.inspect().find(work=>work.id==='mutable-file')?.status,
-      'DONE',
-      'existing runtime intentionally remains the known historical-only gap',
-    );
+    const current=new GitOvercenterKernel(repo);
+    const projected=current.inspect().find(work=>work.id==='mutable-file');
+    assert.equal(projected?.status,'RECOVERY_REQUIRED');
+    assert.equal(projected?.source_run_id,permit.id);
+    assert.equal(projected?.run_id,undefined);
 
     const observation=observePostcondition(
       filePostcondition(external),
