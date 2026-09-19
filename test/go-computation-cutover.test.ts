@@ -15,6 +15,7 @@ import test, { after } from 'node:test';
 import {
   PROCESS_COMPUTATION_PACKET_SCHEMA,
   PROCESS_SPEC_SCHEMA,
+  computationExecution,
   type ProcessSpecV1,
 } from '../src/computation-execution.ts';
 import { runReadyComputation } from '../src/computation-loop.ts';
@@ -217,6 +218,74 @@ test('failed pure computation records evidence and authoritative absence returns
     assert.equal(kernel.inspect()[0].status,'READY');
     assert.equal(kernel.computationAttempts().length,1);
     assert.equal(factNames(repo).includes('effect-reservation.json'),false);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('computation worker skips unrelated effectful work in the same ready frontier',async()=>{
+  const {repo,workspace,kernel}=makeRepo();
+  kernel.define({
+    id:'a-effect',
+    packet:{kind:'provider-effect'},
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:join(workspace,'effect.txt'),
+      content:'effect',
+    },
+  });
+  defineComputation(
+    kernel,
+    'z-compute',
+    processSpec('write-file','compute.txt','done'),
+    join(workspace,'compute.txt'),
+    'done',
+  );
+
+  const harness=await startExecutor(workspace);
+  try {
+    const result=await runReadyComputation(kernel,harness.client);
+    assert.equal(result.state,'DONE');
+    assert.equal(result.work,'z-compute');
+    const statuses=new Map(kernel.inspect().map(work=>[work.id,work.status]));
+    assert.equal(statuses.get('z-compute'),'DONE');
+    assert.equal(statuses.get('a-effect'),'READY');
+    assert.equal(factNames(repo).includes('effect-reservation.json'),false);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('late generation-one evidence cannot become durable after authority advances',async()=>{
+  const {workspace,kernel}=makeRepo();
+  const spec=processSpec('write-file','late.txt','late');
+  defineComputation(
+    kernel,
+    'late-evidence',
+    spec,
+    join(workspace,'late.txt'),
+    'late',
+  );
+
+  const work=kernel.deriveReadyWork();
+  assert.ok(work);
+  const permit=kernel.claim(work.id,work.revision);
+  const execution=computationExecution(permit,spec);
+  kernel.prepareComputation(permit,execution);
+
+  const harness=await startExecutor(workspace);
+  try {
+    const evidence=await harness.client.execute(execution);
+    assert.equal(evidence.outcome,'completed');
+
+    const fresh=kernel.acquireExecution(permit.id);
+    assert.equal(fresh.execution_generation,2);
+    assert.throws(
+      ()=>kernel.recordComputationAttempt(permit,execution,evidence),
+      /STALE_EXECUTION_GENERATION/,
+    );
+    assert.equal(kernel.computationAttempts().length,0);
+    assert.equal(kernel.computationIntents(permit.id).length,1);
   } finally {
     await harness.close();
   }

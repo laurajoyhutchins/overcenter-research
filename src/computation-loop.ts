@@ -74,11 +74,12 @@ export async function runReadyComputation(
   executor:ComputationExecutor,
 ):Promise<ComputationStepResult> {
   for (let attempt=0;attempt<16;attempt+=1) {
-    const work=kernel.deriveReadyWork();
-    if (!work) return {state:'IDLE'};
-    if (work.packet.schema!==PROCESS_COMPUTATION_PACKET_SCHEMA) {
-      return {state:'NOT_COMPUTATION',work:work.id};
-    }
+    const frontier=kernel.deriveReadyFrontier();
+    if (frontier.length===0) return {state:'IDLE'};
+    const work=frontier.find(
+      candidate=>candidate.packet.schema===PROCESS_COMPUTATION_PACKET_SCHEMA,
+    );
+    if (!work) return {state:'NOT_COMPUTATION',work:frontier[0].id};
     const packet=validateProcessComputationPacket(work.packet);
 
     let run:ExecutionPermit;

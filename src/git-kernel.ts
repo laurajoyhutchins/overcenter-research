@@ -29,6 +29,7 @@ import type {
   ClaimFact,
   ComputationAttempt,
   ComputationAttemptFact,
+  ComputationIntent,
   ComputationIntentFact,
   EffectReservationFact,
   ExecutionAuthorityFact,
@@ -394,6 +395,14 @@ export class GitOvercenterKernel {
       if (history.unresolvedReservationsByRun.has(run.id)) {
         throw new Error('UNRESOLVED_EFFECT');
       }
+      const executionKey=[
+        run.id,
+        run.execution_generation,
+        run.execution_authority_commit,
+      ].join('/');
+      if (history.computationIntentsByExecution.has(executionKey)) {
+        throw new Error('COMPUTATION_INTENT_EXISTS');
+      }
 
       const fact:EffectReservationFact={
         schema:EFFECT_RESERVATION_SCHEMA,
@@ -532,6 +541,15 @@ export class GitOvercenterKernel {
     return runId
       ? history.receipts.filter(receipt=>receipt.run_id===runId)
       : history.receipts;
+  }
+
+  computationIntents(runId:string|null=null):ComputationIntent[] {
+    const head=this.#requireHead();
+    const {history}=this.#projection(head);
+    const intents=runId
+      ? history.computationIntents.filter(intent=>intent.run_id===runId)
+      : history.computationIntents;
+    return structuredClone(intents);
   }
 
   computationAttempts(runId:string|null=null):ComputationAttempt[] {

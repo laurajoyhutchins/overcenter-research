@@ -361,6 +361,14 @@ export function replayProjection(commits:FactCommit[]):Projection {
       ) {
         throw new Error('STALE_EFFECT_RESERVATION');
       }
+      const key=executionKey(
+        run.id,
+        run.execution_generation,
+        run.execution_authority_commit,
+      );
+      if (computationIntentsByExecution.has(key)) {
+        throw new Error('EFFECT_RESERVATION_AFTER_COMPUTATION_INTENT');
+      }
       if (unresolvedReservationsByRun.has(run.id)) {
         throw new Error('DUPLICATE_UNRESOLVED_EFFECT');
       }
