@@ -19,8 +19,9 @@ function score(mutants){
   const noCoverage=relevant.filter(m=>m.status==='NoCoverage').length;
   const timeout=relevant.filter(m=>m.status==='Timeout').length;
   const runtimeError=relevant.filter(m=>m.status==='RuntimeError').length;
-  const denominator=killed+survived+noCoverage+timeout+runtimeError;
-  return {total:denominator,killed,survived,noCoverage,timeout,runtimeError,mutationScore:denominator?killed/denominator:1};
+  const valid=killed+timeout+survived+noCoverage;
+  const detected=killed+timeout;
+  return {total:valid,killed,survived,noCoverage,timeout,runtimeError,mutationScore:valid?detected/valid:1};
 }
 
 export function summarize(report){
