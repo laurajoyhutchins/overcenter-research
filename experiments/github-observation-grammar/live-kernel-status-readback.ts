@@ -20,7 +20,7 @@ const positive=observePostcondition({
   commit_sha:commitSha,
   context,
   expected_state:'success',
-},{githubToken:token});
+},{observationContext:{githubToken:token}});
 
 assert.equal(positive.mutation_certainty,'present');
 assert.equal(positive.actual_state,'success');
@@ -42,7 +42,7 @@ const missing=observePostcondition({
   commit_sha:commitSha,
   context:missingContext,
   expected_state:'success',
-},{githubToken:token});
+},{observationContext:{githubToken:token}});
 
 assert.equal(missing.mutation_certainty,'uncertain');
 assert.equal(missing.absence_evidence,undefined);
