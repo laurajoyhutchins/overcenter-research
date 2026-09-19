@@ -4,33 +4,21 @@ require "open3"
 module OvercenterRubyScenarios
   ROOT = File.expand_path("../../..", __dir__)
   DRIVER = File.join(ROOT, "experiments", "ruby-scenarios", "driver.ts")
+  PROVIDERS = {
+    github_status: "github-status",
+    kubernetes_configmap: "kubernetes-configmap"
+  }.freeze
 
   class ProviderScript
     def initialize(scenario, kind, id)
-      @scenario = scenario
-      @kind = kind
-      @id = id
+      @scenario, @kind, @id = scenario, kind, id
     end
 
-    def write_accepted
-      @scenario.__provider_effect(@id)
-    end
-
-    def worker_dies
-      @scenario.__interrupt(@id)
-    end
-
-    def readback(state, as:)
-      @scenario.__readback(@id, state, as)
-    end
-
-    def observe(event, as:)
-      @scenario.__provider_observe(@kind, event, as)
-    end
-
-    def continuity(state, as:)
-      @scenario.__provider_continuity(@kind, state, as)
-    end
+    def write_accepted = @scenario.__op("provider-effect", id: @id)
+    def worker_dies = @scenario.__op("interrupt", id: @id)
+    def readback(state, as:) = @scenario.__readback(@id, state, as)
+    def observe(event, as:) = @scenario.__provider_observe(@kind, event, as)
+    def continuity(state, as:) = @scenario.__provider_continuity(@kind, state, as)
   end
 
   class Scenario
@@ -44,298 +32,165 @@ module OvercenterRubyScenarios
       {
         "kind" => "semantic",
         "upstream" => upstream.to_s,
-        "consumes" => {
-          "kind" => "output",
-          "selector" => "verified-content"
-        }
+        "consumes" => {"kind" => "output", "selector" => "verified-content"}
       }
     end
 
     def control(upstream)
-      {
-        "kind" => "control",
-        "upstream" => upstream.to_s
-      }
+      {"kind" => "control", "upstream" => upstream.to_s}
     end
 
     def obligation(id, content:, dependencies: [], packet: {}, consistency: :strong)
-      @operations << {
-        "op" => "define",
-        "id" => id.to_s,
-        "content" => content,
-        "consistency" => consistency.to_s,
-        "dependencies" => dependencies,
-        "packet" => packet
-      }
+      definition("define", id, content, dependencies, packet, consistency)
     end
 
     def amend(id, content:, dependencies: [], packet: {}, consistency: :strong)
-      @operations << {
-        "op" => "amend",
-        "id" => id.to_s,
-        "content" => content,
-        "consistency" => consistency.to_s,
-        "dependencies" => dependencies,
-        "packet" => packet
-      }
+      definition("amend", id, content, dependencies, packet, consistency)
     end
 
     def provider(kind, id, expected: nil, packet: {}, &block)
-      case kind
-      when :eventually_consistent_file
+      if kind == :eventually_consistent_file
         raise "expected is required" if expected.nil?
-        obligation(
-          id,
-          content: expected,
-          packet: packet,
-          consistency: :eventual
-        )
-      when :github_status, :kubernetes_configmap
-        # Provider semantics live in the TypeScript fixtures/adapters. Ruby
-        # only names the hostile event sequence and its expected consequences.
-      else
+        obligation(id, content: expected, packet: packet, consistency: :eventual)
+      elsif !PROVIDERS.key?(kind)
         raise "unsupported scenario provider: #{kind}"
       end
-
       ProviderScript.new(self, kind, id.to_s).instance_eval(&block)
     end
 
-    def settle(id)
-      @operations << {
-        "op" => "settle",
-        "id" => id.to_s
-      }
-    end
+    def settle(id) = __op("settle", id: id)
+    def claim(id, as:) = __op("claim", id: id, name: as)
+    def renew_execution(permit, as:) = __op("renew-execution", permit: permit, name: as)
+    def reserve_effect(permit, as:) = __op("reserve-effect", permit: permit, name: as)
+    def checkpoint(name) = __op("checkpoint", name: name)
+    def reconstruct(name) = __op("reconstruct", name: name)
 
-    def claim(id, as:)
-      @operations << {
-        "op" => "claim",
-        "id" => id.to_s,
-        "name" => as.to_s
-      }
-    end
-
-    def renew_execution(permit, as:)
-      @operations << {
-        "op" => "renew-execution",
-        "permit" => permit.to_s,
-        "name" => as.to_s
-      }
-    end
-
-    def reserve_effect(permit, as:)
-      @operations << {
-        "op" => "reserve-effect",
-        "permit" => permit.to_s,
-        "name" => as.to_s
-      }
-    end
-
-    def checkpoint(name)
-      @operations << {
-        "op" => "checkpoint",
-        "name" => name.to_s
-      }
-    end
-
-    def reconstruct(name)
-      @operations << {
-        "op" => "reconstruct",
-        "name" => name.to_s
-      }
+    def __op(op, **fields)
+      @operations << {"op" => op}.merge(stringify(fields))
     end
 
     def __provider_observe(kind, event, name)
-      provider = {
-        github_status: "github-status",
-        kubernetes_configmap: "kubernetes-configmap"
-      }.fetch(kind)
-
-      @operations << {
-        "op" => "provider-observe",
-        "provider" => provider,
-        "event" => event.to_s.tr("_", "-"),
-        "name" => name.to_s
-      }
+      __op(
+        "provider-observe",
+        provider: PROVIDERS.fetch(kind),
+        event: event.to_s.tr("_", "-"),
+        name: name
+      )
     end
 
     def __provider_continuity(kind, state, name)
-      provider = {
-        github_status: "github-status",
-        kubernetes_configmap: "kubernetes-configmap"
-      }.fetch(kind)
-
-      @operations << {
-        "op" => "provider-continuity",
-        "provider" => provider,
-        "continuity" => state.to_s,
-        "name" => name.to_s
-      }
-    end
-
-    def __provider_effect(id)
-      @operations << {
-        "op" => "provider-effect",
-        "id" => id.to_s
-      }
-    end
-
-    def __interrupt(id)
-      @operations << {
-        "op" => "interrupt",
-        "id" => id.to_s
-      }
+      __op(
+        "provider-continuity",
+        provider: PROVIDERS.fetch(kind),
+        continuity: state,
+        name: name
+      )
     end
 
     def __readback(id, state, name)
-      operation = {
-        "op" => "readback",
-        "id" => id.to_s,
-        "name" => name.to_s
-      }
-
-      case state
-      when :missing, :expected
-        operation["state"] = state.to_s
+      if [:missing, :expected].include?(state)
+        __op("readback", id: id, name: name, state: state)
       else
-        operation["state"] = "value"
-        operation["value"] = state.to_s
+        __op("readback", id: id, name: name, state: :value, value: state)
       end
-      @operations << operation
     end
 
     def expect_status(checkpoint, id, status)
-      @expectations << lambda do |result|
-        work = work_at(result, checkpoint, id)
-        actual = work.fetch("status")
-        next if actual == status
-
-        raise "expected #{id} at #{checkpoint} to be #{status}, got #{actual}"
+      expect do |result|
+        actual = work_at(result, checkpoint, id).fetch("status")
+        fail_expectation("#{id} at #{checkpoint}", status, actual) unless actual == status
       end
     end
 
     def expect_same_run(id, before:, after:)
-      @expectations << lambda do |result|
-        earlier = work_at(result, before, id).fetch("run_id")
-        later = work_at(result, after, id).fetch("run_id")
-        next if earlier && earlier == later
-
-        raise "expected #{id} to reuse run #{earlier.inspect}, got #{later.inspect}"
+      expect do |result|
+        earlier = work_at(result, before, id)["run_id"]
+        later = work_at(result, after, id)["run_id"]
+        unless earlier && earlier == later
+          raise "expected #{id} to reuse run #{earlier.inspect}, got #{later.inspect}"
+        end
       end
     end
 
     def expect_no_run(checkpoint, id)
-      @expectations << lambda do |result|
-        run = work_at(result, checkpoint, id)["run_id"]
-        next if run.nil?
-
-        raise "expected #{id} at #{checkpoint} to have no reusable run, got #{run}"
+      expect do |result|
+        actual = work_at(result, checkpoint, id)["run_id"]
+        raise "expected #{id} at #{checkpoint} to have no reusable run, got #{actual}" if actual
       end
     end
 
     def expect_same_projection(left:, right:)
-      @expectations << lambda do |result|
-        earlier = checkpoint_at(result, left)
-        later = checkpoint_at(result, right)
-        next if earlier == later
-
-        raise "expected #{left} and #{right} projections to be byte-equivalent JSON values"
+      expect do |result|
+        a = checkpoint_at(result, left)
+        b = checkpoint_at(result, right)
+        raise "expected #{left} and #{right} projections to match" unless a == b
       end
     end
 
     def expect_readback(name, disposition:, certainty:, error: nil, absence_evidence: :any)
-      @expectations << lambda do |result|
+      expect do |result|
         receipt = result.fetch("readbacks").fetch(name.to_s)
         observed = receipt.fetch("observed")
-
-        unless receipt.fetch("disposition") == disposition
-          raise "expected #{name} disposition #{disposition}, got #{receipt.fetch("disposition")}"
-        end
-        unless observed.fetch("mutation_certainty") == certainty
-          raise "expected #{name} certainty #{certainty}, got #{observed.fetch("mutation_certainty")}"
-        end
-        unless observed["observation_error"] == error
-          raise "expected #{name} error #{error.inspect}, got #{observed["observation_error"].inspect}"
-        end
-        unless absence_evidence == :any || observed["absence_evidence"] == absence_evidence
-          raise "expected #{name} absence evidence #{absence_evidence.inspect}, got #{observed["absence_evidence"].inspect}"
+        fail_expectation("#{name} disposition", disposition, receipt["disposition"]) unless receipt["disposition"] == disposition
+        fail_expectation("#{name} certainty", certainty, observed["mutation_certainty"]) unless observed["mutation_certainty"] == certainty
+        fail_expectation("#{name} error", error, observed["observation_error"]) unless observed["observation_error"] == error
+        if absence_evidence != :any && observed["absence_evidence"] != absence_evidence
+          fail_expectation("#{name} absence evidence", absence_evidence, observed["absence_evidence"])
         end
       end
     end
 
     def expect_absence_kind(name, kind)
-      @expectations << lambda do |result|
-        receipt = result.fetch("readbacks").fetch(name.to_s)
-        observed = receipt.fetch("observed")
-        evidence = observed["absence_evidence"]
-        actual = evidence && evidence["kind"]
-        next if actual == kind
-
-        raise "expected #{name} absence kind #{kind.inspect}, got #{actual.inspect}"
+      expect do |result|
+        actual = result.dig("readbacks", name.to_s, "observed", "absence_evidence", "kind")
+        fail_expectation("#{name} absence kind", kind, actual) unless actual == kind
       end
     end
 
     def expect_evidence_preserved(name, expected)
-      @expectations << lambda do |result|
-        outcome = result.fetch("outcomes").fetch(name.to_s)
-        actual = outcome.fetch("evidence_preserved")
-        next if actual == expected
-
-        raise "expected #{name} evidence_preserved=#{expected}, got #{actual}"
+      expect do |result|
+        actual = result.dig("outcomes", name.to_s, "evidence_preserved")
+        fail_expectation("#{name} evidence_preserved", expected, actual) unless actual == expected
       end
     end
 
     def expect_error(name, error)
-      @expectations << lambda do |result|
-        outcome = result.fetch("outcomes").fetch(name.to_s)
-        unless outcome["ok"] == false && outcome["error"] == error
-          raise "expected #{name} to fail with #{error.inspect}, got #{outcome.inspect}"
+      expect do |result|
+        actual = result.dig("outcomes", name.to_s)
+        unless actual == {"ok" => false, "error" => error}
+          fail_expectation(name, {"ok" => false, "error" => error}, actual)
         end
       end
     end
 
     def expect_success(name)
-      @expectations << lambda do |result|
-        outcome = result.fetch("outcomes").fetch(name.to_s)
-        next if outcome["ok"] == true
-
-        raise "expected #{name} to succeed, got #{outcome.inspect}"
+      expect do |result|
+        actual = result.dig("outcomes", name.to_s, "ok")
+        fail_expectation(name, true, actual) unless actual == true
       end
     end
 
     def expect_effect_attempts(id, count)
-      @expectations << lambda do |result|
+      expect do |result|
         actual = result.fetch("effect_attempts").fetch(id.to_s, 0)
-        next if actual == count
-
-        raise "expected #{id} effect attempts #{count}, got #{actual}"
+        fail_expectation("#{id} effect attempts", count, actual) unless actual == count
       end
     end
 
     def expect_receipts(id, *dispositions)
-      @expectations << lambda do |result|
+      expect do |result|
         actual = result.fetch("receipts").fetch(id.to_s)
-        next if actual == dispositions
-
-        raise "expected #{id} receipts #{dispositions.inspect}, got #{actual.inspect}"
+        fail_expectation("#{id} receipts", dispositions, actual) unless actual == dispositions
       end
     end
 
     def run
-      payload = JSON.generate({
-        "scenario" => @name,
-        "operations" => @operations
-      })
+      payload = JSON.generate("scenario" => @name, "operations" => @operations)
       stdout, stderr, status = Open3.capture3(
-        "node",
-        "--experimental-strip-types",
-        DRIVER,
-        stdin_data: payload,
-        chdir: ROOT
+        "node", "--experimental-strip-types", DRIVER,
+        stdin_data: payload, chdir: ROOT
       )
-      unless status.success?
-        raise "#{@name}: TypeScript probe failed\n#{stderr}"
-      end
+      raise "#{@name}: TypeScript probe failed\n#{stderr}" unless status.success?
 
       result = JSON.parse(stdout)
       @expectations.each { |expectation| expectation.call(result) }
@@ -344,20 +199,41 @@ module OvercenterRubyScenarios
 
     private
 
+    def definition(op, id, content, dependencies, packet, consistency)
+      __op(
+        op,
+        id: id,
+        content: content,
+        consistency: consistency,
+        dependencies: dependencies,
+        packet: packet
+      )
+    end
+
+    def expect(&block) = @expectations << block
+
+    def stringify(value)
+      value.transform_keys(&:to_s).transform_values do |item|
+        item.is_a?(Symbol) ? item.to_s : item
+      end
+    end
+
     def checkpoint_at(result, checkpoint)
       result.fetch("checkpoints").fetch(checkpoint.to_s)
     end
 
     def work_at(result, checkpoint, id)
-      checkpoint_at(result, checkpoint).find { |work| work.fetch("id") == id.to_s } ||
+      checkpoint_at(result, checkpoint).find { |work| work["id"] == id.to_s } ||
         raise("missing #{id} at #{checkpoint}")
+    end
+
+    def fail_expectation(subject, expected, actual)
+      raise "expected #{subject} #{expected.inspect}, got #{actual.inspect}"
     end
   end
 
   def self.scenario(name, &block)
-    scenario = Scenario.new(name)
-    scenario.instance_eval(&block)
-    scenario.run
+    Scenario.new(name).tap { |scenario| scenario.instance_eval(&block) }.run
   end
 end
 
