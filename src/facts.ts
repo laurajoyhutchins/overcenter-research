@@ -1,7 +1,7 @@
 import type {
   Data,
   Dependency,
-  Disposition,
+  ReceiptDisposition,
   Obligation,
   Observation,
   Postcondition,
@@ -89,7 +89,7 @@ export interface ReceiptFact {
 }
 
 export interface Receipt extends ReceiptFact {
-  disposition:Disposition;
+  disposition:ReceiptDisposition;
   verified:boolean;
   settlement_commit?:string;
 }
