@@ -30,6 +30,9 @@ type Operation =
   | ({ op:'define' } & FileObligation)
   | ({ op:'amend' } & FileObligation)
   | { op:'settle'; id:string }
+  | { op:'claim'; id:string; name:string }
+  | { op:'renew-execution'; permit:string; name:string }
+  | { op:'reserve-effect'; permit:string; name:string }
   | { op:'provider-observe'; provider:ScenarioProvider; event:ScenarioObservation; name:string }
   | { op:'provider-effect'; id:string }
   | { op:'interrupt'; id:string }
@@ -107,6 +110,8 @@ const authority=join(root,'authority.git');
 const checkpoints:Record<string,unknown>={};
 const readbacks:Record<string,unknown>={};
 const runs=new Map<string,ReturnType<GitOvercenterKernel['claim']>>();
+const permits=new Map<string,ReturnType<GitOvercenterKernel['claim']>>();
+const outcomes:Record<string,unknown>={};
 const effectAttempts:Record<string,number>={};
 let replicaIndex=0;
 
@@ -126,6 +131,33 @@ try {
       case 'settle':
         settle(root,kernel,operation.id);
         break;
+      case 'claim': {
+        const work=kernel.inspect().find(candidate=>candidate.id===operation.id);
+        if (!work) throw new Error(`UNKNOWN_WORK:${operation.id}`);
+        if (work.status!=='READY') throw new Error(`NOT_READY:${operation.id}:${work.status}`);
+        permits.set(operation.name,kernel.claim(operation.id,work.revision));
+        break;
+      }
+      case 'renew-execution': {
+        const permit=permits.get(operation.permit);
+        if (!permit) throw new Error(`UNKNOWN_PERMIT:${operation.permit}`);
+        permits.set(operation.name,kernel.acquireExecution(permit.id));
+        break;
+      }
+      case 'reserve-effect': {
+        const permit=permits.get(operation.permit);
+        if (!permit) throw new Error(`UNKNOWN_PERMIT:${operation.permit}`);
+        try {
+          kernel.beginEffect(permit);
+          outcomes[operation.name]={ok:true};
+        } catch (error:unknown) {
+          outcomes[operation.name]={
+            ok:false,
+            error:error instanceof Error?error.message:String(error),
+          };
+        }
+        break;
+      }
       case 'provider-observe': {
         const result=runProviderObservationCase(operation.provider,operation.event);
         readbacks[operation.name]=result.receipt;
@@ -205,6 +237,7 @@ try {
     checkpoints,
     readbacks,
     effect_attempts:effectAttempts,
+    outcomes,
     receipts,
   }));
 } finally {
