@@ -66,7 +66,7 @@ interface Scenario {
   expectedClosure?:string[];
   currentSemanticKeyOverrides?:Record<string,string>;
   omitObservationJudgments?:Array<string>;
-  inadmissibleRealizationRuns?:Array<string>;
+  rejectedRealizationRuns?:Array<string>;
 }
 
 const PROGRAM=join(
@@ -240,16 +240,27 @@ function typescriptProjection(scenario:Scenario):Map<string,WorkStatus> {
     );
   }
 
-  const inadmissible=new Set(scenario.inadmissibleRealizationRuns??[]);
-  const admissible=new Set(
-    [...runs.keys()].filter(runId=>!inadmissible.has(runId)),
+  const inadmissible=new Set(scenario.rejectedRealizationRuns??[]);
+  const currentRealizationJudgments=new Map(
+    [...runs.keys()].map(runId=>[
+      runId,
+      inadmissible.has(runId)
+        ? {
+            state:'rejected' as const,
+            reason:'CURRENT_POSTCONDITION_NOT_VERIFIED' as const,
+          }
+        : {
+            state:'admissible' as const,
+            reason:'CURRENT_POSTCONDITION_VERIFIED' as const,
+          },
+    ]),
   );
   const project=deriveProjectProjection({
     state,
     runs,
     receiptsByRun:receipts,
     revision:'current-revision',
-    admissibleRealizationRuns:admissible,
+    currentRealizationJudgments,
   });
   return new Map(project.work.map(work=>[work.id,work.status]));
 }
@@ -358,7 +369,7 @@ function datalogProjection(
       ]),
     );
 
-    const inadmissible=new Set(scenario.inadmissibleRealizationRuns??[]);
+    const inadmissible=new Set(scenario.rejectedRealizationRuns??[]);
     const latest=latestReceipts(scenario.receipts);
     writeFacts(
       join(facts,'current_realization_admissible.facts'),
@@ -601,7 +612,7 @@ test('mutable historical DONE can be rejected by current realization semantics',
       evidence:'verified',
       ordinal:20,
     }],
-    inadmissibleRealizationRuns:['run-a'],
+    rejectedRealizationRuns:['run-a'],
   };
 
   // Both implementations consume the stronger current admissibility judgment.
