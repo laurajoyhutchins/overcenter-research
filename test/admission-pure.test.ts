@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { State } from '../src/facts.ts';
+import type { ObligationCatalog } from '../src/facts.ts';
 import { validateAdmission } from '../src/admission.ts';
 
 const fileObligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligation=>({
@@ -34,7 +34,7 @@ const statusObligation=(
 });
 
 test('admission rejects unsupported semantic selectors before realization',()=>{
-  const state:State={
+  const state:ObligationCatalog={
     obligations:{
       a:fileObligation('a'),
       b:fileObligation('b',[{
@@ -53,7 +53,7 @@ test('admission rejects unsupported semantic selectors before realization',()=>{
 });
 
 test('admission rejects unordered incompatible static effects',()=>{
-  const state:State={
+  const state:ObligationCatalog={
     obligations:{
       alpha:statusObligation('alpha','success'),
       beta:statusObligation('beta','failure'),
@@ -68,7 +68,7 @@ test('admission rejects unordered incompatible static effects',()=>{
 });
 
 test('admission accepts explicit ordering for incompatible effects',()=>{
-  const state:State={
+  const state:ObligationCatalog={
     obligations:{
       alpha:statusObligation('alpha','success'),
       beta:statusObligation(
