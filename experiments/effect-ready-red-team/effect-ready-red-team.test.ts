@@ -9,7 +9,7 @@ import {
   executeEffectReady,
 } from '../../src/effect-broker.ts';
 import { effectReadySignal } from '../../src/execution-signal.ts';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel, runGitCoreLoop } from '../../src/git-kernel.ts';
 
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'effect-ready-red-team-'));
@@ -193,6 +193,54 @@ test('counterexample: bare readiness claim needs no realization evidence',async(
 
     // No result, realization, verifier output, or acceptance evidence was
     // supplied. The untrusted readiness assertion alone triggered the effect.
+  } finally {
+    rmSync(f.root,{recursive:true,force:true});
+  }
+});
+
+
+test('counterexample: legacy core loop bypasses the new broker boundary',async()=>{
+  const f=fixture();
+  try {
+    f.kernel.define({
+      id:'legacy-bypass',
+      packet:{
+        kind:'arbitrary-provider-command/v1',
+        repository_id:999,
+        operation:'anything',
+      },
+      postcondition:{
+        verifier:'github-commit-status/v1',
+        provider:'github',
+        repository_id:123,
+        commit_sha:'a'.repeat(40),
+        context:'overcenter/legacy-bypass',
+        expected_state:'success',
+      },
+    });
+
+    let arbitraryEffectCalls=0;
+
+    await assert.rejects(
+      runGitCoreLoop(f.kernel,{
+        effect:async packet=>{
+          arbitraryEffectCalls+=1;
+          assert.equal(packet.kind,'arbitrary-provider-command/v1');
+          return {
+            kind:'arbitrary-effect-ran',
+            may_have_mutated:true,
+          };
+        },
+        maxAdvances:1,
+      }),
+      /GITHUB_TOKEN_REQUIRED|GITHUB_PROVIDER_READ_FAILED|github/i,
+    );
+
+    assert.equal(arbitraryEffectCalls,1);
+
+    // The arbitrary callback crossed the effect boundary before observation
+    // failed. No TaskSession, worker-signal grammar, or provider adapter was
+    // involved.
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
