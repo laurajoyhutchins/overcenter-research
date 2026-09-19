@@ -40,6 +40,7 @@ import { validateAdmission } from './admission.ts';
 import {
   hasInFlight,
   obligationKey,
+  obligationRealizationContract,
 } from './lifecycle.ts';
 import {
   claimabilityError,
@@ -50,6 +51,11 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
+import {
+  verifyRealizationCandidate,
+  type RealizationCandidate,
+  type VerifiedRealizationFact,
+} from './realization.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -148,6 +154,37 @@ export class GitOvercenterKernel {
     );
     if (!this.#store.cas(commit,head)) throw new Error('AMEND_LOST');
     return commit;
+  }
+
+  recordRealization(
+    id:string,
+    candidate:RealizationCandidate,
+    expectedRevision:string,
+  ):{commit:string;fact:VerifiedRealizationFact} {
+    const head=this.#requireHead();
+    if (head!==expectedRevision) throw new Error('STALE_REVISION');
+    const {state,history}=this.#projection(head);
+    if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    const work=state.obligations[id];
+    if (!work) throw new Error(`unknown obligation: ${id}`);
+    const contract=obligationRealizationContract(
+      state,
+      work,
+      history.lifecycles,
+      history.receiptsByRun,
+    );
+    if (!contract) {
+      if (!work.realization) throw new Error('REALIZATION_NOT_DECLARED');
+      throw new Error('REALIZATION_DEPENDENCIES_UNRESOLVED');
+    }
+    const fact=verifyRealizationCandidate(contract,candidate);
+    const commit=this.#store.createCommit(
+      head,
+      `overcenter: realize ${id} ${fact.realization_identity}`,
+      {'realization.json':fact},
+    );
+    if (!this.#store.cas(commit,head)) throw new Error('REALIZATION_LOST');
+    return {commit,fact};
   }
 
   inspect():Work[] {
@@ -420,6 +457,7 @@ export class GitOvercenterKernel {
       execution_authority:this.#store.readJson(commit,'execution-authority.json'),
       effect_reservation:this.#store.readJson(commit,'effect-reservation.json'),
       receipt:this.#store.readJson(commit,'receipt.json'),
+      realization:this.#store.readJson(commit,'realization.json'),
     }));
     return replayProjection(commits);
   }
