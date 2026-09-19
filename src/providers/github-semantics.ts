@@ -1,13 +1,24 @@
 import type { ResponseFieldSpec } from '../provider-observation/response-slice.ts';
 
+export type GithubRepositoryReadPermission=
+  |'actions:read'
+  |'checks:read'
+  |'contents:read'
+  |'deployments:read'
+  |'issues:read'
+  |'pull_requests:read'
+  |'statuses:read';
+
 export interface GithubSemanticOperation {
   operation_id:string;
+  required_permissions:readonly GithubRepositoryReadPermission[];
   response_slice:readonly ResponseFieldSpec[];
 }
 
 export const GITHUB_OPERATION_SEMANTICS={
   repository:{
     operation_id:"repos/get",
+    required_permissions:["contents:read"],
     response_slice:[
       {
         "path": "id"
@@ -28,6 +39,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   ref:{
     operation_id:"git/get-ref",
+    required_permissions:["contents:read"],
     response_slice:[
       {
         "path": "ref"
@@ -42,6 +54,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   git_commit:{
     operation_id:"git/get-commit",
+    required_permissions:["contents:read"],
     response_slice:[
       {
         "path": "sha"
@@ -59,6 +72,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   branch:{
     operation_id:"repos/get-branch",
+    required_permissions:["contents:read"],
     response_slice:[
       {
         "path": "name"
@@ -73,6 +87,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   pull_request:{
     operation_id:"pulls/get",
+    required_permissions:["pull_requests:read"],
     response_slice:[
       {
         "path": "id"
@@ -99,6 +114,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   issue:{
     operation_id:"issues/get",
+    required_permissions:["issues:read"],
     response_slice:[
       {
         "path": "id"
@@ -126,13 +142,14 @@ export const GITHUB_OPERATION_SEMANTICS={
         "path": "updated_at"
       },
       {
-        "path": "pull_request",
+        "path": "pull_request.url",
         "required": false
       }
     ],
   },
   check_run:{
     operation_id:"checks/get",
+    required_permissions:["checks:read"],
     response_slice:[
       {
         "path": "id"
@@ -162,6 +179,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   check_suite:{
     operation_id:"checks/get-suite",
+    required_permissions:["checks:read"],
     response_slice:[
       {
         "path": "id"
@@ -191,6 +209,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   commit_statuses:{
     operation_id:"repos/list-commit-statuses-for-ref",
+    required_permissions:["statuses:read"],
     response_slice:[
       {
         "path": "[].id"
@@ -217,6 +236,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   combined_commit_status:{
     operation_id:"repos/get-combined-status-for-ref",
+    required_permissions:["statuses:read"],
     response_slice:[
       {
         "path": "state"
@@ -252,6 +272,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   workflow:{
     operation_id:"actions/get-workflow",
+    required_permissions:["actions:read"],
     response_slice:[
       {
         "path": "id"
@@ -278,6 +299,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   workflow_run:{
     operation_id:"actions/get-workflow-run",
+    required_permissions:["actions:read"],
     response_slice:[
       {
         "path": "id"
@@ -325,6 +347,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   workflow_job:{
     operation_id:"actions/get-job-for-workflow-run",
+    required_permissions:["actions:read"],
     response_slice:[
       {
         "path": "id"
@@ -360,6 +383,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   release:{
     operation_id:"repos/get-release",
+    required_permissions:["contents:read"],
     response_slice:[
       {
         "path": "id"
@@ -395,6 +419,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   release_asset:{
     operation_id:"repos/get-release-asset",
+    required_permissions:["contents:read"],
     response_slice:[
       {
         "path": "id"
@@ -430,6 +455,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   deployment:{
     operation_id:"repos/get-deployment",
+    required_permissions:["deployments:read"],
     response_slice:[
       {
         "path": "id"
@@ -462,6 +488,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   deployment_status:{
     operation_id:"repos/get-deployment-status",
+    required_permissions:["deployments:read"],
     response_slice:[
       {
         "path": "id"
@@ -492,6 +519,7 @@ export const GITHUB_OPERATION_SEMANTICS={
 
   pull_request_files:{
     operation_id:"pulls/list-files",
+    required_permissions:["pull_requests:read"],
     response_slice:[
       {path:"[].sha"},
       {path:"[].filename"},
@@ -503,33 +531,50 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   pull_request_reviews:{
     operation_id:"pulls/list-reviews",
+    required_permissions:["pull_requests:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
       {path:"[].state"},
       {path:"[].commit_id"},
+      {path:"[].user.login",required:false},
+      {path:"[].body",required:false},
+      {path:"[].submitted_at",required:false},
     ],
   },
   pull_request_review_comments:{
     operation_id:"pulls/list-review-comments",
+    required_permissions:["pull_requests:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
       {path:"[].path"},
       {path:"[].commit_id"},
+      {path:"[].user.login",required:false},
+      {path:"[].body"},
+      {path:"[].line",required:false},
+      {path:"[].side",required:false},
+      {path:"[].start_line",required:false},
+      {path:"[].start_side",required:false},
+      {path:"[].in_reply_to_id",required:false},
       {path:"[].updated_at"},
     ],
   },
   issue_comments:{
     operation_id:"issues/list-comments",
+    required_permissions:["issues:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
+      {path:"[].user.login",required:false},
+      {path:"[].body"},
+      {path:"[].created_at"},
       {path:"[].updated_at"},
     ],
   },
   issue_events:{
     operation_id:"issues/list-events",
+    required_permissions:["issues:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
@@ -539,22 +584,27 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   issues:{
     operation_id:"issues/list-for-repo",
+    required_permissions:["issues:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
       {path:"[].number"},
       {path:"[].state"},
       {path:"[].title"},
+      {path:"[].pull_request.url",required:false},
       {path:"[].updated_at"},
     ],
   },
   pull_requests:{
     operation_id:"pulls/list",
+    required_permissions:["pull_requests:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
       {path:"[].number"},
       {path:"[].state"},
+      {path:"[].title"},
+      {path:"[].user.login",required:false},
       {path:"[].head.sha"},
       {path:"[].base.ref"},
       {path:"[].base.sha"},
@@ -563,6 +613,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   commits:{
     operation_id:"repos/list-commits",
+    required_permissions:["contents:read"],
     response_slice:[
       {path:"[].sha"},
       {path:"[].node_id"},
@@ -572,6 +623,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   commit:{
     operation_id:"repos/get-commit",
+    required_permissions:["contents:read"],
     response_slice:[
       {path:"sha"},
       {path:"node_id"},
@@ -581,6 +633,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   git_tree:{
     operation_id:"git/get-tree",
+    required_permissions:["contents:read"],
     response_slice:[
       {path:"sha"},
       {path:"truncated"},
@@ -592,6 +645,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   git_blob:{
     operation_id:"git/get-blob",
+    required_permissions:["contents:read"],
     response_slice:[
       {path:"sha"},
       {path:"node_id"},
@@ -602,6 +656,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   workflow_runs:{
     operation_id:"actions/list-workflow-runs-for-repo",
+    required_permissions:["actions:read"],
     response_slice:[
       {path:"total_count"},
       {path:"workflow_runs[].id"},
@@ -618,6 +673,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   workflow_jobs:{
     operation_id:"actions/list-jobs-for-workflow-run",
+    required_permissions:["actions:read"],
     response_slice:[
       {path:"total_count"},
       {path:"jobs[].id"},
@@ -634,6 +690,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   workflow_run_artifacts:{
     operation_id:"actions/list-workflow-run-artifacts",
+    required_permissions:["actions:read"],
     response_slice:[
       {path:"total_count"},
       {path:"artifacts[].id"},
@@ -648,6 +705,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   artifact:{
     operation_id:"actions/get-artifact",
+    required_permissions:["actions:read"],
     response_slice:[
       {path:"id"},
       {path:"node_id"},
@@ -661,6 +719,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   workflows:{
     operation_id:"actions/list-repo-workflows",
+    required_permissions:["actions:read"],
     response_slice:[
       {path:"total_count"},
       {path:"workflows[].id"},
@@ -674,6 +733,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   check_runs_for_ref:{
     operation_id:"checks/list-for-ref",
+    required_permissions:["checks:read"],
     response_slice:[
       {path:"total_count"},
       {path:"check_runs[].id"},
@@ -688,6 +748,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   check_suites_for_ref:{
     operation_id:"checks/list-suites-for-ref",
+    required_permissions:["checks:read"],
     response_slice:[
       {path:"total_count"},
       {path:"check_suites[].id"},
@@ -702,6 +763,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   branches:{
     operation_id:"repos/list-branches",
+    required_permissions:["contents:read"],
     response_slice:[
       {path:"[].name"},
       {path:"[].commit.sha"},
@@ -710,6 +772,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   tags:{
     operation_id:"repos/list-tags",
+    required_permissions:["contents:read"],
     response_slice:[
       {path:"[].name"},
       {path:"[].commit.sha"},
@@ -717,6 +780,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   releases:{
     operation_id:"repos/list-releases",
+    required_permissions:["contents:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
@@ -731,6 +795,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   deployments:{
     operation_id:"repos/list-deployments",
+    required_permissions:["deployments:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
@@ -744,6 +809,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   deployment_statuses:{
     operation_id:"repos/list-deployment-statuses",
+    required_permissions:["deployments:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
@@ -755,6 +821,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   commit_pull_requests:{
     operation_id:"repos/list-pull-requests-associated-with-commit",
+    required_permissions:["pull_requests:read"],
     response_slice:[
       {path:"[].id"},
       {path:"[].node_id"},
@@ -768,6 +835,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   },
   check_runs_for_suite:{
     operation_id:"checks/list-for-suite",
+    required_permissions:["checks:read"],
     response_slice:[
       {path:"total_count"},
       {path:"check_runs[].id"},

@@ -160,7 +160,7 @@ function validatePath(
     const items = schemaCandidates.flatMap(schema => itemSchemas(schema, resolveRef));
     assertSchemaCandidates(items, fullPath);
     if (!Array.isArray(value)) throw new Error(`RESPONSE_SLICE_ARRAY_REQUIRED:${fullPath}`);
-    for (const member of value) validatePath(items, member, rest, fullPath, true, resolveRef);
+    for (const member of value) validatePath(items, member, rest, fullPath, required, resolveRef);
     return 'validated';
   }
 
@@ -183,7 +183,7 @@ function validatePath(
   const items = properties.flatMap(schema => itemSchemas(schema, resolveRef));
   assertSchemaCandidates(items, fullPath);
   if (!Array.isArray(child)) throw new Error(`RESPONSE_SLICE_ARRAY_REQUIRED:${fullPath}`);
-  for (const member of child) validatePath(items, member, rest, fullPath, true, resolveRef);
+  for (const member of child) validatePath(items, member, rest, fullPath, required, resolveRef);
   return 'validated';
 }
 
@@ -218,6 +218,80 @@ export function validateResponseSlice(
     validated_paths: validatedPaths,
     optional_absent_paths: optionalAbsentPaths,
   };
+}
+
+
+interface ResponseProjectionNode {
+  leaf?:boolean;
+  array?:ResponseProjectionNode;
+  properties?:Record<string,ResponseProjectionNode>;
+}
+
+const RESPONSE_PROJECTION_OMIT=Symbol('response-projection-omit');
+
+function addResponseProjectionPath(root:ResponseProjectionNode,path:string):void {
+  let node=root;
+  for(const segment of parsePath(path)){
+    if(segment==='[]'){
+      node.array??={};
+      node=node.array;
+      continue;
+    }
+    const arrayProperty=segment.endsWith('[]');
+    const name=arrayProperty?segment.slice(0,-2):segment;
+    node.properties??={};
+    node.properties[name]??={};
+    node=node.properties[name];
+    if(arrayProperty){
+      node.array??={};
+      node=node.array;
+    }
+  }
+  node.leaf=true;
+}
+
+function projectResponseNode(
+  value:unknown,
+  node:ResponseProjectionNode,
+):unknown|typeof RESPONSE_PROJECTION_OMIT {
+  if(node.leaf===true) return value;
+  if(node.array){
+    if(!Array.isArray(value)) return RESPONSE_PROJECTION_OMIT;
+    return value.map(member=>{
+      const projected=projectResponseNode(member,node.array!);
+      return projected===RESPONSE_PROJECTION_OMIT?null:projected;
+    });
+  }
+
+  const body=object(value);
+  if(!body) return RESPONSE_PROJECTION_OMIT;
+  const projected:Record<string,unknown>={};
+  for(const [name,child] of Object.entries(node.properties??{})){
+    if(!Object.hasOwn(body,name)) continue;
+    const childValue=projectResponseNode(body[name],child);
+    if(childValue!==RESPONSE_PROJECTION_OMIT) projected[name]=childValue;
+  }
+  return projected;
+}
+
+/**
+ * Materialize only fields named by a certified response slice.
+ *
+ * Validation and projection stay separate: callers validate first, then use
+ * this projection as the authority-bearing value. Provider fields outside the
+ * declared slice never cross the certified API boundary.
+ */
+export function projectResponseSlice(
+  body:unknown,
+  fields:readonly ResponseFieldSpec[],
+):unknown {
+  const root:ResponseProjectionNode={};
+  for(const field of fields) addResponseProjectionPath(root,field.path);
+  const projected=projectResponseNode(body,root);
+  if(projected===RESPONSE_PROJECTION_OMIT){
+    throw new Error('RESPONSE_SLICE_PROJECTION_ROOT_MISMATCH');
+  }
+  return projected;
 }
 
 export function validateObservationSlice<T extends StructuralObservation>(

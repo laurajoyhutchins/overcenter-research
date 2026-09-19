@@ -30,6 +30,10 @@ test('generated GitHub operation catalog is bound to semantic operation IDs',()=
       true,
       `registered observation is not callable by a GitHub App: ${semantic.operation_id}`,
     );
+    assert.ok(
+      semantic.required_permissions.length>0,
+      `registered observation has no credential permission requirement: ${semantic.operation_id}`,
+    );
   }
 });
 
@@ -172,4 +176,30 @@ test('certified status verifier contains no GitHub page-parameter convention',()
   assert.doesNotMatch(source,/default_page_size/);
   assert.equal(source.includes('page='),false);
   assert.equal(source.includes('for (let page'),false);
+});
+
+
+test('live observation workflow grants every permission required by registered semantic reads',()=>{
+  const workflow=readFileSync('.github/workflows/github-observation-grammar.yml','utf8');
+  const yamlName:Record<string,string>={
+    actions:'actions',
+    checks:'checks',
+    contents:'contents',
+    deployments:'deployments',
+    issues:'issues',
+    pull_requests:'pull-requests',
+    statuses:'statuses',
+  };
+  const required=new Set(
+    Object.values(GITHUB_OPERATION_SEMANTICS)
+      .flatMap(semantic=>semantic.required_permissions),
+  );
+  for(const permission of required){
+    const [name,level]=permission.split(':');
+    assert.match(
+      workflow,
+      new RegExp(`^  ${yamlName[name]}: ${level}$`,'m'),
+      `workflow credential profile does not grant ${permission}`,
+    );
+  }
 });

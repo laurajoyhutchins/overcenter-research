@@ -7,6 +7,7 @@ import { GITHUB_OBSERVATION_OPERATIONS } from './github-operations.generated.ts'
 import { materializeGithubOperationRequest } from './github-openapi.ts';
 import {
   GITHUB_OPERATION_SEMANTICS,
+  type GithubRepositoryReadPermission,
   type GithubSemanticOperationName,
 } from './github-semantics.ts';
 import {
@@ -14,6 +15,7 @@ import {
   observeCertifiedGithubRepository,
   type CertifiedGithubRepositoryEvidence,
 } from './github-certified-repository.ts';
+import { projectResponseSlice } from '../provider-observation/response-slice.ts';
 import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
 import { githubGet,type GithubJsonGet } from './github-rest.ts';
 
@@ -33,14 +35,20 @@ export interface CertifiedGithubSemanticReadEvidence {
   observed_at:string;
   request_path:string;
   parameters:Record<string,string|number|boolean>;
-  paginated:boolean;
+  required_permissions:readonly GithubRepositoryReadPermission[];
+  collection:null|{
+    kind:'single-page';
+    page:number;
+    page_size:number;
+    completeness:'page-only';
+  };
   negative_evidence_authoritative:false;
   validated_paths:string[];
   optional_absent_paths:string[];
 }
 
 export type CertifiedGithubSemanticReadResult=
-  | {state:'observed';value:unknown;evidence:CertifiedGithubSemanticReadEvidence}
+  | {state:'observed'|'page-observed';value:unknown;evidence:CertifiedGithubSemanticReadEvidence}
   | {
       state:'indeterminate';
       operation_key:GithubGenericSemanticOperationName;
@@ -81,6 +89,7 @@ export function observeCertifiedGithubSemanticRead(
     repositoryFullName,
     operation:operationName,
     parameters={},
+    grantedPermissions,
     get=githubGet,
     clock=()=>new Date().toISOString(),
   }:{
@@ -88,6 +97,7 @@ export function observeCertifiedGithubSemanticRead(
     repositoryFullName:string;
     operation:GithubGenericSemanticOperationName;
     parameters?:Record<string,string|number|boolean>;
+    grantedPermissions:readonly GithubRepositoryReadPermission[];
     get?:GithubJsonGet;
     clock?:()=>string;
   },
@@ -96,6 +106,16 @@ export function observeCertifiedGithubSemanticRead(
   githubRepositoryCoordinate(repositoryFullName);
   const operation=GITHUB_OBSERVATION_OPERATIONS[operationName];
   const semantic=GITHUB_OPERATION_SEMANTICS[operationName];
+  const granted=new Set<GithubRepositoryReadPermission>(grantedPermissions);
+  const missing=semantic.required_permissions.filter(permission=>!granted.has(permission));
+  if(missing.length>0){
+    return {
+      state:'indeterminate',
+      operation_key:operationName,
+      operation_id:operation.operation_id,
+      observation_error:`GITHUB_SEMANTIC_READ_PERMISSION_NOT_GRANTED:${missing.join(',')}`,
+    };
+  }
 
   try {
     const repository=observeCertifiedGithubRepository(token,{
@@ -117,9 +137,23 @@ export function observeCertifiedGithubSemanticRead(
       observerId:'github-semantic-read/v1',
     });
 
+    const value=projectResponseSlice(certified.outcome.value,semantic.response_slice);
+    const collection=operation.pagination?{
+      kind:'single-page' as const,
+      page:Number(
+        request.parameters[operation.pagination.page_parameter]
+        ??operation.pagination.first_page
+      ),
+      page_size:Number(
+        request.parameters[operation.pagination.page_size_parameter]
+        ??operation.pagination.default_page_size
+      ),
+      completeness:'page-only' as const,
+    }:null;
+
     return {
-      state:'observed',
-      value:certified.outcome.value,
+      state:collection?'page-observed':'observed',
+      value,
       evidence:{
         provider:'github',
         api_version:GITHUB_API_VERSION,
@@ -134,7 +168,8 @@ export function observeCertifiedGithubSemanticRead(
         observed_at:observedAt,
         request_path:request.path,
         parameters:request.parameters,
-        paginated:operation.pagination!==undefined,
+        required_permissions:semantic.required_permissions,
+        collection,
         negative_evidence_authoritative:false,
         validated_paths:certified.structural_validation.validated_paths,
         optional_absent_paths:certified.structural_validation.optional_absent_paths,
