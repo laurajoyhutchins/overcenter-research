@@ -73,6 +73,9 @@ def handleJson (request : Json) : Except String Json := do
     ("lifecycle", lifecycleName projected.lifecycle),
     ("source_run_id", match projected.sourceRunId with
       | none => Json.null
+      | some runId => runId),
+    ("execution_run_id", match projected.executionRunId with
+      | none => Json.null
       | some runId => runId)
   ]
 
