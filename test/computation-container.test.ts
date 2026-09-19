@@ -5,9 +5,12 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  lstatSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -57,7 +60,7 @@ after(()=>{
   }
 });
 
-function kernelFixture():{
+function kernelFixture(localFileRoot:string):{
   repo:string;
   kernel:GitOvercenterKernel;
 } {
@@ -65,7 +68,7 @@ function kernelFixture():{
   const repo=join(root,'state.git');
   mkdirSync(root,{recursive:true});
   execFileSync('git',['init','--bare',repo],{stdio:'ignore'});
-  const kernel=new GitOvercenterKernel(repo);
+  const kernel=new GitOvercenterKernel(repo,{observationContext:{localFileRoot}});
   kernel.initialize();
   return {repo,kernel};
 }
@@ -138,6 +141,8 @@ async function startIsolatedExecutor(
     container,
     '--label',
     dockerLabel,
+    '--network=none',
+    '--read-only',
     '--entrypoint',
     '/usr/local/bin/overcenter-executor',
     '-v',
@@ -172,6 +177,15 @@ async function startIsolatedExecutor(
   if (!existsSync(socketPath)) {
     throw new Error('isolated executor socket never appeared');
   }
+
+  assert.equal(
+    docker(['inspect','--format','{{.HostConfig.NetworkMode}}',container]).trim(),
+    'none',
+  );
+  assert.equal(
+    docker(['inspect','--format','{{.HostConfig.ReadonlyRootfs}}',container]).trim(),
+    'true',
+  );
 
   const client=new GoExecutorClient({
     socketPath,
@@ -208,9 +222,43 @@ async function startIsolatedExecutor(
   };
 }
 
+test('confined observation rejects a task-controlled result symlink',async()=>{
+  const workspace=freshWorkspace('symlink-result-workspace');
+  const state=kernelFixture(workspace);
+  const marker=join(workspace,'test-result.txt');
+  const outside=join(scratch,'outside-result.txt');
+  writeFileSync(outside,'passed');
+
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:realTestSpec('node-test'),
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:marker,
+      content:'passed',
+    },
+  });
+
+  symlinkSync('../outside-result.txt',marker);
+  assert.equal(lstatSync(marker).isSymbolicLink(),true);
+  assert.equal(readlinkSync(marker),'../outside-result.txt');
+
+  const work=state.kernel.deriveReadyWork();
+  assert.ok(work);
+  const permit=state.kernel.claim(work.id,work.revision);
+  const receipt=state.kernel.resolve(permit);
+  assert.equal(receipt.disposition,'RECOVERY_REQUIRED');
+  assert.equal(receipt.verified,false);
+  assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
+});
+
 test('real test workload runs through the isolated production socket and settles by observation',async()=>{
-  const state=kernelFixture();
   const workspace=freshWorkspace('real-test-workspace');
+  const state=kernelFixture(workspace);
   const marker=join(workspace,'test-result.txt');
   state.kernel.define({
     id:'test',
@@ -244,8 +292,8 @@ test('real test workload runs through the isolated production socket and settles
 });
 
 test('isolated executor death recovers the real test from durable facts in generation 2',async()=>{
-  const state=kernelFixture();
   const workspace=freshWorkspace('recovery-test-workspace');
+  const state=kernelFixture(workspace);
   const oldOnly=join(workspace,'old-workspace-only');
   const marker=join(workspace,'test-result.txt');
   writeFileSync(oldOnly,'old');
@@ -277,7 +325,7 @@ test('isolated executor death recovers the real test from durable facts in gener
   assert.equal(existsSync(marker),false);
   assertNoEffectReservations(state.repo);
 
-  const recoveredKernel=new GitOvercenterKernel(state.repo);
+  const recoveredKernel=new GitOvercenterKernel(state.repo,{observationContext:{localFileRoot:workspace}});
   assert.equal(recoveredKernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
   assert.equal(recoveredKernel.inspect()[0]?.execution_generation,1);
 
