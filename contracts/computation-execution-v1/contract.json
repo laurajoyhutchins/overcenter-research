@@ -28,6 +28,13 @@
       "overcenter-executor-command-v1",
       "overcenter-computation-attempt-evidence-v1",
       "overcenter-executor-hello-v1"
+    ],
+    "validationExtensions": [
+      "x-overcenter-noNul",
+      "x-overcenter-maxUtf8Bytes",
+      "x-overcenter-path",
+      "x-overcenter-canonicalBase64",
+      "x-overcenter-maxDecodedBytes"
     ]
   },
   "compatibility": {
@@ -76,7 +83,7 @@
         "execution_capability_sha256",
         "execution_spec_sha256"
       ],
-      "nonAuthoritativeFields": [
+      "resultFields": [
         "outcome",
         "exit_code",
         "signal",
@@ -85,7 +92,9 @@
         "stdout_truncated",
         "stderr_base64",
         "stderr_sha256",
-        "stderr_truncated",
+        "stderr_truncated"
+      ],
+      "diagnosticFields": [
         "error"
       ]
     }
