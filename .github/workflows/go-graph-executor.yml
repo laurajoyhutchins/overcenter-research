@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/go-graph-executor.yml
       - experiments/go-graph-executor/**
+      - experiments/README.md
       - src/eligibility.ts
       - src/git-kernel.ts
       - test/graph-frontier-pure.test.ts
@@ -18,6 +19,7 @@ on:
     paths:
       - .github/workflows/go-graph-executor.yml
       - experiments/go-graph-executor/**
+      - experiments/README.md
       - src/eligibility.ts
       - src/git-kernel.ts
       - test/graph-frontier-pure.test.ts
