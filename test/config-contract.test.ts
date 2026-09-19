@@ -80,6 +80,12 @@ test('a Rust runtime cannot appear without an exact toolchain pin',()=>{
   assert.match(toolchain,/channel\s*=\s*"\d+\.\d+\.\d+"/);
 });
 
+test('repository-wide test suites do not inherit host parallelism',()=>{
+  const pkg=JSON.parse(read('package.json')) as {scripts:Record<string,string>};
+  assert.match(pkg.scripts['test:unit'],/--test-concurrency=2/);
+  assert.match(pkg.scripts['test:experiments'],/--test-concurrency=2/);
+});
+
 test('ambient credential configuration has one GitHub token spelling',()=>{
   for (const path of executableConfigFiles()) {
     const source=read(path);
