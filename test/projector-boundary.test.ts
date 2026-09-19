@@ -26,6 +26,7 @@ test('project state has one production projection path',()=>{
   const legacyLifecycleModule=['lifecycle','.ts'].join('');
   const legacyLifecycleDeriver=['derive','Lifecycles'].join('');
   const legacyHistoryLifecycle=['history','.lifecycles'].join('');
+  const legacyAdmissibilitySet=['admissible','RealizationRuns'].join('');
   for (const removed of [legacyEligibility,legacyLifecycleModule]) {
     const removedPath=join('src',removed);
     assert.equal(
@@ -54,11 +55,14 @@ test('project state has one production projection path',()=>{
     if (source.includes(legacyHistoryLifecycle)) {
       violations.push({file,symbol:legacyHistoryLifecycle});
     }
+    if (source.includes(legacyAdmissibilitySet)) {
+      violations.push({file,symbol:legacyAdmissibilitySet});
+    }
   }
 
   assert.deepEqual(
     violations,
     [],
-    'project lifecycle/eligibility must flow through deriveProjectProjection',
+    'project state and current realization judgments must have one production path',
   );
 });
