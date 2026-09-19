@@ -1,3 +1,4 @@
+import Std.Data.HashMap.Lemmas
 import Std.Data.HashSet.Lemmas
 import Overcenter.Admission
 
@@ -44,6 +45,29 @@ def ClaimHasTopologicalOrder (ctx : ClaimContext) : Prop :=
       obligation ∈ ctx.obligations →
       obligation.id ∈ order) ∧
     ClaimTopologicalBuild ctx [] order
+
+theorem claimObligationIndex_lookup_eq_find
+    (obligations : List ClaimObligation)
+    (id : String) :
+    (claimObligationIndex obligations)[id]? =
+      findClaimObligation obligations id := by
+  induction obligations with
+  | nil =>
+      simp [claimObligationIndex, findClaimObligation]
+  | cons obligation rest ih =>
+      by_cases matches : obligation.id = id
+      · simp [
+          claimObligationIndex,
+          findClaimObligation,
+          ih,
+          matches
+        ]
+      · simp [
+          claimObligationIndex,
+          findClaimObligation,
+          ih,
+          matches
+        ]
 
 private theorem findClaimObligation_mem
     {obligations : List ClaimObligation}
@@ -98,7 +122,7 @@ theorem claimTopologicalCertificateBuildValid_sound
     (seen order : List String)
     (accepted :
       claimTopologicalCertificateBuildValid
-        ctx
+        (claimObligationIndex ctx.obligations)
         (claimStringSet seen)
         order = true) :
     ClaimTopologicalBuild ctx seen order := by
@@ -106,24 +130,29 @@ theorem claimTopologicalCertificateBuildValid_sound
   | nil =>
       exact ClaimTopologicalBuild.done seen
   | cons id rest ih =>
-      cases hfind :
-          findClaimObligation ctx.obligations id with
+      cases hlookup :
+          (claimObligationIndex ctx.obligations)[id]? with
       | none =>
           simp [
             claimTopologicalCertificateBuildValid,
-            hfind
+            hlookup
           ] at accepted
       | some obligation =>
+          have hfind :
+              findClaimObligation ctx.obligations id =
+                some obligation := by
+            rw [← claimObligationIndex_lookup_eq_find]
+            exact hlookup
           have parts :
               obligation.dependencies.all (fun dependency =>
                 (claimStringSet seen).contains dependency.upstream) = true ∧
               claimTopologicalCertificateBuildValid
-                ctx
+                (claimObligationIndex ctx.obligations)
                 ((claimStringSet seen).insert id)
                 rest = true := by
             simpa [
               claimTopologicalCertificateBuildValid,
-              hfind
+              hlookup
             ] using accepted
           have dependencies_precede :
               ∀ dependency,
@@ -141,7 +170,7 @@ theorem claimTopologicalCertificateBuildValid_sound
                 dependency.upstream).mp contained
           have restAccepted :
               claimTopologicalCertificateBuildValid
-                ctx
+                (claimObligationIndex ctx.obligations)
                 (claimStringSet (id :: seen))
                 rest = true := by
             simpa [claimStringSet] using parts.2
@@ -165,7 +194,7 @@ theorem claimTopologicalCertificateValid_sound
       ctx.obligations.all (fun obligation =>
         (claimStringSet order).contains obligation.id) = true ∧
       claimTopologicalCertificateBuildValid
-        ctx
+        (claimObligationIndex ctx.obligations)
         (claimStringSet [])
         order = true := by
     simpa [claimTopologicalCertificateValid] using accepted
