@@ -146,5 +146,27 @@
       "path": "../../test/data-contracts.test.ts"
     }
   ],
-  "extensions": {}
+  "extensions": {},
+  "authoritativeDefinitions": [
+    {
+      "type": "wire-schema",
+      "path": "./schema.json"
+    },
+    {
+      "type": "provider-envelope-validator",
+      "path": "../../src/provider-observation/observation.ts"
+    },
+    {
+      "type": "settlement-envelope-validator",
+      "path": "../../src/observation.ts"
+    },
+    {
+      "type": "absence-envelope-validator",
+      "path": "../../src/evidence.ts"
+    },
+    {
+      "type": "kubernetes-absence-matcher",
+      "path": "../../src/providers/kubernetes-configmap.ts"
+    }
+  ]
 }

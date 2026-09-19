@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -59,6 +59,28 @@ const observationSchema=readJson(
 const observationConformance=readJson(
   join(observationContractDir,'observation-evidence-conformance.json'),
 );
+
+function assertContractReferencesExist(
+  contractValue:any,
+  directory:string,
+):void {
+  for (const entry of [
+    ...(contractValue.quality??[]),
+    ...(contractValue.authoritativeDefinitions??[]),
+  ]) {
+    assert.equal(
+      typeof entry.path,
+      'string',
+      'contract reference is missing a path',
+    );
+    assert.equal(
+      existsSync(join(directory,entry.path)),
+      true,
+      'contract reference does not exist: '+entry.path,
+    );
+  }
+}
+
 const goProtocol=readFileSync(join(root,'executor/protocol.go'),'utf8');
 const goMain=readFileSync(join(root,'executor/cmd/overcenter-executor/main.go'),'utf8');
 
@@ -482,4 +504,20 @@ test('Kubernetes provider extension is required in schema and contract metadata'
       .includes('authority_id'),
     true,
   );
+});
+
+
+test('contract evidence and authoritative-definition references resolve',()=>{
+  for (const [value,directory] of [
+    [contract,contractDir],
+    [authorityContract,authorityContractDir],
+    [observationContract,observationContractDir],
+  ] as const) {
+    assert.ok(
+      Array.isArray(value.authoritativeDefinitions)
+      && value.authoritativeDefinitions.length>0,
+      'mature contract is missing authoritativeDefinitions',
+    );
+    assertContractReferencesExist(value,directory);
+  }
 });
