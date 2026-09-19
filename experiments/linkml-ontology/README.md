@@ -9,9 +9,11 @@ semantics?
 The bounded claim is:
 
 > For a representative Overcenter ontology slice, LinkML 1.11.1 can define one
-> vocabulary/shape model, deterministically project it into multiple useful
-> representations, and reject structural contradictions. Cross-record semantic
-> identity remains an explicit Overcenter invariant outside LinkML.
+> vocabulary/shape model, project it into multiple useful representations, and
+> reject structural contradictions. JSON Schema and TypeScript are byte-stable
+> in the tested toolchain; SHACL is compared as an RDF graph because raw Turtle
+> ordering is not byte-stable. Cross-record semantic identity remains an
+> explicit Overcenter invariant outside LinkML.
 
 This is an audition, not an adoption.
 
@@ -58,7 +60,7 @@ The executable test asks five different questions.
 3. Does an undeclared `self_certified` relation fail rather than silently
    becoming vocabulary?
 4. Does renaming the `Settlement.evidence` relation change JSON Schema,
-   TypeScript, and SHACL projections from the same source?
+   TypeScript, and the SHACL RDF graph from the same source?
 5. Can a structurally valid but semantically stale settlement pass LinkML while
    an independent semantic check rejects it?
 
@@ -121,8 +123,12 @@ A green experiment means all of the following:
 - the valid fixture passes;
 - missing required evidence fails;
 - undeclared vocabulary fails;
-- repeated generation is byte-identical within the same pinned toolchain run;
-- a relation rename propagates to all three tested projections;
+- repeated JSON Schema and TypeScript generation is byte-identical within the
+  same pinned toolchain run;
+- repeated SHACL generation is RDF-isomorphic even when Turtle statement order
+  varies;
+- a relation rename propagates to all three tested projections at their
+  meaningful representation level;
 - JSON Schema and SHACL preserve a minimum-cardinality change;
 - the semantic-key mismatch is accepted structurally and rejected by the
   independent semantic check.
@@ -141,6 +147,14 @@ structural validator
 
 It does **not** thereby become Overcenter's semantic oracle or project-truth
 authority.
+
+### Observed serializer caveat
+
+The first exact-head run falsified a stronger byte-reproducibility hypothesis:
+two `gen-shacl` invocations produced RDF-isomorphic graphs with different
+Turtle property ordering. The experiment therefore compares SHACL semantically,
+not byte-for-byte. Raw generated SHACL should not be used as an exact artifact
+digest unless Overcenter adds an explicit RDF canonicalization step.
 
 A useful next experiment, if this one is positive, would compare the maintenance
 surface of generated LinkML projections against the existing hand-maintained

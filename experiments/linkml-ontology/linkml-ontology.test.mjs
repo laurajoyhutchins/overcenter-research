@@ -38,6 +38,29 @@ function generate(schemaPath) {
   };
 }
 
+function shaclEquivalent(left, right) {
+  const dir = mkdtempSync(join(tmpdir(), 'overcenter-linkml-shacl-'));
+  const leftPath = join(dir, 'left.ttl');
+  const rightPath = join(dir, 'right.ttl');
+  try {
+    writeFileSync(leftPath, left);
+    writeFileSync(rightPath, right);
+    const result = spawnSync(
+      'python3',
+      [`${ROOT}/shacl-equivalent.py`, leftPath, rightPath],
+      { encoding: 'utf8' },
+    );
+    if (result.error) throw result.error;
+    assert.ok(
+      result.status === 0 || result.status === 1,
+      `SHACL graph comparison failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+    );
+    return result.status === 0;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function semanticSettlementCheck(instance) {
   const expected = instance.settlement.semantic_key;
   return instance.settlement.evidence.every((evidence) => evidence.semantic_key === expected);
@@ -50,14 +73,26 @@ test('LinkML schema is valid and structural constraints distinguish hostile fixt
   validate(`${ROOT}/fixtures/invalid-unknown-relation.json`, true);
 });
 
-test('generated projections are repeatable from one canonical model', () => {
+test('generated projections are stable at the representation level they promise', () => {
   const first = generate(SCHEMA);
   const second = generate(SCHEMA);
-  assert.deepEqual(second, first);
+
+  assert.equal(second.jsonSchema, first.jsonSchema);
+  assert.equal(second.typescript, first.typescript);
+  assert.equal(shaclEquivalent(second.shacl, first.shacl), true);
 
   assert.match(first.jsonSchema, /Settlement/);
   assert.match(first.typescript, /Settlement/);
   assert.match(first.shacl, /Settlement/);
+
+  console.log(
+    'projection byte stability',
+    JSON.stringify({
+      json_schema: second.jsonSchema === first.jsonSchema,
+      typescript: second.typescript === first.typescript,
+      shacl: second.shacl === first.shacl,
+    }),
+  );
 });
 
 test('a relation rename propagates to JSON Schema, TypeScript, and SHACL', () => {
@@ -84,7 +119,7 @@ test('a relation rename propagates to JSON Schema, TypeScript, and SHACL', () =>
     const changed = generate(path);
     assert.notEqual(changed.jsonSchema, baseline.jsonSchema);
     assert.notEqual(changed.typescript, baseline.typescript);
-    assert.notEqual(changed.shacl, baseline.shacl);
+    assert.equal(shaclEquivalent(changed.shacl, baseline.shacl), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -128,7 +163,7 @@ test('reports whether each projection preserves a cardinality-only change', () =
     const sensitivity = {
       json_schema: changed.jsonSchema !== baseline.jsonSchema,
       typescript: changed.typescript !== baseline.typescript,
-      shacl: changed.shacl !== baseline.shacl,
+      shacl: !shaclEquivalent(changed.shacl, baseline.shacl),
     };
 
     assert.equal(sensitivity.json_schema, true, 'JSON Schema lost minimum cardinality');

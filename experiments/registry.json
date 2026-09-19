@@ -329,7 +329,7 @@
       "directory": "experiments/linkml-ontology",
       "readme": "experiments/linkml-ontology/README.md",
       "question": "Can LinkML own Overcenter's structural ontology vocabulary without owning semantic truth?",
-      "claim": "On a representative slice, LinkML deterministically projects one structural model and rejects structural contradictions while semantic identity remains an external invariant.",
+      "claim": "On a representative slice, LinkML projects one structural model into byte-stable JSON Schema/TypeScript and semantically stable SHACL while semantic identity remains an external invariant.",
       "contrast": "Hand-maintain vocabulary and structural constraints independently across TypeScript, data contracts, documentation, and graph representations.",
       "reproduce": {
         "tier": "toolchain",
@@ -342,8 +342,8 @@
       ],
       "success_criteria": [
         "Schema and valid fixture validate while missing evidence and undeclared vocabulary fail.",
-        "Repeated JSON Schema, TypeScript, and SHACL generation is byte-identical within one pinned toolchain run.",
-        "Renaming a modeled relation changes all three tested projections.",
+        "Repeated JSON Schema and TypeScript generation is byte-identical; repeated SHACL generation is RDF-isomorphic even if Turtle ordering differs.",
+        "Renaming a modeled relation changes all three tested projections at their meaningful representation level.",
         "A semantic-key mismatch remains structurally valid in LinkML and is rejected by an independent Overcenter semantic check."
       ],
       "evidence": {
