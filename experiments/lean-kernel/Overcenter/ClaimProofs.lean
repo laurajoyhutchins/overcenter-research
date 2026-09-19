@@ -75,6 +75,7 @@ private def candidateFor
     (runs : List HistoricalClaimRun) : ClaimCandidate := {
   runId := s!"run-{obligation.id}"
   obligationId := obligation.id
+  parentRevision := "revision-a"
   claimedRevision := "revision-a"
   obligationKey := keyFor obligation runs
   capabilityDigest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -102,6 +103,15 @@ example :
       [upstreamDone]
       { candidateFor downstreamControl [upstreamDone] with
         claimedRevision := "stale-revision" } =
+        .rejected .revisionMismatch := by decide
+
+example :
+    admitClaim
+      "revision-a"
+      graph
+      [upstreamDone]
+      { candidateFor downstreamControl [upstreamDone] with
+        parentRevision := "stale-parent" } =
         .rejected .revisionMismatch := by decide
 
 example :
