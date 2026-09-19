@@ -1,11 +1,16 @@
-FROM golang:1.23-bookworm AS build
+ARG GO_IMAGE
+ARG NODE_IMAGE
+ARG GO_VERSION
+ARG NODE_VERSION
+FROM ${GO_IMAGE} AS build
+ARG GO_VERSION
+RUN test "$(go env GOVERSION)" = "go${GO_VERSION}"
 WORKDIR /src
 COPY executor ./executor
 RUN cd executor && go build -o /out/overcenter-executor ./cmd/overcenter-executor
 
-FROM node:22.16.0-bookworm-slim
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git \
-    && rm -rf /var/lib/apt/lists/*
+FROM ${NODE_IMAGE}
+ARG NODE_VERSION
+RUN test "$(node --version)" = "v${NODE_VERSION}" && git --version >/dev/null
 COPY --from=build /out/overcenter-executor /usr/local/bin/overcenter-executor
 ENTRYPOINT ["/usr/local/bin/overcenter-executor"]

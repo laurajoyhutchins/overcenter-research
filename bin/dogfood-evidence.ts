@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
+import {execFileSync,spawnSync} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {
@@ -27,6 +27,11 @@ import {
 } from '../src/computation-runner.ts';
 import {OvercenterKernel} from '../src/kernel.ts';
 import {GoExecutorClient} from '../src/go-executor-client.ts';
+import {
+  PRODUCTION_COMPUTATION_CONTAINMENT,
+  productionDockerIsolationArgs,
+  productionExecutorArgs,
+} from '../src/production-containment.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
 const image=process.env.OVERCENTER_DOGFOOD_IMAGE;
@@ -62,6 +67,26 @@ const workspace=join(scratch,'workspace');
 const attestations=join(scratch,'authority-attestations');
 const control=join(scratch,'control');
 const stateDatabase=join(scratch,'state.sqlite');
+const sourceRoot=join(scratch,'source');
+mkdirSync(sourceRoot,{recursive:true});
+const sourceArchive=execFileSync(
+  'git',
+  ['-C',repoRoot,'archive','--format=tar',sourceSha],
+  {maxBuffer:64*1024*1024},
+);
+const sourceExtract=spawnSync(
+  'tar',
+  ['-xf','-','-C',sourceRoot],
+  {input:sourceArchive},
+);
+if (sourceExtract.status!==0) {
+  throw new Error(
+    `DOGFOOD_SOURCE_SNAPSHOT_EXTRACTION_FAILED:${sourceExtract.stderr?.toString('utf8')??''}`,
+  );
+}
+if (existsSync(join(sourceRoot,'.git'))) {
+  throw new Error('DOGFOOD_SOURCE_SNAPSHOT_CONTAINS_GIT_METADATA');
+}
 mkdirSync(workspace,{recursive:true});
 chmodSync(workspace,0o777);
 mkdirSync(attestations,{recursive:true});
@@ -82,12 +107,7 @@ function executionContextSha256():string {
     schema:'overcenter-dogfood-execution-context-v1',
     image_id:imageId,
     source_sha:sourceSha,
-    containment:{
-      network:'none',
-      task_uid:65532,
-      task_gid:65532,
-      source:'read-only',
-    },
+    containment:PRODUCTION_COMPUTATION_CONTAINMENT,
   });
   return 'sha256:'+createHash('sha256').update(bytes).digest('hex');
 }
@@ -116,6 +136,7 @@ function processSpec(
 
 interface ExecutorHarness {
   client:GoExecutorClient;
+  diagnostics:()=>Record<string,unknown>;
   close:()=>Promise<void>;
   abort:()=>Promise<void>;
 }
@@ -135,20 +156,19 @@ async function startExecutor():Promise<ExecutorHarness> {
     '--name',container,
     '--label',label,
     '--label',`overcenter.containment=${containmentId}`,
-    '--network=none',
+    ...productionDockerIsolationArgs(),
     '--entrypoint','/usr/local/bin/overcenter-executor',
     '-v',`${control}:/control`,
     '-v',`${workspace}:/workspace`,
-    '-v',`${repoRoot}:/workspace/source:ro`,
+    '-v',`${sourceRoot}:/workspace/source:ro`,
     image,
-    `--socket=/control/executor-${id}.sock`,
-    '--workspace-root=/workspace',
-    '--concurrency=1',
-    '--task-uid=65532',
-    '--task-gid=65532',
-    `--socket-gid=${gid}`,
-    `--execution-context-sha256=${contextSha256}`,
-    `--containment-id=${containmentId}`,
+    ...productionExecutorArgs({
+      socketPath:`/control/executor-${id}.sock`,
+      workspaceRoot:'/workspace',
+      socketGid:gid,
+      executionContextSha256:contextSha256,
+      containmentId,
+    }),
   ]);
 
   const deadline=Date.now()+10_000;
@@ -183,6 +203,20 @@ async function startExecutor():Promise<ExecutorHarness> {
 
   return {
     client,
+    diagnostics:()=>{
+      let state:unknown=null;
+      let cgroup='';
+      try {
+        state=JSON.parse(docker(['inspect','--format','{{json .State}}',container]));
+      } catch {}
+      try {
+        cgroup=docker([
+          'exec',container,'sh','-c',
+          'printf "pids.events\\n"; cat /sys/fs/cgroup/pids.events 2>/dev/null || true; printf "memory.events\\n"; cat /sys/fs/cgroup/memory.events 2>/dev/null || true',
+        ]);
+      } catch {}
+      return {state,cgroup};
+    },
     close:async()=>{
       await client.close();
       const code=Number.parseInt(docker(['wait',container]).trim(),10);
@@ -345,6 +379,28 @@ try {
     })+'\n');
 
     if (result.state!=='DONE') {
+      const decode=(value:string|undefined):string=>
+        value ? Buffer.from(value,'base64').toString('utf8') : '';
+      const stdout=decode(result.evidence?.stdout_base64);
+      const stderr=decode(result.evidence?.stderr_base64);
+      const failureLines=stdout.split('\n');
+      const failureIndexes=failureLines
+        .map((line,index)=>line.startsWith('not ok ')?index:-1)
+        .filter(index=>index>=0);
+      const failureExcerpts=failureIndexes.map(index=>
+        failureLines.slice(Math.max(0,index-2),Math.min(failureLines.length,index+24)).join('\n'),
+      );
+      process.stderr.write(JSON.stringify({
+        event:'dogfood-attempt-diagnostics',
+        work_id:result.work_id,
+        outcome:result.evidence?.outcome??'transport-failure',
+        failure_excerpts:failureExcerpts,
+        stdout_tail:stdout.slice(-8*1024),
+        stderr_tail:stderr.slice(-8*1024),
+        stdout_truncated:result.evidence?.stdout_truncated??false,
+        stderr_truncated:result.evidence?.stderr_truncated??false,
+        containment:executor.diagnostics(),
+      })+'\n');
       throw new Error(
         `self-dogfood evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
       );
@@ -384,6 +440,8 @@ try {
     receipts,
     reconstructed:true,
     source_mounted_read_only:true,
+    source_snapshot_excludes_git_metadata:true,
+    containment_profile:PRODUCTION_COMPUTATION_CONTAINMENT,
     authority_attestations_outside_task_workspace:true,
     external_effect_reservations:0,
   };

@@ -47,6 +47,10 @@ isolated worker/container
 
 The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate disposable containment domain without provider credentials. The supported profile also requires no task network, a read-only container root/source snapshot, `no-new-privileges`, explicit capabilities only, and bounded PID/memory/CPU/open-file/per-file-size resources. Aggregate workspace bytes remain an outer worker-host quota.
 
+The executable definition of that supported host profile is [`src/production-containment.ts`](../src/production-containment.ts). Production proofs and self-dogfood consume that module rather than restating Docker flags. Changing the profile therefore changes the attested execution context and its proof harness together.
+
+Executor base images are separately pinned to immutable registry digests in [`runtime-images.json`](./runtime-images.json). Self-dogfood receives a `git archive` of the exact source revision rather than the live checkout, so `.git`, checkout credentials, untracked files, and other host checkout state are outside the worker input.
+
 Production socket mode requires `--task-uid` and `--task-gid`. Both must differ from the executor identity; when `--socket-gid` is used to grant the trusted host access to the socket, the task GID must differ from that group too. Task processes are launched with supplementary groups replaced by the task GID only; executor and trusted-socket groups do not cross the boundary.
 
 A typical container boundary therefore has three distinct authorities:
