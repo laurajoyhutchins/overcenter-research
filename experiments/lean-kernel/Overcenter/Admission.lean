@@ -1,3 +1,4 @@
+import Std.Data.HashSet
 import Overcenter.Semantics
 
 namespace Overcenter
@@ -52,9 +53,14 @@ def claimObligationIds (ctx : ClaimContext) : List String :=
 def claimLifecycleIds (ctx : ClaimContext) : List String :=
   ctx.lifecycles.map (fun lifecycle => lifecycle.obligationId)
 
-def uniqueStrings : List String → Bool
+private def uniqueStringsAux (seen : Std.HashSet String) : List String → Bool
   | [] => true
-  | value :: rest => !rest.contains value && uniqueStrings rest
+  | value :: rest =>
+      let (alreadyPresent, nextSeen) := seen.containsThenInsert value
+      !alreadyPresent && uniqueStringsAux nextSeen rest
+
+def uniqueStrings (values : List String) : Bool :=
+  uniqueStringsAux (Std.HashSet.emptyWithCapacity values.length) values
 
 def findClaimObligation
     (obligations : List ClaimObligation)
@@ -88,19 +94,29 @@ def claimDependsOn
     (fromId targetId : String) : Bool :=
   claimDependsOnWithFuel obligations fromId targetId (obligations.length + 1)
 
+private def claimObligationIdSet (ctx : ClaimContext) : Std.HashSet String :=
+  (Std.HashSet.emptyWithCapacity ctx.obligations.length).insertMany
+    (claimObligationIds ctx)
+
 def claimGraphReferencesKnown (ctx : ClaimContext) : Bool :=
+  let obligationIds := claimObligationIdSet ctx
   ctx.obligations.all (fun obligation =>
     obligation.dependencies.all (fun dependency =>
-      ctx.obligations.any (fun candidate => candidate.id == dependency.upstream)))
+      obligationIds.contains dependency.upstream))
 
 def claimGraphAcyclic (ctx : ClaimContext) : Bool :=
   !ctx.obligations.any (fun obligation =>
     obligation.dependencies.any (fun dependency =>
       claimDependsOn ctx.obligations dependency.upstream obligation.id))
 
+private def claimLifecycleIdSet (ctx : ClaimContext) : Std.HashSet String :=
+  (Std.HashSet.emptyWithCapacity ctx.lifecycles.length).insertMany
+    (claimLifecycleIds ctx)
+
 def claimLifecycleCoverage (ctx : ClaimContext) : Bool :=
+  let lifecycleIds := claimLifecycleIdSet ctx
   ctx.obligations.all (fun obligation =>
-    ctx.lifecycles.any (fun lifecycle => lifecycle.obligationId == obligation.id))
+    lifecycleIds.contains obligation.id)
 
 def claimContextWellFormed (ctx : ClaimContext) : Bool :=
   uniqueStrings (claimObligationIds ctx) &&
