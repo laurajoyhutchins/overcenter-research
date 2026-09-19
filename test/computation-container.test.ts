@@ -408,6 +408,74 @@ test('RED TEAM: retryable test computation can duplicate an external network eff
   }
 });
 
+test('RED TEAM: identical process-spec digest can execute different code bytes after recovery',async()=>{
+  const state=kernelFixture();
+  const workspace=freshWorkspace('mutable-code-redteam-workspace');
+  const payload=join(workspace,'payload.mjs');
+  const marker=join(workspace,'test-result.txt');
+  const firstSource=`setTimeout(()=>{},5000);\n`;
+  writeFileSync(payload,firstSource);
+
+  const processSpec:ProcessSpecV1={
+    schema:PROCESS_SPEC_SCHEMA,
+    executable:'/usr/local/bin/node',
+    argv:['/workspace/payload.mjs'],
+    cwd:'.',
+    env:{},
+    timeout_ms:10_000,
+    stdout_max_bytes:4096,
+    stderr_max_bytes:4096,
+  };
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:processSpec,
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:marker,
+      content:'passed',
+    },
+  });
+
+  const first=await startIsolatedExecutor(workspace);
+  const pending=runReadyTestComputation(state.kernel,first.client);
+  await new Promise(resolve=>setTimeout(resolve,100));
+  await first.abort();
+  const interrupted=await pending;
+  assert.ok(interrupted);
+  assert.equal(interrupted.state,'RECOVERY_REQUIRED');
+  assert.equal(interrupted.execution_generation,1);
+
+  const recoveredKernel=new GitOvercenterKernel(state.repo);
+  freshWorkspace('mutable-code-redteam-workspace');
+  const secondSource=`import { writeFileSync } from 'node:fs'; writeFileSync('/workspace/test-result.txt','passed');\n`;
+  writeFileSync(payload,secondSource);
+  assert.notEqual(firstSource,secondSource);
+
+  const second=await startIsolatedExecutor(workspace);
+  try {
+    const recovered=await resumeTestComputation(
+      recoveredKernel,
+      second.client,
+      interrupted.run_id,
+    );
+    assert.equal(recovered.execution_generation,2);
+    assert.equal(
+      recovered.execution_spec_sha256,
+      interrupted.execution_spec_sha256,
+      'spec digest stayed identical despite changed executed code bytes',
+    );
+    assert.equal(recovered.state,'DONE');
+    assert.equal(readFileSync(marker,'utf8'),'passed');
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await second.close();
+  }
+});
+
 test('real test workload runs through the isolated production socket and settles by observation',async()=>{
   const state=kernelFixture();
   const workspace=freshWorkspace('real-test-workspace');
