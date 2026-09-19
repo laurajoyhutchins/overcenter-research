@@ -104,7 +104,7 @@ export async function executeAuthorizedEffect(
   if (!authorizedEffect) throw new Error('EFFECT_AUTHORITY_REQUIRED');
 
   const acceptedWorkerResult=kernel.acceptedWorkerResult(session);
-  if (!realization) throw new Error('ACCEPTED_WORKER_RESULT_REQUIRED');
+  if (!acceptedWorkerResult) throw new Error('ACCEPTED_WORKER_RESULT_REQUIRED');
   validateProviderEffectExecutionContext(authorizedEffect,context);
   if (kernel.hasUnresolvedEffect(session.run_id)) {
     throw new Error('UNRESOLVED_EFFECT');
@@ -119,7 +119,7 @@ export async function executeAuthorizedEffect(
     effect_contract:authorizedEffect.effect_contract,
     adapter_contract_digest:authorizedEffect.adapter_contract_digest,
     effect_digest:authorizedEffect.effect_digest,
-    worker_result_commit:realization.worker_result_commit,
+    worker_result_commit:acceptedWorkerResult.worker_result_commit,
     worker_result_digest:acceptedWorkerResult.result_digest,
   });
 
