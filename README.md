@@ -138,7 +138,7 @@ The safety claim is narrower: an uncertain or even locally hostile worker does n
 
 ```text
 src/          reusable reference mechanism and trusted executor client
-contracts/    versioned cross-language execution contracts
+contracts/    versioned machine-readable data contracts
 executor/     Go physical computation executor
 test/         focused invariants of that mechanism
 experiments/  executable empirical and adversarial proofs

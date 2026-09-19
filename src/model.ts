@@ -4,7 +4,7 @@ export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
 export type MutationCertainty = 'present' | 'absent' | 'uncertain';
 export type Data = Record<string, unknown>;
 
-export interface AbsenceEvidenceCertificate extends Data {
+export interface AbsenceEvidenceCertificate {
   schema: 'overcenter-absence-evidence-v1';
   kind: string;
   subject: Data;
@@ -65,7 +65,7 @@ export type Postcondition =
   | GitHubCommitStatusPostcondition
   | KubernetesConfigMapExistsPostcondition;
 
-export interface Observation extends Data {
+export interface Observation {
   verifier: Postcondition['verifier'];
   mutation_certainty: MutationCertainty;
   absence_evidence?: AbsenceEvidenceCertificate;
@@ -87,6 +87,8 @@ export interface Observation extends Data {
   context?: string;
   expected_state?: string;
   actual_state?: string;
+  observation_error?: string;
+  provider_evidence?: Data;
 }
 
 export type Dependency =
