@@ -183,3 +183,85 @@ It justifies a compiled Lean truth-deciding kernel behind a narrow normalized-fa
 The strongest and simplest measured deployment shape, one fresh Lean process per decision, now passes the frozen production gate on three exact-SHA attempts. A persistent isolated process remains available if lower latency is operationally valuable, but performance no longer forces that additional lifecycle machinery.
 
 This branch is an experimental Lean lineage and is not current `main`. Production integration must therefore port the earned semantic slice into current architecture rather than merge this divergent branch wholesale.
+
+
+---
+
+## Self-review correction: production conclusion narrowed
+
+A subsequent adversarial topology benchmark falsified the broad final conclusion above.
+
+The original performance fixture contains **no dependency edges and no effects**. It therefore measures:
+
+- protocol parsing / serialization;
+- ID uniqueness;
+- known-ID membership;
+- lifecycle coverage;
+- target lookup;
+- flat no-dependency admission.
+
+It does **not** exercise the expensive graph-reachability path in `claimGraphAcyclic` or ordered-effect reachability.
+
+Exact follow-up head:
+
+`8f847b91a0c886136ea7e95a9cb97940d34c901f`
+
+GitHub Actions run:
+
+`35462674255`
+
+The follow-up used a valid linear dependency chain, with every upstream obligation DONE and the final target UNREALIZED.
+
+| Chain obligations | TypeScript | Lean persistent | Lean one-shot |
+| ---: | ---: | ---: | ---: |
+| 25 | 0.259 ms | 0.479 ms | 35.649 ms |
+| 50 | 0.288 ms | 0.948 ms | 42.297 ms |
+| 100 | 0.737 ms | 1.860 ms | 40.411 ms |
+| 200 | 1.165 ms | 9.504 ms | 46.010 ms |
+| 400 | 1.634 ms | **69.481 ms** | **104.843 ms** |
+
+(The first 10-node sample included process/server warm-up and is not useful for scaling interpretation.)
+
+This is decisive counterevidence to the statement that claim-admission runtime, as a whole, is production-justified. The HashSet repair fixed the flat-context quadratic work, but the current reachability implementation still repeatedly calls `findClaimObligation` over a list while re-traversing ancestry for many edges. A chain therefore bends upward sharply.
+
+### Corrected conclusion
+
+The evidence currently supports:
+
+**Lean's compiled runtime and the optimized flat-context validation are operationally cheap enough for the bounded semantic-kernel role. The current claim-admission graph algorithm is not yet production-justified for nontrivial dependency topology.**
+
+The earlier sentence claiming that the complete bounded claim-admission runtime is production-justified is superseded by this correction.
+
+Before a production port, graph validation/reachability should be indexed and/or replaced by a linear-time DAG algorithm, then benchmarked on at least:
+
+- long chains;
+- wide fan-in / fan-out;
+- layered DAGs;
+- dense but valid DAGs;
+- ordered and unordered effect conflicts.
+
+The flat fixture must remain as a regression, but it is not a sufficient production workload.
+
+## Proof-strength correction
+
+The generic theorems in `AdmissionProofs.lean` establish implications such as:
+
+`claimAdmissible ctx = true -> claimContextWellFormed ctx = true`
+
+and analogous implications for exact revision, target lifecycle, dependency completion, semantic inputs, and effect conflict.
+
+These are useful fail-closed decomposition properties, but most follow directly from the conjunction structure of `claimAdmissible`. They do **not** by themselves prove that executable predicates such as `claimGraphAcyclic` are sound and complete decision procedures for an independently defined mathematical graph property.
+
+Production-strength formalization should define the intended propositions independently and prove the executable decision procedures sound (and, where useful, complete) with respect to those propositions.
+
+The HashSet optimization also lacks an explicit theorem showing extensional equivalence to the prior list-based uniqueness / membership definitions. Differential hostile tests provide regression evidence, not universal equivalence.
+
+## Benchmark-method correction
+
+Three additional limits should be retained in the record:
+
+1. The 1,000-obligation p95 gate currently uses 20 observations per run. Three exact-SHA repetitions improve confidence but are still weak tail-latency statistics. A production benchmark should use materially more samples at the gate.
+2. The 10,000-obligation stress case uses five observations, so its reported p95 is effectively the maximum of a tiny sample and should be read as stress evidence, not a stable percentile estimate.
+3. The TypeScript comparator is not a perfectly identical computational slice: it includes current TypeScript admission validation plus `obligationKey` construction, while the Lean protocol decides normalized claim admission. Absolute Lean latency gates remain useful; direct TypeScript/Lean ratios should not be treated as a clean language benchmark.
+
+No concurrency/load test, target-deployment-environment benchmark, or production-port benchmark has yet been performed.
