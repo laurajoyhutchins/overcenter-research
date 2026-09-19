@@ -18,6 +18,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
+- `storage-backend-bakeoff/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
 
@@ -205,6 +206,8 @@ npm run test:lisp-semantics          # focused semantic-coherence experiment
 npm run test:datalog                # Soufflé projection differential
 npm run test:current-realization-admissibility # current DONE reuse against fresh authority
 npm run test:bounded-graph          # exhaustive bounded graph/state model
+npm run test:storage-backend-safety  # CAS + SIGKILL committed-prefix invariants
+npm run bench:storage-backends       # host-dependent Git vs SQLite performance
 ```
 
 Focused commands are listed in [`../README.md`](../README.md) and `package.json`.

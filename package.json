@@ -31,6 +31,8 @@
     "test:github-contract": "node --experimental-strip-types --test test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts",
     "test:lisp-semantics": "node --experimental-strip-types --test experiments/lisp-semantics/lisp-semantics.test.ts",
     "test:bounded-graph": "node --experimental-strip-types --test experiments/bounded-graph-exhaustion/bounded-graph.test.ts",
-    "test:computation-executor": "node --experimental-strip-types --test test/computation-executor.test.ts"
+    "test:computation-executor": "node --experimental-strip-types --test test/computation-executor.test.ts",
+    "bench:storage-backends": "node experiments/storage-backend-bakeoff/benchmark.mjs",
+    "test:storage-backend-safety": "node experiments/storage-backend-bakeoff/safety-checks.mjs"
   }
 }
