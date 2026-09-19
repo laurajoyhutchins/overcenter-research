@@ -129,8 +129,3 @@ export interface ExecutionPermit extends Run {
   execution_capability: string;
 }
 
-export interface ExecuteOutcome extends Data {
-  kind?: string;
-  may_have_mutated?: boolean;
-}
-
