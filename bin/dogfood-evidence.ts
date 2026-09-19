@@ -27,6 +27,11 @@ import {
 } from '../src/computation-runner.ts';
 import {OvercenterKernel} from '../src/kernel.ts';
 import {GoExecutorClient} from '../src/go-executor-client.ts';
+import {
+  PRODUCTION_COMPUTATION_CONTAINMENT,
+  productionDockerIsolationArgs,
+  productionExecutorArgs,
+} from '../src/production-containment.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
 const image=process.env.OVERCENTER_DOGFOOD_IMAGE;
@@ -82,12 +87,7 @@ function executionContextSha256():string {
     schema:'overcenter-dogfood-execution-context-v1',
     image_id:imageId,
     source_sha:sourceSha,
-    containment:{
-      network:'none',
-      task_uid:65532,
-      task_gid:65532,
-      source:'read-only',
-    },
+    containment:PRODUCTION_COMPUTATION_CONTAINMENT,
   });
   return 'sha256:'+createHash('sha256').update(bytes).digest('hex');
 }
@@ -135,20 +135,19 @@ async function startExecutor():Promise<ExecutorHarness> {
     '--name',container,
     '--label',label,
     '--label',`overcenter.containment=${containmentId}`,
-    '--network=none',
+    ...productionDockerIsolationArgs(),
     '--entrypoint','/usr/local/bin/overcenter-executor',
     '-v',`${control}:/control`,
     '-v',`${workspace}:/workspace`,
     '-v',`${repoRoot}:/workspace/source:ro`,
     image,
-    `--socket=/control/executor-${id}.sock`,
-    '--workspace-root=/workspace',
-    '--concurrency=1',
-    '--task-uid=65532',
-    '--task-gid=65532',
-    `--socket-gid=${gid}`,
-    `--execution-context-sha256=${contextSha256}`,
-    `--containment-id=${containmentId}`,
+    ...productionExecutorArgs({
+      socketPath:`/control/executor-${id}.sock`,
+      workspaceRoot:'/workspace',
+      socketGid:gid,
+      executionContextSha256:contextSha256,
+      containmentId,
+    }),
   ]);
 
   const deadline=Date.now()+10_000;
@@ -384,6 +383,7 @@ try {
     receipts,
     reconstructed:true,
     source_mounted_read_only:true,
+    containment_profile:PRODUCTION_COMPUTATION_CONTAINMENT,
     authority_attestations_outside_task_workspace:true,
     external_effect_reservations:0,
   };
