@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import {
@@ -9,6 +10,7 @@ import {
   mkdtempSync,
   lstatSync,
   readFileSync,
+  readdirSync,
   readlinkSync,
   rmSync,
   statSync,
@@ -25,6 +27,7 @@ import {
   type ProcessSpecV1,
 } from '../src/computation-execution.ts';
 import {
+  REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
   TEST_COMPUTATION_PACKET_SCHEMA,
   resumeTestComputation,
   runReadyTestComputation,
@@ -39,11 +42,39 @@ if (!image) {
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
 const scratch=mkdtempSync(join(tmpdir(),'overcenter-isolated-test-workload-'));
+const sourceRevision=execFileSync('git',['-C',repoRoot,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
+const sourceRoot=join(scratch,'source');
+mkdirSync(sourceRoot,{recursive:true});
+const sourceArchive=execFileSync(
+  'git',
+  ['-C',repoRoot,'archive','--format=tar',sourceRevision],
+  {maxBuffer:64*1024*1024},
+);
+const sourceExtract=spawnSync('tar',['-xf','-','-C',sourceRoot],{input:sourceArchive});
+if (sourceExtract.status!==0) {
+  throw new Error(`source snapshot extraction failed: ${sourceExtract.stderr?.toString('utf8')??''}`);
+}
 const dockerLabel=`overcenter.computation-test=${process.pid}`;
 let sequence=0;
 
 function docker(args:string[],encoding:'utf8'='utf8'):string {
   return execFileSync('docker',args,{encoding});
+}
+
+function executionContextSha256():string {
+  const imageId=docker(['image','inspect',image!,'--format','{{.Id}}']).trim();
+  const bytes=JSON.stringify({
+    schema:'overcenter-test-execution-context-v1',
+    image_id:imageId,
+    source_revision:sourceRevision,
+    containment:{
+      network:'none',
+      root:'read-only',
+      source:'read-only',
+      workspace:'fresh-empty',
+    },
+  });
+  return 'sha256:'+createHash('sha256').update(bytes).digest('hex');
 }
 
 after(()=>{
@@ -127,6 +158,9 @@ interface IsolatedExecutor {
 async function startIsolatedExecutor(
   workspace:string,
 ):Promise<IsolatedExecutor> {
+  if (readdirSync(workspace).length!==0) {
+    throw new Error('PRODUCTION_COMPUTATION_WORKSPACE_MUST_START_EMPTY');
+  }
   const id=sequence++;
   const control=join(scratch,`control-${id}`);
   mkdirSync(control,{recursive:true});
@@ -152,7 +186,7 @@ async function startIsolatedExecutor(
     '-v',
     `${workspace}:/workspace`,
     '-v',
-    `${repoRoot}:/source:ro`,
+    `${sourceRoot}:/source:ro`,
     image,
     '--socket=/control/executor.sock',
     '--workspace-root=/workspace',
@@ -192,6 +226,7 @@ async function startIsolatedExecutor(
   const client=new GoExecutorClient({
     socketPath,
     maxConcurrency:1,
+    executionContextSha256:executionContextSha256(),
   });
 
   const remove=():void=>{
@@ -224,6 +259,15 @@ async function startIsolatedExecutor(
   };
 }
 
+test('production computation refuses a pre-populated writable workspace',async()=>{
+  const workspace=freshWorkspace('prepopulated-workspace');
+  writeFileSync(join(workspace,'payload.mjs'),'process.exit(0)');
+  await assert.rejects(
+    startIsolatedExecutor(workspace),
+    /PRODUCTION_COMPUTATION_WORKSPACE_MUST_START_EMPTY/,
+  );
+});
+
 test('confined observation rejects a task-controlled result symlink',async()=>{
   const workspace=freshWorkspace('symlink-result-workspace');
   const state=kernelFixture(workspace);
@@ -234,8 +278,9 @@ test('confined observation rejects a task-controlled result symlink',async()=>{
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
       kind:'test',
+      execution_context_sha256:executionContextSha256(),
       process_spec:realTestSpec('node-test'),
     },
     postcondition:{
@@ -337,8 +382,9 @@ test('real test workload runs through the isolated production socket and settles
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
       kind:'test',
+      execution_context_sha256:executionContextSha256(),
       process_spec:realTestSpec('node-test'),
     },
     postcondition:{
@@ -368,15 +414,14 @@ test('real test workload runs through the isolated production socket and settles
 test('isolated executor death recovers the real test from durable facts in generation 2',async()=>{
   const workspace=freshWorkspace('recovery-test-workspace');
   const state=kernelFixture(workspace);
-  const oldOnly=join(workspace,'old-workspace-only');
   const marker=join(workspace,'test-result.txt');
-  writeFileSync(oldOnly,'old');
 
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
       kind:'test',
+      execution_context_sha256:executionContextSha256(),
       process_spec:realTestSpec('delayed-node-test'),
     },
     postcondition:{
@@ -404,7 +449,7 @@ test('isolated executor death recovers the real test from durable facts in gener
   assert.equal(recoveredKernel.inspect()[0]?.execution_generation,1);
 
   freshWorkspace('recovery-test-workspace');
-  assert.equal(existsSync(oldOnly),false);
+  assert.deepEqual(readdirSync(workspace),[]);
 
   const second=await startIsolatedExecutor(workspace);
   try {
