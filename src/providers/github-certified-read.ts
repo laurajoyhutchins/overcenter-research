@@ -1,4 +1,3 @@
-import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
@@ -13,9 +12,9 @@ import {
 import {
   githubRepositoryCoordinate,
   observeCertifiedGithubRepository,
-  rawGithubObserved200,
   type CertifiedGithubRepositoryEvidence,
 } from './github-certified-repository.ts';
+import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
 import { githubGet,type GithubJsonGet } from './github-rest.ts';
 
 export type GithubGenericSemanticOperationName=Exclude<GithubSemanticOperationName,'repository'>;
@@ -108,17 +107,15 @@ export function observeCertifiedGithubSemanticRead(
     });
     const {owner,repo}=repository.fact.object;
     const request=materializeGithubOperationRequest(operation,{owner,repo,...parameters});
-    const body=get(token,request.path);
-    const observedAt=clock();
-    const raw=rawGithubObserved200({
+    const {observed_at:observedAt,certified}=observeCertifiedGithubRead200({
+      token,
       operation,
-      path:request.path,
-      parameters:request.parameters,
-      body,
-      observedAt,
+      request,
+      fields:semantic.response_slice,
+      get,
+      clock,
       observerId:'github-semantic-read/v1',
     });
-    const certified=validateObservationSlice(operation,raw,semantic.response_slice);
 
     return {
       state:'observed',

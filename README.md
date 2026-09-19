@@ -93,7 +93,7 @@ The production authority store is SQLite: immutable fact-commit rows plus one co
 
 Project state such as `READY`, `EXECUTING`, `BLOCKED`, `RECOVERY_REQUIRED`, and `DONE` is reconstructed from durable facts and current authority. It is not stored as a privileged lifecycle document.
 
-For the full model, read [`ARCHITECTURE.md`](./ARCHITECTURE.md). [ADR 0001](./docs/adr/0001-lean-semantic-reference-and-proof-oracle.md) records the narrower decision that Lean is an executable semantic reference and proof oracle rather than a production runtime dependency.
+For the full model, read [`ARCHITECTURE.md`](./ARCHITECTURE.md). [ADR-0006](./docs/adr/0006-lean-semantic-reference-and-proof-oracle.md) records the narrower decision that Lean is an executable semantic reference and proof oracle rather than a production runtime dependency.
 
 ## What is proved?
 
@@ -175,7 +175,7 @@ Important entry points:
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
 - [`formal/`](./formal/) - TLA+ transaction/recovery kernel.
 - [`research/README.md`](./research/README.md) - research map.
-- [`docs/adr/README.md`](./docs/adr/README.md) - durable architecture decisions, including the Lean semantic-oracle boundary.
+- [`docs/adr/README.md`](./docs/adr/README.md) - durable architecture decisions.
 
 ## Evidence ladder
 

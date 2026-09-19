@@ -1,7 +1,6 @@
 import { GitFactStore } from './git-store.ts';
 import {
   KernelCore,
-  runCoreLoop,
   type KernelOptions,
 } from './kernel-core.ts';
 
@@ -36,4 +35,3 @@ export class GitOvercenterKernel extends KernelCore {
   }
 }
 
-export const runGitCoreLoop=runCoreLoop;
