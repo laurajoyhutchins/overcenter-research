@@ -62,9 +62,31 @@ private def upstreamReady : HistoricalClaimRun := {
   settlementCommit := none
 }
 
-private def keyFor (obligation : ClaimObligation) (runs : List HistoricalClaimRun) :
+private def upstreamFresh : FreshClaimObservation := {
+  obligationId := "upstream"
+  observation := {
+    family := .fileContent
+    verifierRevision := "file-content-equals/v1@semantics-1"
+    coordinate := .opaque "/provider/upstream"
+    certainty := .present
+    actual := some "sha256:upstream"
+  }
+}
+
+private def upstreamWrongFresh : FreshClaimObservation := {
+  upstreamFresh with
+  observation := {
+    upstreamFresh.observation with
+    actual := some "sha256:drifted"
+  }
+}
+
+private def keyFor
+    (obligation : ClaimObligation)
+    (runs : List HistoricalClaimRun)
+    (fresh : List FreshClaimObservation) :
     ClaimObligationKey :=
-  (deriveClaimObligationKey graph runs obligation (graph.length + 1)).getD {
+  (deriveClaimObligationKey graph runs fresh obligation (graph.length + 1)).getD {
     id := "unresolved"
     packetIdentity := ""
     postcondition := obligation.postcondition
@@ -73,28 +95,54 @@ private def keyFor (obligation : ClaimObligation) (runs : List HistoricalClaimRu
 
 private def candidateFor
     (obligation : ClaimObligation)
-    (runs : List HistoricalClaimRun) : ClaimCandidate := {
+    (runs : List HistoricalClaimRun)
+    (fresh : List FreshClaimObservation) : ClaimCandidate := {
   runId := s!"run-{obligation.id}"
   obligationId := obligation.id
   parentRevision := "revision-a"
   claimedRevision := "revision-a"
-  obligationKey := keyFor obligation runs
+  obligationKey := keyFor obligation runs fresh
   capabilityDigest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 }
+
+-- Mutable historical DONE is not current truth without a fresh verifying observation.
+example :
+    deriveClaimLifecycle graph [upstreamDone] [] "upstream" (graph.length + 1) =
+      some .unrealized := by native_decide
+
+example :
+    deriveClaimLifecycle graph [upstreamDone] [upstreamFresh] "upstream" (graph.length + 1) =
+      some .done := by native_decide
+
+example :
+    deriveClaimLifecycle graph [upstreamDone] [upstreamWrongFresh] "upstream" (graph.length + 1) =
+      some .unrealized := by native_decide
+
+-- Multiple competing fresh observations fail closed instead of choosing one.
+example :
+    deriveClaimLifecycle
+      graph
+      [upstreamDone]
+      [upstreamFresh, upstreamFresh]
+      "upstream"
+      (graph.length + 1) = some .unrealized := by native_decide
 
 example :
     admitClaim
       "revision-a"
       graph
       [upstreamDone]
-      (candidateFor downstreamControl [upstreamDone]) = .accepted := by native_decide
+      [upstreamFresh]
+      (candidateFor downstreamControl [upstreamDone] [upstreamFresh]) =
+        .accepted := by native_decide
 
 example :
     admitClaim
       "revision-a"
       graph
       [upstreamReady]
-      (candidateFor downstreamControl [upstreamReady]) =
+      []
+      (candidateFor downstreamControl [upstreamReady] []) =
         .rejected .unsatisfiedDependencies := by native_decide
 
 example :
@@ -102,7 +150,8 @@ example :
       "revision-a"
       graph
       [upstreamDone]
-      { candidateFor downstreamControl [upstreamDone] with
+      [upstreamFresh]
+      { candidateFor downstreamControl [upstreamDone] [upstreamFresh] with
         claimedRevision := "stale-revision" } =
         .rejected .revisionMismatch := by native_decide
 
@@ -111,7 +160,8 @@ example :
       "revision-a"
       graph
       [upstreamDone]
-      { candidateFor downstreamControl [upstreamDone] with
+      [upstreamFresh]
+      { candidateFor downstreamControl [upstreamDone] [upstreamFresh] with
         parentRevision := "stale-parent" } =
         .rejected .revisionMismatch := by native_decide
 
@@ -120,7 +170,8 @@ example :
       "revision-a"
       graph
       [upstreamDone]
-      { candidateFor downstreamControl [upstreamDone] with
+      [upstreamFresh]
+      { candidateFor downstreamControl [upstreamDone] [upstreamFresh] with
         obligationKey := upstreamKey } =
         .rejected .obligationKeyMismatch := by native_decide
 
@@ -129,7 +180,8 @@ example :
       "revision-a"
       graph
       [upstreamDone]
-      { candidateFor downstreamControl [upstreamDone] with
+      [upstreamFresh]
+      { candidateFor downstreamControl [upstreamDone] [upstreamFresh] with
         capabilityDigest := "not-a-digest" } =
         .rejected .invalidCapabilityDigest := by native_decide
 
@@ -138,12 +190,18 @@ example :
       "revision-a"
       graph
       [upstreamDone]
-      { candidateFor downstreamControl [upstreamDone] with
+      [upstreamFresh]
+      { candidateFor downstreamControl [upstreamDone] [upstreamFresh] with
         runId := "run-upstream" } =
         .rejected .duplicateRun := by native_decide
 
 example :
-    deriveClaimObligationKey graph [upstreamDone] downstreamOutput (graph.length + 1) =
+    deriveClaimObligationKey
+      graph
+      [upstreamDone]
+      [upstreamFresh]
+      downstreamOutput
+      (graph.length + 1) =
       some {
         id := "downstream-output"
         packetIdentity := "packet-output"
@@ -158,7 +216,12 @@ example :
       } := by native_decide
 
 example :
-    deriveClaimObligationKey graph [upstreamDone] downstreamReceipt (graph.length + 1) =
+    deriveClaimObligationKey
+      graph
+      [upstreamDone]
+      [upstreamFresh]
+      downstreamReceipt
+      (graph.length + 1) =
       some {
         id := "downstream-receipt"
         packetIdentity := "packet-receipt"
@@ -171,10 +234,15 @@ example :
 
 -- A READY settlement is not a realized dependency and cannot supply semantic identity.
 example :
-    deriveClaimObligationKey graph [upstreamReady] downstreamOutput (graph.length + 1) =
+    deriveClaimObligationKey graph [upstreamReady] [] downstreamOutput (graph.length + 1) =
       none := by native_decide
 
--- Changing verified upstream output changes the downstream semantic key.
+-- Historical DONE without fresh verification also cannot supply semantic identity.
+example :
+    deriveClaimObligationKey graph [upstreamDone] [] downstreamOutput (graph.length + 1) =
+      none := by native_decide
+
+-- Changing verified upstream output changes downstream semantic meaning.
 private def changedUpstream : ClaimObligation := {
   upstream with
   postcondition := claimPostcondition "/provider/upstream" "sha256:changed"
@@ -193,9 +261,30 @@ private def changedUpstreamDone : HistoricalClaimRun := {
   key := changedUpstreamKey
 }
 
+private def changedFresh : FreshClaimObservation := {
+  obligationId := "upstream"
+  observation := {
+    family := .fileContent
+    verifierRevision := "file-content-equals/v1@semantics-1"
+    coordinate := .opaque "/provider/upstream"
+    certainty := .present
+    actual := some "sha256:changed"
+  }
+}
+
 example :
-    deriveClaimObligationKey changedGraph [changedUpstreamDone] downstreamOutput (changedGraph.length + 1)
-    != deriveClaimObligationKey graph [upstreamDone] downstreamOutput (graph.length + 1) := by native_decide
+    deriveClaimObligationKey
+      changedGraph
+      [changedUpstreamDone]
+      [changedFresh]
+      downstreamOutput
+      (changedGraph.length + 1)
+    != deriveClaimObligationKey
+      graph
+      [upstreamDone]
+      [upstreamFresh]
+      downstreamOutput
+      (graph.length + 1) := by native_decide
 
 -- Changing only the settlement receipt changes evidence-consuming downstream meaning.
 private def newerSettlement : HistoricalClaimRun := {
@@ -205,7 +294,17 @@ private def newerSettlement : HistoricalClaimRun := {
 }
 
 example :
-    deriveClaimObligationKey graph [newerSettlement] downstreamReceipt (graph.length + 1)
-    != deriveClaimObligationKey graph [upstreamDone] downstreamReceipt (graph.length + 1) := by native_decide
+    deriveClaimObligationKey
+      graph
+      [newerSettlement]
+      [upstreamFresh]
+      downstreamReceipt
+      (graph.length + 1)
+    != deriveClaimObligationKey
+      graph
+      [upstreamDone]
+      [upstreamFresh]
+      downstreamReceipt
+      (graph.length + 1) := by native_decide
 
 end Overcenter
