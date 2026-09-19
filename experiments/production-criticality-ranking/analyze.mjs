@@ -172,6 +172,7 @@ export function analyze({root,config}){
   }
 
   const edges=new Map(units.map(u=>[u.id,new Set()]));
+  const unresolvedCallsites=[];
   let resolvedInternalCalls=0,unresolvedInternalCalls=0,externalCalls=0,unknownCalls=0;
   for(const sf of program.getSourceFiles()){
     if(!files.includes(sf.fileName)) continue;
@@ -188,9 +189,30 @@ export function analyze({root,config}){
             resolvedInternalCalls++;
           } else if(decl){
             const declarationFile=decl.getSourceFile()?.fileName;
-            if(declarationFile && files.includes(declarationFile)) unresolvedInternalCalls++;
-            else externalCalls++;
-          } else unknownCalls++;
+            if(declarationFile && files.includes(declarationFile)){
+              unresolvedInternalCalls++;
+              const lc=sf.getLineAndCharacterOfPosition(node.getStart(sf));
+              unresolvedCallsites.push({
+                kind:'internal',
+                caller:caller.id,
+                file:rel(root,sf.fileName),
+                line:lc.line+1,
+                expression:node.expression?.getText(sf)??node.getText(sf).slice(0,120),
+                declaration_file:rel(root,declarationFile),
+              });
+            } else externalCalls++;
+          } else {
+            unknownCalls++;
+            const lc=sf.getLineAndCharacterOfPosition(node.getStart(sf));
+            unresolvedCallsites.push({
+              kind:'unknown',
+              caller:caller.id,
+              file:rel(root,sf.fileName),
+              line:lc.line+1,
+              expression:node.expression?.getText(sf)??node.getText(sf).slice(0,120),
+              declaration_file:null,
+            });
+          }
         }
       }
       ts.forEachChild(node,visit);
@@ -290,6 +312,9 @@ export function analyze({root,config}){
       unresolvedInternalCalls,
       externalCalls,
       unknownCalls,
+      unresolvedCallsites:unresolvedCallsites
+        .sort((a,b)=>a.file.localeCompare(b.file)||a.line-b.line||a.expression.localeCompare(b.expression))
+        .slice(0,200),
       internalResolutionRate:resolvedInternalCalls+unresolvedInternalCalls+unknownCalls
         ? resolvedInternalCalls/(resolvedInternalCalls+unresolvedInternalCalls+unknownCalls)
         : 1,
@@ -318,6 +343,12 @@ export function markdown(report,top=30){
   const failed=report.calibration.pairs.filter(x=>!x.pass);
   lines.push('','## Calibration', '', failed.length?`Failed ${failed.length} pair(s):`:'All calibration pairs passed.');
   for(const p of failed) lines.push(`- ${p.id}: expected ${p.higher} (${p.higherScore.toFixed(2)}) > ${p.lower} (${p.lowerScore.toFixed(2)})`);
+  if(report.analyzer.unresolvedCallsites?.length){
+    lines.push('','## Unresolved internal / unknown callsites','');
+    for(const c of report.analyzer.unresolvedCallsites.slice(0,30)){
+      lines.push(`- ${c.kind}: \`${c.file}:${c.line}\` \`${c.expression}\` from \`${c.caller}\`${c.declaration_file?` (declaration: \`${c.declaration_file}\`)`:''}`);
+    }
+  }
   return lines.join('\n')+'\n';
 }
 
