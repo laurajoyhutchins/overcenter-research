@@ -67,6 +67,7 @@ export type Postcondition =
 
 export interface GitHubCommitStatusEffectAuthority {
   contract: 'github-commit-status/set-from-postcondition/v1';
+  adapter_contract_digest: string;
 }
 
 export type EffectAuthority = GitHubCommitStatusEffectAuthority;
