@@ -85,3 +85,6 @@ jobs:
 
       - name: Claim admission differential proof
         run: node --experimental-strip-types --test experiments/lean-kernel/claim-admission-differential.test.ts
+
+      - name: Static effect ordering differential proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/effect-ordering-differential.test.ts
