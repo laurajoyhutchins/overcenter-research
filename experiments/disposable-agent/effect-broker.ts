@@ -2,6 +2,7 @@ import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { authorizeEffectRequest } from '../../src/effect-request.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -28,14 +29,7 @@ const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('SOURCE_SHA');
 const stateRef = githubProofStateRef('disposable-agent');
 
-const intent = JSON.parse(readFileSync('candidate/effect-intent.json', 'utf8')) as {
-  schema?: string;
-  obligation_id?: string;
-  run_id?: string;
-  claimed_revision?: string;
-  effect?: Record<string, unknown>;
-};
-assert.equal(intent.schema, 'overcenter-effect-intent-v1');
+const candidateRequest=JSON.parse(readFileSync('candidate/effect-request.json','utf8')) as unknown;
 
 const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });
 const candidates = kernel.inspect().filter(work => {
@@ -49,13 +43,8 @@ const candidates = kernel.inspect().filter(work => {
 assert.equal(candidates.length, 1, `expected one exact unresolved execution, found ${candidates.length}`);
 const work = candidates[0];
 assert.ok(work.run_id);
-assert.equal(intent.obligation_id, work.id);
-assert.equal(intent.run_id, work.run_id);
-assert.equal(intent.claimed_revision, work.claimed_revision);
-
-const declaredEffect = work.packet.effect as Record<string, unknown> | undefined;
-assert.ok(declaredEffect);
-assert.deepEqual(intent.effect, declaredEffect, 'worker intent drifted from authoritative obligation');
+const authorizedRequest=authorizeEffectRequest(work,candidateRequest);
+const declaredEffect=authorizedRequest.effect as Record<string,unknown>;
 
 assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
 if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
@@ -100,7 +89,7 @@ if (summary) {
   appendFileSync(summary, [
     '## Trusted effect broker',
     '',
-    `- Validated EffectIntent for obligation \`${work.id}\`.`,
+    `- Validated exact effect request for obligation \`${work.id}\`.`,
     `- Acquired execution generation \`${permit.execution_generation}\`.`,
     '- Durably reserved the effect before the provider mutation.',
     `- Wrote exactly the declared status context \`${work.postcondition.context}\`.`,

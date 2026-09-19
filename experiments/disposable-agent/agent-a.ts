@@ -5,6 +5,7 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { expectedEffectRequest } from '../../src/effect-request.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -92,15 +93,11 @@ assert.equal(
   `worker unexpectedly crossed provider mutation boundary: HTTP ${attemptedStatus.status}`,
 );
 
-const declaredEffect = snapshot.packet.effect;
-assert.ok(declaredEffect && typeof declaredEffect === 'object');
-writeFileSync('effect-intent.json', `${JSON.stringify({
-  schema: 'overcenter-effect-intent-v1',
-  obligation_id: snapshot.id,
-  run_id: snapshot.run_id,
-  claimed_revision: snapshot.claimed_revision,
-  effect: declaredEffect,
-}, null, 2)}\n`);
+const effectRequest=expectedEffectRequest(snapshot);
+writeFileSync(
+  'effect-request.json',
+  JSON.stringify(effectRequest,null,2)+'\n',
+);
 
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
@@ -112,7 +109,7 @@ if (summary) {
     '- Local state ref, kernel source, and fake SQLite cache were modified.',
     `- Attempt to rewrite canonical project authority returned HTTP \`${attemptedAuthorityRewrite.status}\`.`,
     `- Attempt to write the declared GitHub status returned HTTP \`${attemptedStatus.status}\`.`,
-    '- Emitted a candidate EffectIntent artifact for trusted validation.',
+    '- Emitted a candidate effect request artifact for trusted validation.',
     '- Agent A has no `statuses: write` permission.',
     '',
   ].join('\n'));
@@ -124,7 +121,7 @@ console.log(JSON.stringify({
   immutable_revision: snapshot.revision,
   authority_rewrite_status: attemptedAuthorityRewrite.status,
   provider_write_status: attemptedStatus.status,
-  effect_intent: 'effect-intent.json',
+  effect_request: 'effect-request.json',
 }));
 
 process.exit(86);
