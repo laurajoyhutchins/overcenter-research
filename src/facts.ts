@@ -19,8 +19,8 @@ export type ObligationSchema=typeof LEGACY_OBLIGATION_SCHEMA|typeof OBLIGATION_S
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const REALIZATION_SCHEMA='overcenter-git-realization-v1' as const;
-export const LEGACY_EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
-export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v2' as const;
+export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
+export const AUTHORIZED_EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v2' as const;
 export const LEGACY_RECEIPT_SCHEMA='overcenter-git-receipt-v4' as const;
 export const RECEIPT_SCHEMA='overcenter-git-receipt-v5' as const;
 export type ReceiptSchema=typeof LEGACY_RECEIPT_SCHEMA|typeof RECEIPT_SCHEMA;
@@ -88,14 +88,14 @@ export interface AcceptedRealization extends RealizationFact {
 
 export type EffectReservationFact =
   | {
-      schema:typeof LEGACY_EFFECT_RESERVATION_SCHEMA;
+      schema:typeof EFFECT_RESERVATION_SCHEMA;
       run_id:string;
       obligation_id:string;
       execution_generation:number;
       execution_authority_commit:string;
     }
   | {
-      schema:typeof EFFECT_RESERVATION_SCHEMA;
+      schema:typeof AUTHORIZED_EFFECT_RESERVATION_SCHEMA;
       run_id:string;
       obligation_id:string;
       execution_generation:number;
@@ -150,7 +150,7 @@ export interface FactCommit {
 }
 
 export function emptyState():State {
-  return {obligations:{},definition_commits:{},legacy_effect_ids:{}};
+  return {obligations:{},definition_commits:{}};
 }
 
 export function validateDependencies(dependencies:Dependency[]):void {

@@ -18,8 +18,8 @@ import {
 } from './observation.ts';
 import {
   CLAIM_SCHEMA,
+  AUTHORIZED_EFFECT_RESERVATION_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
-  LEGACY_EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
   REALIZATION_SCHEMA,
   OBLIGATION_SCHEMA,
@@ -347,7 +347,7 @@ export class KernelCore {
           || identity.realization_digest!==realization.result_digest
         ) throw new Error('EFFECT_REALIZATION_MISMATCH');
         fact={
-          schema:EFFECT_RESERVATION_SCHEMA,
+          schema:AUTHORIZED_EFFECT_RESERVATION_SCHEMA,
           run_id:run.id,
           obligation_id:run.obligation_id,
           execution_generation:run.execution_generation,
@@ -362,7 +362,7 @@ export class KernelCore {
         if (run.obligation.effect_authority) throw new Error('EFFECT_AUTHORITY_INVALID');
         if (identity) throw new Error('UNEXPECTED_EFFECT_IDENTITY');
         fact={
-          schema:LEGACY_EFFECT_RESERVATION_SCHEMA,
+          schema:EFFECT_RESERVATION_SCHEMA,
           run_id:run.id,
           obligation_id:run.obligation_id,
           execution_generation:run.execution_generation,

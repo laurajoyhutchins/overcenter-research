@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { OvercenterKernel, runCoreLoop } from '../src/kernel.ts';
+import { OvercenterKernel } from '../src/kernel.ts';
 import { canonicalDigest } from '../src/digest.ts';
 import { bindTaskSession, executeAuthorizedEffect } from '../src/effect-broker.ts';
 import {
@@ -95,10 +95,9 @@ test('dispatch-bound session cannot inherit rotated authority',()=>{
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });
 
-test('observe-only provider postcondition cannot derive mutation authority',()=>{
+test('observe-only provider postcondition cannot derive mutation authority',async()=>{
   const f=fixture();
   try {
-    const result={kind:'verified-result/v1',value:'observe-only'};
     f.kernel.define({
       id:'observe-only',
       packet:{kind:'observe-only/v1'},
@@ -113,14 +112,13 @@ test('observe-only provider postcondition cannot derive mutation authority',()=>
     });
     const ready=f.kernel.deriveReadyWork();
     assert.ok(ready);
-    f.kernel.claim('observe-only',ready.revision);
+    const permit=f.kernel.claim('observe-only',ready.revision);
     const work=f.kernel.inspect()[0]!;
     assert.equal(deriveAuthorizedProviderEffect(work),null);
-    assert.throws(
-      ()=>runCoreLoop(f.kernel,{effect:async()=>({kind:'forbidden'}),maxAdvances:1}),
+    await assert.rejects(
+      f.kernel.performEffect(permit,async()=>({kind:'forbidden'})),
       /PROVIDER_EFFECT_BROKER_REQUIRED/,
     );
-    assert.ok(result);
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });
 

@@ -5,8 +5,8 @@ import {
 } from './observation.ts';
 import {
   CLAIM_SCHEMA,
+  AUTHORIZED_EFFECT_RESERVATION_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
-  LEGACY_EFFECT_RESERVATION_SCHEMA,
   LEGACY_OBLIGATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
   REALIZATION_SCHEMA,
@@ -276,8 +276,8 @@ export function replayProjection(commits:FactCommit[]):Projection {
     if (record.effect_reservation!=null) {
       const fact=record.effect_reservation as EffectReservationFact;
       if (
-        fact.schema!==EFFECT_RESERVATION_SCHEMA
-        && fact.schema!==LEGACY_EFFECT_RESERVATION_SCHEMA
+        fact.schema!==AUTHORIZED_EFFECT_RESERVATION_SCHEMA
+        && fact.schema!==EFFECT_RESERVATION_SCHEMA
       ) throw new Error('INVALID_EFFECT_RESERVATION_SCHEMA');
       const run=runs.get(fact.run_id);
       if (!run) throw new Error('EFFECT_RESERVATION_WITHOUT_CLAIM');
@@ -293,7 +293,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
         fact.execution_generation!==run.execution_generation
         || fact.execution_authority_commit!==run.execution_authority_commit
       ) throw new Error('STALE_EFFECT_RESERVATION');
-      if (fact.schema===LEGACY_EFFECT_RESERVATION_SCHEMA) {
+      if (fact.schema===EFFECT_RESERVATION_SCHEMA) {
         if (run.obligation.effect_authority) {
           throw new Error('LEGACY_EFFECT_RESERVATION_FOR_AUTHORIZED_EFFECT');
         }
