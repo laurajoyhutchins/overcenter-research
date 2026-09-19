@@ -321,7 +321,7 @@ export class KernelCore {
   ):string {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {history,project}=this.#historicalProjection(head);
+      const {state,history,project}=this.#historicalProjection(head);
       const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
@@ -360,6 +360,12 @@ export class KernelCore {
         };
       } else {
         if (run.obligation.effect_authority) throw new Error('EFFECT_AUTHORITY_INVALID');
+        if (
+          'provider' in run.obligation.postcondition
+          && !state.legacy_effect_ids?.[run.obligation_id]
+        ) {
+          throw new Error('EFFECT_AUTHORITY_REQUIRED');
+        }
         if (identity) throw new Error('UNEXPECTED_EFFECT_IDENTITY');
         fact={
           schema:EFFECT_RESERVATION_SCHEMA,

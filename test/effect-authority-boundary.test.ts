@@ -115,6 +115,10 @@ test('observe-only provider postcondition cannot derive mutation authority',asyn
     const permit=f.kernel.claim('observe-only',ready.revision);
     const work=f.kernel.inspect()[0]!;
     assert.equal(deriveAuthorizedProviderEffect(work),null);
+    assert.throws(
+      ()=>f.kernel.beginEffect(permit),
+      /EFFECT_AUTHORITY_REQUIRED/,
+    );
     await assert.rejects(
       f.kernel.performEffect(permit,async()=>({kind:'forbidden'})),
       /PROVIDER_EFFECT_BROKER_REQUIRED/,

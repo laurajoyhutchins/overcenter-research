@@ -309,6 +309,10 @@ test('static effect-conflict provenance preserves obligation IDs containing colo
       [left.id]:'define-left',
       [right.id]:'define-right',
     },
+    legacy_effect_ids:{
+      [left.id]:true,
+      [right.id]:true,
+    },
   };
   const project=deriveProjectProjection({
     state:conflicting,

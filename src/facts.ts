@@ -103,8 +103,8 @@ export type EffectReservationFact =
       effect_contract:string;
       adapter_contract_digest:string;
       effect_digest:string;
-      realization_commit:string|null;
-      realization_digest:string|null;
+      realization_commit:string;
+      realization_digest:string;
     };
 
 export type EffectReservation=EffectReservationFact & {

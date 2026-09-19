@@ -102,12 +102,8 @@ export async function executeAuthorizedEffect(
   const authorizedEffect=deriveAuthorizedProviderEffect(work);
   if (!authorizedEffect) throw new Error('EFFECT_AUTHORITY_REQUIRED');
 
-  const realization=work.result_acceptance
-    ? kernel.acceptedRealization(session)
-    : null;
-  if (work.result_acceptance && !realization) {
-    throw new Error('REALIZATION_REQUIRED');
-  }
+  const realization=kernel.acceptedRealization(session);
+  if (!realization) throw new Error('REALIZATION_REQUIRED');
 
   const permit=kernel.acquireExecution(session.run_id,{
     expectedGeneration:session.execution_generation,
@@ -118,8 +114,8 @@ export async function executeAuthorizedEffect(
     effect_contract:authorizedEffect.effect_contract,
     adapter_contract_digest:authorizedEffect.adapter_contract_digest,
     effect_digest:authorizedEffect.effect_digest,
-    realization_commit:realization?.realization_commit??null,
-    realization_digest:realization?.result_digest??null,
+    realization_commit:realization.realization_commit,
+    realization_digest:realization.result_digest,
   });
 
   const evidence=await executeAuthorizedProviderEffect(authorizedEffect,context);

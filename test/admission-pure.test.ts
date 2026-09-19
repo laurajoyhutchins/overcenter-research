@@ -3,6 +3,8 @@ import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
 import type { State } from '../src/facts.ts';
 import { validateAdmission } from '../src/admission.ts';
+import { canonicalDigest } from '../src/digest.ts';
+import { githubCommitStatusEffectAuthority } from '../src/provider-effect.ts';
 
 const fileObligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligation=>({
   id,
@@ -30,6 +32,11 @@ const statusObligation=(
     commit_sha:'a'.repeat(40),
     context:'overcenter/admission',
     expected_state:state,
+  },
+  effect_authority:githubCommitStatusEffectAuthority(),
+  result_acceptance:{
+    verifier:'canonical-json-sha256/v1',
+    expected_sha256:canonicalDigest({id,state}),
   },
 });
 
