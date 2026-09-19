@@ -18,6 +18,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
+- `holyc/` - quarantined, non-production HolyC frontier evaluator and theological authority negative control.
 
 Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/support/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 
