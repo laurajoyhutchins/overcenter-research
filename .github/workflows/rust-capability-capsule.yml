@@ -1,0 +1,22 @@
+name: Rust capability capsule
+
+on:
+  push:
+    branches:
+      - experiment/rust-capability-capsule
+    paths:
+      - 'experiments/rust-capability-capsule/**'
+      - '.github/workflows/rust-capability-capsule.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Rust capability experiment
+        run: bash experiments/rust-capability-capsule/proof.sh
