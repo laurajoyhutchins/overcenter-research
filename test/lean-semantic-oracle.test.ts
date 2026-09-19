@@ -353,11 +353,37 @@ test('current TypeScript graph validity agrees with pinned Lean semantic oracle'
       );
       additionalCases+=1;
     }
+
+    const mixedCycle=stateFromDependencies([[1],[0]]);
+    mixedCycle.obligations['n-1'].dependencies=[
+      dependency(0,'semantic'),
+    ];
+    assert.equal(typeScriptGraphValid(mixedCycle),false);
+    assert.equal(
+      (await oracle.compare(
+        leanRequest(mixedCycle,'n-0'),
+      )).graph_acyclic,
+      false,
+    );
+    additionalCases+=1;
+
+    const mixedDag=stateFromDependencies([[],[0],[1]]);
+    mixedDag.obligations['n-2'].dependencies=[
+      dependency(1,'semantic'),
+    ];
+    assert.equal(typeScriptGraphValid(mixedDag),true);
+    assert.equal(
+      (await oracle.compare(
+        leanRequest(mixedDag,'n-2'),
+      )).graph_acyclic,
+      true,
+    );
+    additionalCases+=1;
   }finally{
     await oracle.close();
   }
 
-  console.log('LEAN_GRAPH_ORACLE '+JSON.stringify({
+  console.log('LEAN_GRAPH_ORACLE +JSON.stringify({
     oracle_sha:oracleSha,
     node_count:nodeCount,
     directed_graphs:1<<slots.length,
@@ -451,6 +477,60 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
           }
         }
       }
+    }
+
+    const mixedOrdered=stateFromDependencies(
+      [[],[0],[1]],
+      {
+        target:2,
+        competitor:0,
+        targetDesired:'success',
+        competitorDesired:'failure',
+      },
+    );
+    mixedOrdered.obligations['n-1'].dependencies=[
+      dependency(0,'semantic'),
+    ];
+    for(const order of [forward,reverse]){
+      const observed=await oracle.compare(
+        leanRequest(mixedOrdered,'n-2',order),
+      );
+      assert.equal(
+        observed.optimized_effect_conflict,
+        observed.reference_effect_conflict,
+      );
+      assert.equal(
+        observed.reference_effect_conflict,
+        staticEffectConflict(mixedOrdered,'n-2')!==null,
+      );
+      comparisons+=1;
+    }
+
+    const mixedUnordered=stateFromDependencies(
+      [[],[],[1]],
+      {
+        target:2,
+        competitor:0,
+        targetDesired:'success',
+        competitorDesired:'failure',
+      },
+    );
+    mixedUnordered.obligations['n-2'].dependencies=[
+      dependency(1,'semantic'),
+    ];
+    for(const order of [forward,reverse]){
+      const observed=await oracle.compare(
+        leanRequest(mixedUnordered,'n-2',order),
+      );
+      assert.equal(
+        observed.optimized_effect_conflict,
+        observed.reference_effect_conflict,
+      );
+      assert.equal(
+        observed.reference_effect_conflict,
+        staticEffectConflict(mixedUnordered,'n-2')!==null,
+      );
+      comparisons+=1;
     }
   }finally{
     await oracle.close();
