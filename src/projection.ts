@@ -15,7 +15,6 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
-  EffectReservation,
   EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
@@ -41,7 +40,7 @@ export interface HistoryProjection {
   lifecycles:Map<string,RealizationLifecycle>;
   runs:Map<string,RunRecord>;
   receiptsByRun:Map<string,Receipt>;
-  unresolvedReservationsByRun:Map<string,EffectReservation>;
+  unresolvedReservationsByRun:Map<string,EffectReservationFact>;
   receipts:Receipt[];
 }
 
@@ -101,7 +100,7 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
   let lifecycles=new Map<string,RealizationLifecycle>();
   const runs=new Map<string,RunRecord>();
   const receiptsByRun=new Map<string,Receipt>();
-  const unresolvedReservationsByRun=new Map<string,EffectReservation>();
+  const unresolvedReservationsByRun=new Map<string,EffectReservationFact>();
   const receipts:Receipt[]=[];
 
   for (const record of commits) {
@@ -233,10 +232,7 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
       if (unresolvedReservationsByRun.has(run.id)) {
         throw new Error('DUPLICATE_UNRESOLVED_EFFECT');
       }
-      unresolvedReservationsByRun.set(run.id,{
-        ...fact,
-        reservation_commit:record.commit,
-      });
+      unresolvedReservationsByRun.set(run.id,fact);
     }
 
     if (record.receipt==null) continue;
