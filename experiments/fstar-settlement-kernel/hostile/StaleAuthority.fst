@@ -1,4 +1,4 @@
-module StaleAuthority
+module hostile.StaleAuthority
 
 open SettlementKernel
 open Positive
