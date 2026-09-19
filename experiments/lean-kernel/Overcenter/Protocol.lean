@@ -339,6 +339,7 @@ private def parseClaimCandidate (json : Json) : Except String ClaimCandidate := 
 
 private def claimAdmissionReasonName : ClaimAdmissionError → String
   | .invalidGraph => "INVALID_GRAPH"
+  | .unorderedEffectConflict => "UNORDERED_EFFECT_CONFLICT"
   | .unknownObligation => "UNKNOWN_OBLIGATION"
   | .duplicateRun => "DUPLICATE_RUN"
   | .revisionMismatch => "REVISION_MISMATCH"
@@ -347,6 +348,13 @@ private def claimAdmissionReasonName : ClaimAdmissionError → String
   | .unresolvedSemanticDependency => "UNRESOLVED_SEMANTIC_DEPENDENCY"
   | .obligationKeyMismatch => "OBLIGATION_KEY_MISMATCH"
   | .invalidCapabilityDigest => "INVALID_CAPABILITY_DIGEST"
+
+private def handleClaimEffectOrdering (request : Json) : Except String Json := do
+  let obligations ← parseClaimObligations (← field request "obligations")
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-kernel/v1"),
+    ("valid", claimStaticEffectOrderingValid obligations)
+  ]
 
 private def handleClaimGraph (request : Json) : Except String Json := do
   let obligations ← parseClaimObligations (← field request "obligations")
@@ -454,7 +462,9 @@ private def handleKubernetesWatchCarry (request : Json) : Except String Json := 
 
 def handleJson (request : Json) : Except String Json := do
   let command ← stringField request "command"
-  if command = "claim-graph" then
+  if command = "claim-effect-ordering" then
+    handleClaimEffectOrdering request
+  else if command = "claim-graph" then
     handleClaimGraph request
   else if command = "claim-admission" then
     handleClaimAdmission request
