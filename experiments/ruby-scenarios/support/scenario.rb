@@ -103,6 +103,30 @@ module OvercenterRubyScenarios
       }
     end
 
+    def claim(id, as:)
+      @operations << {
+        "op" => "claim",
+        "id" => id.to_s,
+        "name" => as.to_s
+      }
+    end
+
+    def renew_execution(permit, as:)
+      @operations << {
+        "op" => "renew-execution",
+        "permit" => permit.to_s,
+        "name" => as.to_s
+      }
+    end
+
+    def reserve_effect(permit, as:)
+      @operations << {
+        "op" => "reserve-effect",
+        "permit" => permit.to_s,
+        "name" => as.to_s
+      }
+    end
+
     def checkpoint(name)
       @operations << {
         "op" => "checkpoint",
@@ -230,6 +254,24 @@ module OvercenterRubyScenarios
         next if actual == kind
 
         raise "expected #{name} absence kind #{kind.inspect}, got #{actual.inspect}"
+      end
+    end
+
+    def expect_error(name, error)
+      @expectations << lambda do |result|
+        outcome = result.fetch("outcomes").fetch(name.to_s)
+        unless outcome["ok"] == false && outcome["error"] == error
+          raise "expected #{name} to fail with #{error.inspect}, got #{outcome.inspect}"
+        end
+      end
+    end
+
+    def expect_success(name)
+      @expectations << lambda do |result|
+        outcome = result.fetch("outcomes").fetch(name.to_s)
+        next if outcome["ok"] == true
+
+        raise "expected #{name} to succeed, got #{outcome.inspect}"
       end
     end
 
