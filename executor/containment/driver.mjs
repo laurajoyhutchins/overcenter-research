@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { PRODUCTION_CONTAINMENT_PROFILE } from '/production-containment.ts';
 
 const workspace='/workspace';
 const capability='containment-capability';
@@ -39,9 +40,9 @@ const executor=spawn(
   [
     '--stdio',
     '--workspace-root='+workspace,
-    '--concurrency=1',
-    '--task-uid=65532',
-    '--task-gid=65532',
+    `--concurrency=${PRODUCTION_CONTAINMENT_PROFILE.executor_concurrency}`,
+    `--task-uid=${PRODUCTION_CONTAINMENT_PROFILE.task_uid}`,
+    `--task-gid=${PRODUCTION_CONTAINMENT_PROFILE.task_gid}`,
   ],
   {stdio:['pipe','ignore','inherit'],env:{}},
 );
@@ -75,13 +76,13 @@ const groupsOf=pid=>{
   return match[1].trim().split(/\s+/).filter(Boolean).map(value=>Number.parseInt(value,10));
 };
 if (uidOf(executor.pid)!==0) throw new Error('executor is not root inside containment worker');
-if (uidOf(parentPid)!==65532) throw new Error('task did not drop to uid 65532');
+if (uidOf(parentPid)!==PRODUCTION_CONTAINMENT_PROFILE.task_uid) throw new Error('task did not drop to uid 65532');
 const taskGroups=groupsOf(parentPid);
-if (taskGroups.length!==1 || taskGroups[0]!==65532) {
+if (taskGroups.length!==1 || taskGroups[0]!==PRODUCTION_CONTAINMENT_PROFILE.task_gid) {
   throw new Error('task supplementary groups not confined: '+JSON.stringify(taskGroups));
 }
 
-writeFileSync(workspace+'/credential-proof','executor=0 task=65532 groups=65532\n');
+writeFileSync(workspace+'/credential-proof',`executor=0 task=${PRODUCTION_CONTAINMENT_PROFILE.task_uid} groups=${PRODUCTION_CONTAINMENT_PROFILE.task_gid}\n`);
 writeFileSync(workspace+'/ready','ready\n');
 executor.kill('SIGKILL');
 await new Promise(resolve=>executor.once('close',resolve));
