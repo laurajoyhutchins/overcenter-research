@@ -1,4 +1,4 @@
-module StaleRevision
+module hostile.StaleRevision
 
 open SettlementKernel
 open Positive
