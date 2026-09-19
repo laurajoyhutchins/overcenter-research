@@ -2,7 +2,7 @@
   "schema": "overcenter-git-obligation-v3",
   "kind": "defined",
   "obligation": {
-    "id": "concurrency-35468259198-1-alpha",
+    "id": "concurrency-35468259198-1-beta",
     "dependencies": [],
     "packet": {
       "kind": "github-actions-two-effect-proof/v1",
@@ -11,7 +11,7 @@
         "repository_id": 1354872053,
         "workflow_run_id": "35468259198",
         "workflow_run_attempt": "1",
-        "slot": "alpha"
+        "slot": "beta"
       },
       "exact_input": {
         "kind": "git-commit/v1",
@@ -22,7 +22,7 @@
         "kind": "github-commit-status/v1",
         "repository_id": 1354872053,
         "commit_sha": "9b2798d4e64a0cd65c63bf7fc3579a03e5fcc809",
-        "context": "overcenter/concurrency/35468259198/1/alpha",
+        "context": "overcenter/concurrency/35468259198/1/beta",
         "state": "success"
       }
     },
@@ -31,7 +31,7 @@
       "provider": "github",
       "repository_id": 1354872053,
       "commit_sha": "9b2798d4e64a0cd65c63bf7fc3579a03e5fcc809",
-      "context": "overcenter/concurrency/35468259198/1/alpha",
+      "context": "overcenter/concurrency/35468259198/1/beta",
       "expected_state": "success"
     }
   }
