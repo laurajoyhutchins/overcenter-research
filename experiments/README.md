@@ -16,7 +16,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
-- `datalog-projection/` - declarative reconstruction of current definition, receipt history, dependency closure, lifecycle, and public project status from append-only facts.
+- `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
 
 Reusable mechanism belongs in `src/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 
