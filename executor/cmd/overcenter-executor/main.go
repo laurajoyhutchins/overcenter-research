@@ -81,6 +81,9 @@ func resolveTaskCredential(
 		return nil, errors.New("socket gid out of range")
 	}
 	if unsafeSameUID {
+		if productionSocket {
+			return nil, errors.New("unsafe same-uid mode is stdio-only")
+		}
 		if taskUID >= 0 || taskGID >= 0 {
 			return nil, errors.New("unsafe same-uid mode cannot also set task credentials")
 		}
