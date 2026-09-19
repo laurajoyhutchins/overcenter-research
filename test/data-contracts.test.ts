@@ -14,6 +14,8 @@ import {
   validateProcessSpec,
 } from '../src/computation-execution.ts';
 
+import { GoExecutorClient } from '../src/go-executor-client.ts';
+
 const root=fileURLToPath(new URL('../',import.meta.url));
 const contractDir=join(root,'contracts/computation-execution-v1');
 const readJson=(path:string):any=>JSON.parse(readFileSync(path,'utf8'));
@@ -160,5 +162,14 @@ test('executor hello uses the shared UTF-8 byte limit across the language bounda
       extra:true,
     }),
     /EXECUTOR_HELLO_UNKNOWN_FIELD:extra/,
+  );
+  assert.throws(
+    ()=>new GoExecutorClient({
+      socketPath:'/tmp/overcenter-contract-invalid.sock',
+      maxConcurrency:1,
+      executionContextSha256:base.execution_context_sha256,
+      containmentId:'é'.repeat(257),
+    }),
+    /GO_EXECUTOR_CONTAINMENT_ID_INVALID/,
   );
 });
