@@ -344,7 +344,7 @@ function tsGraphValid(graph:Obligation[]):boolean {
     ])),
     definition_commits:Object.fromEntries(graph.map((obligation,index)=>[
       obligation.id,
-      \`definition-\${index}\`,
+      `definition-${index}`,
     ])),
   };
   try {
