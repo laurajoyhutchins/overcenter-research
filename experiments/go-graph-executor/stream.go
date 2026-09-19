@@ -41,11 +41,7 @@ func ExecuteStream(
 			defer workers.Done()
 			for envelope := range jobs {
 				result := executeOne(ctx, envelope, runner)
-				select {
-				case results <- result:
-				case <-ctx.Done():
-					return
-				}
+				results <- result
 			}
 		}()
 	}
