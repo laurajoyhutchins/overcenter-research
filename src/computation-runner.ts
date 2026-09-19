@@ -41,6 +41,7 @@ export type TestComputationPacket =
 
 export interface ComputationExecutor {
   readonly executionContextSha256?:string;
+  readonly containmentId?:string;
   execute(
     execution:ComputationExecutionV1,
   ):Promise<ComputationAttemptEvidenceV1>;
@@ -55,6 +56,10 @@ export interface TestComputationResult {
   receipt:Receipt;
   evidence?:ComputationAttemptEvidenceV1;
   transport_error?:string;
+}
+
+export interface ComputationRecoveryAuthority {
+  assertTerminated(containmentId:string):Promise<void>;
 }
 
 function errorMessage(error:unknown):string {
@@ -217,6 +222,7 @@ async function executeTestAttempt(
       computation_transport_failure:{
         schema:COMPUTATION_TRANSPORT_FAILURE_SCHEMA,
         execution_spec_sha256:execution.execution_spec_sha256,
+        ...(executor.containmentId?{containment_id:executor.containmentId}:{}),
         error:transportError,
       },
     });
@@ -280,14 +286,35 @@ export async function resumeTestComputation(
   kernel:GitOvercenterKernel,
   executor:ComputationExecutor,
   runId:string,
+  recoveryAuthority?:ComputationRecoveryAuthority,
 ):Promise<TestComputationResult> {
   // Reconstruct the process spec from durable project facts before issuing a
   // fresh execution generation. No in-memory executor queue participates.
   const {work,packet}=recoveringTestWork(kernel,runId);
+  if (kernel.hasUnresolvedEffect(runId)) {
+    throw new Error('TEST_COMPUTATION_EFFECT_RESERVATION_PRESENT');
+  }
   if (packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) {
     throw new Error('TEST_COMPUTATION_REPLAY_IDENTITY_UNPROVEN');
   }
   assertExecutionContext(packet,executor);
+
+  const prior=kernel.receipts(runId).at(-1);
+  const diagnostic=isRecord(prior?.diagnostic) ? prior.diagnostic : null;
+  const transportFailure=diagnostic && isRecord(diagnostic.computation_transport_failure)
+    ? diagnostic.computation_transport_failure
+    : null;
+  if (transportFailure) {
+    const containmentId=transportFailure.containment_id;
+    if (typeof containmentId!=='string' || containmentId.length===0) {
+      throw new Error('TEST_COMPUTATION_CONTAINMENT_ID_UNAVAILABLE');
+    }
+    if (!recoveryAuthority) {
+      throw new Error('TEST_COMPUTATION_CONTAINMENT_TERMINATION_UNPROVEN');
+    }
+    await recoveryAuthority.assertTerminated(containmentId);
+  }
+
   const permit=kernel.acquireExecution(runId);
   return await executeTestAttempt(kernel,executor,work,packet,permit);
 }
