@@ -68,6 +68,14 @@ jobs:
           node --experimental-strip-types --test
           experiments/semantic-kernel-language-comparison/tensor-projection-differential.test.ts
 
+      - name: Build parent realization projection executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterRealizationProjection
+
+      - name: Build parent semantic identity executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterSemanticIdentity
+
       - name: Parent realization projection differential
         run: >-
           node --experimental-strip-types --test
