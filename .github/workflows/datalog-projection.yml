@@ -39,6 +39,7 @@ jobs:
       - name: Install Soufflé 2.5
         run: |
           curl -fsSLO https://github.com/souffle-lang/souffle/releases/download/2.5/x86_64-ubuntu-2404-souffle-2.5-Linux.deb
+          sha256sum ./x86_64-ubuntu-2404-souffle-2.5-Linux.deb
           sudo apt-get install -y ./x86_64-ubuntu-2404-souffle-2.5-Linux.deb
           souffle --version
       - run: npm run test:datalog
