@@ -64,16 +64,25 @@ if (records.length<2) throw new Error('grandchild never started');
 
 const parentPid=Number.parseInt(records.find(record=>record.startsWith('parent:'))?.split(':')[1]??'',10);
 if (!Number.isSafeInteger(parentPid)) throw new Error('parent pid missing');
+const statusOf=pid=>readFileSync('/proc/'+pid+'/status','utf8');
 const uidOf=pid=>{
-  const status=readFileSync('/proc/'+pid+'/status','utf8');
-  const match=status.match(/^Uid:\s+(\d+)/m);
+  const match=statusOf(pid).match(/^Uid:\s+(\d+)/m);
   if (!match) throw new Error('uid unavailable for pid '+pid);
   return Number.parseInt(match[1],10);
 };
+const groupsOf=pid=>{
+  const match=statusOf(pid).match(/^Groups:\s*(.*)$/m);
+  if (!match) throw new Error('groups unavailable for pid '+pid);
+  return match[1].trim().split(/\s+/).filter(Boolean).map(value=>Number.parseInt(value,10));
+};
 if (uidOf(executor.pid)!==0) throw new Error('executor is not root inside containment worker');
 if (uidOf(parentPid)!==65532) throw new Error('task did not drop to uid 65532');
+const taskGroups=groupsOf(parentPid);
+if (taskGroups.length!==1 || taskGroups[0]!==65532) {
+  throw new Error('task supplementary groups not confined: '+JSON.stringify(taskGroups));
+}
 
-writeFileSync(workspace+'/credential-proof','executor=0 task=65532\n');
+writeFileSync(workspace+'/credential-proof','executor=0 task=65532 groups=65532\n');
 writeFileSync(workspace+'/ready','ready\n');
 executor.kill('SIGKILL');
 await new Promise(resolve=>executor.once('close',resolve));
