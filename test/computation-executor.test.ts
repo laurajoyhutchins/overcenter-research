@@ -16,6 +16,7 @@ import {
   PROCESS_SPEC_SCHEMA,
   assertComputationEvidenceFor,
   computationExecution,
+  executionIdentityKey,
   validateComputationExecution,
   validateProcessSpec,
   type ProcessSpecV1,
@@ -358,6 +359,56 @@ test('stale exact-generation cancel cannot hit a newer execution',async()=>{
     assert.equal(
       Buffer.from(evidence.stdout_base64!,'base64').toString('utf8'),
       'finished',
+    );
+  } finally {
+    await harness.close();
+  }
+});
+
+test('delimiter-shaped identity fields cannot alias another live execution',async()=>{
+  const firstPermit={
+    ...permit(40,2,'c'),
+    id:'a/1',
+  };
+  const secondPermit={
+    ...permit(41,1,'2/c'),
+    id:'a',
+  };
+  const first=computationExecution(
+    firstPermit,
+    spec('sleep','first',{timeoutMs:2000}),
+  );
+  const second=computationExecution(
+    secondPermit,
+    spec('sleep','second',{timeoutMs:2000}),
+  );
+  assert.notEqual(
+    executionIdentityKey({
+      run_id:first.run_id,
+      execution_generation:first.execution_generation,
+      execution_authority_commit:first.execution_authority_commit,
+    }),
+    executionIdentityKey({
+      run_id:second.run_id,
+      execution_generation:second.execution_generation,
+      execution_authority_commit:second.execution_authority_commit,
+    }),
+  );
+
+  const harness=await startExecutor(2);
+  const {client}=harness;
+  try {
+    const firstPending=client.execute(first);
+    const secondPending=client.execute(second);
+    await new Promise(resolve=>setTimeout(resolve,50));
+    await client.cancel(first);
+
+    const [firstEvidence,secondEvidence]=await Promise.all([firstPending,secondPending]);
+    assert.equal(firstEvidence.outcome,'cancelled');
+    assert.equal(secondEvidence.outcome,'completed');
+    assert.equal(
+      Buffer.from(secondEvidence.stdout_base64!,'base64').toString('utf8'),
+      'second',
     );
   } finally {
     await harness.close();
