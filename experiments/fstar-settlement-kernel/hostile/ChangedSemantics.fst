@@ -1,4 +1,4 @@
-module ChangedSemantics
+module hostile.ChangedSemantics
 
 open SettlementKernel
 open Positive
