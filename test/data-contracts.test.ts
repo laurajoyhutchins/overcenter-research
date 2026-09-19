@@ -251,7 +251,7 @@ test('executor hello uses the shared UTF-8 byte limit across the language bounda
 
 test('durable authority contract preserves backend-neutral logical facts',()=>{
   assert.equal(authorityContract.id,'authority-facts');
-  assert.equal(authorityContract.version,'1.0.0');
+  assert.equal(authorityContract.version,'1.1.0');
   assert.equal(authorityContract.status,'active');
   assert.equal(authorityContract.storageIndependence.backendLocalCommitIdentity,true);
   assert.deepEqual(authorityContract.schema.wireDiscriminators,[

@@ -2,10 +2,10 @@
   "apiVersion": "overcenter.dev/data-contract/v1",
   "kind": "DataContract",
   "id": "authority-facts",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "active",
   "description": {
-    "purpose": "Define the durable fact vocabulary from which Overcenter reconstructs project truth.",
+    "purpose": "Define the durable fact vocabulary from which Overcenter reconstructs project truth, including obligation-v3 historical reads and obligation-v4 canonical writes.",
     "limitations": "This contract defines persisted fact structure and semantic roles. It does not make a fact valid in history merely because its JSON shape is valid; replay still enforces ordering, fencing, graph, observation, and settlement semantics."
   },
   "participants": {
