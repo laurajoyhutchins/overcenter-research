@@ -147,3 +147,50 @@ test('SQLite kernel rejects a claim fenced to a stale authority revision',()=>{
     rmSync(root,{recursive:true,force:true});
   }
 });
+
+
+test('SQLite replay fails closed when durable fact bytes no longer match their commit id',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-corruption-'));
+  const database=join(root,'overcenter.sqlite');
+  const kernel=new OvercenterKernel(database);
+
+  try {
+    kernel.initialize();
+    kernel.define({
+      id:'a',
+      postcondition:pc(join(root,'a'),'A'),
+    });
+    kernel.close();
+
+    const db=new DatabaseSync(database);
+    try {
+      db.prepare(`
+        UPDATE fact_commits
+        SET files_json = ?
+        WHERE sequence = 2
+      `).run(JSON.stringify({
+        'obligation.json':{
+          schema:'tampered',
+          obligation:{id:'a'},
+        },
+      }));
+    } finally {
+      db.close();
+    }
+
+    const corrupted=new OvercenterKernel(database);
+    try {
+      assert.throws(
+        ()=>corrupted.inspect(),
+        /FACT_COMMIT_DIGEST_MISMATCH/,
+      );
+    } finally {
+      corrupted.close();
+    }
+  } finally {
+    try {
+      kernel.close();
+    } catch {}
+    rmSync(root,{recursive:true,force:true});
+  }
+});
