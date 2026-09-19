@@ -63,11 +63,14 @@ function clone(
   return structuredClone(certificate);
 }
 
-test('certificate binds provider, verifier contract, resource, operation, and semantics digests',()=>{
+test('certificate binds provider contracts, resource, operation, and semantics digests',()=>{
   const certificate=issueEffectEquivalenceCertificate(statusV1());
   assert.ok(certificate);
   assert.equal(certificate.provider,'github');
   assert.equal(certificate.verifier_contract,'github-commit-status/v1');
+  assert.equal(certificate.coordinate_contract,'github-commit-status-coordinate/v1');
+  assert.equal(certificate.observation_contract,'github-commit-status-observation/v1');
+  assert.equal(certificate.operation_class,'github-commit-status/set-state/v1');
   assert.match(certificate.resource,/^github-status:123:/);
   assert.equal(certificate.operation,'success');
   assert.equal(certificate.equivalence_class,'same-desired-under-overcenter-settlement');
@@ -76,7 +79,7 @@ test('certificate binds provider, verifier contract, resource, operation, and se
   assert.match(certificate.certificate_digest,/^[0-9a-f]{64}$/);
 });
 
-test('same verifier contract, canonical coordinate, and operation authorize unordered overlap',()=>{
+test('same provider contract, canonical coordinate, and operation authorize unordered overlap',()=>{
   const left=statusV1('success',{context:'overcenter/Build'});
   const right=statusV1('success',{context:'overcenter/build'});
   const leftCertificate=issueEffectEquivalenceCertificate(left);
@@ -168,6 +171,39 @@ test('tampered verifier contract is rejected',()=>{
   assert.equal(validateEffectEquivalenceCertificate(postcondition,tampered),false);
 });
 
+test('tampered coordinate contract is rejected',()=>{
+  const postcondition=statusV1();
+  const certificate=issueEffectEquivalenceCertificate(postcondition);
+  assert.ok(certificate);
+  const tampered={
+    ...certificate,
+    coordinate_contract:'forged-coordinate/v9',
+  } as unknown as EffectEquivalenceCertificate;
+  assert.equal(validateEffectEquivalenceCertificate(postcondition,tampered),false);
+});
+
+test('tampered observation contract is rejected',()=>{
+  const postcondition=statusV1();
+  const certificate=issueEffectEquivalenceCertificate(postcondition);
+  assert.ok(certificate);
+  const tampered={
+    ...certificate,
+    observation_contract:'github-commit-status-observation/v2',
+  } as EffectEquivalenceCertificate;
+  assert.equal(validateEffectEquivalenceCertificate(postcondition,tampered),false);
+});
+
+test('tampered operation class is rejected',()=>{
+  const postcondition=statusV1();
+  const certificate=issueEffectEquivalenceCertificate(postcondition);
+  assert.ok(certificate);
+  const tampered={
+    ...certificate,
+    operation_class:'forged-operation/v9',
+  } as unknown as EffectEquivalenceCertificate;
+  assert.equal(validateEffectEquivalenceCertificate(postcondition,tampered),false);
+});
+
 test('tampered issuer contract is rejected',()=>{
   const postcondition=statusV1();
   const certificate=issueEffectEquivalenceCertificate(postcondition);
@@ -216,6 +252,10 @@ test('cross-verifier-version overlap requires an explicit bridge certificate',()
   assert.doesNotThrow(()=>validateAdmission(state(left,right)));
 
   // Version-bound witnesses do not silently inherit that equivalence.
+  assert.notEqual(
+    leftCertificate.observation_contract,
+    rightCertificate.observation_contract,
+  );
   assert.equal(
     certificatesAuthorizeUnorderedOverlap(
       left,leftCertificate,right,rightCertificate,
