@@ -1,5 +1,20 @@
 namespace Overcenter
 
+structure PacketNumber where
+  sign : Int
+  mantissa : Nat
+  exponent : Int
+  deriving Repr, BEq, DecidableEq
+
+inductive PacketValue where
+  | null
+  | bool (value : Bool)
+  | number (value : PacketNumber)
+  | string (value : String)
+  | array (values : List PacketValue)
+  | object (fields : List (String × PacketValue))
+  deriving Repr, BEq, DecidableEq
+
 inductive VerifierFamily where
   | immutableArtifact
   | fileContent
