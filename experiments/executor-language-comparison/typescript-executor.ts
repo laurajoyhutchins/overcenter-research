@@ -136,6 +136,41 @@ export async function* executeStream(
   }
 }
 
+
+interface SyntheticSpec {
+  delay_ms?:number;
+  result?:string;
+  fail?:boolean;
+  wait_for_cancel?:boolean;
+}
+
+export async function runSynthetic(
+  signal:AbortSignal,
+  envelope:GraphExecutionEnvelope,
+):Promise<Buffer> {
+  const spec=envelope.execution_spec as SyntheticSpec;
+  if (spec.wait_for_cancel) {
+    await new Promise<void>((_resolve,reject)=>{
+      const abort=()=>reject(signal.reason instanceof Error?signal.reason:new Error('aborted'));
+      signal.addEventListener('abort',abort,{once:true});
+      if (signal.aborted) abort();
+    });
+  }
+  if ((spec.delay_ms??0)>0) {
+    await new Promise<void>((resolve,reject)=>{
+      const timer=setTimeout(resolve,spec.delay_ms);
+      const abort=()=>{
+        clearTimeout(timer);
+        reject(signal.reason instanceof Error?signal.reason:new Error('aborted'));
+      };
+      signal.addEventListener('abort',abort,{once:true});
+      if (signal.aborted) abort();
+    });
+  }
+  if (spec.fail) throw new Error('synthetic execution failure');
+  return Buffer.from(spec.result??'');
+}
+
 interface SubprocessSpec {
   fixture:string;
   mode:'complete'|'fail'|'hang'|'grandchild-hang';
