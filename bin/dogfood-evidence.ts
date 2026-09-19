@@ -44,6 +44,17 @@ if (!sourceSha || !/^[0-9a-f]{40,64}$/.test(sourceSha)) {
 }
 const reportPath=option('--report');
 
+const checkedOutSha=execFileSync(
+  'git',
+  ['-C',repoRoot,'rev-parse','HEAD'],
+  {encoding:'utf8'},
+).trim().toLowerCase();
+if (checkedOutSha!==sourceSha) {
+  throw new Error(
+    `DOGFOOD_CHECKOUT_REVISION_MISMATCH:expected=${sourceSha}:actual=${checkedOutSha}`,
+  );
+}
+
 const scratch=mkdtempSync(join(tmpdir(),'overcenter-self-dogfood-'));
 const workspace=join(scratch,'workspace');
 const attestations=join(scratch,'authority-attestations');
@@ -58,6 +69,7 @@ execFileSync('git',['init','--bare',stateRepo],{stdio:'ignore'});
 
 let sequence=0;
 const label=`overcenter.self-dogfood=${process.pid}`;
+const npmCli='/usr/local/lib/node_modules/npm/bin/npm-cli.js';
 
 function docker(args:string[]):string {
   return execFileSync('docker',args,{encoding:'utf8'});
@@ -69,13 +81,16 @@ function processSpec(
   return {
     schema:PROCESS_SPEC_SCHEMA,
     executable:'/usr/local/bin/node',
-    argv:[
-      '/dogfood-task.mjs',
-      tier,
-      sourceSha,
-    ],
-    cwd:'.',
-    env:{},
+    argv:tier==='regression'
+      ? [npmCli,'test']
+      : [npmCli,'run','proof:local'],
+    cwd:'source',
+    env:{
+      HOME:'/tmp',
+      NPM_CONFIG_CACHE:'/tmp/npm-cache',
+      OVERCENTER_SOURCE_SHA:sourceSha,
+      PATH:'/usr/local/bin:/usr/bin:/bin',
+    },
     timeout_ms:tier==='regression' ? 180_000 : 600_000,
     stdout_max_bytes:512*1024,
     stderr_max_bytes:512*1024,
@@ -103,7 +118,7 @@ async function startExecutor():Promise<ExecutorHarness> {
     '--entrypoint','/usr/local/bin/overcenter-executor',
     '-v',`${control}:/control`,
     '-v',`${workspace}:/workspace`,
-    '-v',`${repoRoot}:/source:ro`,
+    '-v',`${repoRoot}:/workspace/source:ro`,
     image,
     `--socket=/control/executor-${id}.sock`,
     '--workspace-root=/workspace',
@@ -337,6 +352,7 @@ try {
     work:reconstructedWork,
     receipts,
     reconstructed:true,
+    source_mounted_read_only:true,
     authority_attestations_outside_task_workspace:true,
     external_effect_reservations:0,
   };
