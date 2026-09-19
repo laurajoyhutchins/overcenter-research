@@ -108,7 +108,7 @@ test('control dependency changes executability but does not poison downstream se
     assert.doesNotThrow(() => f.kernel.amend({
       id: 'a',
       postcondition: pc(a, 'A2'),
-    }, f.kernel.head()!));
+    }, f.kernel.authorityRevision()!));
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
     assert.equal(projectedB.status, 'DONE');
@@ -144,7 +144,7 @@ test('semantic dependency invalidates downstream when consumed output identity c
     f.kernel.amend({
       id: 'a',
       postcondition: pc(a, 'A2'),
-    }, f.kernel.head()!);
+    }, f.kernel.authorityRevision()!);
     settleFile(f.kernel, 'a', a, 'A2');
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
@@ -182,7 +182,7 @@ test('semantic dependency does not invalidate downstream when selected output id
       id: 'a',
       packet: { producer: 'v2' },
       postcondition: pc(a, 'same-output'),
-    }, f.kernel.head()!);
+    }, f.kernel.authorityRevision()!);
     settleFile(f.kernel, 'a', a, 'same-output');
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
@@ -235,7 +235,7 @@ test('invalidation propagation stops when an intermediary exposes the same selec
       id: 'a',
       packet: { producer: 'v2' },
       postcondition: pc(a, 'same-a-output'),
-    }, f.kernel.head()!);
+    }, f.kernel.authorityRevision()!);
     settleFile(f.kernel, 'a', a, 'same-a-output');
 
     const current = new Map(f.kernel.inspect().map(work => [work.id, work]));
@@ -359,7 +359,7 @@ test('reclassifying control dependency as semantic cannot reuse old completion s
         upstream: 'a',
         consumes: { kind: 'evidence', selector: 'settlement-receipt' },
       }],
-    } as Parameters<GitOvercenterKernel['amend']>[0], f.kernel.head()!);
+    } as Parameters<GitOvercenterKernel['amend']>[0], f.kernel.authorityRevision()!);
 
     const fact = obligationFact(f.repo, amended);
     assert.deepEqual(
@@ -408,7 +408,7 @@ test('rewiring a satisfied control edge does not change downstream semantic iden
       id: 'b',
       dependencies: [{ kind: 'control', upstream: 'c' }],
       postcondition: pc(b, 'B'),
-    }, f.kernel.head()!);
+    }, f.kernel.authorityRevision()!);
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
     assert.equal(projectedB.status, 'DONE');
@@ -458,7 +458,7 @@ test('content-selected semantic dependency can reuse across equivalent producers
         consumes: { kind: 'output', selector: 'verified-content' },
       }],
       postcondition: pc(b, 'B'),
-    }, f.kernel.head()!);
+    }, f.kernel.authorityRevision()!);
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
     assert.equal(projectedB.status, 'DONE');
@@ -481,7 +481,7 @@ test('unsupported semantic selector is rejected before any definition fact is co
       id: 'a',
       postcondition: pc(a, 'A'),
     });
-    const acceptedHead = f.kernel.head();
+    const acceptedHead = f.kernel.authorityRevision();
 
     assert.throws(
       () => defineWithEdges(f.kernel, {
@@ -496,7 +496,7 @@ test('unsupported semantic selector is rejected before any definition fact is co
       /UNSUPPORTED_SEMANTIC_SELECTOR:output:ambient-file/,
     );
 
-    assert.equal(f.kernel.head(), acceptedHead);
+    assert.equal(f.kernel.authorityRevision(), acceptedHead);
     assert.equal(f.kernel.inspect().some(work => work.id === 'b'), false);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
@@ -554,7 +554,7 @@ test('semantic edge declaration order does not change obligation identity', () =
         },
       ],
       postcondition: pc(b, 'B'),
-    }, f.kernel.head()!);
+    }, f.kernel.authorityRevision()!);
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
     assert.equal(projectedB.status, 'DONE');
@@ -605,7 +605,7 @@ test('active exact run fences amendment even when edge semantics are otherwise v
       () => f.kernel.amend({
         id: 'a',
         postcondition: pc(a, 'A2'),
-      }, f.kernel.head()!),
+      }, f.kernel.authorityRevision()!),
       /PROJECT_BUSY|AMEND_WHILE_IN_FLIGHT/,
     );
   } finally {
