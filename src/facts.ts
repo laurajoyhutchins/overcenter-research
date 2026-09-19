@@ -13,7 +13,9 @@ import { validatePostcondition } from './observation.ts';
 import { validateEffectAuthority } from './effect-authority.ts';
 import { validateResultAcceptance } from './realization.ts';
 
-export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
+export const LEGACY_OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
+export const OBLIGATION_SCHEMA='overcenter-git-obligation-v4' as const;
+export type ObligationSchema=typeof LEGACY_OBLIGATION_SCHEMA|typeof OBLIGATION_SCHEMA;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const REALIZATION_SCHEMA='overcenter-git-realization-v1' as const;
@@ -35,16 +37,17 @@ export interface ObligationInput {
 export interface State {
   obligations:Record<string,Obligation>;
   definition_commits:Record<string,string>;
+  legacy_effect_ids?:Record<string,true>;
 }
 
 export type ObligationFact =
   | {
-      schema:typeof OBLIGATION_SCHEMA;
+      schema:ObligationSchema;
       kind:'defined';
       obligation:Obligation;
     }
   | {
-      schema:typeof OBLIGATION_SCHEMA;
+      schema:ObligationSchema;
       kind:'amended';
       obligation:Obligation;
       previous_definition_commit:string;
@@ -147,7 +150,7 @@ export interface FactCommit {
 }
 
 export function emptyState():State {
-  return {obligations:{},definition_commits:{}};
+  return {obligations:{},definition_commits:{},legacy_effect_ids:{}};
 }
 
 export function validateDependencies(dependencies:Dependency[]):void {
