@@ -16,6 +16,9 @@ lean_exe overcenterClaimAdmission where
 lean_exe overcenterClaimAdmissionServer where
   root := `AdmissionServerMain
 
+lean_exe overcenterClaimAdmissionComparisonServer where
+  root := `AdmissionComparisonServerMain
+
 lean_exe overcenterSemanticIdentity where
   root := `SemanticIdentityMain
 
