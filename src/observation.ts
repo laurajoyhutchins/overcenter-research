@@ -32,6 +32,8 @@ const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 const errorMessage=(e:unknown)=>e instanceof Error ? e.message : String(e);
 
 export function validatePostcondition(p: Postcondition): void {
+  if (p?.verifier==='realization-content/v1'
+    && /^[0-9a-f]{64}$/.test(p.expected_sha256)) return;
   if (p?.verifier==='file-content-equals/v1'
     && typeof p.path==='string'
     && typeof p.content==='string') return;
@@ -74,6 +76,15 @@ export function observePostcondition(
   context: ObservationContext,
 ): Observation {
   validatePostcondition(p);
+
+  if (p.verifier==='realization-content/v1') {
+    return {
+      verifier:p.verifier,
+      expected_sha256:p.expected_sha256,
+      mutation_certainty:'uncertain',
+      observation_error:'REALIZATION_CANDIDATE_REQUIRED',
+    };
+  }
 
   if (
     p.verifier==='github-commit-status/v1'
@@ -297,6 +308,13 @@ function assertObservationCoordinate(
     throw new Error('OBSERVATION_VERIFIER_MISMATCH');
   }
 
+  if (postcondition.verifier==='realization-content/v1') {
+    if (observed.expected_sha256!==postcondition.expected_sha256) {
+      throw new Error('OBSERVATION_COORDINATE_MISMATCH');
+    }
+    return;
+  }
+
   if (
     postcondition.verifier==='file-content-equals/v1'
     || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
@@ -380,6 +398,8 @@ export function observationVerified(
 ): boolean {
   assertObservationCoordinate(postcondition,observed);
   if (observed.mutation_certainty!=='present') return false;
+
+  if (postcondition.verifier==='realization-content/v1') return false;
 
   if (
     postcondition.verifier==='file-content-equals/v1'
