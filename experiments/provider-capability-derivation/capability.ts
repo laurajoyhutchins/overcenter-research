@@ -18,13 +18,13 @@ export interface MutationCapabilityFootprint {
   semantic_operation:string;
 
   /**
-   * Current adapter claim: two effects with the same physical resource and
-   * same semantic operation commute.
+   * Current adapter claim: repeating the same semantic operation on this
+   * resource is equivalent for Overcenter's settlement semantics.
    *
-   * This is intentionally carried through rather than silently treating
-   * resource identity as the whole concurrency model.
+   * This is not a claim that the provider's complete mutation history is
+   * identical. It mirrors EffectSemantics.sameDesiredCommutes exactly.
    */
-  same_operation_commutes:boolean;
+  same_operation_equivalent_under_adapter:boolean;
 }
 
 export type CapabilityRelation =
@@ -34,7 +34,7 @@ export type CapabilityRelation =
       right:MutationCapabilityFootprint;
     }
   | {
-      kind:'parallel-commutative';
+      kind:'parallel-adapter-commutative';
       resource:string;
       operation:string;
       left:MutationCapabilityFootprint;
@@ -62,7 +62,7 @@ export function deriveMutationCapabilityFootprint(
   return {
     physical_resource:semantics.resource,
     semantic_operation:semantics.desired,
-    same_operation_commutes:semantics.sameDesiredCommutes,
+    same_operation_equivalent_under_adapter:semantics.sameDesiredCommutes,
   };
 }
 
@@ -81,11 +81,11 @@ export function classifyCapabilityRelation(
   const sameOperation=left.semantic_operation===right.semantic_operation;
   if (
     sameOperation
-    && left.same_operation_commutes
-    && right.same_operation_commutes
+    && left.same_operation_equivalent_under_adapter
+    && right.same_operation_equivalent_under_adapter
   ) {
     return {
-      kind:'parallel-commutative',
+      kind:'parallel-adapter-commutative',
       resource:left.physical_resource,
       operation:left.semantic_operation,
       left,
