@@ -275,6 +275,25 @@ test('execution generation fences a stale permit without changing the claimed re
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
+test('session-bound execution acquisition rejects a stale generation', () => {
+  const f = fixture();
+  try {
+    const path = f.path('session-generation-fence');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
+    const first = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    const second = f.kernel.acquireExecution(first.id, { expectedGeneration: 1 });
+
+    assert.equal(second.execution_generation, 2);
+    assert.throws(
+      () => f.kernel.acquireExecution(first.id, { expectedGeneration: 1 }),
+      /STALE_EXECUTION_SESSION/,
+    );
+
+    const third = f.kernel.acquireExecution(first.id, { expectedGeneration: 2 });
+    assert.equal(third.execution_generation, 3);
+  } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
 test('unresolved effect reservation survives generation handoff until presence settles it', async () => {
   const f = fixture();
   try {
