@@ -204,7 +204,7 @@ Requirements:
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
 - GitHub CLI authentication for `proof:live`.
 
-Runtime configuration is intentionally narrow. Overcenter does not define a general `.env` surface: authority database paths, socket locations, exact revisions, and execution identity are explicit arguments or protocol data. `GITHUB_TOKEN` is the credential spelling used by the GitHub authority CLI. `TLA2TOOLS_JAR` is a developer/formal-proof override only, and its bytes are still checked against the pinned SHA-256 before use. `OVERCENTER_*` variables used inside CI proof harnesses are internal process handoffs, not supported operator configuration.
+Runtime configuration is intentionally narrow. Overcenter does not define a general `.env` surface: authority database paths, socket locations, exact revisions, executor image selection, and execution identity are explicit arguments or protocol data. `GITHUB_TOKEN` is the credential spelling used by the GitHub authority CLI. `TLA2TOOLS_JAR` is a developer/formal-proof override only, and its bytes are still checked against the pinned SHA-256 before use. `OVERCENTER_EXECUTOR_IMAGE` is an internal handoff used only by the production containment proof between its build script and container test; it is not supported operator configuration. Task-scoped variables such as `OVERCENTER_SOURCE_SHA` are explicit `ProcessSpec` data delivered to the contained task, not ambient host configuration.
 
 The focused underlying commands remain available when debugging a particular claim:
 
