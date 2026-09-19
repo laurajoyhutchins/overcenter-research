@@ -202,6 +202,47 @@ A human-created artifact and an agent-created artifact should be equally reusabl
 
 External mutations are a harder case. A provider effect is not a generic cache entry; reuse still requires authoritative observation and effect-specific semantics.
 
+### Project projection contract
+
+The reference implementation has one production projection boundary:
+
+```text
+validated authority history
+  current obligation definitions
+  historical runs
+  projected receipts
+  exact revision
+        +
+recomputed semantic judgments
+  current semantic obligation identity
+  current realization admissibility
+        |
+        v
+deriveProjectProjection(...)
+        |
+        +--> semantic keys
+        +--> realization / lifecycle relations
+        +--> claimability reasons
+        +--> public work state
+        +--> next ready work
+```
+
+No stored `READY`, `BLOCKED`, `EXECUTING`, `WAITING`,
+`RECOVERY_REQUIRED`, or `DONE` value is authoritative.
+
+The semantic obligation key is part of the projection. Therefore public
+`READY` means not only that dependencies are satisfied, but that the exact
+claim identity is derivable now. Claim execution consumes that projected key
+rather than performing a second semantic-identity decision afterward.
+
+Historical settlement is also insufficient by itself for reuse. The projection
+accepts a current realization-admissibility judgment so verifier semantics can
+require fresh observation for mutable external state while allowing stable
+realizations to remain reusable.
+
+Soufflé Datalog is retained as an independent executable oracle for this
+boundary. It is not a runtime dependency.
+
 ## 4. The narrow authority kernel
 
 Most historical facts can accumulate monotonically. A small set of questions cannot.
