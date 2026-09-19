@@ -53,11 +53,20 @@ Lean must:
 5. recursively canonicalize all JSON object keys;
 6. serialize that object into the exact bytes that are hashed.
 
-TypeScript may do exactly one semantic-free final operation:
+TypeScript may provide only a semantic-free SHA-256 primitive over byte strings chosen by Lean.
+
+That primitive may be invoked for nested semantic identities whose **current** representation is itself a SHA-256 digest, and once for the final obligation-key preimage:
 
 ```text
-SHA256(preimage_bytes)
+Lean chooses bytes ──> SHA256(bytes)
+                       ^
+                       |
+                 no structure,
+                 no selector logic,
+                 no canonicalization
 ```
+
+This correction is committed before challenger implementation because the existing GitHub and Kubernetes semantic identity formats are already SHA-256 digests. Requiring exactly one SHA-256 invocation would make exact current-key parity impossible without separately auditioning a Lean SHA-256 implementation.
 
 TypeScript may also remain the differential oracle for the current implementation.
 
@@ -80,7 +89,7 @@ Lean earns the boundary only if all of the following hold:
 4. **No hidden semantic preprocessing.** The caller cannot provide a sorted dependency list, final semantic identity strings, or canonicalized packet/postcondition bytes.
 5. **Fail closed.** Missing or duplicate semantic identities, unsupported semantic selectors, malformed JSON shapes, or unresolved dependencies produce no preimage.
 6. **Generic invariant.** Lean proves that successful preimage construction contains exactly the obligation identity material and only resolved semantic dependencies.
-7. **Only hashing remains outside.** The successful boundary output is the exact byte string consumed directly by SHA-256.
+7. **Only hashing remains outside.** Every byte string passed to SHA-256 is constructed by Lean; TypeScript performs no semantic selection or canonicalization.
 
 ## Canonicalization adversary
 
