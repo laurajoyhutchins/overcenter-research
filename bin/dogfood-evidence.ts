@@ -1,0 +1,373 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+import {
+  PROCESS_SPEC_SCHEMA,
+  assertComputationEvidenceFor,
+  type ComputationExecutionV1,
+  type ProcessSpecV1,
+} from '../src/computation-execution.ts';
+import {
+  TEST_COMPUTATION_PACKET_SCHEMA,
+  runReadyTestComputation,
+  type ComputationExecutor,
+} from '../src/computation-runner.ts';
+import {GitOvercenterKernel} from '../src/git-kernel.ts';
+import {GoExecutorClient} from '../src/go-executor-client.ts';
+
+const repoRoot=fileURLToPath(new URL('../',import.meta.url));
+const image=process.env.OVERCENTER_DOGFOOD_IMAGE;
+if (!image) throw new Error('OVERCENTER_DOGFOOD_IMAGE is required');
+
+function option(name:string):string|null {
+  const index=process.argv.indexOf(name);
+  if (index<0) return null;
+  const value=process.argv[index+1];
+  if (!value || value.startsWith('--')) throw new Error(`${name} requires a value`);
+  return value;
+}
+
+const sourceSha=option('--source-sha')?.toLowerCase();
+if (!sourceSha || !/^[0-9a-f]{40,64}$/.test(sourceSha)) {
+  throw new Error('--source-sha must be an exact Git object id');
+}
+const reportPath=option('--report');
+
+const checkedOutSha=execFileSync(
+  'git',
+  ['-C',repoRoot,'rev-parse','HEAD'],
+  {encoding:'utf8'},
+).trim().toLowerCase();
+if (checkedOutSha!==sourceSha) {
+  throw new Error(
+    `DOGFOOD_CHECKOUT_REVISION_MISMATCH:expected=${sourceSha}:actual=${checkedOutSha}`,
+  );
+}
+
+const scratch=mkdtempSync(join(tmpdir(),'overcenter-self-dogfood-'));
+const workspace=join(scratch,'workspace');
+const attestations=join(scratch,'authority-attestations');
+const control=join(scratch,'control');
+const stateRepo=join(scratch,'state.git');
+mkdirSync(workspace,{recursive:true});
+chmodSync(workspace,0o777);
+mkdirSync(attestations,{recursive:true});
+mkdirSync(control,{recursive:true});
+chmodSync(control,0o750);
+execFileSync('git',['init','--bare',stateRepo],{stdio:'ignore'});
+
+let sequence=0;
+const label=`overcenter.self-dogfood=${process.pid}`;
+const npmCli='/usr/local/lib/node_modules/npm/bin/npm-cli.js';
+
+function docker(args:string[]):string {
+  return execFileSync('docker',args,{encoding:'utf8'});
+}
+
+function processSpec(
+  tier:'regression'|'local',
+):ProcessSpecV1 {
+  return {
+    schema:PROCESS_SPEC_SCHEMA,
+    executable:'/usr/local/bin/node',
+    argv:tier==='regression'
+      ? [npmCli,'test']
+      : [npmCli,'run','proof:local'],
+    cwd:'source',
+    env:{
+      HOME:'/tmp',
+      NPM_CONFIG_CACHE:'/tmp/npm-cache',
+      OVERCENTER_SOURCE_SHA:sourceSha,
+      PATH:'/usr/local/bin:/usr/bin:/bin',
+    },
+    timeout_ms:tier==='regression' ? 180_000 : 600_000,
+    stdout_max_bytes:512*1024,
+    stderr_max_bytes:512*1024,
+  };
+}
+
+interface ExecutorHarness {
+  client:GoExecutorClient;
+  close:()=>Promise<void>;
+  abort:()=>Promise<void>;
+}
+
+async function startExecutor():Promise<ExecutorHarness> {
+  const id=sequence++;
+  const socketPath=join(control,`executor-${id}.sock`);
+  const container=`overcenter-self-dogfood-${process.pid}-${id}`;
+  const gid=process.getgid?.();
+  if (gid===undefined) throw new Error('host gid unavailable');
+
+  docker([
+    'run',
+    '-d',
+    '--name',container,
+    '--label',label,
+    '--network=none',
+    '--entrypoint','/usr/local/bin/overcenter-executor',
+    '-v',`${control}:/control`,
+    '-v',`${workspace}:/workspace`,
+    '-v',`${repoRoot}:/workspace/source:ro`,
+    image,
+    `--socket=/control/executor-${id}.sock`,
+    '--workspace-root=/workspace',
+    '--concurrency=1',
+    '--task-uid=65532',
+    '--task-gid=65532',
+    `--socket-gid=${gid}`,
+  ]);
+
+  const deadline=Date.now()+10_000;
+  while (!existsSync(socketPath) && Date.now()<deadline) {
+    const running=docker([
+      'inspect',
+      '--format',
+      '{{.State.Running}}',
+      container,
+    ]).trim();
+    if (running!=='true') {
+      throw new Error(`dogfood executor exited early: ${docker(['logs',container])}`);
+    }
+    await new Promise(resolve=>setTimeout(resolve,25));
+  }
+  if (!existsSync(socketPath)) throw new Error('dogfood executor socket never appeared');
+
+  const client=new GoExecutorClient({socketPath,maxConcurrency:1});
+  const remove=():void=>{
+    try {
+      execFileSync('docker',['rm',container],{stdio:'ignore'});
+    } catch {
+      // Final label cleanup is the backstop.
+    }
+  };
+
+  return {
+    client,
+    close:async()=>{
+      await client.close();
+      const code=Number.parseInt(docker(['wait',container]).trim(),10);
+      assert.equal(code,0,docker(['logs',container]));
+      remove();
+    },
+    abort:async()=>{
+      try {
+        execFileSync('docker',['kill',container],{stdio:'ignore'});
+      } catch {
+        // The container may already have failed.
+      }
+      try {
+        docker(['wait',container]);
+      } catch {
+        // Removal below is authoritative cleanup.
+      }
+      remove();
+    },
+  };
+}
+
+function attestingExecutor(
+  client:GoExecutorClient,
+  marker:string,
+  content:string,
+):ComputationExecutor {
+  return {
+    execute:async(execution:ComputationExecutionV1)=>{
+      const evidence=await client.execute(execution);
+      assertComputationEvidenceFor(evidence,execution);
+      if (evidence.outcome==='completed' && evidence.exit_code===0) {
+        // This path is intentionally outside every task/container mount. The
+        // task cannot manufacture the postcondition that settles itself.
+        writeFileSync(marker,content);
+      }
+      return evidence;
+    },
+  };
+}
+
+function assertNoEffectReservations():void {
+  const output=execFileSync(
+    'git',
+    ['-C',stateRepo,'rev-list','refs/overcenter/state'],
+    {encoding:'utf8'},
+  ).trim();
+  for (const commit of output.split(/\n+/).filter(Boolean)) {
+    try {
+      execFileSync(
+        'git',
+        ['-C',stateRepo,'cat-file','-e',`${commit}:effect-reservation.json`],
+        {stdio:'ignore'},
+      );
+    } catch {
+      continue;
+    }
+    throw new Error(`pure dogfood computation reserved an external effect at ${commit}`);
+  }
+}
+
+function summarize(kernel:GitOvercenterKernel) {
+  return kernel.inspect().map(work=>({
+    id:work.id,
+    status:work.status,
+    revision:work.revision,
+    ...(work.run_id?{run_id:work.run_id}:{}),
+    ...(work.execution_generation===undefined
+      ? {}
+      : {execution_generation:work.execution_generation}),
+  }));
+}
+
+const regressionMarker=join(attestations,'regression.passed');
+const regressionContent=`passed:regression:${sourceSha}\n`;
+const localMarker=join(attestations,'local.passed');
+const localContent=`passed:local:${sourceSha}\n`;
+
+const kernel=new GitOvercenterKernel(stateRepo);
+kernel.initialize();
+kernel.define({
+  id:'self-regression',
+  packet:{
+    schema:TEST_COMPUTATION_PACKET_SCHEMA,
+    kind:'test',
+    process_spec:processSpec('regression'),
+  },
+  postcondition:{
+    verifier:'file-content-equals/v1',
+    path:regressionMarker,
+    content:regressionContent,
+  },
+});
+kernel.define({
+  id:'self-local-proof',
+  dependencies:[{kind:'control',upstream:'self-regression'}],
+  packet:{
+    schema:TEST_COMPUTATION_PACKET_SCHEMA,
+    kind:'test',
+    process_spec:processSpec('local'),
+  },
+  postcondition:{
+    verifier:'file-content-equals/v1',
+    path:localMarker,
+    content:localContent,
+  },
+});
+
+let executor:ExecutorHarness|null=null;
+try {
+  executor=await startExecutor();
+  const attempted=new Set<string>();
+
+  while (true) {
+    const projection=kernel.inspect();
+    if (projection.every(work=>work.status==='DONE')) break;
+
+    const ready=projection.find(work=>work.status==='READY');
+    if (!ready) {
+      const details=projection.map(work=>({
+        id:work.id,
+        status:work.status,
+        explanation:kernel.explain(work.id),
+      }));
+      throw new Error(`self-dogfood stalled: ${JSON.stringify(details)}`);
+    }
+    if (attempted.has(ready.id)) {
+      throw new Error(
+        `self-dogfood task remained READY after one exact attempt: ${JSON.stringify(kernel.explain(ready.id))}`,
+      );
+    }
+    attempted.add(ready.id);
+
+    const [marker,content]=ready.id==='self-regression'
+      ? [regressionMarker,regressionContent]
+      : ready.id==='self-local-proof'
+        ? [localMarker,localContent]
+        : (()=>{throw new Error(`unexpected dogfood obligation: ${ready.id}`);})();
+
+    const result=await runReadyTestComputation(
+      kernel,
+      attestingExecutor(executor.client,marker,content),
+    );
+    if (!result || result.work_id!==ready.id) {
+      throw new Error('self-dogfood scheduler/executor disagreement');
+    }
+
+    process.stdout.write(JSON.stringify({
+      event:'dogfood-attempt',
+      source_sha:sourceSha,
+      work_id:result.work_id,
+      state:result.state,
+      run_id:result.run_id,
+      execution_generation:result.execution_generation,
+      execution_spec_sha256:result.execution_spec_sha256,
+      attempt_outcome:result.evidence?.outcome??'transport-failure',
+      exit_code:result.evidence?.exit_code??null,
+      settlement_commit:result.receipt.settlement_commit??null,
+    })+'\n');
+
+    if (result.state!=='DONE') {
+      throw new Error(
+        `self-dogfood evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
+      );
+    }
+  }
+
+  assertNoEffectReservations();
+  const authorityHead=kernel.head();
+  assert.ok(authorityHead);
+
+  await executor.close();
+  executor=null;
+
+  const reconstructed=new GitOvercenterKernel(stateRepo);
+  assert.equal(reconstructed.head(),authorityHead);
+  const reconstructedWork=summarize(reconstructed);
+  assert.ok(reconstructedWork.every(work=>work.status==='DONE'));
+  assertNoEffectReservations();
+
+  const receipts=reconstructed.receipts().map(receipt=>({
+    obligation_id:receipt.obligation_id,
+    disposition:receipt.disposition,
+    verified:receipt.verified,
+    run_id:receipt.run_id,
+    execution_generation:receipt.execution_generation,
+    settlement_commit:receipt.settlement_commit??null,
+  }));
+  assert.equal(receipts.length,2);
+  assert.ok(receipts.every(receipt=>receipt.disposition==='DONE' && receipt.verified));
+
+  const report={
+    schema:'overcenter-self-dogfood-v1',
+    source_sha:sourceSha,
+    authority_head:authorityHead,
+    work:reconstructedWork,
+    receipts,
+    reconstructed:true,
+    source_mounted_read_only:true,
+    authority_attestations_outside_task_workspace:true,
+    external_effect_reservations:0,
+  };
+  const serialized=JSON.stringify(report,null,2)+'\n';
+  process.stdout.write(serialized);
+  if (reportPath) writeFileSync(reportPath,serialized);
+} finally {
+  if (executor) await executor.abort();
+  try {
+    const ids=docker(['ps','-aq','--filter',`label=${label}`])
+      .trim().split(/\s+/).filter(Boolean);
+    if (ids.length>0) execFileSync('docker',['rm','-f',...ids],{stdio:'ignore'});
+  } catch {
+    // Best-effort cleanup after the authoritative result has already failed.
+  }
+  rmSync(scratch,{recursive:true,force:true});
+}
