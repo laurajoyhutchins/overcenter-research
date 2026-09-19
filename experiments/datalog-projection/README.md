@@ -38,6 +38,7 @@ append-only durable history             |
 semantic judgments                      |
   current_semantic_key                  |
   observation_judgment                  |
+  current_realization_admissible        |
         |                               |
         +---------------+---------------+
                         |
@@ -81,9 +82,10 @@ as a replacement for the transaction kernel or semantic verifier.
 
 ## Inputs
 
-Durable history inputs are append-only. Two recomputed inputs carry semantic
-judgments owned outside Datalog: current obligation identity and the meaning of
-an observation receipt. Neither is stored lifecycle state.
+Durable history inputs are append-only. Recomputed semantic inputs carry
+judgments owned outside Datalog: current obligation identity, the meaning of an
+observation receipt, and whether a historical realization is admissible *now*.
+None is stored lifecycle state.
 
 ### `definition(obligation, definition_id, ordinal)`
 
@@ -122,6 +124,19 @@ negative evidence is authoritative and accepted by policy. Datalog maps those
 facts to settlement disposition. A missing or contradictory judgment fails
 closed.
 
+### `current_realization_admissible(run_id, obligation)`
+
+A recomputed realization-stability judgment. Exact semantic-key equality plus a
+historical `DONE` receipt is **not** sufficient by itself. Immutable
+realizations may remain admissible indefinitely; mutable external state may
+require fresh authoritative observation. Datalog therefore derives current
+`DONE` only from a matching historical settlement that is also currently
+admissible.
+
+This deliberately follows the stronger target semantics exposed by the Lean
+experiment rather than freezing the current TypeScript stale-mutable-reuse gap
+into another implementation.
+
 The ordinal is a flattened stand-in for the total order already supplied by
 authoritative Git history in the reference mechanism. The experiment does not
 claim that arbitrary unordered event sets are sufficient.
@@ -137,16 +152,16 @@ The program derives:
   observation judgment;
 - the latest receipt for every run;
 - historical runs whose semantic key still matches current meaning;
-- producer-independent exact-key `DONE` reuse;
+- current `DONE` only when a matching settled realization is also currently
+  admissible;
 - current lifecycle;
 - unsatisfied dependencies;
 - public project status;
 - diagnostics for missing or contradictory flattened inputs.
 
-There is intentionally no producer relation. A human, agent, or previous run
-has no semantic privilege here. If its durable realization fact carries the
-same semantic key and its latest receipt is `DONE`, the realization is
-reusable.
+There is intentionally no producer relation. Producer identity has no semantic
+privilege once a realization has been admitted. Reuse depends on exact current
+meaning, accepted settlement evidence, and current realization admissibility.
 
 ## Differential proof
 
@@ -170,7 +185,10 @@ The hostile fixtures cover:
 9. append-only receipt history where later verified evidence supersedes an
    earlier recovery receipt;
 10. missing semantic judgment, contradictory identity, and impossible
-    run-after-`DONE` history all failing closed.
+    run-after-`DONE` history all failing closed;
+11. the known TypeScript mutable-reuse gap: TypeScript still projects historical
+    `DONE`, while Datalog can project `READY` when the semantic layer withdraws
+    current realization admissibility after external drift.
 
 The same-definition identity-change case is the important negative control:
 
@@ -216,9 +234,9 @@ A green run supports a bounded implementation claim:
 
 > For the modeled lifecycle and dependency slice, current project status can be
 > recomputed declaratively from durable history plus normalized semantic
-> judgments, without accepting lifecycle or disposition as input, and agrees
-> with the TypeScript reference mechanism on the tested hostile
-> histories.
+> judgments, without accepting lifecycle or disposition as input. It agrees
+> with TypeScript where their semantics overlap and can represent the stronger
+> fail-closed realization-reuse rule already exercised by Lean.
 
 It does **not** prove the Datalog rules complete for all Overcenter semantics,
 nor that Soufflé should become a production dependency. If the experiment
