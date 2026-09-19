@@ -14,10 +14,10 @@ echo "== positive kernel =="
 
 echo "== hostile negative controls =="
 for source in \
-  "$here/hostile/WrongObligation.fst" \
-  "$here/hostile/StaleRevision.fst" \
-  "$here/hostile/StaleAuthority.fst" \
-  "$here/hostile/ChangedSemantics.fst"
+  "$here/Hostile/WrongObligation.fst" \
+  "$here/Hostile/StaleRevision.fst" \
+  "$here/Hostile/StaleAuthority.fst" \
+  "$here/Hostile/ChangedSemantics.fst"
 do
   "$fstar" "${include[@]}" "$source"
 done
