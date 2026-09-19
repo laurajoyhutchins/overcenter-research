@@ -2,107 +2,77 @@ import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
-import { authorizeEffectRequest } from '../../src/effect-request.ts';
+import {
+  bindTaskSession,
+  executeEffectReady,
+} from '../../src/effect-broker.ts';
 
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`missing ${name}`);
+function required(name:string):string {
+  const value=process.env[name];
+  if (!value) throw new Error('missing '+name);
   return value;
 }
 
-async function github(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = required('GITHUB_TOKEN');
-  return fetch(`https://api.github.com${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  });
+const workflowRunId=required('GITHUB_RUN_ID');
+const workflowRunAttempt=required('GITHUB_RUN_ATTEMPT');
+const sourceSha=required('SOURCE_SHA');
+const token=required('GITHUB_TOKEN');
+const stateRef=githubProofStateRef('disposable-agent');
+const candidateSignal=JSON.parse(
+  readFileSync('candidate/effect-ready.json','utf8'),
+) as unknown;
+
+const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:stateRef});
+const candidates=kernel.inspect().filter(work=>{
+  if (work.status!=='EXECUTING') return false;
+  const executor=work.packet.executor as Record<string,unknown>|undefined;
+  return executor?.provider==='github-actions/v1'
+    && String(executor.workflow_run_id)===workflowRunId
+    && String(executor.workflow_run_attempt)===workflowRunAttempt
+    && executor.job==='agent-a';
+});
+assert.equal(candidates.length,1);
+const work=candidates[0];
+assert.equal(work.postcondition.verifier,'github-commit-status/v1');
+if (work.postcondition.verifier!=='github-commit-status/v1') {
+  throw new Error('WRONG_VERIFIER');
 }
+assert.equal(work.postcondition.commit_sha,sourceSha);
 
-const workflowRunId = required('GITHUB_RUN_ID');
-const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
-const sourceSha = required('SOURCE_SHA');
-const stateRef = githubProofStateRef('disposable-agent');
+const session=bindTaskSession(work);
+const attempt=await executeEffectReady(
+  kernel,
+  session,
+  candidateSignal,
+  {githubToken:token},
+);
+assert.equal(attempt.session.run_id,work.run_id);
+assert.equal(attempt.effect.commit_sha,sourceSha);
+assert.equal(attempt.effect.context,work.postcondition.context);
+assert.equal(attempt.effect.state,work.postcondition.expected_state);
+assert.equal(attempt.broker_execution_generation,2);
 
-const candidateRequest=JSON.parse(readFileSync('candidate/effect-request.json','utf8')) as unknown;
-
-const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });
-const candidates = kernel.inspect().filter(work => {
-  if (work.status !== 'EXECUTING') return false;
-  const executor = work.packet.executor as Record<string, unknown> | undefined;
-  return executor?.provider === 'github-actions/v1'
-    && String(executor.workflow_run_id) === workflowRunId
-    && String(executor.workflow_run_attempt) === workflowRunAttempt
-    && executor.job === 'agent-a';
-});
-assert.equal(candidates.length, 1, `expected one exact unresolved execution, found ${candidates.length}`);
-const work = candidates[0];
-assert.ok(work.run_id);
-const authorizedRequest=authorizeEffectRequest(work,candidateRequest);
-const declaredEffect=authorizedRequest.effect as Record<string,unknown>;
-
-assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
-if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
-assert.deepEqual(declaredEffect, {
-  kind: 'github-commit-status/v1',
-  repository_id: work.postcondition.repository_id,
-  commit_sha: work.postcondition.commit_sha,
-  context: work.postcondition.context,
-  state: work.postcondition.expected_state,
-});
-assert.equal(work.postcondition.commit_sha, sourceSha);
-
-const permit = kernel.acquireExecution(work.run_id);
-assert.equal(permit.execution_generation, 2);
-
-await kernel.performEffect(permit, async () => {
-  const repositoryIdentity = await github(`/repositories/${work.postcondition.repository_id}`);
-  if (!repositoryIdentity.ok) {
-    throw new Error(`repository identity read failed: ${repositoryIdentity.status}`);
-  }
-  const repository = await repositoryIdentity.json() as { id: number; full_name: string };
-  assert.equal(repository.id, work.postcondition.repository_id);
-
-  const status = await github(
-    `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        state: work.postcondition.expected_state,
-        context: work.postcondition.context,
-        description: 'Overcenter trusted effect broker',
-      }),
-    },
-  );
-  if (status.status !== 201) {
-    throw new Error(`status creation failed ${status.status}: ${await status.text()}`);
-  }
-});
-
-const summary = process.env.GITHUB_STEP_SUMMARY;
+const summary=process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
-  appendFileSync(summary, [
+  appendFileSync(summary,[
     '## Trusted effect broker',
     '',
-    `- Validated exact effect request for obligation \`${work.id}\`.`,
-    `- Acquired execution generation \`${permit.execution_generation}\`.`,
+    '- Consumed only a run-bound effect-ready signal.',
+    '- Reconstructed the task session from trusted workflow identity and authoritative project state.',
+    '- Derived the provider mutation from the authoritative postcondition.',
     '- Durably reserved the effect before the provider mutation.',
-    `- Wrote exactly the declared status context \`${work.postcondition.context}\`.`,
     '- Broker now terminates before settlement to force fresh-generation recovery.',
     '',
   ].join('\n'));
 }
 
 console.log(JSON.stringify({
-  obligation_id: work.id,
-  run_id: work.run_id,
-  execution_generation: permit.execution_generation,
-  effect: declaredEffect,
+  obligation_id:work.id,
+  run_id:work.run_id,
+  worker_signal:candidateSignal,
+  broker_execution_generation:attempt.broker_execution_generation,
+  effect:attempt.effect,
+  evidence:attempt.evidence,
 }));
 
 process.exit(86);
