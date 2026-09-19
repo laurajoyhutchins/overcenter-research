@@ -38,9 +38,6 @@ let settled_from_human : settlement =
 let settled_from_prior_run : settlement =
   settle obligation_a prior_run_evidence
 
-let same_evidence_new_producer : bound_evidence obligation_a =
-  reattribute obligation_a agent_evidence Human
-
 let raw_agent_evidence : evidence = {
   key = key_a;
   producer = Agent
