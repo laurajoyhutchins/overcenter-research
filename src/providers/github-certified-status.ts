@@ -5,7 +5,7 @@ import {
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './github-contract.ts';
 import { GITHUB_COMMIT_STATUSES_OPERATION } from './github-operations.generated.ts';
-import { materializeGithubOperationRequest } from './github-openapi.ts';
+import { scanGithubPageCollection } from './github-page-collection.ts';
 import { GITHUB_COMMIT_STATUS_RESPONSE_SLICE } from './github-semantics.ts';
 import {
   observeCertifiedGithubRepository,
@@ -42,7 +42,7 @@ export interface CertifiedGithubStatusEvidence {
 
 export interface CertifiedGithubCommitStatusResult {
   state:'present'|'indeterminate';
-  reason:'AUTHORITATIVE_COLLECTION_MEMBER_MATCHES'|'COLLECTION_ABSENCE_NOT_AUTHORITATIVE';
+  reason:'AUTHORITATIVE_COLLECTION_MEMBER_MATCHES'|'COLLECTION_ABSENCE_NOT_AUTHORITATIVE'|'COLLECTION_SCAN_LIMIT_REACHED';
   repository_full_name:string;
   actual_state?:'error'|'failure'|'pending'|'success';
   evidence:CertifiedGithubStatusEvidence;
@@ -113,84 +113,76 @@ export function observeCertifiedGithubCommitStatus(
   const {owner,repo}=repository.fact.object;
   const canonicalFullName=repository.fact.object.full_name;
   const target=githubStatusContextKey(context);
-  const pages:CertifiedGithubStatusPageEvidence[]=[];
-
-  for (let page=1;page<=1000;page+=1) {
-    const perPage=100;
-    const request=materializeGithubOperationRequest(GITHUB_COMMIT_STATUSES_OPERATION,{
-      owner,
-      repo,
-      ref:commitSha,
-      per_page:perPage,
-      page,
-    });
-    const body=get(token,request.path);
-    const observedAt=clock();
-    const raw=rawGithubObserved200({
-      operation:GITHUB_COMMIT_STATUSES_OPERATION,
-      path:request.path,
-      parameters:request.parameters,
-      body,
-      observedAt,
-      observerId:'github-commit-status/v2',
-    });
-    const certified=certifiedMembers(raw);
-    pages.push({
-      page,
-      member_count:certified.members.length,
-      observed_at:observedAt,
-      validated_paths:certified.validated_paths,
-      optional_absent_paths:certified.optional_absent_paths,
-    });
-
-    const match=certified.members.find(
-      member=>githubStatusContextKey(member.context)===target,
-    );
-    if (match) {
+  const scan=scanGithubPageCollection<StatusMember,Omit<CertifiedGithubStatusPageEvidence,'page'|'member_count'>>({
+    operation:GITHUB_COMMIT_STATUSES_OPERATION,
+    parameters:{owner,repo,ref:commitSha},
+    readPage:({request})=>{
+      const body=get(token,request.path);
+      const observedAt=clock();
+      const raw=rawGithubObserved200({
+        operation:GITHUB_COMMIT_STATUSES_OPERATION,
+        path:request.path,
+        parameters:request.parameters,
+        body,
+        observedAt,
+        observerId:'github-commit-status/v2',
+      });
+      const certified=certifiedMembers(raw);
       return {
-        state:'present',
-        reason:'AUTHORITATIVE_COLLECTION_MEMBER_MATCHES',
-        repository_full_name:canonicalFullName,
-        actual_state:match.state,
+        members:certified.members,
         evidence:{
-          provider:'github',
-          api_version:GITHUB_API_VERSION,
-          schema_sha256:GITHUB_OPENAPI_SHA256,
-          schema_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
-          observer:{kind:'git-kernel',id:'github-commit-status/v2'},
-          repository_id:repositoryId,
-          requested_repository_full_name:repositoryFullName,
-          repository:repository.evidence,
-          commit_sha:commitSha,
-          status_operation_id:'repos/list-commit-statuses-for-ref',
-          pages,
+          observed_at:observedAt,
+          validated_paths:certified.validated_paths,
+          optional_absent_paths:certified.optional_absent_paths,
         },
       };
-    }
+    },
+    matches:member=>githubStatusContextKey(member.context)===target,
+  });
+  const pages=scan.pages;
 
-    if (certified.members.length<perPage) {
-      return {
-        state:'indeterminate',
-        reason:'COLLECTION_ABSENCE_NOT_AUTHORITATIVE',
-        repository_full_name:canonicalFullName,
-        evidence:{
-          provider:'github',
-          api_version:GITHUB_API_VERSION,
-          schema_sha256:GITHUB_OPENAPI_SHA256,
-          schema_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
-          observer:{kind:'git-kernel',id:'github-commit-status/v2'},
-          repository_id:repositoryId,
-          requested_repository_full_name:repositoryFullName,
-          repository:repository.evidence,
-          commit_sha:commitSha,
-          status_operation_id:'repos/list-commit-statuses-for-ref',
-          pages,
-        },
-      };
-    }
+  if (scan.state==='matched') {
+    return {
+      state:'present',
+      reason:'AUTHORITATIVE_COLLECTION_MEMBER_MATCHES',
+      repository_full_name:canonicalFullName,
+      actual_state:scan.match.state,
+      evidence:{
+        provider:'github',
+        api_version:GITHUB_API_VERSION,
+        schema_sha256:GITHUB_OPENAPI_SHA256,
+        schema_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
+        observer:{kind:'git-kernel',id:'github-commit-status/v2'},
+        repository_id:repositoryId,
+        requested_repository_full_name:repositoryFullName,
+        repository:repository.evidence,
+        commit_sha:commitSha,
+        status_operation_id:'repos/list-commit-statuses-for-ref',
+        pages,
+      },
+    };
   }
 
-  throw new Error('GITHUB_STATUS_PAGINATION_EXHAUSTED');
+  return {
+    state:'indeterminate',
+    reason:scan.state==='limit-reached'
+      ? 'COLLECTION_SCAN_LIMIT_REACHED'
+      : 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE',
+    repository_full_name:canonicalFullName,
+    evidence:{
+      provider:'github',
+      api_version:GITHUB_API_VERSION,
+      schema_sha256:GITHUB_OPENAPI_SHA256,
+      schema_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
+      observer:{kind:'git-kernel',id:'github-commit-status/v2'},
+      repository_id:repositoryId,
+      requested_repository_full_name:repositoryFullName,
+      repository:repository.evidence,
+      commit_sha:commitSha,
+      status_operation_id:'repos/list-commit-statuses-for-ref',
+      pages,
+    },
+  };
 }
 
 export { GITHUB_COMMIT_STATUSES_OPERATION } from './github-operations.generated.ts';
