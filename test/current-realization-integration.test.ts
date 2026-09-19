@@ -93,7 +93,7 @@ test('mutable historical DONE is current only while fresh reality still verifies
   }
 });
 
-test('fresh verified reality can satisfy an obligation with no producer run',()=>{
+test('ambient verified state does not mint key-bound realization provenance',()=>{
   const f=fixture();
   try {
     const path=f.path('already-present');
@@ -103,16 +103,16 @@ test('fresh verified reality can satisfy an obligation with no producer run',()=
       postcondition:{verifier:'file-content-equals/v1',path,content:'A'},
     });
 
-    const satisfied=f.kernel.inspect()[0];
-    assert.equal(satisfied.status,'DONE');
-    assert.equal(satisfied.run_id,undefined);
-    assert.equal(satisfied.source_run_id,undefined);
-    assert.equal(f.kernel.deriveReadyWork(),null);
+    const projected=f.kernel.inspect()[0];
+    assert.equal(projected.status,'READY');
+    assert.equal(projected.run_id,undefined);
+    assert.equal(projected.source_run_id,undefined);
 
-    unlinkSync(path);
-    assert.equal(f.kernel.inspect()[0].status,'READY');
-    const retry=f.kernel.claim('x',f.kernel.deriveReadyWork()!.revision);
-    assert.equal(f.kernel.inspect()[0].run_id,retry.id);
+    const ready=f.kernel.deriveReadyWork();
+    assert.ok(ready);
+    const run=f.kernel.claim('x',ready.revision);
+    assert.equal(f.kernel.inspect()[0].status,'EXECUTING');
+    assert.equal(f.kernel.inspect()[0].run_id,run.id);
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
