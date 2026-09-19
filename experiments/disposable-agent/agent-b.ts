@@ -38,6 +38,7 @@ assert.equal(candidates.length, 1, `expected one exact unresolved execution, fou
 const work = candidates[0];
 assert.ok(work.run_id);
 assert.equal(work.execution_generation, 2);
+assert.equal(kernel.hasUnresolvedEffect(work.run_id), true);
 assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
 if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha, sourceSha, 'settlement input identity drifted');
@@ -64,6 +65,7 @@ assert.equal(settled.observed?.actual_state, 'success');
 
 const final = kernel.inspect().find(candidate => candidate.id === work.id);
 assert.equal(final?.status, 'DONE');
+assert.equal(kernel.hasUnresolvedEffect(work.run_id), false);
 
 const receipts = kernel.receipts(work.run_id);
 assert.deepEqual(receipts.map(receipt => receipt.disposition), ['RECOVERY_REQUIRED', 'DONE']);

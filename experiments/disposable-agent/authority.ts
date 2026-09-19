@@ -1,6 +1,9 @@
 import { githubProofStateRef } from '../proof-environment.ts';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { canonicalDigest } from '../../src/digest.ts';
+import { bindTaskSession } from '../../src/effect-broker.ts';
+import { githubCommitStatusEffectAuthority } from '../../src/provider-effect.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -32,6 +35,11 @@ if (!Number.isSafeInteger(repositoryInfo.id)) throw new Error('REPOSITORY_ID_UNA
 
 const proofId = `actions-trust-proof-${workflowRunId}-${workflowRunAttempt}`;
 const context = `overcenter/trust-proof/${workflowRunId}/${workflowRunAttempt}`;
+const acceptedWorkerResult = {
+  kind: 'github-actions-worker-result/v1',
+  obligation_id: proofId,
+  source_sha: sourceSha,
+};
 
 const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });
 kernel.initialize();
@@ -68,11 +76,20 @@ kernel.define({
     context,
     expected_state: 'success',
   },
+  effect_authority: githubCommitStatusEffectAuthority(),
+  result_acceptance: {
+    verifier: 'canonical-json-sha256/v1',
+    expected_sha256: canonicalDigest(acceptedWorkerResult),
+  },
 });
 
 const work = kernel.inspect().find(candidate => candidate.id === proofId);
 if (!work) throw new Error('PROOF_OBLIGATION_MISSING');
 const run = kernel.claim(work.id, work.revision);
+const executing = kernel.inspect().find(candidate => candidate.id === proofId);
+if (!executing) throw new Error('EXECUTING_OBLIGATION_MISSING');
+const session = bindTaskSession(executing);
+writeFileSync('task-session.json', `${JSON.stringify(session, null, 2)}\n`);
 
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
@@ -85,6 +102,8 @@ if (summary) {
     `- Authority ref: \`${stateRef}\``,
     `- Claim commit: \`${run.claim_commit}\``,
     `- Run: \`${run.id}\``,
+    `- Dispatch session generation: \`${session.execution_generation}\``,
+    `- Dispatch authority commit: \`${session.execution_authority_commit}\``,
     '- The disposable executor has not started yet.',
     '',
   ].join('\n'));
@@ -96,5 +115,8 @@ console.log(JSON.stringify({
   exact_input: sourceSha,
   run_id: run.id,
   claim_commit: run.claim_commit,
+  task_session: session,
+  result_acceptance: executing.result_acceptance,
+  effect_authority: executing.effect_authority,
   verifier: work.postcondition,
 }));
