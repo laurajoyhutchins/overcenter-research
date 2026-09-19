@@ -56,7 +56,7 @@ def currentFromExecution (run : RealizationRun) : CurrentRealization :=
   | .executing => { lifecycle := .executing, sourceRunId := some run.runId }
   | .waiting => { lifecycle := .waiting, sourceRunId := some run.runId }
   | .recoveryRequired => { lifecycle := .recoveryRequired, sourceRunId := some run.runId }
-  | .done => { lifecycle := .done, sourceRunId := some run.runId }
+  | .done => { lifecycle := .unrealized }
   | .ready => { lifecycle := .unrealized }
 
 def producerIndependentFresh
