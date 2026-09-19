@@ -93,8 +93,10 @@ private def relationNamesJson : Json :=
     Json.str "semantic-settlement-receipt"
   ]
 
+private def natJson (value : Nat) : Json := value
+
 private def edgeIndexJson (entry : GraphTensorEntry) : Json :=
-  Json.arr #[toJson entry.sourceIndex, toJson entry.targetIndex]
+  Json.arr #[natJson entry.sourceIndex, natJson entry.targetIndex]
 
 private def projectJson (projection : GraphTensorProjection) : Json :=
   Json.mkObj [
@@ -105,7 +107,7 @@ private def projectJson (projection : GraphTensorProjection) : Json :=
     ("edge_index", Json.arr (projection.entries.map edgeIndexJson).toArray),
     ("edge_type", Json.arr
       (projection.entries.map (fun entry =>
-        toJson (graphTensorRelationCode entry.relation))).toArray)
+        natJson (graphTensorRelationCode entry.relation))).toArray)
   ]
 
 private def handleProject (request : Json) : Except String Json := do
