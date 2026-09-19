@@ -80,7 +80,8 @@ export interface CanonicalResultAcceptance {
 export type ResultAcceptance = CanonicalResultAcceptance;
 
 export interface WorkerResultEnvelope extends Data {
-  schema: 'overcenter-worker-result-v1';
+  schema: 'overcenter-worker-result-v2';
+  task_session_sha256: string;
   result: Data;
 }
 

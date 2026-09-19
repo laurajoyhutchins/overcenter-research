@@ -44,7 +44,8 @@ function defineEffect(kernel:OvercenterKernel,id:string,{effect=true}:{effect?:b
   kernel.claim(id,ready.revision);
   const work=kernel.inspect().find(candidate=>candidate.id===id);
   assert.ok(work);
-  return {work,session:bindTaskSession(work),result:workerResult(result)};
+  const session=bindTaskSession(work);
+  return {work,session,result:workerResult(session,result)};
 }
 
 function fakeGithub() {
@@ -83,7 +84,7 @@ test('effect authority requires deterministic result acceptance',()=>{
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });
 
-test('dispatch-bound session cannot inherit rotated authority',()=>{
+test('dispatch-bound session and result cannot inherit rotated authority',()=>{
   const f=fixture();
   try {
     const task=defineEffect(f.kernel,'stale-session');
@@ -91,6 +92,15 @@ test('dispatch-bound session cannot inherit rotated authority',()=>{
     assert.throws(
       ()=>f.kernel.acceptRealization(task.session,task.result),
       /TASK_SESSION_STALE/,
+    );
+
+    const successorWork=f.kernel.inspect().find(work=>work.id==='stale-session');
+    assert.ok(successorWork);
+    const successorSession=bindTaskSession(successorWork);
+    assert.equal(successorSession.execution_generation,2);
+    assert.throws(
+      ()=>f.kernel.acceptRealization(successorSession,task.result),
+      /WORKER_RESULT_SESSION_MISMATCH/,
     );
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });

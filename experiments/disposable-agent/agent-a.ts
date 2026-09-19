@@ -112,7 +112,7 @@ const acceptedResult = {
 };
 writeFileSync(
   'worker-result.json',
-  `${JSON.stringify(workerResult(acceptedResult), null, 2)}\n`,
+  `${JSON.stringify(workerResult(trustedSession, acceptedResult), null, 2)}\n`,
 );
 
 // The worker may corrupt its downloaded copy, but the broker receives the
