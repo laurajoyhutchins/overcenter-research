@@ -8,5 +8,4 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/overcenter-executor /usr/local/bin/overcenter-executor
-COPY test/fixtures/self-dogfood.mjs /dogfood-task.mjs
 ENTRYPOINT ["/usr/local/bin/overcenter-executor"]
