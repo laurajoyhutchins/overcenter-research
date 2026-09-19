@@ -1,28 +1,15 @@
-; Intentionally a tiny declarative language, not arbitrary executable Lisp.
-; One semantic definition should replace several independently maintained
-; TypeScript interpretations.
+; Tiny semantic declaration. Roles are declared once and projected mechanically.
 
-(defverifier artifact-content-at-revision/v1
+(defverifier artifact-content-at-coordinate/v1
   (fields
-    (artifact string material)
-    (source-revision digest material)
-    (expected-sha256 digest material))
+    (artifact string coordinate)
+    (source-revision digest coordinate)
+    (expected-sha256 digest desired output))
 
   (observes
     (observed-sha256 digest))
 
-  (identity
-    verifier-version
-    artifact
-    source-revision
-    expected-sha256)
-
-  (output verified-content expected-sha256)
-
-  (absence artifact-enoent-at-revision/v1)
-
-  (effect none)
-
+  (absence artifact-enoent-at-coordinate/v1)
+  (effect same-coordinate commutes true)
   (settlement present-or-declared-absence)
-
-  (verify eq observed-sha256 expected-sha256))
+  (verify eq observed-sha256 desired))
