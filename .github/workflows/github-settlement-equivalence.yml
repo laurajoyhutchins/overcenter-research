@@ -9,6 +9,12 @@ on:
       - "experiments/github-settlement-equivalence/**"
       - "src/**"
       - ".node-version"
+  pull_request:
+    paths:
+      - ".github/workflows/github-settlement-equivalence.yml"
+      - "experiments/github-settlement-equivalence/**"
+      - "src/**"
+      - ".node-version"
   workflow_dispatch:
 
 permissions: {}
@@ -16,6 +22,7 @@ permissions: {}
 jobs:
   prove:
     name: Physically distinct writes, identical settlement truth
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -29,7 +36,7 @@ jobs:
       - name: Run live provider proof
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
