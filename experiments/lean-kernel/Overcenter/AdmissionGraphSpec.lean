@@ -68,7 +68,7 @@ private theorem findClaimObligation_id_exact
   have hp :
       (fun candidate : ClaimObligation => candidate.id == id) obligation =
         true :=
-    List.find?_some hfind
+    (List.find?_eq_some_iff_append.mp hfind).1
   simpa using hp
 
 theorem claimTopologicalCertificateBuildValid_sound
@@ -119,7 +119,7 @@ theorem claimTopologicalCertificateBuildValid_sound
             (findClaimObligation_mem hfind)
             (findClaimObligation_id_exact hfind)
             dependencies_precede
-            (ih parts.2)
+            (ih (id :: seen) parts.2)
 
 theorem claimTopologicalCertificateValid_sound
     (ctx : ClaimContext)
