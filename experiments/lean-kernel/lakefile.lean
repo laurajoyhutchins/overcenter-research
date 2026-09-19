@@ -12,3 +12,6 @@ lean_exe overcenterKernel where
 
 lean_exe overcenterClaimAdmission where
   root := `AdmissionMain
+
+lean_exe overcenterSemanticIdentity where
+  root := `SemanticIdentityMain
