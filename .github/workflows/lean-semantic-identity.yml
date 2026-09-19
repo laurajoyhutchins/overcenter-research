@@ -70,6 +70,10 @@ jobs:
           node --experimental-strip-types --test
           experiments/semantic-kernel-language-comparison/semantic-identity-differential.test.ts
 
+      - name: Build parent claim-admission executable
+        working-directory: experiments/lean-kernel
+        run: lake build overcenterClaimAdmission
+
       - name: Parent claim-admission differential
         run: >-
           node --experimental-strip-types --test
