@@ -8,7 +8,7 @@ export const PRODUCTION_COMPUTATION_CONTAINMENT = {
   pids_limit:64,
   memory_bytes:512*1024*1024,
   memory_swap_bytes:512*1024*1024,
-  nano_cpus:2_000_000_000,
+  nano_cpus:1_000_000_000,
   nofile:256,
   file_size_bytes:64*1024*1024,
   task_uid:65532,
