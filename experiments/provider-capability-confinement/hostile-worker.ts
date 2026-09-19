@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
-import { expectedEffectRequest } from '../../src/effect-request.ts';
+import { effectReadySignal } from '../../src/execution-signal.ts';
 import { githubProofStateRef } from '../proof-environment.ts';
 
 function required(name:string):string {
@@ -42,12 +42,19 @@ assert.equal(candidates.length,1);
 const work=candidates[0];
 assert.equal(work.execution_generation,1);
 assert.equal(work.postcondition.verifier,'github-commit-status/v1');
-if (work.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
+if (work.postcondition.verifier!=='github-commit-status/v1') {
+  throw new Error('WRONG_VERIFIER');
+}
 assert.equal(work.postcondition.commit_sha,sourceSha);
 
-const repositoryResponse=await github('/repositories/'+work.postcondition.repository_id);
+const repositoryResponse=await github(
+  '/repositories/'+work.postcondition.repository_id,
+);
 assert.equal(repositoryResponse.status,200);
-const repository=await repositoryResponse.json() as {id:number;full_name:string};
+const repository=await repositoryResponse.json() as {
+  id:number;
+  full_name:string;
+};
 assert.equal(repository.id,work.postcondition.repository_id);
 
 const directContexts=[
@@ -68,50 +75,45 @@ for (const context of directContexts) {
     },
   );
   directStatuses.push(response.status);
-  assert.equal(response.status,403,'worker unexpectedly mutated provider at '+context);
+  assert.equal(
+    response.status,
+    403,
+    'worker unexpectedly mutated provider at '+context,
+  );
 }
 
-const valid=expectedEffectRequest(work);
+const valid=effectReadySignal();
 const variants:Record<string,unknown>={
   valid,
-  'wrong-obligation':{...structuredClone(valid),obligation_id:'other-obligation'},
-  'wrong-run':{...structuredClone(valid),run_id:'other-run'},
-  'wrong-revision':{...structuredClone(valid),claimed_revision:'forged-revision'},
-  'wrong-repository':{
-    ...structuredClone(valid),
-    effect:{...structuredClone(valid.effect),repository_id:work.postcondition.repository_id+1},
+  'target-run':{...valid,run_id:'some-other-run'},
+  'target-obligation':{...valid,obligation_id:'some-other-obligation'},
+  'target-revision':{...valid,claimed_revision:'forged-revision'},
+  'target-repository':{...valid,repository_id:work.postcondition.repository_id+1},
+  'target-commit':{...valid,commit_sha:'0'.repeat(40)},
+  'target-context':{...valid,context:work.postcondition.context+'/forged'},
+  'target-state':{...valid,state:'failure'},
+  'smuggled-effect':{
+    ...valid,
+    effect:{
+      kind:'github-commit-status/v1',
+      repository_id:work.postcondition.repository_id,
+      commit_sha:work.postcondition.commit_sha,
+      context:work.postcondition.context+'/forged',
+      state:'failure',
+    },
   },
-  'wrong-commit':{
-    ...structuredClone(valid),
-    effect:{...structuredClone(valid.effect),commit_sha:'0'.repeat(40)},
-  },
-  'wrong-context':{
-    ...structuredClone(valid),
-    effect:{...structuredClone(valid.effect),context:work.postcondition.context+'/forged'},
-  },
-  'wrong-state':{
-    ...structuredClone(valid),
-    effect:{...structuredClone(valid.effect),state:'failure'},
-  },
-  'wrong-kind':{
-    ...structuredClone(valid),
-    effect:{...structuredClone(valid.effect),kind:'github-commit-status/v9'},
-  },
-  'extra-field':{
-    ...structuredClone(valid),
-    smuggled_provider_argument:'surprise',
-  },
+  'extra-field':{...valid,smuggled_provider_argument:'surprise'},
 };
 
-mkdirSync('candidate-requests',{recursive:true});
+mkdirSync('candidate-signals',{recursive:true});
 for (const [name,value] of Object.entries(variants)) {
   writeFileSync(
-    'candidate-requests/'+name+'.json',
+    'candidate-signals/'+name+'.json',
     JSON.stringify(value,null,2)+'\n',
   );
 }
 writeFileSync(
-  'candidate-requests/worker-proof.json',
+  'candidate-signals/worker-proof.json',
   JSON.stringify({
     direct_provider_statuses:directStatuses,
     direct_contexts:directContexts,
@@ -126,8 +128,8 @@ if (summary) {
     '- Job permission: contents read only.',
     '- Direct mutation of authorized context: HTTP '+directStatuses[0]+'.',
     '- Direct mutation of forged context: HTTP '+directStatuses[1]+'.',
-    '- Emitted '+Object.keys(variants).length+' candidate request files, including hand-forged coordinate/state/run variants.',
-    '- Worker possesses neither the broker token nor the kernel execution capability secret.',
+    '- Emitted one legal effect-ready signal plus nine attempts to smuggle authority-bearing fields.',
+    '- Legal signal contains no run, obligation, revision, repository, commit, context, state, or effect payload.',
     '',
   ].join('\n'));
 }

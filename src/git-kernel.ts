@@ -208,12 +208,21 @@ export class GitOvercenterKernel {
     };
   }
 
-  acquireExecution(runId:string):ExecutionPermit {
+  acquireExecution(
+    runId:string,
+    {expectedGeneration}:{expectedGeneration?:number}={},
+  ):ExecutionPermit {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
       const {history}=this.#projection(head);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
+      if (
+        expectedGeneration!==undefined
+        && run.execution_generation!==expectedGeneration
+      ) {
+        throw new Error('STALE_EXECUTION_SESSION');
+      }
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','READY'].includes(prior.disposition)) {
         throw new Error('RUN_ALREADY_TERMINAL');

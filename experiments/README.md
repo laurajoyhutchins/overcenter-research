@@ -19,7 +19,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `fstar-settlement-kernel/` - proof-bound settlement evidence and producer-independent realization reuse in F*.
 - `fstar-pulse-capability-concurrency/` - separation-logic proof that disjoint mutation authority may run concurrently while aliasing one exclusive capability fails.
 - `provider-capability-derivation/` - derives physical effect footprints and semantic compatibility from production provider semantics, then cross-checks graph admission.
-- `provider-capability-confinement/` - proves the reasoning worker lacks provider mutation credentials while a trusted broker rejects forged task requests, executes one authority-derived mutation, and blocks replay.
+- `provider-capability-confinement/` - proves the worker has no provider mutation credential and can emit only a run-bound effect-ready signal; the trusted broker derives the effect from authority, fences stale sessions, executes once, and blocks replay.
 - `settlement-equivalence-witness/` - binds unordered same-resource execution to exact observation/settlement equivalence evidence.
 - `github-settlement-equivalence/` - live provider proof that physically distinct same-state GitHub status writes derive the same settlement truth while mixed states remain order-sensitive.
 
