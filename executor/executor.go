@@ -17,6 +17,11 @@ type executionJob struct {
 	cancel    context.CancelFunc
 }
 
+type executionCompletion struct {
+	key      string
+	evidence ComputationAttemptEvidenceV1
+}
+
 type Runtime struct {
 	workspaceRoot  string
 	maxConcurrency int
@@ -67,7 +72,7 @@ func (runtime *Runtime) Serve(ctx context.Context, input io.Reader, output io.Wr
 
 	jobs := make(chan executionJob)
 	results := make(chan ComputationAttemptEvidenceV1, runtime.maxConcurrency)
-	done := make(chan string, runtime.maxConcurrency)
+	completed := make(chan executionCompletion, runtime.maxConcurrency)
 
 	var workers sync.WaitGroup
 	for worker := 0; worker < runtime.maxConcurrency; worker++ {
@@ -78,11 +83,7 @@ func (runtime *Runtime) Serve(ctx context.Context, input io.Reader, output io.Wr
 				evidence := runProcess(job.ctx, runtime.workspaceRoot, job.validated)
 				job.cancel()
 				select {
-				case results <- evidence:
-				case <-runtimeCtx.Done():
-				}
-				select {
-				case done <- job.key:
+				case completed <- executionCompletion{key: job.key, evidence: evidence}:
 				case <-runtimeCtx.Done():
 				}
 			}
@@ -117,11 +118,18 @@ func (runtime *Runtime) Serve(ctx context.Context, input io.Reader, output io.Wr
 				serveErr = runtimeCtx.Err()
 			}
 			commandsOpen = false
-		case key := <-done:
-			if cancel, exists := running[key]; exists {
+		case completion := <-completed:
+			if cancel, exists := running[completion.key]; exists {
 				cancel()
-				delete(running, key)
+				delete(running, completion.key)
 				inflight--
+			}
+			// Capacity is released before evidence becomes externally visible.
+			// A client that immediately submits replacement work after receiving
+			// this evidence therefore cannot race stale server-side inflight state.
+			select {
+			case results <- completion.evidence:
+			case <-runtimeCtx.Done():
 			}
 		case command, ok := <-commands:
 			if !ok {
