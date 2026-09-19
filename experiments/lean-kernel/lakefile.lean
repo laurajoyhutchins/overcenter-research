@@ -18,3 +18,6 @@ lean_exe overcenterSemanticIdentity where
 
 lean_exe overcenterObligationKeyPreimage where
   root := `KeyPreimageMain
+
+lean_exe overcenterRealizationProjection where
+  root := `RealizationProjectionMain
