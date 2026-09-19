@@ -15,6 +15,7 @@ import {
   type StaticEffectConflict,
 } from './admission.ts';
 import { obligationKey } from './semantic-identity.ts';
+import type { CurrentRealizationJudgment } from './realization-admissibility.ts';
 
 export type RealizationStatus =
   | 'UNREALIZED'
@@ -71,6 +72,12 @@ export type ProjectExplanation =
             kind:'static-effect-conflict';
             code:string;
             conflicting_obligations:string[];
+          }
+        | {
+            kind:'current-realization-indeterminate';
+            run_id:string;
+            reason:string;
+            settlement_commit?:string;
           };
     }
   | {
@@ -131,7 +138,10 @@ export interface ProjectProjectionInput {
   runs:Map<string,HistoricalRun>;
   receiptsByRun:Map<string,Receipt>;
   revision:string;
-  admissibleRealizationRuns?:ReadonlySet<string>;
+  currentRealizationJudgments?:ReadonlyMap<
+    string,
+    CurrentRealizationJudgment
+  >;
 }
 
 const IN_FLIGHT=new Set<RealizationStatus>([
@@ -140,27 +150,40 @@ const IN_FLIGHT=new Set<RealizationStatus>([
   'RECOVERY_REQUIRED',
 ]);
 
+interface RealizationJudgmentRelation {
+  run:HistoricalRun;
+  judgment:CurrentRealizationJudgment;
+}
+
 interface RealizationRelations {
   lifecycles:Map<string,Lifecycle>;
   semanticKeys:Map<string,string|null>;
   latestMatchingRuns:Map<string,HistoricalRun>;
+  rejectedRealizations:Map<string,RealizationJudgmentRelation>;
+  indeterminateRealizations:Map<string,RealizationJudgmentRelation>;
 }
 
 interface Claimability {
   error:string|null;
   unsatisfiedDependencies:string[];
   staticConflict:StaticEffectConflict|null;
+  indeterminateRealization:RealizationJudgmentRelation|null;
 }
 
 function deriveRealizationRelations(
   state:State,
   runs:Map<string,HistoricalRun>,
   receiptsByRun:Map<string,Receipt>,
-  admissibleRealizationRuns:ReadonlySet<string>|null,
+  currentRealizationJudgments:ReadonlyMap<
+    string,
+    CurrentRealizationJudgment
+  >|null,
 ):RealizationRelations {
   const lifecycles=new Map<string,Lifecycle>();
   const semanticKeys=new Map<string,string|null>();
   const latestMatchingRuns=new Map<string,HistoricalRun>();
+  const rejectedRealizations=new Map<string,RealizationJudgmentRelation>();
+  const indeterminateRealizations=new Map<string,RealizationJudgmentRelation>();
   const visiting=new Set<string>();
   const allRuns=[...runs.values()];
 
@@ -188,14 +211,36 @@ function deriveRealizationRelations(
       const latest=candidates.at(-1);
       if (latest) latestMatchingRuns.set(id,latest);
 
-      const done=[...candidates].reverse().find(
-        run=>
-          receiptsByRun.get(run.id)?.disposition==='DONE'
-          && (
-            admissibleRealizationRuns===null
-            || admissibleRealizationRuns.has(run.id)
-          ),
+      const doneCandidates=[...candidates].reverse().filter(
+        run=>receiptsByRun.get(run.id)?.disposition==='DONE',
       );
+      let done:HistoricalRun|undefined;
+      if (currentRealizationJudgments===null) {
+        done=doneCandidates[0];
+      } else {
+        for (const run of doneCandidates) {
+          const judgment=currentRealizationJudgments.get(run.id)??{
+            state:'indeterminate' as const,
+            reason:'CURRENT_REALIZATION_JUDGMENT_MISSING',
+          };
+          if (judgment.state==='admissible') {
+            done=run;
+            break;
+          }
+          if (
+            judgment.state==='indeterminate'
+            && !indeterminateRealizations.has(id)
+          ) {
+            indeterminateRealizations.set(id,{run,judgment});
+          }
+          if (
+            judgment.state==='rejected'
+            && !rejectedRealizations.has(id)
+          ) {
+            rejectedRealizations.set(id,{run,judgment});
+          }
+        }
+      }
 
       if (done) {
         lifecycle={status:'DONE',run:done};
@@ -217,7 +262,13 @@ function deriveRealizationRelations(
   };
 
   for (const id of Object.keys(state.obligations)) derive(id);
-  return {lifecycles,semanticKeys,latestMatchingRuns};
+  return {
+    lifecycles,
+    semanticKeys,
+    latestMatchingRuns,
+    rejectedRealizations,
+    indeterminateRealizations,
+  };
 }
 
 function deriveClaimability(
@@ -225,6 +276,7 @@ function deriveClaimability(
   work:Obligation,
   lifecycles:Map<string,Lifecycle>,
   semanticKey:string|null,
+  indeterminateRealization:RealizationJudgmentRelation|null,
 ):Claimability {
   const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
   if (realization!=='UNREALIZED') {
@@ -232,6 +284,16 @@ function deriveClaimability(
       error:'NOT_READY',
       unsatisfiedDependencies:[],
       staticConflict:null,
+      indeterminateRealization:null,
+    };
+  }
+
+  if (indeterminateRealization) {
+    return {
+      error:'CURRENT_REALIZATION_ADMISSIBILITY_INDETERMINATE',
+      unsatisfiedDependencies:[],
+      staticConflict:null,
+      indeterminateRealization,
     };
   }
 
@@ -242,6 +304,7 @@ function deriveClaimability(
       error:'DEPENDENCIES_NOT_DONE',
       unsatisfiedDependencies,
       staticConflict:null,
+      indeterminateRealization:null,
     };
   }
   if (!semanticKey) {
@@ -249,6 +312,7 @@ function deriveClaimability(
       error:'SEMANTIC_DEPENDENCY_UNRESOLVED',
       unsatisfiedDependencies:[],
       staticConflict:null,
+      indeterminateRealization:null,
     };
   }
 
@@ -260,6 +324,7 @@ function deriveClaimability(
     error:conflict?.code??null,
     unsatisfiedDependencies:[],
     staticConflict:conflict,
+    indeterminateRealization:null,
   };
 }
 
@@ -313,7 +378,11 @@ function deriveExplanation(
   latestMatchingRuns:Map<string,HistoricalRun>,
   receiptsByRun:Map<string,Receipt>,
   statusById:Map<string,WorkStatus>,
-  admissibleRealizationRuns:ReadonlySet<string>|null,
+  currentRealizationJudgments:ReadonlyMap<
+    string,
+    CurrentRealizationJudgment
+  >|null,
+  rejectedRealizations:Map<string,RealizationJudgmentRelation>,
 ):ProjectExplanation {
   const lifecycle=lifecycles.get(obligation.id)??{status:'UNREALIZED' as const};
   const semanticKey=semanticKeys.get(obligation.id)??null;
@@ -333,7 +402,7 @@ function deriveExplanation(
         ...(receipt?.settlement_commit
           ? {settlement_commit:receipt.settlement_commit}
           : {}),
-        admissibility_basis:admissibleRealizationRuns===null
+        admissibility_basis:currentRealizationJudgments===null
           ? 'historical-settlement'
           : 'current-semantic-judgment',
       },
@@ -388,6 +457,25 @@ function deriveExplanation(
   }
 
   if (projected.status==='BLOCKED') {
+    if (
+      claimability.error==='CURRENT_REALIZATION_ADMISSIBILITY_INDETERMINATE'
+      && claimability.indeterminateRealization
+    ) {
+      const {run,judgment}=claimability.indeterminateRealization;
+      const receipt=receiptsByRun.get(run.id);
+      return {
+        obligation_id:obligation.id,
+        status:'BLOCKED',
+        reason:{
+          kind:'current-realization-indeterminate',
+          run_id:run.id,
+          reason:judgment.reason,
+          ...(receipt?.settlement_commit
+            ? {settlement_commit:receipt.settlement_commit}
+            : {}),
+        },
+      };
+    }
     if (claimability.error==='DEPENDENCIES_NOT_DONE') {
       return {
         obligation_id:obligation.id,
@@ -460,21 +548,21 @@ function deriveExplanation(
             },
           }
         : {}),
-      ...(latest
-        && receipt?.disposition==='DONE'
-        && admissibleRealizationRuns!==null
-        && !admissibleRealizationRuns.has(latest.id)
-        ? {
-            rejected_realization:{
-              run_id:latest.id,
-              disposition:'DONE' as const,
-              reason:'not-currently-admissible' as const,
-              ...(receipt.settlement_commit
-                ? {settlement_commit:receipt.settlement_commit}
-                : {}),
-            },
-          }
-        : {}),
+      ...(()=>{
+        const rejected=rejectedRealizations.get(obligation.id);
+        if (!rejected) return {};
+        const rejectedReceipt=receiptsByRun.get(rejected.run.id);
+        return {
+          rejected_realization:{
+            run_id:rejected.run.id,
+            disposition:'DONE' as const,
+            reason:'not-currently-admissible' as const,
+            ...(rejectedReceipt?.settlement_commit
+              ? {settlement_commit:rejectedReceipt.settlement_commit}
+              : {}),
+          },
+        };
+      })(),
     },
   };
 }
@@ -484,17 +572,19 @@ export function deriveProjectProjection({
   runs,
   receiptsByRun,
   revision,
-  admissibleRealizationRuns=null,
+  currentRealizationJudgments=null,
 }:ProjectProjectionInput):ProjectProjection {
   const {
     lifecycles,
     semanticKeys,
     latestMatchingRuns,
+    rejectedRealizations,
+    indeterminateRealizations,
   }=deriveRealizationRelations(
     state,
     runs,
     receiptsByRun,
-    admissibleRealizationRuns,
+    currentRealizationJudgments,
   );
   const claimabilityErrors=new Map<string,string|null>();
   const claimabilityById=new Map<string,Claimability>();
@@ -506,7 +596,8 @@ export function deriveProjectProjection({
       obligation,
       lifecycles,
       semanticKeys.get(obligation.id)??null,
-    );
+        indeterminateRealizations.get(obligation.id)??null,
+      );
     claimabilityById.set(obligation.id,claimability);
     claimabilityErrors.set(obligation.id,claimability.error);
     return projectWork(
@@ -541,7 +632,8 @@ export function deriveProjectProjection({
         latestMatchingRuns,
         receiptsByRun,
         statusById,
-        admissibleRealizationRuns,
+        currentRealizationJudgments,
+        rejectedRealizations,
       ),
     );
   }
