@@ -105,6 +105,40 @@ The worker should submit a result or evidence. Software should derive
 effect-readiness from accepted evidence whenever readiness is mechanically
 knowable.
 
+## Counterexample 4: the broker boundary is optional
+
+The repository still exports `runGitCoreLoop(kernel,{effect})`.
+
+That path:
+
+```text
+claim
+  ↓
+beginEffect / durable reservation
+  ↓
+arbitrary effect(work.packet)
+  ↓
+observation
+```
+
+does not use:
+
+- `TaskSession`;
+- the effect-ready grammar;
+- explicit provider-effect authority;
+- `deriveAuthorizedProviderEffect`;
+- a provider adapter.
+
+The counterexample proves the arbitrary callback is entered before later
+observation fails. Therefore PR #81 does not yet make the new broker the
+exclusive production mutation path.
+
+This is primarily a trusted-computing-base problem rather than an untrusted
+worker escape: code holding an ExecutionPermit can still bypass the new
+boundary. If the goal is one enforceable effect authority surface, the legacy
+generic executor must be removed, made non-effectful, or routed through the
+same broker/adapter contract.
+
 ## Consequence
 
 PR #81 proves useful confinement mechanics, but these two stronger claims do not
@@ -115,7 +149,9 @@ yet hold:
 2. a postcondition is not itself sufficient authority to mutate the thing it
    verifies;
 3. an untrusted worker assertion is not sufficient evidence that an effectful
-   transition is ready.
+   transition is ready;
+4. the new broker is the exclusive supported effectful path rather than an
+   optional parallel API.
 
 The likely repair is:
 
