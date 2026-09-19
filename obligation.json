@@ -1,0 +1,17 @@
+{
+  "schema": "overcenter-git-obligation-v3",
+  "kind": "defined",
+  "obligation": {
+    "id": "guard-35463403321-1-unordered-alpha",
+    "dependencies": [],
+    "packet": {},
+    "postcondition": {
+      "verifier": "github-commit-status/v1",
+      "provider": "github",
+      "repository_id": 1354872053,
+      "commit_sha": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+      "context": "overcenter/conflict-guard/35463403321/1/unordered/Build",
+      "expected_state": "success"
+    }
+  }
+}
