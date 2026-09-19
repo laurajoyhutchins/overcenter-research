@@ -55,7 +55,7 @@
 (let* ((ir (compile-declaration-string *base-source*))
        (coordinates (names (getf ir :coordinate-fields)))
        (effect (getf ir :effect))
-       (absence (getf ir :absence)))
+       (:absence (getf ir :absence)))
   (check (equal coordinates '("artifact" "source-revision"))
          "base coordinate projection")
   (check (equal (names (getf effect :resource-fields)) coordinates)
@@ -72,12 +72,12 @@
 (let* ((evolved
          (replace-once
            *base-source*
-           "(artifact string coordinate)"
-           (format nil "(authority string coordinate)~%    (artifact string coordinate)")))
+           "(artifact string :coordinate)"
+           (format nil "(authority string :coordinate)~%    (artifact string :coordinate)")))
        (ir (compile-declaration-string evolved))
        (coordinates (names (getf ir :coordinate-fields)))
        (effect (getf ir :effect))
-       (absence (getf ir :absence)))
+       (:absence (getf ir :absence)))
   (check (equal coordinates
                 '("authority" "artifact" "source-revision"))
          "new coordinate appears once in the canonical coordinate set")
@@ -91,8 +91,8 @@
 (let* ((with-context
          (replace-once
            *base-source*
-           "(artifact string coordinate)"
-           (format nil "(display-label string context)~%    (artifact string coordinate)")))
+           "(artifact string :coordinate)"
+           (format nil "(display-label string :context)~%    (artifact string :coordinate)")))
        (base (compile-declaration-string *base-source*))
        (evolved (compile-declaration-string with-context)))
   (check (equal (getf base :coordinate-fields)
@@ -107,8 +107,8 @@
     (lambda ()
       (compile-declaration-string
         (replace-once *base-source*
-                      " digest desired output"
-                      " digest output")))
+                      " digest :desired :output"
+                      " digest :output")))
     "EXPECTED_ONE_DESIRED_FIELD")
   "missing desired role rejected during macro expansion")
 
@@ -117,8 +117,8 @@
     (lambda ()
       (compile-declaration-string
         (replace-once *base-source*
-                      " digest desired output"
-                      " digest desired")))
+                      " digest :desired :output"
+                      " digest :desired")))
     "EXPECTED_ONE_OUTPUT_FIELD")
   "missing output role rejected during macro expansion")
 
@@ -127,7 +127,7 @@
     (lambda ()
       (compile-declaration-string
         (replace-once *base-source*
-          (format nil "  (settlement present-or-declared-absence)~%")
+          (format nil "  (:settlement :present-or-declared-absence)~%")
           "")))
     nil)
   "missing settlement semantics rejected by macro shape")
@@ -137,8 +137,8 @@
     (lambda ()
       (compile-declaration-string
         (replace-once *base-source*
-          "(settlement present-or-declared-absence)"
-          "(settlement present-only)")))
+          "(:settlement :present-or-declared-absence)"
+          "(:settlement :present-only)")))
     "DECLARED_ABSENCE_UNUSED_BY_SETTLEMENT")
   "absence and settlement disagreement rejected")
 
@@ -170,16 +170,16 @@
 ;; semantic compiler is not modified and retains final authority over roles.
 (defmacro defcontent-verifier (name absence-kind)
   `(defverifier ,name
-     (fields
-       (artifact string coordinate)
-       (source-revision digest coordinate)
-       (expected-sha256 digest desired output))
-     (observes
+     (:fields
+       (artifact string :coordinate)
+       (source-revision digest :coordinate)
+       (expected-sha256 digest :desired :output))
+     (:observes
        (observed-sha256 digest))
-     (absence ,absence-kind)
-     (effect same-coordinate commutes true)
-     (settlement present-or-declared-absence)
-     (verify eq observed-sha256 desired)))
+     (:absence ,absence-kind)
+     (:effect :same-coordinate :commutes t)
+     (:settlement :present-or-declared-absence)
+     (:verify eq observed-sha256 :desired)))
 
 (let* ((surface
          '(defcontent-verifier compact-content/v1
