@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,10 +10,38 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"syscall"
 
 	executor "overcenter-research/executor"
 )
+
+const executorHelloSchema = "overcenter-executor-hello-v1"
+
+var executionContextPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"net"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"syscall"
+
+)
+
+type executorHelloV1 struct {
+	Schema                 string `json:"schema"`
+	ExecutionContextSHA256 string `json:"execution_context_sha256"`
+	ContainmentID          string `json:"containment_id"`
+}
 
 func main() {
 	workspaceRoot := flag.String("workspace-root", "", "absolute task workspace root")
@@ -22,6 +51,16 @@ func main() {
 	stdio := flag.Bool("stdio", false, "serve one test/development session over stdin/stdout")
 	taskUID := flag.Int("task-uid", -1, "UID for untrusted task processes")
 	taskGID := flag.Int("task-gid", -1, "GID for untrusted task processes")
+	executionContextSHA256 := flag.String(
+		"execution-context-sha256",
+		"",
+		"trusted digest of the immutable execution context",
+	)
+	containmentID := flag.String(
+		"containment-id",
+		"",
+		"trusted containment-domain identity",
+	)
 	unsafeSameUID := flag.Bool(
 		"unsafe-test-same-uid",
 		false,
@@ -43,6 +82,11 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
+	if *socketPath != "" {
+		if err := validateExecutorAttestation(*executionContextSHA256, *containmentID); err != nil {
+			fail(err)
+		}
+	}
 	runtime, err := executor.NewRuntime(
 		*workspaceRoot,
 		*maxConcurrency,
@@ -61,7 +105,15 @@ func main() {
 		}
 		return
 	}
-	if err := serveUnixSocket(ctx, runtime, *socketPath, *socketGID, taskCredential); err != nil {
+	if err := serveUnixSocket(
+		ctx,
+		runtime,
+		*socketPath,
+		*socketGID,
+		taskCredential,
+		*executionContextSHA256,
+		*containmentID,
+	); err != nil {
 		fail(err)
 	}
 }
@@ -110,6 +162,16 @@ func resolveTaskCredential(
 	}, nil
 }
 
+func validateExecutorAttestation(executionContextSHA256, containmentID string) error {
+	if !executionContextPattern.MatchString(executionContextSHA256) {
+		return errors.New("socket mode requires valid --execution-context-sha256")
+	}
+	if containmentID == "" || len([]byte(containmentID)) > 512 || strings.ContainsRune(containmentID, 0) {
+		return errors.New("socket mode requires valid --containment-id")
+	}
+	return nil
+}
+
 func validateSocketDirectory(
 	socketDirectory string,
 	taskCredential *executor.TaskCredential,
@@ -147,6 +209,8 @@ func serveUnixSocket(
 	socketPath string,
 	socketGID int,
 	taskCredential *executor.TaskCredential,
+	executionContextSHA256 string,
+	containmentID string,
 ) error {
 	if !filepath.IsAbs(socketPath) {
 		return errors.New("socket path must be absolute")
@@ -198,6 +262,14 @@ func serveUnixSocket(
 		return err
 	}
 	defer connection.Close()
+
+	if err := json.NewEncoder(connection).Encode(executorHelloV1{
+		Schema:                 executorHelloSchema,
+		ExecutionContextSHA256: executionContextSHA256,
+		ContainmentID:          containmentID,
+	}); err != nil {
+		return fmt.Errorf("write executor hello: %w", err)
+	}
 
 	// One connection is one executor lifetime. If the authority-side client
 	// disappears, Serve cancels local work and this process exits. Recovery
