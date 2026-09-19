@@ -52,6 +52,7 @@ import {
 } from './projection.ts';
 import type { Projection } from './projection.ts';
 import { verifyWorkerResult } from './realization.ts';
+import { deriveAuthorizedProviderEffect } from './provider-effect.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -344,16 +345,14 @@ export class GitOvercenterKernel {
         throw new Error('UNRESOLVED_EFFECT');
       }
 
-      const authority=run.obligation.effect_authority;
-      if (!authority) throw new Error('EFFECT_AUTHORITY_REQUIRED');
-      if (identity.effect_contract!==authority.contract) {
-        throw new Error('EFFECT_AUTHORITY_CONTRACT_MISMATCH');
-      }
+      const expectedEffect=deriveAuthorizedProviderEffect(run.obligation);
+      if (!expectedEffect) throw new Error('EFFECT_AUTHORITY_REQUIRED');
       if (
-        !/^[0-9a-f]{64}$/.test(identity.adapter_contract_digest)
-        || !/^[0-9a-f]{64}$/.test(identity.effect_digest)
+        identity.effect_contract!==expectedEffect.effect_contract
+        || identity.adapter_contract_digest!==expectedEffect.adapter_contract_digest
+        || identity.effect_digest!==expectedEffect.effect_digest
       ) {
-        throw new Error('INVALID_EFFECT_IDENTITY');
+        throw new Error('EFFECT_IDENTITY_MISMATCH');
       }
 
       const acceptance=run.obligation.result_acceptance;
