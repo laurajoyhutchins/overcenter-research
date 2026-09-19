@@ -73,7 +73,7 @@
          (replace-once
            *base-source*
            "(artifact string coordinate)"
-           "(authority string coordinate)\n    (artifact string coordinate)"))
+           (format nil "(authority string coordinate)~%    (artifact string coordinate)")))
        (ir (compile-declaration-string evolved))
        (coordinates (names (getf ir :coordinate-fields)))
        (effect (getf ir :effect))
@@ -92,7 +92,7 @@
          (replace-once
            *base-source*
            "(artifact string coordinate)"
-           "(display-label string context)\n    (artifact string coordinate)"))
+           (format nil "(display-label string context)~%    (artifact string coordinate)")))
        (base (compile-declaration-string *base-source*))
        (evolved (compile-declaration-string with-context)))
   (check (equal (getf base :coordinate-fields)
@@ -127,7 +127,7 @@
     (lambda ()
       (compile-declaration-string
         (replace-once *base-source*
-          "  (settlement present-or-declared-absence)\n"
+          (format nil "  (settlement present-or-declared-absence)~%")
           "")))
     nil)
   "missing settlement semantics rejected by macro shape")
