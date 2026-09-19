@@ -51,9 +51,22 @@ function pathTree(paths:readonly string[]):JsonObject {
   for (const path of paths) {
     let cursor=root;
     for (const segment of path.split('.').filter(Boolean)) {
-      const next=object(cursor[segment])??{};
-      cursor[segment]=next;
+      if (segment==='[]') {
+        const items=object(cursor['[]'])??{};
+        cursor['[]']=items;
+        cursor=items;
+        continue;
+      }
+      const arrayProperty=segment.endsWith('[]');
+      const name=arrayProperty?segment.slice(0,-2):segment;
+      const next=object(cursor[name])??{};
+      cursor[name]=next;
       cursor=next;
+      if (arrayProperty) {
+        const items=object(cursor['[]'])??{};
+        cursor['[]']=items;
+        cursor=items;
+      }
     }
   }
   return root;
@@ -125,11 +138,11 @@ function constantName(name:string):string {
   return `GITHUB_${name.toUpperCase()}_OPERATION`;
 }
 
-const operations=Object.entries(GITHUB_OPERATION_SEMANTICS).map(([name,semantic])=>{
+const operations=Object.entries(GITHUB_OPERATION_SEMANTICS).map(([key,semantic])=>{
   const operation=deriveGithubObservationOperation(document,semantic.operation_id,GITHUB_API_VERSION);
   const success=operation.outcomes.find(outcome=>outcome.status==='200');
   if (!success?.schema) throw new Error(`GITHUB_OPENAPI_200_SCHEMA_MISSING:${semantic.operation_id}`);
-  return [constantName(name),{
+  return [key,constantName(key),{
     ...operation,
     outcomes:[{
       ...success,
@@ -144,10 +157,14 @@ const generated=[
   `// SHA-256: ${GITHUB_OPENAPI_SHA256}`,
   "import type { GithubObservationOperation } from './github-openapi.ts';",
   '',
-  ...operations.flatMap(([name,operation])=>[
+  ...operations.flatMap(([,name,operation])=>[
     `export const ${name}:GithubObservationOperation=${JSON.stringify(operation,null,2)};`,
     '',
   ]),
+  'export const GITHUB_OBSERVATION_OPERATIONS={',
+  ...operations.map(([key,name])=>`  ${key}:${name},`),
+  '} as const;',
+  '',
 ].join('\n');
 
 writeFileSync(outputPath,generated);
