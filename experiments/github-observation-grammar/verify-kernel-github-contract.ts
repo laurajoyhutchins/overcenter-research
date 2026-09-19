@@ -1,30 +1,28 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import {
-  deriveObservationOperation,
-  type ObservationOperation,
-  type OpenApiDocument,
-} from './openapi.ts';
 import type { ResponseFieldSpec } from '../../src/provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
+} from '../../src/providers/github-contract.ts';
+import {
   GITHUB_REPOSITORY_OPERATION,
-  GITHUB_REPOSITORY_RESPONSE_SLICE,
-} from '../../src/providers/github-certified-repository.ts';
-import {
   GITHUB_COMMIT_STATUSES_OPERATION,
-  GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
-} from '../../src/providers/github-certified-status.ts';
-import {
   GITHUB_REF_OPERATION,
-  GITHUB_REF_RESPONSE_SLICE,
-} from '../../src/providers/github-certified-ref.ts';
-import {
   GITHUB_PULL_REQUEST_OPERATION,
+} from '../../src/providers/github-operations.generated.ts';
+import {
+  deriveGithubObservationOperation,
+  type GithubObservationOperation,
+  type GithubOpenApiDocument,
+} from '../../src/providers/github-openapi.ts';
+import {
+  GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
   GITHUB_PULL_REQUEST_RESPONSE_SLICE,
-} from '../../src/providers/github-certified-pr.ts';
+  GITHUB_REF_RESPONSE_SLICE,
+  GITHUB_REPOSITORY_RESPONSE_SLICE,
+} from '../../src/providers/github-semantics.ts';
 
 const schemaPath=process.argv[2];
 if (!schemaPath) throw new Error('usage: verify-kernel-github-contract.ts <openapi.json>');
@@ -33,8 +31,7 @@ const bytes=readFileSync(schemaPath);
 const actualDigest=createHash('sha256').update(bytes).digest('hex');
 assert.equal(actualDigest,GITHUB_OPENAPI_SHA256,'PINNED_OPENAPI_DIGEST_MISMATCH');
 
-const document=JSON.parse(bytes.toString('utf8')) as OpenApiDocument;
-
+const document=JSON.parse(bytes.toString('utf8')) as GithubOpenApiDocument;
 type Schema=Record<string,unknown>;
 
 function object(value:unknown):Schema|null {
@@ -98,17 +95,15 @@ function structuralSummary(schema:unknown):unknown {
   return result;
 }
 
-function summaries(operation:ObservationOperation,path:string):string[] {
+function summaries(operation:GithubObservationOperation,path:string):string[] {
   const schema=operation.outcomes.find(outcome=>outcome.status==='200')?.schema;
   if (!schema) throw new Error(`RESPONSE_SCHEMA_MISSING:${operation.operation_id}`);
   const candidates=pathSchemas(schema,path);
   if (candidates.length===0) throw new Error(`RESPONSE_SCHEMA_PATH_MISSING:${operation.operation_id}:${path}`);
-  return candidates
-    .map(candidate=>JSON.stringify(structuralSummary(candidate)))
-    .sort();
+  return candidates.map(candidate=>JSON.stringify(structuralSummary(candidate))).sort();
 }
 
-function parameterSummaries(operation:ObservationOperation):unknown[] {
+function parameterSummaries(operation:GithubObservationOperation):unknown[] {
   return operation.parameters.map(parameter=>[
     parameter.in,
     parameter.name,
@@ -118,24 +113,22 @@ function parameterSummaries(operation:ObservationOperation):unknown[] {
 }
 
 function verifyOperation({
-  pathTemplate,
   generated,
   fields,
 }:{
-  pathTemplate:string;
-  generated:ObservationOperation;
+  generated:GithubObservationOperation;
   fields:readonly ResponseFieldSpec[];
 }):{
   operation_id:string;
+  path_template:string;
   selected_paths:Record<string,string[]>;
 } {
-  const pinned=deriveObservationOperation(document,{
-    apiVersion:GITHUB_API_VERSION,
-    method:'get',
-    pathTemplate,
-  });
+  const pinned=deriveGithubObservationOperation(
+    document,
+    generated.operation_id,
+    GITHUB_API_VERSION,
+  );
 
-  assert.equal(pinned.operation_id,generated.operation_id);
   assert.equal(pinned.path_template,generated.path_template);
   assert.equal(pinned.method,generated.method);
   assert.deepEqual(
@@ -158,35 +151,19 @@ function verifyOperation({
 
   return {
     operation_id:pinned.operation_id,
+    path_template:pinned.path_template,
     selected_paths:verified,
   };
 }
 
-const repository=verifyOperation({
-  pathTemplate:'/repos/{owner}/{repo}',
-  generated:GITHUB_REPOSITORY_OPERATION,
-  fields:GITHUB_REPOSITORY_RESPONSE_SLICE,
-});
-
-const ref=verifyOperation({
-  pathTemplate:'/repos/{owner}/{repo}/git/ref/{ref}',
-  generated:GITHUB_REF_OPERATION,
-  fields:GITHUB_REF_RESPONSE_SLICE,
-});
-
-const pullRequest=verifyOperation({
-  pathTemplate:'/repos/{owner}/{repo}/pulls/{pull_number}',
-  generated:GITHUB_PULL_REQUEST_OPERATION,
-  fields:GITHUB_PULL_REQUEST_RESPONSE_SLICE,
-});
-
-const statuses=verifyOperation({
-  pathTemplate:'/repos/{owner}/{repo}/commits/{ref}/statuses',
-  generated:GITHUB_COMMIT_STATUSES_OPERATION,
-  fields:GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
-});
+const operations=[
+  verifyOperation({generated:GITHUB_REPOSITORY_OPERATION,fields:GITHUB_REPOSITORY_RESPONSE_SLICE}),
+  verifyOperation({generated:GITHUB_REF_OPERATION,fields:GITHUB_REF_RESPONSE_SLICE}),
+  verifyOperation({generated:GITHUB_PULL_REQUEST_OPERATION,fields:GITHUB_PULL_REQUEST_RESPONSE_SLICE}),
+  verifyOperation({generated:GITHUB_COMMIT_STATUSES_OPERATION,fields:GITHUB_COMMIT_STATUS_RESPONSE_SLICE}),
+];
 
 console.log(JSON.stringify({
   schema_sha256:actualDigest,
-  operations:[repository,ref,pullRequest,statuses],
+  operations,
 },null,2));

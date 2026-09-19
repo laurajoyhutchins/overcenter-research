@@ -1,65 +1,20 @@
-import {
-  validateObservationSlice,
-  type ResponseFieldSpec,
-} from '../provider-observation/response-slice.ts';
+import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './github-contract.ts';
+import { GITHUB_PULL_REQUEST_OPERATION } from './github-operations.generated.ts';
+import { materializeGithubOperationRequest } from './github-openapi.ts';
+import { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './github-semantics.ts';
 import {
   observeCertifiedGithubRepository,
   rawGithubObserved200,
   type CertifiedGithubRepositoryEvidence,
-  type GithubObservationOperation,
 } from './github-certified-repository.ts';
 import { githubGet, type GithubJsonGet } from './github-rest.ts';
 
 const SHA=/^[0-9a-f]{40,64}$/i;
-
-export const GITHUB_PULL_REQUEST_RESPONSE_SLICE=[
-  {path:'id'},
-  {path:'node_id'},
-  {path:'number'},
-  {path:'state'},
-  {path:'head.sha'},
-  {path:'base.ref'},
-  {path:'base.sha'},
-] as const satisfies readonly ResponseFieldSpec[];
-
-export const GITHUB_PULL_REQUEST_OPERATION:GithubObservationOperation={
-  provider:'github',
-  api_version:GITHUB_API_VERSION,
-  method:'GET',
-  path_template:'/repos/{owner}/{repo}/pulls/{pull_number}',
-  operation_id:'pulls/get',
-  parameters:[
-    {name:'owner',in:'path',required:true,schema:{type:'string'}},
-    {name:'pull_number',in:'path',required:true,schema:{type:'integer'}},
-    {name:'repo',in:'path',required:true,schema:{type:'string'}},
-  ],
-  outcomes:[{
-    status:'200',
-    description:'Response',
-    schema:{
-      type:'object',
-      required:['id','node_id','number','state','head','base'],
-      properties:{
-        id:{type:'integer'},
-        node_id:{type:'string'},
-        number:{type:'integer'},
-        state:{type:'string',enum:['open','closed']},
-        head:{type:'object',required:['sha'],properties:{sha:{type:'string'}}},
-        base:{
-          type:'object',
-          required:['ref','sha'],
-          properties:{ref:{type:'string'},sha:{type:'string'}},
-        },
-      },
-    },
-  }],
-  github_extensions:{},
-};
 
 export interface GithubPullRequestExpectedIdentity {
   node_id:string;
@@ -143,13 +98,17 @@ export function observeCertifiedGithubPullRequestIdentity(
       observerId:'github-pr-identity/v1',
     });
     const {owner,repo}=repository.fact.object;
-    const path=`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}`;
-    const body=get(token,path);
+    const request=materializeGithubOperationRequest(GITHUB_PULL_REQUEST_OPERATION,{
+      owner,
+      repo,
+      pull_number:pullNumber,
+    });
+    const body=get(token,request.path);
     const observedAt=clock();
     const raw=rawGithubObserved200({
       operation:GITHUB_PULL_REQUEST_OPERATION,
-      path,
-      parameters:{owner,repo,pull_number:pullNumber},
+      path:request.path,
+      parameters:request.parameters,
       body,
       observedAt,
       observerId:'github-pr-identity/v1',
@@ -231,3 +190,6 @@ export function observeCertifiedGithubPullRequestIdentity(
     };
   }
 }
+
+export { GITHUB_PULL_REQUEST_OPERATION } from './github-operations.generated.ts';
+export { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './github-semantics.ts';

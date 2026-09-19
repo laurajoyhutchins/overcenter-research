@@ -19,11 +19,13 @@ on:
       - src/github-authority-command.ts
       - src/provider-observation/**
       - src/providers/**
+      - scripts/generate-github-operations.ts
       - bin/github-authority.ts
       - test/provider-observation.test.ts
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
       - test/github-certified-pr.test.ts
+      - test/github-openapi-contract.test.ts
       - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
@@ -41,11 +43,13 @@ on:
       - src/github-authority-command.ts
       - src/provider-observation/**
       - src/providers/**
+      - scripts/generate-github-operations.ts
       - bin/github-authority.ts
       - test/provider-observation.test.ts
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
       - test/github-certified-pr.test.ts
+      - test/github-openapi-contract.test.ts
       - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
@@ -93,6 +97,11 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/github/rest-api-description/d4278c869e367f5d6d4e0f46878119128abba77b/descriptions/api.github.com/dereferenced/api.github.com.2026-03-10.deref.json \
             --output "$RUNNER_TEMP/github-openapi.json"
+      - name: Regenerate GitHub operation contracts
+        run: |
+          node --experimental-strip-types scripts/generate-github-operations.ts \
+            "$RUNNER_TEMP/github-openapi.json"
+          git diff --exit-code -- src/providers/github-operations.generated.ts
       - name: Verify runtime GitHub contracts against pinned OpenAPI
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/verify-kernel-github-contract.ts \

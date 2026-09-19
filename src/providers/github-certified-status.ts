@@ -1,17 +1,16 @@
-import {
-  validateObservationSlice,
-  type ResponseFieldSpec,
-} from '../provider-observation/response-slice.ts';
+import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './github-contract.ts';
+import { GITHUB_COMMIT_STATUSES_OPERATION } from './github-operations.generated.ts';
+import { materializeGithubOperationRequest } from './github-openapi.ts';
+import { GITHUB_COMMIT_STATUS_RESPONSE_SLICE } from './github-semantics.ts';
 import {
   observeCertifiedGithubRepository,
   rawGithubObserved200,
   type CertifiedGithubRepositoryEvidence,
-  type GithubObservationOperation,
 } from './github-certified-repository.ts';
 import {
   githubGet,
@@ -58,52 +57,6 @@ interface StatusMember {
   created_at:string;
   updated_at:string;
 }
-
-export const GITHUB_COMMIT_STATUS_RESPONSE_SLICE=[
-  {path:'[].id'},
-  {path:'[].node_id'},
-  {path:'[].state'},
-  {path:'[].context'},
-  {path:'[].target_url'},
-  {path:'[].created_at'},
-  {path:'[].updated_at'},
-] as const satisfies readonly ResponseFieldSpec[];
-
-export const GITHUB_COMMIT_STATUSES_OPERATION:GithubObservationOperation={
-  provider:'github',
-  api_version:GITHUB_API_VERSION,
-  method:'GET',
-  path_template:'/repos/{owner}/{repo}/commits/{ref}/statuses',
-  operation_id:'repos/list-commit-statuses-for-ref',
-  parameters:[
-    {name:'owner',in:'path',required:true,schema:{type:'string'}},
-    {name:'ref',in:'path',required:true,schema:{type:'string'}},
-    {name:'repo',in:'path',required:true,schema:{type:'string'}},
-    {name:'page',in:'query',required:false,schema:{type:'integer'}},
-    {name:'per_page',in:'query',required:false,schema:{type:'integer'}},
-  ],
-  outcomes:[{
-    status:'200',
-    description:'Response',
-    schema:{
-      type:'array',
-      items:{
-        type:'object',
-        required:['id','node_id','state','context','target_url','created_at','updated_at'],
-        properties:{
-          id:{type:'integer'},
-          node_id:{type:'string'},
-          state:{type:'string'},
-          context:{type:'string'},
-          target_url:{type:'string',nullable:true},
-          created_at:{type:'string'},
-          updated_at:{type:'string'},
-        },
-      },
-    },
-  }],
-  github_extensions:{},
-};
 
 function certifiedMembers(observation:ReturnType<typeof rawGithubObserved200>):{
   members:StatusMember[];
@@ -164,13 +117,19 @@ export function observeCertifiedGithubCommitStatus(
 
   for (let page=1;page<=1000;page+=1) {
     const perPage=100;
-    const path=`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(commitSha)}/statuses?per_page=${perPage}&page=${page}`;
-    const body=get(token,path);
+    const request=materializeGithubOperationRequest(GITHUB_COMMIT_STATUSES_OPERATION,{
+      owner,
+      repo,
+      ref:commitSha,
+      per_page:perPage,
+      page,
+    });
+    const body=get(token,request.path);
     const observedAt=clock();
     const raw=rawGithubObserved200({
       operation:GITHUB_COMMIT_STATUSES_OPERATION,
-      path,
-      parameters:{owner,repo,ref:commitSha,page,per_page:perPage},
+      path:request.path,
+      parameters:request.parameters,
       body,
       observedAt,
       observerId:'github-commit-status/v2',
@@ -234,6 +193,8 @@ export function observeCertifiedGithubCommitStatus(
   throw new Error('GITHUB_STATUS_PAGINATION_EXHAUSTED');
 }
 
+export { GITHUB_COMMIT_STATUSES_OPERATION } from './github-operations.generated.ts';
+export { GITHUB_COMMIT_STATUS_RESPONSE_SLICE } from './github-semantics.ts';
 export {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
