@@ -244,6 +244,36 @@ Soufflé Datalog is retained as an independent executable oracle for this
 boundary. It is not a runtime dependency. The production projector remains
 TypeScript unless a later experiment earns a different implementation.
 
+### Explanations are projection too
+
+The projector also derives structured explanations for every public work state.
+These explanations are not receipts, lifecycle facts, or another authority
+layer. They are disposable provenance over the same inputs used to derive
+status.
+
+```text
+facts + current semantic judgments
+             |
+             v
+     project state
+             +
+     explanation relation
+             |
+             +--> BLOCKED: exact unsatisfied dependencies
+             +--> EXECUTING: exact active run
+             +--> WAITING / RECOVERY_REQUIRED: exact receipt
+             +--> DONE: exact accepted realization + admissibility basis
+             +--> READY: exact semantic key, including release/reuse rejection
+```
+
+An explanation may refer to another obligation. Consumers can recursively
+follow those obligation references through the same explanation map to render a
+tree without persisting a second diagnostic graph.
+
+Explanation materialization must be safely deletable. Fresh replay from durable
+facts and current semantic judgments must reproduce the same explanation bytes
+as well as the same project state.
+
 ## 4. The narrow authority kernel
 
 Most historical facts can accumulate monotonically. A small set of questions cannot.

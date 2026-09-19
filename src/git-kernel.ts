@@ -37,7 +37,11 @@ import type {
 } from './facts.ts';
 import { withObligation } from './graph.ts';
 import { validateAdmission } from './admission.ts';
-import { hasInFlight } from './projector.ts';
+import {
+  explainProjectWork,
+  hasInFlight,
+  type ProjectExplanation,
+} from './projector.ts';
 import {
   projectReceipt,
   replayProjection,
@@ -151,6 +155,11 @@ export class GitOvercenterKernel {
   deriveReadyWork():Work|null {
     const head=this.#requireHead();
     return this.#projection(head).project.readyWork;
+  }
+
+  explain(id:string):ProjectExplanation {
+    const head=this.#requireHead();
+    return explainProjectWork(this.#projection(head).project,id);
   }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {

@@ -350,6 +350,7 @@ test('all observational surfaces fail closed when authority is missing', () => {
     execFileSync('git', ['-C', f.repo, 'update-ref', '-d', 'refs/overcenter/state']);
     assert.throws(() => f.kernel.inspect(), /NOT_INITIALIZED/);
     assert.throws(() => f.kernel.deriveReadyWork(), /NOT_INITIALIZED/);
+    assert.throws(() => f.kernel.explain('x'), /NOT_INITIALIZED/);
     assert.throws(() => f.kernel.receipts(), /NOT_INITIALIZED/);
     assert.throws(() => f.kernel.recoverInterrupted({id:'x'} as never), /NOT_INITIALIZED/);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -565,4 +566,43 @@ test('judgment-required fact projects WAITING without persisting WAITING', () =>
     assert.equal(settled.disposition, 'DONE');
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
   } finally { rmSync(f.root, { recursive: true, force: true }); }
+});
+
+
+test('kernel explanation surface follows the authoritative projection', () => {
+  const f = fixture();
+  try {
+    const path = f.path('explain');
+    f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
+
+    const ready = f.kernel.explain('x');
+    assert.equal(ready.status, 'READY');
+    assert.equal(ready.reason.kind, 'claimable');
+
+    const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
+    assert.deepEqual(f.kernel.explain('x'), {
+      obligation_id: 'x',
+      status: 'EXECUTING',
+      reason: {
+        kind: 'active-run',
+        run_id: run.id,
+        semantic_key: run.obligation_key,
+        execution_generation: 1,
+      },
+    });
+
+    f.kernel.recoverInterrupted(run, { source: 'explanation-test' });
+    const recovery = f.kernel.explain('x');
+    assert.equal(recovery.status, 'RECOVERY_REQUIRED');
+    assert.equal(recovery.reason.kind, 'recovery-receipt');
+
+    writeFileSync(path, 'present');
+    const reacquired = f.kernel.acquireExecution(run.id);
+    f.kernel.reconcile(reacquired);
+    const done = f.kernel.explain('x');
+    assert.equal(done.status, 'DONE');
+    assert.equal(done.reason.kind, 'admissible-realization');
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });

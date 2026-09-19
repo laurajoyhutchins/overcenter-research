@@ -42,10 +42,16 @@ function validateSemanticEdges(state:State):void {
   }
 }
 
-export function staticEffectConflictError(
+export interface StaticEffectConflict {
+  left:string;
+  right:string;
+  code:string;
+}
+
+export function staticEffectConflict(
   state:State,
   workId:string,
-):string|null {
+):StaticEffectConflict|null {
   const work=state.obligations[workId];
   if (!work) return null;
   const semantics=effectSemantics(work.postcondition);
@@ -68,10 +74,21 @@ export function staticEffectConflictError(
       || dependsOn(state,other.id,work.id);
     if (!ordered) {
       const [left,right]=[work.id,other.id].sort();
-      return `UNORDERED_EFFECT_CONFLICT:${left}:${right}`;
+      return {
+        left,
+        right,
+        code:`UNORDERED_EFFECT_CONFLICT:${left}:${right}`,
+      };
     }
   }
   return null;
+}
+
+export function staticEffectConflictError(
+  state:State,
+  workId:string,
+):string|null {
+  return staticEffectConflict(state,workId)?.code??null;
 }
 
 function validateStaticEffectOrdering(state:State):void {
