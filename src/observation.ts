@@ -9,10 +9,16 @@ import {
   localFileEnoentEvidence,
   localFileEnoentEvidenceMatches,
 } from './evidence.ts';
-import { findGithubCommitStatus, githubGet } from './providers/github-status.ts';
+import {
+  observeCertifiedGithubCommitStatus,
+  type GithubJsonGet,
+} from './providers/github-certified-status.ts';
+import { githubGet } from './providers/github-rest.ts';
 
 export interface ObservationContext {
   githubToken: string | null;
+  githubGet?: GithubJsonGet;
+  clock?: () => string;
 }
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -33,6 +39,16 @@ export function validatePostcondition(p: Postcondition): void {
     && typeof p.context==='string'
     && p.context.length > 0
     && ['error','failure','pending','success'].includes(p.expected_state)) return;
+  if (p?.verifier==='github-commit-status/v2'
+    && p.provider==='github'
+    && Number.isSafeInteger(p.repository_id)
+    && p.repository_id > 0
+    && typeof p.repository_full_name==='string'
+    && /^[^/]+\/[^/]+$/.test(p.repository_full_name)
+    && /^[0-9a-f]{40,64}$/i.test(p.commit_sha)
+    && typeof p.context==='string'
+    && p.context.length > 0
+    && ['error','failure','pending','success'].includes(p.expected_state)) return;
   throw new Error('UNSUPPORTED_POSTCONDITION');
 }
 
@@ -42,65 +58,89 @@ export function observePostcondition(
 ): Observation {
   validatePostcondition(p);
 
-  if (p.verifier==='github-commit-status/v1') {
+  if (
+    p.verifier==='github-commit-status/v1'
+    || p.verifier==='github-commit-status/v2'
+  ) {
+    const common={
+      verifier:p.verifier,
+      provider:'github' as const,
+      repository_id:p.repository_id,
+      commit_sha:p.commit_sha,
+      context:p.context,
+      expected_state:p.expected_state,
+    };
     if (!context.githubToken) {
       return {
-        verifier:p.verifier,
-        provider:'github',
-        repository_id:p.repository_id,
-        commit_sha:p.commit_sha,
-        context:p.context,
-        expected_state:p.expected_state,
+        ...common,
+        ...(p.verifier==='github-commit-status/v2'
+          ? {repository_full_name:p.repository_full_name}
+          : {}),
         mutation_certainty:'uncertain',
         observation_error:'GITHUB_TOKEN_UNAVAILABLE',
       };
     }
+
+    const get=context.githubGet??githubGet;
     try {
-      const repository=githubGet(
-        context.githubToken,
-        `/repositories/${p.repository_id}`,
-      ) as { id?: number; full_name?: string };
-      if (repository.id!==p.repository_id || typeof repository.full_name!=='string') {
-        throw new Error('GITHUB_REPOSITORY_IDENTITY_MISMATCH');
-      }
-      const status=findGithubCommitStatus(
-        context.githubToken,
-        repository.full_name,
-        p.commit_sha,
-        p.context,
-      );
-      if (!status) {
-        return {
-          verifier:p.verifier,
-          provider:'github',
+      let repositoryFullName:string;
+      let bootstrapHint:Record<string,unknown>|undefined;
+      if (p.verifier==='github-commit-status/v2') {
+        repositoryFullName=p.repository_full_name;
+      } else {
+        const hint=get(
+          context.githubToken,
+          `/repositories/${p.repository_id}`,
+        ) as {id?:number;full_name?:string};
+        if (hint.id!==p.repository_id || typeof hint.full_name!=='string') {
+          throw new Error('GITHUB_REPOSITORY_HINT_INVALID');
+        }
+        repositoryFullName=hint.full_name;
+        bootstrapHint={
+          endpoint:'/repositories/{repository_id}',
           repository_id:p.repository_id,
-          repository_full_name:repository.full_name,
-          commit_sha:p.commit_sha,
+          full_name:repositoryFullName,
+          authoritative:false,
+        };
+      }
+
+      const status=observeCertifiedGithubCommitStatus(
+        context.githubToken,
+        {
+          repositoryId:p.repository_id,
+          repositoryFullName,
+          commitSha:p.commit_sha,
           context:p.context,
-          expected_state:p.expected_state,
+          get,
+          ...(context.clock?{clock:context.clock}:{}),
+        },
+      );
+      const providerEvidence=bootstrapHint
+        ? {...status.evidence,bootstrap_hint:bootstrapHint}
+        : status.evidence;
+
+      if (status.state==='indeterminate') {
+        return {
+          ...common,
+          repository_full_name:status.repository_full_name,
           mutation_certainty:'uncertain',
-          observation_error:'COLLECTION_ABSENCE_NOT_AUTHORITATIVE',
+          observation_error:status.reason,
+          provider_evidence:providerEvidence,
         };
       }
       return {
-        verifier:p.verifier,
-        provider:'github',
-        repository_id:p.repository_id,
-        repository_full_name:repository.full_name,
-        commit_sha:p.commit_sha,
-        context:p.context,
-        expected_state:p.expected_state,
-        actual_state:status.state,
+        ...common,
+        repository_full_name:status.repository_full_name,
+        actual_state:status.actual_state,
         mutation_certainty:'present',
+        provider_evidence:providerEvidence,
       };
     } catch (e: unknown) {
       return {
-        verifier:p.verifier,
-        provider:'github',
-        repository_id:p.repository_id,
-        commit_sha:p.commit_sha,
-        context:p.context,
-        expected_state:p.expected_state,
+        ...common,
+        ...(p.verifier==='github-commit-status/v2'
+          ? {repository_full_name:p.repository_full_name}
+          : {}),
         mutation_certainty:'uncertain',
         observation_error:errorMessage(e),
       };
@@ -203,6 +243,14 @@ function assertObservationCoordinate(
   if (
     observed.provider!=='github'
     || observed.repository_id!==postcondition.repository_id
+    || (
+      postcondition.verifier==='github-commit-status/v2'
+      && (
+        typeof observed.repository_full_name!=='string'
+        || observed.repository_full_name.toLowerCase()
+          !==postcondition.repository_full_name.toLowerCase()
+      )
+    )
     || observed.commit_sha!==postcondition.commit_sha
     || observed.context!==postcondition.context
   ) {

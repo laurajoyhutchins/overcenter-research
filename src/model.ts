@@ -26,7 +26,7 @@ export interface EventuallyConsistentFilePostcondition {
   content: string;
 }
 
-export interface GitHubCommitStatusPostcondition {
+export interface GitHubCommitStatusPostconditionV1 {
   verifier: 'github-commit-status/v1';
   provider: 'github';
   repository_id: number;
@@ -34,6 +34,20 @@ export interface GitHubCommitStatusPostcondition {
   context: string;
   expected_state: 'error' | 'failure' | 'pending' | 'success';
 }
+
+export interface GitHubCommitStatusPostconditionV2 {
+  verifier: 'github-commit-status/v2';
+  provider: 'github';
+  repository_id: number;
+  repository_full_name: string;
+  commit_sha: string;
+  context: string;
+  expected_state: 'error' | 'failure' | 'pending' | 'success';
+}
+
+export type GitHubCommitStatusPostcondition =
+  | GitHubCommitStatusPostconditionV1
+  | GitHubCommitStatusPostconditionV2;
 
 export type Postcondition =
   | FileContentPostcondition

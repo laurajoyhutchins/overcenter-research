@@ -926,3 +926,247 @@ Overcenter kernel
 ```
 
 The next useful falsification is no longer "add another GitHub endpoint." It is to reuse the same certificate machinery in a second provider or in a substantially different GitHub response shape without adding another structural-validation engine.
+
+
+## First consumption round: certified observations become operational machinery
+
+The GitHub observation experiment is now consumed by the reference kernel and by one agent-facing semantic command.
+
+The first concrete consumers are:
+
+```text
+certified repos/get
+      |
+      +--> commit-status settlement
+      |
+      +--> exact ref authority fence
+      |
+      +--> PR work identity
+```
+
+The important change is not another endpoint count. It is that previously prompt-level correctness checks can now be deterministic software.
+
+### Settlement readback
+
+The old commit-status adapter inferred:
+
+```text
+status context not found
+        ↓
+mutation_certainty = absent
+        ↓
+READY
+```
+
+The certified consumer now preserves GitHub collection epistemics:
+
+```text
+status context not found
+        ↓
+COLLECTION_ABSENCE_NOT_AUTHORITATIVE
+        ↓
+mutation_certainty = uncertain
+        ↓
+RECOVERY_REQUIRED
+```
+
+Positive membership still settles normally.
+
+The previous `absent` interpretation was retained temporarily only as shadow evidence and then removed with the obsolete scanner. There is now one authoritative status-read path.
+
+### Repository identity bootstrap
+
+The first status consumer still resolved numeric repository identity through `/repositories/{id}`.
+
+That route was not part of the pinned public REST contract used by the observation grammar, so it could not honestly receive the same certificate treatment.
+
+The replacement contract is:
+
+```text
+stable repository_id
+current owner/repo locator
+        ↓
+documented repos/get
+        ↓
+certified repository identity
+        ↓
+returned numeric id must equal stable id
+```
+
+The owner/name coordinate is therefore a locator, not semantic identity.
+
+A repository rename does not create a new effect identity merely because the HTTP coordinate changes.
+
+### Exact ref authority
+
+The second consumer turns this instruction:
+
+> refresh GitHub and ensure the branch still points to the exact SHA you are authorized to act on
+
+into:
+
+```text
+repository identity
+      ↓
+certified git/get-ref
+      ↓
+CURRENT | STALE | INDETERMINATE
+```
+
+The distinction is intentional:
+
+- `CURRENT`: authoritative binding equals expected SHA;
+- `STALE`: authoritative binding was observed and differs;
+- `INDETERMINATE`: provider identity, structure, or readback did not prove a binding.
+
+Authoritative drift is therefore not confused with read failure.
+
+### PR work identity
+
+The third consumer treats a PR work packet as:
+
+```text
+repository_id
+repository locator
+PR number
+stable PR node_id
+state
+head SHA
+base ref
+base SHA
+```
+
+The PR number is the read coordinate.
+
+The `node_id` is the logical PR entity identity.
+
+The exact mutable snapshot determines whether previously prepared work is still current.
+
+Again the result is:
+
+```text
+CURRENT | STALE | INDETERMINATE
+```
+
+without introducing a PR lifecycle model into the kernel.
+
+### Agent-facing command
+
+These concrete checks are exposed through one semantic command:
+
+```text
+npm run github:authority -- ref ...
+npm run github:authority -- pr ...
+```
+
+with machine-readable output:
+
+```text
+schema = github-authority/v1
+state  = CURRENT | STALE | INDETERMINATE
+```
+
+and stable shell exit codes:
+
+```text
+0   CURRENT
+2   STALE
+3   INDETERMINATE
+64  invalid invocation
+```
+
+This is the first point where the observation work directly replaces a recurring agent instruction with deterministic software.
+
+### An abstraction that did not earn promotion
+
+After repository, ref, status, and PR consumers existed, a generic `certifiedGithubGet()` helper was tested as a shared mechanism.
+
+Measured runtime provider LOC:
+
+```text
+before extraction: 832
+after extraction:  870
+                   ----
+                    +38
+```
+
+The helper made individual files look cleaner but increased the total provider implementation.
+
+It was reverted.
+
+That result matters because it distinguishes two claims:
+
+```text
+shared epistemic architecture   useful
+generic provider helper layer   not yet earned
+```
+
+The reusable pieces that have earned their existence so far are narrower:
+
+- the schema-slice validator;
+- certified repository identity;
+- semantic-shape rules;
+- explicit CURRENT / STALE / INDETERMINATE decisions;
+- the agent-facing authority command.
+
+### Current stopping rule for GitHub
+
+Do not add another GitHub endpoint merely because the observation grammar can describe it.
+
+A new consumer should require a concrete correctness question that agents or kernel code are currently handling manually.
+
+The Kubernetes second-provider experiment should decide which of the remaining GitHub-specific machinery deserves promotion into a provider-general boundary.
+
+
+## Integrated runtime migration
+
+Landing the provider experiments together changed one important detail of the first runtime consumer.
+
+The structural-certificate engine is now promoted exactly once:
+
+```text
+src/provider-observation/
+        ↑
+experiments/provider-observation/   thin re-export only
+        ↑
+GitHub + Kubernetes experiments
+```
+
+The GitHub commit-status postcondition now has two durable versions:
+
+```text
+github-commit-status/v1
+  historical contract
+  stable repository ID, commit, context, desired state
+
+github-commit-status/v2
+  current contract
+  adds repository_full_name as a locator for certified repos/get
+```
+
+The locator is not part of effect identity. Repository ID remains the stable identity.
+
+Unresolved v1 work remains safely recoverable. Its numeric-ID endpoint is used only to discover a candidate current owner/repo locator:
+
+```text
+GET /repositories/{id}
+      ↓
+non-authoritative locator hint
+      ↓
+documented repos/get
+      ↓
+schema-certified response
+      ↓
+returned id must equal stable repository id
+```
+
+Authority therefore comes from the certified documented read, not from the bootstrap hint.
+
+Finally, receipt-v5 absence certificates remain the negative-evidence contract. A GitHub status collection miss produces:
+
+```text
+mutation_certainty = uncertain
+absence_evidence   = none
+```
+
+and cannot authorize replay.
