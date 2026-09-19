@@ -40,6 +40,7 @@ import {
   obligationKey,
 } from './lifecycle.ts';
 import type { Lifecycle } from './lifecycle.ts';
+import { derivePinnedProviderEffect } from './provider-effect.ts';
 
 export interface HistoryProjection {
   lifecycles:Map<string,Lifecycle>;
@@ -294,14 +295,16 @@ export function replayProjection(commits:FactCommit[]):Projection {
       } else {
         const authority=run.obligation.effect_authority;
         if (!authority) throw new Error('EFFECT_RESERVATION_WITHOUT_AUTHORITY');
-        if (fact.effect_contract!==authority.contract) {
-          throw new Error('EFFECT_RESERVATION_CONTRACT_MISMATCH');
+        const expectedEffect=derivePinnedProviderEffect(run.obligation);
+        if (!expectedEffect) {
+          throw new Error('EFFECT_RESERVATION_WITHOUT_DERIVABLE_EFFECT');
         }
         if (
-          !/^[0-9a-f]{64}$/.test(fact.adapter_contract_digest)
-          || !/^[0-9a-f]{64}$/.test(fact.effect_digest)
+          fact.effect_contract!==expectedEffect.effect_contract
+          || fact.adapter_contract_digest!==expectedEffect.adapter_contract_digest
+          || fact.effect_digest!==expectedEffect.effect_digest
         ) {
-          throw new Error('INVALID_EFFECT_RESERVATION_IDENTITY');
+          throw new Error('EFFECT_RESERVATION_IDENTITY_MISMATCH');
         }
         const acceptance=run.obligation.result_acceptance;
         const realization=acceptedRealizationsByRun.get(run.id);
