@@ -48,6 +48,19 @@ function fileObligation(id:string,dependencies:Dependency[]=[]):Obligation {
   };
 }
 
+function eventualFileObligation(id:string):Obligation {
+  return {
+    id,
+    dependencies:[],
+    packet:{kind:'semantic-identity-audition',id},
+    postcondition:{
+      verifier:'eventually-consistent-file-content-equals/v1',
+      path:`/provider/${id}`,
+      content:`content:${id}`,
+    },
+  };
+}
+
 function githubObligation(id:string):Obligation {
   return {
     id,
@@ -320,6 +333,7 @@ function tsAdmitted(
 test('Lean derives exact semantic identity material for all supported output families and settlement receipts',()=>{
   const providers=[
     fileObligation('upstream-file'),
+    eventualFileObligation('upstream-eventual-file'),
     githubObligation('upstream-github'),
     kubernetesObligation('upstream-kubernetes'),
   ];
