@@ -21,8 +21,14 @@ if (mode==='fail') {
 
 if (mode==='hang') {
   setInterval(()=>{},1000);
-} else if (mode==='grandchild-hang') {
-  const grandchild=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{
+} else if (mode==='grandchild-hang' || mode==='grandchild-ignore-term') {
+  if (mode==='grandchild-ignore-term') {
+    process.on('SIGTERM',()=>{});
+  }
+  const grandchildProgram=mode==='grandchild-ignore-term'
+    ? "process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"
+    : "setInterval(()=>{},1000)";
+  const grandchild=spawn(process.execPath,['-e',grandchildProgram],{
     detached:false,
     stdio:'ignore',
   });
