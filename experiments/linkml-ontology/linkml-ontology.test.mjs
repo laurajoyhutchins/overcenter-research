@@ -78,8 +78,9 @@ test('a relation rename propagates to JSON Schema, TypeScript, and SHACL', () =>
   const dir = mkdtempSync(join(tmpdir(), 'overcenter-linkml-relation-'));
   const path = join(dir, 'ontology.yaml');
   try {
+    writeFileSync(path, original);
+    const baseline = generate(path);
     writeFileSync(path, mutated);
-    const baseline = generate(SCHEMA);
     const changed = generate(path);
     assert.notEqual(changed.jsonSchema, baseline.jsonSchema);
     assert.notEqual(changed.typescript, baseline.typescript);
@@ -120,8 +121,9 @@ test('reports whether each projection preserves a cardinality-only change', () =
   const dir = mkdtempSync(join(tmpdir(), 'overcenter-linkml-cardinality-'));
   const path = join(dir, 'ontology.yaml');
   try {
+    writeFileSync(path, original);
+    const baseline = generate(path);
     writeFileSync(path, mutated);
-    const baseline = generate(SCHEMA);
     const changed = generate(path);
     const sensitivity = {
       json_schema: changed.jsonSchema !== baseline.jsonSchema,
