@@ -21,7 +21,7 @@ theorem done_implies_verified
     (settled : settle postcondition observation = .done) :
     verifies postcondition observation = true := by
   cases verified : verifies postcondition observation with
-  | true => exact verified
+  | true => rfl
   | false =>
       cases absent : authoritativeAbsence postcondition observation <;>
         simp [settle, verified, absent] at settled
@@ -36,7 +36,7 @@ theorem ready_implies_authoritative_absence
       simp [settle, verified] at settled
   | false =>
       cases absent : authoritativeAbsence postcondition observation with
-      | true => exact absent
+      | true => rfl
       | false =>
           simp [settle, verified, absent] at settled
 
