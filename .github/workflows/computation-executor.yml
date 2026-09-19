@@ -72,7 +72,7 @@ jobs:
           done
           test -f "$work/credential-proof"
           test -f "$work/executor-killed"
-          grep -Fx 'executor=0 task=65532' "$work/credential-proof"
+          grep -Fx 'executor=0 task=65532 groups=65532' "$work/credential-proof"
 
           docker top "$name" -eo pid,ppid,cmd
           mapfile -t pids < <(docker top "$name" -eo pid | tail -n +2 | tr -d ' ')
