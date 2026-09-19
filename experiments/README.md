@@ -16,6 +16,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
+- `fstar-settlement-kernel/` - proof-bound settlement evidence and producer-independent realization reuse in F*.
 
 Reusable mechanism belongs in `src/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 
