@@ -22,7 +22,7 @@ if (outcome!=='failure') throw new Error(`AGENT_DID_NOT_TERMINATE: ${slot} ${out
 const kernel=new GitOvercenterKernel(process.cwd(),{
   remote:'origin',
   ref:STATE_REF,
-  githubToken:token,
+  observationContext:{githubToken:token},
 });
 
 const work=kernel.inspect().find(candidate=>{
