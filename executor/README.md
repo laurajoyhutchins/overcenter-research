@@ -67,7 +67,7 @@ The binary supports `--stdio` only for tests and containment experiments.
 
 ## First production workload
 
-The first authority-side production integration is the pure `test` workload in `src/computation-runner.ts`.
+The first authority-side production integration is the pure `test` workload in `src/computation-runner.ts`. CI exercises that path through the production Unix-socket mode in a disposable container: repository source is mounted read-only, the task runs as UID/GID 65532, and the host observes only the resulting workspace artifact.
 
 TypeScript selects an already-derived `READY` test obligation, acquires the exact claim/generation, converts its durable process specification to `ProcessSpecV1`, and sends that exact computation to this executor. Go returns attempt evidence only. TypeScript independently observes the obligation postcondition and settles from that observation.
 
