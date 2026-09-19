@@ -1,0 +1,84 @@
+name: Lean live runtime performance
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/lean-production-runtime-performance
+    paths:
+      - experiments/lean-kernel/**
+      - experiments/lean-runtime-performance/**
+      - .github/workflows/lean-runtime-performance.yml
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Assert exact source revision
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install Lean toolchain and build library
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          lake-package-directory: experiments/lean-kernel
+          auto-config: false
+          build: true
+          test: false
+          lint: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          leanchecker: false
+
+      - name: Build benchmark executables
+        working-directory: experiments/lean-kernel
+        run: >-
+          lake build
+          overcenterClaimAdmission
+          overcenterClaimAdmissionServer
+          overcenterClaimAdmissionComparisonServer
+
+      - name: Smoke persistent protocol
+        run: |
+          printf '%s\n' '{"command":"claim-admission","current_revision":"r1","expected_revision":"r1","target_id":"leaf","obligations":[{"id":"leaf","dependencies":[],"effect":null}],"lifecycles":[{"obligation_id":"leaf","status":"UNREALIZED"}]}' |
+            ./experiments/lean-kernel/.lake/build/bin/overcenterClaimAdmissionServer
+
+      - name: Guard indexed fail-closed semantics
+        run: >-
+          node --experimental-strip-types --test
+          experiments/lean-runtime-performance/indexed-semantics.test.ts
+
+      - name: Differential hostile cases
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/claim-admission-differential.test.ts
+
+      - name: Exhaust small-DAG effect-order differential
+        run: >-
+          node --experimental-strip-types --test
+          experiments/lean-runtime-performance/effect-order-exhaustive.test.ts
+
+      - name: Run production-shaped benchmark
+        run: >-
+          node --experimental-strip-types
+          experiments/lean-runtime-performance/benchmark.ts
+
+      - name: Run adversarial topology benchmark
+        run: >-
+          node --experimental-strip-types
+          experiments/lean-runtime-performance/topology-benchmark.ts

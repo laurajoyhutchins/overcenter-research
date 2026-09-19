@@ -1,6 +1,47 @@
 import Overcenter.Admission
+import Overcenter.AdmissionGraphSpec
 
 namespace Overcenter
+
+theorem claimLifecycleIndex_lookup_eq_find
+    (lifecycles : List ClaimLifecycleFact)
+    (id : String) :
+    (claimLifecycleIndex lifecycles)[id]? =
+      findClaimLifecycle lifecycles id := by
+  induction lifecycles with
+  | nil =>
+      simp [claimLifecycleIndex, findClaimLifecycle]
+  | cons lifecycle rest ih =>
+      by_cases sameId : id = lifecycle.obligationId
+      · subst id
+        simp [
+          claimLifecycleIndex,
+          findClaimLifecycle,
+          Std.HashMap.get?_eq_getElem?,
+          Std.HashMap.getElem?_insert
+        ]
+      · have reverseId : lifecycle.obligationId ≠ id := by
+          intro equality
+          exact sameId equality.symm
+        simp [
+          claimLifecycleIndex,
+          findClaimLifecycle,
+          Std.HashMap.get?_eq_getElem?,
+          Std.HashMap.getElem?_insert,
+          sameId,
+          reverseId,
+          ih
+        ]
+
+theorem claimDependenciesDone_eq_reference
+    (ctx : ClaimContext) :
+    claimDependenciesDone ctx =
+      claimDependenciesDoneReference ctx := by
+  simp [
+    claimDependenciesDone,
+    claimDependenciesDoneReference,
+    claimLifecycleIndex_lookup_eq_find
+  ]
 
 theorem claim_admitted_implies_context_well_formed
     (ctx : ClaimContext)
@@ -60,13 +101,13 @@ private def leafContext : ClaimContext := {
   lifecycles := [{ obligationId := "leaf", status := .unrealized }]
 }
 
-example : claimAdmissible leafContext = true := by decide
-example : claimAdmissible { leafContext with expectedRevision := "stale" } = false := by decide
+example : claimAdmissible leafContext = true := by native_decide
+example : claimAdmissible { leafContext with expectedRevision := "stale" } = false := by native_decide
 example :
     claimAdmissible {
       leafContext with
       lifecycles := [{ obligationId := "leaf", status := .executing }]
-    } = false := by decide
+    } = false := by native_decide
 
 private def upstream : ClaimObligation := {
   id := "upstream"
@@ -93,7 +134,7 @@ private def semanticContext : ClaimContext := {
   ]
 }
 
-example : claimAdmissible semanticContext = true := by decide
+example : claimAdmissible semanticContext = true := by native_decide
 example :
     claimAdmissible {
       semanticContext with
@@ -108,7 +149,7 @@ example :
           }]
         }
       ]
-    } = false := by decide
+    } = false := by native_decide
 
 private def statusSuccess : ClaimEffect := {
   resource := "github-status:1:sha:ctx"
@@ -144,7 +185,7 @@ private def conflictContext : ClaimContext := {
   ]
 }
 
-example : claimAdmissible conflictContext = false := by decide
+example : claimAdmissible conflictContext = false := by native_decide
 
 private def betaOrdered : ClaimObligation := {
   betaConflict with
@@ -158,6 +199,6 @@ example :
     claimAdmissible {
       conflictContext with
       obligations := [alpha, betaOrdered]
-    } = true := by decide
+    } = true := by native_decide
 
 end Overcenter

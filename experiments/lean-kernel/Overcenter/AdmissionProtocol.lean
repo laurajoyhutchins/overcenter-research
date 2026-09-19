@@ -92,4 +92,27 @@ def handle (input : String) : Except String String := do
   let request ← Json.parse input
   pure (← handleJson request).compress
 
+/--
+Test-only comparison surface. It deliberately reuses the production parser but
+does not add another production command. The comparison executable built by the
+runtime experiment calls this function directly.
+-/
+def handleComparisonJson (request : Json) : Except String Json := do
+  let command ← stringField request "command"
+  if command != "claim-admission" then
+    throw s!"unsupported command: {command}"
+  let ctx ← parseContext request
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-claim-admission-comparison/v1"),
+    ("graph_acyclic", claimGraphAcyclic ctx),
+    ("optimized_dependencies_done", claimDependenciesDone ctx),
+    ("reference_dependencies_done", claimDependenciesDoneReference ctx),
+    ("optimized_effect_conflict", claimUnorderedEffectConflict ctx),
+    ("reference_effect_conflict", claimUnorderedEffectConflictReference ctx)
+  ]
+
+def handleComparison (input : String) : Except String String := do
+  let request ← Json.parse input
+  pure (← handleComparisonJson request).compress
+
 end Overcenter.AdmissionProtocol
