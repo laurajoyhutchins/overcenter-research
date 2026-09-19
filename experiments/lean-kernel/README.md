@@ -4,37 +4,38 @@ This experiment asks a deliberately narrow question:
 
 > Does Overcenter's truth-deciding core become clearer and safer when its semantic decisions are executable Lean definitions with machine-checked invariants?
 
-It does **not** rewrite Overcenter in Lean. Provider I/O, Git transport, credentials, mutation execution, and worker supervision remain outside this experiment.
+It does **not** rewrite Overcenter in Lean. Git transport, credentials, mutation execution, worker supervision, TLS, and provider transport remain outside this experiment.
 
 ## Current semantic slice
 
-The Lean kernel currently owns three decisions:
+The Lean kernel now owns four decisions:
 
-1. **Obligation identity material** — verifier semantics are an explicit part of identity rather than an implicit property of source code.
-2. **Settlement** — an observation can produce `done`, `ready`, or `recoveryRequired`.
-3. **Realization reuse** — stability is derived from verifier semantics. Immutable realizations may reuse exact semantic identity; mutable external realizations require a fresh verifying observation even when a historical realization was `done`.
+1. **Obligation identity material** — verifier semantics are explicit identity.
+2. **Settlement** — admitted observations become `done`, `ready`, or `recoveryRequired`.
+3. **Realization reuse** — immutable realizations may reuse exact identity; mutable external realizations require fresh verification.
+4. **Kubernetes LIST interpretation** — raw page/member evidence becomes `PRESENT`, `ABSENT`, or `INDETERMINATE`.
 
-The implementation intentionally models the **structured semantic key**, not its cryptographic compression. Hashing is a representation of identity, not the definition of identity.
+The structured semantic key is modeled directly. Cryptographic compression of that key is deliberately outside this slice.
 
 ## Claims and hostile witnesses
 
 | Claim | Hostile case | Smallest distinguishing experiment |
 | --- | --- | --- |
-| Verifier semantics are material identity. | Change verifier behavior without changing obligation meaning. | Change only `verifierRevision`; the obligation key must differ. |
-| `done` requires exact verification. | Wrong coordinate or uncertain read settles `done`. | Keep expected value equal while changing coordinate/certainty; settlement must require recovery. |
-| `ready` requires accepted authoritative absence. | Forged or wrong-coordinate negative evidence permits replay. | Change one ENOENT certificate field; settlement must require recovery. |
-| Historical `done` is not current truth for mutable external state. | Provider state changes after settlement, but reconstruction still reuses the old completion. | A mutable historical realization with no fresh observation must not reuse. |
-| Stability is semantic policy, not historical self-assertion. | A historical record relabels mutable provider state as immutable to obtain reuse. | History contains no stability flag; the verifier family determines it. |
-| Exact immutable realizations are reusable. | Producer identity unnecessarily poisons content-addressed reuse. | Same semantic key + immutable verifier family reuses without rerunning a worker. |
-| Stale semantic identity never reuses. | Verifier revision or material semantic input changes but old completion survives. | Change the semantic key and require reuse to return false. |
+| Verifier semantics are material identity. | Verifier behavior changes but old realization still reuses. | Change only `verifierRevision`; key must differ. |
+| `done` requires exact verification. | Wrong coordinate or uncertain read settles `done`. | Change coordinate/certainty while preserving value. |
+| `ready` requires authoritative absence. | Forged negative evidence permits replay. | Change one ENOENT field; require recovery. |
+| Historical `done` is not current truth for mutable external state. | External state drifts after settlement. | Reconstruct without fresh observation; reuse must be false. |
+| Stability is semantic policy. | History relabels mutable state immutable. | History contains no stability flag. |
+| Exact immutable realizations are reusable. | Producer identity poisons content-addressed reuse. | Exact immutable key reuses without worker execution. |
+| Kubernetes absence requires a complete coherent LIST. | Partial page chain, wrong authority, wrong namespace, changing resourceVersion, or hidden target mints absence. | Feed each hostile transcript; classifier must be indeterminate or present, never absent. |
 
-`Overcenter/Proofs.lean` contains both generic theorems and concrete hostile examples. Compilation is therefore part proof checking and part executable regression suite.
+`Overcenter/Proofs.lean` contains generic theorems plus concrete hostile examples.
 
 ## Native JSON boundary
 
-The compiled kernel accepts a narrow JSON request on stdin and writes one JSON decision on stdout.
+The compiled executable reads JSON from stdin and writes one JSON decision to stdout.
 
-Example:
+### Settlement
 
 ```json
 {
@@ -56,58 +57,81 @@ Example:
 }
 ```
 
-Malformed JSON, unknown commands, unsupported verifier families, and malformed typed fields are rejected instead of defaulted.
+### Raw Kubernetes LIST
 
-The boundary does **not** accept a caller-provided `verified: true` bit.
-
-## Differential proof
-
-`differential.test.ts` sends the same local-file settlement cases through:
-
-```text
-TypeScript projectReceipt
-          │
-          ├──────── compare disposition
-          │
-native Lean kernel
+```json
+{
+  "command": "kubernetes-list",
+  "coordinate": {
+    "authority_id": "kind:test-cluster",
+    "namespace": "proof",
+    "name": "target"
+  },
+  "snapshot_resource_version": "500",
+  "pages": [
+    {
+      "authority_id": "kind:test-cluster",
+      "request_namespace": "proof",
+      "request_continue": null,
+      "response_continue": "",
+      "snapshot_resource_version": "500",
+      "members": []
+    }
+  ]
+}
 ```
 
-The current fixtures cover:
+For Kubernetes, Lean validates per-page authority, requested namespace, continuation binding, stable snapshot `resourceVersion`, member identity fields, terminal pagination, and target membership. The caller does not get to provide a `complete: true` or `verified: true` bit.
 
-- exact positive verification;
-- wrong content;
-- uncertain readback;
-- authoritative direct-coordinate ENOENT;
-- tampered completeness result;
-- tampered provenance operation.
+Malformed JSON, unknown commands, unsupported verifier families, and malformed typed fields fail closed.
 
-This lets us move semantic code across the language boundary without assuming that a successful Lean build means behavioral equivalence.
+## Differential proofs
+
+### Settlement
+
+`differential.test.ts` compares local-file dispositions from `projectReceipt` and the native Lean kernel for positive verification, wrong content, uncertainty, authoritative ENOENT, and tampered ENOENT certificates.
+
+### Kubernetes provider interpretation
+
+`kubernetes-differential.test.ts` feeds equivalent LIST transcripts to the existing TypeScript Kubernetes verifier and Lean's raw LIST classifier. They currently agree on:
+
+- complete absence;
+- target present on a later page;
+- `resourceVersion` drift;
+- broken continuation binding;
+- wrong page authority;
+- wrong requested namespace;
+- wrong-namespace member;
+- interrupted pagination;
+- expired continuation.
+
+This is the first point in the experiment where Lean independently interprets provider evidence rather than merely consuming a provider certificate minted by TypeScript.
 
 ## Known semantic gap
 
-`reuse-gap.test.ts` intentionally proves that the current TypeScript implementation and the Lean target semantics disagree about mutable historical completion:
+`reuse-gap.test.ts` deliberately witnesses one current disagreement:
 
 ```text
 file = A
   ↓
 settle DONE
   ↓
-file externally changes to B
+external drift → file = B
   ↓
 fresh TypeScript reconstruction
   ↓
-DONE          ← current behavior
+DONE
 
-Lean reuse rule with no fresh observation
+Lean reuse with no fresh observation
   ↓
-false         ← target behavior
+false
 ```
 
-The test is a **gap witness**, not an assertion that the current TypeScript behavior is desirable. It should disappear when production reuse semantics migrate to require fresh authoritative observation for mutable external realizations.
+The passing test documents current TypeScript behavior. It is not the desired target. It should disappear when production mutable-realization reuse is migrated.
 
 ## Local-file negative evidence
 
-Local ENOENT authority is no longer represented in Lean by an abstract `complete: true` input. The Lean kernel checks the material certificate fields directly:
+Lean validates the material direct-coordinate ENOENT certificate fields itself:
 
 - exact subject coordinate;
 - exact scope coordinate;
@@ -118,11 +142,13 @@ Local ENOENT authority is no longer represented in Lean by an abstract `complete
 - `readFileSync`;
 - `ENOENT` error code.
 
-Kubernetes absence completeness remains abstract in this slice. Its complete LIST pagination chain and WATCH-continuity semantics are the next provider-specific evidence candidate.
+## Kubernetes boundary
+
+Complete LIST semantics are no longer abstract in Lean.
+
+The remaining Kubernetes temporal question is **WATCH continuity**. A future slice should determine exactly what transport evidence is sufficient to carry an absence fact from LIST snapshot resourceVersion `R` through a WATCH without smuggling a `continuity: maintained` assertion across the boundary.
 
 ## Build
-
-The toolchain is pinned in `lean-toolchain`.
 
 ```sh
 cd experiments/lean-kernel
@@ -130,19 +156,22 @@ lake build
 ./.lake/build/bin/overcenterKernel
 ```
 
-CI also:
+CI:
 
-1. replays generated `Overcenter.*` declarations through Lean's bundled `leanchecker`;
-2. executes the compiled native kernel;
-3. runs the TypeScript/Lean differential settlement proof;
-4. runs the mutable-reuse gap witness.
+1. builds the Lean/native kernel;
+2. replays `Overcenter.*` declarations through bundled `leanchecker`;
+3. executes the native binary;
+4. differential-tests local-file settlement;
+5. executes the mutable-reuse gap witness;
+6. adversarially tests serialized Kubernetes evidence;
+7. differential-tests Kubernetes provider interpretation against TypeScript.
 
 ## Deliberate boundary
 
-This experiment does not claim that Lean proves GitHub, Kubernetes, Git, TLS, the operating system, or cryptographic implementations correct. Those systems remain evidence sources and effect substrates.
+Lean does not prove GitHub, Kubernetes, Git, TLS, the operating system, or cryptographic implementations correct.
 
-The semantic boundary is narrower:
+The boundary is:
 
-> Given admitted facts and evidence, what conclusions may Overcenter derive?
+> Given these authenticated provider bytes / durable facts, what conclusions may Overcenter derive?
 
-The next provider-specific step is to replace the abstract Kubernetes completeness input with the actual complete-LIST / continuation / resourceVersion / WATCH evidence grammar already proved in TypeScript.
+That is intentionally much smaller than “Lean runs the orchestrator.”
