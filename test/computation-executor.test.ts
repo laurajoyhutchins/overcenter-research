@@ -43,6 +43,7 @@ let executorSequence=0;
 interface ExecutorHarness {
   client:GoExecutorClient;
   child:ChildProcessWithoutNullStreams;
+  socketPath:string;
   close:()=>Promise<void>;
 }
 
@@ -75,6 +76,7 @@ async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
   return {
     client,
     child,
+    socketPath,
     close:async()=>{
       await client.close();
       const code=await new Promise<number|null>((resolve,reject)=>{
@@ -284,6 +286,48 @@ test('exact cancellation kills SIGTERM-resistant parent and grandchild',async()=
     const evidence=await pending;
     assert.equal(evidence.outcome,'cancelled');
     await assertDead(pids);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('a second executor cannot unlink or steal a live socket',async()=>{
+  const harness=await startExecutor(1);
+  const challenger=spawn(
+    binary,
+    [
+      `--socket=${harness.socketPath}`,
+      `--workspace-root=${workspace}`,
+      '--concurrency=1',
+    ],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let stderr='';
+  challenger.stderr.setEncoding('utf8');
+  challenger.stderr.on('data',chunk=>{stderr+=String(chunk);});
+  const code=await new Promise<number|null>((resolve,reject)=>{
+    challenger.once('error',reject);
+    challenger.once('close',resolve);
+  });
+  assert.notEqual(code,0);
+  assert.match(stderr,/socket path already exists/);
+
+  try {
+    const execution=computationExecution(
+      permit(900),
+      {
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'/bin/true',
+        argv:[],
+        cwd:'.',
+        env:{},
+        timeout_ms:1000,
+        stdout_max_bytes:0,
+        stderr_max_bytes:0,
+      },
+    );
+    const evidence=await harness.client.execute(execution);
+    assert.equal(evidence.outcome,'completed');
   } finally {
     await harness.close();
   }
