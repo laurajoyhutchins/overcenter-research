@@ -173,7 +173,10 @@ export function analyze({root,config}){
 
   const edges=new Map(units.map(u=>[u.id,new Set()]));
   const unresolvedCallsites=[];
+  const scopes=['production','test','experiment','other'];
+  const callStats=Object.fromEntries(scopes.map(scope=>[scope,{resolvedInternalCalls:0,unresolvedInternalCalls:0,externalCalls:0,unknownCalls:0}]));
   let resolvedInternalCalls=0,unresolvedInternalCalls=0,externalCalls=0,unknownCalls=0;
+  const bump=(caller,key)=>{ callStats[caller.scope][key]+=1; };
   for(const sf of program.getSourceFiles()){
     if(!files.includes(sf.fileName)) continue;
     const visit=(node)=>{
@@ -187,10 +190,12 @@ export function analyze({root,config}){
           if(callee){
             edges.get(caller.id).add(callee.id);
             resolvedInternalCalls++;
+            bump(caller,'resolvedInternalCalls');
           } else if(decl){
             const declarationFile=decl.getSourceFile()?.fileName;
             if(declarationFile && files.includes(declarationFile)){
               unresolvedInternalCalls++;
+              bump(caller,'unresolvedInternalCalls');
               const lc=sf.getLineAndCharacterOfPosition(node.getStart(sf));
               unresolvedCallsites.push({
                 kind:'internal',
@@ -200,9 +205,13 @@ export function analyze({root,config}){
                 expression:node.expression?.getText(sf)??node.getText(sf).slice(0,120),
                 declaration_file:rel(root,declarationFile),
               });
-            } else externalCalls++;
+            } else {
+              externalCalls++;
+              bump(caller,'externalCalls');
+            }
           } else {
             unknownCalls++;
+            bump(caller,'unknownCalls');
             const lc=sf.getLineAndCharacterOfPosition(node.getStart(sf));
             unresolvedCallsites.push({
               kind:'unknown',
@@ -312,8 +321,17 @@ export function analyze({root,config}){
       unresolvedInternalCalls,
       externalCalls,
       unknownCalls,
+      byScope:Object.fromEntries(Object.entries(callStats).map(([scope,stats])=>{
+        const denominator=stats.resolvedInternalCalls+stats.unresolvedInternalCalls+stats.unknownCalls;
+        return [scope,{...stats,internalResolutionRate:denominator?stats.resolvedInternalCalls/denominator:1}];
+      })),
       unresolvedCallsites:unresolvedCallsites
-        .sort((a,b)=>a.file.localeCompare(b.file)||a.line-b.line||a.expression.localeCompare(b.expression))
+        .sort((a,b)=>{
+          const rank={production:0,test:1,experiment:2,other:3};
+          const as=byId.get(a.caller)?.scope??'other';
+          const bs=byId.get(b.caller)?.scope??'other';
+          return rank[as]-rank[bs]||a.file.localeCompare(b.file)||a.line-b.line||a.expression.localeCompare(b.expression);
+        })
         .slice(0,200),
       internalResolutionRate:resolvedInternalCalls+unresolvedInternalCalls+unknownCalls
         ? resolvedInternalCalls/(resolvedInternalCalls+unresolvedInternalCalls+unknownCalls)
@@ -331,7 +349,7 @@ export function markdown(report,top=30){
     '',
     `Revision: \`${report.revision}\``,
     '',
-    `Population: ${report.population.productionCallables} production callables. Calibration: ${report.calibration.passed}/${report.calibration.total} (${(100*report.calibration.agreement).toFixed(1)}%). Internal call resolution: ${(100*report.analyzer.internalResolutionRate).toFixed(1)}% (${report.analyzer.externalCalls} external calls excluded).`,
+    `Population: ${report.population.productionCallables} production callables. Calibration: ${report.calibration.passed}/${report.calibration.total} (${(100*report.calibration.agreement).toFixed(1)}%). Production call resolution: ${(100*report.analyzer.byScope.production.internalResolutionRate).toFixed(1)}%; evidence-call resolution: test ${(100*report.analyzer.byScope.test.internalResolutionRate).toFixed(1)}%, experiment ${(100*report.analyzer.byScope.experiment.internalResolutionRate).toFixed(1)}%.`,
     '',
     '| Rank | Production callable | Score | A | B | I | F | R | E | X | C |',
     '| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
