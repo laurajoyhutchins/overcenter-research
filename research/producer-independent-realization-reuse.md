@@ -142,6 +142,52 @@ equivalent obligations execute the worker once, commit one realization fact,
 and both project `DONE`. A rejected candidate leaves the obligation `READY`
 and creates no run or effect facts.
 
+## Immutable artifact materialization
+
+Admission now commits two different things with different roles:
+
+```text
+realization.json
+  semantic evidence and reuse authority
+
+realization.artifact
+  immutable payload bytes
+```
+
+The payload does not decide whether an obligation is satisfied. The verified
+realization fact does. But a fact is not admitted into reusable projection
+unless the reachable payload hashes to the exact SHA-256 carried by that fact.
+
+That gives materialization the fail-closed rule:
+
+```text
+fact + reachable bytes + matching digest
+                  │
+                  ▼
+          reusable + materializable
+
+missing bytes OR digest mismatch
+                  │
+                  ▼
+             no valid replay
+```
+
+The artifact is a raw Git blob reachable from the same immutable realization
+commit. Because it is reachable from the authority ref, ordinary Git object
+transport carries it to a fresh clone without a separate cache protocol.
+`materializeRealization("sha256:…")` resolves the validated realization back
+to those bytes and verifies the digest again at the read boundary.
+
+The reconstruction proof deletes the materialized cache, fetches only the
+authority ref into a fresh bare repository, reconstructs `DONE`, materializes
+the same bytes by identity, and confirms that the realization worker executes
+zero additional times.
+
+This deliberately keeps storage identity out of the semantic fact. A Git object
+ID is a transport/storage detail; the reusable identity remains SHA-256 over the
+artifact content. Another immutable object store could replace Git without
+changing obligation meaning.
+
 ## What this still does not prove
 
 The integration does not yet prove that:
@@ -150,15 +196,16 @@ The integration does not yet prove that:
   external-effect semantics;
 - realization workers are physically sandboxed or receive a task-specific
   executable capability rather than an in-process callback;
-- the realization fact is a storage system for large artifact bytes. The proof
-  stores evidence identities, not an artifact CAS;
-- accepted artifact bytes can always be materialized later by immutable
-  identity;
+- binary or large artifacts are handled efficiently. The reference candidate
+  and Git transport currently use UTF-8 strings;
+- an external artifact store has correct retention, garbage collection, or
+  availability semantics;
 - every verifier can safely reconstruct its material configuration and source
   closure; or
-- a reusable realization remains available forever in an external artifact
-  store merely because its evidence fact remains durable.
+- artifact availability can survive authority-history pruning without a
+  separate retention root.
 
-The next implementation step for autonomous software development is therefore
-artifact materialization by immutable identity, followed by physical isolation
-of the realization worker from provider-mutation authority.
+The next implementation step for autonomous software development is physical
+isolation of the realization worker behind a task-scoped executable capability,
+with an artifact transport contract that preserves the same immutable identity
+boundary.
