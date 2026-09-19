@@ -1,19 +1,24 @@
 import type { Postcondition } from './model.ts';
 import { canonicalDigest, sha256 } from './digest.ts';
+import {
+  githubCommitStatusEffectEquivalenceWitness,
+  githubCommitStatusEffectSemantics,
+  githubCommitStatusSettlementSemantics,
+} from './providers/github-semantics.ts';
 import { githubStatusContextKey } from './providers/github-rest.ts';
 import { LOCAL_FILE_ENOENT_EVIDENCE } from './evidence.ts';
 import { KUBERNETES_COMPLETE_LIST_ABSENCE } from './providers/kubernetes-configmap.ts';
+import type {
+  EffectEquivalenceWitness,
+  EffectSemantics,
+  SettlementSemantics,
+} from './semantics-contract.ts';
 
-export interface EffectSemantics {
-  resource:string;
-  desired:string;
-  sameDesiredCommutes:boolean;
-}
-
-export interface SettlementSemantics {
-  verifier:Postcondition['verifier'];
-  acceptedAbsenceEvidenceKinds:readonly string[];
-}
+export type {
+  EffectEquivalenceWitness,
+  EffectSemantics,
+  SettlementSemantics,
+} from './semantics-contract.ts';
 
 export function settlementSemantics(postcondition:Postcondition):SettlementSemantics {
   if (postcondition.verifier==='file-content-equals/v1') {
@@ -28,15 +33,17 @@ export function settlementSemantics(postcondition:Postcondition):SettlementSeman
       acceptedAbsenceEvidenceKinds:[KUBERNETES_COMPLETE_LIST_ABSENCE],
     };
   }
-  if (
-    postcondition.verifier==='eventually-consistent-file-content-equals/v1'
-    || postcondition.verifier==='github-commit-status/v1'
-    || postcondition.verifier==='github-commit-status/v2'
-  ) {
+  if (postcondition.verifier==='eventually-consistent-file-content-equals/v1') {
     return {
       verifier:postcondition.verifier,
       acceptedAbsenceEvidenceKinds:[],
     };
+  }
+  if (
+    postcondition.verifier==='github-commit-status/v1'
+    || postcondition.verifier==='github-commit-status/v2'
+  ) {
+    return githubCommitStatusSettlementSemantics(postcondition);
   }
   const exhaustive:never=postcondition;
   throw new Error(`UNSUPPORTED_SETTLEMENT_SEMANTICS:${String(exhaustive)}`);
@@ -77,12 +84,44 @@ export function verifiedContentIdentity(postcondition:Postcondition):string|null
 
 export function effectSemantics(postcondition:Postcondition):EffectSemantics|null {
   if (
-    postcondition.verifier!=='github-commit-status/v1'
-    && postcondition.verifier!=='github-commit-status/v2'
-  ) return null;
-  return {
-    resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,
-    desired:postcondition.expected_state,
-    sameDesiredCommutes:true,
-  };
+    postcondition.verifier==='github-commit-status/v1'
+    || postcondition.verifier==='github-commit-status/v2'
+  ) {
+    return githubCommitStatusEffectSemantics(postcondition);
+  }
+  return null;
+}
+
+export function effectEquivalenceWitness(
+  postcondition:Postcondition,
+):EffectEquivalenceWitness|null {
+  if (
+    postcondition.verifier==='github-commit-status/v1'
+    || postcondition.verifier==='github-commit-status/v2'
+  ) {
+    return githubCommitStatusEffectEquivalenceWitness(postcondition);
+  }
+  return null;
+}
+
+export function validateEffectEquivalenceWitness(
+  postcondition:Postcondition,
+  witness:EffectEquivalenceWitness,
+):boolean {
+  const expected=effectEquivalenceWitness(postcondition);
+  if (!expected) return false;
+  return canonicalDigest(expected)===canonicalDigest(witness);
+}
+
+export function effectEquivalenceWitnessesAuthorizeUnorderedOverlap(
+  left:Postcondition,
+  right:Postcondition,
+):boolean {
+  const leftWitness=effectEquivalenceWitness(left);
+  const rightWitness=effectEquivalenceWitness(right);
+  return Boolean(
+    leftWitness
+    && rightWitness
+    && leftWitness.certificate_digest===rightWitness.certificate_digest,
+  );
 }
