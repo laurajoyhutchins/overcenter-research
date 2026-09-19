@@ -17,6 +17,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `rust-capability-capsule/` - task-bound native capability surface and Linux `openat2` confinement versus a pure-Node TOCTOU baseline.
+- `rust-landlock-launcher/` - kernel-enforced filesystem authority for an ordinary child process, inherited across spawned descendants.
 
 Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/support/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 

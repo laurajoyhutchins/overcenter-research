@@ -20,3 +20,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run Rust capability experiment
         run: bash experiments/rust-capability-capsule/proof.sh
+      - name: Run Rust Landlock launcher experiment
+        run: bash experiments/rust-landlock-launcher/proof.sh
