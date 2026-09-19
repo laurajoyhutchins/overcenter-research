@@ -87,9 +87,7 @@ test('same provider contract, canonical coordinate, and operation authorize unor
   assert.ok(leftCertificate);
   assert.ok(rightCertificate);
   assert.equal(
-    certificatesAuthorizeUnorderedOverlap(
-      left,leftCertificate,right,rightCertificate,
-    ),
+    certificatesAuthorizeUnorderedOverlap(left,right),
     true,
   );
 });
@@ -103,9 +101,7 @@ test('repository rename remains equivalent within GitHub v2 because stable id de
   assert.ok(rightCertificate);
   assert.equal(leftCertificate.resource,rightCertificate.resource);
   assert.equal(
-    certificatesAuthorizeUnorderedOverlap(
-      left,leftCertificate,right,rightCertificate,
-    ),
+    certificatesAuthorizeUnorderedOverlap(left,right),
     true,
   );
 });
@@ -232,9 +228,7 @@ test('different desired operations cannot authorize unordered overlap',()=>{
   assert.ok(leftCertificate);
   assert.ok(rightCertificate);
   assert.equal(
-    certificatesAuthorizeUnorderedOverlap(
-      left,leftCertificate,right,rightCertificate,
-    ),
+    certificatesAuthorizeUnorderedOverlap(left,right),
     false,
   );
 });
@@ -247,9 +241,12 @@ test('cross-verifier-version overlap requires an explicit bridge certificate',()
   assert.ok(leftCertificate);
   assert.ok(rightCertificate);
 
-  // Current boolean admission accepts this pair because effectSemantics emits
-  // the same resource/desired tuple for v1 and v2.
-  assert.doesNotThrow(()=>validateAdmission(state(left,right)));
+  // Production admission now consumes the same version-bound witness and
+  // therefore fails closed without an explicit cross-version bridge.
+  assert.throws(
+    ()=>validateAdmission(state(left,right)),
+    /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
+  );
 
   // Version-bound witnesses do not silently inherit that equivalence.
   assert.notEqual(
