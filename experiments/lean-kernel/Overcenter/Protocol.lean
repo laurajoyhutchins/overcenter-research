@@ -17,6 +17,9 @@ private def stringField (json : Json) (name : String) : Except String String := 
 private def boolField (json : Json) (name : String) : Except String Bool := do
   (← field json name).getBool?
 
+private def natField (json : Json) (name : String) : Except String Nat := do
+  (← field json name).getNat?
+
 private def optionalStringField (json : Json) (name : String) : Except String (Option String) := do
   let value ← field json name
   if value.isNull then
@@ -40,6 +43,11 @@ private def parseCertainty : String → Except String MutationCertainty
 
 private def parseCoordinate (family : VerifierFamily) (json : Json) : Except String Coordinate := do
   match family with
+  | .githubCommitStatus =>
+      pure (.githubCommitStatus
+        (← natField json "repository_id")
+        (← stringField json "commit_sha")
+        (← stringField json "context"))
   | .kubernetesConfigMapExists =>
       pure (.kubernetesConfigMap
         (← stringField json "authority_id")
@@ -145,9 +153,6 @@ private def parseObservation (json : Json) : Except String Observation := do
     actual := ← optionalStringField json "actual"
     absence := ← parseAbsence (← field json "absence")
   }
-
-private def natField (json : Json) (name : String) : Except String Nat := do
-  (← field json name).getNat?
 
 private def parseExecutionStatus : String → Except String ExecutionStatus
   | "EXECUTING" => pure .executing
