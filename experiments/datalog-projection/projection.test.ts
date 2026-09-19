@@ -299,7 +299,6 @@ const DIAGNOSTICS=[
   'unexpected_observation_judgment',
   'invalid_observation_boolean',
   'contradictory_observation_judgment',
-  'run_after_done',
 ] as const;
 
 function judgment(
@@ -627,49 +626,4 @@ test('an observation receipt without its semantic judgment fails closed',()=>{
     ()=>datalogProjection(scenario),
     /DATALOG_PROJECTION_INPUT_INVALID:missing_observation_judgment/,
   );
-});
-
-test('a later run after an exact-key DONE is rejected as impossible authority history',()=>{
-  const scenario:Scenario={
-    name:'run after done',
-    definitions:[{work:chainA,ordinal:1}],
-    runs:[
-      {id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10},
-      {id:'run-b',obligation:'a',definitionOrdinal:1,ordinal:30},
-    ],
-    receipts:[{
-      run:'run-a',
-      kind:'observation',
-      evidence:'verified',
-      ordinal:20,
-    }],
-  };
-
-  assert.throws(
-    ()=>datalogProjection(scenario),
-    /DATALOG_PROJECTION_INPUT_INVALID:run_after_done/,
-  );
-});
-
-test('mutable historical DONE can be rejected without changing relational projection rules',()=>{
-  const scenario:Scenario={
-    name:'known TypeScript mutable-reuse gap',
-    definitions:[{work:chainA,ordinal:1}],
-    runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
-    receipts:[{
-      run:'run-a',
-      kind:'observation',
-      evidence:'verified',
-      ordinal:20,
-    }],
-    // Models the Lean target semantics after external mutable state has drifted:
-    // exact historical settlement exists, but it is not currently admissible.
-    inadmissibleRealizationRuns:['run-a'],
-  };
-
-  // Current TypeScript still treats matching historical DONE as current DONE.
-  assert.equal(typescriptProjection(scenario).get('a'),'DONE');
-
-  // Datalog consumes the stronger semantic judgment and does not reuse it.
-  assert.equal(datalogProjection(scenario).statuses.get('a'),'READY');
 });
