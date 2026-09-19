@@ -109,10 +109,78 @@ test('current realization admissibility can withdraw historical DONE',()=>{
     runs:new Map([['run-a',run]]),
     receiptsByRun:new Map([['run-a',receipt]]),
     revision:'revision-b',
-    admissibleRealizationRuns:new Set(),
+    currentRealizationJudgments:new Map([
+      ['run-a',{
+        state:'rejected' as const,
+        reason:'CURRENT_POSTCONDITION_NOT_VERIFIED' as const,
+      }],
+    ]),
   });
 
   assert.equal(project.lifecycles.get('a')?.status,'UNREALIZED');
   assert.equal(project.work.find(candidate=>candidate.id==='a')?.status,'READY');
   assert.equal(project.readyWork?.id,'a');
+});
+
+
+test('indeterminate current realization judgment blocks replay instead of becoming READY',()=>{
+  const receipts=new Map<string,Receipt>();
+  const base=deriveProjectProjection({
+    state,
+    runs:new Map<string,HistoricalRun>(),
+    receiptsByRun:receipts,
+    revision:'revision-a',
+  });
+  const key=obligationKey(state,work,base.lifecycles,receipts);
+  assert.ok(key);
+  const run:HistoricalRun={
+    id:'run-a',
+    obligation_id:'a',
+    claimed_revision:'revision-a',
+    claim_commit:'claim-a',
+    obligation_key:key,
+    execution_generation:1,
+    execution_authority_commit:'claim-a',
+    execution_capability_sha256:'0'.repeat(64),
+    obligation:work,
+    definition_commit:'define-a',
+  };
+  const receipt:Receipt={
+    schema:'overcenter-git-receipt-v5',
+    run_id:'run-a',
+    obligation_id:'a',
+    claimed_revision:'revision-a',
+    claim_commit:'claim-a',
+    execution_generation:1,
+    execution_authority_commit:'claim-a',
+    kind:'observation',
+    observed:{
+      verifier:'file-content-equals/v1',
+      path:'/provider/a',
+      expected_sha256:'559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd',
+      actual_sha256:'559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd',
+      mutation_certainty:'present',
+    },
+    settled_at:'2026-09-18T00:00:00.000Z',
+    disposition:'DONE',
+    verified:true,
+    settlement_commit:'receipt-a',
+  };
+  const project=deriveProjectProjection({
+    state,
+    runs:new Map([['run-a',run]]),
+    receiptsByRun:new Map([['run-a',receipt]]),
+    revision:'revision-b',
+    currentRealizationJudgments:new Map([
+      ['run-a',{
+        state:'indeterminate',
+        reason:'CURRENT_REALIZATION_OBSERVATION_INDETERMINATE',
+      }],
+    ]),
+  });
+
+  assert.equal(project.lifecycles.get('a')?.status,'UNREALIZED');
+  assert.equal(project.claimabilityErrors.get('a'),'CURRENT_REALIZATION_ADMISSIBILITY_INDETERMINATE');
+  assert.equal(project.work.find(candidate=>candidate.id==='a')?.status,'BLOCKED');
+  assert.equal(project.readyWork,null);
 });

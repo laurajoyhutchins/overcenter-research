@@ -235,10 +235,55 @@ The semantic obligation key is part of the projection. Therefore public
 claim identity is derivable now. Claim execution consumes that projected key
 rather than performing a second semantic-identity decision afterward.
 
-Historical settlement is also insufficient by itself for reuse. The projection
-accepts a current realization-admissibility judgment so verifier semantics can
-require fresh observation for mutable external state while allowing stable
-realizations to remain reusable.
+Historical settlement is also insufficient by itself for mutable-state reuse.
+The production boundary separates **historical replay** from **current project
+truth**:
+
+```text
+durable facts
+    |
+    v
+historical replay
+    |                     fresh authoritative observation
+    |                                  |
+    |                                  v
+    |                     current realization judgment
+    |                     admissible / rejected / indeterminate
+    |                                  |
+    +----------------+-----------------+
+                     |
+                     v
+             current project projection
+```
+
+Pure replay performs no provider I/O and preserves what the durable history
+proved at settlement time. Current project reads, frontier selection,
+explanations, and new claims may overlay fresh realization judgments.
+
+For run/receipt-derived mutable realizations:
+
+- **admissible** means current authoritative evidence still proves the exact
+  postcondition, so the historical realization remains `DONE`;
+- **rejected** means current authoritative evidence disproves it (including
+  certified absence where the verifier supports authoritative negative
+  evidence), so the historical `DONE` no longer satisfies current truth;
+- **indeterminate** means current evidence cannot safely decide either way, so
+  the obligation is `BLOCKED` rather than silently reused or replayed.
+
+This relation is derived, not stored. No invalidation event, stale bit, or
+lifecycle repair write is required. If mutable reality drifts away and later
+returns, the same exact historical settlement can disappear from and reappear
+in current project truth without a new settlement.
+
+Already-issued execution/recovery authority deliberately uses historical
+projection rather than the fresh read overlay. A transient provider read cannot
+revoke an execution permit; fresh current evidence instead governs whether old
+settlement evidence may satisfy **new** project reads or claims.
+
+Content-addressed immutable realization facts are a distinct case: exact
+immutable identity can itself be current admissibility evidence. Their
+producer-independent integration is kept separate from this mutable-state
+boundary rather than forcing every reusable artifact through provider readback.
 
 Soufflé Datalog is retained as an independent executable oracle for this
 boundary. It is not a runtime dependency. The production projector remains

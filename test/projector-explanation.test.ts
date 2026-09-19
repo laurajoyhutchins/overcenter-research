@@ -188,7 +188,12 @@ test('DONE explanation distinguishes historical reuse from current admissibility
     runs:new Map([[run.id,run]]),
     receiptsByRun:new Map([[run.id,done]]),
     revision:'done-current',
-    admissibleRealizationRuns:new Set(['run-a']),
+    currentRealizationJudgments:new Map([
+      ['run-a',{
+        state:'admissible' as const,
+        reason:'CURRENT_POSTCONDITION_VERIFIED' as const,
+      }],
+    ]),
   });
   assert.equal(
     (explainProjectWork(current,'a').reason as {admissibility_basis:string})
@@ -230,7 +235,12 @@ test('READY explanation names a historical DONE rejected by current semantics',(
     runs:new Map([[run.id,run]]),
     receiptsByRun:new Map([[run.id,done]]),
     revision:'drifted',
-    admissibleRealizationRuns:new Set(),
+    currentRealizationJudgments:new Map([
+      ['run-a',{
+        state:'rejected' as const,
+        reason:'CURRENT_POSTCONDITION_NOT_VERIFIED' as const,
+      }],
+    ]),
   });
 
   const explanation=explainProjectWork(project,'a');
@@ -317,4 +327,34 @@ test('static effect-conflict provenance preserves obligation IDs containing colo
     explanation.reason.conflicting_obligations,
     ['left:status','right:status'],
   );
+});
+
+
+test('BLOCKED explanation names indeterminate current realization evidence',()=>{
+  const key=keyForA();
+  const run=runA(key);
+  const done=receipt('DONE','observation');
+  const project=deriveProjectProjection({
+    state,
+    runs:new Map([[run.id,run]]),
+    receiptsByRun:new Map([[run.id,done]]),
+    revision:'indeterminate-current-read',
+    currentRealizationJudgments:new Map([
+      ['run-a',{
+        state:'indeterminate',
+        reason:'CURRENT_REALIZATION_OBSERVATION_INDETERMINATE',
+      }],
+    ]),
+  });
+
+  assert.deepEqual(explainProjectWork(project,'a'),{
+    obligation_id:'a',
+    status:'BLOCKED',
+    reason:{
+      kind:'current-realization-indeterminate',
+      run_id:'run-a',
+      reason:'CURRENT_REALIZATION_OBSERVATION_INDETERMINATE',
+      settlement_commit:'receipt-done',
+    },
+  });
 });

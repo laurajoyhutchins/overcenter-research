@@ -113,12 +113,27 @@ function projectTs(
   admissibleRuns:Set<string>,
   revision:string,
 ) {
+  const runs=runMap(history);
+  const currentRealizationJudgments=new Map(
+    [...runs.keys()].map(runId=>[
+      runId,
+      admissibleRuns.has(runId)
+        ? {
+            state:'admissible' as const,
+            reason:'CURRENT_POSTCONDITION_VERIFIED' as const,
+          }
+        : {
+            state:'rejected' as const,
+            reason:'CURRENT_POSTCONDITION_NOT_VERIFIED' as const,
+          },
+    ]),
+  );
   return deriveProjectProjection({
     state:current,
-    runs:runMap(history),
+    runs,
     receiptsByRun:latestReceipts(history),
     revision,
-    admissibleRealizationRuns:admissibleRuns,
+    currentRealizationJudgments,
   });
 }
 

@@ -11,6 +11,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.
 - `conflicting-effect/` - provider-coordinate conflict, ordering, and commutativity.
 - `eventually-consistent-readback/` - hostile stale or negative provider readback and the no-blind-replay rule.
+- `current-realization-admissibility/` - fresh authoritative observation over historical DONE, including withdrawal, indeterminate blocking, and cache-free reconstruction.
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
 - `provider-observation/` - provider-neutral observation provenance and structural-certificate engine shared by GitHub and Kubernetes experiments.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
@@ -202,6 +203,7 @@ npm run proof:local                  # adversarial local experiments
 npm run test:kubernetes-observation # focused deterministic Kubernetes semantics
 npm run test:lisp-semantics          # focused semantic-coherence experiment
 npm run test:datalog                # Soufflé projection differential
+npm run test:current-realization-admissibility # current DONE reuse against fresh authority
 npm run test:bounded-graph          # exhaustive bounded graph/state model
 ```
 
