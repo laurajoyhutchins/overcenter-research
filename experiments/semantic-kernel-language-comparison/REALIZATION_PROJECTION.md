@@ -480,3 +480,17 @@ What remains outside Lean is now predominantly deterministic infrastructure or p
 - physical mutation and execution.
 
 Further migration into Lean should not proceed by momentum. It should require discovery of another concrete truth-deciding judgment outside this boundary and a new falsifiable experiment showing why that judgment belongs inside.
+
+## Corrected-head confirmation
+
+The corrected integration boundary was re-evaluated at exact revision `57cacf8e3f0d94caebce82ff9149cc8e3ea880fc` and passed:
+
+- realization projection: run `35430755032`;
+- claim-admission audition: run `35430755021`;
+- semantic identity: run `35430755079`;
+- obligation-key preimage: run `35430755044`;
+- Lean semantic kernel: run `35430755050`;
+- repository Evidence (regression, local adversaries, TLA+): run `35430755029`;
+- disposable-agent trust proof: run `35430755031`.
+
+This supersedes the earlier “being re-evaluated” status. The evaluated revision is intentionally recorded separately from later documentation-only commits.
