@@ -23,10 +23,12 @@ export interface GoExecutorClientOptions {
   socketPath:string;
   maxConcurrency:number;
   executionContextSha256?:string;
+  containmentId?:string;
 }
 
 export class GoExecutorClient {
   readonly executionContextSha256?:string;
+  readonly containmentId?:string;
   readonly #socket:Socket;
   readonly #maxConcurrency:number;
   readonly #pending=new Map<string,PendingExecution>();
@@ -41,6 +43,7 @@ export class GoExecutorClient {
     socketPath,
     maxConcurrency,
     executionContextSha256,
+    containmentId,
   }:GoExecutorClientOptions) {
     if (!socketPath.startsWith('/')) {
       throw new Error('GO_EXECUTOR_SOCKET_MUST_BE_ABSOLUTE');
@@ -54,7 +57,14 @@ export class GoExecutorClient {
     ) {
       throw new Error('GO_EXECUTOR_EXECUTION_CONTEXT_INVALID');
     }
+    if (
+      containmentId!==undefined
+      && (containmentId.length===0 || containmentId.length>512 || containmentId.includes('\0'))
+    ) {
+      throw new Error('GO_EXECUTOR_CONTAINMENT_ID_INVALID');
+    }
     this.executionContextSha256=executionContextSha256;
+    this.containmentId=containmentId;
     this.#maxConcurrency=maxConcurrency;
     this.#socket=createConnection({path:socketPath});
 
