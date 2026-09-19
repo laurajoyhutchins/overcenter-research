@@ -21,7 +21,7 @@ import {
 } from './providers/kubernetes-configmap.ts';
 
 export interface ObservationContext {
-  githubToken: string | null;
+  githubToken?: string | null;
   githubGet?: GithubJsonGet;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
