@@ -14,6 +14,7 @@ The Lean kernel now owns four decisions:
 2. **Settlement** — admitted observations become `done`, `ready`, or `recoveryRequired`.
 3. **Realization reuse** — immutable realizations may reuse exact identity; mutable external realizations require fresh verification.
 4. **Kubernetes LIST/WATCH interpretation** — raw page/member evidence becomes `PRESENT`, `ABSENT`, or `INDETERMINATE`, and LIST-proved absence can be carried only through an exact-bound WATCH transcript that still ends absent.
+5. **Execution replay fencing** — starting from an admitted claim, authority rotations, effect reservations, interruptions, and receipts are reduced as a pure durable-fact state machine.
 
 The structured semantic key is modeled directly. Cryptographic compression of that key is deliberately outside this slice.
 
@@ -161,6 +162,27 @@ For WATCH, the kernel starts from an actually absent LIST snapshot and requires:
 
 The TypeScript WATCH adapter currently summarizes this as `continuity: maintained` plus target-event types. `kubernetes-watch-differential.test.ts` confirms that the Lean raw-transcript interpretation agrees with that summary on their overlapping cases, while Lean requires the stronger raw transcript at its own boundary.
 
+## Execution replay
+
+`Overcenter/Execution.lean` adds the first inward-facing transaction slice. It starts from one admitted claim and folds durable execution facts.
+
+The reducer rejects:
+
+- skipped execution generations;
+- stale predecessor authority commits;
+- authority changes for the wrong run or obligation;
+- reservations from stale generations or stale authority;
+- duplicate unresolved effects;
+- judgment deferral after an effect has been reserved;
+- receipts bound to the wrong revision, claim, generation, or authority;
+- authority rotation or additional settlement after a terminal receipt.
+
+It preserves an unresolved effect across execution termination and clears it only on terminal observation settlement.
+
+`execution-replay-differential.test.ts` feeds equivalent fact sequences to Lean and TypeScript `replayProjection()`. The current hostile suite agrees on acceptance/rejection, final generation, current authority commit, lifecycle status, and unresolved-effect state.
+
+This slice deliberately begins **after claim admission**. Graph topology, semantic-dependency resolution, and claimability remain the next inward boundary rather than being represented by caller-supplied booleans.
+
 ## Build
 
 ```sh
@@ -179,7 +201,8 @@ CI:
 6. adversarially tests serialized Kubernetes evidence;
 7. differential-tests Kubernetes provider interpretation against TypeScript;
 8. adversarially tests raw Kubernetes WATCH carry;
-9. differential-tests WATCH carry against the current TypeScript summary semantics.
+9. differential-tests WATCH carry against the current TypeScript summary semantics;
+10. differential-tests execution replay/fencing against TypeScript `replayProjection()`.
 
 ## Deliberate boundary
 
@@ -193,4 +216,4 @@ That is intentionally much smaller than “Lean runs the orchestrator.”
 
 ## Next core slice
 
-Provider evidence now reaches a useful stopping point. The next experiment moves inward: durable fact replay and execution-generation fencing. The goal is for Lean to decide whether a claim, authority rotation, effect reservation, or receipt is admissible from prior durable facts, then differential-test that reducer against `replayProjection`.
+Execution replay now reaches back to an already admitted claim. The next boundary is **claim admission itself**: derive claimability from obligation identity, dependency realizations, and exact current revision without importing a caller-provided `dependencies_done` or `claimable` flag. That is the point where the Lean kernel can begin replacing the remaining lifecycle/eligibility truth decisions rather than merely validating execution after admission.
