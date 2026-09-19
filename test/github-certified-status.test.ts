@@ -118,7 +118,7 @@ test('certified repository identity and status membership preserve positive sett
   assert.equal(receiptFor(observed).disposition,'DONE');
   assert.deepEqual(p.calls.slice(0,2),[
     '/repos/acme/widget',
-    `/repos/acme/widget/commits/${COMMIT}/statuses?page=1&per_page=100`,
+    `/repos/acme/widget/commits/${COMMIT}/statuses?page=1&per_page=30`,
   ]);
   assert.ok(!p.calls.some(path=>path.startsWith('/repositories/')));
 });
@@ -153,8 +153,8 @@ test('repository locator cannot override stable repository identity', () => {
 });
 
 test('certified status scan can prove membership on a later page without upgrading absence', () => {
-  const first=Array.from({length:100},(_,index)=>status(index+1,`other/${index}`));
-  const p=provider([first,[status(101,'overcenter/proof')]]);
+  const first=Array.from({length:30},(_,index)=>status(index+1,`other/${index}`));
+  const p=provider([first,[status(31,'overcenter/proof')]]);
   const result=observeCertifiedGithubCommitStatus('token',{
     repositoryId:42,
     repositoryFullName:'acme/widget',
@@ -167,7 +167,7 @@ test('certified status scan can prove membership on a later page without upgradi
   assert.equal(result.state,'present');
   assert.equal(result.actual_state,'success');
   assert.equal(result.evidence.pages.length,2);
-  assert.equal(result.evidence.pages[0].member_count,100);
+  assert.equal(result.evidence.pages[0].member_count,30);
   assert.equal(result.evidence.pages[1].member_count,1);
 });
 

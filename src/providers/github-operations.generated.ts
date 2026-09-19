@@ -271,6 +271,13 @@ export const GITHUB_COMMIT_STATUSES_OPERATION:GithubObservationOperation={
       }
     }
   ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
   "outcomes": [
     {
       "status": "200",

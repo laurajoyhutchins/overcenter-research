@@ -32,6 +32,14 @@ export interface GithubObservationParameter {
   schema:unknown;
 }
 
+export interface GithubPagePagination {
+  kind:'page-number';
+  page_parameter:string;
+  page_size_parameter:string;
+  first_page:number;
+  default_page_size:number;
+}
+
 export interface GithubObservationOperation {
   provider:'github';
   api_version:string;
@@ -39,6 +47,7 @@ export interface GithubObservationOperation {
   path_template:string;
   operation_id:string;
   parameters:GithubObservationParameter[];
+  pagination?:GithubPagePagination;
   outcomes:Array<{status:string;description:string;schema:unknown}>;
   github_extensions:Record<string,unknown>;
 }
@@ -99,6 +108,42 @@ function mergeParameters(
   );
 }
 
+function integerDefault(parameter:GithubObservationParameter|undefined):number|null {
+  if (!parameter || parameter.in!=='query') return null;
+  const schema=parameter.schema;
+  if (schema===null || typeof schema!=='object' || Array.isArray(schema)) return null;
+  const body=schema as JsonObject;
+  if (body.type!=='integer' || !Number.isSafeInteger(body.default)) return null;
+  return body.default as number;
+}
+
+function derivePagePagination(
+  parameters:GithubObservationParameter[],
+):GithubPagePagination|undefined {
+  const page=parameters.find(parameter=>parameter.in==='query' && parameter.name==='page');
+  const pageSize=parameters.find(parameter=>parameter.in==='query' && parameter.name==='per_page');
+  if (!page || !pageSize) return undefined;
+
+  const firstPage=integerDefault(page);
+  const defaultPageSize=integerDefault(pageSize);
+  if (
+    firstPage===null
+    || defaultPageSize===null
+    || firstPage<1
+    || defaultPageSize<1
+  ) {
+    throw new Error('GITHUB_OPENAPI_PAGE_PAGINATION_DEFAULT_INVALID');
+  }
+
+  return {
+    kind:'page-number',
+    page_parameter:page.name,
+    page_size_parameter:pageSize.name,
+    first_page:firstPage,
+    default_page_size:defaultPageSize,
+  };
+}
+
 export function deriveGithubObservationOperation(
   document:GithubOpenApiDocument,
   operationId:string,
@@ -115,6 +160,8 @@ export function deriveGithubObservationOperation(
   }
   if (!found) throw new Error(`GITHUB_OPENAPI_OPERATION_NOT_FOUND:${operationId}`);
 
+  const parameters=mergeParameters(document,found.pathItem.parameters,found.operation.parameters);
+  const pagination=derivePagePagination(parameters);
   const outcomes=Object.entries(found.operation.responses??{}).map(([status,response])=>({
     status,
     description:typeof response.description==='string'?response.description:'',
@@ -127,7 +174,8 @@ export function deriveGithubObservationOperation(
     method:found.method.toUpperCase() as 'GET'|'HEAD',
     path_template:found.pathTemplate,
     operation_id:operationId,
-    parameters:mergeParameters(document,found.pathItem.parameters,found.operation.parameters),
+    parameters,
+    ...(pagination?{pagination}:{}),
     outcomes,
     github_extensions:found.operation['x-github']??{},
   };

@@ -7,6 +7,7 @@ import {
   GITHUB_REF_OPERATION,
   GITHUB_REPOSITORY_OPERATION,
 } from '../src/providers/github-operations.generated.ts';
+import { scanGithubPageCollection } from '../src/providers/github-page-collection.ts';
 import { materializeGithubOperationRequest } from '../src/providers/github-openapi.ts';
 import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github-semantics.ts';
 
@@ -15,6 +16,17 @@ test('generated GitHub operation catalog is bound to semantic operation IDs',()=
   assert.equal(GITHUB_REF_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.ref.operation_id);
   assert.equal(GITHUB_PULL_REQUEST_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.pull_request.operation_id);
   assert.equal(GITHUB_COMMIT_STATUSES_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.commit_statuses.operation_id);
+});
+
+test('generated GitHub collection metadata captures page traversal defaults',()=>{
+  assert.deepEqual(GITHUB_COMMIT_STATUSES_OPERATION.pagination,{
+    kind:'page-number',
+    page_parameter:'page',
+    page_size_parameter:'per_page',
+    first_page:1,
+    default_page_size:30,
+  });
+  assert.equal(GITHUB_REPOSITORY_OPERATION.pagination,undefined);
 });
 
 test('GitHub request materialization is operation-driven',()=>{
@@ -55,4 +67,92 @@ test('certified providers do not copy GitHub routes or response schemas',()=>{
     assert.doesNotMatch(source,/outcomes\s*:\s*\[/,path);
     assert.doesNotMatch(source,/['\"`]\/repos\//,path);
   }
+});
+
+test('page collection traversal is driven by generated operation metadata',()=>{
+  const seen:string[]=[];
+  const first=Array.from({length:30},(_,index)=>index);
+  const result=scanGithubPageCollection({
+    operation:GITHUB_COMMIT_STATUSES_OPERATION,
+    parameters:{owner:'acme',repo:'widget',ref:'abc'},
+    readPage:({request,page})=>{
+      seen.push(request.path);
+      return {
+        members:page===1?first:[31],
+        evidence:{observed_at:`page-${page}`},
+      };
+    },
+    matches:member=>member===31,
+  });
+
+  assert.equal(result.state,'matched');
+  assert.deepEqual(seen,[
+    '/repos/acme/widget/commits/abc/statuses?page=1&per_page=30',
+    '/repos/acme/widget/commits/abc/statuses?page=2&per_page=30',
+  ]);
+  assert.equal(result.pages.length,2);
+  assert.equal(result.pages[0].member_count,30);
+  assert.equal(result.pages[1].member_count,1);
+});
+
+test('page collection traversal fails closed on unsupported or hostile shapes',()=>{
+  assert.throws(
+    ()=>scanGithubPageCollection({
+      operation:GITHUB_REPOSITORY_OPERATION,
+      parameters:{owner:'acme',repo:'widget'},
+      readPage:()=>({members:[],evidence:{}}),
+      matches:()=>false,
+    }),
+    /GITHUB_OPERATION_PAGE_PAGINATION_UNAVAILABLE:repos\/get/,
+  );
+
+  assert.throws(
+    ()=>scanGithubPageCollection({
+      operation:GITHUB_COMMIT_STATUSES_OPERATION,
+      parameters:{owner:'acme',repo:'widget',ref:'abc',page:7},
+      readPage:()=>({members:[],evidence:{}}),
+      matches:()=>false,
+    }),
+    /GITHUB_PAGE_SCAN_PAGINATION_PARAMETER_RESERVED/,
+  );
+
+  assert.throws(
+    ()=>scanGithubPageCollection({
+      operation:GITHUB_COMMIT_STATUSES_OPERATION,
+      parameters:{owner:'acme',repo:'widget',ref:'abc'},
+      readPage:()=>({members:Array.from({length:31},(_,index)=>index),evidence:{}}),
+      matches:()=>false,
+    }),
+    /GITHUB_PAGE_SCAN_PAGE_OVERSIZED/,
+  );
+
+  const ended=scanGithubPageCollection({
+    operation:GITHUB_COMMIT_STATUSES_OPERATION,
+    parameters:{owner:'acme',repo:'widget',ref:'abc'},
+    readPage:()=>({members:[],evidence:{}}),
+    matches:()=>false,
+  });
+  assert.equal(ended.state,'collection-end-observed');
+  assert.equal(ended.pages.length,1);
+
+  const limited=scanGithubPageCollection({
+    operation:GITHUB_COMMIT_STATUSES_OPERATION,
+    parameters:{owner:'acme',repo:'widget',ref:'abc'},
+    maxPages:2,
+    readPage:()=>({
+      members:Array.from({length:30},(_,index)=>index),
+      evidence:{},
+    }),
+    matches:()=>false,
+  });
+  assert.equal(limited.state,'limit-reached');
+  assert.equal(limited.pages.length,2);
+});
+
+test('certified status verifier contains no GitHub page-parameter convention',()=>{
+  const source=readFileSync('src/providers/github-certified-status.ts','utf8');
+  assert.doesNotMatch(source,/per_page/);
+  assert.doesNotMatch(source,/default_page_size/);
+  assert.equal(source.includes('page='),false);
+  assert.equal(source.includes('for (let page'),false);
 });
