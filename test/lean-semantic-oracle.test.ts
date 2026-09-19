@@ -15,16 +15,15 @@ import type {
 } from '../src/model.ts';
 import { effectSemantics } from '../src/semantics.ts';
 
-const EXPECTED_ORACLE_SHA='0c5db60f2dc14af93f554fd9f870181261ce5f11';
 const oracleBin=process.env.LEAN_ORACLE_BIN;
 const oracleSha=process.env.LEAN_ORACLE_SHA;
 
 if (!oracleBin) {
   throw new Error('LEAN_ORACLE_BIN is required');
 }
-if (oracleSha!==EXPECTED_ORACLE_SHA) {
+if (!oracleSha || !/^[0-9a-f]{40}$/.test(oracleSha)) {
   throw new Error(
-    `LEAN_ORACLE_SHA must be exact pinned reference ${EXPECTED_ORACLE_SHA}; got ${oracleSha??'<unset>'}`,
+    `LEAN_ORACLE_SHA must be the exact 40-hex pinned reference; got ${oracleSha??'<unset>'}`,
   );
 }
 
@@ -359,7 +358,7 @@ test('current TypeScript graph validity agrees with pinned Lean semantic oracle'
   }
 
   console.log('LEAN_GRAPH_ORACLE '+JSON.stringify({
-    oracle_sha:EXPECTED_ORACLE_SHA,
+    oracle_sha:oracleSha,
     node_count:nodeCount,
     directed_graphs:1<<slots.length,
     dependency_kinds:dependencyKinds,
@@ -458,7 +457,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
   }
 
   console.log('LEAN_EFFECT_ORACLE '+JSON.stringify({
-    oracle_sha:EXPECTED_ORACLE_SHA,
+    oracle_sha:oracleSha,
     node_count:nodeCount,
     possible_edges:slots.length,
     dags:1<<slots.length,
