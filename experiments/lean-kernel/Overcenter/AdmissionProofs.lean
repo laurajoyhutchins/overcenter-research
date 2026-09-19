@@ -1,4 +1,5 @@
 import Overcenter.Admission
+import Overcenter.AdmissionGraphSpec
 
 namespace Overcenter
 
