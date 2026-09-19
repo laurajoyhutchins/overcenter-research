@@ -177,6 +177,42 @@ The observers still own their distinct coordinates, response slices, evidence, a
 
 This is intentionally different from sharing validation across TypeScript and Go computation boundaries. GitHub object identity is one provider semantic contract inside the same trusted TypeScript authority layer. Cross-language executor validation is part of an isolation boundary and should remain independently checked unless an experiment shows that sharing it would not weaken that boundary.
 
+## Fourth application: certified GitHub read plumbing
+
+Repository, ref, pull-request, and commit-status observers all used the same mechanical sequence:
+
+```text
+materialized GET request
+        |
+        v
+provider transport
+        |
+        v
+RawObservation envelope
+        |
+        v
+selected response-slice validation
+        |
+        v
+structural certificate
+```
+
+The [provider observation reuse experiment](./provider-observation-reuse.md) already established the architectural boundary behind this sequence. GitHub and Kubernetes shared the observation envelope and structural certificate engine successfully, while provider-specific identity, completeness, freshness, and negative-evidence meaning remained local. In that experiment the corresponding second-provider observation/validator infrastructure fell from roughly 259 LOC in the standalone Kubernetes branch to roughly 101 LOC of shared/factored infrastructure plus provider-local semantics.
+
+The production GitHub observers had already adopted the shared provider-general certificate engine, but they still repeated the GitHub-local transport-to-certificate plumbing around it. `observeCertifiedGithubRead200()` now owns that mechanical sequence once.
+
+It deliberately does **not** own:
+
+- repository identity validation;
+- ref canonicalization or stale/current meaning;
+- pull-request identity fields;
+- status collection completeness or pagination semantics;
+- provider-negative evidence.
+
+Those remain with their entity adapters.
+
+This follows the experiment's falsification rule: share mechanics that turn a declared provider read into structurally certified evidence, but do not grow a generic provider lifecycle or flatten provider meaning.
+
 ## Ongoing rule
 
 For each future deduplication, leave an evidence trail:
