@@ -95,6 +95,20 @@
       }
     },
     {
+      "name": "case-variant-schema-invalid",
+      "valid": false,
+      "spec": {
+        "Schema": "overcenter-process-spec-v1",
+        "executable": "/bin/echo",
+        "argv": [],
+        "cwd": ".",
+        "env": {},
+        "timeout_ms": 1000,
+        "stdout_max_bytes": 1024,
+        "stderr_max_bytes": 1024
+      }
+    },
+    {
       "name": "unknown-field-invalid",
       "valid": false,
       "spec": {
