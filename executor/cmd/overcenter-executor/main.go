@@ -73,6 +73,13 @@ func resolveTaskCredential(
 	socketGID int,
 	unsafeSameUID bool,
 ) (*executor.TaskCredential, error) {
+	const maxCredential = int64(^uint32(0))
+	if int64(taskUID) > maxCredential || int64(taskGID) > maxCredential {
+		return nil, errors.New("task uid/gid out of range")
+	}
+	if socketGID < -1 || int64(socketGID) > maxCredential {
+		return nil, errors.New("socket gid out of range")
+	}
 	if unsafeSameUID {
 		if taskUID >= 0 || taskGID >= 0 {
 			return nil, errors.New("unsafe same-uid mode cannot also set task credentials")
