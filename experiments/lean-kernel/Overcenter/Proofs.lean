@@ -60,7 +60,7 @@ private def filePostcondition : Postcondition := {
   family := .fileContent
   verifierRevision := "file-content-equals/v1@semantics-1"
   coordinate := "/provider/a"
-  expected := "A"
+  expected := "sha256:a"
 }
 
 private def fileObligation : Obligation := {
@@ -75,7 +75,7 @@ private def exactObservation : Observation := {
   verifierRevision := "file-content-equals/v1@semantics-1"
   coordinate := "/provider/a"
   certainty := .present
-  actual := some "A"
+  actual := some "sha256:a"
 }
 
 private def wrongCoordinateObservation : Observation := {
@@ -88,26 +88,54 @@ private def uncertainObservation : Observation := {
   certainty := .uncertain
 }
 
+private def localAbsence : AbsenceEvidence :=
+  .localFileEnoent
+    "/provider/a"
+    "/provider/a"
+    true
+    "direct-coordinate-read"
+    "ENOENT"
+    "node:fs"
+    "readFileSync"
+    "ENOENT"
+
 private def authoritativeAbsenceObservation : Observation := {
   family := .fileContent
   verifierRevision := "file-content-equals/v1@semantics-1"
   coordinate := "/provider/a"
   certainty := .absent
   actual := none
-  absence := some {
-    kind := .localFileEnoent
-    coordinate := "/provider/a"
-    complete := true
-  }
+  absence := some localAbsence
 }
 
 private def forgedAbsenceObservation : Observation := {
   authoritativeAbsenceObservation with
-  absence := some {
-    kind := .localFileEnoent
-    coordinate := "/provider/b"
-    complete := true
-  }
+  absence := some (
+    .localFileEnoent
+      "/provider/a"
+      "/provider/b"
+      true
+      "direct-coordinate-read"
+      "ENOENT"
+      "node:fs"
+      "readFileSync"
+      "ENOENT"
+  )
+}
+
+private def wrongProvenanceObservation : Observation := {
+  authoritativeAbsenceObservation with
+  absence := some (
+    .localFileEnoent
+      "/provider/a"
+      "/provider/a"
+      true
+      "direct-coordinate-read"
+      "ENOENT"
+      "node:fs"
+      "existsSync"
+      "ENOENT"
+  )
 }
 
 private def mutableHistory : HistoricalRealization := {
@@ -147,6 +175,7 @@ example : settle filePostcondition wrongCoordinateObservation = .recoveryRequire
 example : settle filePostcondition uncertainObservation = .recoveryRequired := by decide
 example : settle filePostcondition authoritativeAbsenceObservation = .ready := by decide
 example : settle filePostcondition forgedAbsenceObservation = .recoveryRequired := by decide
+example : settle filePostcondition wrongProvenanceObservation = .recoveryRequired := by decide
 
 -- Historical DONE is not enough for mutable provider state.
 example : reusable fileObligation mutableHistory none = false := by decide
