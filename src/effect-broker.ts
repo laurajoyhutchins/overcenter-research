@@ -106,6 +106,9 @@ export async function executeAuthorizedEffect(
   const realization=kernel.acceptedRealization(session);
   if (!realization) throw new Error('REALIZATION_REQUIRED');
   validateProviderEffectExecutionContext(authorizedEffect,context);
+  if (kernel.hasUnresolvedEffect(session.run_id)) {
+    throw new Error('UNRESOLVED_EFFECT');
+  }
 
   const permit=kernel.acquireExecution(session.run_id,{
     expectedGeneration:session.execution_generation,

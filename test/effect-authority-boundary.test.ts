@@ -183,6 +183,22 @@ test('broker requires accepted realization and reserves before provider mutation
     assert.ok(attempt.reservation_commit);
     assert.equal(realization.result_digest,task.work.result_acceptance?.expected_sha256);
     assert.equal(f.kernel.hasUnresolvedEffect(task.session.run_id),true);
+
+    const brokerWork=f.kernel.inspect().find(work=>work.id==='verified-effect');
+    assert.ok(brokerWork);
+    const brokerSession=bindTaskSession(brokerWork);
+    await assert.rejects(
+      executeAuthorizedEffect(f.kernel,brokerSession,{
+        githubToken:'broker-token',
+        githubFetch:github.fetchImpl,
+      }),
+      /UNRESOLVED_EFFECT/,
+    );
+    assert.equal(github.writes(),1);
+    assert.equal(
+      f.kernel.inspect().find(work=>work.id==='verified-effect')?.execution_generation,
+      2,
+    );
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });
 
