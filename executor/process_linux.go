@@ -117,7 +117,12 @@ func waitAfterCancellation(command *exec.Cmd, wait <-chan error) error {
 	return waitErr
 }
 
-func runProcess(ctx context.Context, workspaceRoot string, validated validatedExecution) ComputationAttemptEvidenceV1 {
+func runProcess(
+	ctx context.Context,
+	workspaceRoot string,
+	taskCredential *TaskCredential,
+	validated validatedExecution,
+) ComputationAttemptEvidenceV1 {
 	execution := validated.Execution
 	spec := validated.Spec
 	evidence := baseEvidence(execution)
@@ -146,6 +151,13 @@ func runProcess(ctx context.Context, workspaceRoot string, validated validatedEx
 	command.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid:   true,
 		Pdeathsig: syscall.SIGKILL,
+	}
+	if taskCredential != nil {
+		command.SysProcAttr.Credential = &syscall.Credential{
+			Uid:         taskCredential.UID,
+			Gid:         taskCredential.GID,
+			NoSetGroups: true,
+		}
 	}
 
 	if err := command.Start(); err != nil {
