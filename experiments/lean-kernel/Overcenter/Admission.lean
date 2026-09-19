@@ -205,9 +205,13 @@ def claimGraphTopologicalOrder? (ctx : ClaimContext) :
         else
           none
 
+def claimStringSet : List String → Std.HashSet String
+  | [] => Std.HashSet.emptyWithCapacity 0
+  | value :: rest => (claimStringSet rest).insert value
+
 def claimTopologicalCertificateBuildValid
     (ctx : ClaimContext) :
-    List String →
+    Std.HashSet String →
     List String →
     Bool
   | _, [] => true
@@ -219,15 +223,19 @@ def claimTopologicalCertificateBuildValid
             seen.contains dependency.upstream) &&
           claimTopologicalCertificateBuildValid
             ctx
-            (id :: seen)
+            (seen.insert id)
             rest
 
 def claimTopologicalCertificateValid
     (ctx : ClaimContext)
     (order : List String) : Bool :=
+  let orderIds := claimStringSet order
   ctx.obligations.all (fun obligation =>
-    order.contains obligation.id) &&
-  claimTopologicalCertificateBuildValid ctx [] order
+    orderIds.contains obligation.id) &&
+  claimTopologicalCertificateBuildValid
+    ctx
+    (claimStringSet [])
+    order
 
 def claimGraphAcyclic (ctx : ClaimContext) : Bool :=
   match claimGraphTopologicalOrder? ctx with
