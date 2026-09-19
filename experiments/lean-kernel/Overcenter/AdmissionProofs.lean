@@ -7,42 +7,42 @@ theorem claim_admitted_implies_context_well_formed
     (admitted : claimAdmissible ctx = true) :
     claimContextWellFormed ctx = true := by
   simp [claimAdmissible] at admitted
-  exact admitted.1
+  exact admitted.1.1.1.1.1
 
 theorem claim_admitted_implies_exact_revision
     (ctx : ClaimContext)
     (admitted : claimAdmissible ctx = true) :
     ctx.expectedRevision = ctx.currentRevision := by
   simp [claimAdmissible] at admitted
-  exact admitted.2.1
+  exact admitted.1.1.1.1.2
 
 theorem claim_admitted_implies_target_unrealized
     (ctx : ClaimContext)
     (admitted : claimAdmissible ctx = true) :
-    findClaimLifecycle ctx.lifecycles ctx.targetId = some .unrealized := by
+    (findClaimLifecycle ctx.lifecycles ctx.targetId == some .unrealized) = true := by
   simp [claimAdmissible] at admitted
-  exact admitted.2.2.1
+  exact admitted.1.1.1.2
 
 theorem claim_admitted_implies_dependencies_done
     (ctx : ClaimContext)
     (admitted : claimAdmissible ctx = true) :
     claimDependenciesDone ctx = true := by
   simp [claimAdmissible] at admitted
-  exact admitted.2.2.2.1
+  exact admitted.1.1.2
 
 theorem claim_admitted_implies_semantic_inputs_resolved
     (ctx : ClaimContext)
     (admitted : claimAdmissible ctx = true) :
     claimSemanticInputsResolved ctx = true := by
   simp [claimAdmissible] at admitted
-  exact admitted.2.2.2.2.1
+  exact admitted.1.2
 
 theorem claim_admitted_implies_no_unordered_effect_conflict
     (ctx : ClaimContext)
     (admitted : claimAdmissible ctx = true) :
     claimUnorderedEffectConflict ctx = false := by
   simp [claimAdmissible] at admitted
-  exact admitted.2.2.2.2.2
+  exact admitted.2
 
 private def noEffect : Option ClaimEffect := none
 
