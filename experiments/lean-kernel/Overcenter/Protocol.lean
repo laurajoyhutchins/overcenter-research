@@ -116,16 +116,43 @@ private def dispositionName : Disposition → String
   | .ready => "READY"
   | .recoveryRequired => "RECOVERY_REQUIRED"
 
-def handleJson (request : Json) : Except String Json := do
-  let command ← stringField request "command"
-  if command != "settle" then
-    throw s!"unsupported command: {command}"
+private def kubernetesStateName : KubernetesListState → String
+  | .present => "PRESENT"
+  | .absent => "ABSENT"
+  | .indeterminate => "INDETERMINATE"
+
+private def kubernetesDisposition : KubernetesListState → Disposition
+  | .present => .done
+  | .absent => .ready
+  | .indeterminate => .recoveryRequired
+
+private def handleSettlement (request : Json) : Except String Json := do
   let postcondition ← parsePostcondition (← field request "postcondition")
   let observation ← parseObservation (← field request "observation")
   pure <| Json.mkObj [
     ("schema", "overcenter-lean-kernel/v1"),
     ("disposition", dispositionName (settle postcondition observation))
   ]
+
+private def handleKubernetesList (request : Json) : Except String Json := do
+  let coordinate ← parseCoordinate .kubernetesConfigMapExists (← field request "coordinate")
+  let snapshotResourceVersion ← stringField request "snapshot_resource_version"
+  let pages ← parseKubernetesPages (← field request "pages")
+  let state := classifyKubernetesList coordinate snapshotResourceVersion pages
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-kernel/v1"),
+    ("state", kubernetesStateName state),
+    ("disposition", dispositionName (kubernetesDisposition state))
+  ]
+
+def handleJson (request : Json) : Except String Json := do
+  let command ← stringField request "command"
+  if command = "settle" then
+    handleSettlement request
+  else if command = "kubernetes-list" then
+    handleKubernetesList request
+  else
+    throw s!"unsupported command: {command}"
 
 def handle (input : String) : Except String String := do
   let request ← Json.parse input
