@@ -1,0 +1,133 @@
+{
+  "apiVersion": "overcenter.dev/data-contract/v1",
+  "kind": "DataContract",
+  "id": "computation-execution",
+  "version": "1.0.0",
+  "status": "active",
+  "description": {
+    "purpose": "Authorize one exact physical computation attempt and return attempt evidence without transferring graph, settlement, or provider-mutation authority.",
+    "limitations": "The executor owns physical computation only. Attempt evidence never makes an obligation DONE."
+  },
+  "participants": {
+    "producer": "typescript-authority",
+    "consumers": [
+      "go-computation-executor"
+    ]
+  },
+  "schema": {
+    "format": "json-schema",
+    "draft": "https://json-schema.org/draft/2020-12/schema",
+    "path": "./schema.json",
+    "entrypoints": {
+      "authorityToExecutor": "#/$defs/AuthorityToExecutor",
+      "executorToAuthority": "#/$defs/ExecutorToAuthority"
+    },
+    "wireDiscriminators": [
+      "overcenter-process-spec-v1",
+      "overcenter-computation-execution-v1",
+      "overcenter-executor-command-v1",
+      "overcenter-computation-attempt-evidence-v1",
+      "overcenter-executor-hello-v1"
+    ]
+  },
+  "compatibility": {
+    "unknownFields": "reject",
+    "backward": "none",
+    "forward": "none",
+    "changeRule": "Any incompatible wire-shape or semantic-identity change requires a new wire discriminator."
+  },
+  "governance": {
+    "structureAuthority": "./schema.json",
+    "semanticsAuthority": "./contract.json and ./README.md",
+    "conflictPolicy": "machine-readable-structure-wins",
+    "generatedOutputIsNotVerifiedOutput": true
+  },
+  "semanticIdentity": {
+    "computationExecution": {
+      "definition": "ComputationExecutionV1",
+      "materialFields": [
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "execution_generation",
+        "execution_authority_commit",
+        "execution_capability_sha256",
+        "execution_spec_sha256"
+      ]
+    },
+    "executionIdentity": {
+      "definition": "ExecutionIdentityV1",
+      "materialFields": [
+        "run_id",
+        "execution_generation",
+        "execution_authority_commit"
+      ]
+    },
+    "attemptEvidence": {
+      "definition": "ComputationAttemptEvidenceV1",
+      "bindsTo": "computationExecution",
+      "settlementAuthority": false,
+      "identityBindingFields": [
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "execution_generation",
+        "execution_authority_commit",
+        "execution_capability_sha256",
+        "execution_spec_sha256"
+      ],
+      "nonAuthoritativeFields": [
+        "outcome",
+        "exit_code",
+        "signal",
+        "stdout_base64",
+        "stdout_sha256",
+        "stdout_truncated",
+        "stderr_base64",
+        "stderr_sha256",
+        "stderr_truncated",
+        "error"
+      ]
+    }
+  },
+  "quality": [
+    {
+      "id": "process-spec-conformance",
+      "type": "conformance-corpus",
+      "path": "./process-spec-conformance.json"
+    },
+    {
+      "id": "contract-regression",
+      "type": "executable",
+      "path": "../../test/data-contracts.test.ts"
+    },
+    {
+      "id": "production-boundary",
+      "type": "executable",
+      "path": "../../test/computation-executor.test.ts"
+    }
+  ],
+  "authoritativeDefinitions": [
+    {
+      "type": "wire-schema",
+      "path": "./schema.json"
+    },
+    {
+      "type": "typescript-validator",
+      "path": "../../src/computation-execution.ts"
+    },
+    {
+      "type": "go-validator",
+      "path": "../../executor/protocol.go"
+    },
+    {
+      "type": "executor-attestation",
+      "path": "../../src/go-executor-client.ts"
+    },
+    {
+      "type": "executor-attestation",
+      "path": "../../executor/cmd/overcenter-executor/main.go"
+    }
+  ],
+  "extensions": {}
+}

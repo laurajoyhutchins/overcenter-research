@@ -1,0 +1,133 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import test from 'node:test';
+
+import {
+  COMPUTATION_EVIDENCE_SCHEMA,
+  COMPUTATION_EXECUTION_SCHEMA,
+  EXECUTOR_COMMAND_SCHEMA,
+  EXECUTOR_HELLO_SCHEMA,
+  PROCESS_SPEC_SCHEMA,
+  validateExecutorHello,
+  validateProcessSpec,
+} from '../src/computation-execution.ts';
+
+const root=fileURLToPath(new URL('../',import.meta.url));
+const contractDir=join(root,'contracts/computation-execution-v1');
+const readJson=(path:string):any=>JSON.parse(readFileSync(path,'utf8'));
+
+const contract=readJson(join(contractDir,'contract.json'));
+const schema=readJson(join(contractDir,'schema.json'));
+const conformance=readJson(join(contractDir,'process-spec-conformance.json'));
+const goProtocol=readFileSync(join(root,'executor/protocol.go'),'utf8');
+const goMain=readFileSync(join(root,'executor/cmd/overcenter-executor/main.go'),'utf8');
+
+test('computation contract declares explicit structural authority and compatibility',()=>{
+  assert.equal(contract.apiVersion,'overcenter.dev/data-contract/v1');
+  assert.equal(contract.kind,'DataContract');
+  assert.equal(contract.id,'computation-execution');
+  assert.equal(contract.version,'1.0.0');
+  assert.equal(contract.status,'active');
+  assert.equal(contract.governance.structureAuthority,'./schema.json');
+  assert.equal(contract.governance.conflictPolicy,'machine-readable-structure-wins');
+  assert.equal(contract.compatibility.unknownFields,'reject');
+  assert.equal(schema.$schema,'https://json-schema.org/draft/2020-12/schema');
+
+  assert.deepEqual(contract.schema.wireDiscriminators,[
+    PROCESS_SPEC_SCHEMA,
+    COMPUTATION_EXECUTION_SCHEMA,
+    EXECUTOR_COMMAND_SCHEMA,
+    COMPUTATION_EVIDENCE_SCHEMA,
+    EXECUTOR_HELLO_SCHEMA,
+  ]);
+});
+
+test('wire discriminator registry agrees with TypeScript, Go, and JSON Schema',()=>{
+  const defs=schema.$defs;
+  assert.equal(defs.ProcessSpecV1.properties.schema.const,PROCESS_SPEC_SCHEMA);
+  assert.equal(defs.ComputationExecutionV1.properties.schema.const,COMPUTATION_EXECUTION_SCHEMA);
+  assert.equal(defs.ExecuteCommandV1.properties.schema.const,EXECUTOR_COMMAND_SCHEMA);
+  assert.equal(defs.CancelCommandV1.properties.schema.const,EXECUTOR_COMMAND_SCHEMA);
+  assert.equal(defs.ComputationAttemptEvidenceV1.properties.schema.const,COMPUTATION_EVIDENCE_SCHEMA);
+  assert.equal(defs.ExecutorHelloV1.properties.schema.const,EXECUTOR_HELLO_SCHEMA);
+
+  for (const [goName,value] of [
+    ['ProcessSpecSchema',PROCESS_SPEC_SCHEMA],
+    ['ComputationExecutionSchema',COMPUTATION_EXECUTION_SCHEMA],
+    ['ExecutorCommandSchema',EXECUTOR_COMMAND_SCHEMA],
+    ['ComputationEvidenceSchema',COMPUTATION_EVIDENCE_SCHEMA],
+  ] as const) {
+    assert.match(goProtocol,new RegExp(goName+'\\\\s*=\\\\s*"'+value+'"'));
+  }
+  assert.match(
+    goMain,
+    new RegExp('executorHelloSchema\\\\s*=\\\\s*"'+EXECUTOR_HELLO_SCHEMA+'"'),
+  );
+});
+
+test('the checked-in process-spec corpus is executable against the production validator',()=>{
+  assert.equal(conformance.schema,'overcenter-process-spec-conformance-v1');
+  for (const candidate of conformance.cases as Array<{name:string;valid:boolean;spec:unknown}>) {
+    if (candidate.valid) {
+      assert.doesNotThrow(
+        ()=>validateProcessSpec(candidate.spec),
+        candidate.name,
+      );
+    } else {
+      assert.throws(
+        ()=>validateProcessSpec(candidate.spec),
+        undefined,
+        candidate.name,
+      );
+    }
+  }
+});
+
+test('semantic identity is explicit, complete, and separate from diagnostic evidence',()=>{
+  const execution=contract.semanticIdentity.computationExecution;
+  const evidence=contract.semanticIdentity.attemptEvidence;
+  const executionRequired=new Set(schema.$defs.ComputationExecutionV1.required);
+  const evidenceRequired=new Set(schema.$defs.ComputationAttemptEvidenceV1.required);
+
+  for (const field of execution.materialFields as string[]) {
+    assert.equal(executionRequired.has(field),true,'execution identity field '+field);
+  }
+  assert.deepEqual(evidence.identityBindingFields,execution.materialFields);
+  for (const field of evidence.identityBindingFields as string[]) {
+    assert.equal(evidenceRequired.has(field),true,'evidence identity field '+field);
+  }
+
+  const identity=new Set(evidence.identityBindingFields as string[]);
+  for (const field of evidence.nonAuthoritativeFields as string[]) {
+    assert.equal(identity.has(field),false,'diagnostic/evidence field leaked into identity: '+field);
+  }
+  assert.equal(evidence.settlementAuthority,false);
+});
+
+test('executor hello uses the shared UTF-8 byte limit across the language boundary',()=>{
+  const base={
+    schema:EXECUTOR_HELLO_SCHEMA,
+    execution_context_sha256:'sha256:'+'0'.repeat(64),
+  };
+  assert.doesNotThrow(()=>validateExecutorHello({
+    ...base,
+    containment_id:'é'.repeat(256),
+  }));
+  assert.throws(
+    ()=>validateExecutorHello({
+      ...base,
+      containment_id:'é'.repeat(257),
+    }),
+    /CONTAINMENT_ID_INVALID/,
+  );
+  assert.throws(
+    ()=>validateExecutorHello({
+      ...base,
+      containment_id:'valid',
+      extra:true,
+    }),
+    /EXECUTOR_HELLO_UNKNOWN_FIELD:extra/,
+  );
+});

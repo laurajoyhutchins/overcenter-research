@@ -7,43 +7,12 @@ import {
   executionIdentity,
   executionIdentityKey,
   validateComputationEvidence,
+  validateExecutorHello,
   validateComputationExecution,
   type ComputationAttemptEvidenceV1,
   type ComputationExecutionV1,
   type ExecutorCommandV1,
 } from './computation-execution.ts';
-
-const EXECUTOR_HELLO_SCHEMA='overcenter-executor-hello-v1' as const;
-
-interface ExecutorHelloV1 {
-  schema:typeof EXECUTOR_HELLO_SCHEMA;
-  execution_context_sha256:string;
-  containment_id:string;
-}
-
-function validateExecutorHello(value:unknown):ExecutorHelloV1 {
-  if (!value || typeof value!=='object' || Array.isArray(value)) {
-    throw new Error('GO_EXECUTOR_HELLO_INVALID');
-  }
-  const raw=value as Record<string,unknown>;
-  const keys=Object.keys(raw).sort();
-  const expected=['containment_id','execution_context_sha256','schema'];
-  if (keys.length!==expected.length || keys.some((key,index)=>key!==expected[index])) {
-    throw new Error('GO_EXECUTOR_HELLO_SHAPE_INVALID');
-  }
-  if (
-    raw.schema!==EXECUTOR_HELLO_SCHEMA
-    || typeof raw.execution_context_sha256!=='string'
-    || !/^sha256:[0-9a-f]{64}$/.test(raw.execution_context_sha256)
-    || typeof raw.containment_id!=='string'
-    || raw.containment_id.length===0
-    || raw.containment_id.length>512
-    || raw.containment_id.includes('\0')
-  ) {
-    throw new Error('GO_EXECUTOR_HELLO_INVALID');
-  }
-  return raw as unknown as ExecutorHelloV1;
-}
 
 interface PendingExecution {
   execution:ComputationExecutionV1;

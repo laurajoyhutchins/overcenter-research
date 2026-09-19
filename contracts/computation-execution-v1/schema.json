@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://overcenter.dev/contracts/computation-execution-v1/schema.json",
+  "title": "Overcenter computation execution v1",
+  "description": "Canonical mechanically knowable wire structure for the TypeScript authority to Go computation-executor boundary.",
+  "$defs": {
+    "Sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Sha256Tagged": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "ProcessSpecV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "executable",
+        "argv",
+        "cwd",
+        "env",
+        "timeout_ms",
+        "stdout_max_bytes",
+        "stderr_max_bytes"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-process-spec-v1"
+        },
+        "executable": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 4096,
+          "x-overcenter-path": "absolute"
+        },
+        "argv": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "x-overcenter-noNul": true,
+            "x-overcenter-maxUtf8Bytes": 32768
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 4096,
+          "x-overcenter-path": "workspace-relative-normalized-no-parent-escape"
+        },
+        "env": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "x-overcenter-noNul": true,
+            "x-overcenter-maxUtf8Bytes": 131072
+          }
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000
+        },
+        "stdout_max_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16777216
+        },
+        "stderr_max_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16777216
+        }
+      }
+    },
+    "ComputationExecutionV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "execution_generation",
+        "execution_authority_commit",
+        "execution_capability",
+        "execution_capability_sha256",
+        "execution_spec_base64",
+        "execution_spec_sha256"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-computation-execution-v1"
+        },
+        "run_id": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 256
+        },
+        "obligation_id": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 512
+        },
+        "claimed_revision": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 256
+        },
+        "execution_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "execution_authority_commit": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 256
+        },
+        "execution_capability": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 4096
+        },
+        "execution_capability_sha256": {
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "execution_spec_base64": {
+          "type": "string",
+          "minLength": 1,
+          "contentEncoding": "base64",
+          "x-overcenter-canonicalBase64": true,
+          "x-overcenter-maxDecodedBytes": 1048576
+        },
+        "execution_spec_sha256": {
+          "$ref": "#/$defs/Sha256Tagged"
+        }
+      }
+    },
+    "ExecutionIdentityV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "execution_generation",
+        "execution_authority_commit"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 256
+        },
+        "execution_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "execution_authority_commit": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 256
+        }
+      }
+    },
+    "ExecuteCommandV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "execution"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-executor-command-v1"
+        },
+        "kind": {
+          "const": "execute"
+        },
+        "execution": {
+          "$ref": "#/$defs/ComputationExecutionV1"
+        }
+      }
+    },
+    "CancelCommandV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "identity"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-executor-command-v1"
+        },
+        "kind": {
+          "const": "cancel"
+        },
+        "identity": {
+          "$ref": "#/$defs/ExecutionIdentityV1"
+        }
+      }
+    },
+    "ExecutorCommandV1": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ExecuteCommandV1"
+        },
+        {
+          "$ref": "#/$defs/CancelCommandV1"
+        }
+      ]
+    },
+    "ComputationAttemptEvidenceV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "run_id",
+        "obligation_id",
+        "claimed_revision",
+        "execution_generation",
+        "execution_authority_commit",
+        "execution_capability_sha256",
+        "execution_spec_sha256",
+        "outcome",
+        "stdout_sha256",
+        "stdout_truncated",
+        "stderr_sha256",
+        "stderr_truncated"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-computation-attempt-evidence-v1"
+        },
+        "run_id": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 256
+        },
+        "obligation_id": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 512
+        },
+        "claimed_revision": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 256
+        },
+        "execution_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "execution_authority_commit": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 256
+        },
+        "execution_capability_sha256": {
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "execution_spec_sha256": {
+          "$ref": "#/$defs/Sha256Tagged"
+        },
+        "outcome": {
+          "enum": [
+            "completed",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "exit_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "signal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stdout_base64": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "x-overcenter-canonicalBase64": true,
+          "x-overcenter-maxDecodedBytes": 16777216
+        },
+        "stdout_sha256": {
+          "$ref": "#/$defs/Sha256Tagged"
+        },
+        "stdout_truncated": {
+          "type": "boolean"
+        },
+        "stderr_base64": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "x-overcenter-canonicalBase64": true,
+          "x-overcenter-maxDecodedBytes": 16777216
+        },
+        "stderr_sha256": {
+          "$ref": "#/$defs/Sha256Tagged"
+        },
+        "stderr_truncated": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "ExecutorHelloV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "execution_context_sha256",
+        "containment_id"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-executor-hello-v1"
+        },
+        "execution_context_sha256": {
+          "$ref": "#/$defs/Sha256Tagged"
+        },
+        "containment_id": {
+          "type": "string",
+          "x-overcenter-noNul": true,
+          "x-overcenter-maxUtf8Bytes": 512
+        }
+      }
+    },
+    "AuthorityToExecutor": {
+      "$ref": "#/$defs/ExecutorCommandV1"
+    },
+    "ExecutorToAuthority": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ExecutorHelloV1"
+        },
+        {
+          "$ref": "#/$defs/ComputationAttemptEvidenceV1"
+        }
+      ]
+    }
+  }
+}
