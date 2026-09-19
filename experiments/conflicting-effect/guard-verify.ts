@@ -46,13 +46,20 @@ assert.equal(
 
 const ordered=works.filter(work=>work.id.includes('-ordered-'));
 assert.equal(ordered.length,2);
-assert.ok(ordered.every(work=>work.status==='DONE'));
 
 const alpha=ordered.find(work=>work.id.endsWith('-alpha'))!;
 const beta=ordered.find(work=>work.id.endsWith('-beta'))!;
-assert.ok(alpha.run_id && beta.run_id);
-assert.equal(kernel.receipts(alpha.run_id).at(-1)?.observed?.actual_state,'success');
-assert.equal(kernel.receipts(beta.run_id).at(-1)?.observed?.actual_state,'failure');
+
+// Both effects settled historically. Beta then changes the same mutable
+// provider coordinate, so alpha's historical success is no longer current.
+assert.equal(alpha.status,'READY',JSON.stringify(kernel.explain(alpha.id)));
+assert.equal(beta.status,'DONE',JSON.stringify(kernel.explain(beta.id)));
+
+const receipts=kernel.receipts();
+const alphaDone=receipts.filter(receipt=>receipt.obligation_id===alpha.id && receipt.disposition==='DONE').at(-1);
+const betaDone=receipts.filter(receipt=>receipt.obligation_id===beta.id && receipt.disposition==='DONE').at(-1);
+assert.equal(alphaDone?.observed?.actual_state,'success');
+assert.equal(betaDone?.observed?.actual_state,'failure');
 
 if (beta.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 const repoInfo=await github(`/repositories/${beta.postcondition.repository_id}`);
