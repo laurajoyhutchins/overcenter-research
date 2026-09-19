@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdirSync,
   mkdtempSync,
@@ -11,17 +12,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import type {
-  HistoricalRun,
-  Receipt,
-  State,
+import {
+  RECEIPT_SCHEMA,
+  type HistoricalRun,
+  type Receipt,
+  type ReceiptFact,
+  type State,
 } from '../../src/facts.ts';
-import { RECEIPT_SCHEMA } from '../../src/facts.ts';
+import { localFileEnoentEvidence } from '../../src/evidence.ts';
 import {
   deriveLifecycles,
   obligationKey,
 } from '../../src/lifecycle.ts';
 import { projectWork } from '../../src/eligibility.ts';
+import {
+  projectReceipt,
+} from '../../src/projection.ts';
 import type {
   Dependency,
   Obligation,
@@ -40,11 +46,20 @@ interface RunFixture {
   ordinal:number;
 }
 
-interface ReceiptFixture {
-  run:string;
-  disposition:Receipt['disposition'];
-  ordinal:number;
-}
+type ObservationEvidence='verified'|'accepted-absence'|'uncertain';
+
+type ReceiptFixture =
+  | {
+      run:string;
+      ordinal:number;
+      kind:'observation';
+      evidence:ObservationEvidence;
+    }
+  | {
+      run:string;
+      ordinal:number;
+      kind:'judgment-required'|'execution-terminated';
+    };
 
 interface Scenario {
   name:string;
@@ -54,6 +69,7 @@ interface Scenario {
   expectedClosure?:string[];
   currentSemanticKeyOverrides?:Record<string,string>;
   extraCurrentSemanticKeys?:Array<[string,string]>;
+  omitObservationJudgments?:Array<string>;
 }
 
 const PROGRAM=join(
@@ -62,6 +78,9 @@ const PROGRAM=join(
   'datalog-projection',
   'projection.dl',
 );
+
+const sha256=(value:string)=>
+  createHash('sha256').update(value).digest('hex');
 
 function obligation(
   id:string,
@@ -112,7 +131,7 @@ function semanticKeys(
     assert.equal(
       definition.work.dependencies.some(edge=>edge.kind==='semantic'),
       false,
-      'this first Datalog slice intentionally stops at the semantic-key boundary',
+      'the Datalog slice consumes current semantic identity rather than deriving it',
     );
     const key=obligationKey(
       state,
@@ -137,6 +156,57 @@ function latestReceipts(
     }
   }
   return latest;
+}
+
+function observationFor(
+  work:Obligation,
+  evidence:ObservationEvidence,
+):ReceiptFact['observed'] {
+  assert.equal(work.postcondition.verifier,'file-content-equals/v1');
+  const path=work.postcondition.path;
+  if (evidence==='verified') {
+    const digest=sha256(work.postcondition.content);
+    return {
+      verifier:'file-content-equals/v1',
+      path,
+      expected_sha256:digest,
+      actual_sha256:digest,
+      mutation_certainty:'present',
+    };
+  }
+  if (evidence==='accepted-absence') {
+    return {
+      verifier:'file-content-equals/v1',
+      path,
+      mutation_certainty:'absent',
+      absence_evidence:localFileEnoentEvidence(path),
+    };
+  }
+  return {
+    verifier:'file-content-equals/v1',
+    path,
+    mutation_certainty:'uncertain',
+  };
+}
+
+function receiptFact(
+  fixture:ReceiptFixture,
+  run:HistoricalRun,
+):ReceiptFact {
+  return {
+    schema:RECEIPT_SCHEMA,
+    run_id:run.id,
+    obligation_id:run.obligation_id,
+    claimed_revision:run.claimed_revision,
+    claim_commit:run.claim_commit,
+    execution_generation:run.execution_generation,
+    execution_authority_commit:run.execution_authority_commit,
+    kind:fixture.kind,
+    observed:fixture.kind==='observation'
+      ? observationFor(run.obligation,fixture.evidence)
+      : null,
+    settled_at:`ordinal:${fixture.ordinal}`,
+  };
 }
 
 function typescriptProjection(scenario:Scenario):Map<string,WorkStatus> {
@@ -172,34 +242,19 @@ function typescriptProjection(scenario:Scenario):Map<string,WorkStatus> {
   for (const fixture of latestReceipts(scenario.receipts).values()) {
     const run=runs.get(fixture.run);
     assert.ok(run);
-    receipts.set(fixture.run,{
-      schema:RECEIPT_SCHEMA,
-      run_id:fixture.run,
-      obligation_id:run.obligation_id,
-      claimed_revision:run.claimed_revision,
-      claim_commit:run.claim_commit,
-      execution_generation:run.execution_generation,
-      execution_authority_commit:run.execution_authority_commit,
-      kind:fixture.disposition==='WAITING'
-        ? 'judgment-required'
-        : fixture.disposition==='RECOVERY_REQUIRED'
-          ? 'execution-terminated'
-          : 'observation',
-      observed:null,
-      settled_at:`ordinal:${fixture.ordinal}`,
-      disposition:fixture.disposition,
-      verified:fixture.disposition==='DONE',
-      settlement_commit:`receipt-${fixture.ordinal}`,
-    });
+    const fact=receiptFact(fixture,run);
+    receipts.set(
+      fixture.run,
+      projectReceipt(fact,run.obligation,`receipt-${fixture.ordinal}`),
+    );
   }
 
   const lifecycles=deriveLifecycles(state,runs,receipts);
   return new Map(
-    Object.values(state.obligations)
-      .map(work=>[
-        work.id,
-        projectWork(state,work,'current-revision',lifecycles).status,
-      ]),
+    Object.values(state.obligations).map(work=>[
+      work.id,
+      projectWork(state,work,'current-revision',lifecycles).status,
+    ]),
   );
 }
 
@@ -213,13 +268,45 @@ function writeFacts(
   );
 }
 
-function readPairs(path:string):string[] {
+function readRows(path:string):string[] {
   const text=readFileSync(path,'utf8').trim();
-  if (!text) return [];
-  return text
-    .split(/\r?\n/)
+  return text ? text.split(/\r?\n/).sort() : [];
+}
+
+function readPairs(path:string):string[] {
+  return readRows(path)
     .map(line=>line.split('\t').join('->'))
     .sort();
+}
+
+const DIAGNOSTICS=[
+  'missing_current_semantic_key',
+  'semantic_key_for_unknown_obligation',
+  'duplicate_definition_ordinal',
+  'duplicate_semantic_key',
+  'orphan_dependency',
+  'unknown_dependency',
+  'dependency_cycle',
+  'duplicate_run_id',
+  'run_for_unknown_obligation',
+  'duplicate_receipt_ordinal',
+  'receipt_for_unknown_run',
+  'invalid_receipt_kind',
+  'missing_observation_judgment',
+  'unexpected_observation_judgment',
+  'invalid_observation_boolean',
+  'contradictory_observation_judgment',
+  'run_after_done',
+] as const;
+
+function judgment(
+  receipt:Extract<ReceiptFixture,{kind:'observation'}>,
+):[string,string] {
+  switch (receipt.evidence) {
+    case 'verified': return ['true','false'];
+    case 'accepted-absence': return ['false','true'];
+    case 'uncertain': return ['false','false'];
+  }
 }
 
 function datalogProjection(
@@ -290,9 +377,26 @@ function datalogProjection(
       join(facts,'receipt.facts'),
       scenario.receipts.map(receipt=>[
         receipt.run,
-        receipt.disposition,
+        receipt.kind,
         receipt.ordinal,
       ]),
+    );
+
+    const omitted=new Set(scenario.omitObservationJudgments??[]);
+    writeFacts(
+      join(facts,'observation_judgment.facts'),
+      scenario.receipts.flatMap(receipt=>{
+        if (receipt.kind!=='observation') return [];
+        const coordinate=`${receipt.run}:${receipt.ordinal}`;
+        if (omitted.has(coordinate)) return [];
+        const [verified,acceptedAbsence]=judgment(receipt);
+        return [[
+          receipt.run,
+          receipt.ordinal,
+          verified,
+          acceptedAbsence,
+        ]];
+      }),
     );
 
     execFileSync(
@@ -301,15 +405,8 @@ function datalogProjection(
       {stdio:'pipe'},
     );
 
-    const malformedDiagnostics=[
-      'duplicate_definition_ordinal',
-      'duplicate_semantic_key',
-      'duplicate_receipt_ordinal',
-      'unknown_dependency',
-      'dependency_cycle',
-    ] as const;
-    for (const diagnostic of malformedDiagnostics) {
-      const rows=readPairs(join(output,`${diagnostic}.csv`));
+    for (const diagnostic of DIAGNOSTICS) {
+      const rows=readRows(join(output,`${diagnostic}.csv`));
       if (rows.length>0) {
         throw new Error(
           `DATALOG_PROJECTION_INPUT_INVALID:${diagnostic}:${rows.join(',')}`,
@@ -323,6 +420,12 @@ function datalogProjection(
       assert.equal(statuses.has(id),false,`duplicate status for ${id}`);
       statuses.set(id,status as WorkStatus);
     }
+
+    assert.equal(
+      statuses.size,
+      currentDefinitions(scenario.definitions).size,
+      'validated input must project exactly one public status per current obligation',
+    );
 
     return {
       statuses,
@@ -339,7 +442,7 @@ const chainC=obligation('c','v1',[{kind:'control',upstream:'b'}]);
 
 const scenarios:Scenario[]=[
   {
-    name:'dependency closure and exact-key reuse',
+    name:'dependency closure and producer-independent exact-key reuse',
     definitions:[
       {work:chainA,ordinal:1},
       {work:chainB,ordinal:2},
@@ -350,13 +453,13 @@ const scenarios:Scenario[]=[
       {id:'old-run-b',obligation:'b',definitionOrdinal:2,ordinal:11},
     ],
     receipts:[
-      {run:'human-produced-a',disposition:'DONE',ordinal:20},
-      {run:'old-run-b',disposition:'DONE',ordinal:21},
+      {run:'human-produced-a',kind:'observation',evidence:'verified',ordinal:20},
+      {run:'old-run-b',kind:'observation',evidence:'verified',ordinal:21},
     ],
     expectedClosure:['b->a','c->a','c->b'],
   },
   {
-    name:'semantic amendment invalidates historical DONE',
+    name:'material amendment invalidates historical DONE',
     definitions:[
       {work:obligation('a','v1'),ordinal:1},
       {work:obligation('a','v2'),ordinal:2},
@@ -365,7 +468,7 @@ const scenarios:Scenario[]=[
       {id:'old-done',obligation:'a',definitionOrdinal:1,ordinal:10},
     ],
     receipts:[
-      {run:'old-done',disposition:'DONE',ordinal:20},
+      {run:'old-done',kind:'observation',evidence:'verified',ordinal:20},
     ],
   },
   {
@@ -383,32 +486,48 @@ const scenarios:Scenario[]=[
     name:'judgment-required receipt projects WAITING',
     definitions:[{work:chainA,ordinal:1}],
     runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
-    receipts:[{run:'run-a',disposition:'WAITING',ordinal:20}],
+    receipts:[{run:'run-a',kind:'judgment-required',ordinal:20}],
   },
   {
     name:'terminated receipt projects RECOVERY_REQUIRED',
     definitions:[{work:chainA,ordinal:1}],
     runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
-    receipts:[{run:'run-a',disposition:'RECOVERY_REQUIRED',ordinal:20}],
+    receipts:[{run:'run-a',kind:'execution-terminated',ordinal:20}],
   },
   {
-    name:'authoritative absence returns exact-key work to READY',
+    name:'accepted authoritative absence returns work to READY',
     definitions:[{work:chainA,ordinal:1}],
     runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
-    receipts:[{run:'run-a',disposition:'READY',ordinal:20}],
+    receipts:[{
+      run:'run-a',
+      kind:'observation',
+      evidence:'accepted-absence',
+      ordinal:20,
+    }],
   },
   {
-    name:'later settlement supersedes earlier recovery receipt',
+    name:'uncertain observation remains RECOVERY_REQUIRED',
+    definitions:[{work:chainA,ordinal:1}],
+    runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
+    receipts:[{
+      run:'run-a',
+      kind:'observation',
+      evidence:'uncertain',
+      ordinal:20,
+    }],
+  },
+  {
+    name:'later verified observation supersedes recovery evidence',
     definitions:[{work:chainA,ordinal:1}],
     runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
     receipts:[
-      {run:'run-a',disposition:'RECOVERY_REQUIRED',ordinal:20},
-      {run:'run-a',disposition:'DONE',ordinal:21},
+      {run:'run-a',kind:'execution-terminated',ordinal:20},
+      {run:'run-a',kind:'observation',evidence:'verified',ordinal:21},
     ],
   },
 ];
 
-test('Souffle derives the same bounded projection as the TypeScript reference mechanism',()=>{
+test('Souffle agrees with TypeScript from semantic evidence downward',()=>{
   for (const scenario of scenarios) {
     const expected=typescriptProjection(scenario);
     const actual=datalogProjection(scenario);
@@ -425,30 +544,21 @@ test('Souffle derives the same bounded projection as the TypeScript reference me
   }
 });
 
-test('changing only material semantic identity removes reuse',()=>{
-  const scenario=scenarios.find(candidate=>
-    candidate.name==='semantic amendment invalidates historical DONE'
-  );
-  assert.ok(scenario);
-
-  const expected=typescriptProjection(scenario);
-  const actual=datalogProjection(scenario);
-
-  assert.equal(expected.get('a'),'READY');
-  assert.equal(actual.statuses.get('a'),'READY');
-});
-
-test('current semantic identity may change while the definition stays identical',()=>{
+test('same definition with a changed current semantic key loses reuse without invalidation state',()=>{
   const stableDefinition=obligation('stable','v1');
   const baseline:Scenario={
     name:'same definition, same semantic key',
     definitions:[{work:stableDefinition,ordinal:1}],
     runs:[{id:'old-done',obligation:'stable',definitionOrdinal:1,ordinal:10}],
-    receipts:[{run:'old-done',disposition:'DONE',ordinal:20}],
+    receipts:[{
+      run:'old-done',
+      kind:'observation',
+      evidence:'verified',
+      ordinal:20,
+    }],
   };
 
-  const reused=datalogProjection(baseline);
-  assert.equal(reused.statuses.get('stable'),'DONE');
+  assert.equal(datalogProjection(baseline).statuses.get('stable'),'DONE');
 
   const changed:Scenario={
     ...baseline,
@@ -457,11 +567,11 @@ test('current semantic identity may change while the definition stays identical'
       stable:'sha256:upstream-identity-changed',
     },
   };
-  const invalidated=datalogProjection(changed);
-  assert.equal(invalidated.statuses.get('stable'),'READY');
+
+  assert.equal(datalogProjection(changed).statuses.get('stable'),'READY');
 });
 
-test('contradictory semantic-key input is rejected before projection is trusted',()=>{
+test('contradictory semantic identity fails closed instead of projecting a plausible status',()=>{
   const stableDefinition=obligation('contradictory','v1');
   const scenario:Scenario={
     name:'duplicate current semantic key',
@@ -476,5 +586,47 @@ test('contradictory semantic-key input is rejected before projection is trusted'
   assert.throws(
     ()=>datalogProjection(scenario),
     /DATALOG_PROJECTION_INPUT_INVALID:duplicate_semantic_key/,
+  );
+});
+
+test('an observation receipt without its semantic judgment fails closed',()=>{
+  const scenario:Scenario={
+    name:'missing semantic judgment',
+    definitions:[{work:chainA,ordinal:1}],
+    runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
+    receipts:[{
+      run:'run-a',
+      kind:'observation',
+      evidence:'verified',
+      ordinal:20,
+    }],
+    omitObservationJudgments:['run-a:20'],
+  };
+
+  assert.throws(
+    ()=>datalogProjection(scenario),
+    /DATALOG_PROJECTION_INPUT_INVALID:missing_observation_judgment/,
+  );
+});
+
+test('a later run after an exact-key DONE is rejected as impossible authority history',()=>{
+  const scenario:Scenario={
+    name:'run after done',
+    definitions:[{work:chainA,ordinal:1}],
+    runs:[
+      {id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10},
+      {id:'run-b',obligation:'a',definitionOrdinal:1,ordinal:30},
+    ],
+    receipts:[{
+      run:'run-a',
+      kind:'observation',
+      evidence:'verified',
+      ordinal:20,
+    }],
+  };
+
+  assert.throws(
+    ()=>datalogProjection(scenario),
+    /DATALOG_PROJECTION_INPUT_INVALID:run_after_done/,
   );
 });
