@@ -16,6 +16,7 @@ export interface EffectEquivalenceWitness {
   coordinate_contract:string;
   observation_contract:string;
   operation_class:string;
+  provider_contract_digest:string;
   resource:string;
   operation:string;
   equivalence_class:string;
