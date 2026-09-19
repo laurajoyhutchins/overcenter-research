@@ -1,4 +1,4 @@
-module WrongObligation
+module hostile.WrongObligation
 
 open SettlementKernel
 open Positive
