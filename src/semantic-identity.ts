@@ -1,7 +1,4 @@
-import type {
-  Dependency,
-  Obligation,
-} from './model.ts';
+import type { Obligation } from './model.ts';
 import type {
   Receipt,
   State,
