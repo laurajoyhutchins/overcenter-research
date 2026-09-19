@@ -192,13 +192,9 @@ function correctedTsProject(input:ProjectionRequest):ProjectionResult {
     return {lifecycle:'RECOVERY_REQUIRED',sourceRunId:historicalDone.run_id};
   }
 
-  if (
-    input.freshObservation
-    && freshDisposition(input.postcondition,input.freshObservation)==='DONE'
-  ) {
-    return {lifecycle:'DONE',sourceRunId:null};
-  }
-
+  // A bare observation is not realization provenance for the current
+  // semantic key. It may revalidate a matching key-bound realization above,
+  // but it cannot mint one here.
   return {lifecycle:'UNREALIZED',sourceRunId:null};
 }
 
