@@ -285,9 +285,15 @@ test('claim fact durably binds the exact semantic obligation key', () => {
       schema?: string;
       obligation_key?: string;
       claimed_revision?: string;
+      current_observations?:Record<string,{mutation_certainty?:string}>;
     };
 
-    assert.equal(claim.schema, 'overcenter-git-claim-v3');
+    assert.equal(claim.schema, 'overcenter-git-claim-v4');
+    assert.deepEqual(
+      Object.keys(claim.current_observations??{}).sort(),
+      ['a','b'],
+    );
+    assert.equal(claim.current_observations?.a?.mutation_certainty,'present');
     assert.equal(claim.obligation_key, run.obligation_key);
     assert.match(claim.obligation_key!, /^[0-9a-f]{64}$/);
     assert.equal(claim.claimed_revision, run.claimed_revision);
