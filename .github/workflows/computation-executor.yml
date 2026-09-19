@@ -10,6 +10,8 @@ on:
       - contracts/computation-execution-v1/**
       - executor/**
       - src/computation-execution.ts
+      - src/computation-runner.ts
+      - src/git-kernel.ts
       - src/go-executor-client.ts
       - test/computation-executor.test.ts
       - test/fixtures/computation-child.mjs
@@ -20,6 +22,8 @@ on:
       - contracts/computation-execution-v1/**
       - executor/**
       - src/computation-execution.ts
+      - src/computation-runner.ts
+      - src/git-kernel.ts
       - src/go-executor-client.ts
       - test/computation-executor.test.ts
       - test/fixtures/computation-child.mjs
