@@ -184,11 +184,11 @@ try {
 
     const first=kernel.claim(
       'ensure-configmap',
-      kernel.deriveReadyWork()!.revision,
+      kernel.nextReadyWork()!.revision,
     );
-    const absent=kernel.resolve(first);
+    const absent=kernel.reconcile(first);
 
-    assert.equal(absent.disposition,'READY');
+    assert.equal(absent.disposition,'ABSENT');
     assert.equal(absent.observed?.mutation_certainty,'absent');
     assert.equal(
       absent.observed?.absence_evidence?.kind,
@@ -200,7 +200,7 @@ try {
 
     const second=kernel.claim(
       'ensure-configmap',
-      kernel.deriveReadyWork()!.revision,
+      kernel.nextReadyWork()!.revision,
     );
     await kernel.performEffect(second,()=>{
       kubectl(
@@ -209,7 +209,7 @@ try {
         '--from-literal=value=created-by-safe-replay',
       );
     });
-    const done=kernel.resolve(second);
+    const done=kernel.reconcile(second);
 
     assert.equal(done.disposition,'DONE');
     assert.equal(done.verified,true);
