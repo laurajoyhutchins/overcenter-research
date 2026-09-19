@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import {
   chmodSync,
   existsSync,
   mkdirSync,
+  lstatSync,
   mkdtempSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -207,6 +211,156 @@ async function startIsolatedExecutor(
     },
   };
 }
+
+test('RED TEAM: task-controlled symlink can steer trusted observation outside the workspace',async()=>{
+  const state=kernelFixture();
+  const workspace=freshWorkspace('symlink-redteam-workspace');
+  const outsideName=`host-only-${sequence++}.txt`;
+  const outside=join(scratch,outsideName);
+  writeFileSync(outside,'passed',{mode:0o600});
+  const marker=join(workspace,'test-result.txt');
+  const relativeTarget=`../${outsideName}`;
+
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'/usr/local/bin/node',
+        argv:[
+          '/fixture.mjs',
+          'symlink-file',
+          relativeTarget,
+          '/workspace/test-result.txt',
+        ],
+        cwd:'.',
+        env:{},
+        timeout_ms:5000,
+        stdout_max_bytes:4096,
+        stderr_max_bytes:4096,
+      },
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:marker,
+      content:'passed',
+    },
+  });
+
+  const executor=await startIsolatedExecutor(workspace);
+  try {
+    const result=await runReadyTestComputation(state.kernel,executor.client);
+    assert.ok(result);
+    assert.equal(result.evidence?.outcome,'completed');
+    assert.equal(lstatSync(marker).isSymbolicLink(),true);
+    assert.equal(readlinkSync(marker),relativeTarget);
+    assert.equal(readFileSync(marker,'utf8'),'passed');
+    assert.equal(result.state,'DONE');
+    assert.equal(state.kernel.inspect()[0]?.status,'DONE');
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await executor.close();
+  }
+});
+
+test('RED TEAM: retryable test computation can duplicate an external network effect',async()=>{
+  let effects=0;
+  const server=createServer((request,response)=>{
+    if (request.method==='POST') effects+=1;
+    request.resume();
+    response.end('ok');
+  });
+  await new Promise<void>((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(0,'0.0.0.0',()=>resolve());
+  });
+
+  try {
+    const address=server.address() as AddressInfo;
+    const gateway=docker([
+      'network',
+      'inspect',
+      'bridge',
+      '--format',
+      '{{(index .IPAM.Config 0).Gateway}}',
+    ]).trim();
+    assert.ok(gateway);
+    const effectUrl=`http://${gateway}:${address.port}/effect`;
+
+    const state=kernelFixture();
+    const workspace=freshWorkspace('network-redteam-workspace');
+    const marker=join(workspace,'test-result.txt');
+    state.kernel.define({
+      id:'test',
+      packet:{
+        schema:TEST_COMPUTATION_PACKET_SCHEMA,
+        kind:'test',
+        process_spec:{
+          schema:PROCESS_SPEC_SCHEMA,
+          executable:'/usr/local/bin/node',
+          argv:[
+            '/fixture.mjs',
+            'network-effect-then-write',
+            effectUrl,
+            '/workspace/test-result.txt',
+          ],
+          cwd:'.',
+          env:{},
+          timeout_ms:10_000,
+          stdout_max_bytes:4096,
+          stderr_max_bytes:4096,
+        },
+      },
+      postcondition:{
+        verifier:'file-content-equals/v1',
+        path:marker,
+        content:'passed',
+      },
+    });
+
+    const first=await startIsolatedExecutor(workspace);
+    const pending=runReadyTestComputation(state.kernel,first.client);
+    const deadline=Date.now()+5000;
+    while (effects<1 && Date.now()<deadline) {
+      await new Promise(resolve=>setTimeout(resolve,20));
+    }
+    assert.equal(effects,1,'first execution must reach external side effect');
+    assert.equal(existsSync(marker),false);
+    await first.abort();
+
+    const interrupted=await pending;
+    assert.ok(interrupted);
+    assert.equal(interrupted.state,'RECOVERY_REQUIRED');
+    assert.equal(interrupted.execution_generation,1);
+    assert.equal(effects,1);
+    assertNoEffectReservations(state.repo);
+
+    const recoveredKernel=new GitOvercenterKernel(state.repo);
+    freshWorkspace('network-redteam-workspace');
+
+    const second=await startIsolatedExecutor(workspace);
+    try {
+      const recovered=await resumeTestComputation(
+        recoveredKernel,
+        second.client,
+        interrupted.run_id,
+      );
+      assert.equal(recovered.execution_generation,2);
+      assert.equal(recovered.state,'DONE');
+      assert.equal(effects,2,'recovery replay duplicated the external side effect');
+      assert.equal(readFileSync(marker,'utf8'),'passed');
+      assertNoEffectReservations(state.repo);
+    } finally {
+      await second.close();
+    }
+  } finally {
+    await new Promise<void>((resolve,reject)=>{
+      server.close(error=>error?reject(error):resolve());
+    });
+  }
+});
 
 test('real test workload runs through the isolated production socket and settles by observation',async()=>{
   const state=kernelFixture();
