@@ -30,6 +30,7 @@ export class SqliteFactStore implements DurableFactStore {
     this.path=path;
     this.#db=new DatabaseSync(path);
     this.#db.exec('PRAGMA foreign_keys = ON');
+    this.#db.exec('PRAGMA busy_timeout = 5000');
     this.#db.exec('PRAGMA journal_mode = WAL');
     this.#db.exec('PRAGMA synchronous = FULL');
     this.#db.exec(`
@@ -186,7 +187,6 @@ export class SqliteFactStore implements DurableFactStore {
   }
 
   close():void {
-    this.#db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     this.#db.close();
   }
 
