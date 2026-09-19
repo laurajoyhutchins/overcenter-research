@@ -41,4 +41,35 @@ test('ranks only production callables and derives structural authority/evidence 
   assert.ok(settle.consequenceRank<low.consequenceRank);
   assert.equal(inert.consequenceScore,0,'isolated unexported code has no measured consequence in the fixture');
   assert.equal(inert.attentionScore,0,'evidence gap and churn cannot create attention without consequence');
+
+  const sourceBlob=git(root,['hash-object','src/core.ts']);
+  write(root,'mutation-evidence.json',JSON.stringify({
+    schema:'overcenter-criticality-mutation-evidence/v1',
+    source_run:{revision:git(root,['rev-parse','HEAD'])},
+    probes:[{
+      id:'settlement-hostile-cases',
+      source_blobs:{'src/core.ts':sourceBlob},
+      selectors:[{file:'src/core.ts',name:'settle'}],
+      mutation_score:.25,
+    }],
+  }));
+  const evidenced=analyze({root,config:{...config,mutationEvidenceFile:'mutation-evidence.json'}});
+  const evidencedSettle=evidenced.ranking.find(x=>x.name==='settle');
+  assert.equal(evidencedSettle.vector.E,.75,'surviving mutants increase the evidence gap beyond reachability');
+  assert.equal(evidencedSettle.evidence.mutation.status,'applied');
+
+  write(root,'mutation-evidence.json',JSON.stringify({
+    schema:'overcenter-criticality-mutation-evidence/v1',
+    source_run:{revision:git(root,['rev-parse','HEAD'])},
+    probes:[{
+      id:'settlement-hostile-cases',
+      source_blobs:{'src/core.ts':'0000000000000000000000000000000000000000'},
+      selectors:[{file:'src/core.ts',name:'settle'}],
+      mutation_score:1,
+    }],
+  }));
+  const stale=analyze({root,config:{...config,mutationEvidenceFile:'mutation-evidence.json'}});
+  const staleSettle=stale.ranking.find(x=>x.name==='settle');
+  assert.equal(staleSettle.vector.E,1,'stale mutation evidence fails closed');
+  assert.equal(staleSettle.evidence.mutation.status,'stale');
 });

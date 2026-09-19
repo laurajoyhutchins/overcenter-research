@@ -35,7 +35,7 @@ Every ranked production callable receives a vector `v = (A, B, I, F, R, E, X, C)
 | `I` irreversibility | maximum recovery class of influenced authority sinks, normalized by the configured maximum |
 | `F` fan-out/centrality | geometric mean of normalized direct dependents and transitive dependent fraction |
 | `R` recovery criticality | fraction of declared recovery scenarios in which the unit dominates the terminal call |
-| `E` evidence-support gap | `1 - supported evidence tiers / required evidence tiers`; v1 tiers are passing `test/` and `experiments/` call paths |
+| `E` evidence-support gap | maximum known gap: static test/experiment reachability gap, plus exact-blob mutation gap (`1 - mutation score`) when a revision-bound mutation snapshot exists |
 | `X` execution-exposure proxy | fraction of statically exported production entrypoints that can reach the unit |
 | `C` change exposure | mean exponentially decayed `git blame` line recency within the callable, measured at the analyzed commit timestamp |
 
@@ -154,3 +154,35 @@ node --test experiments/production-criticality-ranking/summarize-mutation.test.m
 npx stryker run experiments/production-criticality-ranking/stryker.config.mjs
 node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-summary.md
 ```
+
+
+## Mutation evidence outcome
+
+The first exact-blob mutation run materially changed the interpretation of `E`.
+
+Static reachability was too optimistic. The focused suite could reach every selected semantic region, yet Stryker still produced substantial surviving-mutant populations:
+
+| Semantic region | Mutation score |
+| --- | ---: |
+| digest foundation | 100.0% |
+| semantic identity | 10.9% |
+| DONE-candidate reuse | 69.4% |
+| effect reservation | 53.6% |
+| settlement | 46.8% |
+| execution fence | 50.0% |
+| verification / authoritative absence | 34.3% |
+
+Several survivors weaken claim-bearing conditions, not merely diagnostic strings. Examples include execution-generation/authority/capability conjunctions, lifecycle/run admissibility checks, rejection handling, settlement guards, and Kubernetes UID/resourceVersion verification.
+
+The ranking therefore treats mutation evidence conservatively:
+
+```text
+reachability_gap = 1 - supported_static_tiers / required_static_tiers
+mutation_gap     = 1 - mutation_score
+
+E = max(reachability_gap, mutation_gap)
+```
+
+Mutation evidence is content-addressed by the exact Git blob identities of the production files it exercised. Matching bytes allow evidence reuse across later commits. If any bound blob changes, the affected probe becomes stale and contributes a full evidence gap (`E = 1`) until it is rerun.
+
+This makes mutation output a durable evidence snapshot rather than a 27-minute dependency of every ranking run. The raw mutation score is intentionally conservative: diagnostic/equivalent mutants can overstate the gap, but surviving claim-bearing mutants show that the gap is real. A later experiment should distinguish claim-bearing mutants from diagnostic noise rather than pretending the raw percentage is exact.

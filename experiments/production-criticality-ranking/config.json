@@ -231,5 +231,6 @@
       },
       "rationale": "Proof-bearing settlement should outrank error-string plumbing."
     }
-  ]
+  ],
+  "mutationEvidenceFile": "experiments/production-criticality-ranking/mutation-evidence.json"
 }

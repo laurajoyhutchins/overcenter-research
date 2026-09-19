@@ -13,6 +13,7 @@ on:
       - 'experiments/production-criticality-ranking/stryker.config.mjs'
       - 'experiments/production-criticality-ranking/summarize-mutation.mjs'
       - 'experiments/production-criticality-ranking/summarize-mutation.test.mjs'
+      - 'experiments/production-criticality-ranking/emit-mutation-evidence.mjs'
       - '.github/workflows/production-criticality-mutation-probe.yml'
   workflow_dispatch:
 
@@ -57,6 +58,7 @@ jobs:
             experiments/production-criticality-ranking/stryker.config.mjs \
             experiments/production-criticality-ranking/summarize-mutation.mjs \
             experiments/production-criticality-ranking/summarize-mutation.test.mjs \
+            experiments/production-criticality-ranking/emit-mutation-evidence.mjs \
             .github/workflows/production-criticality-mutation-probe.yml | grep -q .; then
             echo "run_probe=true" >> "$GITHUB_OUTPUT"
           else
@@ -90,6 +92,16 @@ jobs:
           if [[ -f mutation.json ]]; then
             node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-ranges.json mutation-summary.md
           fi
+      - name: Emit revision-bound mutation evidence
+        if: always()
+        run: |
+          if [[ -f mutation.json && -f mutation-ranges.json ]]; then
+            node experiments/production-criticality-ranking/emit-mutation-evidence.mjs \
+              --report mutation.json \
+              --ranges mutation-ranges.json \
+              --output mutation-evidence-generated.json \
+              --workflow-run-id "$GITHUB_RUN_ID"
+          fi
       - name: Show mutation summary
         if: always()
         run: cat mutation-summary.md || true
@@ -101,4 +113,5 @@ jobs:
             mutation.json
             mutation-ranges.json
             mutation-summary.md
+            mutation-evidence-generated.json
           if-no-files-found: ignore

@@ -236,6 +236,32 @@ export function analyze({root,config}){
   const reverse=new Map(production.map(u=>[u.id,new Set()]));
   for(const [u,vs] of prodEdges) for(const v of vs) reverse.get(v).add(u);
 
+  const mutationEvidenceByUnit=new Map();
+  const mutationEvidenceStatus={applied:[],stale:[]};
+  if(config.mutationEvidenceFile){
+    const evidencePath=path.join(root,config.mutationEvidenceFile);
+    const snapshot=JSON.parse(fs.readFileSync(evidencePath,'utf8'));
+    if(snapshot.schema!=='overcenter-criticality-mutation-evidence/v1') throw new Error(`unsupported mutation evidence schema: ${snapshot.schema}`);
+    for(const probe of snapshot.probes??[]){
+      const selected=(probe.selectors??[]).map(selector=>selectOne(production,selector,`mutation-evidence:${probe.id}`));
+      const staleFiles=[];
+      for(const [file,expected] of Object.entries(probe.source_blobs??{})){
+        const actual=git(root,['hash-object',file]);
+        if(actual!==expected) staleFiles.push({file,expected,actual});
+      }
+      const score=staleFiles.length?0:Number(probe.mutation_score);
+      if(!Number.isFinite(score)||score<0||score>1) throw new Error(`invalid mutation score for ${probe.id}: ${probe.mutation_score}`);
+      const status=staleFiles.length?'stale':'applied';
+      mutationEvidenceStatus[status].push({id:probe.id,mutationScore:score,staleFiles});
+      for(const unit of selected){
+        const prior=mutationEvidenceByUnit.get(unit.id);
+        if(!prior || score<prior.mutationScore){
+          mutationEvidenceByUnit.set(unit.id,{probeId:probe.id,mutationScore:score,status,sourceRun:snapshot.source_run??null});
+        }
+      }
+    }
+  }
+
   const authority=config.authorityClasses.map(a=>({...a,unit:selectOne(production,a.sink,`authority:${a.id}`)}));
   const recovery=config.recoveryScenarios.map(s=>({...s,entryUnit:selectOne(production,s.entry,`recovery:${s.id}:entry`),terminalUnit:selectOne(production,s.terminal,`recovery:${s.id}:terminal`)}));
   const scenarioDominators=new Map();
@@ -280,7 +306,10 @@ export function analyze({root,config}){
     const tiers=[];
     if(requiredEvidenceTiers.includes('test') && testEntrypoints.some(t=>allReach(t.id).has(u.id))) tiers.push('test');
     if(requiredEvidenceTiers.includes('experiment') && experimentEntrypoints.some(t=>allReach(t.id).has(u.id))) tiers.push('experiment');
-    const E=requiredEvidenceTiers.length?1-(tiers.length/requiredEvidenceTiers.length):0;
+    const reachabilityGap=requiredEvidenceTiers.length?1-(tiers.length/requiredEvidenceTiers.length):0;
+    const mutationEvidence=mutationEvidenceByUnit.get(u.id)??null;
+    const mutationGap=mutationEvidence?1-mutationEvidence.mutationScore:0;
+    const E=Math.max(reachabilityGap,mutationGap);
     const entrypoints=prodEntrypoints.filter(e=>prodReach(e.id).has(u.id));
     const X=prodEntrypoints.length?entrypoints.length/prodEntrypoints.length:0;
     if(!blameCache.has(u.file)) blameCache.set(u.file,blameTimes(root,u.file));
@@ -291,7 +320,16 @@ export function analyze({root,config}){
       if(t){const ageDays=Math.max(0,(latestEpoch-t)/86400);lineWeights.push(Math.exp(-ln2*ageDays/halfLifeDays));}
     }
     const C=lineWeights.length?lineWeights.reduce((a,b)=>a+b,0)/lineWeights.length:0;
-    return {...u,authorityInfluence,dominatedRecoveryScenarios:dominated,evidenceTiers:tiers,productionEntrypoints:entrypoints.map(e=>e.id),raw:{directDependents:direct,transitiveDependents:dependents.length},vector:{A,B,I,F,R,E,X,C}};
+    return {
+      ...u,
+      authorityInfluence,
+      dominatedRecoveryScenarios:dominated,
+      evidenceTiers:tiers,
+      evidence:{reachabilityGap,mutation:mutationEvidence},
+      productionEntrypoints:entrypoints.map(e=>e.id),
+      raw:{directDependents:direct,transitiveDependents:dependents.length},
+      vector:{A,B,I,F,R,E,X,C},
+    };
   });
 
   const consequencePolicy=config.rankingPolicy?.consequence??{
@@ -344,6 +382,7 @@ export function analyze({root,config}){
         const denominator=stats.resolvedInternalCalls+stats.unresolvedInternalCalls+stats.unknownCalls;
         return [scope,{...stats,internalResolutionRate:denominator?stats.resolvedInternalCalls/denominator:1}];
       })),
+      mutationEvidence:mutationEvidenceStatus,
       unresolvedCallsites:unresolvedCallsites
         .sort((a,b)=>{
           const rank={production:0,test:1,experiment:2,other:3};
@@ -381,6 +420,11 @@ export function markdown(report,top=30){
   for(const m of report.ranking.slice(0,top)){
     const v=m.vector;
     lines.push(`| ${m.consequenceRank} | ${m.attentionRank} | \`${m.file}::${m.qualifiedName}\` | ${m.consequenceScore.toFixed(2)} | ${m.attentionScore.toFixed(2)} | ${v.A.toFixed(2)} | ${v.B.toFixed(2)} | ${v.I.toFixed(2)} | ${v.F.toFixed(2)} | ${v.R.toFixed(2)} | ${v.E.toFixed(2)} | ${v.X.toFixed(2)} | ${v.C.toFixed(2)} |`);
+  }
+  if(report.analyzer.mutationEvidence){
+    lines.push('','## Mutation evidence','');
+    lines.push(`Applied probes: ${report.analyzer.mutationEvidence.applied.length}; stale probes: ${report.analyzer.mutationEvidence.stale.length}.`);
+    for(const p of report.analyzer.mutationEvidence.stale) lines.push(`- stale ${p.id}: ${p.staleFiles.map(f=>f.file).join(', ')}`);
   }
   const failed=report.calibration.pairs.filter(x=>!x.pass);
   lines.push('','## Calibration', '', failed.length?`Failed ${failed.length} pair(s):`:'All calibration pairs passed.');
