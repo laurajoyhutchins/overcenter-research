@@ -78,7 +78,9 @@ Those remain responsibilities of the existing semantic, admission, provider,
 and authority layers.
 
 This split is deliberate. Datalog is being tested as a projection engine, not
-as a replacement for the transaction kernel or semantic verifier.
+as a replacement for the transaction kernel, structural replay validator, or
+semantic verifier. The flattening boundary must already have validated durable
+schema/reference consistency.
 
 ## Inputs
 
@@ -125,8 +127,8 @@ semantic dependencies are resolved, a missing key fails closed.
 A recomputed semantic judgment over one durable observation receipt. Provider
 and verifier code owns whether the exact postcondition is verified and whether
 negative evidence is authoritative and accepted by policy. Datalog maps those
-facts to settlement disposition. A missing or contradictory judgment fails
-closed.
+facts to settlement disposition. If the latest receipt has no unique
+interpretation, projection yields `RECOVERY_REQUIRED`.
 
 ### `current_realization_admissible(run_id, obligation)`
 
@@ -161,7 +163,7 @@ The program derives:
 - current lifecycle;
 - unsatisfied dependencies;
 - public project status;
-- diagnostics for missing or contradictory flattened inputs.
+- fail-closed recovery when the latest receipt cannot be interpreted uniquely.
 
 There is intentionally no producer relation. Producer identity has no semantic
 privilege once a realization has been admitted. Reuse depends on exact current
@@ -189,7 +191,8 @@ The hostile fixtures cover:
 8. uncertain observation remaining `RECOVERY_REQUIRED`;
 9. append-only receipt history where later verified evidence supersedes an
    earlier recovery receipt;
-10. missing semantic judgment and contradictory identity failing closed;
+10. missing/ambiguous receipt semantics projecting `RECOVERY_REQUIRED` rather
+    than accidentally returning work to `READY`;
 11. the known TypeScript mutable-reuse gap: TypeScript still projects historical
     `DONE`, while Datalog can project `READY` when the semantic layer withdraws
     current realization admissibility after external drift.
@@ -230,7 +233,9 @@ npm run test:datalog
 ```
 
 The dedicated GitHub Actions workflow installs the Ubuntu 24.04 Soufflé 2.5
-release package and runs the differential test.
+release package only after verifying its pinned SHA-256
+`c7e9dd1349506bbb23c4dcf89e87396198006235f79b1cc516c0a2b67ac067bc`, then
+runs the differential test.
 
 ## What a green run means
 
