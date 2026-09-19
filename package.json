@@ -25,6 +25,7 @@
     "test:provider-observation": "node --experimental-strip-types --test experiments/provider-observation/response-slice.test.ts",
     "github:authority": "node --experimental-strip-types bin/github-authority.ts",
     "test:kubernetes-core": "node --experimental-strip-types --test test/kubernetes-core-verifier.test.ts",
-    "test:github-contract": "node --experimental-strip-types --test test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts"
+    "test:github-contract": "node --experimental-strip-types --test test/github-openapi-contract.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts",
+    "build:semantic-kernel": "cd experiments/lean-kernel && lake build overcenterRealizationProjection"
   }
 }
