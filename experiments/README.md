@@ -16,6 +16,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
+- `ruby-scenarios/` - human-readable hostile scenarios that drive the real TypeScript kernel through a thin JSON probe boundary.
 
 Reusable mechanism belongs in `src/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 
@@ -197,6 +198,7 @@ The evidence classes are deliberately separate:
 npm test                              # fast deterministic regression only
 npm run proof:local                  # adversarial local experiments
 npm run test:kubernetes-observation # focused deterministic Kubernetes semantics
+npm run test:ruby-scenarios          # executable adversarial scenarios written in Ruby
 ```
 
 Focused commands are listed in [`../README.md`](../README.md) and `package.json`.
