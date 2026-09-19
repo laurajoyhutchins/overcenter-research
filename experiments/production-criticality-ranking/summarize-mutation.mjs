@@ -4,12 +4,7 @@ import path from 'node:path';
 
 const probes=[
   {id:'digest-foundation',file:'src/digest.ts',start:3,end:20},
-  {id:'semantic-identity',file:'src/semantic-identity.ts',start:12,end:68},
   {id:'done-candidate-reuse',file:'src/projector.ts',start:205,end:258},
-  {id:'effect-reservation',file:'src/kernel-core.ts',start:243,end:271},
-  {id:'settlement',file:'src/kernel-core.ts',start:281,end:320},
-  {id:'execution-fence',file:'src/kernel-core.ts',start:446,end:462},
-  {id:'verification-and-absence',file:'src/observation.ts',start:404,end:431},
 ];
 
 function score(mutants){
