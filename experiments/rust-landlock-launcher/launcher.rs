@@ -202,6 +202,10 @@ fn main() -> ExitCode {
         let ruleset = create_ruleset(handled)?;
         add_path_rule(&ruleset, task_root, handled)?;
         add_readonly_runtime_rules(&ruleset, handled)?;
+        if let Some(worker_parent) = worker.parent() {
+            let worker_read = (ACCESS_FS_READ_FILE | ACCESS_FS_READ_DIR) & handled;
+            add_path_rule(&ruleset, worker_parent, worker_read)?;
+        }
         restrict_self(&ruleset)?;
         drop(ruleset);
 
