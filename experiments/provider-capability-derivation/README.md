@@ -11,7 +11,7 @@ Yes, with two independent dimensions:
 ```text
 physical mutation overlap
           ×
-provider equivalence witness
+settlement-equivalence witness
 ```
 
 The provider-neutral core derives `EffectSemantics`:
@@ -21,7 +21,7 @@ resource
 desired
 ```
 
-The provider adapter separately issues an `EffectEquivalenceWitness` when it can justify same-resource unordered execution under one exact provider contract.
+The provider adapter separately issues an `SettlementEquivalenceWitness` when it can justify same-resource unordered execution under one exact provider contract.
 
 The pair classification is therefore:
 
@@ -31,7 +31,7 @@ different resource
 
 same resource
 + same witness identity
-    -> parallel-adapter-commutative
+    -> parallel-settlement-equivalent
 
 same resource
 + missing/different witness
@@ -59,7 +59,7 @@ Repository owner/name is not part of the physical resource identity. A v2 reposi
 
 Compatibility no longer comes from `sameDesiredCommutes: boolean`.
 
-The GitHub adapter issues a version-bound witness containing the provider/verifier contracts, coordinate contract, observation contract, mutation operation contract, semantic operation, and digests of the relevant semantics.
+The GitHub adapter issues a version-bound settlement-equivalence witness containing the provider/verifier contracts, coordinate contract, observation contract, mutation operation contract, semantic operation, and digests of the relevant semantics. The witness claims equality of derived project truth, not equality of physical provider history.
 
 Consequences:
 
