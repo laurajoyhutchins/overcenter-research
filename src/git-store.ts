@@ -44,8 +44,8 @@ export class GitFactStore {
     return sha;
   }
 
-  revisions(head:string):string[] {
-    return this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
+  revisions(revision:string):string[] {
+    return this.#git(['rev-list','--reverse',revision]).stdout.trim().split(/\n+/).filter(Boolean);
   }
 
   parent(commit:string):string|null {
