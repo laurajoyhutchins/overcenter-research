@@ -55,10 +55,10 @@
         "The hostile cases and distinguishing criterion documented in the experiment README pass."
       ],
       "evidence": {
-        "state": "pending",
-        "evaluated_revision": null,
+        "state": "current",
+        "evaluated_revision": "570e776aadb131589c9a47309d923e06b476e436",
         "artifacts": [
-          "Main run 35463403321 falsified the obsolete assertion that both mutable postconditions remain currently DONE."
+          "GitHub Actions run 35465653746: full ordered conflict proof including corrected final current-truth verification."
         ]
       },
       "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
@@ -247,10 +247,10 @@
         "The hostile cases and distinguishing criterion documented in the experiment README pass."
       ],
       "evidence": {
-        "state": "pending",
-        "evaluated_revision": null,
+        "state": "current",
+        "evaluated_revision": "570e776aadb131589c9a47309d923e06b476e436",
         "artifacts": [
-          "Hosted workflow remains the permission-bound proof; this change adds experiment-owned deterministic contract code."
+          "GitHub Actions run 35465653729: materialize, no-checkout execute, publish, and authoritative readback all passed."
         ]
       },
       "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
