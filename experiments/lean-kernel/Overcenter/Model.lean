@@ -45,6 +45,8 @@ structure KubernetesListMember where
   deriving Repr, BEq, DecidableEq
 
 structure KubernetesListPage where
+  authorityId : String
+  requestNamespace : String
   requestContinue : Option String
   responseContinue : String
   snapshotResourceVersion : String
