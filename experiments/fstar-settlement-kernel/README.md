@@ -1,3 +1,5 @@
+> **Corrected by PR #69.** This experiment remains reproducible evidence for exact evidence binding, but its original material key incorrectly included current revision/authority generation and therefore does **not** establish producer-independent realization reuse. PR #69 separates reusable semantic realization identity from current settlement authority. Treat the stronger reuse interpretation below as superseded; the exact-evidence-binding result remains valid.
+
 # F* settlement kernel experiment
 
 ## Question
