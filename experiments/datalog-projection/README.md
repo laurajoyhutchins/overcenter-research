@@ -149,7 +149,9 @@ package against:
 c7e9dd1349506bbb23c4dcf89e87396198006235f79b1cc516c0a2b67ac067bc
 ```
 
-before installing it and running the differential test.
+before installing it. On pull requests the workflow checks out and asserts the
+exact PR head SHA rather than GitHub's synthetic merge ref, then runs the
+differential test.
 
 ## What green means
 
