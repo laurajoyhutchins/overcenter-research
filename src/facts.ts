@@ -10,7 +10,8 @@ import type {
 import { validatePostcondition } from './observation.ts';
 
 export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
-export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
+export const LEGACY_CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
+export const CLAIM_SCHEMA='overcenter-git-claim-v4' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
 export const LEGACY_RECEIPT_SCHEMA='overcenter-git-receipt-v4' as const;
@@ -42,6 +43,15 @@ export type ObligationFact =
       previous_definition_commit:string;
     };
 
+export interface LegacyClaimFact {
+  schema:typeof LEGACY_CLAIM_SCHEMA;
+  run_id:string;
+  obligation_id:string;
+  claimed_revision:string;
+  obligation_key:string;
+  execution_capability_sha256:string;
+}
+
 export interface ClaimFact {
   schema:typeof CLAIM_SCHEMA;
   run_id:string;
@@ -49,7 +59,10 @@ export interface ClaimFact {
   claimed_revision:string;
   obligation_key:string;
   execution_capability_sha256:string;
+  current_observations:Record<string,Observation>;
 }
+
+export type StoredClaimFact=LegacyClaimFact|ClaimFact;
 
 export interface ExecutionAuthorityFact {
   schema:typeof EXECUTION_AUTHORITY_SCHEMA;
