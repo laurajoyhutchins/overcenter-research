@@ -153,6 +153,30 @@ So the shared boundary is now:
 
 This is deliberately **not** a merger of admission and replay. It is one owner for the stable selector vocabulary while preserving the different safety jobs on either side.
 
+## Third application: GitHub object identity grammar
+
+The certified GitHub ref observer, pull-request observer, and top-level postcondition validator each independently recognized GitHub object IDs as 40-64 hexadecimal characters. The ref and pull-request paths also independently implemented case-insensitive identity comparison.
+
+That is one provider contract repeated three times.
+
+The [GitHub observation grammar experiment](../experiments/github-observation-grammar/github-observation.test.ts) is built around exact provider coordinates and exact revision identity across refs, pull requests, statuses, checks, and reconstruction. The production regressions in [`github-certified-ref.test.ts`](../test/github-certified-ref.test.ts) and [`github-certified-pr.test.ts`](../test/github-certified-pr.test.ts) separately exercise invalid revision inputs and stale/current identity behavior.
+
+The deduplicated boundary is now:
+
+```text
+GitHub provider contract
+  isGithubObjectId()
+  sameGithubObjectId()
+          |
+          +--> postcondition validation
+          +--> ref certification
+          +--> pull-request certification
+```
+
+The observers still own their distinct coordinates, response slices, evidence, and stale/current rules. Only the provider-wide object-ID grammar and equality rule moved to one owner.
+
+This is intentionally different from sharing validation across TypeScript and Go computation boundaries. GitHub object identity is one provider semantic contract inside the same trusted TypeScript authority layer. Cross-language executor validation is part of an isolation boundary and should remain independently checked unless an experiment shows that sharing it would not weaken that boundary.
+
 ## Ongoing rule
 
 For each future deduplication, leave an evidence trail:
