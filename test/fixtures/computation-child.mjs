@@ -1,10 +1,25 @@
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
+import { request } from 'node:http';
 
 const [mode,arg='',pidFile='']=process.argv.slice(2);
 
 function record(label,pid) {
   if (pidFile) appendFileSync(pidFile,`${label}:${pid}\n`);
+}
+
+function postThenWrite(url,markerPath,delayMs) {
+  const req=request(url,{method:'POST'},response=>{
+    response.resume();
+    response.once('end',()=>{
+      setTimeout(()=>{
+        writeFileSync(markerPath,'passed');
+        process.stdout.write('network-effect-complete');
+      },delayMs);
+    });
+  });
+  req.once('error',error=>{ throw error; });
+  req.end('effect');
 }
 
 function runNodeTest(testPath,markerPath) {
@@ -38,6 +53,11 @@ if (mode==='env') {
   runNodeTest(arg,pidFile);
 } else if (mode==='delayed-node-test') {
   setTimeout(()=>runNodeTest(arg,pidFile),1000);
+} else if (mode==='symlink-file') {
+  symlinkSync(arg,pidFile);
+  process.stdout.write('symlink-created');
+} else if (mode==='network-effect-then-write') {
+  postThenWrite(arg,pidFile,1500);
 } else if (
   mode==='tree-ignore-term'
   || mode==='tree-child-ignore-term'
