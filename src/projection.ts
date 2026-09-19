@@ -4,14 +4,13 @@ import {
   observationVerified,
 } from './observation.ts';
 import {
-  CLAIM_SCHEMA,
-  EFFECT_RESERVATION_SCHEMA,
-  EXECUTION_AUTHORITY_SCHEMA,
   LEGACY_RECEIPT_SCHEMA,
-  OBLIGATION_SCHEMA,
-  RECEIPT_SCHEMA,
   emptyState,
-  validateStoredObligation,
+  validateClaimFact,
+  validateEffectReservationFact,
+  validateExecutionAuthorityFact,
+  validateObligationFact,
+  validateReceiptFact,
 } from './facts.ts';
 import type {
   ClaimFact,
@@ -119,9 +118,8 @@ export function replayProjection(commits:FactCommit[]):Projection {
 
   for (const record of commits) {
     if (record.obligation!=null) {
-      const fact=record.obligation as ObligationFact;
-      if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
-      const obligation=validateStoredObligation(fact.obligation);
+      const fact=validateObligationFact(record.obligation);
+      const obligation=fact.obligation;
       const id=obligation.id;
 
       if (fact.kind==='defined') {
@@ -143,8 +141,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
     }
 
     if (record.claim!=null) {
-      const claim=record.claim as ClaimFact;
-      if (claim.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
+      const claim=validateClaimFact(record.claim);
       const obligation=state.obligations[claim.obligation_id];
       if (!obligation) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
       if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
@@ -160,13 +157,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
       const expectedKey=project.semanticKeys.get(claim.obligation_id);
       if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
       if (claim.obligation_key!==expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
-
-      if (
-        typeof claim.execution_capability_sha256!=='string'
-        || !/^[0-9a-f]{64}$/.test(claim.execution_capability_sha256)
-      ) {
-        throw new Error('INVALID_EXECUTION_CAPABILITY_DIGEST');
-      }
 
       const run:HistoricalRun={
         id:claim.run_id,
@@ -185,10 +175,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
     }
 
     if (record.execution_authority!=null) {
-      const fact=record.execution_authority as ExecutionAuthorityFact;
-      if (fact.schema!==EXECUTION_AUTHORITY_SCHEMA) {
-        throw new Error('INVALID_EXECUTION_AUTHORITY_SCHEMA');
-      }
+      const fact=validateExecutionAuthorityFact(record.execution_authority);
       const run=runs.get(fact.run_id);
       if (!run) throw new Error('EXECUTION_AUTHORITY_WITHOUT_CLAIM');
       if (run.obligation_id!==fact.obligation_id) {
@@ -208,12 +195,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
       if (fact.previous_authority_commit!==run.execution_authority_commit) {
         throw new Error('EXECUTION_AUTHORITY_PREDECESSOR_MISMATCH');
       }
-      if (
-        typeof fact.execution_capability_sha256!=='string'
-        || !/^[0-9a-f]{64}$/.test(fact.execution_capability_sha256)
-      ) {
-        throw new Error('INVALID_EXECUTION_CAPABILITY_DIGEST');
-      }
       runs.set(run.id,{
         ...run,
         execution_generation:fact.generation,
@@ -224,10 +205,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
     }
 
     if (record.effect_reservation!=null) {
-      const fact=record.effect_reservation as EffectReservationFact;
-      if (fact.schema!==EFFECT_RESERVATION_SCHEMA) {
-        throw new Error('INVALID_EFFECT_RESERVATION_SCHEMA');
-      }
+      const fact=validateEffectReservationFact(record.effect_reservation);
       const run=runs.get(fact.run_id);
       if (!run) throw new Error('EFFECT_RESERVATION_WITHOUT_CLAIM');
       if (run.obligation_id!==fact.obligation_id) {
@@ -254,16 +232,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
     }
 
     if (record.receipt==null) continue;
-    const fact=record.receipt as ReceiptFact;
-    if (
-      fact.schema!==RECEIPT_SCHEMA
-      && fact.schema!==LEGACY_RECEIPT_SCHEMA
-    ) {
-      throw new Error('INVALID_RECEIPT_SCHEMA');
-    }
-    if (!['observation','judgment-required','execution-terminated'].includes(fact.kind)) {
-      throw new Error('INVALID_RECEIPT_KIND');
-    }
+    const fact=validateReceiptFact(record.receipt);
     const run=runs.get(fact.run_id);
     if (!run) throw new Error('RECEIPT_WITHOUT_CLAIM');
     if (run.obligation_id!==fact.obligation_id) throw new Error('RECEIPT_OBLIGATION_MISMATCH');

@@ -5,6 +5,16 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
+  CLAIM_SCHEMA,
+  EFFECT_RESERVATION_SCHEMA,
+  EXECUTION_AUTHORITY_SCHEMA,
+  LEGACY_RECEIPT_SCHEMA,
+  OBLIGATION_SCHEMA,
+  RECEIPT_SCHEMA,
+  validateAuthorityFact,
+} from '../src/facts.ts';
+
+import {
   COMPUTATION_EVIDENCE_SCHEMA,
   COMPUTATION_EXECUTION_SCHEMA,
   EXECUTOR_COMMAND_SCHEMA,
@@ -18,11 +28,17 @@ import { GoExecutorClient } from '../src/go-executor-client.ts';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const contractDir=join(root,'contracts/computation-execution-v1');
+const authorityContractDir=join(root,'contracts/authority-facts-v1');
 const readJson=(path:string):any=>JSON.parse(readFileSync(path,'utf8'));
 
 const contract=readJson(join(contractDir,'contract.json'));
 const schema=readJson(join(contractDir,'schema.json'));
 const conformance=readJson(join(contractDir,'process-spec-conformance.json'));
+const authorityContract=readJson(join(authorityContractDir,'contract.json'));
+const authoritySchema=readJson(join(authorityContractDir,'schema.json'));
+const authorityConformance=readJson(
+  join(authorityContractDir,'authority-fact-conformance.json'),
+);
 const goProtocol=readFileSync(join(root,'executor/protocol.go'),'utf8');
 const goMain=readFileSync(join(root,'executor/cmd/overcenter-executor/main.go'),'utf8');
 
@@ -172,4 +188,92 @@ test('executor hello uses the shared UTF-8 byte limit across the language bounda
     }),
     /GO_EXECUTOR_CONTAINMENT_ID_INVALID/,
   );
+});
+
+
+test('durable authority contract preserves backend-neutral logical facts',()=>{
+  assert.equal(authorityContract.id,'authority-facts');
+  assert.equal(authorityContract.version,'1.0.0');
+  assert.equal(authorityContract.status,'active');
+  assert.equal(authorityContract.storageIndependence.backendLocalCommitIdentity,true);
+  assert.deepEqual(authorityContract.schema.wireDiscriminators,[
+    OBLIGATION_SCHEMA,
+    CLAIM_SCHEMA,
+    EXECUTION_AUTHORITY_SCHEMA,
+    EFFECT_RESERVATION_SCHEMA,
+    LEGACY_RECEIPT_SCHEMA,
+    RECEIPT_SCHEMA,
+  ]);
+  assert.deepEqual(authorityContract.compatibility.receipt.read,[
+    LEGACY_RECEIPT_SCHEMA,
+    RECEIPT_SCHEMA,
+  ]);
+  assert.equal(authorityContract.compatibility.receipt.write,RECEIPT_SCHEMA);
+});
+
+test('authority fact conformance corpus runs against the production envelope validators',()=>{
+  assert.equal(
+    authorityConformance.schema,
+    'overcenter-authority-fact-conformance-v1',
+  );
+  for (const candidate of authorityConformance.cases as Array<{
+    name:string;
+    valid:boolean;
+    fact:unknown;
+  }>) {
+    if (candidate.valid) {
+      assert.doesNotThrow(
+        ()=>validateAuthorityFact(candidate.fact),
+        candidate.name,
+      );
+    } else {
+      assert.throws(
+        ()=>validateAuthorityFact(candidate.fact),
+        undefined,
+        candidate.name,
+      );
+    }
+  }
+});
+
+test('authority receipt contract excludes derived settlement truth from persisted facts',()=>{
+  const receipt=authorityContract.semanticRoles.receiptFact;
+  const persisted=new Set(
+    Object.keys(authoritySchema.$defs.ReceiptFactV5.properties),
+  );
+  for (const field of receipt.derivedFieldsExcluded as string[]) {
+    assert.equal(
+      persisted.has(field),
+      false,
+      'derived settlement field became writable: '+field,
+    );
+  }
+
+  const roles=[
+    ...receipt.authorityBindingFields,
+    ...receipt.resultFields,
+    ...receipt.auditFields,
+    ...receipt.diagnosticFields,
+  ] as string[];
+  assert.deepEqual(
+    [...new Set(roles)].sort(),
+    [...persisted].filter(field=>field!=='schema').sort(),
+  );
+});
+
+test('every intentionally open authority payload is named in contract metadata',()=>{
+  const declared=new Set(
+    authorityContract.openBoundaries.map((entry:{path:string})=>entry.path),
+  );
+  assert.deepEqual(declared,new Set([
+    'Obligation.packet',
+    'Obligation.postcondition',
+    'ReceiptFact.observed',
+    'ReceiptFact.diagnostic',
+  ]));
+
+  const openKeyword='x-overcenter-openBoundary';
+  const schemaText=JSON.stringify(authoritySchema);
+  assert.match(schemaText,new RegExp(openKeyword));
+  assert.ok(authorityContract.schema.validationExtensions.includes(openKeyword));
 });

@@ -1,0 +1,225 @@
+{
+  "schema": "overcenter-authority-fact-conformance-v1",
+  "cases": [
+    {
+      "name": "defined-obligation-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-obligation-v3",
+        "kind": "defined",
+        "obligation": {
+          "id": "alpha",
+          "dependencies": [],
+          "packet": {
+            "kind": "example"
+          },
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/a",
+            "content": "A"
+          }
+        }
+      }
+    },
+    {
+      "name": "amended-obligation-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-obligation-v3",
+        "kind": "amended",
+        "obligation": {
+          "id": "alpha",
+          "dependencies": [
+            {
+              "kind": "control",
+              "upstream": "root"
+            }
+          ],
+          "packet": {
+            "kind": "example"
+          },
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/a",
+            "content": "B"
+          }
+        },
+        "previous_definition_commit": "definition-1"
+      }
+    },
+    {
+      "name": "claim-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-claim-v3",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "obligation_key": "key-1",
+        "execution_capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "execution-authority-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-execution-authority-v1",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "generation": 2,
+        "previous_authority_commit": "claim-1",
+        "execution_capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "effect-reservation-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-effect-reservation-v1",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "execution_generation": 2,
+        "execution_authority_commit": "authority-2"
+      }
+    },
+    {
+      "name": "receipt-v5-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-receipt-v5",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "claim_commit": "claim-1",
+        "execution_generation": 2,
+        "execution_authority_commit": "authority-2",
+        "kind": "observation",
+        "observed": {
+          "verifier": "file-content-equals/v1",
+          "mutation_certainty": "present",
+          "path": "/provider/a"
+        },
+        "diagnostic": {
+          "source": "conformance"
+        },
+        "settled_at": "2026-09-19T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "receipt-v4-read-compatible",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-receipt-v4",
+        "run_id": "run-legacy",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-legacy",
+        "claim_commit": "claim-legacy",
+        "execution_generation": 1,
+        "execution_authority_commit": "claim-legacy",
+        "kind": "execution-terminated",
+        "observed": null,
+        "settled_at": "2026-09-18T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "claim-unknown-field-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-claim-v3",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "obligation_key": "key-1",
+        "execution_capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "surprise": true
+      }
+    },
+    {
+      "name": "claim-bad-capability-digest-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-claim-v3",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "obligation_key": "key-1",
+        "execution_capability_sha256": "not-a-digest"
+      }
+    },
+    {
+      "name": "amend-missing-fence-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-obligation-v3",
+        "kind": "amended",
+        "obligation": {
+          "id": "alpha",
+          "dependencies": [],
+          "packet": {},
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/a",
+            "content": "B"
+          }
+        }
+      }
+    },
+    {
+      "name": "dependency-unknown-field-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-obligation-v3",
+        "kind": "defined",
+        "obligation": {
+          "id": "alpha",
+          "dependencies": [
+            {
+              "kind": "control",
+              "upstream": "root",
+              "extra": true
+            }
+          ],
+          "packet": {},
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/a",
+            "content": "A"
+          }
+        }
+      }
+    },
+    {
+      "name": "receipt-unknown-field-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-receipt-v5",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "claim_commit": "claim-1",
+        "execution_generation": 1,
+        "execution_authority_commit": "claim-1",
+        "kind": "execution-terminated",
+        "observed": null,
+        "settled_at": "2026-09-19T00:00:00.000Z",
+        "disposition": "DONE"
+      }
+    },
+    {
+      "name": "unsupported-historical-receipt-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-receipt-v3",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "claim_commit": "claim-1",
+        "execution_generation": 1,
+        "execution_authority_commit": "claim-1",
+        "kind": "observation",
+        "observed": {},
+        "settled_at": "2026-09-17T00:00:00.000Z"
+      }
+    }
+  ]
+}

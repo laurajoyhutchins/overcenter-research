@@ -27,6 +27,11 @@ The package is intentionally dependency-light. A new framework is not required m
 6. Conformance must be executable. Checked-in examples and cross-implementation tests are evidence, not decoration.
 7. Generated output is not verified output. A generator can reduce duplication, but compatibility and semantic closure still require tests.
 
+
+## Persisted discriminator names
+
+Persisted discriminators are historical API identifiers. Do not rename one merely because an implementation backend changed. A legacy backend name can be documented as historical; changing durable identity for cosmetic consistency is worse than carrying the fossil.
+
 ## Migration order
 
 Start with boundaries where disagreement is expensive:
