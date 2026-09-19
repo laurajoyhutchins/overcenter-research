@@ -15,7 +15,7 @@ import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
 } from './providers/github-certified-status.ts';
-import { githubGet } from './providers/github-rest.ts';
+import { githubGet, isGithubObjectId } from './providers/github-rest.ts';
 import {
   kubernetesConfigMapAbsenceEvidenceMatches,
   observeCertifiedKubernetesConfigMap,
@@ -138,7 +138,7 @@ export function validatePostcondition(p: Postcondition): void {
     && p.provider==='github'
     && Number.isSafeInteger(p.repository_id)
     && p.repository_id > 0
-    && /^[0-9a-f]{40,64}$/i.test(p.commit_sha)
+    && isGithubObjectId(p.commit_sha)
     && typeof p.context==='string'
     && p.context.length > 0
     && ['error','failure','pending','success'].includes(p.expected_state)) return;
@@ -148,7 +148,7 @@ export function validatePostcondition(p: Postcondition): void {
     && p.repository_id > 0
     && typeof p.repository_full_name==='string'
     && /^[^/]+\/[^/]+$/.test(p.repository_full_name)
-    && /^[0-9a-f]{40,64}$/i.test(p.commit_sha)
+    && isGithubObjectId(p.commit_sha)
     && typeof p.context==='string'
     && p.context.length > 0
     && ['error','failure','pending','success'].includes(p.expected_state)) return;

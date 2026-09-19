@@ -8,6 +8,7 @@ import {
   settlementSemantics,
   verifiedContentIdentity,
 } from './semantics.ts';
+import { semanticDependencySelection } from './semantic-dependency.ts';
 
 function validateSemanticEdges(state:State):void {
   for (const obligation of Object.values(state.obligations)) {
@@ -17,25 +18,13 @@ function validateSemanticEdges(state:State):void {
       if (!upstream) {
         throw new Error(`UNKNOWN_DEPENDENCY:${obligation.id}:${edge.upstream}`);
       }
-      if (edge.consumes.kind==='output') {
-        if (edge.consumes.selector!=='verified-content') {
-          throw new Error(
-            `UNSUPPORTED_SEMANTIC_SELECTOR:output:${edge.consumes.selector}`,
-          );
-        }
-        if (!verifiedContentIdentity(upstream.postcondition)) {
-          throw new Error(
-            `UNAVAILABLE_SEMANTIC_OUTPUT:${obligation.id}:${edge.upstream}:verified-content`,
-          );
-        }
-        continue;
-      }
+      const selection=semanticDependencySelection(edge);
       if (
-        edge.consumes.kind!=='evidence'
-        || edge.consumes.selector!=='settlement-receipt'
+        selection==='verified-content'
+        && !verifiedContentIdentity(upstream.postcondition)
       ) {
         throw new Error(
-          `UNSUPPORTED_SEMANTIC_SELECTOR:${edge.consumes.kind}:${edge.consumes.selector}`,
+          `UNAVAILABLE_SEMANTIC_OUTPUT:${obligation.id}:${edge.upstream}:verified-content`,
         );
       }
     }

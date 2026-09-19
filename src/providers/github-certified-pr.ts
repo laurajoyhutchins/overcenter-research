@@ -1,4 +1,3 @@
-import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
@@ -9,12 +8,15 @@ import { materializeGithubOperationRequest } from './github-openapi.ts';
 import { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './github-semantics.ts';
 import {
   observeCertifiedGithubRepository,
-  rawGithubObserved200,
   type CertifiedGithubRepositoryEvidence,
 } from './github-certified-repository.ts';
-import { githubGet, type GithubJsonGet } from './github-rest.ts';
-
-const SHA=/^[0-9a-f]{40,64}$/i;
+import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
+import {
+  githubGet,
+  isGithubObjectId,
+  sameGithubObjectId,
+  type GithubJsonGet,
+} from './github-rest.ts';
 
 export interface GithubPullRequestExpectedIdentity {
   node_id:string;
@@ -61,9 +63,9 @@ export interface CertifiedGithubPullRequestIdentityResult {
 function validateExpected(expected:GithubPullRequestExpectedIdentity):void {
   if (!expected.node_id) throw new Error('GITHUB_PR_NODE_ID_REQUIRED');
   if (!expected.state) throw new Error('GITHUB_PR_STATE_REQUIRED');
-  if (!SHA.test(expected.head_sha)) throw new Error('GITHUB_PR_HEAD_SHA_INVALID');
+  if (!isGithubObjectId(expected.head_sha)) throw new Error('GITHUB_PR_HEAD_SHA_INVALID');
   if (!expected.base_ref) throw new Error('GITHUB_PR_BASE_REF_REQUIRED');
-  if (!SHA.test(expected.base_sha)) throw new Error('GITHUB_PR_BASE_SHA_INVALID');
+  if (!isGithubObjectId(expected.base_sha)) throw new Error('GITHUB_PR_BASE_SHA_INVALID');
 }
 
 export function observeCertifiedGithubPullRequestIdentity(
@@ -103,21 +105,15 @@ export function observeCertifiedGithubPullRequestIdentity(
       repo,
       pull_number:pullNumber,
     });
-    const body=get(token,request.path);
-    const observedAt=clock();
-    const raw=rawGithubObserved200({
+    const {observed_at:observedAt,certified}=observeCertifiedGithubRead200({
+      token,
       operation:GITHUB_PULL_REQUEST_OPERATION,
-      path:request.path,
-      parameters:request.parameters,
-      body,
-      observedAt,
+      request,
+      fields:GITHUB_PULL_REQUEST_RESPONSE_SLICE,
+      get,
+      clock,
       observerId:'github-pr-identity/v1',
     });
-    const certified=validateObservationSlice(
-      GITHUB_PULL_REQUEST_OPERATION,
-      raw,
-      GITHUB_PULL_REQUEST_RESPONSE_SLICE,
-    );
     const value=certified.outcome.value as {
       id:number;
       node_id:string;
@@ -129,7 +125,7 @@ export function observeCertifiedGithubPullRequestIdentity(
     if (value.id<=0 || value.node_id.length===0 || value.number!==pullNumber) {
       throw new Error('GITHUB_PR_IDENTITY_INVALID');
     }
-    if (!SHA.test(value.head.sha) || !SHA.test(value.base.sha)) {
+    if (!isGithubObjectId(value.head.sha) || !isGithubObjectId(value.base.sha)) {
       throw new Error('GITHUB_PR_REVISION_INVALID');
     }
 
@@ -144,9 +140,9 @@ export function observeCertifiedGithubPullRequestIdentity(
     const differences:string[]=[];
     if (actual.node_id!==expected.node_id) differences.push('node_id');
     if (actual.state!==expected.state) differences.push('state');
-    if (actual.head_sha.toLowerCase()!==expected.head_sha.toLowerCase()) differences.push('head_sha');
+    if (!sameGithubObjectId(actual.head_sha,expected.head_sha)) differences.push('head_sha');
     if (actual.base_ref!==expected.base_ref) differences.push('base_ref');
-    if (actual.base_sha.toLowerCase()!==expected.base_sha.toLowerCase()) differences.push('base_sha');
+    if (!sameGithubObjectId(actual.base_sha,expected.base_sha)) differences.push('base_sha');
 
     const evidence:CertifiedGithubPullRequestEvidence={
       provider:'github',
