@@ -14,11 +14,6 @@ inductive MutationCertainty where
   | uncertain
   deriving Repr, BEq, DecidableEq
 
-inductive AbsenceKind where
-  | localFileEnoent
-  | kubernetesCompleteList
-  deriving Repr, BEq, DecidableEq
-
 inductive Disposition where
   | done
   | ready
@@ -37,10 +32,19 @@ structure Postcondition where
   expected : String
   deriving Repr, BEq, DecidableEq
 
-structure AbsenceEvidence where
-  kind : AbsenceKind
-  coordinate : String
-  complete : Bool
+inductive AbsenceEvidence where
+  | localFileEnoent
+      (subjectCoordinate : String)
+      (scopeCoordinate : String)
+      (snapshotIsNull : Bool)
+      (completenessKind : String)
+      (completenessResult : String)
+      (provenanceAdapter : String)
+      (provenanceOperation : String)
+      (provenanceErrorCode : String)
+  | kubernetesCompleteList
+      (coordinate : String)
+      (complete : Bool)
   deriving Repr, BEq, DecidableEq
 
 structure Observation where
