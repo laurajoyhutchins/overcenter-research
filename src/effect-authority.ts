@@ -13,6 +13,9 @@ export function validateEffectAuthority(
   if (!authority) return;
 
   if (authority.contract===GITHUB_COMMIT_STATUS_EFFECT_CONTRACT) {
+    if (!/^[0-9a-f]{64}$/.test(authority.adapter_contract_digest)) {
+      throw new Error('INVALID_EFFECT_ADAPTER_CONTRACT_DIGEST');
+    }
     if (
       postcondition.verifier!=='github-commit-status/v1'
       && postcondition.verifier!=='github-commit-status/v2'
