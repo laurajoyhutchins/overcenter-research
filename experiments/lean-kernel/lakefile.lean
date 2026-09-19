@@ -9,3 +9,6 @@ lean_lib Overcenter
 @[default_target]
 lean_exe overcenterKernel where
   root := `Main
+
+lean_exe overcenterClaimAdmission where
+  root := `AdmissionMain
