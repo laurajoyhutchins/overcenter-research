@@ -239,6 +239,7 @@ function leanAdmission(input:{
   key?:ReturnType<typeof leanKey>;
   capabilityDigest?:string;
   done?:boolean;
+  fresh?:'exact'|'none'|'drifted'|'duplicate';
 }):{accepted:boolean;reason:string|null} {
   const head=currentHead(input.history);
   const candidate={
@@ -249,12 +250,40 @@ function leanAdmission(input:{
     obligation_key:input.key??leanKey(input.obligation),
     capability_digest:input.capabilityDigest??sha256(`cap-${input.obligation.id}`),
   };
+  const exactFresh={
+    obligation_id:'upstream',
+    observation:{
+      family:'file-content',
+      verifier_revision:verifierRevision,
+      coordinate:'/provider/upstream',
+      certainty:'present',
+      actual:sha256('UPSTREAM'),
+      absence:null,
+    },
+  };
+  const driftedFresh={
+    ...exactFresh,
+    observation:{
+      ...exactFresh.observation,
+      actual:sha256('DRIFTED'),
+    },
+  };
+  const freshMode=input.fresh??((input.done??false)?'exact':'none');
+  const freshObservations=freshMode==='exact'
+    ? [exactFresh]
+    : freshMode==='drifted'
+      ? [driftedFresh]
+      : freshMode==='duplicate'
+        ? [exactFresh,exactFresh]
+        : [];
+
   return JSON.parse(execFileSync(kernel,[],{
     input:JSON.stringify({
       command:'claim-admission',
       current_revision:head,
       obligations:obligations.map(leanObligation),
       runs:leanRuns(input.done??false),
+      fresh_observations:freshObservations,
       candidate,
     }),
     encoding:'utf8',
@@ -415,6 +444,51 @@ test('Lean claim admission agrees with TypeScript replay on valid-chain hostile 
     assert.equal(ts,candidate.expected,`${candidate.name}: TypeScript`);
     assert.equal(lean.accepted,candidate.expected,`${candidate.name}: Lean`);
   }
+});
+
+
+test('mutable historical DONE requires fresh verification at claim admission',()=>{
+  const history=upstreamDoneHistory();
+
+  assert.equal(tsAdmission({
+    history,
+    obligation:control,
+  }),true);
+
+  const missing=leanAdmission({
+    history,
+    obligation:control,
+    done:true,
+    fresh:'none',
+  });
+  assert.equal(missing.accepted,false);
+  assert.equal(missing.reason,'UNSATISFIED_DEPENDENCIES');
+
+  const drifted=leanAdmission({
+    history,
+    obligation:control,
+    done:true,
+    fresh:'drifted',
+  });
+  assert.equal(drifted.accepted,false);
+  assert.equal(drifted.reason,'UNSATISFIED_DEPENDENCIES');
+
+  const ambiguous=leanAdmission({
+    history,
+    obligation:control,
+    done:true,
+    fresh:'duplicate',
+  });
+  assert.equal(ambiguous.accepted,false);
+  assert.equal(ambiguous.reason,'UNSATISFIED_DEPENDENCIES');
+
+  const exact=leanAdmission({
+    history,
+    obligation:control,
+    done:true,
+    fresh:'exact',
+  });
+  assert.equal(exact.accepted,true);
 });
 
 test('Lean makes the TypeScript projector ancestry precondition explicit',()=>{
