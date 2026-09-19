@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { createServer } from 'node:net';
 import {
   existsSync,
   mkdtempSync,
@@ -54,7 +55,7 @@ async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
   const child=spawn(
     binary,
     [
-      `--socket=${socketPath}`,
+      '--stdio',
       `--workspace-root=${workspace}`,
       `--concurrency=${maxConcurrency}`,
       '--unsafe-test-same-uid',
@@ -65,14 +66,14 @@ async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
   child.stderr.setEncoding('utf8');
   child.stderr.on('data',chunk=>{stderr+=String(chunk);});
 
-  const deadline=Date.now()+3000;
-  while (Date.now()<deadline && !existsSync(socketPath)) {
-    if (child.exitCode!==null) {
-      throw new Error(`executor exited before socket was ready: ${stderr}`);
-    }
-    await new Promise(resolve=>setTimeout(resolve,10));
-  }
-  if (!existsSync(socketPath)) throw new Error(`executor socket never appeared: ${stderr}`);
+  const relay=createServer(socket=>{
+    socket.pipe(child.stdin);
+    child.stdout.pipe(socket);
+  });
+  await new Promise<void>((resolve,reject)=>{
+    relay.once('error',reject);
+    relay.listen(socketPath,()=>resolve());
+  });
 
   const client=new GoExecutorClient({socketPath,maxConcurrency});
   return {
@@ -81,6 +82,9 @@ async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
     socketPath,
     close:async()=>{
       await client.close();
+      await new Promise<void>((resolve,reject)=>{
+        relay.close(error=>error?reject(error):resolve());
+      });
       const code=await new Promise<number|null>((resolve,reject)=>{
         if (child.exitCode!==null) {
           resolve(child.exitCode);
@@ -212,6 +216,27 @@ test('production socket mode fails closed without a distinct task credential',as
   const gid=process.getgid?.();
   assert.equal(typeof uid,'number');
   assert.equal(typeof gid,'number');
+  const unsafeSocket=join(scratch,'unsafe-socket.sock');
+  const unsafe=spawn(
+    binary,
+    [
+      `--socket=${unsafeSocket}`,
+      `--workspace-root=${workspace}`,
+      '--concurrency=1',
+      '--unsafe-test-same-uid',
+    ],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let unsafeStderr='';
+  unsafe.stderr.setEncoding('utf8');
+  unsafe.stderr.on('data',chunk=>{unsafeStderr+=String(chunk);});
+  const unsafeCode=await new Promise<number|null>((resolve,reject)=>{
+    unsafe.once('error',reject);
+    unsafe.once('close',resolve);
+  });
+  assert.notEqual(unsafeCode,0);
+  assert.match(unsafeStderr,/unsafe same-uid mode is stdio-only/);
+
   const sameSocket=join(scratch,'same-credential.sock');
   const same=spawn(
     binary,
@@ -459,47 +484,72 @@ test('cancellation kills a stubborn grandchild even when its parent exits on SIG
   }
 });
 
-test('a second executor cannot unlink or steal a live socket',async()=>{
-  const harness=await startExecutor(1);
-  const challenger=spawn(
+test('a second executor cannot unlink or steal a live production socket',async()=>{
+  const uid=process.getuid?.();
+  const gid=process.getgid?.();
+  assert.equal(typeof uid,'number');
+  assert.equal(typeof gid,'number');
+  const taskUID=uid===65532?65531:65532;
+  const taskGID=gid===65532?65531:65532;
+  const socketPath=join(scratch,`production-${executorSequence++}.sock`);
+  rmSync(socketPath,{force:true});
+
+  const original=spawn(
     binary,
     [
-      `--socket=${harness.socketPath}`,
+      `--socket=${socketPath}`,
       `--workspace-root=${workspace}`,
       '--concurrency=1',
-      '--unsafe-test-same-uid',
+      `--task-uid=${taskUID}`,
+      `--task-gid=${taskGID}`,
     ],
     {stdio:['ignore','ignore','pipe'],env:{}},
   );
-  let stderr='';
+  let originalStderr='';
+  original.stderr.setEncoding('utf8');
+  original.stderr.on('data',chunk=>{originalStderr+=String(chunk);});
+
+  const deadline=Date.now()+3000;
+  while (Date.now()<deadline && !existsSync(socketPath)) {
+    if (original.exitCode!==null) {
+      throw new Error(`executor exited before socket was ready: ${originalStderr}`);
+    }
+    await new Promise(resolve=>setTimeout(resolve,10));
+  }
+  if (!existsSync(socketPath)) throw new Error(`executor socket never appeared: ${originalStderr}`);
+
+  const challenger=spawn(
+    binary,
+    [
+      `--socket=${socketPath}`,
+      `--workspace-root=${workspace}`,
+      '--concurrency=1',
+      `--task-uid=${taskUID}`,
+      `--task-gid=${taskGID}`,
+    ],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let challengerStderr='';
   challenger.stderr.setEncoding('utf8');
-  challenger.stderr.on('data',chunk=>{stderr+=String(chunk);});
-  const code=await new Promise<number|null>((resolve,reject)=>{
+  challenger.stderr.on('data',chunk=>{challengerStderr+=String(chunk);});
+  const challengerCode=await new Promise<number|null>((resolve,reject)=>{
     challenger.once('error',reject);
     challenger.once('close',resolve);
   });
-  assert.notEqual(code,0);
-  assert.match(stderr,/socket path already exists/);
+  assert.notEqual(challengerCode,0);
+  assert.match(challengerStderr,/socket path already exists/);
 
-  try {
-    const execution=computationExecution(
-      permit(900),
-      {
-        schema:PROCESS_SPEC_SCHEMA,
-        executable:'/bin/true',
-        argv:[],
-        cwd:'.',
-        env:{},
-        timeout_ms:1000,
-        stdout_max_bytes:0,
-        stderr_max_bytes:0,
-      },
-    );
-    const evidence=await harness.client.execute(execution);
-    assert.equal(evidence.outcome,'completed');
-  } finally {
-    await harness.close();
-  }
+  const client=new GoExecutorClient({socketPath,maxConcurrency:1});
+  await client.close();
+  const originalCode=await new Promise<number|null>((resolve,reject)=>{
+    if (original.exitCode!==null) {
+      resolve(original.exitCode);
+      return;
+    }
+    original.once('error',reject);
+    original.once('close',resolve);
+  });
+  assert.equal(originalCode,0,originalStderr);
 });
 
 test('completion evidence releases server capacity before replacement work is admitted',async()=>{
