@@ -47,7 +47,9 @@ Commands use `overcenter-executor-command-v1`.
 - `execute` carries one computation execution request.
 - `cancel` identifies the exact run generation and authority commit to cancel.
 
-All executor state is ephemeral. Killing the executor loses local running/cancellation bookkeeping by design; durable recovery starts from Overcenter facts and a fresh execution generation.
+All executor state is ephemeral. Process IDs, cancellation handles, and descendant-cleanup bookkeeping exist only to contain the current physical attempt. They are never project truth and are not reconstructed after executor death.
+
+Killing the executor loses that local bookkeeping by design; durable recovery starts from Overcenter facts and a fresh execution generation.
 
 ## Cross-language rule
 
