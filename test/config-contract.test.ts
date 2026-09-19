@@ -42,19 +42,44 @@ function executableConfigFiles():string[] {
   );
 }
 
-test('runtime toolchains have one exact checked-in version source',()=>{
+test('runtime toolchains and executor images have exact checked-in identities',()=>{
   const nodeVersion=read('.node-version').trim();
   const goVersion=read('.go-version').trim();
   assert.match(nodeVersion,/^\d+\.\d+\.\d+$/);
   assert.match(goVersion,/^\d+\.\d+\.\d+$/);
 
+  const images=JSON.parse(read('executor/runtime-images.json')) as {
+    schema:string;
+    go_build:string;
+    node_runtime:string;
+    node_dogfood:string;
+  };
+  assert.equal(images.schema,'overcenter-runtime-images-v1');
+  assert.match(
+    images.go_build,
+    /^golang:\d+\.\d+\.\d+-bookworm@sha256:[0-9a-f]{64}$/,
+  );
+  assert.match(
+    images.node_runtime,
+    /^node:\d+\.\d+\.\d+-bookworm-slim@sha256:[0-9a-f]{64}$/,
+  );
+  assert.match(
+    images.node_dogfood,
+    /^node:\d+\.\d+\.\d+-bookworm@sha256:[0-9a-f]{64}$/,
+  );
+  assert.ok(images.go_build.startsWith(`golang:${goVersion}-bookworm@sha256:`));
+  assert.ok(images.node_runtime.startsWith(`node:${nodeVersion}-bookworm-slim@sha256:`));
+  assert.ok(images.node_dogfood.startsWith(`node:${nodeVersion}-bookworm@sha256:`));
+
   for (const path of ['executor/containment/Dockerfile','executor/dogfood/Dockerfile']) {
     const dockerfile=read(path);
-    assert.match(dockerfile,/^ARG GO_VERSION$/m);
-    assert.match(dockerfile,/^ARG NODE_VERSION$/m);
-    assert.match(dockerfile,/^FROM golang:\$\{GO_VERSION\}-bookworm AS build$/m);
-    assert.match(dockerfile,/^FROM node:\$\{NODE_VERSION\}-bookworm-slim$/m);
+    assert.match(dockerfile,/^ARG GO_IMAGE$/m);
+    assert.match(dockerfile,/^ARG NODE_IMAGE$/m);
+    assert.match(dockerfile,/^FROM \$\{GO_IMAGE\} AS build$/m);
+    assert.match(dockerfile,/^FROM \$\{NODE_IMAGE\}$/m);
+    assert.doesNotMatch(dockerfile,/FROM (?:golang|node):[^$]/);
   }
+  assert.doesNotMatch(read('executor/dogfood/Dockerfile'),/apt-get/);
 
   const workflow=read('.github/workflows/computation-executor.yml');
   assert.match(workflow,/go-version-file: '\.go-version'/);
@@ -66,9 +91,17 @@ test('CI execution substrate and third-party actions are immutable',()=>{
   for (const path of paths) {
     const source=read(path);
     assert.doesNotMatch(source,/ubuntu-latest/,path);
-    const mutable=[...source.matchAll(/uses:\s+([^\s#]+)@(v\d[^\s#]*)/g)]
-      .map(match=>match[0]);
-    assert.deepEqual(mutable,[],`${path} contains mutable actions: ${mutable.join(', ')}`);
+    for (const line of source.split('\n')) {
+      const match=line.match(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/);
+      if (!match) continue;
+      const spec=match[1];
+      if (spec.startsWith('./')) continue;
+      assert.match(
+        spec,
+        /^[^@]+@[0-9a-f]{40}$/i,
+        `${path} contains non-immutable action reference: ${spec}`,
+      );
+    }
   }
 });
 
@@ -84,6 +117,17 @@ test('repository-wide test suites do not inherit host parallelism',()=>{
   const pkg=JSON.parse(read('package.json')) as {scripts:Record<string,string>};
   assert.match(pkg.scripts['test:unit'],/--test-concurrency=1/);
   assert.match(pkg.scripts['test:experiments'],/--test-concurrency=1/);
+});
+
+test('self-dogfood receives exact source bytes without checkout credentials',()=>{
+  const workflow=read('.github/workflows/dogfood.yml');
+  assert.match(workflow,/persist-credentials:\s*false/);
+
+  const dogfood=read('bin/dogfood-evidence.ts');
+  assert.match(dogfood,/git',[\s\S]*?'archive','--format=tar',sourceSha/);
+  assert.match(dogfood,/sourceRoot\}:/);
+  assert.doesNotMatch(dogfood,/repoRoot\}:[^\n]*workspace\/source/);
+  assert.match(dogfood,/DOGFOOD_SOURCE_SNAPSHOT_CONTAINS_GIT_METADATA/);
 });
 
 test('ambient credential configuration has one GitHub token spelling',()=>{
