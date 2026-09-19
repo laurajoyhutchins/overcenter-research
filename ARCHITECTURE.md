@@ -241,7 +241,8 @@ require fresh observation for mutable external state while allowing stable
 realizations to remain reusable.
 
 Soufflé Datalog is retained as an independent executable oracle for this
-boundary. It is not a runtime dependency.
+boundary. It is not a runtime dependency. The production projector remains
+TypeScript unless a later experiment earns a different implementation.
 
 ## 4. The narrow authority kernel
 
