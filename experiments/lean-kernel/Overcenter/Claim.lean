@@ -78,6 +78,7 @@ structure ClaimCandidate where
   deriving Repr, BEq, DecidableEq
 
 inductive ClaimAdmissionError where
+  | invalidGraph
   | unknownObligation
   | duplicateRun
   | revisionMismatch
@@ -118,6 +119,47 @@ def historicalDoneReusable
       match freshClaimObservationFor freshObservations obligation.id with
       | none => false
       | some observation => verifies obligation.postcondition observation
+
+def claimObligationIdsUnique : List ClaimObligation → Bool
+  | [] => true
+  | obligation :: rest =>
+      !rest.any (fun other => other.id == obligation.id) &&
+      claimObligationIdsUnique rest
+
+def claimDependenciesKnown (obligations : List ClaimObligation) : Bool :=
+  obligations.all (fun obligation =>
+    obligation.dependencies.all (fun dependency =>
+      (findClaimObligation obligations (claimDependencyUpstream dependency)).isSome))
+
+def claimCycleFrom
+    (obligations : List ClaimObligation)
+    (id : String)
+    (path : List String)
+    (fuel : Nat) : Bool :=
+  if path.any (fun ancestor => ancestor == id) then
+    true
+  else
+    match fuel with
+    | 0 => true
+    | fuel + 1 =>
+        match findClaimObligation obligations id with
+        | none => true
+        | some obligation =>
+            obligation.dependencies.any (fun dependency =>
+              claimCycleFrom
+                obligations
+                (claimDependencyUpstream dependency)
+                (id :: path)
+                fuel)
+
+def claimGraphHasCycle (obligations : List ClaimObligation) : Bool :=
+  obligations.any (fun obligation =>
+    claimCycleFrom obligations obligation.id [] (obligations.length + 1))
+
+def claimGraphValid (obligations : List ClaimObligation) : Bool :=
+  claimObligationIdsUnique obligations &&
+  claimDependenciesKnown obligations &&
+  !claimGraphHasCycle obligations
 
 def claimVerifiedContentIdentity
     (postcondition : Postcondition) : ClaimSemanticIdentity :=
@@ -304,9 +346,12 @@ def admitClaim
     (runs : List HistoricalClaimRun)
     (freshObservations : List FreshClaimObservation)
     (candidate : ClaimCandidate) : ClaimAdmissionResult :=
-  match findClaimObligation obligations candidate.obligationId with
-  | none => .rejected .unknownObligation
-  | some obligation =>
+  if !claimGraphValid obligations then
+    .rejected .invalidGraph
+  else
+    match findClaimObligation obligations candidate.obligationId with
+    | none => .rejected .unknownObligation
+    | some obligation =>
       if runs.any (fun run => run.runId == candidate.runId) then
         .rejected .duplicateRun
       else if candidate.parentRevision != currentRevision ||
