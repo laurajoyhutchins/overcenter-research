@@ -68,10 +68,6 @@ export interface EffectReservationFact {
   execution_authority_commit:string;
 }
 
-export interface EffectReservation extends EffectReservationFact {
-  reservation_commit:string;
-}
-
 export type ReceiptKind='observation'|'judgment-required'|'execution-terminated';
 
 export interface ReceiptFact {
