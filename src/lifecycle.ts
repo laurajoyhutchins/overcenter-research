@@ -23,12 +23,22 @@ export interface Lifecycle {
   run?:Run;
 }
 
+export interface RealizationView {
+  status:RealizationStatus;
+  sourceRun?:Run;
+  run?:Run;
+}
+
+function sourceRunOf(lifecycle:RealizationView|undefined):Run|undefined {
+  return lifecycle?.sourceRun??lifecycle?.run;
+}
+
 const IN_FLIGHT=new Set<RealizationStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
 
 function semanticDependencyIdentity(
   state:State,
   edge:Extract<Dependency,{kind:'semantic'}>,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationView>,
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
   const upstream=state.obligations[edge.upstream];
@@ -42,8 +52,9 @@ function semanticDependencyIdentity(
   }
 
   if (edge.consumes.kind==='evidence' && edge.consumes.selector==='settlement-receipt') {
-    if (!lifecycle.run) return null;
-    const receipt=receiptsByRun.get(lifecycle.run.id);
+    const sourceRun=sourceRunOf(lifecycle);
+    if (!sourceRun) return null;
+    const receipt=receiptsByRun.get(sourceRun.id);
     if (receipt?.disposition!=='DONE' || !receipt.settlement_commit) return null;
     return `settlement:${receipt.settlement_commit}`;
   }
@@ -56,7 +67,7 @@ function semanticDependencyIdentity(
 export function obligationKey(
   state:State,
   work:Obligation,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationView>,
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
   const semantic=work.dependencies
@@ -112,20 +123,14 @@ export function deriveLifecycles(
       const candidates=allRuns.filter(
         run=>run.obligation_id===id && run.obligation_key===key,
       );
-      const done=[...candidates].reverse().find(
-        run=>receiptsByRun.get(run.id)?.disposition==='DONE',
-      );
-      if (done) {
-        lifecycle={status:'DONE',run:done};
-      } else {
-        const latest=candidates.at(-1);
-        if (latest) {
-          const receipt=receiptsByRun.get(latest.id);
-          if (!receipt) lifecycle={status:'EXECUTING',run:latest};
-          else if (receipt.disposition==='WAITING') lifecycle={status:'WAITING',run:latest};
-          else if (receipt.disposition==='RECOVERY_REQUIRED') {
-            lifecycle={status:'RECOVERY_REQUIRED',run:latest};
-          }
+      const latest=candidates.at(-1);
+      if (latest) {
+        const receipt=receiptsByRun.get(latest.id);
+        if (!receipt) lifecycle={status:'EXECUTING',run:latest};
+        else if (receipt.disposition==='DONE') lifecycle={status:'DONE',run:latest};
+        else if (receipt.disposition==='WAITING') lifecycle={status:'WAITING',run:latest};
+        else if (receipt.disposition==='RECOVERY_REQUIRED') {
+          lifecycle={status:'RECOVERY_REQUIRED',run:latest};
         }
       }
     }
