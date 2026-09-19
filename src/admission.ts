@@ -4,6 +4,7 @@ import {
   validateGraph,
 } from './graph.ts';
 import {
+  effectEquivalenceWitnessesAuthorizeUnorderedOverlap,
   effectSemantics,
   settlementSemantics,
   verifiedContentIdentity,
@@ -57,11 +58,11 @@ export function staticEffectConflictError(
     const otherSemantics=effectSemantics(other.postcondition);
     if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
 
-    const sameDesired=otherSemantics.desired===semantics.desired;
     if (
-      sameDesired
-      && semantics.sameDesiredCommutes
-      && otherSemantics.sameDesiredCommutes
+      effectEquivalenceWitnessesAuthorizeUnorderedOverlap(
+        work.postcondition,
+        other.postcondition,
+      )
     ) continue;
 
     const ordered=dependsOn(state,work.id,other.id)

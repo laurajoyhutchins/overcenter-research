@@ -2,117 +2,103 @@
 
 ## Question
 
-Can Overcenter replace `sameDesiredCommutes: boolean` with a recomputable, provenance-bearing witness that binds the exact claim under which same-coordinate effects may remain unordered?
+Can same-coordinate concurrency be authorized by recomputable provider evidence instead of a generic commutativity boolean?
 
-## Shape
+## Status
 
-The experiment mints a certificate only from trusted production semantics:
+This experiment has graduated into the reusable semantics path.
+
+The experiment module now re-exports the production implementation so its hostile tests exercise the same witness consumed by admission. There is no second certificate algorithm in `experiments/`.
+
+## Witness construction
+
+For GitHub commit statuses:
 
 ```text
 authoritative postcondition
           │
-          ├── provider contract
-          ├── effectSemantics
-          └── settlementSemantics
+          ├── coordinate semantics
+          ├── observation contract
+          ├── mutation contract
+          └── settlement semantics
                    │
                    ▼
-        effect-equivalence payload
+          provider witness payload
                    │
                    ▼
             canonical digest
-                   │
-                   ▼
-        equivalence certificate
 ```
 
-The certificate binds:
+The witness binds:
 
 - provider;
-- verifier/adapter contract;
-- canonical coordinate contract;
-- observation contract;
-- provider operation class;
-- canonical mutation resource;
-- requested operation;
-- equivalence class;
-- digest of the production effect semantics under that contract;
-- digest of the production settlement semantics under that contract;
-- issuer-contract version;
-- digest of the complete payload.
-
-Validation does not trust the supplied object. It reissues the expected certificate from the postcondition and trusted semantics, then compares the canonical result.
-
-## Authorization rule
-
-Two overlapping effects may remain unordered only when both certificates validate and agree on:
-
-```text
-provider
-+ exact verifier contract
-+ coordinate contract
-+ observation contract
-+ operation class
-+ canonical resource
-+ semantic operation
-+ equivalence class
-+ effect-semantics digest
-+ settlement-semantics digest
-```
-
-Different physical resources do not need this certificate because their concurrency comes from disjointness.
-
-## Hostile controls
-
-The tests require the old certificate to fail after changing:
-
-- stable repository identity;
-- exact commit;
-- normalized status context;
-- desired operation.
-
-They also mutate the supplied certificate itself:
-
-- resource;
-- operation;
 - verifier contract;
 - coordinate contract;
 - observation contract;
-- operation class;
+- mutation operation class;
+- provider-contract digest;
+- canonical mutation resource;
+- semantic operation;
+- equivalence class;
+- effect-semantics digest;
+- settlement-semantics digest;
+- issuer contract;
+- complete certificate digest.
+
+For GitHub, the provider-contract digest fences the API version, retained OpenAPI identity, HTTP method, and commit-status mutation route.
+
+## Trust model
+
+A supplied witness is never authoritative merely because it has the right JSON shape.
+
+Validation re-derives the expected witness from the authoritative postcondition and trusted provider semantics.
+
+The certificate is deterministic evidence, not a cryptographic credential. Signing arbitrary bytes would add nothing unless the signer performed the same derivation.
+
+## Hostile controls
+
+The proof rejects stale or forged:
+
+- stable repository identity;
+- exact commit;
+- normalized context;
+- desired operation;
+- resource;
+- verifier contract;
+- coordinate contract;
+- observation contract;
+- mutation operation class;
 - issuer contract;
 - certificate digest.
 
-Unsupported provider semantics cannot mint a certificate.
+Unsupported effect semantics cannot mint a witness.
 
-## Cross-version falsification
+## Cross-version boundary
 
-The most useful hostile case is verifier-version skew.
+GitHub status v1 and v2 may derive the same physical resource and desired state, but their observation/verifier contracts differ.
 
-Today `validateAdmission` accepts an unordered pair consisting of:
+Production admission now fails closed:
 
 ```text
 github-commit-status/v1 success
 github-commit-status/v2 success
+same resource
+        ↓
+different witness identity
+        ↓
+UNORDERED_EFFECT_CONFLICT
 ```
 
-when both resolve to the same canonical resource. That follows from the current boolean `sameDesiredCommutes` policy.
+A future cross-version bridge must be explicit evidence. It cannot be inherited from matching strings.
 
-The version-bound certificate deliberately refuses to inherit that equivalence. The two verifier versions carry different observation-contract identities, so the pair needs a separate, explicit cross-version equivalence witness.
+## What remains unproved
 
-This means the experiment is stricter than the current production admission rule in one intentional place.
+The witness proves that trusted Overcenter provider code made an exact, version-fenced equivalence assertion.
 
-That is the point: adapter/version and observation semantics are material to an authority-bearing equivalence claim unless equivalence across versions has itself been established.
-
-## Boundary
-
-This certificate is a deterministic evidence object, not a cryptographic credential.
-
-Its authority comes from being recomputed by trusted Overcenter code from authoritative postconditions and provider semantics. Signing arbitrary certificate JSON would not improve the claim unless the signer performed the same validation.
-
-The named provider contracts in this experiment are still manually versioned declarations. A production implementation should place those declarations with the provider adapter that owns the semantics, not in generic scheduling code.
+It does not prove that the provider's complete physical history is identical under repeated operations. For GitHub statuses, repeated POSTs may still create multiple provider records. The equivalence claim remains scoped to the observation and settlement semantics named by the witness.
 
 ## Run
 
 ```sh
-node --experimental-strip-types --test \
-  experiments/effect-equivalence-certificate/certificate.test.ts
+npm run test:effect-equivalence-certificate
 ```

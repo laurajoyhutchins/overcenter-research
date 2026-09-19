@@ -70,7 +70,8 @@ test('certificate binds provider contracts, resource, operation, and semantics d
   assert.equal(certificate.verifier_contract,'github-commit-status/v1');
   assert.equal(certificate.coordinate_contract,'github-commit-status-coordinate/v1');
   assert.equal(certificate.observation_contract,'github-commit-status-observation/v1');
-  assert.equal(certificate.operation_class,'github-commit-status/set-state/v1');
+  assert.equal(certificate.operation_class,'github-rest:create-commit-status@2026-03-10');
+  assert.match(certificate.provider_contract_digest,/^[0-9a-f]{64}$/);
   assert.match(certificate.resource,/^github-status:123:/);
   assert.equal(certificate.operation,'success');
   assert.equal(certificate.equivalence_class,'same-desired-under-overcenter-settlement');
@@ -87,9 +88,7 @@ test('same provider contract, canonical coordinate, and operation authorize unor
   assert.ok(leftCertificate);
   assert.ok(rightCertificate);
   assert.equal(
-    certificatesAuthorizeUnorderedOverlap(
-      left,leftCertificate,right,rightCertificate,
-    ),
+    certificatesAuthorizeUnorderedOverlap(left,right),
     true,
   );
 });
@@ -103,9 +102,7 @@ test('repository rename remains equivalent within GitHub v2 because stable id de
   assert.ok(rightCertificate);
   assert.equal(leftCertificate.resource,rightCertificate.resource);
   assert.equal(
-    certificatesAuthorizeUnorderedOverlap(
-      left,leftCertificate,right,rightCertificate,
-    ),
+    certificatesAuthorizeUnorderedOverlap(left,right),
     true,
   );
 });
@@ -232,9 +229,7 @@ test('different desired operations cannot authorize unordered overlap',()=>{
   assert.ok(leftCertificate);
   assert.ok(rightCertificate);
   assert.equal(
-    certificatesAuthorizeUnorderedOverlap(
-      left,leftCertificate,right,rightCertificate,
-    ),
+    certificatesAuthorizeUnorderedOverlap(left,right),
     false,
   );
 });
@@ -247,9 +242,12 @@ test('cross-verifier-version overlap requires an explicit bridge certificate',()
   assert.ok(leftCertificate);
   assert.ok(rightCertificate);
 
-  // Current boolean admission accepts this pair because effectSemantics emits
-  // the same resource/desired tuple for v1 and v2.
-  assert.doesNotThrow(()=>validateAdmission(state(left,right)));
+  // Production admission now consumes the same version-bound witness and
+  // therefore fails closed without an explicit cross-version bridge.
+  assert.throws(
+    ()=>validateAdmission(state(left,right)),
+    /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
+  );
 
   // Version-bound witnesses do not silently inherit that equivalence.
   assert.notEqual(
