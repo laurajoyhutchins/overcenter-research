@@ -2,84 +2,112 @@
 
 ## Question
 
-Can the real execution substrate enforce the capability structure suggested by the Pulse experiment?
+Can the real execution substrate enforce the capability structure suggested by the Pulse experiment without asking the worker to restate provider authority?
 
-The claim is intentionally narrower than provider-native least privilege.
+The supported claim is narrower than provider-native least privilege. GitHub gives the trusted broker repository-scoped `statuses: write`; it does not issue a credential restricted to one SHA/context coordinate.
 
-GitHub gives the trusted broker repository-scoped `statuses: write`; it does not issue a credential restricted to one SHA/context coordinate.
-
-What Overcenter can prove is:
-
-> The reasoning worker physically lacks provider mutation authority. A separate trusted broker holds the broad provider credential, re-derives the exact authorized effect from project authority, rejects worker-controlled drift before reservation, and cannot replay an unresolved effect through the kernel.
-
-## Boundary
+Overcenter instead uses this boundary:
 
 ```text
-reasoning worker
-  contents: read
-  statuses: none
-       │
-       │ candidate request bytes
-       ▼
-trusted broker
-  contents: write
-  statuses: write
-       │
-       ├── re-read authoritative work
-       ├── re-derive exact effect request
-       ├── reject any byte-level semantic drift
-       ├── reserve effect durably
-       └── execute authority-derived effect
+trusted scheduler / authority
+        │
+        ├── exact run
+        ├── claimed revision
+        └── worker generation
                  │
                  ▼
-              GitHub
+       server-side TaskSession
+
+untrusted reasoning worker
+  contents: read
+  statuses: none
+        │
+        │  { schema, kind:"effect-ready" }
+        ▼
+trusted broker
+        │
+        ├── validate two-field signal
+        ├── resolve exact TaskSession
+        ├── fence expected generation
+        ├── derive provider effect from postcondition
+        ├── reserve effect durably
+        └── execute provider adapter
+                 │
+                 ▼
+               GitHub
 ```
 
-The broker never constructs the provider mutation from worker JSON. Even a valid request merely authorizes crossing the boundary; provider inputs come from the authoritative obligation.
+The worker does not name:
+
+- obligation;
+- run;
+- revision;
+- repository;
+- commit;
+- context;
+- desired state;
+- provider operation;
+- provider request body.
+
+Those values are not merely rejected when wrong. They are absent from the legal worker protocol.
 
 ## Hostile cases
 
-The untrusted worker emits:
+The untrusted worker:
 
-- one valid request;
-- wrong obligation;
-- wrong run;
-- wrong claimed revision;
-- wrong repository identity;
-- wrong commit;
-- wrong context;
-- wrong desired state;
-- wrong operation kind;
-- extra smuggled field.
+- attempts direct GitHub status mutation of the authorized coordinate;
+- attempts direct mutation of a forged sibling coordinate;
+- emits one valid `effect-ready` signal;
+- tries to smuggle run, obligation, revision, repository, commit, context, state, an entire effect object, and an unrelated extra field into otherwise valid signals.
 
-The worker also attempts direct GitHub status mutations with its own job token. They must return HTTP 403.
+The direct writes must return HTTP 403.
 
-The broker must reject every forged request **before acquiring execution authority or reserving an effect**.
+Every signal carrying an authority-bearing field must fail protocol validation before execution authority changes.
 
-After executing the one valid request, a fresh execution generation attempts the same effect again. The kernel must reject replay with `UNRESOLVED_EFFECT` before the provider callback is entered.
+The broker then binds the legal signal to the exact authoritative run and generation.
 
-Recovery then proves exactly one authorized provider status exists and settles from canonical readback.
+## Session and replay fences
+
+A TaskSession is broker-side state, not a worker credential.
+
+It binds:
+
+```text
+run id
+obligation id
+claimed revision
+worker execution generation
+```
+
+After the first authorized effect:
+
+1. the original worker session is stale and must fail with `TASK_SESSION_STALE`;
+2. a freshly bound session may rotate execution authority;
+3. the existing durable reservation must still reject replay with `UNRESOLVED_EFFECT` before a second provider mutation occurs.
+
+Recovery then observes exactly one authorized status record and settles from canonical readback.
+
+## Provider command derivation
+
+For the GitHub commit-status path the obligation postcondition is sufficient authority for the provider adapter:
+
+```text
+github commit-status postcondition
+        │
+        ▼
+deriveGithubCommitStatusEffect(...)
+        │
+        ▼
+trusted GitHub effect adapter
+        │
+        ▼
+POST /repos/{canonical repo}/statuses/{sha}
+```
+
+The experiment no longer stores a duplicate `packet.effect` for this path.
 
 ## What success does not mean
 
 This does not make GitHub's credential itself coordinate-scoped. The broker remains trusted and its provider credential is broader than the task.
 
-The result instead proves a physically separated reference architecture:
-
-```text
-untrusted reasoning
-      ≠
-provider mutation credential
-
-worker request bytes
-      ≠
-provider command
-
-authoritative task capability
-      +
-trusted broker
-      =
-one admissible provider mutation
-```
-
-A task-specific Rust executable could package this interface nicely, but it would not strengthen the security claim by itself. A hostile worker can bypass or modify local software; broker-side authority derivation is the actual boundary.
+A task-specific local executable can still be useful ergonomically, but it does not provide this security property. A hostile worker can bypass local software. The actual boundary is isolated provider credentials, broker-side task-session binding, exact-generation fencing, provider-effect derivation from authority, and durable reservation.
