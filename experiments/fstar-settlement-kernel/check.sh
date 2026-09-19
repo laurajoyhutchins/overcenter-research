@@ -9,8 +9,8 @@ echo "== F* version =="
 "$fstar" --version
 
 echo "== positive kernel =="
-"$fstar" "${include[@]}" "$here/SettlementKernel.fst"
-"$fstar" "${include[@]}" "$here/Positive.fst"
+"$fstar" "${include[@]}" --cache_checked_modules "$here/SettlementKernel.fst"
+"$fstar" "${include[@]}" --cache_checked_modules "$here/Positive.fst"
 
 echo "== hostile negative controls =="
 for source in \
