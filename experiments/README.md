@@ -13,14 +13,29 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `eventually-consistent-readback/` - hostile stale or negative provider readback and the no-blind-replay rule.
 - `current-realization-admissibility/` - fresh authoritative observation over historical DONE, including withdrawal, indeterminate blocking, and cache-free reconstruction.
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
-- `provider-observation/` - provider-neutral observation provenance and structural-certificate engine shared by GitHub and Kubernetes experiments.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `storage-backend-bakeoff/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
+- `projection-bakeoff/` - mutable lifecycle versus TypeScript, status-free SQL, and Datalog over one normalized projection contract.
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
+
+## Experiment contract
+
+Maintained experiments are registered in [`registry.json`](./registry.json). The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, exact evidence identity, interpretation, and non-claims must be explicit.
+
+```sh
+npm run experiments:list
+npm run experiment -- <experiment-id>
+npm run experiments:deterministic
+npm run test:experiment-contract
+```
+
+CI runs the contract validator through `npm test`. Every directory under `experiments/` must be registered. Shared plumbing is permitted only when explicitly classified as `kind: support`; `provider-observation/` is the current example.
+
+A hosted workflow is an integration harness, not the only explanation of an experiment. Hosted claims still require an experiment-local README and a deterministic contract surface wherever one exists.
 
 Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/support/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 

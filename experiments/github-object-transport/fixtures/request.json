@@ -2,6 +2,10 @@
   "schema": "github-object-transport/request/v1",
   "entries": [
     {
+      "path": "experiments/github-object-transport/contract.mjs",
+      "writable": false
+    },
+    {
       "path": "package.json",
       "writable": false
     },
