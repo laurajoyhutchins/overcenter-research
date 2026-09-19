@@ -174,6 +174,7 @@ private def parseExecutionSeed (json : Json) : Except String ExecutionState := d
   pure {
     runId := ← stringField json "run_id"
     obligationId := ← stringField json "obligation_id"
+    parentRevision := ← stringField json "parent_revision"
     claimedRevision := ← stringField json "claimed_revision"
     claimCommit := ← stringField json "claim_commit"
     generation := ← natField json "generation"
