@@ -4,6 +4,20 @@ This contract is the production boundary between Overcenter's trusted TypeScript
 
 The executor receives only already-authorized computation. It does not receive graph edges, lifecycle transitions, settlement instructions, provider mutation authority, or provider credentials.
 
+## Executor hello
+
+Production Unix-socket sessions begin with one trusted-peer identity record:
+
+```json
+{
+  "schema": "overcenter-executor-hello-v1",
+  "execution_context_sha256": "sha256:...",
+  "containment_id": "..."
+}
+```
+
+Replayable authority must wait for that hello and match it against the authority-side expected execution context and containment domain. The hello is not worker evidence and carries no settlement authority.
+
 ## Request
 
 `overcenter-computation-execution-v1` binds:
@@ -32,7 +46,7 @@ The executor process environment is not inherited by the task.
 
 At execution time the workspace root is pinned as an open directory. The cwd is traversed relative to that directory with no-follow directory opens, so cwd symlink components are rejected and a checked pathname cannot be swapped before process start.
 
-The contract binds the exact executable **path string**, not the executable file contents. Production deployment must therefore provide executable/toolchain paths from task-immutable image or mount content. Binding toolchain bytes, if required for a workload class, belongs in the authority-side input identity rather than being inferred by Go.
+The contract binds the exact executable **path string**, not the executable file contents. Replayable production workloads therefore bind a separate execution-context digest over the immutable image/source and containment profile before execution authority is granted. Production deployment must therefore provide executable/toolchain paths from task-immutable image or mount content. Binding toolchain bytes, if required for a workload class, belongs in the authority-side input identity rather than being inferred by Go.
 
 ## Evidence
 
