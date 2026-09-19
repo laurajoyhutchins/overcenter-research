@@ -20,6 +20,7 @@ type Dependency =
 type FileObligation = {
   id:string;
   content:string;
+  consistency?:'strong'|'eventual';
   dependencies?:Dependency[];
   packet?:Record<string,unknown>;
 };
@@ -28,6 +29,15 @@ type Operation =
   | ({ op:'define' } & FileObligation)
   | ({ op:'amend' } & FileObligation)
   | { op:'settle'; id:string }
+  | { op:'provider-effect'; id:string }
+  | { op:'interrupt'; id:string }
+  | {
+      op:'readback';
+      id:string;
+      name:string;
+      state:'missing'|'expected'|'value';
+      value?:string;
+    }
   | { op:'checkpoint'; name:string }
   | { op:'reconstruct'; name:string };
 
@@ -43,15 +53,22 @@ function git(repo:string,args:string[]) {
 }
 
 function obligation(root:string,input:FileObligation) {
+  const path=join(root,`${input.id}.txt`);
   return {
     id:input.id,
     packet:input.packet??{},
     dependencies:input.dependencies??[],
-    postcondition:{
-      verifier:'file-content-equals/v1' as const,
-      path:join(root,`${input.id}.txt`),
-      content:input.content,
-    },
+    postcondition:input.consistency==='eventual'
+      ? {
+          verifier:'eventually-consistent-file-content-equals/v1' as const,
+          path,
+          content:input.content,
+        }
+      : {
+          verifier:'file-content-equals/v1' as const,
+          path,
+          content:input.content,
+        },
   };
 }
 
@@ -86,6 +103,9 @@ const input=JSON.parse(readFileSync(0,'utf8')) as Script;
 const root=mkdtempSync(join(tmpdir(),'overcenter-ruby-scenario-'));
 const authority=join(root,'authority.git');
 const checkpoints:Record<string,unknown>={};
+const readbacks:Record<string,unknown>={};
+const runs=new Map<string,ReturnType<GitOvercenterKernel['claim']>>();
+const effectAttempts:Record<string,number>={};
 let replicaIndex=0;
 
 try {
@@ -104,6 +124,53 @@ try {
       case 'settle':
         settle(root,kernel,operation.id);
         break;
+      case 'provider-effect': {
+        const work=kernel.inspect().find(candidate=>candidate.id===operation.id);
+        if (!work) throw new Error(`UNKNOWN_WORK:${operation.id}`);
+        if (work.status!=='READY') {
+          throw new Error(`NOT_READY:${operation.id}:${work.status}`);
+        }
+        if (work.postcondition.verifier!=='eventually-consistent-file-content-equals/v1') {
+          throw new Error(`NOT_EVENTUAL_PROVIDER:${operation.id}`);
+        }
+        const run=kernel.claim(operation.id,work.revision);
+        kernel.beginEffect(run);
+        runs.set(operation.id,run);
+        effectAttempts[operation.id]=(effectAttempts[operation.id]??0)+1;
+        writeFileSync(
+          join(root,`${operation.id}.provider-truth.json`),
+          JSON.stringify({accepted:true,attempt:effectAttempts[operation.id]}),
+        );
+        break;
+      }
+      case 'interrupt': {
+        const run=runs.get(operation.id);
+        if (!run) throw new Error(`NO_ACTIVE_PROVIDER_RUN:${operation.id}`);
+        kernel.recoverInterrupted(run,{source:'ruby-hostile-provider-scenario'});
+        break;
+      }
+      case 'readback': {
+        const run=runs.get(operation.id);
+        if (!run) throw new Error(`NO_ACTIVE_PROVIDER_RUN:${operation.id}`);
+        const work=kernel.inspect().find(candidate=>candidate.id===operation.id);
+        if (!work) throw new Error(`UNKNOWN_WORK:${operation.id}`);
+        if (work.postcondition.verifier!=='eventually-consistent-file-content-equals/v1') {
+          throw new Error(`NOT_EVENTUAL_PROVIDER:${operation.id}`);
+        }
+
+        if (operation.state==='missing') {
+          rmSync(work.postcondition.path,{force:true});
+        } else if (operation.state==='expected') {
+          writeFileSync(work.postcondition.path,work.postcondition.content);
+        } else {
+          writeFileSync(work.postcondition.path,operation.value??'');
+        }
+
+        const receipt=kernel.reconcile(run);
+        readbacks[operation.name]=receipt;
+        checkpoints[operation.name]=kernel.inspect();
+        break;
+      }
       case 'checkpoint':
         checkpoints[operation.name]=kernel.inspect();
         break;
@@ -118,9 +185,19 @@ try {
     }
   }
 
+  const receipts=Object.fromEntries(
+    [...runs.entries()].map(([id,run])=>[
+      id,
+      kernel.receipts(run.id).map(receipt=>receipt.disposition),
+    ]),
+  );
+
   process.stdout.write(JSON.stringify({
     scenario:input.scenario,
     checkpoints,
+    readbacks,
+    effect_attempts:effectAttempts,
+    receipts,
   }));
 } finally {
   rmSync(root,{recursive:true,force:true});
