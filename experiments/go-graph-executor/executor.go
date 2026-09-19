@@ -141,7 +141,6 @@ func validatePlan(envelopes []Envelope) error {
 }
 
 func executeOne(ctx context.Context, envelope Envelope, runner Runner) Evidence {
-	specDigest := sha256.Sum256(envelope.ExecutionSpec)
 	evidence := Evidence{
 		Schema:                    EvidenceSchema,
 		RunID:                     envelope.RunID,
