@@ -8,7 +8,7 @@ This is a bounded language experiment, not a proposal to rewrite Overcenter in F
 
 ## Model
 
-The experiment separates **material identity** from **producer identity**.
+The experiment separates **material identity** from **producer provenance**.
 
 ```text
 material key
@@ -26,24 +26,24 @@ bound_evidence obligation
         ▼
 settle
 
-producer = Agent | Human | PriorRun
+producer provenance = Agent | Human | PriorRun
         │
-        └── deliberately not part of the material key
+        └── preserved on evidence, but deliberately not part of the material key
 ```
 
 `bound_evidence o` is a refinement of raw `evidence`. It can only contain evidence whose material key is exactly the key required by `o`.
 
-`validate` is the runtime boundary that attempts to upgrade raw evidence into bound evidence. `settle` accepts only bound evidence.
+`validate` is the runtime boundary that attempts to upgrade raw evidence into bound evidence. `settle` accepts only bound evidence and preserves the producer recorded on that evidence.
 
 ## Positive controls
 
-`Positive.fst` establishes that the same material realization can satisfy the same obligation when attributed to:
+`Positive.fst` constructs three independently sourced witnesses with the same material key:
 
-- an agent;
-- a human;
-- a prior run.
+- agent-produced evidence;
+- human-produced evidence;
+- prior-run evidence.
 
-It also reattributes already-bound evidence without invalidating it. This is the producer-independent reuse claim in miniature.
+All three satisfy the same obligation. Producer provenance is not rewritten to demonstrate reuse; it is retained on the evidence and copied into the settlement result. This keeps "producer-independent satisfaction" separate from "provenance may be falsified."
 
 ## Hostile controls
 
@@ -59,13 +59,15 @@ The controls independently change:
 - material configuration;
 - acceptance predicate.
 
-Producer identity is the deliberate counterexample: changing only the producer must remain valid.
+Producer identity is the deliberate counterexample: distinct producers with the same material key remain valid evidence for the same obligation.
 
 ## What success means
 
 A green run supports this narrow claim:
 
 > Once evidence has been refined against an exact material key, the settlement function cannot be called with evidence from a different obligation, revision, authority generation, verifier, source input, material configuration, or acceptance predicate without crossing an explicit unverified boundary.
+
+It separately supports the narrower reuse claim that evidence from different producers can satisfy the same obligation when every material component is identical, without discarding the original producer provenance.
 
 The experiment also extracts the verified kernel to OCaml to make sure this is executable verified programming rather than a theorem-only artifact.
 
