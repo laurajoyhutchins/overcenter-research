@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -119,7 +120,7 @@ func TestGoExecutionValidationMatchesTrustedIdentityBounds(t *testing.T) {
 	}
 
 	oversizedRunID := base
-	oversizedRunID.RunID = string(make([]byte, maxRunIDBytes+1))
+	oversizedRunID.RunID = strings.Repeat("r", maxRunIDBytes+1)
 	raw, err := json.Marshal(oversizedRunID)
 	if err != nil {
 		t.Fatal(err)
