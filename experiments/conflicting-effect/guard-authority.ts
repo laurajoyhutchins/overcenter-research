@@ -46,15 +46,32 @@ const statusPc=(context:string,state:'success'|'failure')=>({
 const uAlpha=`guard-${workflowRunId}-${attempt}-unordered-alpha`;
 const uBeta=`guard-${workflowRunId}-${attempt}-unordered-beta`;
 kernel.define({id:uAlpha,postcondition:statusPc(`${unorderedContext}/Build`,'success')});
-kernel.define({id:uBeta,postcondition:statusPc(`${unorderedContext}/build`,'failure')});
+const headAfterAlpha=kernel.head();
+assert.ok(headAfterAlpha);
 
-const uWork=kernel.inspect().find(work=>work.id===uAlpha)!;
 assert.throws(
-  ()=>kernel.claim(uWork.id,uWork.revision),
+  ()=>kernel.define({
+    id:uBeta,
+    postcondition:statusPc(`${unorderedContext}/build`,'failure'),
+  }),
   /UNORDERED_EFFECT_CONFLICT/,
 );
+assert.equal(
+  kernel.head(),
+  headAfterAlpha,
+  'rejected admission must not advance authority',
+);
+
 const unordered=kernel.inspect().filter(work=>work.id===uAlpha||work.id===uBeta);
-assert.ok(unordered.every(work=>work.status==='BLOCKED' && !work.run_id && work.blocked_reason?.startsWith('UNORDERED_EFFECT_CONFLICT:')));
+assert.equal(unordered.length,1);
+assert.equal(unordered[0]?.id,uAlpha);
+assert.equal(unordered[0]?.status,'READY');
+assert.equal(unordered[0]?.run_id,undefined);
+assert.equal(
+  kernel.inspect().some(work=>work.id===uBeta),
+  false,
+  'conflicting beta must never enter authority',
+);
 
 const oAlpha=`guard-${workflowRunId}-${attempt}-ordered-alpha`;
 const oBeta=`guard-${workflowRunId}-${attempt}-ordered-beta`;
@@ -66,6 +83,6 @@ const run=kernel.claim(alpha.id,alpha.revision);
 
 console.log(JSON.stringify({
   state_ref:STATE_REF,
-  unordered:{alpha:uAlpha,beta:uBeta,contexts:[`${unorderedContext}/Build`,`${unorderedContext}/build`]},
+  unordered:{admitted:uAlpha,rejected:uBeta,contexts:[`${unorderedContext}/Build`,`${unorderedContext}/build`]},
   ordered:{alpha:oAlpha,beta:oBeta,context:orderedContext,alpha_run:run},
 }));
