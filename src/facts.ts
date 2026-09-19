@@ -8,11 +8,14 @@ import type {
   Run,
 } from './model.ts';
 import { validatePostcondition } from './observation.ts';
+import type { ComputationAttemptEvidenceV1 } from './computation-execution.ts';
 
 export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
+export const COMPUTATION_INTENT_SCHEMA='overcenter-git-computation-intent-v1' as const;
+export const COMPUTATION_ATTEMPT_SCHEMA='overcenter-git-computation-attempt-v1' as const;
 export const LEGACY_RECEIPT_SCHEMA='overcenter-git-receipt-v4' as const;
 export const RECEIPT_SCHEMA='overcenter-git-receipt-v5' as const;
 export type ReceiptSchema=typeof LEGACY_RECEIPT_SCHEMA|typeof RECEIPT_SCHEMA;
@@ -72,6 +75,36 @@ export interface EffectReservation extends EffectReservationFact {
   reservation_commit:string;
 }
 
+export interface ComputationIntentFact {
+  schema:typeof COMPUTATION_INTENT_SCHEMA;
+  run_id:string;
+  obligation_id:string;
+  claimed_revision:string;
+  claim_commit:string;
+  execution_generation:number;
+  execution_authority_commit:string;
+  execution_capability_sha256:string;
+  execution_spec_base64:string;
+  execution_spec_sha256:string;
+}
+
+export interface ComputationIntent extends ComputationIntentFact {
+  intent_commit:string;
+}
+
+export interface ComputationAttemptFact {
+  schema:typeof COMPUTATION_ATTEMPT_SCHEMA;
+  run_id:string;
+  obligation_id:string;
+  computation_intent_commit:string;
+  evidence:ComputationAttemptEvidenceV1;
+  recorded_at:string;
+}
+
+export interface ComputationAttempt extends ComputationAttemptFact {
+  attempt_commit:string;
+}
+
 export type ReceiptKind='observation'|'judgment-required'|'execution-terminated';
 
 export interface ReceiptFact {
@@ -105,6 +138,8 @@ export interface FactCommit {
   obligation?:unknown|null;
   claim?:unknown|null;
   execution_authority?:unknown|null;
+  computation_intent?:unknown|null;
+  computation_attempt?:unknown|null;
   effect_reservation?:unknown|null;
   receipt?:unknown|null;
 }

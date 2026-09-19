@@ -5,6 +5,8 @@ import {
 } from './observation.ts';
 import {
   CLAIM_SCHEMA,
+  COMPUTATION_ATTEMPT_SCHEMA,
+  COMPUTATION_INTENT_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
   LEGACY_RECEIPT_SCHEMA,
@@ -15,6 +17,10 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
+  ComputationAttempt,
+  ComputationAttemptFact,
+  ComputationIntent,
+  ComputationIntentFact,
   EffectReservation,
   EffectReservationFact,
   ExecutionAuthorityFact,
@@ -36,12 +42,20 @@ import {
   obligationKey,
 } from './lifecycle.ts';
 import type { Lifecycle } from './lifecycle.ts';
+import {
+  validateComputationEvidence,
+  validateEncodedProcessSpec,
+} from './computation-execution.ts';
 
 export interface HistoryProjection {
   lifecycles:Map<string,Lifecycle>;
   runs:Map<string,HistoricalRun>;
   receiptsByRun:Map<string,Receipt>;
   unresolvedReservationsByRun:Map<string,EffectReservation>;
+  computationIntentsByExecution:Map<string,ComputationIntent>;
+  computationAttemptsByIntent:Map<string,ComputationAttempt>;
+  computationIntents:ComputationIntent[];
+  computationAttempts:ComputationAttempt[];
   receipts:Receipt[];
 }
 
@@ -49,6 +63,12 @@ export interface Projection {
   state:State;
   history:HistoryProjection;
 }
+
+const executionKey=(
+  runId:string,
+  generation:number,
+  authorityCommit:string,
+)=>[runId,generation,authorityCommit].join('/');
 
 export function projectReceipt(
   fact:ReceiptFact,
@@ -102,6 +122,10 @@ export function replayProjection(commits:FactCommit[]):Projection {
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();
   const unresolvedReservationsByRun=new Map<string,EffectReservation>();
+  const computationIntentsByExecution=new Map<string,ComputationIntent>();
+  const computationAttemptsByIntent=new Map<string,ComputationAttempt>();
+  const computationIntents:ComputationIntent[]=[];
+  const computationAttempts:ComputationAttempt[]=[];
   const receipts:Receipt[]=[];
 
   for (const record of commits) {
@@ -210,6 +234,112 @@ export function replayProjection(commits:FactCommit[]):Projection {
       lifecycles=deriveLifecycles(state,runs,receiptsByRun);
     }
 
+    if (record.computation_intent!=null) {
+      const fact=record.computation_intent as ComputationIntentFact;
+      if (fact.schema!==COMPUTATION_INTENT_SCHEMA) {
+        throw new Error('INVALID_COMPUTATION_INTENT_SCHEMA');
+      }
+      const run=runs.get(fact.run_id);
+      if (!run) throw new Error('COMPUTATION_INTENT_WITHOUT_CLAIM');
+      if (run.obligation_id!==fact.obligation_id) {
+        throw new Error('COMPUTATION_INTENT_OBLIGATION_MISMATCH');
+      }
+      if (fact.claimed_revision!==run.claimed_revision) {
+        throw new Error('COMPUTATION_INTENT_REVISION_MISMATCH');
+      }
+      if (fact.claim_commit!==run.claim_commit) {
+        throw new Error('COMPUTATION_INTENT_CLAIM_MISMATCH');
+      }
+      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      const current=lifecycles.get(run.obligation_id);
+      if (current?.run?.id!==run.id || current.status!=='EXECUTING') {
+        throw new Error('COMPUTATION_INTENT_WHILE_NOT_EXECUTING');
+      }
+      if (
+        fact.execution_generation!==run.execution_generation
+        || fact.execution_authority_commit!==run.execution_authority_commit
+        || fact.execution_capability_sha256!==run.execution_capability_sha256
+      ) {
+        throw new Error('STALE_COMPUTATION_INTENT');
+      }
+      if (unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('COMPUTATION_INTENT_AFTER_EFFECT_RESERVATION');
+      }
+      validateEncodedProcessSpec(
+        fact.execution_spec_base64,
+        fact.execution_spec_sha256,
+      );
+      const key=executionKey(
+        run.id,
+        run.execution_generation,
+        run.execution_authority_commit,
+      );
+      if (computationIntentsByExecution.has(key)) {
+        throw new Error('DUPLICATE_COMPUTATION_INTENT');
+      }
+      const intent:ComputationIntent={
+        ...fact,
+        intent_commit:record.commit,
+      };
+      computationIntentsByExecution.set(key,intent);
+      computationIntents.push(intent);
+    }
+
+    if (record.computation_attempt!=null) {
+      const fact=record.computation_attempt as ComputationAttemptFact;
+      if (fact.schema!==COMPUTATION_ATTEMPT_SCHEMA) {
+        throw new Error('INVALID_COMPUTATION_ATTEMPT_SCHEMA');
+      }
+      if (
+        typeof fact.recorded_at!=='string'
+        || !Number.isFinite(Date.parse(fact.recorded_at))
+      ) {
+        throw new Error('INVALID_COMPUTATION_ATTEMPT_TIME');
+      }
+      const run=runs.get(fact.run_id);
+      if (!run) throw new Error('COMPUTATION_ATTEMPT_WITHOUT_CLAIM');
+      if (run.obligation_id!==fact.obligation_id) {
+        throw new Error('COMPUTATION_ATTEMPT_OBLIGATION_MISMATCH');
+      }
+      const evidence=validateComputationEvidence(fact.evidence);
+      const key=executionKey(
+        evidence.run_id,
+        evidence.execution_generation,
+        evidence.execution_authority_commit,
+      );
+      const intent=computationIntentsByExecution.get(key);
+      if (!intent) throw new Error('COMPUTATION_ATTEMPT_WITHOUT_INTENT');
+      if (fact.computation_intent_commit!==intent.intent_commit) {
+        throw new Error('COMPUTATION_ATTEMPT_INTENT_MISMATCH');
+      }
+      if (
+        evidence.run_id!==run.id
+        || evidence.obligation_id!==run.obligation_id
+        || evidence.claimed_revision!==run.claimed_revision
+        || evidence.execution_generation!==run.execution_generation
+        || evidence.execution_authority_commit!==run.execution_authority_commit
+        || evidence.execution_capability_sha256!==run.execution_capability_sha256
+        || evidence.execution_spec_sha256!==intent.execution_spec_sha256
+      ) {
+        throw new Error('COMPUTATION_ATTEMPT_AUTHORITY_MISMATCH');
+      }
+      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      const current=lifecycles.get(run.obligation_id);
+      if (current?.run?.id!==run.id || current.status!=='EXECUTING') {
+        throw new Error('COMPUTATION_ATTEMPT_WHILE_NOT_EXECUTING');
+      }
+      if (computationAttemptsByIntent.has(intent.intent_commit)) {
+        throw new Error('DUPLICATE_COMPUTATION_ATTEMPT');
+      }
+      const attempt:ComputationAttempt={
+        ...fact,
+        evidence,
+        attempt_commit:record.commit,
+      };
+      computationAttemptsByIntent.set(intent.intent_commit,attempt);
+      computationAttempts.push(attempt);
+    }
+
     if (record.effect_reservation!=null) {
       const fact=record.effect_reservation as EffectReservationFact;
       if (fact.schema!==EFFECT_RESERVATION_SCHEMA) {
@@ -298,6 +428,16 @@ export function replayProjection(commits:FactCommit[]):Projection {
   lifecycles=deriveLifecycles(state,runs,receiptsByRun);
   return {
     state,
-    history:{lifecycles,runs,receiptsByRun,unresolvedReservationsByRun,receipts},
+    history:{
+      lifecycles,
+      runs,
+      receiptsByRun,
+      unresolvedReservationsByRun,
+      computationIntentsByExecution,
+      computationAttemptsByIntent,
+      computationIntents,
+      computationAttempts,
+      receipts,
+    },
   };
 }

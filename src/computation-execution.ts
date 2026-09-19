@@ -4,6 +4,7 @@ import type { ExecutionPermit } from './model.ts';
 
 export const COMPUTATION_EXECUTION_SCHEMA='overcenter-computation-execution-v1' as const;
 export const PROCESS_SPEC_SCHEMA='overcenter-process-spec-v1' as const;
+export const PROCESS_COMPUTATION_PACKET_SCHEMA='overcenter-process-computation-v1' as const;
 export const COMPUTATION_EVIDENCE_SCHEMA='overcenter-computation-attempt-evidence-v1' as const;
 export const EXECUTOR_COMMAND_SCHEMA='overcenter-executor-command-v1' as const;
 
@@ -24,6 +25,11 @@ export interface ProcessSpecV1 {
   timeout_ms:number;
   stdout_max_bytes:number;
   stderr_max_bytes:number;
+}
+
+export interface ProcessComputationPacketV1 {
+  schema:typeof PROCESS_COMPUTATION_PACKET_SCHEMA;
+  process:ProcessSpecV1;
 }
 
 export interface ComputationExecutionV1 {
@@ -207,6 +213,18 @@ export function validateProcessSpec(value:unknown):ProcessSpecV1 {
   };
 }
 
+export function validateProcessComputationPacket(value:unknown):ProcessComputationPacketV1 {
+  assertPlainObject(value,'process_computation_packet');
+  assertExactKeys(value,['schema','process'],[],'process_computation_packet');
+  if (value.schema!==PROCESS_COMPUTATION_PACKET_SCHEMA) {
+    throw new Error('PROCESS_COMPUTATION_PACKET_SCHEMA_MISMATCH');
+  }
+  return {
+    schema:PROCESS_COMPUTATION_PACKET_SCHEMA,
+    process:validateProcessSpec(value.process),
+  };
+}
+
 export function encodeProcessSpec(spec:ProcessSpecV1):{
   bytes:Buffer;
   base64:string;
@@ -222,9 +240,15 @@ export function encodeProcessSpec(spec:ProcessSpecV1):{
   };
 }
 
-export function decodeProcessSpec(execution:ComputationExecutionV1):ProcessSpecV1 {
-  validateComputationExecution(execution);
-  const bytes=decodeCanonicalBase64(execution.execution_spec_base64);
+export function validateEncodedProcessSpec(
+  base64:unknown,
+  sha256:unknown,
+):ProcessSpecV1 {
+  const bytes=decodeCanonicalBase64(base64);
+  assertSha256Tagged(sha256,'execution_spec_sha256');
+  if (sha256Tagged(bytes)!==sha256) {
+    throw new Error('EXECUTION_SPEC_DIGEST_MISMATCH');
+  }
   let parsed:unknown;
   try {
     parsed=JSON.parse(bytes.toString('utf8'));
@@ -232,6 +256,14 @@ export function decodeProcessSpec(execution:ComputationExecutionV1):ProcessSpecV
     throw new Error('EXECUTION_SPEC_JSON_INVALID');
   }
   return validateProcessSpec(parsed);
+}
+
+export function decodeProcessSpec(execution:ComputationExecutionV1):ProcessSpecV1 {
+  validateComputationExecution(execution);
+  return validateEncodedProcessSpec(
+    execution.execution_spec_base64,
+    execution.execution_spec_sha256,
+  );
 }
 
 export function validateComputationExecution(value:unknown):ComputationExecutionV1 {

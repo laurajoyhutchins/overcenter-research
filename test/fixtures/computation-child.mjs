@@ -1,4 +1,4 @@
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 
 const [mode,arg='',pidFile='']=process.argv.slice(2);
@@ -14,6 +14,14 @@ if (mode==='env') {
   process.stderr.write('y'.repeat(Number.parseInt(arg,10)));
 } else if (mode==='sleep') {
   setTimeout(()=>process.stdout.write(arg),250);
+} else if (mode==='write-file') {
+  writeFileSync(arg,pidFile);
+} else if (mode==='fail') {
+  process.stderr.write('synthetic computation failure');
+  process.exit(17);
+} else if (mode==='hang') {
+  record('parent',process.pid);
+  setInterval(()=>{},1000);
 } else if (mode==='tree-ignore-term' || mode==='tree-child-ignore-term') {
   record('parent',process.pid);
   if (mode==='tree-ignore-term') {

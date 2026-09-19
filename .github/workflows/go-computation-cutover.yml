@@ -1,0 +1,60 @@
+name: Go computation cutover
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - implementation/go-computation-cutover
+    paths:
+      - .github/workflows/go-computation-cutover.yml
+      - src/computation-execution.ts
+      - src/computation-loop.ts
+      - src/facts.ts
+      - src/git-kernel.ts
+      - src/projection.ts
+      - src/go-executor-client.ts
+      - executor/**
+      - test/go-computation-cutover.test.ts
+      - test/fixtures/computation-child.mjs
+      - package.json
+  pull_request:
+    paths:
+      - .github/workflows/go-computation-cutover.yml
+      - src/computation-execution.ts
+      - src/computation-loop.ts
+      - src/facts.ts
+      - src/git-kernel.ts
+      - src/projection.ts
+      - src/go-executor-client.ts
+      - executor/**
+      - test/go-computation-cutover.test.ts
+      - test/fixtures/computation-child.mjs
+      - package.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-computation-cutover-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cutover:
+    name: Durable intent / Go attempt / observation settlement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: executor/go.mod
+          cache: false
+      - name: Pure computation cutover proof
+        run: npm run test:go-computation-cutover
+      - name: Production executor regression
+        run: npm run test:computation-executor
+      - name: Repository regression
+        run: npm test

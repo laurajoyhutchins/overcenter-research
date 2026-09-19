@@ -17,6 +17,8 @@ import {
 } from './observation.ts';
 import {
   CLAIM_SCHEMA,
+  COMPUTATION_ATTEMPT_SCHEMA,
+  COMPUTATION_INTENT_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
   OBLIGATION_SCHEMA,
@@ -25,6 +27,9 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
+  ComputationAttempt,
+  ComputationAttemptFact,
+  ComputationIntentFact,
   EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
@@ -51,6 +56,14 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
+import {
+  assertComputationEvidenceFor,
+  executionIdentity,
+  executionIdentityKey,
+  validateComputationExecution,
+  type ComputationAttemptEvidenceV1,
+  type ComputationExecutionV1,
+} from './computation-execution.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -274,6 +287,101 @@ export class GitOvercenterKernel {
     throw new Error('EXECUTION_AUTHORITY_CONTENTION_EXHAUSTED');
   }
 
+  prepareComputation(
+    permit:ExecutionPermit,
+    execution:ComputationExecutionV1,
+  ):string {
+    const validated=validateComputationExecution(execution);
+    this.#assertComputationExecutionMatchesPermit(validated,permit);
+
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const head=this.#requireHead();
+      const {history}=this.#projection(head);
+      const run=this.#requireExecutionPermit(history,permit);
+      const lifecycle=history.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
+        throw new Error('RUN_NOT_EXECUTING');
+      }
+      if (history.unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('UNRESOLVED_EFFECT');
+      }
+
+      const key=executionIdentityKey(executionIdentity(validated));
+      if (history.computationIntentsByExecution.has(key)) {
+        throw new Error('COMPUTATION_INTENT_ALREADY_EXISTS');
+      }
+
+      const fact:ComputationIntentFact={
+        schema:COMPUTATION_INTENT_SCHEMA,
+        run_id:run.id,
+        obligation_id:run.obligation_id,
+        claimed_revision:run.claimed_revision,
+        claim_commit:run.claim_commit,
+        execution_generation:run.execution_generation,
+        execution_authority_commit:run.execution_authority_commit,
+        execution_capability_sha256:run.execution_capability_sha256,
+        execution_spec_base64:validated.execution_spec_base64,
+        execution_spec_sha256:validated.execution_spec_sha256,
+      };
+      const commit=this.#store.createCommit(
+        head,
+        `overcenter: prepare computation ${run.obligation_id} ${run.id} g${run.execution_generation}`,
+        {'computation-intent.json':fact},
+      );
+      if (this.#store.cas(commit,head)) return commit;
+    }
+    throw new Error('COMPUTATION_INTENT_CONTENTION_EXHAUSTED');
+  }
+
+  recordComputationAttempt(
+    permit:ExecutionPermit,
+    execution:ComputationExecutionV1,
+    evidence:ComputationAttemptEvidenceV1,
+  ):string {
+    const validated=validateComputationExecution(execution);
+    this.#assertComputationExecutionMatchesPermit(validated,permit);
+    assertComputationEvidenceFor(evidence,validated);
+
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const head=this.#requireHead();
+      const {history}=this.#projection(head);
+      const run=this.#requireExecutionPermit(history,permit);
+      const lifecycle=history.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
+        throw new Error('RUN_NOT_EXECUTING');
+      }
+
+      const key=executionIdentityKey(executionIdentity(validated));
+      const intent=history.computationIntentsByExecution.get(key);
+      if (!intent) throw new Error('COMPUTATION_INTENT_REQUIRED');
+      if (
+        intent.execution_spec_base64!==validated.execution_spec_base64
+        || intent.execution_spec_sha256!==validated.execution_spec_sha256
+      ) {
+        throw new Error('COMPUTATION_INTENT_SPEC_MISMATCH');
+      }
+      if (history.computationAttemptsByIntent.has(intent.intent_commit)) {
+        throw new Error('COMPUTATION_ATTEMPT_ALREADY_EXISTS');
+      }
+
+      const fact:ComputationAttemptFact={
+        schema:COMPUTATION_ATTEMPT_SCHEMA,
+        run_id:run.id,
+        obligation_id:run.obligation_id,
+        computation_intent_commit:intent.intent_commit,
+        evidence:structuredClone(evidence),
+        recorded_at:new Date().toISOString(),
+      };
+      const commit=this.#store.createCommit(
+        head,
+        `overcenter: record computation ${run.obligation_id} ${run.id} g${run.execution_generation}`,
+        {'computation-attempt.json':fact},
+      );
+      if (this.#store.cas(commit,head)) return commit;
+    }
+    throw new Error('COMPUTATION_ATTEMPT_CONTENTION_EXHAUSTED');
+  }
+
   beginEffect(permit:ExecutionPermit):string {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
@@ -426,6 +534,15 @@ export class GitOvercenterKernel {
       : history.receipts;
   }
 
+  computationAttempts(runId:string|null=null):ComputationAttempt[] {
+    const head=this.#requireHead();
+    const {history}=this.#projection(head);
+    const attempts=runId
+      ? history.computationAttempts.filter(attempt=>attempt.run_id===runId)
+      : history.computationAttempts;
+    return structuredClone(attempts);
+  }
+
   #requireHead():string {
     const head=this.head();
     if (!head) throw new Error('NOT_INITIALIZED');
@@ -439,6 +556,8 @@ export class GitOvercenterKernel {
       obligation:this.#store.readJson(commit,'obligation.json'),
       claim:this.#store.readJson(commit,'claim.json'),
       execution_authority:this.#store.readJson(commit,'execution-authority.json'),
+      computation_intent:this.#store.readJson(commit,'computation-intent.json'),
+      computation_attempt:this.#store.readJson(commit,'computation-attempt.json'),
       effect_reservation:this.#store.readJson(commit,'effect-reservation.json'),
       receipt:this.#store.readJson(commit,'receipt.json'),
     }));
@@ -451,6 +570,23 @@ export class GitOvercenterKernel {
 
   #capabilityDigest(capability:string):string {
     return createHash('sha256').update(capability).digest('hex');
+  }
+
+  #assertComputationExecutionMatchesPermit(
+    execution:ComputationExecutionV1,
+    permit:ExecutionPermit,
+  ):void {
+    if (
+      execution.run_id!==permit.id
+      || execution.obligation_id!==permit.obligation_id
+      || execution.claimed_revision!==permit.claimed_revision
+      || execution.execution_generation!==permit.execution_generation
+      || execution.execution_authority_commit!==permit.execution_authority_commit
+      || execution.execution_capability!==permit.execution_capability
+      || execution.execution_capability_sha256!==permit.execution_capability_sha256
+    ) {
+      throw new Error('COMPUTATION_EXECUTION_AUTHORITY_MISMATCH');
+    }
   }
 
   #requireExecutionPermit(
