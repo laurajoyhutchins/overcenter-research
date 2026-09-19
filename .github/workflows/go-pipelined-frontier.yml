@@ -1,0 +1,49 @@
+name: Go pipelined frontier experiment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/go-pipelined-frontier
+    paths:
+      - .github/workflows/go-pipelined-frontier.yml
+      - experiments/go-graph-executor/**
+      - test/go-pipelined-frontier.test.ts
+      - test/go-graph-executor.test.ts
+      - package.json
+  pull_request:
+    paths:
+      - .github/workflows/go-pipelined-frontier.yml
+      - experiments/go-graph-executor/**
+      - test/go-pipelined-frontier.test.ts
+      - test/go-graph-executor.test.ts
+      - package.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline-proof:
+    name: Claim / dispatch overlap and recovery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: experiments/go-graph-executor/go.mod
+          cache: false
+      - name: Go streaming executor adversaries
+        working-directory: experiments/go-graph-executor
+        run: go test ./...
+      - name: Existing batch concurrency boundary
+        run: npm run test:go-graph-executor
+      - name: Pipelined authority handoff
+        run: npm run test:go-pipeline
