@@ -117,6 +117,36 @@ func decodeStrict(data []byte, target any) error {
 	return nil
 }
 
+func validateExactObjectKeys(
+	data []byte,
+	required []string,
+	optional []string,
+	name string,
+) error {
+	var object map[string]json.RawMessage
+	if err := decodeStrict(data, &object); err != nil {
+		return fmt.Errorf("invalid %s: %w", name, err)
+	}
+	allowed := make(map[string]struct{}, len(required)+len(optional))
+	for _, key := range required {
+		allowed[key] = struct{}{}
+	}
+	for _, key := range optional {
+		allowed[key] = struct{}{}
+	}
+	for key := range object {
+		if _, ok := allowed[key]; !ok {
+			return fmt.Errorf("%s unknown field: %s", name, key)
+		}
+	}
+	for _, key := range required {
+		if _, ok := object[key]; !ok {
+			return fmt.Errorf("%s missing field: %s", name, key)
+		}
+	}
+	return nil
+}
+
 func validateString(value, name string, maxBytes int) error {
 	if value == "" || strings.ContainsRune(value, 0) || len([]byte(value)) > maxBytes {
 		return fmt.Errorf("%s invalid", name)
@@ -160,6 +190,14 @@ func identityFor(execution ComputationExecutionV1) ExecutionIdentityV1 {
 }
 
 func parseCommand(line []byte) (ExecutorCommandV1, error) {
+	if err := validateExactObjectKeys(
+		line,
+		[]string{"schema", "kind"},
+		[]string{"execution", "identity"},
+		"executor command",
+	); err != nil {
+		return ExecutorCommandV1{}, err
+	}
 	var wire struct {
 		Schema    string          `json:"schema"`
 		Kind      string          `json:"kind"`
@@ -192,6 +230,14 @@ func parseCommand(line []byte) (ExecutorCommandV1, error) {
 		if len(wire.Identity) == 0 || len(wire.Execution) != 0 {
 			return ExecutorCommandV1{}, errors.New("cancel command shape invalid")
 		}
+		if err := validateExactObjectKeys(
+			wire.Identity,
+			[]string{"run_id", "execution_generation", "execution_authority_commit"},
+			nil,
+			"cancel identity",
+		); err != nil {
+			return ExecutorCommandV1{}, err
+		}
 		var identity ExecutionIdentityV1
 		if err := decodeStrict(wire.Identity, &identity); err != nil {
 			return ExecutorCommandV1{}, fmt.Errorf("invalid cancel identity: %w", err)
@@ -210,6 +256,25 @@ func parseCommand(line []byte) (ExecutorCommandV1, error) {
 }
 
 func validateExecutionBytes(data []byte) (validatedExecution, error) {
+	if err := validateExactObjectKeys(
+		data,
+		[]string{
+			"schema",
+			"run_id",
+			"obligation_id",
+			"claimed_revision",
+			"execution_generation",
+			"execution_authority_commit",
+			"execution_capability",
+			"execution_capability_sha256",
+			"execution_spec_base64",
+			"execution_spec_sha256",
+		},
+		nil,
+		"computation execution",
+	); err != nil {
+		return validatedExecution{}, err
+	}
 	var execution ComputationExecutionV1
 	if err := decodeStrict(data, &execution); err != nil {
 		return validatedExecution{}, fmt.Errorf("invalid computation execution: %w", err)
@@ -269,6 +334,23 @@ func validateExecutionBytes(data []byte) (validatedExecution, error) {
 }
 
 func validateProcessSpecBytes(data []byte) (ProcessSpecV1, error) {
+	if err := validateExactObjectKeys(
+		data,
+		[]string{
+			"schema",
+			"executable",
+			"argv",
+			"cwd",
+			"env",
+			"timeout_ms",
+			"stdout_max_bytes",
+			"stderr_max_bytes",
+		},
+		nil,
+		"process spec",
+	); err != nil {
+		return ProcessSpecV1{}, err
+	}
 	var spec ProcessSpecV1
 	if err := decodeStrict(data, &spec); err != nil {
 		return ProcessSpecV1{}, fmt.Errorf("invalid process spec: %w", err)
