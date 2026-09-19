@@ -48,13 +48,13 @@ export function staticEffectConflictError(
   workId:string,
 ):string|null {
   const work=state.obligations[workId];
-  if (!work) return null;
+  if (!work?.effect_authority) return null;
   const semantics=effectSemantics(work.postcondition);
-  if (!semantics) return null;
+  if (!semantics) throw new Error('EFFECT_AUTHORITY_WITHOUT_EFFECT_SEMANTICS');
 
   for (const other of Object.values(state.obligations)
     .sort((a,b)=>a.id.localeCompare(b.id))) {
-    if (other.id===work.id) continue;
+    if (other.id===work.id || !other.effect_authority) continue;
     const otherSemantics=effectSemantics(other.postcondition);
     if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
 
