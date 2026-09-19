@@ -11,11 +11,28 @@ export const EFFECT_EQUIVALENCE_CERTIFICATE_SCHEMA =
 export const EFFECT_EQUIVALENCE_ISSUER_CONTRACT =
   'overcenter/provider-effect-equivalence-issuer/v1' as const;
 
+type GitHubVerifier =
+  | 'github-commit-status/v1'
+  | 'github-commit-status/v2';
+
+interface GitHubEquivalenceContract {
+  provider:'github';
+  verifier_contract:GitHubVerifier;
+  coordinate_contract:'github-commit-status-coordinate/v1';
+  observation_contract:
+    | 'github-commit-status-observation/v1'
+    | 'github-commit-status-observation/v2';
+  operation_class:'github-commit-status/set-state/v1';
+}
+
 export interface EffectEquivalenceCertificatePayload {
   schema:typeof EFFECT_EQUIVALENCE_CERTIFICATE_SCHEMA;
   issuer_contract:typeof EFFECT_EQUIVALENCE_ISSUER_CONTRACT;
   provider:'github';
-  verifier_contract:'github-commit-status/v1'|'github-commit-status/v2';
+  verifier_contract:GitHubVerifier;
+  coordinate_contract:'github-commit-status-coordinate/v1';
+  observation_contract:GitHubEquivalenceContract['observation_contract'];
+  operation_class:'github-commit-status/set-state/v1';
   resource:string;
   operation:string;
   equivalence_class:'same-desired-under-overcenter-settlement';
@@ -28,21 +45,37 @@ export interface EffectEquivalenceCertificate
   certificate_digest:string;
 }
 
-function githubProvider(
+function githubEquivalenceContract(
   postcondition:Postcondition,
-):'github'|null {
-  if (
-    postcondition.verifier==='github-commit-status/v1'
-    || postcondition.verifier==='github-commit-status/v2'
-  ) return 'github';
+):GitHubEquivalenceContract|null {
+  if (postcondition.verifier==='github-commit-status/v1') {
+    return {
+      provider:'github',
+      verifier_contract:postcondition.verifier,
+      coordinate_contract:'github-commit-status-coordinate/v1',
+      observation_contract:'github-commit-status-observation/v1',
+      operation_class:'github-commit-status/set-state/v1',
+    };
+  }
+
+  if (postcondition.verifier==='github-commit-status/v2') {
+    return {
+      provider:'github',
+      verifier_contract:postcondition.verifier,
+      coordinate_contract:'github-commit-status-coordinate/v1',
+      observation_contract:'github-commit-status-observation/v2',
+      operation_class:'github-commit-status/set-state/v1',
+    };
+  }
+
   return null;
 }
 
 function payloadFor(
   postcondition:Postcondition,
 ):EffectEquivalenceCertificatePayload|null {
-  const provider=githubProvider(postcondition);
-  if (!provider) return null;
+  const contract=githubEquivalenceContract(postcondition);
+  if (!contract) return null;
 
   const effect=effectSemantics(postcondition);
   if (!effect || !effect.sameDesiredCommutes) return null;
@@ -52,17 +85,16 @@ function payloadFor(
   return {
     schema:EFFECT_EQUIVALENCE_CERTIFICATE_SCHEMA,
     issuer_contract:EFFECT_EQUIVALENCE_ISSUER_CONTRACT,
-    provider,
-    verifier_contract:postcondition.verifier,
+    ...contract,
     resource:effect.resource,
     operation:effect.desired,
     equivalence_class:'same-desired-under-overcenter-settlement',
     effect_semantics_digest:canonicalDigest({
-      verifier:postcondition.verifier,
+      contract,
       effect,
     }),
     settlement_semantics_digest:canonicalDigest({
-      verifier:postcondition.verifier,
+      contract,
       settlement,
     }),
   };
@@ -100,11 +132,14 @@ export function certificatesAuthorizeUnorderedOverlap(
   ) return false;
 
   // Same-coordinate concurrency is admitted only under the exact same
-  // provider/verifier contract. Cross-version equivalence must be separately
+  // provider contract. Cross-version equivalence must be separately
   // established rather than inherited from a boolean.
   return (
     leftCertificate.provider===rightCertificate.provider
     && leftCertificate.verifier_contract===rightCertificate.verifier_contract
+    && leftCertificate.coordinate_contract===rightCertificate.coordinate_contract
+    && leftCertificate.observation_contract===rightCertificate.observation_contract
+    && leftCertificate.operation_class===rightCertificate.operation_class
     && leftCertificate.resource===rightCertificate.resource
     && leftCertificate.operation===rightCertificate.operation
     && leftCertificate.equivalence_class===rightCertificate.equivalence_class
