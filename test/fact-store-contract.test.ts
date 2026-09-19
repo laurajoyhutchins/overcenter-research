@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import type { DurableFactStore } from '../src/fact-store.ts';
@@ -109,6 +110,71 @@ test('Git and SQLite satisfy the same durable fact store contract',()=>{
     try {
       sqlite.close();
     } catch {}
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
+
+test('SQLite serializes simultaneous writers and admits exactly one same-head CAS winner',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-contention-'));
+  const database=join(root,'authority.sqlite');
+  const store=new SqliteFactStore(database);
+  const initial=store.append(null,'initialize');
+  assert.ok(initial);
+  store.close();
+
+  const fixture=fileURLToPath(
+    new URL('./fixtures/sqlite-contender.mjs',import.meta.url),
+  );
+  const contenders=Array.from({length:8},(_,index)=>
+    new Promise<string|null>((resolve,reject)=>{
+      const child=spawn(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          fixture,
+          database,
+          initial,
+          String(index),
+        ],
+        {stdio:['ignore','pipe','pipe']},
+      );
+      let stdout='';
+      let stderr='';
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+      child.stdout.on('data',chunk=>{stdout+=String(chunk);});
+      child.stderr.on('data',chunk=>{stderr+=String(chunk);});
+      child.once('error',reject);
+      child.once('close',code=>{
+        if (code!==0) {
+          reject(new Error(`contender failed (${code}): ${stderr}`));
+          return;
+        }
+        const record=JSON.parse(stdout.trim()) as {commit:string|null};
+        resolve(record.commit);
+      });
+    }),
+  );
+
+  try {
+    const results=await Promise.all(contenders);
+    assert.equal(results.filter(Boolean).length,1);
+
+    const reopened=new SqliteFactStore(database);
+    try {
+      const head=reopened.head();
+      assert.ok(head);
+      const history=reopened.history(head);
+      assert.equal(history.length,2);
+      assert.equal(
+        history.filter(record=>record.claim!=null).length,
+        1,
+      );
+    } finally {
+      reopened.close();
+    }
+  } finally {
     rmSync(root,{recursive:true,force:true});
   }
 });
