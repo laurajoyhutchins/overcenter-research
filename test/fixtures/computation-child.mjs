@@ -1,4 +1,4 @@
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 
 const [mode,arg='',pidFile='']=process.argv.slice(2);
@@ -14,6 +14,14 @@ if (mode==='env') {
   process.stderr.write('y'.repeat(Number.parseInt(arg,10)));
 } else if (mode==='sleep') {
   setTimeout(()=>process.stdout.write(arg),250);
+} else if (mode==='write-file') {
+  writeFileSync(pidFile,arg);
+  process.stdout.write('test-workload-complete');
+} else if (mode==='delayed-write-file') {
+  setTimeout(()=>{
+    writeFileSync(pidFile,arg);
+    process.stdout.write('test-workload-complete');
+  },1000);
 } else if (
   mode==='tree-ignore-term'
   || mode==='tree-child-ignore-term'
