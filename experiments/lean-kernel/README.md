@@ -6,6 +6,22 @@ This experiment asks a deliberately narrow question:
 
 It does **not** rewrite Overcenter in Lean. Git transport, credentials, mutation execution, worker supervision, TLS, and provider transport remain outside this experiment.
 
+## Experiment map
+
+This directory is a proof-bearing experiment platform, not one indivisible green check. Reproduce and interpret each semantic slice separately:
+
+| Slice | Primary executable evidence |
+| --- | --- |
+| settlement | `differential.test.ts` |
+| Kubernetes LIST | `kubernetes-differential.test.ts` |
+| Kubernetes WATCH carry | `kubernetes-watch-differential.test.ts` |
+| execution replay/fencing | `execution-replay-differential.test.ts` |
+| claim admission + graph safety | `claim-admission-differential.test.ts` |
+| static GitHub effect ordering | `effect-ordering-differential.test.ts` |
+| known TypeScript mutable-reuse gap | `reuse-gap.test.ts` |
+
+The hosted `lean-kernel.yml` workflow builds the native kernel and runs the complete matrix, but a workflow-level PASS must not be cited as evidence for an unstated semantic claim. Each claim below names its hostile witness and smallest distinguishing experiment.
+
 ## Current semantic slice
 
 The Lean kernel now owns seven classes of truth decision:
