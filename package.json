@@ -42,6 +42,7 @@
     "experiment": "node scripts/experiments.mjs run",
     "experiments:deterministic": "node scripts/experiments.mjs run --all-deterministic",
     "test:github-object-transport": "node --test experiments/github-object-transport/contract.test.mjs",
+    "test:lean-oracle": "node --experimental-strip-types --test test/lean-semantic-oracle.test.ts",
     "test:data-contracts": "node --experimental-strip-types --test test/data-contracts.test.ts"
   }
 }
