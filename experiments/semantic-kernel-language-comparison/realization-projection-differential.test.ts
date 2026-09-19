@@ -93,7 +93,12 @@ function leanObservation(observation:Observation|null):unknown {
   };
 }
 
-function leanProject(input:ProjectionRequest):ProjectionResult {
+function leanResponse(input:ProjectionRequest):{
+  schema:string;
+  lifecycle:ProjectionResult['lifecycle'];
+  source_run_id:string|null;
+  execution_run_id:string|null;
+} {
   const stdout=execFileSync(kernel,[],{
     input:JSON.stringify({
       command:'realization-project',
@@ -109,8 +114,14 @@ function leanProject(input:ProjectionRequest):ProjectionResult {
     schema:string;
     lifecycle:ProjectionResult['lifecycle'];
     source_run_id:string|null;
+    execution_run_id:string|null;
   };
   assert.equal(response.schema,'overcenter-lean-realization-projection/v1');
+  return response;
+}
+
+function leanProject(input:ProjectionRequest):ProjectionResult {
+  const response=leanResponse(input);
   return {lifecycle:response.lifecycle,sourceRunId:response.source_run_id};
 }
 
@@ -362,6 +373,34 @@ test('Lean realization projection agrees with corrected TypeScript control on ho
     assert.deepEqual(lean,typescript,candidate.name+': differential');
     assert.deepEqual(leanProject(candidate.input),lean,candidate.name+': deterministic replay');
   }
+});
+
+test('realization provenance is not confused with live execution authority',()=>{
+  const postcondition=filePostcondition();
+
+  const historical=leanResponse({
+    postcondition,
+    currentKey:'key-a',
+    runs:[done()],
+    freshObservation:uncertain(),
+  });
+  assert.equal(historical.lifecycle,'RECOVERY_REQUIRED');
+  assert.equal(historical.source_run_id,'run-done');
+  assert.equal(historical.execution_run_id,null);
+
+  const active=leanResponse({
+    postcondition,
+    currentKey:'key-b',
+    runs:[{
+      run_id:'run-active',
+      obligation_key:'key-a',
+      status:'EXECUTING',
+    }],
+    freshObservation:present(),
+  });
+  assert.equal(active.lifecycle,'RECOVERY_REQUIRED');
+  assert.equal(active.source_run_id,'run-active');
+  assert.equal(active.execution_run_id,'run-active');
 });
 
 test('current external reality deliberately changes current projection',()=>{
