@@ -3,14 +3,12 @@ module Hostile.StaleRevision
 open SettlementKernel
 open Positive
 
-let stale_key : material_key =
-  { key_a with revision = 6 }
-
-let stale : evidence = {
-  key = stale_key;
-  producer = PriorRun
+let stale_revision_authority : settlement_authority = {
+  obligation_id = 41;
+  revision = 7;
+  authority_generation = 4
 }
 
 [@@expect_failure]
-let impossible : bound_evidence obligation_a =
-  stale
+let impossible : bound_authority obligation_a_rotated =
+  stale_revision_authority
