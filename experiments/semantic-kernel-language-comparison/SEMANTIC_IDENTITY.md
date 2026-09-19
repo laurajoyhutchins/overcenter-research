@@ -99,3 +99,106 @@ The differential suite must include at least:
 - **Boundary is wrong:** semantic identity and hashing cannot be separated without introducing a second source of truth.
 
 No broader language migration follows automatically.
+
+
+## Result
+
+**Lean earns semantic dependency identity-material derivation at the normalized-source boundary.**
+
+Evaluated implementation head:
+
+`cd4d569a8878f6c030e5543b927c824fe818be0e`
+
+Exact-head evidence:
+
+- semantic identity audition, push run `35425071443`: **PASS**
+- semantic identity audition, PR run `35425073635`: **PASS**
+- parent Lean-vs-TypeScript claim admission, run `35425073628`: **PASS**
+- existing Lean semantic-kernel proof, run `35425073746`: **PASS**
+- repository Evidence, run `35425073693`:
+  - fast deterministic regression: **PASS**
+  - adversarial local proofs: **PASS**
+  - TLA+ safety proof: **PASS**
+
+The frozen decision rule was committed before implementation at
+`65a4c5483831363a4fa9ccef859e2c4cb3c26719`.
+
+### What moved into Lean
+
+The caller no longer supplies semantic identity or a resolution boolean.
+
+Lean now receives normalized source facts and derives identity-bearing material for:
+
+- `file-content-equals/v1`;
+- `eventually-consistent-file-content-equals/v1`;
+- GitHub commit status;
+- Kubernetes ConfigMap existence;
+- exact settlement receipt identity.
+
+For settlement evidence Lean independently binds:
+
+```text
+semantic edge
+    ↓
+upstream DONE lifecycle
+    ↓
+exact current run
+    ↓
+receipt for same run + same obligation
+    ↓
+DONE disposition + durable settlement commit
+    ↓
+semantic identity material
+```
+
+Stale-run receipts, wrong-obligation receipts, non-DONE receipts, missing settlement commits, duplicate receipt authority, unsupported selectors, missing source material, malformed lifecycle state, and caller-supplied `semantic_identity` all fail closed.
+
+The proof layer establishes that `derivedClaimAdmissible = true` implies semantic inputs are resolved by this derivation and that the underlying proof-bearing claim-admission decision also accepts.
+
+### Important trust boundary that remains
+
+This experiment deliberately does not prove raw provider parsing or cryptographic primitives in Lean.
+
+TypeScript still supplies normalized source primitives such as:
+
+- SHA-256 of expected file content;
+- canonical GitHub status context;
+- validated provider coordinates and expected state.
+
+TypeScript also still performs the final cryptographic encoding of Lean-selected material into the current identity string / canonical digest.
+
+So the earned boundary is:
+
+```text
+authenticated provider / durable facts
+             |
+             v
+TypeScript deterministic normalization
+  - validate raw postcondition fields
+  - SHA-256 primitive
+  - provider canonicalization
+             |
+             v
+Lean semantic identity derivation
+  - selector meaning
+  - lifecycle binding
+  - current-run binding
+  - receipt binding
+  - identity-bearing material
+             |
+             v
+TypeScript cryptographic encoding
+             |
+             v
+Lean claim admission
+```
+
+This is materially stronger than the parent experiment's caller-provided `semantic_identity`, without turning Lean into a provider adapter or cryptography implementation.
+
+### Interpretation
+
+The null hypothesis loses for semantic identity **selection and binding**.
+
+It does not lose for ordinary provider normalization or hashing.
+
+The next useful falsifier is obligation-key construction: have Lean construct the complete canonical semantic key preimage, including sorted semantic dependencies, while leaving only the final SHA-256 primitive outside. That would test whether the truth-deciding core can absorb identity composition without absorbing infrastructure.
