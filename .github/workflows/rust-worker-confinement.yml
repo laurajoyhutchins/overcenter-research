@@ -1,0 +1,36 @@
+name: Rust worker confinement
+
+on:
+  push:
+    branches:
+      - implementation/rust-worker-confinement
+    paths:
+      - 'runtime/overcenter-exec/**'
+      - 'src/execution-manifest.ts'
+      - 'src/confined-executor.ts'
+      - 'test/execution-manifest.test.ts'
+      - 'package.json'
+      - '.github/workflows/rust-worker-confinement.yml'
+  pull_request:
+    paths:
+      - 'runtime/overcenter-exec/**'
+      - 'src/execution-manifest.ts'
+      - 'src/confined-executor.ts'
+      - 'test/execution-manifest.test.ts'
+      - 'package.json'
+      - '.github/workflows/rust-worker-confinement.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: TypeScript manifest and transport contract
+        run: node --experimental-strip-types --test test/execution-manifest.test.ts
+      - name: Production Rust confinement proof
+        run: bash runtime/overcenter-exec/proof.sh
