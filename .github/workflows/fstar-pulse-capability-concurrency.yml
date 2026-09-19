@@ -1,0 +1,31 @@
+name: F* Pulse capability concurrency
+
+on:
+  push:
+    branches:
+      - experiment/fstar-pulse-capability-concurrency
+    paths:
+      - "experiments/fstar-pulse-capability-concurrency/**"
+      - ".github/workflows/fstar-pulse-capability-concurrency.yml"
+      - ".github/actions/setup-fstar/**"
+  pull_request:
+    paths:
+      - "experiments/fstar-pulse-capability-concurrency/**"
+      - ".github/workflows/fstar-pulse-capability-concurrency.yml"
+      - ".github/actions/setup-fstar/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: ./.github/actions/setup-fstar
+
+      - name: Verify Pulse capability concurrency
+        run: bash experiments/fstar-pulse-capability-concurrency/check.sh
