@@ -59,8 +59,36 @@ The experiment is meant to distinguish these claims:
 
 Attempt evidence is not a settlement receipt. Successful execution still requires independent authoritative observation before it can become project truth.
 
-## Known bottleneck
+## Pipelined claim issuance
 
-Claim issuance is still serialized through the Git CAS authority ref. That is a correctness-preserving boundary, but it may become the next throughput limit once physical execution is highly concurrent.
+Claim issuance remains serialized through the Git CAS authority ref, but the executor does not need to wait for an entire frontier batch. As soon as one ordinary claim commits, its exact-generation permit can be handed to a long-lived disposable Go worker pool while later claims are still being committed.
 
-This experiment intentionally does not optimize that away. The next useful measurement is whether claim issuance can be streamed/pipelined into the Go worker pool so execution begins while later frontier claims are still being committed.
+The transport is deliberately NDJSON over stdin/stdout. It is not a queue and carries no durable scheduling state.
+
+There are two distinct handoff paths:
+
+1. **Computation handoff.** Work whose execution boundary cannot mutate an external provider may stream immediately after the claim commits. If the executor is known to have died before dispatch, the run is reconstructed from Git and a fresh execution generation fences out the abandoned permit.
+2. **Effect handoff.** Work that may mutate an external provider must commit the existing `effect_reservation` before crossing the process boundary. The reservation commit is carried in the Go attempt evidence. If the process dies after reservation, the effect outcome is ambiguous and blind replay is prohibited. Independent observation must reconcile the reservation before another effect can begin.
+
+That distinction is the important recovery result:
+
+```text
+claim committed
+    |
+    +-- computation never dispatched
+    |       -> known executor death
+    |       -> reacquire generation
+    |       -> safe fresh computation
+    |
+    +-- effect reservation committed
+            -> effect may have happened
+            -> NO blind replay
+            -> observe / reconcile
+            -> settle READY, DONE, or RECOVERY_REQUIRED
+```
+
+Pipelining therefore hides some serialized authority latency without weakening mutation certainty. It does not make Git claims concurrent, and it does not turn unknown effect outcome into retryable work.
+
+## Remaining bottleneck
+
+The authority path still performs serialized Git commits for claims and, for effectful work, reservations. The next useful measurement is not whether Go can execute more work concurrently; that is already established. It is how much claim/reservation throughput can be improved or amortized without weakening exact-revision authority, recovery, or effect fencing.
