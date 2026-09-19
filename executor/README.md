@@ -45,7 +45,7 @@ isolated worker/container
 +-------------------------------+
 ```
 
-The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate container without provider credentials.
+The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate disposable containment domain without provider credentials. The supported profile also requires no task network, a read-only container root/source snapshot, `no-new-privileges`, explicit capabilities only, and bounded PID/memory/CPU/open-file/per-file-size resources. Aggregate workspace bytes remain an outer worker-host quota.
 
 Production socket mode requires `--task-uid` and `--task-gid`. Both must differ from the executor identity; when `--socket-gid` is used to grant the trusted host access to the socket, the task GID must differ from that group too. Task processes are launched with supplementary groups replaced by the task GID only; executor and trusted-socket groups do not cross the boundary.
 
@@ -61,6 +61,11 @@ The workspace must be mounted with permissions appropriate for the configured ta
 
 The Unix socket must live in a dedicated directory that the task UID/GID cannot write. Production startup checks the directory owner/group/mode and fails closed when the configured task identity can write it; the socket is created under a restrictive umask before its final `0660` mode is applied. The established one-connection lifetime then keeps the authority channel outside task namespace control. POSIX ACLs or other deployment mechanisms must not separately grant the task write access to that directory.
 
+Before any computation command is accepted as production-ready, the socket peer emits exactly one `overcenter-executor-hello-v1` record containing the trusted execution-context digest and containment-domain id supplied at executor launch. The TypeScript client compares those values with the authority-side expected values before it may claim or rotate replayable computation authority. A socket peer that cannot produce the exact hello fails closed.
+
+The replay-safe execution-context digest covers the immutable executor image identity, exact source revision, task UID/GID, and the enforced containment profile. The containment id is intentionally separate and changes between disposable worker instances.
+
+
 `--unsafe-test-same-uid` is an explicit escape hatch for local protocol tests and is accepted only with `--stdio`. Production socket mode has no same-UID escape hatch: it requires explicit distinct task credentials and fails closed otherwise.
 
 The binary supports `--stdio` only for tests and containment experiments.
@@ -71,7 +76,7 @@ The first authority-side production integration is the pure `test` workload in `
 
 TypeScript selects an already-derived `READY` test obligation, acquires the exact claim/generation, converts its durable process specification to `ProcessSpecV1`, and sends that exact computation to this executor. Go returns attempt evidence only. TypeScript independently observes the obligation postcondition and settles from that observation.
 
-No effect reservation is created for this pure-computation path. A zero exit code is not project truth: if independent observation does not satisfy the postcondition, the obligation does not become `DONE`.
+No effect reservation is created for this pure-computation path. That is legal only for the mechanically confined replay-safe profile. A nonzero/failed attempt is rejected before observation can settle success, and a zero exit code is still not project truth: independent observation must satisfy the postcondition.
 
 If the executor transport dies, TypeScript records an interrupted-execution receipt. A successor reconstructs the run and process specification from durable facts, acquires a fresh execution generation, recreates the workspace, and may retry the pure computation. Provider-mutating work does not use this path.
 
