@@ -108,34 +108,21 @@ func Execute(
 func validatePlan(envelopes []Envelope) error {
 	seen := make(map[string]struct{}, len(envelopes))
 	for index, envelope := range envelopes {
-		if envelope.RunID == "" || envelope.ObligationID == "" {
-			return fmt.Errorf("invalid execution identity at index %d", index)
+		if err := validateEnvelope(envelope, seen); err != nil {
+			return fmt.Errorf("invalid envelope at index %d: %w", index, err)
 		}
-		if envelope.ExecutionGeneration <= 0 {
-			return fmt.Errorf("invalid execution generation at index %d", index)
-		}
-		if envelope.ExecutionAuthorityCommit == "" || envelope.ClaimedRevision == "" {
-			return fmt.Errorf("incomplete execution authority at index %d", index)
-		}
-		if envelope.ExecutionCapability == "" || envelope.ExecutionCapabilitySHA256 == "" {
-			return fmt.Errorf("missing execution capability at index %d", index)
-		}
-		if envelope.ExecutionSpecSHA256 == "" {
-			return fmt.Errorf("missing execution spec digest at index %d", index)
-		}
-		digest := sha256.Sum256([]byte(envelope.ExecutionCapability))
-		if hex.EncodeToString(digest[:]) != envelope.ExecutionCapabilitySHA256 {
-			return fmt.Errorf("execution capability digest mismatch at index %d", index)
-		}
-		specDigest := sha256.Sum256(envelope.ExecutionSpec)
-		if "sha256:"+hex.EncodeToString(specDigest[:]) != envelope.ExecutionSpecSHA256 {
-			return fmt.Errorf("execution spec digest mismatch at index %d", index)
-		}
-		key := fmt.Sprintf("%s/%d/%s", envelope.RunID, envelope.ExecutionGeneration, envelope.ExecutionAuthorityCommit)
-		if _, exists := seen[key]; exists {
-			return fmt.Errorf("duplicate execution identity: %s", key)
-		}
-		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validateEnvelopeDigests(envelope Envelope) error {
+	digest := sha256.Sum256([]byte(envelope.ExecutionCapability))
+	if hex.EncodeToString(digest[:]) != envelope.ExecutionCapabilitySHA256 {
+		return errors.New("execution capability digest mismatch")
+	}
+	specDigest := sha256.Sum256(envelope.ExecutionSpec)
+	if "sha256:"+hex.EncodeToString(specDigest[:]) != envelope.ExecutionSpecSHA256 {
+		return errors.New("execution spec digest mismatch")
 	}
 	return nil
 }
