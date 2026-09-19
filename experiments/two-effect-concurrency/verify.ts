@@ -18,7 +18,7 @@ const token=required('GITHUB_TOKEN');
 const kernel=new GitOvercenterKernel(process.cwd(),{
   remote:'origin',
   ref:STATE_REF,
-  githubToken:token,
+  observationContext:{githubToken:token},
 });
 
 const works=kernel.inspect().filter(candidate=>{
