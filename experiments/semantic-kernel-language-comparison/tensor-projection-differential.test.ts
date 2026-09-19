@@ -154,7 +154,8 @@ function directTwoHop(input:Context):Proposal[] {
   return [...new Map(proposals.map(item=>[
     JSON.stringify(item),item,
   ])).values()].sort((a,b)=>canonicalStringCompare(
-    JSON.stringify(a),JSON.stringify(b),
+    JSON.stringify([a.source,a.left_relation,a.right_relation,a.target]),
+    JSON.stringify([b.source,b.left_relation,b.right_relation,b.target]),
   ));
 }
 
