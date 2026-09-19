@@ -61,7 +61,7 @@ func main() {
 		}
 		return
 	}
-	if err := serveUnixSocket(ctx, runtime, *socketPath, *socketGID); err != nil {
+	if err := serveUnixSocket(ctx, runtime, *socketPath, *socketGID, taskCredential); err != nil {
 		fail(err)
 	}
 }
@@ -110,16 +110,52 @@ func resolveTaskCredential(
 	}, nil
 }
 
+func validateSocketDirectory(
+	socketDirectory string,
+	taskCredential *executor.TaskCredential,
+) error {
+	if taskCredential == nil {
+		return errors.New("production socket requires task credentials")
+	}
+	info, err := os.Lstat(socketDirectory)
+	if err != nil {
+		return fmt.Errorf("inspect socket directory: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return errors.New("socket directory must be a real directory")
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return errors.New("socket directory ownership unavailable")
+	}
+	permissions := info.Mode().Perm()
+	if uint32(stat.Uid) == taskCredential.UID && permissions&0o200 != 0 {
+		return errors.New("task uid must not be able to write socket directory")
+	}
+	if uint32(stat.Gid) == taskCredential.GID && permissions&0o020 != 0 {
+		return errors.New("task gid must not be able to write socket directory")
+	}
+	if permissions&0o002 != 0 {
+		return errors.New("task must not be able to write socket directory through other permissions")
+	}
+	return nil
+}
+
 func serveUnixSocket(
 	ctx context.Context,
 	runtime *executor.Runtime,
 	socketPath string,
 	socketGID int,
+	taskCredential *executor.TaskCredential,
 ) error {
 	if !filepath.IsAbs(socketPath) {
 		return errors.New("socket path must be absolute")
 	}
-	if err := os.MkdirAll(filepath.Dir(socketPath), 0o750); err != nil {
+	socketDirectory := filepath.Dir(socketPath)
+	if err := os.MkdirAll(socketDirectory, 0o750); err != nil {
+		return err
+	}
+	if err := validateSocketDirectory(socketDirectory, taskCredential); err != nil {
 		return err
 	}
 	if _, err := os.Lstat(socketPath); err == nil {
