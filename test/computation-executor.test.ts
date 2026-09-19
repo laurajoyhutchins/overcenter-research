@@ -375,6 +375,28 @@ test('bounded capture retains full-stream digests',async()=>{
   }
 });
 
+test('trusted evidence accepts captures above the process-spec byte limit',async()=>{
+  const size=1024*1024+37;
+  const execution=computationExecution(
+    permit(22),
+    spec('large',String(size),{stdoutMax:size,stderrMax:0}),
+  );
+  const harness=await startExecutor(1);
+  const {client}=harness;
+  try {
+    const evidence=await client.execute(execution);
+    assert.equal(evidence.outcome,'completed');
+    assert.equal(Buffer.from(evidence.stdout_base64!,'base64').length,size);
+    assert.equal(evidence.stdout_truncated,false);
+    assert.equal(evidence.stdout_sha256,'sha256:'+sha256('x'.repeat(size)));
+    assert.equal(evidence.stderr_base64,undefined);
+    assert.equal(evidence.stderr_truncated,true);
+    assert.equal(evidence.stderr_sha256,'sha256:'+sha256('y'.repeat(size)));
+  } finally {
+    await harness.close();
+  }
+});
+
 test('exact spec bytes cannot change under an old digest',()=>{
   const execution=computationExecution(permit(3),spec('env'));
   const bytes=Buffer.from(execution.execution_spec_base64,'base64');
