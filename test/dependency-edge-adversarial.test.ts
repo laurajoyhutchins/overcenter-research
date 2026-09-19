@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import test from 'node:test';
+import { OBLIGATION_SCHEMA } from '../src/facts.ts';
 import {
   controlDependency,
   GitKernelFixture,
@@ -119,7 +120,7 @@ withFixture('semantic selector is part of durable edge meaning',f=>{
   });
 
   const fact=obligationFact(f,bDefinition);
-  assert.equal(fact.schema,'overcenter-git-obligation-v3');
+  assert.equal(fact.schema,OBLIGATION_SCHEMA);
   assert.equal('deps' in fact.obligation,false);
   assert.deepEqual(
     (fact.obligation as {dependencies?:unknown}).dependencies,
