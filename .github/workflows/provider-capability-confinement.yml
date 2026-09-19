@@ -1,0 +1,130 @@
+name: Provider capability confinement proof
+
+on:
+  push:
+    branches:
+      - experiment/physical-capability-confinement
+    paths:
+      - ".github/workflows/provider-capability-confinement.yml"
+      - "experiments/provider-capability-confinement/**"
+      - "src/effect-request.ts"
+      - "src/git-kernel.ts"
+      - ".node-version"
+  pull_request:
+    paths:
+      - ".github/workflows/provider-capability-confinement.yml"
+      - "experiments/provider-capability-confinement/**"
+      - "src/effect-request.ts"
+      - "src/git-kernel.ts"
+      - ".node-version"
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  authority:
+    name: Trusted authority defines one exact mutation
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Define and claim exact task capability
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types experiments/provider-capability-confinement/authority.ts
+
+  hostile-worker:
+    name: Untrusted worker forges requests without mutation credentials
+    needs: authority
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Attempt direct mutation and emit forged request bytes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types experiments/provider-capability-confinement/hostile-worker.ts
+      - name: Upload hostile requests
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: provider-capability-requests
+          path: candidate-requests
+          if-no-files-found: error
+          retention-days: 1
+
+  broker:
+    name: Trusted broker rejects drift, executes once, blocks replay
+    needs: hostile-worker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      statuses: write
+    outputs:
+      outcome: ${{ steps.broker.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: provider-capability-requests
+          path: candidate-requests
+      - id: broker
+        name: Validate exact request, mutate once, reject replay
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types experiments/provider-capability-confinement/broker.ts
+      - name: Confirm broker terminated after proof mutation
+        if: always()
+        env:
+          BROKER_OUTCOME: ${{ steps.broker.outcome }}
+        run: test "$BROKER_OUTCOME" = "failure"
+
+  recovery:
+    name: Fresh recovery proves one mutation and settles
+    needs: broker
+    if: ${{ always() && needs.broker.outputs.outcome == 'failure' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      statuses: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Recover from durable reservation and settle
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BROKER_OUTCOME: ${{ needs.broker.outputs.outcome }}
+        run: node --experimental-strip-types experiments/provider-capability-confinement/recovery.ts
