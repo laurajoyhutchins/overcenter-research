@@ -81,6 +81,67 @@ test('workflow run request uses generated parameters and remains positive-only',
   assert.equal(result.evidence.paginated,false);
 });
 
+
+test('new pull-request file collection is consumable through the generic certified reader',()=>{
+  const result=observeCertifiedGithubSemanticRead('token',{
+    repositoryId:42,
+    repositoryFullName:'acme/widget',
+    operation:'pull_request_files',
+    parameters:{pull_number:17},
+    get:(_token,path)=>{
+      if (path==='/repos/acme/widget') return repository();
+      assert.equal(path,'/repos/acme/widget/pulls/17/files');
+      return [{
+        sha:SHA,
+        filename:'src/kernel.ts',
+        status:'modified',
+        additions:4,
+        deletions:2,
+        changes:6,
+      }];
+    },
+  });
+
+  assert.equal(result.state,'observed');
+  if (result.state!=='observed') return;
+  assert.equal(result.evidence.operation_id,'pulls/list-files');
+  assert.equal(result.evidence.paginated,true);
+  assert.equal(Array.isArray(result.value),true);
+});
+
+test('new wrapped Actions collection is consumable through the generic certified reader',()=>{
+  const result=observeCertifiedGithubSemanticRead('token',{
+    repositoryId:42,
+    repositoryFullName:'acme/widget',
+    operation:'workflow_runs',
+    get:(_token,path)=>{
+      if (path==='/repos/acme/widget') return repository();
+      assert.equal(path,'/repos/acme/widget/actions/runs');
+      return {
+        total_count:1,
+        workflow_runs:[{
+          id:7001,
+          node_id:'WFR_7001',
+          workflow_id:88,
+          run_number:12,
+          run_attempt:1,
+          status:'completed',
+          conclusion:'success',
+          head_sha:SHA,
+          head_branch:'main',
+          updated_at:'2026-09-19T17:05:00Z',
+        }],
+      };
+    },
+  });
+
+  assert.equal(result.state,'observed');
+  if (result.state!=='observed') return;
+  assert.equal(result.evidence.operation_id,'actions/list-workflow-runs-for-repo');
+  assert.equal(result.evidence.paginated,true);
+  assert.equal((result.value as {total_count:number}).total_count,1);
+});
+
 test('failed or negative provider reads remain indeterminate rather than proving absence',()=>{
   const result=observeCertifiedGithubSemanticRead('token',{
     repositoryId:42,
