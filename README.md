@@ -49,7 +49,7 @@ Run the supported slice with:
 npm run proof:production
 ```
 
-That command is the same machinery CI uses: Go runtime tests, the cross-language exact-byte contract, container isolation and catastrophic-death containment, the real test-workload recovery proof, and the deterministic repository regression suite.
+That command is the same machinery CI uses: Go runtime tests, the cross-language exact-byte contract, a networkless read-only container boundary, confined no-follow result observation, catastrophic-death containment, the real test-workload recovery proof, hostile symlink/network checks, and the deterministic repository regression suite.
 
 ## What is Overcenter?
 
@@ -161,7 +161,7 @@ The command name states what kind of evidence a green check supports:
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
-| `npm run proof:production` | Supported production slice: Go executor contract/runtime, container isolation, catastrophic-death recovery, and deterministic regression. |
+| `npm run proof:production` | Supported production slice: Go executor contract/runtime, networkless/read-only containment, confined observation, catastrophic-death recovery, and deterministic regression. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
