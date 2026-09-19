@@ -494,7 +494,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     mixedOrdered.obligations['n-1'].dependencies=[
       dependency(0,'semantic'),
     ];
-    for(const order of stateOrders(state)){
+    for(const order of stateOrders(mixedOrdered)){
       const observed=await oracle.compare(
         leanRequest(mixedOrdered,'n-2',order),
       );
@@ -521,7 +521,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     mixedUnordered.obligations['n-2'].dependencies=[
       dependency(1,'semantic'),
     ];
-    for(const order of stateOrders(state)){
+    for(const order of stateOrders(mixedUnordered)){
       const observed=await oracle.compare(
         leanRequest(mixedUnordered,'n-2',order),
       );
@@ -547,7 +547,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     );
     multiEffectConflict.obligations['n-2'].postcondition=
       statusPostcondition('failure');
-    for(const order of stateOrders(state)){
+    for(const order of stateOrders(multiEffectConflict)){
       const observed=await oracle.compare(
         leanRequest(multiEffectConflict,'n-0',order),
       );
@@ -576,7 +576,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
         'failure',
         'overcenter/lean-oracle/other',
       );
-    for(const order of stateOrders(state)){
+    for(const order of stateOrders(multiEffectSafe)){
       const observed=await oracle.compare(
         leanRequest(multiEffectSafe,'n-0',order),
       );
