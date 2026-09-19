@@ -1,6 +1,8 @@
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 import { githubProofStateRef } from '../proof-environment.ts';
+import { canonicalDigest } from '../../src/digest.ts';
+import { bindTaskSession } from '../../src/effect-broker.ts';
 
 function required(name:string):string {
   const value=process.env[name];
@@ -32,6 +34,12 @@ if (!Number.isSafeInteger(repositoryInfo.id)) throw new Error('REPOSITORY_ID_UNA
 
 const obligationId='provider-capability-confinement-'+runId+'-'+attempt;
 const context='overcenter/capability-confinement/'+runId+'/'+attempt;
+const expectedResult={
+  kind:'provider-capability-confinement-result/v1',
+  source_sha:sourceSha,
+  authorized_write_status:403,
+  forged_write_status:403,
+};
 
 const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:stateRef});
 kernel.initialize();
@@ -60,11 +68,22 @@ kernel.define({
     context,
     expected_state:'success',
   },
+  effect_authority:{
+    contract:'github-commit-status/set-from-postcondition/v1',
+  },
+  result_acceptance:{
+    verifier:'canonical-json-sha256/v1',
+    expected_sha256:canonicalDigest(expectedResult),
+  },
 });
 
 const work=kernel.inspect().find(candidate=>candidate.id===obligationId);
 if (!work) throw new Error('CAPABILITY_OBLIGATION_MISSING');
-const claim=kernel.claim(work.id,work.revision);
+kernel.claim(work.id,work.revision);
+const claimed=kernel.inspect().find(candidate=>candidate.id===obligationId);
+if (!claimed) throw new Error('CLAIMED_WORK_MISSING');
+const session=bindTaskSession(claimed);
+writeFileSync('task-session.json',JSON.stringify(session,null,2)+'\n');
 
 const summary=process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
@@ -74,8 +93,9 @@ if (summary) {
     '- Obligation: '+obligationId,
     '- Exact source: '+sourceSha,
     '- Authorized status context: '+context,
-    '- Run: '+claim.id,
-    '- Worker starts at generation 1 but receives no execution capability secret and no provider write permission.',
+    '- Run: '+session.run_id,
+    '- TaskSession was bound at dispatch generation 1 before worker execution.',
+    '- Effect authority and result acceptance are explicit immutable obligation fields.',
     '',
   ].join('\n'));
 }
@@ -84,6 +104,6 @@ console.log(JSON.stringify({
   obligation_id:obligationId,
   repository_id:repositoryInfo.id,
   context,
-  run_id:claim.id,
-  claimed_revision:claim.claimed_revision,
+  session,
+  expected_result_sha256:canonicalDigest(expectedResult),
 }));
