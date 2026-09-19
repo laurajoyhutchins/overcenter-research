@@ -31,7 +31,13 @@ jobs:
         with:
           node-version-file: '.node-version'
       - name: Build isolated dogfood executor
-        run: docker build -f executor/dogfood/Dockerfile -t "$OVERCENTER_DOGFOOD_IMAGE" .
+        run: |
+          docker build \
+            --build-arg GO_VERSION="$(cat .go-version)" \
+            --build-arg NODE_VERSION="$(cat .node-version)" \
+            -f executor/dogfood/Dockerfile \
+            -t "$OVERCENTER_DOGFOOD_IMAGE" \
+            .
       - name: Let Overcenter verify this exact revision
         run: |
           set -euo pipefail
