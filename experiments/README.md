@@ -18,6 +18,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
+- `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
 
 Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/support/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 
@@ -201,6 +202,7 @@ npm run proof:local                  # adversarial local experiments
 npm run test:kubernetes-observation # focused deterministic Kubernetes semantics
 npm run test:lisp-semantics          # focused semantic-coherence experiment
 npm run test:datalog                # Soufflé projection differential
+npm run test:bounded-graph          # exhaustive bounded graph/state model
 ```
 
 Focused commands are listed in [`../README.md`](../README.md) and `package.json`.
