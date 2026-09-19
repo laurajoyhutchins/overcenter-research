@@ -512,7 +512,7 @@ export class GitOvercenterKernel {
 
 export async function runGitCoreLoop(
   kernel:GitOvercenterKernel,
-  {preflight,effect,maxAdvances=100}:LoopOptions,
+  {preflight,realizationWorker,effect,maxAdvances=100}:LoopOptions,
 ):Promise<LoopResult> {
   kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
@@ -522,6 +522,21 @@ export async function runGitCoreLoop(
       if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
       return {state:'IDLE',advances:i};
     }
+
+    if (work.postcondition.verifier==='realization-content/v1') {
+      if (!realizationWorker) throw new Error('REALIZATION_WORKER_REQUIRED');
+      const candidate=await realizationWorker(work.packet);
+      try {
+        kernel.recordRealization(work.id,candidate,work.revision);
+      } catch (error:unknown) {
+        const message=errorMessage(error);
+        if (message==='STALE_REVISION' || message==='REALIZATION_LOST') continue;
+        throw error;
+      }
+      continue;
+    }
+
+    if (!effect) throw new Error('EFFECT_HANDLER_REQUIRED');
 
     let run:ExecutionPermit;
     try {

@@ -1,4 +1,7 @@
-import type { RealizationDeclaration } from './realization.ts';
+import type {
+  RealizationCandidate,
+  RealizationDeclaration,
+} from './realization.ts';
 
 export type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
 export type WorkStatus = LifecycleStatus | 'BLOCKED';
@@ -151,7 +154,8 @@ export interface PreflightOutcome extends Data {
 
 export interface LoopOptions {
   preflight?: (packet: Data) => Promise<PreflightOutcome>;
-  effect: (packet: Data) => Promise<ExecuteOutcome>;
+  realizationWorker?: (packet: Data) => Promise<RealizationCandidate>;
+  effect?: (packet: Data) => Promise<ExecuteOutcome>;
   maxAdvances?: number;
 }
 
