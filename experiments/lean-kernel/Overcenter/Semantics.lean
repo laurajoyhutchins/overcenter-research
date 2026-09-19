@@ -53,35 +53,35 @@ def localFileEnoentAuthoritative (coordinate : Coordinate) (evidence : AbsenceEv
   | _, _ => false
 
 def validKubernetesMember
-    (namespace targetName : String)
+    (namespaceName targetName : String)
     (member : KubernetesListMember) : Bool :=
   !member.name.isEmpty &&
-  member.namespace == namespace &&
+  member.namespaceName == namespaceName &&
   !member.uid.isEmpty &&
   !member.resourceVersion.isEmpty &&
   member.name != targetName
 
 def validKubernetesPage
-    (namespace targetName snapshotResourceVersion : String)
+    (namespaceName targetName snapshotResourceVersion : String)
     (expectedRequest : Option String)
     (page : KubernetesListPage) : Bool :=
   page.requestContinue == expectedRequest &&
   page.snapshotResourceVersion == snapshotResourceVersion &&
-  page.members.all (validKubernetesMember namespace targetName)
+  page.members.all (validKubernetesMember namespaceName targetName)
 
 def validKubernetesPages
-    (namespace targetName snapshotResourceVersion : String)
+    (namespaceName targetName snapshotResourceVersion : String)
     (expectedRequest : Option String) :
     List KubernetesListPage → Bool
   | [] => false
   | page :: [] =>
-      validKubernetesPage namespace targetName snapshotResourceVersion expectedRequest page &&
+      validKubernetesPage namespaceName targetName snapshotResourceVersion expectedRequest page &&
       page.responseContinue == ""
   | page :: next :: rest =>
-      validKubernetesPage namespace targetName snapshotResourceVersion expectedRequest page &&
+      validKubernetesPage namespaceName targetName snapshotResourceVersion expectedRequest page &&
       !page.responseContinue.isEmpty &&
       validKubernetesPages
-        namespace
+        namespaceName
         targetName
         snapshotResourceVersion
         (some page.responseContinue)
@@ -89,7 +89,7 @@ def validKubernetesPages
 
 def kubernetesAbsenceAuthoritative (coordinate : Coordinate) (evidence : AbsenceEvidence) : Bool :=
   match coordinate, evidence with
-  | .kubernetesConfigMap authorityId namespace targetName,
+  | .kubernetesConfigMap authorityId namespaceName targetName,
     .kubernetesCompleteList
       evidenceAuthorityId
       evidenceNamespace
@@ -97,10 +97,10 @@ def kubernetesAbsenceAuthoritative (coordinate : Coordinate) (evidence : Absence
       snapshotResourceVersion
       pages =>
       evidenceAuthorityId == authorityId &&
-      evidenceNamespace == namespace &&
+      evidenceNamespace == namespaceName &&
       evidenceTargetName == targetName &&
       !snapshotResourceVersion.isEmpty &&
-      validKubernetesPages namespace targetName snapshotResourceVersion none pages
+      validKubernetesPages namespaceName targetName snapshotResourceVersion none pages
   | _, _ => false
 
 def authoritativeAbsence (postcondition : Postcondition) (observation : Observation) : Bool :=
