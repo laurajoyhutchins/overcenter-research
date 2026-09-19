@@ -80,7 +80,7 @@ function state(
   };
 }
 
-test('derives the physical GitHub status coordinate and provider witness',()=>{
+test('derives the physical GitHub status coordinate and settlement-equivalence witness',()=>{
   const footprint=deriveMutationCapabilityFootprint(status('success'));
   assert.ok(footprint);
   assert.equal(
@@ -88,7 +88,7 @@ test('derives the physical GitHub status coordinate and provider witness',()=>{
     `github-status:123:${'a'.repeat(40)}:overcenter/build`,
   );
   assert.equal(footprint.semantic_operation,'success');
-  assert.match(footprint.equivalence_witness_digest??'',/^[0-9a-f]{64}$/);
+  assert.match(footprint.settlement_equivalence_witness_digest??'',/^[0-9a-f]{64}$/);
 });
 
 test('GitHub status context case is normalized before capability derivation',()=>{
@@ -102,8 +102,8 @@ test('GitHub status context case is normalized before capability derivation',()=
   assert.ok(lower);
   assert.equal(upper.physical_resource,lower.physical_resource);
   assert.equal(
-    upper.equivalence_witness_digest,
-    lower.equivalence_witness_digest,
+    upper.settlement_equivalence_witness_digest,
+    lower.settlement_equivalence_witness_digest,
   );
 });
 
@@ -114,8 +114,8 @@ test('GitHub v2 repository rename does not change capability identity',()=>{
   assert.ok(after);
   assert.equal(before.physical_resource,after.physical_resource);
   assert.equal(
-    before.equivalence_witness_digest,
-    after.equivalence_witness_digest,
+    before.settlement_equivalence_witness_digest,
+    after.settlement_equivalence_witness_digest,
   );
 });
 
@@ -149,12 +149,12 @@ test('different normalized context derives disjoint physical capabilities',()=>{
   );
 });
 
-test('same coordinate and same provider witness derives adapter-level commutative overlap',()=>{
+test('same coordinate and same settlement-equivalence witness derives adapter-level commutative overlap',()=>{
   const relation=deriveCapabilityRelation(
     status('success',{context:'overcenter/Build'}),
     status('success',{context:'overcenter/build'}),
   );
-  assert.equal(relation.kind,'parallel-adapter-commutative');
+  assert.equal(relation.kind,'parallel-settlement-equivalent');
 });
 
 test('same coordinate and incompatible desired state derives ordering requirement',()=>{
@@ -169,12 +169,12 @@ test('matching resource and operation are insufficient without matching witness 
   const left:MutationCapabilityFootprint={
     physical_resource:'provider:resource',
     semantic_operation:'same',
-    equivalence_witness_digest:'a'.repeat(64),
+    settlement_equivalence_witness_digest:'a'.repeat(64),
   };
   const right:MutationCapabilityFootprint={
     physical_resource:'provider:resource',
     semantic_operation:'same',
-    equivalence_witness_digest:'b'.repeat(64),
+    settlement_equivalence_witness_digest:'b'.repeat(64),
   };
   assert.equal(classifyCapabilityRelation(left,right).kind,'ordered-conflict');
 });
@@ -193,12 +193,12 @@ test('derived disjoint relation agrees with admission accepting unordered effect
   assert.doesNotThrow(()=>validateAdmission(state(left,right)));
 });
 
-test('derived witness overlap agrees with admission accepting same-contract identical effects',()=>{
+test('derived settlement-equivalent overlap agrees with admission accepting same-contract identical effects',()=>{
   const left=status('success',{context:'overcenter/Build'});
   const right=status('success',{context:'overcenter/build'});
   assert.equal(
     deriveCapabilityRelation(left,right).kind,
-    'parallel-adapter-commutative',
+    'parallel-settlement-equivalent',
   );
   assert.doesNotThrow(()=>validateAdmission(state(left,right)));
 });
