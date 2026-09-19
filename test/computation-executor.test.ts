@@ -24,6 +24,7 @@ import {
   type ProcessSpecV1,
 } from '../src/computation-execution.ts';
 import {
+  REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
   TEST_COMPUTATION_PACKET_SCHEMA,
   resumeTestComputation,
   runReadyTestComputation,
@@ -46,6 +47,7 @@ execFileSync('go',['build','-o',binary,'./cmd/overcenter-executor'],{
 after(()=>rmSync(scratch,{recursive:true,force:true}));
 
 const sha256=(value:string|Buffer)=>createHash('sha256').update(value).digest('hex');
+const testExecutionContext='sha256:'+sha256('test-execution-context');
 
 let executorSequence=0;
 let kernelSequence=0;
@@ -61,6 +63,7 @@ interface ExecutorHarness {
 async function startExecutor(
   maxConcurrency:number,
   workspaceRoot=workspace,
+  executionContextSha256=testExecutionContext,
 ):Promise<ExecutorHarness> {
   const socketPath=join(scratch,`executor-${executorSequence++}.sock`);
   rmSync(socketPath,{force:true});
@@ -108,7 +111,7 @@ async function startExecutor(
     });
   };
 
-  const client=new GoExecutorClient({socketPath,maxConcurrency});
+  const client=new GoExecutorClient({socketPath,maxConcurrency,executionContextSha256});
   return {
     client,
     child,
@@ -527,6 +530,53 @@ test('test workload crosses Go but settles only by independent observation',asyn
   }
 });
 
+test('failed process evidence cannot turn a forged marker into DONE',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`failed-marker-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
+  const output=join(workdir,'result.txt');
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:process.execPath,
+        argv:[
+          '-e',
+          `require('node:fs').writeFileSync(${JSON.stringify(output)},'passed'); process.exit(1)`,
+        ],
+        cwd:'.',
+        env:{},
+        timeout_ms:5000,
+        stdout_max_bytes:4096,
+        stderr_max_bytes:4096,
+      },
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const harness=await startExecutor(1,workdir);
+  try {
+    const result=await runReadyTestComputation(state.kernel,harness.client);
+    assert.ok(result);
+    assert.equal(result.evidence?.outcome,'failed');
+    assert.equal(result.evidence?.exit_code,1);
+    assert.equal(readFileSync(output,'utf8'),'passed');
+    assert.equal(result.state,'RECOVERY_REQUIRED');
+    assert.equal(result.receipt.verified,false);
+    assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await harness.close();
+  }
+});
+
 test('successful process evidence is not project truth',async()=>{
   const state=kernelFixture();
   const workdir=join(scratch,`test-observation-${executorSequence++}`);
@@ -580,8 +630,9 @@ test('executor death reconstructs test work with a fresh generation and workspac
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
       kind:'test',
+      execution_context_sha256:testExecutionContext,
       process_spec:spec('delayed-write-file','passed',{
         pidFile:output,
         timeoutMs:5000,
@@ -637,6 +688,88 @@ test('executor death reconstructs test work with a fresh generation and workspac
   } finally {
     await second.close();
   }
+});
+
+test('legacy computation cannot replay without a bound execution context',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`legacy-replay-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
+  const output=join(workdir,'result.txt');
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:spec('delayed-write-file','passed',{
+        pidFile:output,
+        timeoutMs:5000,
+      }),
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const first=await startExecutor(1,workdir);
+  const pending=runReadyTestComputation(state.kernel,first.client);
+  await new Promise(resolve=>setTimeout(resolve,100));
+  await first.abort();
+  const interrupted=await pending;
+  assert.ok(interrupted);
+  assert.equal(interrupted.state,'RECOVERY_REQUIRED');
+
+  await assert.rejects(
+    resumeTestComputation(state.kernel,{
+      executionContextSha256:testExecutionContext,
+      execute:async()=>{ throw new Error('must not execute'); },
+    },interrupted.run_id),
+    /TEST_COMPUTATION_REPLAY_IDENTITY_UNPROVEN/,
+  );
+  assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
+});
+
+test('replay-safe computation rejects a changed execution context before rotating generation',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`context-mismatch-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
+  const output=join(workdir,'result.txt');
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      execution_context_sha256:testExecutionContext,
+      process_spec:spec('delayed-write-file','passed',{
+        pidFile:output,
+        timeoutMs:5000,
+      }),
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const first=await startExecutor(1,workdir,testExecutionContext);
+  const pending=runReadyTestComputation(state.kernel,first.client);
+  await new Promise(resolve=>setTimeout(resolve,100));
+  await first.abort();
+  const interrupted=await pending;
+  assert.ok(interrupted);
+  assert.equal(interrupted.state,'RECOVERY_REQUIRED');
+
+  const wrong='sha256:'+sha256('different-execution-context');
+  await assert.rejects(
+    resumeTestComputation(state.kernel,{
+      executionContextSha256:wrong,
+      execute:async()=>{ throw new Error('must not execute'); },
+    },interrupted.run_id),
+    /TEST_COMPUTATION_EXECUTION_CONTEXT_MISMATCH/,
+  );
+  assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
 });
 
 test('invalid test computation packet fails before durable claim',async()=>{
