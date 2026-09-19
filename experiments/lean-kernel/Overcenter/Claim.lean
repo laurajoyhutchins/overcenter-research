@@ -1,4 +1,4 @@
-import Overcenter.Model
+import Overcenter.Semantics
 
 namespace Overcenter
 
@@ -55,6 +55,11 @@ structure HistoricalClaimRun where
   settlementCommit : Option String
   deriving Repr, BEq, DecidableEq
 
+structure FreshClaimObservation where
+  obligationId : String
+  observation : Observation
+  deriving Repr, BEq, DecidableEq
+
 inductive ClaimLifecycle where
   | unrealized
   | executing
@@ -96,6 +101,23 @@ def findClaimObligation
     (obligations : List ClaimObligation)
     (id : String) : Option ClaimObligation :=
   obligations.find? (fun obligation => obligation.id == id)
+
+def freshClaimObservationFor
+    (freshObservations : List FreshClaimObservation)
+    (obligationId : String) : Option Observation :=
+  match freshObservations.filter (fun fresh => fresh.obligationId == obligationId) with
+  | [fresh] => some fresh.observation
+  | _ => none
+
+def historicalDoneReusable
+    (obligation : ClaimObligation)
+    (freshObservations : List FreshClaimObservation) : Bool :=
+  match realizationStability obligation.postcondition.family with
+  | .immutable => true
+  | .mutableExternal =>
+      match freshClaimObservationFor freshObservations obligation.id with
+      | none => false
+      | some observation => verifies obligation.postcondition observation
 
 def claimVerifiedContentIdentity
     (postcondition : Postcondition) : ClaimSemanticIdentity :=
@@ -151,6 +173,7 @@ mutual
   def deriveClaimLifecycle
       (obligations : List ClaimObligation)
       (runs : List HistoricalClaimRun)
+      (freshObservations : List FreshClaimObservation)
       (id : String)
       (fuel : Nat) : Option ClaimLifecycle :=
     match fuel with
@@ -159,11 +182,23 @@ mutual
         match findClaimObligation obligations id with
         | none => none
         | some obligation =>
-            match deriveClaimObligationKey obligations runs obligation fuel with
+            match deriveClaimObligationKey obligations runs freshObservations obligation fuel with
             | none => some .unrealized
             | some key =>
                 match latestDoneRun runs id key with
-                | some _ => some .done
+                | some _ =>
+                    if historicalDoneReusable obligation freshObservations then
+                      some .done
+                    else
+                      match latestMatchingRun runs id key with
+                      | some run =>
+                          match run.disposition with
+                          | .executing => some .executing
+                          | .waiting => some .waiting
+                          | .recoveryRequired => some .recoveryRequired
+                          | .done => some .unrealized
+                          | .ready => some .unrealized
+                      | none => some .unrealized
                 | none =>
                     match latestMatchingRun runs id key with
                     | none => some .unrealized
@@ -172,12 +207,13 @@ mutual
                         | .executing => some .executing
                         | .waiting => some .waiting
                         | .recoveryRequired => some .recoveryRequired
-                        | .done => some .done
+                        | .done => some .unrealized
                         | .ready => some .unrealized
 
   def deriveClaimSemanticIdentity
       (obligations : List ClaimObligation)
       (runs : List HistoricalClaimRun)
+      (freshObservations : List FreshClaimObservation)
       (upstream : String)
       (selector : ClaimSemanticSelector)
       (fuel : Nat) : Option ClaimSemanticIdentity :=
@@ -187,23 +223,27 @@ mutual
         match findClaimObligation obligations upstream with
         | none => none
         | some upstreamObligation =>
-            match deriveClaimObligationKey obligations runs upstreamObligation fuel with
+            match deriveClaimObligationKey obligations runs freshObservations upstreamObligation fuel with
             | none => none
             | some upstreamKey =>
                 match latestDoneRun runs upstream upstreamKey with
                 | none => none
                 | some doneRun =>
-                    match selector with
-                    | .verifiedContent =>
-                        some (claimVerifiedContentIdentity upstreamObligation.postcondition)
-                    | .settlementReceipt =>
-                        match doneRun.settlementCommit with
-                        | none => none
-                        | some commit => some (.settlementReceipt commit)
+                    if !historicalDoneReusable upstreamObligation freshObservations then
+                      none
+                    else
+                      match selector with
+                      | .verifiedContent =>
+                          some (claimVerifiedContentIdentity upstreamObligation.postcondition)
+                      | .settlementReceipt =>
+                          match doneRun.settlementCommit with
+                          | none => none
+                          | some commit => some (.settlementReceipt commit)
 
   def deriveClaimObligationKey
       (obligations : List ClaimObligation)
       (runs : List HistoricalClaimRun)
+      (freshObservations : List FreshClaimObservation)
       (obligation : ClaimObligation)
       (fuel : Nat) : Option ClaimObligationKey :=
     match fuel with
@@ -218,7 +258,13 @@ mutual
             Option (List ClaimSemanticInput)
           | [] => some []
           | (upstream, selector) :: rest =>
-              match deriveClaimSemanticIdentity obligations runs upstream selector fuel with
+              match deriveClaimSemanticIdentity
+                obligations
+                runs
+                freshObservations
+                upstream
+                selector
+                fuel with
               | none => none
               | some identity =>
                   match consume rest with
@@ -238,11 +284,13 @@ end
 def claimDependenciesDone
     (obligations : List ClaimObligation)
     (runs : List HistoricalClaimRun)
+    (freshObservations : List FreshClaimObservation)
     (obligation : ClaimObligation) : Bool :=
   obligation.dependencies.all (fun dependency =>
     deriveClaimLifecycle
       obligations
       runs
+      freshObservations
       (claimDependencyUpstream dependency)
       (obligations.length + 1) == some .done)
 
@@ -254,6 +302,7 @@ def admitClaim
     (currentRevision : String)
     (obligations : List ClaimObligation)
     (runs : List HistoricalClaimRun)
+    (freshObservations : List FreshClaimObservation)
     (candidate : ClaimCandidate) : ClaimAdmissionResult :=
   match findClaimObligation obligations candidate.obligationId with
   | none => .rejected .unknownObligation
@@ -268,18 +317,20 @@ def admitClaim
         match deriveClaimLifecycle
           obligations
           runs
+          freshObservations
           obligation.id
           (obligations.length + 1) with
         | none => .rejected .unresolvedSemanticDependency
         | some lifecycle =>
             if lifecycle != .unrealized then
               .rejected .claimWhileNotReady
-            else if !claimDependenciesDone obligations runs obligation then
+            else if !claimDependenciesDone obligations runs freshObservations obligation then
               .rejected .unsatisfiedDependencies
             else
               match deriveClaimObligationKey
                 obligations
                 runs
+                freshObservations
                 obligation
                 (obligations.length + 1) with
               | none => .rejected .unresolvedSemanticDependency
