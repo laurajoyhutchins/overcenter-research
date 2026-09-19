@@ -309,18 +309,14 @@ export function analyze({root,config}){
   }
 
   const attentionPolicy=config.rankingPolicy?.attention??{
-    consequenceWeight:5,
-    weights:{E:3,C:1},
-    interactions:{BE:1.5},
+    multipliers:{E:1,C:.1,BE:.5},
   };
-  const aw=attentionPolicy.weights??{};
-  const ai=attentionPolicy.interactions??{};
-  const attentionMax=(attentionPolicy.consequenceWeight??0)+Object.values(aw).reduce((a,b)=>a+b,0)+Object.values(ai).reduce((a,b)=>a+b,0);
+  const am=attentionPolicy.multipliers??{};
+  const attentionMaxFactor=1+Object.values(am).reduce((a,b)=>a+b,0);
   for(const m of metrics){
     const v=m.vector;
-    const raw=(attentionPolicy.consequenceWeight??0)*(m.consequenceScore/100)
-      +(aw.E??0)*v.E+(aw.C??0)*v.C+(ai.BE??0)*v.B*v.E;
-    m.attentionScore=100*raw/attentionMax;
+    const factor=1+(am.E??0)*v.E+(am.C??0)*v.C+(am.BE??0)*v.B*v.E;
+    m.attentionScore=100*(m.consequenceScore/100)*factor/attentionMaxFactor;
   }
 
   metrics.sort((a,b)=>b.consequenceScore-a.consequenceScore||a.id.localeCompare(b.id));

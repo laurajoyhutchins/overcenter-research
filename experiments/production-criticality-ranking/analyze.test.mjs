@@ -11,7 +11,7 @@ function git(root,args,env={}){return execFileSync('git',args,{cwd:root,encoding
 
 test('ranks only production callables and derives structural authority/evidence metrics',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-'));
-  write(root,'src/core.ts',`export function settle(){ return helper(); }\nfunction helper(){ return 1; }\nexport function low(){ return 0; }\nexport function recover(){ return settle(); }\n`);
+  write(root,'src/core.ts',`export function settle(){ return helper(); }\nfunction helper(){ return 1; }\nexport function low(){ return 0; }\nexport function recover(){ return settle(); }\nfunction inert(){ return 0; }\n`);
   write(root,'test/core.test.ts',`import {settle} from '../src/core.ts';\nexport function regression(){ return settle(); }\n`);
   write(root,'experiments/demo/demo.test.ts',`import {settle} from '../../src/core.ts';\nexport function adversarial(){ return settle(); }\n`);
   git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture'],{'GIT_AUTHOR_DATE':'2026-09-01T00:00:00Z','GIT_COMMITTER_DATE':'2026-09-01T00:00:00Z'});
@@ -24,12 +24,12 @@ test('ranks only production callables and derives structural authority/evidence 
     calibrationPairs:[{id:'settle-over-low',higher:{file:'src/core.ts',name:'settle'},lower:{file:'src/core.ts',name:'low'}}],
   };
   const r=analyze({root,config});
-  assert.equal(r.population.productionCallables,4);
+  assert.equal(r.population.productionCallables,5);
   assert.equal(r.ranking.some(x=>x.file.startsWith('test/')),false);
   assert.equal(r.ranking.some(x=>x.file.startsWith('experiments/')),false);
   const settle=r.ranking.find(x=>x.name==='settle');
   const helper=r.ranking.find(x=>x.name==='helper');
-  const low=r.ranking.find(x=>x.name==='low');
+  const low=r.ranking.find(x=>x.name==='low');\n  const inert=r.ranking.find(x=>x.name==='inert');
   assert.equal(settle.vector.A,1);
   assert.equal(helper.vector.A,1,'helper should inherit authority from the settlement path');
   assert.equal(settle.vector.E,0,'test + experiment support closes the two-tier proxy gap');
@@ -37,5 +37,5 @@ test('ranks only production callables and derives structural authority/evidence 
   assert.equal(r.calibration.agreement,1);
   assert.ok(settle.consequenceScore>low.consequenceScore);
   assert.ok(Number.isFinite(settle.attentionScore));
-  assert.ok(settle.consequenceRank<low.consequenceRank);
+  assert.ok(settle.consequenceRank<low.consequenceRank);\n  assert.equal(inert.consequenceScore,0,'isolated unexported code has no measured consequence in the fixture');\n  assert.equal(inert.attentionScore,0,'evidence gap and churn cannot create attention without consequence');
 });

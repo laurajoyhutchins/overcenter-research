@@ -124,7 +124,7 @@
     }
   ],
   "rankingPolicy": {
-    "version": "criticality-ranking/v2",
+    "version": "criticality-ranking/v3",
     "consequence": {
       "weights": {
         "A": 4,
@@ -139,13 +139,10 @@
       }
     },
     "attention": {
-      "consequenceWeight": 5,
-      "weights": {
-        "E": 3,
-        "C": 1
-      },
-      "interactions": {
-        "BE": 1.5
+      "multipliers": {
+        "E": 1,
+        "C": 0.1,
+        "BE": 0.5
       }
     }
   },

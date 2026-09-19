@@ -66,7 +66,7 @@ inputs      = A, B, I, F, R, X
 attention = wc*consequence + wE*E + wC*C + λBE*(B*E)
 ```
 
-Evidence gap `E` and change exposure `C` therefore cannot make code more consequential; they can only increase attention. Prior human ranking judgments calibrate the consequence order. Both scores are normalized to 0-100 only for presentation, and stable unit ID breaks ties.
+Evidence gap `E` and change exposure `C` therefore cannot make code more consequential, and they cannot create attention from zero-consequence code. They only multiply the priority of code that already has measured consequence. Prior human ranking judgments calibrate the consequence order. Both scores are normalized to 0-100 only for presentation, and stable unit ID breaks ties.
 
 The policies in `config.json` are expected to change. Changing either policy does not alter the measured vector.
 

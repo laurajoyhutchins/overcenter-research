@@ -17,14 +17,55 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: criticality-mutation-${{ github.event.pull_request.number || github.ref }}
+  group: criticality-mutation-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      run_probe: ${{ steps.changed.outputs.run_probe }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - id: changed
+        name: Detect mutation-relevant change
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after || github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" || "$ACTION" != "synchronize" || -z "$BEFORE" ]]; then
+            echo "run_probe=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BEFORE" "$AFTER" -- \
+            src/digest.ts \
+            src/semantic-identity.ts \
+            src/projector.ts \
+            src/kernel-core.ts \
+            src/observation.ts \
+            experiments/production-criticality-ranking/mutation-probes.json \
+            experiments/production-criticality-ranking/resolve-mutation-probes.mjs \
+            experiments/production-criticality-ranking/stryker.config.mjs \
+            experiments/production-criticality-ranking/summarize-mutation.mjs \
+            experiments/production-criticality-ranking/summarize-mutation.test.mjs \
+            .github/workflows/production-criticality-mutation-probe.yml | grep -q .; then
+            echo "run_probe=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_probe=false" >> "$GITHUB_OUTPUT"
+          fi
+
   mutate:
+    needs: detect
+    if: needs.detect.outputs.run_probe == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -37,6 +78,8 @@ jobs:
           node-version-file: .node-version
       - name: Install pinned mutation engine
         run: npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0 typescript@5.8.3
+      - name: Resolve semantic mutation probes
+        run: node experiments/production-criticality-ranking/resolve-mutation-probes.mjs mutation-ranges.json
       - name: Prove mutation summarizer
         run: node --test experiments/production-criticality-ranking/summarize-mutation.test.mjs
       - name: Probe hostile mutations
@@ -56,5 +99,6 @@ jobs:
           name: production-criticality-mutation-probe
           path: |
             mutation.json
+            mutation-ranges.json
             mutation-summary.md
           if-no-files-found: ignore
