@@ -2,6 +2,8 @@ package kubeobserver
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,8 +55,9 @@ type PageRequest struct {
 }
 
 type PageResponse struct {
-	Status int             `json:"status"`
-	Value  json.RawMessage `json:"value,omitempty"`
+	Status     int    `json:"status"`
+	BodyBase64 string `json:"body_base64"`
+	BodySHA256 string `json:"body_sha256"`
 }
 
 type listEnvelope struct {
@@ -105,6 +108,7 @@ func CollectListTrace(ctx context.Context, cfg Config) (Trace, error) {
 			return trace, fmt.Errorf("close list page %d: %w", pageNumber, closeErr)
 		}
 
+		bodyDigest := sha256.Sum256(body)
 		requestToken := cloneStringPointer(continueToken)
 		trace.Pages = append(trace.Pages, Page{
 			ObservedAt: time.Now().UTC().Format(time.RFC3339Nano),
@@ -115,18 +119,21 @@ func CollectListTrace(ctx context.Context, cfg Config) (Trace, error) {
 				Path:          path,
 			},
 			Response: PageResponse{
-				Status: resp.StatusCode,
-				Value:  append(json.RawMessage(nil), body...),
+				Status:     resp.StatusCode,
+				BodyBase64: base64.StdEncoding.EncodeToString(body),
+				BodySHA256: fmt.Sprintf("sha256:%x", bodyDigest),
 			},
 		})
 
-		// Non-200 responses are evidence too. Record the page and stop. The
-		// semantic layer decides whether a particular status means expired,
-		// absent, retryable, or indeterminate.
+		// Non-200 responses are evidence too. Record exact response bytes and
+		// stop. The semantic layer decides whether a particular status means
+		// expired, absent, retryable, or indeterminate.
 		if resp.StatusCode != http.StatusOK {
 			return trace, nil
 		}
 
+		// Parsing continue is transport control only. ResourceVersion, object
+		// identity, completeness, and absence semantics remain outside Go.
 		var envelope listEnvelope
 		if err := json.Unmarshal(body, &envelope); err != nil {
 			return trace, fmt.Errorf("decode list page %d: %w", pageNumber, err)
