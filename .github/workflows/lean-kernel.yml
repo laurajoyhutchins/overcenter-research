@@ -1,0 +1,90 @@
+name: Lean semantic kernel proof
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - experiments/lean-kernel/**
+      - .github/workflows/lean-kernel.yml
+      - src/digest.ts
+      - src/evidence.ts
+      - src/facts.ts
+      - src/model.ts
+      - src/observation.ts
+      - src/projection.ts
+      - src/semantics.ts
+  push:
+    branches:
+      - main
+    paths:
+      - experiments/lean-kernel/**
+      - .github/workflows/lean-kernel.yml
+      - src/digest.ts
+      - src/evidence.ts
+      - src/facts.ts
+      - src/model.ts
+      - src/observation.ts
+      - src/projection.ts
+      - src/semantics.ts
+
+permissions:
+  contents: read
+
+jobs:
+  lean-kernel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Build Lean kernel
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          lake-package-directory: experiments/lean-kernel
+          auto-config: false
+          build: true
+          test: false
+          lint: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          leanchecker: false
+
+      - name: Replay declarations with Lean checker
+        working-directory: experiments/lean-kernel
+        run: lake env leanchecker Overcenter
+
+      - name: Execute compiled kernel witness
+        run: ./experiments/lean-kernel/.lake/build/bin/overcenterKernel
+
+      - name: Differential settlement proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/differential.test.ts
+
+      - name: Witness current mutable-reuse gap
+        run: node --experimental-strip-types --test experiments/lean-kernel/reuse-gap.test.ts
+
+      - name: Kubernetes serialized evidence proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/kubernetes-protocol.test.ts
+
+      - name: Kubernetes provider differential proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/kubernetes-differential.test.ts
+
+      - name: Kubernetes WATCH continuity proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/kubernetes-watch-protocol.test.ts
+
+      - name: Kubernetes WATCH differential proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/kubernetes-watch-differential.test.ts
+
+      - name: Execution replay differential proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/execution-replay-differential.test.ts
+
+      - name: Claim admission differential proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/claim-admission-differential.test.ts
+
+      - name: Static effect ordering differential proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/effect-ordering-differential.test.ts
