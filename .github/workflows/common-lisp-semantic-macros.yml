@@ -1,0 +1,25 @@
+name: Common Lisp semantic macro proof
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/lisp-macros/**'
+      - '.github/workflows/common-lisp-semantic-macros.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    name: Semantic macro hostile proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install SBCL
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes sbcl
+          sbcl --version
+      - name: Run hostile macro proof
+        run: sbcl --script experiments/lisp-macros/run-tests.lisp
