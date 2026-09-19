@@ -390,6 +390,28 @@ export function validateComputationEvidence(value:unknown):ComputationAttemptEvi
   return value as unknown as ComputationAttemptEvidenceV1;
 }
 
+function assertCapturedStreamForSpec(
+  base64:string|undefined,
+  digest:string,
+  truncated:boolean,
+  maxBytes:number,
+  stream:'stdout'|'stderr',
+):void {
+  const captured=base64===undefined
+    ? Buffer.alloc(0)
+    : decodeCanonicalBase64(
+        base64,
+        maxBytes,
+        `COMPUTATION_EVIDENCE_${stream.toUpperCase()}_BASE64_INVALID`,
+      );
+  if (truncated && captured.length!==maxBytes) {
+    throw new Error(`COMPUTATION_EVIDENCE_${stream.toUpperCase()}_TRUNCATION_MISMATCH`);
+  }
+  if (!truncated && sha256Tagged(captured)!==digest) {
+    throw new Error(`COMPUTATION_EVIDENCE_${stream.toUpperCase()}_DIGEST_MISMATCH`);
+  }
+}
+
 export function assertComputationEvidenceFor(
   evidence:ComputationAttemptEvidenceV1,
   execution:ComputationExecutionV1,
@@ -411,4 +433,20 @@ export function assertComputationEvidenceFor(
   if (evidence.execution_spec_sha256!==execution.execution_spec_sha256) {
     throw new Error('COMPUTATION_EVIDENCE_SPEC_MISMATCH');
   }
+
+  const spec=decodeProcessSpec(execution);
+  assertCapturedStreamForSpec(
+    evidence.stdout_base64,
+    evidence.stdout_sha256,
+    evidence.stdout_truncated,
+    spec.stdout_max_bytes,
+    'stdout',
+  );
+  assertCapturedStreamForSpec(
+    evidence.stderr_base64,
+    evidence.stderr_sha256,
+    evidence.stderr_truncated,
+    spec.stderr_max_bytes,
+    'stderr',
+  );
 }
