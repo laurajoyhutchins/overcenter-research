@@ -286,7 +286,7 @@ export class GitOvercenterKernel {
     return await effect();
   }
 
-  resolve(permit:ExecutionPermit):Receipt {
+  resolve(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
@@ -309,7 +309,13 @@ export class GitOvercenterKernel {
       }
 
       const observed=this.#observe(work.postcondition);
-      const fact=this.#receiptFact(run,work.id,'observation',observed);
+      const fact=this.#receiptFact(
+        run,
+        work.id,
+        'observation',
+        observed,
+        diagnostic,
+      );
       const receipt=projectReceipt(fact,work);
       const commit=this.#store.createCommit(
         head,

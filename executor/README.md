@@ -65,6 +65,16 @@ The Unix socket must live in a dedicated directory that the task UID/GID cannot 
 
 The binary supports `--stdio` only for tests and containment experiments.
 
+## First production workload
+
+The first authority-side production integration is the pure `test` workload in `src/computation-runner.ts`. CI exercises that path through the production Unix-socket mode in a disposable container: repository source is mounted read-only, the task runs as UID/GID 65532, and the host observes only the resulting workspace artifact.
+
+TypeScript selects an already-derived `READY` test obligation, acquires the exact claim/generation, converts its durable process specification to `ProcessSpecV1`, and sends that exact computation to this executor. Go returns attempt evidence only. TypeScript independently observes the obligation postcondition and settles from that observation.
+
+No effect reservation is created for this pure-computation path. A zero exit code is not project truth: if independent observation does not satisfy the postcondition, the obligation does not become `DONE`.
+
+If the executor transport dies, TypeScript records an interrupted-execution receipt. A successor reconstructs the run and process specification from durable facts, acquires a fresh execution generation, recreates the workspace, and may retry the pure computation. Provider-mutating work does not use this path.
+
 ## Recovery
 
 Executor state is intentionally ephemeral. A client disconnect cancels local work and ends that executor lifetime.
