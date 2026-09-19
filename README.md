@@ -93,7 +93,7 @@ The production authority store is SQLite: immutable fact-commit rows plus one co
 
 Project state such as `READY`, `EXECUTING`, `BLOCKED`, `RECOVERY_REQUIRED`, and `DONE` is reconstructed from durable facts and current authority. It is not stored as a privileged lifecycle document.
 
-For the full model, read [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+For the full model, read [`ARCHITECTURE.md`](./ARCHITECTURE.md). [ADR-0006](./docs/adr/0006-lean-semantic-reference-and-proof-oracle.md) records the narrower decision that Lean is an executable semantic reference and proof oracle rather than a production runtime dependency.
 
 ## What is proved?
 
@@ -144,6 +144,7 @@ test/         focused invariants of that mechanism
 experiments/  executable empirical and adversarial proofs
 formal/       machine-checked safety model and negative controls
 research/     prior art, synthesis, claims, and design arguments
+docs/adr/     durable architecture decisions
 examples/     small runnable demonstrations
 .github/      hosted proof workflows
 ```
@@ -174,6 +175,7 @@ Important entry points:
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
 - [`formal/`](./formal/) - TLA+ transaction/recovery kernel.
 - [`research/README.md`](./research/README.md) - research map.
+- [`docs/adr/README.md`](./docs/adr/README.md) - durable architecture decisions.
 
 ## Evidence ladder
 
@@ -185,6 +187,7 @@ The command name states what kind of evidence a green check supports:
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
 | `npm run proof:production` | Supported SQLite + Go computation slice, containment, recovery, and deterministic regression. |
+| Lean semantic-oracle CI | Bounded exhaustive agreement between selected production TypeScript semantics and the exact pinned Lean reference. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
