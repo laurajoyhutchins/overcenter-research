@@ -51,7 +51,8 @@ theorem stale_key_never_reuses
 theorem mutable_external_without_fresh_observation_never_reuses
     (current : Obligation)
     (historical : HistoricalRealization)
-    (mutableExternal : historical.stability = .mutableExternal) :
+    (mutableExternal :
+      realizationStability current.postcondition.family = .mutableExternal) :
     reusable current historical none = false := by
   simp [reusable, mutableExternal]
 
@@ -111,13 +112,25 @@ private def forgedAbsenceObservation : Observation := {
 
 private def mutableHistory : HistoricalRealization := {
   key := obligationKey fileObligation
-  stability := .mutableExternal
   disposition := .done
 }
 
+private def immutablePostcondition : Postcondition := {
+  family := .immutableArtifact
+  verifierRevision := "content-digest/v1@semantics-1"
+  coordinate := "sha256:artifact-a"
+  expected := "sha256:artifact-a"
+}
+
+private def immutableObligation : Obligation := {
+  id := "artifact-a"
+  packetIdentity := "sha256:packet-a"
+  postcondition := immutablePostcondition
+  semanticInputs := ["sha256:source-a"]
+}
+
 private def immutableHistory : HistoricalRealization := {
-  key := obligationKey fileObligation
-  stability := .immutable
+  key := obligationKey immutableObligation
   disposition := .done
 }
 
@@ -139,8 +152,9 @@ example : settle filePostcondition forgedAbsenceObservation = .recoveryRequired 
 example : reusable fileObligation mutableHistory none = false := by decide
 example : reusable fileObligation mutableHistory (some exactObservation) = true := by decide
 
--- Immutable realizations may reuse exact semantic identity without a fresh read.
-example : reusable fileObligation immutableHistory none = true := by decide
+-- Immutable realization reuse is policy derived from the verifier family, not trusted history.
+example : realizationStability immutableObligation.postcondition.family = .immutable := by decide
+example : reusable immutableObligation immutableHistory none = true := by decide
 
 -- Changing verifier semantics invalidates both historical identity and fresh evidence.
 example : obligationKey verifierChangedObligation ≠ obligationKey fileObligation := by decide
