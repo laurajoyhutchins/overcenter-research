@@ -23,6 +23,7 @@
     "test:formal": "bash formal/check.sh",
     "proof:local": "npm run test:experiments && npm run test:stress",
     "proof:formal": "npm run test:formal",
+    "proof:production": "bash scripts/proof-production.sh",
     "proof:live": "bash scripts/proof-live.sh",
     "test:kubernetes-observation": "node --experimental-strip-types --test experiments/kubernetes-observation/kubernetes-observation.test.ts",
     "test:provider-observation": "node --experimental-strip-types --test experiments/provider-observation/response-slice.test.ts",
