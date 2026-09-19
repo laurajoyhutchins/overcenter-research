@@ -21,6 +21,7 @@ export function factCommitFromFiles(
     obligation:files['obligation.json']??null,
     claim:files['claim.json']??null,
     execution_authority:files['execution-authority.json']??null,
+    realization:files['realization.json']??null,
     effect_reservation:files['effect-reservation.json']??null,
     receipt:files['receipt.json']??null,
   };

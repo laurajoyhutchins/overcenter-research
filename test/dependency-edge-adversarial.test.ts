@@ -119,7 +119,7 @@ withFixture('semantic selector is part of durable edge meaning',f=>{
   });
 
   const fact=obligationFact(f,bDefinition);
-  assert.equal(fact.schema,'overcenter-git-obligation-v3');
+  assert.equal(fact.schema,'overcenter-git-obligation-v4');
   assert.equal('deps' in fact.obligation,false);
   assert.deepEqual(
     (fact.obligation as {dependencies?:unknown}).dependencies,

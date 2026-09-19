@@ -2,6 +2,10 @@ import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import {
+  executeAuthorizedEffect,
+  validateTaskSession,
+} from '../../src/effect-broker.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -9,33 +13,18 @@ function required(name: string): string {
   return value;
 }
 
-async function github(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = required('GITHUB_TOKEN');
-  return fetch(`https://api.github.com${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  });
-}
-
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('SOURCE_SHA');
 const stateRef = githubProofStateRef('disposable-agent');
+const token = required('GITHUB_TOKEN');
 
-const intent = JSON.parse(readFileSync('candidate/effect-intent.json', 'utf8')) as {
-  schema?: string;
-  obligation_id?: string;
-  run_id?: string;
-  claimed_revision?: string;
-  effect?: Record<string, unknown>;
-};
-assert.equal(intent.schema, 'overcenter-effect-intent-v1');
+const session = validateTaskSession(
+  JSON.parse(readFileSync('trusted/task-session.json', 'utf8')),
+);
+const candidateResult = JSON.parse(
+  readFileSync('candidate/worker-result.json', 'utf8'),
+);
 
 const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });
 const candidates = kernel.inspect().filter(work => {
@@ -48,62 +37,41 @@ const candidates = kernel.inspect().filter(work => {
 });
 assert.equal(candidates.length, 1, `expected one exact unresolved execution, found ${candidates.length}`);
 const work = candidates[0];
-assert.ok(work.run_id);
-assert.equal(intent.obligation_id, work.id);
-assert.equal(intent.run_id, work.run_id);
-assert.equal(intent.claimed_revision, work.claimed_revision);
-
-const declaredEffect = work.packet.effect as Record<string, unknown> | undefined;
-assert.ok(declaredEffect);
-assert.deepEqual(intent.effect, declaredEffect, 'worker intent drifted from authoritative obligation');
-
+assert.equal(work.run_id, session.run_id);
+assert.equal(work.id, session.obligation_id);
+assert.equal(work.claimed_revision, session.claimed_revision);
+assert.equal(work.execution_generation, session.execution_generation);
+assert.equal(work.execution_authority_commit, session.execution_authority_commit);
 assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
 if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
-assert.deepEqual(declaredEffect, {
-  kind: 'github-commit-status/v1',
-  repository_id: work.postcondition.repository_id,
-  commit_sha: work.postcondition.commit_sha,
-  context: work.postcondition.context,
-  state: work.postcondition.expected_state,
-});
 assert.equal(work.postcondition.commit_sha, sourceSha);
 
-const permit = kernel.acquireExecution(work.run_id);
-assert.equal(permit.execution_generation, 2);
+const realization = kernel.acceptRealization(session, candidateResult);
+const attempt = await executeAuthorizedEffect(
+  kernel,
+  session,
+  { githubToken: token },
+);
 
-await kernel.performEffect(permit, async () => {
-  const repositoryIdentity = await github(`/repositories/${work.postcondition.repository_id}`);
-  if (!repositoryIdentity.ok) {
-    throw new Error(`repository identity read failed: ${repositoryIdentity.status}`);
-  }
-  const repository = await repositoryIdentity.json() as { id: number; full_name: string };
-  assert.equal(repository.id, work.postcondition.repository_id);
-
-  const status = await github(
-    `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        state: work.postcondition.expected_state,
-        context: work.postcondition.context,
-        description: 'Overcenter trusted effect broker',
-      }),
-    },
-  );
-  if (status.status !== 201) {
-    throw new Error(`status creation failed ${status.status}: ${await status.text()}`);
-  }
-});
+assert.equal(attempt.broker_execution_generation, 2);
+assert.equal(attempt.evidence.provider, 'github');
+assert.equal(attempt.evidence.operation, 'create-commit-status');
+assert.equal(attempt.evidence.repository_id, work.postcondition.repository_id);
+assert.equal(attempt.evidence.commit_sha, sourceSha);
+assert.equal(attempt.evidence.context, work.postcondition.context);
+assert.equal(attempt.evidence.state, work.postcondition.expected_state);
+assert.equal(kernel.hasUnresolvedEffect(session.run_id), true);
 
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
   appendFileSync(summary, [
     '## Trusted effect broker',
     '',
-    `- Validated EffectIntent for obligation \`${work.id}\`.`,
-    `- Acquired execution generation \`${permit.execution_generation}\`.`,
-    '- Durably reserved the effect before the provider mutation.',
-    `- Wrote exactly the declared status context \`${work.postcondition.context}\`.`,
+    `- Reused trusted dispatch session generation \`${session.execution_generation}\`.`,
+    `- Deterministically accepted realization \`${realization.result_digest}\`.`,
+    `- Rotated provider authority to generation \`${attempt.broker_execution_generation}\`.`,
+    `- Reserved exact effect digest \`${attempt.authorized_effect.effect_digest}\` before mutation.`,
+    `- Wrote status context \`${attempt.evidence.context}\` through the pinned provider adapter.`,
     '- Broker now terminates before settlement to force fresh-generation recovery.',
     '',
   ].join('\n'));
@@ -111,9 +79,13 @@ if (summary) {
 
 console.log(JSON.stringify({
   obligation_id: work.id,
-  run_id: work.run_id,
-  execution_generation: permit.execution_generation,
-  effect: declaredEffect,
+  run_id: session.run_id,
+  worker_generation: session.execution_generation,
+  broker_generation: attempt.broker_execution_generation,
+  realization_commit: realization.realization_commit,
+  reservation_commit: attempt.reservation_commit,
+  effect_digest: attempt.authorized_effect.effect_digest,
+  provider_status_id: attempt.evidence.provider_status_id,
 }));
 
 process.exit(86);
