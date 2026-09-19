@@ -36,7 +36,7 @@ const work=kernel.inspect().find(candidate=>{
 assert.ok(work,`missing unresolved run for ${slot}`);
 assert.ok(work.run_id);
 
-const recovery=kernel.recoverInterrupted(work.run_id,{
+const recovery=kernel.recordExecutionTerminated(work.run_id,{
   source:'github-actions-job-supervisor',
   workflow_run_id:workflowRunId,
   workflow_run_attempt:attempt,
