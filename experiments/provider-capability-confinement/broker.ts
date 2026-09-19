@@ -3,9 +3,9 @@ import { appendFileSync, readFileSync, readdirSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 import {
   bindTaskSession,
-  executeEffectReady,
+  executeAuthorizedEffect,
+  validateTaskSession,
 } from '../../src/effect-broker.ts';
-import { validateEffectReadySignal } from '../../src/execution-signal.ts';
 import { githubProofStateRef } from '../proof-environment.ts';
 
 function required(name:string):string {
@@ -14,16 +14,13 @@ function required(name:string):string {
   return value;
 }
 
-async function github(path:string,init:RequestInit={}):Promise<Response> {
+async function github(path:string):Promise<Response> {
   const token=required('GITHUB_TOKEN');
   return fetch('https://api.github.com'+path,{
-    ...init,
     headers:{
       Authorization:'Bearer '+token,
       Accept:'application/vnd.github+json',
       'X-GitHub-Api-Version':'2022-11-28',
-      'Content-Type':'application/json',
-      ...(init.headers??{}),
     },
   });
 }
@@ -34,90 +31,66 @@ const sourceSha=required('SOURCE_SHA');
 const token=required('GITHUB_TOKEN');
 const stateRef=githubProofStateRef('provider-capability-confinement');
 const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:stateRef});
+const session=validateTaskSession(
+  JSON.parse(readFileSync('trusted-session/task-session.json','utf8')),
+);
 
-const candidates=kernel.inspect().filter(work=>{
-  if (work.status!=='EXECUTING') return false;
-  const executor=work.packet.executor as Record<string,unknown>|undefined;
-  return executor?.provider==='github-actions/v1'
-    && String(executor.workflow_run_id)===runId
-    && String(executor.workflow_run_attempt)===attempt
-    && executor.job==='hostile-worker';
-});
-assert.equal(candidates.length,1);
-const work=candidates[0];
+const work=kernel.inspect().find(candidate=>candidate.run_id===session.run_id);
+assert.ok(work);
+const executor=work.packet.executor as Record<string,unknown>|undefined;
+assert.equal(String(executor?.workflow_run_id),runId);
+assert.equal(String(executor?.workflow_run_attempt),attempt);
 assert.equal(work.execution_generation,1);
 assert.equal(work.postcondition.verifier,'github-commit-status/v1');
-if (work.postcondition.verifier!=='github-commit-status/v1') {
-  throw new Error('WRONG_VERIFIER');
-}
+if (work.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha,sourceSha);
 
-const session=bindTaskSession(work);
-const filenames=readdirSync('candidate-signals')
+const filenames=readdirSync('candidate-results')
   .filter(name=>name.endsWith('.json') && name!=='worker-proof.json')
   .sort();
 assert.ok(filenames.includes('valid.json'));
 
 let rejected=0;
-let validSignal:unknown=null;
-for (const filename of filenames) {
-  const candidate=JSON.parse(
-    readFileSync('candidate-signals/'+filename,'utf8'),
-  );
-  if (filename==='valid.json') {
-    validSignal=validateEffectReadySignal(candidate);
-    continue;
-  }
+for (const filename of filenames.filter(name=>name!=='valid.json')) {
+  const candidate=JSON.parse(readFileSync('candidate-results/'+filename,'utf8'));
   assert.throws(
-    ()=>validateEffectReadySignal(candidate),
-    /EFFECT_READY_SIGNAL_INVALID/,
-    filename+' unexpectedly crossed worker protocol validation',
+    ()=>kernel.acceptRealization(session,candidate),
+    /WORKER_RESULT_INVALID|WORKER_RESULT_REJECTED/,
+    filename+' unexpectedly became accepted realization',
   );
   rejected+=1;
 }
 assert.equal(rejected,filenames.length-1);
-assert.ok(validSignal);
+assert.equal(kernel.acceptedRealization(session),null);
 
-const afterRejections=kernel.inspect().find(candidate=>candidate.id===work.id);
-assert.equal(afterRejections?.execution_generation,1);
-assert.equal(afterRejections?.status,'EXECUTING');
+const valid=JSON.parse(readFileSync('candidate-results/valid.json','utf8'));
+const realization=kernel.acceptRealization(session,valid);
+assert.match(realization.result_digest,/^[0-9a-f]{64}$/);
 
 let providerWrites=0;
 const countedFetch:typeof fetch=async(input,init)=>{
-  if (
-    init?.method==='POST'
-    && String(input).includes('/statuses/')
-  ) {
+  if (init?.method==='POST' && String(input).includes('/statuses/')) {
     providerWrites+=1;
   }
   return fetch(input,init);
 };
 
-const first=await executeEffectReady(
+const first=await executeAuthorizedEffect(
   kernel,
   session,
-  validSignal,
-  {
-    githubToken:token,
-    githubFetch:countedFetch,
-  },
+  {githubToken:token,githubFetch:countedFetch},
 );
 assert.equal(first.broker_execution_generation,2);
 assert.equal(providerWrites,1);
-assert.equal(first.effect.repository_id,work.postcondition.repository_id);
-assert.equal(first.effect.commit_sha,work.postcondition.commit_sha);
-assert.equal(first.effect.context,work.postcondition.context);
-assert.equal(first.effect.state,work.postcondition.expected_state);
+assert.equal(first.authorized_effect.effect.repository_id,work.postcondition.repository_id);
+assert.equal(first.authorized_effect.effect.commit_sha,work.postcondition.commit_sha);
+assert.equal(first.authorized_effect.effect.context,work.postcondition.context);
 
 await assert.rejects(
-  executeEffectReady(
+  executeAuthorizedEffect(
     kernel,
     session,
-    validSignal,
-    {
-      githubToken:token,
-      githubFetch:countedFetch,
-    },
+    {githubToken:token,githubFetch:countedFetch},
   ),
   /TASK_SESSION_STALE/,
 );
@@ -126,17 +99,13 @@ assert.equal(providerWrites,1);
 const refreshed=kernel.inspect().find(candidate=>candidate.id===work.id);
 assert.ok(refreshed);
 assert.equal(refreshed.execution_generation,2);
-const replaySession=bindTaskSession(refreshed);
+const recoverySession=bindTaskSession(refreshed);
 
 await assert.rejects(
-  executeEffectReady(
+  executeAuthorizedEffect(
     kernel,
-    replaySession,
-    validSignal,
-    {
-      githubToken:token,
-      githubFetch:countedFetch,
-    },
+    recoverySession,
+    {githubToken:token,githubFetch:countedFetch},
   ),
   /UNRESOLVED_EFFECT/,
 );
@@ -145,36 +114,22 @@ assert.equal(providerWrites,1);
 const afterReplay=kernel.inspect().find(candidate=>candidate.id===work.id);
 assert.equal(afterReplay?.execution_generation,3);
 
-const repositoryResponse=await github(
-  '/repositories/'+work.postcondition.repository_id,
-);
+const repositoryResponse=await github('/repositories/'+work.postcondition.repository_id);
 assert.equal(repositoryResponse.status,200);
-const repository=await repositoryResponse.json() as {
-  id:number;
-  full_name:string;
-};
+const repository=await repositoryResponse.json() as {id:number;full_name:string};
 const statusesResponse=await github(
   '/repos/'+repository.full_name+'/commits/'+sourceSha+'/statuses?per_page=100',
 );
 assert.equal(statusesResponse.status,200);
 const statuses=await statusesResponse.json() as Array<{
-  id:number;
   context:string;
   state:string;
   description:string|null;
 }>;
-const allowed=statuses.filter(
-  status=>status.context===work.postcondition.context,
-);
-const forbidden=statuses.filter(
-  status=>status.context===work.postcondition.context+'/forged',
-);
+const allowed=statuses.filter(status=>status.context===work.postcondition.context);
+const forbidden=statuses.filter(status=>status.context===work.postcondition.context+'/forged');
 assert.equal(allowed.length,1);
 assert.equal(allowed[0]?.state,'success');
-assert.equal(
-  allowed[0]?.description,
-  'Overcenter authorized effect broker',
-);
 assert.equal(forbidden.length,0);
 
 const summary=process.env.GITHUB_STEP_SUMMARY;
@@ -182,19 +137,19 @@ if (summary) {
   appendFileSync(summary,[
     '## Trusted capability broker',
     '',
-    '- Rejected '+rejected+' attempts to smuggle authority fields into the two-field worker protocol.',
-    '- Bound the legal signal to the exact run and generation using server-side authoritative state.',
-    '- Executed one provider mutation derived from the authoritative postcondition.',
-    '- Rejected the original stale session before authority acquisition.',
-    '- A freshly bound generation-2 session still hit UNRESOLVED_EFFECT before a second provider write.',
-    '- Provider records at authorized coordinate: '+allowed.length+'.',
-    '- Provider records at forged coordinate: '+forbidden.length+'.',
+    '- Rejected '+rejected+' forged results before accepting a realization.',
+    '- Used the TaskSession minted before worker execution.',
+    '- Executed exactly one explicitly authorized provider effect.',
+    '- Original dispatch session became stale after authority rotation.',
+    '- Fresh recovery authority still could not replay the unresolved exact-effect reservation.',
     '',
   ].join('\n'));
 }
 
 console.log(JSON.stringify({
-  rejected_signals:rejected,
+  rejected_results:rejected,
+  realization_commit:realization.realization_commit,
+  effect_digest:first.authorized_effect.effect_digest,
   provider_calls:providerWrites,
   authorized_records:allowed.length,
   forged_records:forbidden.length,

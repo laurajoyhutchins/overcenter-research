@@ -1,9 +1,8 @@
-import type { Work } from './model.ts';
+import type {
+  TaskSession,
+  Work,
+} from './model.ts';
 import type { GitOvercenterKernel } from './git-kernel.ts';
-import {
-  validateEffectReadySignal,
-  type EffectReadySignal,
-} from './execution-signal.ts';
 import {
   deriveAuthorizedProviderEffect,
   executeAuthorizedProviderEffect,
@@ -12,21 +11,14 @@ import {
   type ProviderEffectExecutionContext,
 } from './provider-effect.ts';
 
-export const TASK_SESSION_SCHEMA='overcenter-task-session-v1' as const;
-
-export interface TaskSession {
-  schema:typeof TASK_SESSION_SCHEMA;
-  run_id:string;
-  obligation_id:string;
-  claimed_revision:string;
-  execution_generation:number;
-}
+export const TASK_SESSION_SCHEMA='overcenter-task-session-v2' as const;
 
 export interface AuthorizedEffectAttempt {
   session:TaskSession;
-  effect:AuthorizedProviderEffect;
+  authorized_effect:AuthorizedProviderEffect;
   evidence:ProviderEffectAttemptEvidence;
   broker_execution_generation:number;
+  reservation_commit:string;
 }
 
 export function bindTaskSession(work:Work):TaskSession {
@@ -34,6 +26,9 @@ export function bindTaskSession(work:Work):TaskSession {
   if (!work.run_id) throw new Error('TASK_SESSION_RUN_MISSING');
   if (!work.claimed_revision) throw new Error('TASK_SESSION_REVISION_MISSING');
   if (!work.execution_generation) throw new Error('TASK_SESSION_GENERATION_MISSING');
+  if (!work.execution_authority_commit) {
+    throw new Error('TASK_SESSION_AUTHORITY_COMMIT_MISSING');
+  }
 
   return {
     schema:TASK_SESSION_SCHEMA,
@@ -41,7 +36,36 @@ export function bindTaskSession(work:Work):TaskSession {
     obligation_id:work.id,
     claimed_revision:work.claimed_revision,
     execution_generation:work.execution_generation,
+    execution_authority_commit:work.execution_authority_commit,
   };
+}
+
+export function validateTaskSession(candidate:unknown):TaskSession {
+  if (!candidate || typeof candidate!=='object' || Array.isArray(candidate)) {
+    throw new Error('TASK_SESSION_INVALID');
+  }
+  const record=candidate as Record<string,unknown>;
+  const expectedKeys=[
+    'claimed_revision',
+    'execution_authority_commit',
+    'execution_generation',
+    'obligation_id',
+    'run_id',
+    'schema',
+  ];
+  if (
+    JSON.stringify(Object.keys(record).sort())!==JSON.stringify(expectedKeys)
+    || record.schema!==TASK_SESSION_SCHEMA
+    || typeof record.run_id!=='string'
+    || typeof record.obligation_id!=='string'
+    || typeof record.claimed_revision!=='string'
+    || !Number.isInteger(record.execution_generation)
+    || Number(record.execution_generation)<1
+    || typeof record.execution_authority_commit!=='string'
+  ) {
+    throw new Error('TASK_SESSION_INVALID');
+  }
+  return structuredClone(record) as unknown as TaskSession;
 }
 
 export function resolveTaskSession(
@@ -59,40 +83,52 @@ export function resolveTaskSession(
     throw new Error('TASK_SESSION_IDENTITY_MISMATCH');
   }
   if (work.status!=='EXECUTING') throw new Error('TASK_SESSION_WORK_NOT_EXECUTING');
-  if (work.execution_generation!==session.execution_generation) {
+  if (
+    work.execution_generation!==session.execution_generation
+    || work.execution_authority_commit!==session.execution_authority_commit
+  ) {
     throw new Error('TASK_SESSION_STALE');
   }
 
   return work;
 }
 
-export async function executeEffectReady(
+export async function executeAuthorizedEffect(
   kernel:GitOvercenterKernel,
   session:TaskSession,
-  candidateSignal:unknown,
   context:ProviderEffectExecutionContext,
 ):Promise<AuthorizedEffectAttempt> {
-  validateEffectReadySignal(candidateSignal);
-
   const work=resolveTaskSession(kernel.inspect(),session);
-  const effect=deriveAuthorizedProviderEffect(work);
-  if (!effect) throw new Error('AUTHORIZED_EFFECT_UNAVAILABLE');
+  const authorizedEffect=deriveAuthorizedProviderEffect(work);
+  if (!authorizedEffect) throw new Error('EFFECT_AUTHORITY_REQUIRED');
+
+  const realization=work.result_acceptance
+    ? kernel.acceptedRealization(session)
+    : null;
+  if (work.result_acceptance && !realization) {
+    throw new Error('REALIZATION_REQUIRED');
+  }
 
   const permit=kernel.acquireExecution(session.run_id,{
     expectedGeneration:session.execution_generation,
+    expectedAuthorityCommit:session.execution_authority_commit,
   });
 
-  const evidence=await kernel.performEffect(
-    permit,
-    ()=>executeAuthorizedProviderEffect(effect,context),
-  );
+  const reservationCommit=kernel.beginEffect(permit,{
+    effect_contract:authorizedEffect.effect_contract,
+    adapter_contract_digest:authorizedEffect.adapter_contract_digest,
+    effect_digest:authorizedEffect.effect_digest,
+    realization_commit:realization?.realization_commit??null,
+    realization_digest:realization?.result_digest??null,
+  });
+
+  const evidence=await executeAuthorizedProviderEffect(authorizedEffect,context);
 
   return {
     session,
-    effect,
+    authorized_effect:authorizedEffect,
     evidence,
     broker_execution_generation:permit.execution_generation,
+    reservation_commit:reservationCommit,
   };
 }
-
-export type { EffectReadySignal };

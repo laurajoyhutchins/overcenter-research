@@ -27,13 +27,22 @@ test('GitHub Actions keeps provider write authority out of the disposable worker
   assert.match(broker, /effect-broker\.ts/);
 });
 
-test('hosted proof transports only effect-ready signal between worker and broker', () => {
+test('trusted dispatch session and untrusted worker result travel separately', () => {
+  const authority = job('project-authority', 'agent-a');
   const worker = job('agent-a', 'effect-broker');
   const broker = job('effect-broker', 'agent-b');
 
-  assert.match(worker, /Upload candidate effect-ready signal/);
-  assert.match(worker, /disposable-agent-effect-ready/);
-  assert.match(worker, /effect-ready\.json/);
-  assert.match(broker, /Download candidate effect-ready signal/);
-  assert.match(broker, /disposable-agent-effect-ready/);
+  assert.match(authority, /Upload trusted dispatch session/);
+  assert.match(authority, /disposable-agent-task-session/);
+  assert.match(authority, /task-session\.json/);
+
+  assert.match(worker, /Upload candidate worker result/);
+  assert.match(worker, /disposable-agent-worker-result/);
+  assert.match(worker, /worker-result\.json/);
+  assert.doesNotMatch(worker, /task-session\.json/);
+
+  assert.match(broker, /Download trusted dispatch session/);
+  assert.match(broker, /Download candidate worker result/);
+  assert.match(broker, /disposable-agent-task-session/);
+  assert.match(broker, /disposable-agent-worker-result/);
 });

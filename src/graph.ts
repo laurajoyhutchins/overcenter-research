@@ -19,6 +19,9 @@ export function withObligation(
       ...state.definition_commits,
       [obligation.id]:definitionCommit,
     },
+    ...(state.legacy_effect_ids
+      ? {legacy_effect_ids:{...state.legacy_effect_ids}}
+      : {}),
   };
 }
 

@@ -6,7 +6,10 @@ import {
 import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
+  LEGACY_EFFECT_RESERVATION_SCHEMA,
+  LEGACY_OBLIGATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
+  REALIZATION_SCHEMA,
   LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
@@ -15,12 +18,14 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
+  AcceptedRealization,
   EffectReservation,
   EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
   HistoricalRun,
   ObligationFact,
+  RealizationFact,
   Receipt,
   ReceiptFact,
   State,
@@ -36,11 +41,13 @@ import {
   obligationKey,
 } from './lifecycle.ts';
 import type { Lifecycle } from './lifecycle.ts';
+import { derivePinnedProviderEffect } from './provider-effect.ts';
 
 export interface HistoryProjection {
   lifecycles:Map<string,Lifecycle>;
   runs:Map<string,HistoricalRun>;
   receiptsByRun:Map<string,Receipt>;
+  acceptedRealizationsByRun:Map<string,AcceptedRealization>;
   unresolvedReservationsByRun:Map<string,EffectReservation>;
   receipts:Receipt[];
 }
@@ -101,13 +108,19 @@ export function replayProjection(commits:FactCommit[]):Projection {
   let lifecycles=new Map<string,Lifecycle>();
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();
+  const acceptedRealizationsByRun=new Map<string,AcceptedRealization>();
   const unresolvedReservationsByRun=new Map<string,EffectReservation>();
   const receipts:Receipt[]=[];
 
   for (const record of commits) {
     if (record.obligation!=null) {
       const fact=record.obligation as ObligationFact;
-      if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
+      if (
+        fact.schema!==OBLIGATION_SCHEMA
+        && fact.schema!==LEGACY_OBLIGATION_SCHEMA
+      ) {
+        throw new Error('INVALID_OBLIGATION_SCHEMA');
+      }
       const obligation=validateStoredObligation(fact.obligation);
       const id=obligation.id;
 
@@ -125,6 +138,17 @@ export function replayProjection(commits:FactCommit[]):Projection {
 
       state.obligations[id]=obligation;
       state.definition_commits[id]=record.commit;
+      if (fact.schema===LEGACY_OBLIGATION_SCHEMA) {
+        state.legacy_effect_ids??={};
+        if (
+          obligation.postcondition.verifier==='github-commit-status/v1'
+          || obligation.postcondition.verifier==='github-commit-status/v2'
+        ) {
+          state.legacy_effect_ids[id]=true;
+        }
+      } else if (state.legacy_effect_ids?.[id]) {
+        delete state.legacy_effect_ids[id];
+      }
       validateGraph(state);
       lifecycles=deriveLifecycles(state,runs,receiptsByRun);
     }
@@ -210,9 +234,59 @@ export function replayProjection(commits:FactCommit[]):Projection {
       lifecycles=deriveLifecycles(state,runs,receiptsByRun);
     }
 
+    if (record.realization!=null) {
+      const fact=record.realization as RealizationFact;
+      if (fact.schema!==REALIZATION_SCHEMA) {
+        throw new Error('INVALID_REALIZATION_SCHEMA');
+      }
+      const run=runs.get(fact.run_id);
+      if (!run) throw new Error('REALIZATION_WITHOUT_CLAIM');
+      if (run.obligation_id!==fact.obligation_id) {
+        throw new Error('REALIZATION_OBLIGATION_MISMATCH');
+      }
+      if (fact.claimed_revision!==run.claimed_revision) {
+        throw new Error('REALIZATION_REVISION_MISMATCH');
+      }
+      if (
+        fact.execution_generation!==run.execution_generation
+        || fact.execution_authority_commit!==run.execution_authority_commit
+      ) {
+        throw new Error('REALIZATION_EXECUTION_AUTHORITY_MISMATCH');
+      }
+      const acceptance=run.obligation.result_acceptance;
+      if (!acceptance) throw new Error('REALIZATION_WITHOUT_ACCEPTANCE_CONTRACT');
+      if (fact.verifier!==acceptance.verifier) {
+        throw new Error('REALIZATION_VERIFIER_MISMATCH');
+      }
+      if (
+        !/^[0-9a-f]{64}$/.test(fact.result_digest)
+        || fact.result_digest!==acceptance.expected_sha256
+      ) {
+        throw new Error('REALIZATION_RESULT_MISMATCH');
+      }
+      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      const current=lifecycles.get(run.obligation_id);
+      if (current?.run?.id!==run.id || current.status!=='EXECUTING') {
+        throw new Error('REALIZATION_WHILE_NOT_EXECUTING');
+      }
+      if (unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('REALIZATION_AFTER_EFFECT_RESERVATION');
+      }
+      if (acceptedRealizationsByRun.has(run.id)) {
+        throw new Error('DUPLICATE_ACCEPTED_REALIZATION');
+      }
+      acceptedRealizationsByRun.set(run.id,{
+        ...fact,
+        realization_commit:record.commit,
+      });
+    }
+
     if (record.effect_reservation!=null) {
       const fact=record.effect_reservation as EffectReservationFact;
-      if (fact.schema!==EFFECT_RESERVATION_SCHEMA) {
+      if (
+        fact.schema!==EFFECT_RESERVATION_SCHEMA
+        && fact.schema!==LEGACY_EFFECT_RESERVATION_SCHEMA
+      ) {
         throw new Error('INVALID_EFFECT_RESERVATION_SCHEMA');
       }
       const run=runs.get(fact.run_id);
@@ -230,6 +304,41 @@ export function replayProjection(commits:FactCommit[]):Projection {
         || fact.execution_authority_commit!==run.execution_authority_commit
       ) {
         throw new Error('STALE_EFFECT_RESERVATION');
+      }
+      if (fact.schema===LEGACY_EFFECT_RESERVATION_SCHEMA) {
+        if (run.obligation.effect_authority) {
+          throw new Error('LEGACY_EFFECT_RESERVATION_FOR_AUTHORIZED_EFFECT');
+        }
+      } else {
+        const authority=run.obligation.effect_authority;
+        if (!authority) throw new Error('EFFECT_RESERVATION_WITHOUT_AUTHORITY');
+        const expectedEffect=derivePinnedProviderEffect(run.obligation);
+        if (!expectedEffect) {
+          throw new Error('EFFECT_RESERVATION_WITHOUT_DERIVABLE_EFFECT');
+        }
+        if (
+          fact.effect_contract!==expectedEffect.effect_contract
+          || fact.adapter_contract_digest!==expectedEffect.adapter_contract_digest
+          || fact.effect_digest!==expectedEffect.effect_digest
+        ) {
+          throw new Error('EFFECT_RESERVATION_IDENTITY_MISMATCH');
+        }
+        const acceptance=run.obligation.result_acceptance;
+        const realization=acceptedRealizationsByRun.get(run.id);
+        if (acceptance) {
+          if (!realization) throw new Error('EFFECT_RESERVATION_WITHOUT_REALIZATION');
+          if (
+            fact.realization_commit!==realization.realization_commit
+            || fact.realization_digest!==realization.result_digest
+          ) {
+            throw new Error('EFFECT_RESERVATION_REALIZATION_MISMATCH');
+          }
+        } else if (
+          fact.realization_commit!==null
+          || fact.realization_digest!==null
+        ) {
+          throw new Error('UNEXPECTED_EFFECT_REALIZATION_BINDING');
+        }
       }
       if (unresolvedReservationsByRun.has(run.id)) {
         throw new Error('DUPLICATE_UNRESOLVED_EFFECT');
@@ -298,6 +407,13 @@ export function replayProjection(commits:FactCommit[]):Projection {
   lifecycles=deriveLifecycles(state,runs,receiptsByRun);
   return {
     state,
-    history:{lifecycles,runs,receiptsByRun,unresolvedReservationsByRun,receipts},
+    history:{
+      lifecycles,
+      runs,
+      receiptsByRun,
+      acceptedRealizationsByRun,
+      unresolvedReservationsByRun,
+      receipts,
+    },
   };
 }

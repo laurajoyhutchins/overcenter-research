@@ -1,37 +1,87 @@
-import type { Work } from './model.ts';
+import type { EffectAuthority, Obligation } from './model.ts';
+import { canonicalDigest } from './digest.ts';
+import { GITHUB_COMMIT_STATUS_EFFECT_CONTRACT } from './effect-authority.ts';
 import {
+  GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST,
   deriveGithubCommitStatusEffect,
   executeGithubCommitStatusEffect,
   type GithubCommitStatusAttemptEvidence,
   type GithubCommitStatusEffect,
 } from './providers/github-effect.ts';
 
-export type AuthorizedProviderEffect=GithubCommitStatusEffect;
+export type ProviderEffect=GithubCommitStatusEffect;
 export type ProviderEffectAttemptEvidence=GithubCommitStatusAttemptEvidence;
+
+export interface AuthorizedProviderEffect {
+  effect_contract:string;
+  adapter_contract_digest:string;
+  effect_digest:string;
+  effect:ProviderEffect;
+}
 
 export interface ProviderEffectExecutionContext {
   githubToken?:string;
   githubFetch?:typeof fetch;
 }
 
-export function deriveAuthorizedProviderEffect(
-  work:Work,
+export function githubCommitStatusEffectAuthority():EffectAuthority {
+  return {
+    contract:GITHUB_COMMIT_STATUS_EFFECT_CONTRACT,
+    adapter_contract_digest:GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST,
+  };
+}
+
+export function derivePinnedProviderEffect(
+  work:Obligation,
 ):AuthorizedProviderEffect|null {
-  return deriveGithubCommitStatusEffect(work.postcondition);
+  const authority=work.effect_authority;
+  if (!authority) return null;
+
+  if (authority.contract===GITHUB_COMMIT_STATUS_EFFECT_CONTRACT) {
+    const effect=deriveGithubCommitStatusEffect(work.postcondition);
+    if (!effect) throw new Error('EFFECT_AUTHORITY_POSTCONDITION_MISMATCH');
+    const payload={
+      effect_contract:authority.contract,
+      adapter_contract_digest:authority.adapter_contract_digest,
+      effect,
+    };
+    return {
+      ...payload,
+      effect_digest:canonicalDigest(payload),
+    };
+  }
+
+  const exhaustive:never=authority;
+  throw new Error(`UNSUPPORTED_EFFECT_AUTHORITY:${String(exhaustive)}`);
+}
+
+export function deriveAuthorizedProviderEffect(
+  work:Obligation,
+):AuthorizedProviderEffect|null {
+  const pinned=derivePinnedProviderEffect(work);
+  if (!pinned) return null;
+  if (
+    pinned.effect_contract===GITHUB_COMMIT_STATUS_EFFECT_CONTRACT
+    && pinned.adapter_contract_digest
+      !==GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST
+  ) {
+    throw new Error('EFFECT_ADAPTER_CONTRACT_MISMATCH');
+  }
+  return pinned;
 }
 
 export async function executeAuthorizedProviderEffect(
-  effect:AuthorizedProviderEffect,
+  authorized:AuthorizedProviderEffect,
   context:ProviderEffectExecutionContext,
 ):Promise<ProviderEffectAttemptEvidence> {
-  if (effect.provider==='github') {
+  if (authorized.effect.provider==='github') {
     if (!context.githubToken) throw new Error('GITHUB_EFFECT_TOKEN_MISSING');
-    return executeGithubCommitStatusEffect(effect,{
+    return executeGithubCommitStatusEffect(authorized.effect,{
       token:context.githubToken,
       fetch:context.githubFetch,
     });
   }
 
-  const exhaustive:never=effect;
+  const exhaustive:never=authorized.effect;
   throw new Error(`UNSUPPORTED_PROVIDER_EFFECT:${String(exhaustive)}`);
 }

@@ -63,7 +63,6 @@ function settleFile(
   assert.ok(ready);
   assert.equal(ready.status, 'READY');
   const run = kernel.claim(id, ready.revision);
-  kernel.beginEffect(run);
   writeFileSync(path, content);
   const receipt = kernel.resolve(run);
   assert.equal(receipt.disposition, 'DONE');

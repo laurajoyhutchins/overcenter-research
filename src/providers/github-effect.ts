@@ -2,7 +2,13 @@ import type {
   GitHubCommitStatusPostcondition,
   Postcondition,
 } from '../model.ts';
-import { GITHUB_API_VERSION } from './github-contract.ts';
+import { canonicalDigest } from '../digest.ts';
+import {
+  GITHUB_API_VERSION,
+  GITHUB_OPENAPI_SHA256,
+  GITHUB_OPENAPI_SOURCE_COMMIT,
+} from './github-contract.ts';
+import { GITHUB_COMMIT_STATUS_EFFECT_CONTRACT } from '../effect-authority.ts';
 
 export interface GithubCommitStatusEffect {
   provider:'github';
@@ -28,6 +34,19 @@ export interface GithubEffectExecutionContext {
   token:string;
   fetch?:typeof fetch;
 }
+
+export const GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST=canonicalDigest({
+  effect_contract:GITHUB_COMMIT_STATUS_EFFECT_CONTRACT,
+  api_version:GITHUB_API_VERSION,
+  openapi_sha256:GITHUB_OPENAPI_SHA256,
+  openapi_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
+  method:'POST',
+  path_template:'/repos/{owner}/{repo}/statuses/{sha}',
+  request_semantics:{
+    state:'postcondition.expected_state',
+    context:'postcondition.context',
+  },
+});
 
 export function deriveGithubCommitStatusEffect(
   postcondition:Postcondition,
