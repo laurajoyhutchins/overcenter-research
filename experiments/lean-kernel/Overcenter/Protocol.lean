@@ -58,7 +58,7 @@ private def parsePostcondition (json : Json) : Except String Postcondition := do
 private def parseKubernetesMember (json : Json) : Except String KubernetesListMember := do
   pure {
     name := ← stringField json "name"
-    namespace := ← stringField json "namespace"
+    namespaceName := ← stringField json "namespace"
     uid := ← stringField json "uid"
     resourceVersion := ← stringField json "resource_version"
   }
