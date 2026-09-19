@@ -151,25 +151,25 @@ examples/     small runnable demonstrations
 
 Important entry points:
 
-- [`src/kernel.ts`](./src/kernel.ts) - production SQLite-backed kernel entry point.
-- [`src/kernel-core.ts`](./src/kernel-core.ts) - storage-neutral transaction, recovery, and settlement policy.
-- [`src/fact-store.ts`](./src/fact-store.ts) - minimal durable-fact authority contract.
-- [`src/sqlite-store.ts`](./src/sqlite-store.ts) - production append-only SQLite authority store.
-- [`src/git-kernel.ts`](./src/git-kernel.ts) and [`src/git-store.ts`](./src/git-store.ts) - Git reference implementation of the same durable-fact contract.
-- [`src/facts.ts`](./src/facts.ts) - durable fact schemas plus obligation/fact validation.
+- [`src/authority/kernel.ts`](./src/authority/kernel.ts) - production SQLite-backed kernel entry point.
+- [`src/authority/engine.ts`](./src/authority/engine.ts) - storage-neutral transaction, recovery, and settlement policy.
+- [`src/authority/store.ts`](./src/authority/store.ts) - minimal durable-fact authority contract.
+- [`src/storage/sqlite.ts`](./src/storage/sqlite.ts) - production append-only SQLite authority store.
+- [`src/storage/git-kernel.ts`](./src/storage/git-kernel.ts) and [`src/storage/git-store.ts`](./src/storage/git-store.ts) - Git reference implementation of the same durable-fact contract.
+- [`src/authority/facts.ts`](./src/authority/facts.ts) - durable fact schemas plus obligation/fact validation.
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
-- [`src/evidence.ts`](./src/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
+- [`src/observation/evidence.ts`](./src/observation/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
-- [`src/graph.ts`](./src/graph.ts) - provider-agnostic dependency topology, validation, and ordering queries.
-- [`src/admission.ts`](./src/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
-- [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to historical project facts.
-- [`src/projector.ts`](./src/projector.ts) - the single derived project-status/claimability projection.
-- [`src/realization-admissibility.ts`](./src/realization-admissibility.ts) - fresh-authority classification for historical realization reuse.
+- [`src/graph/topology.ts`](./src/graph/topology.ts) - provider-agnostic dependency topology, validation, and ordering queries.
+- [`src/authority/admission.ts`](./src/authority/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
+- [`src/authority/replay.ts`](./src/authority/replay.ts) - pure replay reducer from durable fact commits to historical project facts.
+- [`src/authority/project-state.ts`](./src/authority/project-state.ts) - the single derived project-status/claimability projection.
+- [`src/authority/realization-reuse.ts`](./src/authority/realization-reuse.ts) - fresh-authority classification for historical realization reuse.
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
-- [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
-- [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
-- [`src/computation-runner.ts`](./src/computation-runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
-- [`src/go-executor-client.ts`](./src/go-executor-client.ts) - Unix-socket client for an isolated physical executor.
+- [`src/observation/observe.ts`](./src/observation/observe.ts) - authoritative observation and verification boundary.
+- [`src/execution/protocol.ts`](./src/execution/protocol.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
+- [`src/execution/runner.ts`](./src/execution/runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
+- [`src/execution/go-client.ts`](./src/execution/go-client.ts) - Unix-socket client for an isolated physical executor.
 - [`contracts/computation-execution-v1/`](./contracts/computation-execution-v1/) - shared versioned wire contract and conformance corpus.
 - [`executor/`](./executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.

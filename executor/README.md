@@ -47,7 +47,7 @@ isolated worker/container
 
 The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate disposable containment domain without provider credentials. The supported profile also requires no task network, a read-only container root/source snapshot, `no-new-privileges`, explicit capabilities only, and bounded PID/memory/CPU/open-file/per-file-size resources. Aggregate workspace bytes remain an outer worker-host quota.
 
-The executable definition of that supported host profile is [`src/production-containment.ts`](../src/production-containment.ts). Production proofs and self-application consume that module rather than restating Docker flags. Changing the profile therefore changes the attested execution context and its proof harness together.
+The executable definition of that supported host profile is [`src/execution/containment.ts`](../src/execution/containment.ts). Production proofs and self-application consume that module rather than restating Docker flags. Changing the profile therefore changes the attested execution context and its proof harness together.
 
 Executor base images are separately pinned to immutable registry digests in [`runtime-images.json`](./runtime-images.json). Self-application receives a `git archive` of the exact source revision rather than the live checkout, so `.git`, checkout credentials, untracked files, and other host checkout state are outside the worker input.
 
@@ -78,7 +78,7 @@ The binary supports `--stdio` only for tests and containment experiments.
 
 ## First production workload
 
-The first authority-side production integration is the pure `test` workload in `src/computation-runner.ts`. CI exercises that path through the production Unix-socket mode in a disposable container: repository source is mounted read-only, the task runs as UID/GID 65532, and the host observes only the resulting workspace artifact.
+The first authority-side production integration is the pure `test` workload in `src/execution/runner.ts`. CI exercises that path through the production Unix-socket mode in a disposable container: repository source is mounted read-only, the task runs as UID/GID 65532, and the host observes only the resulting workspace artifact.
 
 TypeScript selects an already-derived `READY` test obligation, acquires the exact claim/generation, converts its durable process specification to `ProcessSpecV1`, and sends that exact computation to this executor. Go returns attempt evidence only. TypeScript independently observes the obligation postcondition and settles from that observation.
 
