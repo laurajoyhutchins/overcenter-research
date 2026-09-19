@@ -294,21 +294,44 @@ export function analyze({root,config}){
     return {...u,authorityInfluence,dominatedRecoveryScenarios:dominated,evidenceTiers:tiers,productionEntrypoints:entrypoints.map(e=>e.id),raw:{directDependents:direct,transitiveDependents:dependents.length},vector:{A,B,I,F,R,E,X,C}};
   });
 
-  const w=config.rankingPolicy?.weights??{A:4,B:2.5,I:3,F:1.5,R:2.5,E:1,X:1,C:.5};
-  const ia=config.rankingPolicy?.interactions??{AI:2.5,BE:1.5};
-  const maxRaw=Object.values(w).reduce((a,b)=>a+b,0)+Object.values(ia).reduce((a,b)=>a+b,0);
+  const consequencePolicy=config.rankingPolicy?.consequence??{
+    weights:{A:4,B:2.5,I:3,F:1.5,R:2.5,X:1},
+    interactions:{AI:2.5},
+  };
+  const cw=consequencePolicy.weights;
+  const ci=consequencePolicy.interactions??{};
+  const consequenceMax=Object.values(cw).reduce((a,b)=>a+b,0)+Object.values(ci).reduce((a,b)=>a+b,0);
   for(const m of metrics){
     const v=m.vector;
-    const raw=w.A*v.A+w.B*v.B+w.I*v.I+w.F*v.F+w.R*v.R+w.E*v.E+w.X*v.X+w.C*v.C+(ia.AI??0)*v.A*v.I+(ia.BE??0)*v.B*v.E;
-    m.score=100*raw/maxRaw;
+    const raw=(cw.A??0)*v.A+(cw.B??0)*v.B+(cw.I??0)*v.I+(cw.F??0)*v.F+(cw.R??0)*v.R+(cw.X??0)*v.X
+      +(ci.AI??0)*v.A*v.I;
+    m.consequenceScore=100*raw/consequenceMax;
   }
-  metrics.sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
-  metrics.forEach((m,i)=>m.rank=i+1);
+
+  const attentionPolicy=config.rankingPolicy?.attention??{
+    consequenceWeight:5,
+    weights:{E:3,C:1},
+    interactions:{BE:1.5},
+  };
+  const aw=attentionPolicy.weights??{};
+  const ai=attentionPolicy.interactions??{};
+  const attentionMax=(attentionPolicy.consequenceWeight??0)+Object.values(aw).reduce((a,b)=>a+b,0)+Object.values(ai).reduce((a,b)=>a+b,0);
+  for(const m of metrics){
+    const v=m.vector;
+    const raw=(attentionPolicy.consequenceWeight??0)*(m.consequenceScore/100)
+      +(aw.E??0)*v.E+(aw.C??0)*v.C+(ai.BE??0)*v.B*v.E;
+    m.attentionScore=100*raw/attentionMax;
+  }
+
+  metrics.sort((a,b)=>b.consequenceScore-a.consequenceScore||a.id.localeCompare(b.id));
+  metrics.forEach((m,i)=>m.consequenceRank=i+1);
+  [...metrics].sort((a,b)=>b.attentionScore-a.attentionScore||a.id.localeCompare(b.id))
+    .forEach((m,i)=>m.attentionRank=i+1);
 
   const calibrations=(config.calibrationPairs??[]).map(c=>{
     const higher=selectOne(metrics,c.higher,`calibration:${c.id}:higher`);
     const lower=selectOne(metrics,c.lower,`calibration:${c.id}:lower`);
-    return {id:c.id,higher:higher.id,lower:lower.id,higherScore:higher.score,lowerScore:lower.score,pass:higher.score>lower.score,rationale:c.rationale??null};
+    return {id:c.id,higher:higher.id,lower:lower.id,higherScore:higher.consequenceScore,lowerScore:lower.consequenceScore,pass:higher.consequenceScore>lower.consequenceScore,rationale:c.rationale??null};
   });
   return {
     schema:'overcenter-production-callable-criticality-experiment/v1',
@@ -339,7 +362,12 @@ export function analyze({root,config}){
     },
     population:{productionCallables:production.length,testCallables:testEntrypoints.length,experimentCallables:experimentEntrypoints.length,productionEntrypoints:prodEntrypoints.length},
     calibration:{passed:calibrations.filter(x=>x.pass).length,total:calibrations.length,agreement:calibrations.length?calibrations.filter(x=>x.pass).length/calibrations.length:1,pairs:calibrations},
-    ranking:metrics.map(({node,...m})=>({...m,vector:Object.fromEntries(Object.entries(m.vector).map(([k,v])=>[k,round(v)])),score:round(m.score,2)})),
+    ranking:metrics.map(({node,...m})=>({
+      ...m,
+      vector:Object.fromEntries(Object.entries(m.vector).map(([k,v])=>[k,round(v)])),
+      consequenceScore:round(m.consequenceScore,2),
+      attentionScore:round(m.attentionScore,2),
+    })),
   };
 }
 
@@ -351,12 +379,12 @@ export function markdown(report,top=30){
     '',
     `Population: ${report.population.productionCallables} production callables. Calibration: ${report.calibration.passed}/${report.calibration.total} (${(100*report.calibration.agreement).toFixed(1)}%). Production call resolution: ${(100*report.analyzer.byScope.production.internalResolutionRate).toFixed(1)}%; evidence-call resolution: test ${(100*report.analyzer.byScope.test.internalResolutionRate).toFixed(1)}%, experiment ${(100*report.analyzer.byScope.experiment.internalResolutionRate).toFixed(1)}%.`,
     '',
-    '| Rank | Production callable | Score | A | B | I | F | R | E | X | C |',
-    '| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Consequence rank | Attention rank | Production callable | Consequence | Attention | A | B | I | F | R | E | X | C |',
+    '| ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
   for(const m of report.ranking.slice(0,top)){
     const v=m.vector;
-    lines.push(`| ${m.rank} | \`${m.file}::${m.qualifiedName}\` | ${m.score.toFixed(2)} | ${v.A.toFixed(2)} | ${v.B.toFixed(2)} | ${v.I.toFixed(2)} | ${v.F.toFixed(2)} | ${v.R.toFixed(2)} | ${v.E.toFixed(2)} | ${v.X.toFixed(2)} | ${v.C.toFixed(2)} |`);
+    lines.push(`| ${m.consequenceRank} | ${m.attentionRank} | \`${m.file}::${m.qualifiedName}\` | ${m.consequenceScore.toFixed(2)} | ${m.attentionScore.toFixed(2)} | ${v.A.toFixed(2)} | ${v.B.toFixed(2)} | ${v.I.toFixed(2)} | ${v.F.toFixed(2)} | ${v.R.toFixed(2)} | ${v.E.toFixed(2)} | ${v.X.toFixed(2)} | ${v.C.toFixed(2)} |`);
   }
   const failed=report.calibration.pairs.filter(x=>!x.pass);
   lines.push('','## Calibration', '', failed.length?`Failed ${failed.length} pair(s):`:'All calibration pairs passed.');
