@@ -1,0 +1,67 @@
+name: Merge gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: merge-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    name: Evidence
+    uses: ./.github/workflows/tests.yml
+
+  production-computation:
+    name: Production computation
+    uses: ./.github/workflows/computation-executor.yml
+
+  self-application:
+    name: Self application
+    uses: ./.github/workflows/self-application.yml
+
+  gate:
+    name: Merge gate
+    if: ${{ always() }}
+    needs:
+      - evidence
+      - production-computation
+      - self-application
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EVIDENCE_RESULT: ${{ needs.evidence.result }}
+      PRODUCTION_COMPUTATION_RESULT: ${{ needs.production-computation.result }}
+      SELF_APPLICATION_RESULT: ${{ needs.self-application.result }}
+    steps:
+      - name: Require all core evidence for one source revision
+        run: |
+          set -euo pipefail
+          printf 'source_sha=%s\n' "$SOURCE_SHA"
+          printf 'evidence=%s\n' "$EVIDENCE_RESULT"
+          printf 'production_computation=%s\n' "$PRODUCTION_COMPUTATION_RESULT"
+          printf 'self_application=%s\n' "$SELF_APPLICATION_RESULT"
+
+          test "$EVIDENCE_RESULT" = success
+          test "$PRODUCTION_COMPUTATION_RESULT" = success
+          test "$SELF_APPLICATION_RESULT" = success
+
+      - name: Publish merge-gate evidence summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo '## Merge gate'
+            echo
+            echo "- source SHA: $SOURCE_SHA"
+            echo "- Evidence: $EVIDENCE_RESULT"
+            echo "- Production computation: $PRODUCTION_COMPUTATION_RESULT"
+            echo "- Self application: $SELF_APPLICATION_RESULT"
+          } >> "$GITHUB_STEP_SUMMARY"
