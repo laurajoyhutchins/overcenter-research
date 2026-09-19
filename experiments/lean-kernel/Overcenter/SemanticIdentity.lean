@@ -127,6 +127,7 @@ def rawLifecycleShapeValid (lifecycle : RawClaimLifecycleFact) : Bool :=
   match lifecycle.status, lifecycle.runId with
   | .unrealized, none => true
   | .unrealized, some _ => false
+  | .done, none => true
   | _, some runId => !runId.isEmpty
   | _, none => false
 
