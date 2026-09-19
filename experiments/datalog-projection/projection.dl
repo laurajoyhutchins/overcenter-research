@@ -1,0 +1,188 @@
+// Overcenter projection experiment.
+//
+// This model starts *after* semantic identity has been computed.  The semantic
+// key is an input fact because hashing, verifier semantics, and provider
+// certificates are deliberately outside Datalog's responsibility.
+//
+// Inputs are append-only facts.  Current definition, latest receipt, lifecycle,
+// dependency closure, and public project status are all derived here.
+
+.decl definition(obligation:symbol, semantic_key:symbol, ordinal:number)
+.input definition
+
+.decl dependency(downstream:symbol, definition_ordinal:number, upstream:symbol)
+.input dependency
+
+.decl run(run_id:symbol, obligation:symbol, semantic_key:symbol, ordinal:number)
+.input run
+
+.decl receipt(run_id:symbol, disposition:symbol, ordinal:number)
+.input receipt
+
+// ----- Current obligation definitions -------------------------------------
+
+.decl superseded_definition(obligation:symbol, ordinal:number)
+superseded_definition(O, N) :-
+    definition(O, K, N),
+    definition(O, K2, N2),
+    N2 > N.
+
+.decl current_definition(obligation:symbol, semantic_key:symbol, ordinal:number)
+current_definition(O, K, N) :-
+    definition(O, K, N),
+    !superseded_definition(O, N).
+
+.decl current_obligation(obligation:symbol)
+current_obligation(O) :- current_definition(O, K, N).
+
+.decl current_dependency(downstream:symbol, upstream:symbol)
+current_dependency(D, U) :-
+    current_definition(D, K, N),
+    dependency(D, N, U).
+
+// ----- Dependency closure -------------------------------------------------
+
+.decl dependency_closure(downstream:symbol, upstream:symbol)
+dependency_closure(D, U) :- current_dependency(D, U).
+dependency_closure(D, U) :-
+    current_dependency(D, M),
+    dependency_closure(M, U).
+
+.output dependency_closure
+
+// ----- Append-only receipt history ---------------------------------------
+
+.decl superseded_receipt(run_id:symbol, ordinal:number)
+superseded_receipt(R, N) :-
+    receipt(R, D, N),
+    receipt(R, D2, N2),
+    N2 > N.
+
+.decl latest_receipt(run_id:symbol, disposition:symbol)
+latest_receipt(R, D) :-
+    receipt(R, D, N),
+    !superseded_receipt(R, N).
+
+.decl has_latest_receipt(run_id:symbol)
+has_latest_receipt(R) :- latest_receipt(R, D).
+
+.decl known_disposition(disposition:symbol)
+known_disposition("DONE").
+known_disposition("READY").
+known_disposition("WAITING").
+known_disposition("RECOVERY_REQUIRED").
+
+// ----- Realization reuse and lifecycle -----------------------------------
+
+.decl matching_run(run_id:symbol, obligation:symbol, ordinal:number)
+matching_run(R, O, N) :-
+    run(R, O, K, N),
+    current_definition(O, K, DefinitionOrdinal).
+
+// Any exact-key historical DONE realization satisfies the current obligation.
+// There is intentionally no producer relation in this model.
+.decl done(obligation:symbol)
+done(O) :-
+    matching_run(R, O, N),
+    latest_receipt(R, "DONE").
+
+.decl superseded_matching_run(run_id:symbol)
+superseded_matching_run(R) :-
+    matching_run(R, O, N),
+    matching_run(R2, O, N2),
+    N2 > N.
+
+.decl latest_matching_run(run_id:symbol, obligation:symbol)
+latest_matching_run(R, O) :-
+    matching_run(R, O, N),
+    !superseded_matching_run(R).
+
+.decl executing(obligation:symbol)
+executing(O) :-
+    latest_matching_run(R, O),
+    !done(O),
+    !has_latest_receipt(R).
+
+.decl waiting(obligation:symbol)
+waiting(O) :-
+    latest_matching_run(R, O),
+    !done(O),
+    latest_receipt(R, "WAITING").
+
+.decl recovery_required(obligation:symbol)
+recovery_required(O) :-
+    latest_matching_run(R, O),
+    !done(O),
+    latest_receipt(R, "RECOVERY_REQUIRED").
+
+recovery_required(O) :-
+    latest_matching_run(R, O),
+    !done(O),
+    latest_receipt(R, D),
+    !known_disposition(D).
+
+.decl unrealized(obligation:symbol)
+unrealized(O) :-
+    current_obligation(O),
+    !done(O),
+    !executing(O),
+    !waiting(O),
+    !recovery_required(O).
+
+// ----- Public eligibility / project status -------------------------------
+
+.decl unsatisfied_dependency(obligation:symbol, upstream:symbol)
+unsatisfied_dependency(O, U) :-
+    unrealized(O),
+    current_dependency(O, U),
+    !done(U).
+
+.decl has_unsatisfied_dependency(obligation:symbol)
+has_unsatisfied_dependency(O) :- unsatisfied_dependency(O, U).
+
+.decl blocked(obligation:symbol)
+blocked(O) :-
+    unrealized(O),
+    has_unsatisfied_dependency(O).
+
+.decl ready(obligation:symbol)
+ready(O) :-
+    unrealized(O),
+    !has_unsatisfied_dependency(O).
+
+.decl project_status(obligation:symbol, status:symbol)
+project_status(O, "DONE") :- done(O).
+project_status(O, "EXECUTING") :- executing(O).
+project_status(O, "WAITING") :- waiting(O).
+project_status(O, "RECOVERY_REQUIRED") :- recovery_required(O).
+project_status(O, "BLOCKED") :- blocked(O).
+project_status(O, "READY") :- ready(O).
+
+.output project_status
+
+// ----- Diagnostics for malformed flattened input -------------------------
+
+.decl duplicate_definition_ordinal(obligation:symbol, ordinal:number)
+duplicate_definition_ordinal(O, N) :-
+    definition(O, K, N),
+    definition(O, K2, N),
+    K != K2.
+
+.decl duplicate_receipt_ordinal(run_id:symbol, ordinal:number)
+duplicate_receipt_ordinal(R, N) :-
+    receipt(R, D, N),
+    receipt(R, D2, N),
+    D != D2.
+
+.decl unknown_dependency(obligation:symbol, upstream:symbol)
+unknown_dependency(O, U) :-
+    current_dependency(O, U),
+    !current_obligation(U).
+
+.decl dependency_cycle(obligation:symbol)
+dependency_cycle(O) :- dependency_closure(O, O).
+
+.output duplicate_definition_ordinal
+.output duplicate_receipt_ordinal
+.output unknown_dependency
+.output dependency_cycle
