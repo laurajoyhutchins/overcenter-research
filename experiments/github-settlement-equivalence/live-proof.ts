@@ -97,11 +97,11 @@ async function writeStatus(
       body:JSON.stringify(payload(context,state,label)),
     },
   );
-  assert.equal(
-    response.status,
-    201,
-    `status write ${label} failed: ${await response.text()}`,
-  );
+  if (response.status!==201) {
+    throw new Error(
+      `status write ${label} failed: ${response.status}: ${await response.text()}`,
+    );
+  }
   return await response.json() as RawStatus;
 }
 
