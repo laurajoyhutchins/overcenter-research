@@ -39,47 +39,6 @@ export function githubRepositoryCoordinate(fullName:string):{owner:string;repo:s
   return {owner:fullName.slice(0,slash),repo:fullName.slice(slash+1)};
 }
 
-export function rawGithubObserved200({
-  operation,
-  path,
-  parameters,
-  body,
-  observedAt,
-  observerId,
-}:{
-  operation:GithubObservationOperation;
-  path:string;
-  parameters:Record<string,string|number|boolean>;
-  body:unknown;
-  observedAt:string;
-  observerId:string;
-}):GithubRawObservation {
-  if (operation.method!=='GET') throw new Error('GITHUB_CERTIFIED_READ_REQUIRES_GET');
-  return {
-    contract:{
-      provider:'github',
-      api_version:GITHUB_API_VERSION,
-      operation_id:operation.operation_id,
-      schema_sha256:GITHUB_OPENAPI_SHA256,
-    },
-    observer:{kind:'git-kernel',id:observerId},
-    observed_at:observedAt,
-    request:{
-      method:'GET',
-      path_template:operation.path_template,
-      path,
-      parameters,
-      headers:{
-        Accept:'application/vnd.github+json',
-        'X-GitHub-Api-Version':GITHUB_API_VERSION,
-      },
-      authorization:'bearer',
-    },
-    response:{date:null,etag:null,link:null,request_id:null},
-    outcome:{status:200,visibility:'observed',value:body},
-  };
-}
-
 export function observeCertifiedGithubRepository(
   token:string,
   {
