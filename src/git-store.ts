@@ -23,7 +23,7 @@ export class GitFactStore {
     this.#git(['rev-parse','--git-dir']);
   }
 
-  head():string|null {
+  refRevision():string|null {
     if (!this.remote) {
       const result=this.#git(['rev-parse','-q','--verify',this.ref],{allowFailure:true});
       return result.ok ? result.stdout.trim() : null;
@@ -44,8 +44,8 @@ export class GitFactStore {
     return sha;
   }
 
-  revisions(head:string):string[] {
-    return this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
+  revisions(revision:string):string[] {
+    return this.#git(['rev-list','--reverse',revision]).stdout.trim().split(/\n+/).filter(Boolean);
   }
 
   parent(commit:string):string|null {
