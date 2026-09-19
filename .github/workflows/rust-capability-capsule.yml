@@ -6,6 +6,7 @@ on:
       - experiment/rust-capability-capsule
     paths:
       - 'experiments/rust-capability-capsule/**'
+      - 'experiments/rust-landlock-launcher/**'
       - '.github/workflows/rust-capability-capsule.yml'
   workflow_dispatch:
 
