@@ -309,11 +309,11 @@ export function executionIdentity(execution:ComputationExecutionV1):ExecutionIde
 }
 
 export function executionIdentityKey(identity:ExecutionIdentityV1):string {
-  return [
+  return JSON.stringify([
     identity.run_id,
     identity.execution_generation,
     identity.execution_authority_commit,
-  ].join('/');
+  ]);
 }
 
 
