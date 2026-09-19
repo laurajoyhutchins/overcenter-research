@@ -7,19 +7,26 @@ import { dependencyUpstreams } from './graph.ts';
 import type { Lifecycle } from './lifecycle.ts';
 import { staticEffectConflictError } from './admission.ts';
 
-export function claimabilityError(
+function doneObligationIds(
   state:State,
-  work:Obligation,
   lifecycles:Map<string,Lifecycle>,
-):string|null {
-  const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
-  if (realization!=='UNREALIZED') return 'NOT_READY';
-
-  const done=new Set(
+):Set<string> {
+  return new Set(
     Object.values(state.obligations)
       .filter(candidate=>lifecycles.get(candidate.id)?.status==='DONE')
       .map(candidate=>candidate.id),
   );
+}
+
+function claimabilityErrorWithDone(
+  state:State,
+  work:Obligation,
+  lifecycles:Map<string,Lifecycle>,
+  done:Set<string>,
+):string|null {
+  const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
+  if (realization!=='UNREALIZED') return 'NOT_READY';
+
   if (!dependencyUpstreams(work).every(dependency=>done.has(dependency))) {
     return 'DEPENDENCIES_NOT_DONE';
   }
@@ -31,12 +38,26 @@ export function claimabilityError(
   return staticEffectConflictError(state,work.id);
 }
 
+export function claimabilityError(
+  state:State,
+  work:Obligation,
+  lifecycles:Map<string,Lifecycle>,
+):string|null {
+  return claimabilityErrorWithDone(
+    state,
+    work,
+    lifecycles,
+    doneObligationIds(state,lifecycles),
+  );
+}
+
 export function executableFrontier(
   state:State,
   lifecycles:Map<string,Lifecycle>,
 ):Obligation[] {
+  const done=doneObligationIds(state,lifecycles);
   return Object.values(state.obligations)
-    .filter(work=>claimabilityError(state,work,lifecycles)===null)
+    .filter(work=>claimabilityErrorWithDone(state,work,lifecycles,done)===null)
     .sort((a,b)=>a.id.localeCompare(b.id))
     .map(work=>structuredClone(work));
 }
