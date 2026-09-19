@@ -307,4 +307,48 @@ example :
       downstreamReceipt
       (graph.length + 1) := by native_decide
 
+-- Claim admission owns enough graph topology to fail closed on malformed input.
+example : claimGraphValid graph = true := by native_decide
+
+private def duplicateGraph : List ClaimObligation :=
+  [upstream, { upstream with packetIdentity := "duplicate" }]
+
+example : claimGraphValid duplicateGraph = false := by native_decide
+
+private def danglingGraph : List ClaimObligation := [
+  {
+    downstreamControl with
+    dependencies := [.control "missing"]
+  }
+]
+
+example : claimGraphValid danglingGraph = false := by native_decide
+
+private def cycleA : ClaimObligation := {
+  id := "cycle-a"
+  packetIdentity := "cycle-a"
+  postcondition := claimPostcondition "/provider/cycle-a" "sha256:a"
+  dependencies := [.control "cycle-b"]
+}
+
+private def cycleB : ClaimObligation := {
+  id := "cycle-b"
+  packetIdentity := "cycle-b"
+  postcondition := claimPostcondition "/provider/cycle-b" "sha256:b"
+  dependencies := [.semantic "cycle-a" .verifiedContent]
+}
+
+private def cyclicGraph : List ClaimObligation := [cycleA, cycleB]
+
+example : claimGraphValid cyclicGraph = false := by native_decide
+
+example :
+    admitClaim
+      "revision-a"
+      duplicateGraph
+      []
+      []
+      (candidateFor upstream [] []) =
+        .rejected .invalidGraph := by native_decide
+
 end Overcenter
