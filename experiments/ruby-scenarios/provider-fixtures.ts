@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 import type { Work } from '../../src/model.ts';
 import {
+  carryKubernetesAbsenceThroughWatch,
   KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
+  observeCertifiedKubernetesConfigMap,
   type KubernetesConfigMapListRead,
   type KubernetesListConfigMaps,
 } from '../../src/providers/kubernetes-configmap.ts';
@@ -259,4 +261,48 @@ export function runProviderObservationCase(
   } finally {
     rmSync(root,{recursive:true,force:true});
   }
+}
+
+
+export function runProviderContinuityCase(
+  provider:ScenarioProvider,
+  continuity:'maintained'|'broken',
+):{evidence_preserved:boolean} {
+  if (provider!=='kubernetes-configmap') {
+    throw new Error(`CONTINUITY_SCENARIO_UNSUPPORTED:${provider}`);
+  }
+
+  const postcondition={
+    verifier:'kubernetes-configmap-exists/v1' as const,
+    provider:'kubernetes' as const,
+    authority_id:KUBERNETES_AUTHORITY,
+    api_group:'' as const,
+    resource:'configmaps' as const,
+    namespace:'proof',
+    name:'target',
+  };
+  const absent=observeCertifiedKubernetesConfigMap(postcondition,{
+    list:kubernetesListFor('missing'),
+  });
+  if (absent.state!=='absent' || !absent.absence_evidence) {
+    throw new Error('BASE_ABSENCE_CERTIFICATE_MISSING');
+  }
+
+  const carried=carryKubernetesAbsenceThroughWatch(
+    postcondition,
+    absent.absence_evidence,
+    {
+      authority_id:KUBERNETES_AUTHORITY,
+      namespace:'proof',
+      start_resource_version:'500',
+      last_resource_version:'510',
+      continuity:continuity==='maintained'
+        ? 'maintained'
+        : 'broken-relist-required',
+      termination:continuity==='maintained' ? 'timeout' : 'gone',
+      target_events:[],
+    },
+  );
+
+  return {evidence_preserved:carried!==null};
 }
