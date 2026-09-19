@@ -68,8 +68,10 @@ const containerProfile={
   nano_cpus:1_000_000_000,
   nofile:256,
   file_size_bytes:64*1024*1024,
+  task_uid:65532,
+  task_gid:65532,
   source:'read-only',
-  workspace:'fresh-empty-disposable-host-volume',
+  workspace:'fresh-empty-disposable-host-workspace',
 } as const;
 let sequence=0;
 
