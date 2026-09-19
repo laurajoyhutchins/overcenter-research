@@ -42,6 +42,7 @@ export type TestComputationPacket =
 export interface ComputationExecutor {
   readonly executionContextSha256?:string;
   readonly containmentId?:string;
+  ready?():Promise<void>;
   execute(
     execution:ComputationExecutionV1,
   ):Promise<ComputationAttemptEvidenceV1>;
@@ -194,10 +195,11 @@ function recoveringTestWork(
   };
 }
 
-function assertExecutionContext(
+async function assertExecutionContext(
   packet:TestComputationPacket,
   executor:ComputationExecutor,
-):void {
+):Promise<void> {
+  await executor.ready?.();
   if (packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) return;
   if (executor.executionContextSha256!==packet.execution_context_sha256) {
     throw new Error('TEST_COMPUTATION_EXECUTION_CONTEXT_MISMATCH');
@@ -277,7 +279,7 @@ export async function runReadyTestComputation(
   // Validate the exact computation packet before opening a durable claim. An
   // invalid test packet is a definition/admission defect, not a stranded run.
   const {work,packet}=candidate;
-  assertExecutionContext(packet,executor);
+  await assertExecutionContext(packet,executor);
   const permit=kernel.claim(work.id,work.revision);
   return await executeTestAttempt(kernel,executor,work,packet,permit);
 }
@@ -297,7 +299,7 @@ export async function resumeTestComputation(
   if (packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) {
     throw new Error('TEST_COMPUTATION_REPLAY_IDENTITY_UNPROVEN');
   }
-  assertExecutionContext(packet,executor);
+  await assertExecutionContext(packet,executor);
 
   const prior=kernel.receipts(runId).at(-1);
   const diagnostic=isRecord(prior?.diagnostic) ? prior.diagnostic : null;
