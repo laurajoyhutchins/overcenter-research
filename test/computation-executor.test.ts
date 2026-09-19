@@ -29,7 +29,7 @@ import {
   resumeTestComputation,
   runReadyTestComputation,
 } from '../src/computation-runner.ts';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
@@ -111,7 +111,13 @@ async function startExecutor(
     });
   };
 
-  const client=new GoExecutorClient({socketPath,maxConcurrency,executionContextSha256});
+  if (child.pid===undefined) throw new Error('executor pid unavailable');
+  const client=new GoExecutorClient({
+    socketPath,
+    maxConcurrency,
+    executionContextSha256,
+    containmentId:`process:${child.pid}`,
+  });
   return {
     client,
     child,
@@ -670,10 +676,28 @@ test('executor death reconstructs test work with a fresh generation and workspac
 
   const second=await startExecutor(1,workdir);
   try {
+    await assert.rejects(
+      resumeTestComputation(
+        recoveredKernel,
+        second.client,
+        interrupted.run_id,
+      ),
+      /TEST_COMPUTATION_CONTAINMENT_TERMINATION_UNPROVEN/,
+    );
+    assert.equal(recoveredKernel.inspect()[0]?.execution_generation,1);
+
+    const priorPid=first.child.pid;
+    assert.equal(typeof priorPid,'number');
     const recovered=await resumeTestComputation(
       recoveredKernel,
       second.client,
       interrupted.run_id,
+      {
+        assertTerminated:async containmentId=>{
+          assert.equal(containmentId,`process:${priorPid}`);
+          assert.equal(alive(priorPid!),false);
+        },
+      },
     );
     assert.equal(recovered.state,'DONE');
     assert.equal(recovered.execution_generation,2);
@@ -768,6 +792,52 @@ test('replay-safe computation rejects a changed execution context before rotatin
       execute:async()=>{ throw new Error('must not execute'); },
     },interrupted.run_id),
     /TEST_COMPUTATION_EXECUTION_CONTEXT_MISMATCH/,
+  );
+  assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
+});
+
+test('an effectful run cannot enter replayable-computation recovery',async()=>{
+  const state=kernelFixture();
+  const output=join(scratch,`effectful-launder-${executorSequence++}.txt`);
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      execution_context_sha256:testExecutionContext,
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'/bin/true',
+        argv:[],
+        cwd:'.',
+        env:{},
+        timeout_ms:1000,
+        stdout_max_bytes:0,
+        stderr_max_bytes:0,
+      },
+    },
+    postcondition:{
+      verifier:'eventually-consistent-file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const loop=await runGitCoreLoop(state.kernel,{
+    effect:async()=>({kind:'effectful-test',may_have_mutated:true}),
+    maxAdvances:1,
+  });
+  assert.equal(loop.state,'RECOVERY_REQUIRED');
+  assert.ok(loop.run);
+  assert.equal(state.kernel.hasUnresolvedEffect(loop.run),true);
+
+  await assert.rejects(
+    resumeTestComputation(state.kernel,{
+      executionContextSha256:testExecutionContext,
+      containmentId:'trusted-test-containment',
+      execute:async()=>{ throw new Error('must not execute'); },
+    },loop.run),
+    /TEST_COMPUTATION_EFFECT_RESERVATION_PRESENT/,
   );
   assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
 });
