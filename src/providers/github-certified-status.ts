@@ -57,6 +57,34 @@ interface StatusMember {
   updated_at:string;
 }
 
+function statusEvidence({
+  repositoryId,
+  repositoryFullName,
+  repository,
+  commitSha,
+  pages,
+}:{
+  repositoryId:number;
+  repositoryFullName:string;
+  repository:CertifiedGithubRepositoryEvidence;
+  commitSha:string;
+  pages:CertifiedGithubStatusPageEvidence[];
+}):CertifiedGithubStatusEvidence {
+  return {
+    provider:'github',
+    api_version:GITHUB_API_VERSION,
+    schema_sha256:GITHUB_OPENAPI_SHA256,
+    schema_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
+    observer:{kind:'git-kernel',id:'github-commit-status/v2'},
+    repository_id:repositoryId,
+    requested_repository_full_name:repositoryFullName,
+    repository,
+    commit_sha:commitSha,
+    status_operation_id:'repos/list-commit-statuses-for-ref',
+    pages,
+  };
+}
+
 function certifiedMembers(
   certified:ReturnType<typeof observeCertifiedGithubRead200>['certified'],
 ):{
@@ -142,19 +170,13 @@ export function observeCertifiedGithubCommitStatus(
       reason:'AUTHORITATIVE_COLLECTION_MEMBER_MATCHES',
       repository_full_name:canonicalFullName,
       actual_state:scan.match.state,
-      evidence:{
-        provider:'github',
-        api_version:GITHUB_API_VERSION,
-        schema_sha256:GITHUB_OPENAPI_SHA256,
-        schema_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
-        observer:{kind:'git-kernel',id:'github-commit-status/v2'},
-        repository_id:repositoryId,
-        requested_repository_full_name:repositoryFullName,
+      evidence:statusEvidence({
+        repositoryId,
+        repositoryFullName,
         repository:repository.evidence,
-        commit_sha:commitSha,
-        status_operation_id:'repos/list-commit-statuses-for-ref',
+        commitSha,
         pages,
-      },
+      }),
     };
   }
 
@@ -164,19 +186,13 @@ export function observeCertifiedGithubCommitStatus(
       ? 'COLLECTION_SCAN_LIMIT_REACHED'
       : 'COLLECTION_ABSENCE_NOT_AUTHORITATIVE',
     repository_full_name:canonicalFullName,
-    evidence:{
-      provider:'github',
-      api_version:GITHUB_API_VERSION,
-      schema_sha256:GITHUB_OPENAPI_SHA256,
-      schema_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
-      observer:{kind:'git-kernel',id:'github-commit-status/v2'},
-      repository_id:repositoryId,
-      requested_repository_full_name:repositoryFullName,
-      repository:repository.evidence,
-      commit_sha:commitSha,
-      status_operation_id:'repos/list-commit-statuses-for-ref',
-      pages,
-    },
+    evidence:statusEvidence({
+        repositoryId,
+        repositoryFullName,
+        repository:repository.evidence,
+        commitSha,
+        pages,
+      }),
   };
 }
 
