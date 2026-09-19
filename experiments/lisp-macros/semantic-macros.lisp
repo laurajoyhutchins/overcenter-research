@@ -8,8 +8,9 @@
   (error (if detail (format nil "~A:~A" code detail) code)))
 
 (defun semantic-fields (specs role)
-  (loop for (name type roles) in specs
-        declare (ignore type)
+  (loop for spec in specs
+        for name = (first spec)
+        for roles = (third spec)
         when (member role roles)
           collect name))
 
