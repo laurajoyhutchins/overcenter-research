@@ -8,7 +8,7 @@ echo "== F* version =="
 "$fstar" --version
 
 echo "== positive Pulse capability concurrency =="
-"$fstar" --include "$here" "$here/CapabilityConcurrency.fst"
+"$fstar" --include "$here" --cache_checked_modules "$here/CapabilityConcurrency.fst"
 
 echo "== hostile same-coordinate alias =="
 hostile_log="$here/hostile.log"
@@ -23,6 +23,12 @@ cat "$hostile_log"
 
 if (( status == 0 )); then
   echo "hostile alias unexpectedly verified" >&2
+  exit 1
+fi
+
+if ! grep -Fq "Cannot prove:" "$hostile_log" ||
+   ! grep -Fq "Pulse.Lib.Reference.pts_to coordinate before" "$hostile_log"; then
+  echo "hostile alias failed for an unexpected reason" >&2
   exit 1
 fi
 
