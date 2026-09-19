@@ -312,7 +312,7 @@ test('RED TEAM: task-controlled symlink can steer trusted observation outside th
   }
 });
 
-test('RED TEAM: isolated task can read persisted checkout authentication material',async()=>{
+test('RED TEAM CONTROL: checkout authentication material stays outside the source mount',async()=>{
   const state=kernelFixture();
   const workspace=freshWorkspace('credential-redteam-workspace');
   const marker=join(workspace,'credential-result.txt');
@@ -350,8 +350,9 @@ test('RED TEAM: isolated task can read persisted checkout authentication materia
     const result=await runReadyTestComputation(state.kernel,executor.client);
     assert.ok(result);
     assert.equal(result.evidence?.outcome,'completed');
-    assert.equal(readFileSync(marker,'utf8'),'present');
-    assert.equal(result.state,'DONE');
+    assert.equal(readFileSync(marker,'utf8'),'absent');
+    assert.equal(result.state,'READY');
+    assert.equal(result.receipt.verified,false);
     assertNoEffectReservations(state.repo);
   } finally {
     await executor.close();
