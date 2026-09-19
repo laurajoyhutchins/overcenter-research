@@ -1,16 +1,16 @@
-// Overcenter projection experiment.
+// Overcenter Datalog projection experiment.
 //
-// Datalog owns relational projection, not semantic interpretation or authority.
-// It consumes:
-//   1. append-only durable history flattened from definition/run/receipt facts;
-//   2. recomputed semantic judgments whose correctness is owned elsewhere.
+// Input contract:
+//   - durable definition / dependency / run / receipt history is already
+//     structurally validated by the authority/replay boundary;
+//   - current semantic identity, observation meaning, and realization
+//     admissibility are recomputed by deterministic semantic machinery.
 //
-// No READY/DONE/lifecycle relation is accepted as input.
+// Datalog accepts no lifecycle state and no receipt disposition.
 
-.decl definition(obligation:symbol, definition_id:symbol, ordinal:number)
+.decl definition(obligation:symbol, definition_id:symbol, sequence:number)
 .input definition
 
-// Recomputed from current definition + selected upstream realization identities.
 .decl current_semantic_key(obligation:symbol, semantic_key:symbol)
 .input current_semantic_key
 
@@ -22,51 +22,43 @@
 )
 .input dependency
 
-.decl run(run_id:symbol, obligation:symbol, semantic_key:symbol, ordinal:number)
+.decl run(run_id:symbol, obligation:symbol, semantic_key:symbol, sequence:number)
 .input run
 
-// Durable receipt shape. disposition is deliberately not an input.
-.decl receipt(run_id:symbol, kind:symbol, ordinal:number)
+.decl receipt(run_id:symbol, kind:symbol, sequence:number)
 .input receipt
 
-// Recomputed semantic judgment over one durable observation receipt.
-// verified=true means the exact postcondition holds.
-// accepted_absence=true means verifier policy accepts the absence evidence.
 .decl observation_judgment(
     run_id:symbol,
-    receipt_ordinal:number,
+    receipt_sequence:number,
     verified:symbol,
     accepted_absence:symbol
 )
 .input observation_judgment
 
-// Recomputed realization-stability judgment. Exact-key historical DONE is not
-// sufficient by itself: mutable external state may require fresh observation.
 .decl current_realization_admissible(run_id:symbol, obligation:symbol)
 .input current_realization_admissible
 
-// ----- Current definition --------------------------------------------------
+// ----- Current graph -------------------------------------------------------
 
-.decl superseded_definition(obligation:symbol, ordinal:number)
+.decl superseded_definition(obligation:symbol, sequence:number)
 superseded_definition(O, N) :-
     definition(O, DefinitionId, N),
     definition(O, DefinitionId2, N2),
     N2 > N.
 
-.decl current_definition(obligation:symbol, definition_id:symbol, ordinal:number)
-current_definition(O, DefinitionId, N) :-
+.decl current_definition(obligation:symbol, definition_id:symbol)
+current_definition(O, DefinitionId) :-
     definition(O, DefinitionId, N),
     !superseded_definition(O, N).
 
 .decl current_obligation(obligation:symbol)
-current_obligation(O) :- current_definition(O, DefinitionId, N).
+current_obligation(O) :- current_definition(O, DefinitionId).
 
 .decl current_dependency(downstream:symbol, upstream:symbol, kind:symbol)
 current_dependency(D, U, Kind) :-
-    current_definition(D, DefinitionId, N),
+    current_definition(D, DefinitionId),
     dependency(D, DefinitionId, U, Kind).
-
-// ----- Dependency closure -------------------------------------------------
 
 .decl dependency_closure(downstream:symbol, upstream:symbol)
 dependency_closure(D, U) :- current_dependency(D, U, Kind).
@@ -76,24 +68,14 @@ dependency_closure(D, U) :-
 
 .output dependency_closure
 
-// ----- Receipt semantics --------------------------------------------------
-
-.decl boolean(value:symbol)
-boolean("true").
-boolean("false").
-
-.decl known_receipt_kind(kind:symbol)
-known_receipt_kind("observation").
-known_receipt_kind("judgment-required").
-known_receipt_kind("execution-terminated").
-
-.decl has_observation_judgment(run_id:symbol, receipt_ordinal:number)
-has_observation_judgment(R, N) :-
-    observation_judgment(R, N, Verified, AcceptedAbsence).
+// ----- Settlement ---------------------------------------------------------
+//
+// Provider/verifier semantics reduce an observation to two booleans. Datalog
+// owns only the provider-neutral mapping from those judgments to disposition.
 
 .decl receipt_disposition(
     run_id:symbol,
-    receipt_ordinal:number,
+    receipt_sequence:number,
     disposition:symbol
 )
 
@@ -115,39 +97,45 @@ receipt_disposition(R, N, "WAITING") :-
 receipt_disposition(R, N, "RECOVERY_REQUIRED") :-
     receipt(R, "execution-terminated", N).
 
-// ----- Latest receipt ------------------------------------------------------
-
-.decl superseded_receipt(run_id:symbol, ordinal:number)
+.decl superseded_receipt(run_id:symbol, sequence:number)
 superseded_receipt(R, N) :-
     receipt(R, Kind, N),
     receipt(R, Kind2, N2),
     N2 > N.
 
-.decl latest_receipt_record(run_id:symbol, ordinal:number)
+.decl latest_receipt_record(run_id:symbol, sequence:number)
 latest_receipt_record(R, N) :-
     receipt(R, Kind, N),
     !superseded_receipt(R, N).
 
+.decl ambiguous_receipt(run_id:symbol, sequence:number)
+ambiguous_receipt(R, N) :-
+    receipt_disposition(R, N, D1),
+    receipt_disposition(R, N, D2),
+    D1 != D2.
+
 .decl latest_receipt(run_id:symbol, disposition:symbol)
-latest_receipt(R, Disposition) :-
+latest_receipt(R, D) :-
     latest_receipt_record(R, N),
-    receipt_disposition(R, N, Disposition).
+    receipt_disposition(R, N, D),
+    !ambiguous_receipt(R, N).
 
 .decl has_latest_receipt(run_id:symbol)
 has_latest_receipt(R) :- latest_receipt_record(R, N).
 
-// ----- Realization reuse and lifecycle -----------------------------------
+.decl uninterpretable_latest_receipt(run_id:symbol)
+uninterpretable_latest_receipt(R) :-
+    latest_receipt_record(R, N),
+    !latest_receipt(R, _).
 
-.decl matching_run(run_id:symbol, obligation:symbol, ordinal:number)
+// ----- Realization --------------------------------------------------------
+
+.decl matching_run(run_id:symbol, obligation:symbol, sequence:number)
 matching_run(R, O, N) :-
     run(R, O, K, N),
     current_obligation(O),
     current_semantic_key(O, K).
 
-// Producer identity is absent by construction. A historical DONE receipt
-// participates only when the semantic layer says that realization is still
-// admissible for the current obligation. Immutable realizations can remain
-// admissible; mutable external state can require fresh observation.
 .decl done(obligation:symbol)
 done(O) :-
     matching_run(R, O, N),
@@ -183,6 +171,11 @@ recovery_required(O) :-
     !done(O),
     latest_receipt(R, "RECOVERY_REQUIRED").
 
+recovery_required(O) :-
+    latest_matching_run(R, O),
+    !done(O),
+    uninterpretable_latest_receipt(R).
+
 .decl unrealized(obligation:symbol)
 unrealized(O) :-
     current_obligation(O),
@@ -192,22 +185,15 @@ unrealized(O) :-
     !recovery_required(O).
 
 // ----- Eligibility --------------------------------------------------------
+//
+// Both edge kinds gate execution. Only semantic edges gate semantic-key
+// availability, which is why the one-bit distinction survives flattening.
 
 .decl unsatisfied_dependency(obligation:symbol, upstream:symbol)
 unsatisfied_dependency(O, U) :-
     unrealized(O),
     current_dependency(O, U, Kind),
     !done(U).
-
-.decl unresolved_semantic_dependency(obligation:symbol, upstream:symbol)
-unresolved_semantic_dependency(O, U) :-
-    current_obligation(O),
-    current_dependency(O, U, "semantic"),
-    !done(U).
-
-.decl has_unresolved_semantic_dependency(obligation:symbol)
-has_unresolved_semantic_dependency(O) :-
-    unresolved_semantic_dependency(O, U).
 
 .decl has_unsatisfied_dependency(obligation:symbol)
 has_unsatisfied_dependency(O) :- unsatisfied_dependency(O, U).
@@ -223,194 +209,16 @@ ready(O) :-
     current_semantic_key(O, K),
     !has_unsatisfied_dependency(O).
 
-// ----- Malformed-input diagnostics ---------------------------------------
-//
-// These relations validate the flattened boundary. A malformed input set emits
-// no project_status at all. A plausible-looking partial projection is unsafe.
+// If semantic dependencies are unresolved, current_semantic_key may
+// legitimately be absent. If all dependencies are DONE and the key is still
+// absent, no status is emitted; the consumer's totality check fails closed.
 
-.decl missing_current_semantic_key(obligation:symbol)
-missing_current_semantic_key(O) :-
-    current_obligation(O),
-    !current_semantic_key(O, _),
-    !has_unresolved_semantic_dependency(O).
-
-.decl semantic_key_for_unknown_obligation(obligation:symbol)
-semantic_key_for_unknown_obligation(O) :-
-    current_semantic_key(O, K),
-    !current_obligation(O).
-
-.decl duplicate_definition_ordinal(obligation:symbol, ordinal:number)
-duplicate_definition_ordinal(O, N) :-
-    definition(O, DefinitionId, N),
-    definition(O, DefinitionId2, N),
-    DefinitionId != DefinitionId2.
-
-.decl duplicate_semantic_key(obligation:symbol)
-duplicate_semantic_key(O) :-
-    current_semantic_key(O, K),
-    current_semantic_key(O, K2),
-    K != K2.
-
-.decl known_dependency_kind(kind:symbol)
-known_dependency_kind("control").
-known_dependency_kind("semantic").
-
-.decl invalid_dependency_kind(obligation:symbol, upstream:symbol)
-invalid_dependency_kind(O, U) :-
-    current_dependency(O, U, Kind),
-    !known_dependency_kind(Kind).
-
-.decl orphan_dependency(obligation:symbol, definition_id:symbol)
-orphan_dependency(O, DefinitionId) :-
-    dependency(O, DefinitionId, U, Kind),
-    !definition(O, DefinitionId, _).
-
-.decl unknown_dependency(obligation:symbol, upstream:symbol)
-unknown_dependency(O, U) :-
-    current_dependency(O, U, Kind),
-    !current_obligation(U).
-
-.decl dependency_cycle(obligation:symbol)
-dependency_cycle(O) :- dependency_closure(O, O).
-
-.decl duplicate_run_id(run_id:symbol)
-duplicate_run_id(R) :-
-    run(R, O, K, N),
-    run(R, O2, K2, N2),
-    O != O2.
-duplicate_run_id(R) :-
-    run(R, O, K, N),
-    run(R, O2, K2, N2),
-    K != K2.
-duplicate_run_id(R) :-
-    run(R, O, K, N),
-    run(R, O2, K2, N2),
-    N != N2.
-
-.decl run_for_unknown_obligation(run_id:symbol, obligation:symbol)
-run_for_unknown_obligation(R, O) :-
-    run(R, O, K, N),
-    !current_obligation(O).
-
-.decl realization_admissibility_for_unknown_run(run_id:symbol, obligation:symbol)
-realization_admissibility_for_unknown_run(R, O) :-
-    current_realization_admissible(R, O),
-    !run(R, _, _, _).
-
-.decl realization_admissibility_obligation_mismatch(run_id:symbol, obligation:symbol)
-realization_admissibility_obligation_mismatch(R, O) :-
-    current_realization_admissible(R, O),
-    run(R, ActualO, K, N),
-    O != ActualO.
-
-.decl duplicate_receipt_ordinal(run_id:symbol, ordinal:number)
-duplicate_receipt_ordinal(R, N) :-
-    receipt(R, Kind, N),
-    receipt(R, Kind2, N),
-    Kind != Kind2.
-
-.decl receipt_for_unknown_run(run_id:symbol, ordinal:number)
-receipt_for_unknown_run(R, N) :-
-    receipt(R, Kind, N),
-    !run(R, _, _, _).
-
-.decl invalid_receipt_kind(run_id:symbol, ordinal:number)
-invalid_receipt_kind(R, N) :-
-    receipt(R, Kind, N),
-    !known_receipt_kind(Kind).
-
-.decl missing_observation_judgment(run_id:symbol, ordinal:number)
-missing_observation_judgment(R, N) :-
-    receipt(R, "observation", N),
-    !has_observation_judgment(R, N).
-
-.decl unexpected_observation_judgment(run_id:symbol, ordinal:number)
-unexpected_observation_judgment(R, N) :-
-    observation_judgment(R, N, Verified, AcceptedAbsence),
-    !receipt(R, "observation", N).
-
-.decl invalid_observation_boolean(run_id:symbol, ordinal:number)
-invalid_observation_boolean(R, N) :-
-    observation_judgment(R, N, Verified, AcceptedAbsence),
-    !boolean(Verified).
-invalid_observation_boolean(R, N) :-
-    observation_judgment(R, N, Verified, AcceptedAbsence),
-    !boolean(AcceptedAbsence).
-
-.decl contradictory_observation_judgment(run_id:symbol, ordinal:number)
-contradictory_observation_judgment(R, N) :-
-    observation_judgment(R, N, Verified, AcceptedAbsence),
-    observation_judgment(R, N, Verified2, AcceptedAbsence2),
-    Verified != Verified2.
-contradictory_observation_judgment(R, N) :-
-    observation_judgment(R, N, Verified, AcceptedAbsence),
-    observation_judgment(R, N, Verified2, AcceptedAbsence2),
-    AcceptedAbsence != AcceptedAbsence2.
-contradictory_observation_judgment(R, N) :-
-    observation_judgment(R, N, "true", "true").
-
-.decl invalid_input(flag:symbol)
-invalid_input("invalid") :- missing_current_semantic_key(O).
-invalid_input("invalid") :- semantic_key_for_unknown_obligation(O).
-invalid_input("invalid") :- duplicate_definition_ordinal(O, N).
-invalid_input("invalid") :- duplicate_semantic_key(O).
-invalid_input("invalid") :- invalid_dependency_kind(O, U).
-invalid_input("invalid") :- orphan_dependency(O, DefinitionId).
-invalid_input("invalid") :- unknown_dependency(O, U).
-invalid_input("invalid") :- dependency_cycle(O).
-invalid_input("invalid") :- duplicate_run_id(R).
-invalid_input("invalid") :- run_for_unknown_obligation(R, O).
-invalid_input("invalid") :- realization_admissibility_for_unknown_run(R, O).
-invalid_input("invalid") :- realization_admissibility_obligation_mismatch(R, O).
-invalid_input("invalid") :- duplicate_receipt_ordinal(R, N).
-invalid_input("invalid") :- receipt_for_unknown_run(R, N).
-invalid_input("invalid") :- invalid_receipt_kind(R, N).
-invalid_input("invalid") :- missing_observation_judgment(R, N).
-invalid_input("invalid") :- unexpected_observation_judgment(R, N).
-invalid_input("invalid") :- invalid_observation_boolean(R, N).
-invalid_input("invalid") :- contradictory_observation_judgment(R, N).
-
-.decl valid_input(flag:symbol)
-valid_input("valid") :- !invalid_input("invalid").
-
-// Public status exists only for a validated input set.
 .decl project_status(obligation:symbol, status:symbol)
-project_status(O, "DONE") :-
-    valid_input("valid"),
-    done(O).
-project_status(O, "EXECUTING") :-
-    valid_input("valid"),
-    executing(O).
-project_status(O, "WAITING") :-
-    valid_input("valid"),
-    waiting(O).
-project_status(O, "RECOVERY_REQUIRED") :-
-    valid_input("valid"),
-    recovery_required(O).
-project_status(O, "BLOCKED") :-
-    valid_input("valid"),
-    blocked(O).
-project_status(O, "READY") :-
-    valid_input("valid"),
-    ready(O).
+project_status(O, "DONE") :- done(O).
+project_status(O, "EXECUTING") :- executing(O).
+project_status(O, "WAITING") :- waiting(O).
+project_status(O, "RECOVERY_REQUIRED") :- recovery_required(O).
+project_status(O, "BLOCKED") :- blocked(O).
+project_status(O, "READY") :- ready(O).
 
 .output project_status
-.output missing_current_semantic_key
-.output semantic_key_for_unknown_obligation
-.output duplicate_definition_ordinal
-.output duplicate_semantic_key
-.output invalid_dependency_kind
-.output orphan_dependency
-.output unknown_dependency
-.output dependency_cycle
-.output duplicate_run_id
-.output run_for_unknown_obligation
-.output realization_admissibility_for_unknown_run
-.output realization_admissibility_obligation_mismatch
-.output duplicate_receipt_ordinal
-.output receipt_for_unknown_run
-.output invalid_receipt_kind
-.output missing_observation_judgment
-.output unexpected_observation_judgment
-.output invalid_observation_boolean
-.output contradictory_observation_judgment
