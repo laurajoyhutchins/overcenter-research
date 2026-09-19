@@ -27,7 +27,7 @@ test('a valid historical realization remains DONE, not READY',()=>{
   assert.ok(key);
   const run:RunRecord={
     id:'run-a',obligation_id:'a',claimed_revision:'revision-a',claim_commit:'claim-a',
-    obligation_key:key,obligation:work,definition_commit:'define-a',
+    obligation_key:key,obligation:work,
   };
   const receipt:Receipt={
     schema:'overcenter-git-receipt-v3',run_id:'run-a',obligation_id:'a',
