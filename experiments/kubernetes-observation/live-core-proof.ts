@@ -46,7 +46,6 @@ function currentClusterAuthority():string {
   const cluster=config.clusters?.find(item=>item.name===clusterName)?.cluster;
   assert.ok(clusterName && cluster?.server,'current Kubernetes cluster authority');
   return `kubernetes:${canonicalDigest({
-    cluster_name:clusterName,
     server:cluster.server,
     certificate_authority_data:cluster['certificate-authority-data']??null,
     certificate_authority:cluster['certificate-authority']??null,
@@ -72,13 +71,30 @@ try {
   const schemaText=kubectl('get','--raw',coreUrl);
   const schemaDocument=JSON.parse(schemaText) as {
     components?:{schemas?:Record<string,unknown>};
+    paths?:Record<string,{
+      get?:{
+        operationId?:string;
+        responses?:Record<string,{
+          content?:Record<string,{schema?:unknown}>;
+        }>;
+      };
+    }>;
   };
   const schemas=schemaDocument.components?.schemas??{};
-  const listSchema=schemas['io.k8s.api.core.v1.ConfigMapList'];
-  assert.ok(listSchema,'ConfigMapList OpenAPI schema');
+  const listOperation=schemaDocument.paths?.[
+    '/api/v1/namespaces/{namespace}/configmaps'
+  ]?.get;
+  assert.equal(
+    listOperation?.operationId,
+    KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
+    'namespaced ConfigMap LIST operation identity',
+  );
+  const listSchema=listOperation?.responses?.['200']
+    ?.content?.['application/json']?.schema;
+  assert.ok(listSchema,'namespaced ConfigMap LIST response schema');
 
   const operation:StructuralOperation={
-    operation_id:KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
+    operation_id:listOperation.operationId,
     outcomes:[{status:'200',schema:listSchema}],
   };
   const resolveRef:SchemaResolver=ref=>{
