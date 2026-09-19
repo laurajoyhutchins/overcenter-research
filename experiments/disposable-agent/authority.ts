@@ -1,4 +1,4 @@
-import { githubProofStateRef } from '../proof-environment.ts';
+import { githubProofAuthorityRef } from '../proof-environment.ts';
 import { appendFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
@@ -25,7 +25,7 @@ const repository = required('GITHUB_REPOSITORY');
 const workflowRunId = required('GITHUB_RUN_ID');
 const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('SOURCE_SHA');
-const stateRef = githubProofStateRef('disposable-agent');
+const authorityRef = githubProofAuthorityRef('disposable-agent');
 
 const repositoryInfo = await github(`/repos/${repository}`);
 if (!Number.isSafeInteger(repositoryInfo.id)) throw new Error('REPOSITORY_ID_UNAVAILABLE');
@@ -33,7 +33,7 @@ if (!Number.isSafeInteger(repositoryInfo.id)) throw new Error('REPOSITORY_ID_UNA
 const proofId = `actions-trust-proof-${workflowRunId}-${workflowRunAttempt}`;
 const context = `overcenter/trust-proof/${workflowRunId}/${workflowRunAttempt}`;
 
-const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });
+const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: authorityRef });
 kernel.initialize();
 
 kernel.define({
@@ -82,7 +82,7 @@ if (summary) {
     `- Repository ID: \`${repositoryInfo.id}\``,
     `- Obligation: \`${proofId}\``,
     `- Exact input: \`${sourceSha}\``,
-    `- Authority ref: \`${stateRef}\``,
+    `- Authority ref: \`${authorityRef}\``,
     `- Claim commit: \`${run.claim_commit}\``,
     `- Run: \`${run.id}\``,
     '- The disposable executor has not started yet.',
