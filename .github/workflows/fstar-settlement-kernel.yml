@@ -1,0 +1,45 @@
+name: F* settlement kernel
+
+on:
+  push:
+    branches:
+      - experiment/fstar-settlement-kernel
+    paths:
+      - "experiments/fstar-settlement-kernel/**"
+      - ".github/workflows/fstar-settlement-kernel.yml"
+  pull_request:
+    paths:
+      - "experiments/fstar-settlement-kernel/**"
+      - ".github/workflows/fstar-settlement-kernel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned F*
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=fstar-v2026.09.13-Linux-x86_64.tar.gz
+          url="https://github.com/FStarLang/FStar/releases/download/v2026.09.13/$archive"
+          expected="41b3b86b37734aae6a7b1beae808f3029568a67883f6be757d13e6d153ae255b"
+
+          curl --fail --location --retry 3 "$url" --output "$archive"
+          echo "$expected  $archive" | sha256sum --check
+
+          mkdir -p .fstar
+          tar -xzf "$archive" -C .fstar --strip-components=1
+          test -x .fstar/bin/fstar.exe
+
+          .fstar/bin/fstar.exe --version
+          echo "FSTAR_BIN=$PWD/.fstar/bin/fstar.exe" >> "$GITHUB_ENV"
+
+      - name: Verify settlement experiment
+        run: bash experiments/fstar-settlement-kernel/check.sh
