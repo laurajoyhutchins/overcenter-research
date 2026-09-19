@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createServer, type Socket } from 'node:net';
-import { DatabaseSync } from 'node:sqlite';
 import {
   existsSync,
   mkdtempSync,
@@ -25,11 +24,12 @@ import {
   type ProcessSpecV1,
 } from '../src/computation-execution.ts';
 import {
+  REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
   TEST_COMPUTATION_PACKET_SCHEMA,
   resumeTestComputation,
   runReadyTestComputation,
 } from '../src/computation-runner.ts';
-import { OvercenterKernel } from '../src/kernel.ts';
+import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
@@ -44,17 +44,16 @@ execFileSync('go',['build','-o',binary,'./cmd/overcenter-executor'],{
   cwd:executorDir,
   stdio:'inherit',
 });
-const kernels=new Set<OvercenterKernel>();
-after(()=>{
-  for (const kernel of kernels) {
-    try {
-      kernel.close();
-    } catch {}
-  }
-  rmSync(scratch,{recursive:true,force:true});
-});
+after(()=>rmSync(scratch,{recursive:true,force:true}));
 
 const sha256=(value:string|Buffer)=>createHash('sha256').update(value).digest('hex');
+const attestedExecutionContext='sha256:'+sha256('executor-test-context');
+const attestedContainmentId='executor-test-containment';
+const attestationArgs=[
+  `--execution-context-sha256=${attestedExecutionContext}`,
+  `--containment-id=${attestedContainmentId}`,
+];
+const testExecutionContext='sha256:'+sha256('test-execution-context');
 
 let executorSequence=0;
 let kernelSequence=0;
@@ -70,6 +69,7 @@ interface ExecutorHarness {
 async function startExecutor(
   maxConcurrency:number,
   workspaceRoot=workspace,
+  executionContextSha256=testExecutionContext,
 ):Promise<ExecutorHarness> {
   const socketPath=join(scratch,`executor-${executorSequence++}.sock`);
   rmSync(socketPath,{force:true});
@@ -117,7 +117,13 @@ async function startExecutor(
     });
   };
 
-  const client=new GoExecutorClient({socketPath,maxConcurrency});
+  if (child.pid===undefined) throw new Error('executor pid unavailable');
+  const client=new GoExecutorClient({
+    socketPath,
+    maxConcurrency,
+    executionContextSha256,
+    containmentId:`process:${child.pid}`,
+  });
   return {
     client,
     child,
@@ -140,29 +146,32 @@ async function startExecutor(
 
 function kernelFixture():{
   root:string;
-  database:string;
-  kernel:OvercenterKernel;
+  repo:string;
+  kernel:GitOvercenterKernel;
 } {
   const root=join(scratch,`kernel-${kernelSequence++}`);
-  const database=join(root,'state.sqlite');
+  const repo=join(root,'state.git');
   mkdirSync(root,{recursive:true});
-  const kernel=new OvercenterKernel(database);
-  kernels.add(kernel);
+  execFileSync('git',['init','--bare',repo],{stdio:'ignore'});
+  const kernel=new GitOvercenterKernel(repo);
   kernel.initialize();
-  return {root,database,kernel};
+  return {root,repo,kernel};
 }
 
-function assertNoEffectReservations(database:string):void {
-  const db=new DatabaseSync(database);
-  try {
-    const row=db.prepare(`
-      SELECT COUNT(*) AS count
-      FROM fact_commits
-      WHERE files_json LIKE '%"effect-reservation.json"%'
-    `).get() as {count:number|bigint};
-    assert.equal(Number(row.count),0);
-  } finally {
-    db.close();
+function assertNoEffectReservations(repo:string):void {
+  const commits=execFileSync(
+    'git',
+    ['-C',repo,'rev-list','refs/overcenter/state'],
+    {encoding:'utf8'},
+  ).trim().split(/\n+/).filter(Boolean);
+  for (const commit of commits) {
+    assert.throws(
+      ()=>execFileSync(
+        'git',
+        ['-C',repo,'cat-file','-e',`${commit}:effect-reservation.json`],
+        {stdio:'ignore'},
+      ),
+    );
   }
 }
 
@@ -385,6 +394,7 @@ test('production socket mode fails closed without a distinct task credential',as
       '--concurrency=1',
       `--task-uid=${foreignUID}`,
       `--task-gid=${foreignGID}`,
+      ...attestationArgs,
     ],
     {stdio:['ignore','ignore','pipe'],env:{}},
   );
@@ -527,7 +537,54 @@ test('test workload crosses Go but settles only by independent observation',asyn
     assert.equal(summary.execution_spec_sha256,result.execution_spec_sha256);
     assert.equal(summary.stdout_sha256,result.evidence?.stdout_sha256);
     assert.equal('stdout_base64' in summary,false);
-    assertNoEffectReservations(state.database);
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('failed process evidence cannot turn a forged marker into DONE',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`failed-marker-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
+  const output=join(workdir,'result.txt');
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:process.execPath,
+        argv:[
+          '-e',
+          `require('node:fs').writeFileSync(${JSON.stringify(output)},'passed'); process.exit(1)`,
+        ],
+        cwd:'.',
+        env:{},
+        timeout_ms:5000,
+        stdout_max_bytes:4096,
+        stderr_max_bytes:4096,
+      },
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const harness=await startExecutor(1,workdir);
+  try {
+    const result=await runReadyTestComputation(state.kernel,harness.client);
+    assert.ok(result);
+    assert.equal(result.evidence?.outcome,'failed');
+    assert.equal(result.evidence?.exit_code,1);
+    assert.equal(readFileSync(output,'utf8'),'passed');
+    assert.equal(result.state,'RECOVERY_REQUIRED');
+    assert.equal(result.receipt.verified,false);
+    assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
+    assertNoEffectReservations(state.repo);
   } finally {
     await harness.close();
   }
@@ -570,7 +627,7 @@ test('successful process evidence is not project truth',async()=>{
     assert.equal(result.state,'READY');
     assert.equal(result.receipt.verified,false);
     assert.equal(state.kernel.inspect()[0]?.status,'READY');
-    assertNoEffectReservations(state.database);
+    assertNoEffectReservations(state.repo);
   } finally {
     await harness.close();
   }
@@ -582,6 +639,92 @@ test('executor death reconstructs test work with a fresh generation and workspac
   mkdirSync(workdir,{recursive:true});
   const oldOnly=join(workdir,'old-workspace-only');
   writeFileSync(oldOnly,'old');
+  const output=join(workdir,'result.txt');
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      execution_context_sha256:testExecutionContext,
+      process_spec:spec('delayed-write-file','passed',{
+        pidFile:output,
+        timeoutMs:5000,
+      }),
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const first=await startExecutor(1,workdir);
+  const pending=runReadyTestComputation(state.kernel,first.client);
+  await new Promise(resolve=>setTimeout(resolve,100));
+  await first.abort();
+  const interrupted=await pending;
+  assert.ok(interrupted);
+  assert.equal(interrupted.state,'RECOVERY_REQUIRED');
+  assert.equal(interrupted.execution_generation,1);
+  assert.equal(interrupted.evidence,undefined);
+  assert.ok(interrupted.transport_error);
+  assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
+  assert.equal(existsSync(output),false);
+  assertNoEffectReservations(state.repo);
+
+  const recoveredKernel=new GitOvercenterKernel(state.repo);
+  const recoveredProjection=recoveredKernel.inspect()[0]!;
+  assert.equal(recoveredProjection.status,'RECOVERY_REQUIRED');
+  assert.equal(recoveredProjection.execution_generation,1);
+
+  rmSync(workdir,{recursive:true,force:true});
+  mkdirSync(workdir,{recursive:true});
+  assert.equal(existsSync(oldOnly),false);
+
+  const second=await startExecutor(1,workdir);
+  try {
+    await assert.rejects(
+      resumeTestComputation(
+        recoveredKernel,
+        second.client,
+        interrupted.run_id,
+      ),
+      /TEST_COMPUTATION_CONTAINMENT_TERMINATION_UNPROVEN/,
+    );
+    assert.equal(recoveredKernel.inspect()[0]?.execution_generation,1);
+
+    const priorPid=first.child.pid;
+    assert.equal(typeof priorPid,'number');
+    const recovered=await resumeTestComputation(
+      recoveredKernel,
+      second.client,
+      interrupted.run_id,
+      {
+        assertTerminated:async containmentId=>{
+          assert.equal(containmentId,`process:${priorPid}`);
+          assert.equal(alive(priorPid!),false);
+        },
+      },
+    );
+    assert.equal(recovered.state,'DONE');
+    assert.equal(recovered.execution_generation,2);
+    assert.equal(recovered.evidence?.execution_generation,2);
+    assert.equal(
+      recovered.execution_spec_sha256,
+      interrupted.execution_spec_sha256,
+    );
+    assert.equal(recoveredKernel.inspect()[0]?.status,'DONE');
+    assert.equal(readFileSync(output,'utf8'),'passed');
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await second.close();
+  }
+});
+
+test('legacy computation cannot replay without a bound execution context',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`legacy-replay-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
   const output=join(workdir,'result.txt');
   state.kernel.define({
     id:'test',
@@ -607,45 +750,103 @@ test('executor death reconstructs test work with a fresh generation and workspac
   const interrupted=await pending;
   assert.ok(interrupted);
   assert.equal(interrupted.state,'RECOVERY_REQUIRED');
-  assert.equal(interrupted.execution_generation,1);
-  assert.equal(interrupted.evidence,undefined);
-  assert.ok(interrupted.transport_error);
-  assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
-  assert.equal(existsSync(output),false);
-  assertNoEffectReservations(state.database);
 
-  state.kernel.close();
-  kernels.delete(state.kernel);
-  const recoveredKernel=new OvercenterKernel(state.database);
-  kernels.add(recoveredKernel);
-  const recoveredProjection=recoveredKernel.inspect()[0]!;
-  assert.equal(recoveredProjection.status,'RECOVERY_REQUIRED');
-  assert.equal(recoveredProjection.execution_generation,1);
+  await assert.rejects(
+    resumeTestComputation(state.kernel,{
+      executionContextSha256:testExecutionContext,
+      execute:async()=>{ throw new Error('must not execute'); },
+    },interrupted.run_id),
+    /TEST_COMPUTATION_REPLAY_IDENTITY_UNPROVEN/,
+  );
+  assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
+});
 
-  rmSync(workdir,{recursive:true,force:true});
+test('replay-safe computation rejects a changed execution context before rotating generation',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`context-mismatch-${executorSequence++}`);
   mkdirSync(workdir,{recursive:true});
-  assert.equal(existsSync(oldOnly),false);
+  const output=join(workdir,'result.txt');
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      execution_context_sha256:testExecutionContext,
+      process_spec:spec('delayed-write-file','passed',{
+        pidFile:output,
+        timeoutMs:5000,
+      }),
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
 
-  const second=await startExecutor(1,workdir);
-  try {
-    const recovered=await resumeTestComputation(
-      recoveredKernel,
-      second.client,
-      interrupted.run_id,
-    );
-    assert.equal(recovered.state,'DONE');
-    assert.equal(recovered.execution_generation,2);
-    assert.equal(recovered.evidence?.execution_generation,2);
-    assert.equal(
-      recovered.execution_spec_sha256,
-      interrupted.execution_spec_sha256,
-    );
-    assert.equal(recoveredKernel.inspect()[0]?.status,'DONE');
-    assert.equal(readFileSync(output,'utf8'),'passed');
-    assertNoEffectReservations(state.database);
-  } finally {
-    await second.close();
-  }
+  const first=await startExecutor(1,workdir,testExecutionContext);
+  const pending=runReadyTestComputation(state.kernel,first.client);
+  await new Promise(resolve=>setTimeout(resolve,100));
+  await first.abort();
+  const interrupted=await pending;
+  assert.ok(interrupted);
+  assert.equal(interrupted.state,'RECOVERY_REQUIRED');
+
+  const wrong='sha256:'+sha256('different-execution-context');
+  await assert.rejects(
+    resumeTestComputation(state.kernel,{
+      executionContextSha256:wrong,
+      execute:async()=>{ throw new Error('must not execute'); },
+    },interrupted.run_id),
+    /TEST_COMPUTATION_EXECUTION_CONTEXT_MISMATCH/,
+  );
+  assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
+});
+
+test('an effectful run cannot enter replayable-computation recovery',async()=>{
+  const state=kernelFixture();
+  const output=join(scratch,`effectful-launder-${executorSequence++}.txt`);
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      execution_context_sha256:testExecutionContext,
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'/bin/true',
+        argv:[],
+        cwd:'.',
+        env:{},
+        timeout_ms:1000,
+        stdout_max_bytes:0,
+        stderr_max_bytes:0,
+      },
+    },
+    postcondition:{
+      verifier:'eventually-consistent-file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const loop=await runGitCoreLoop(state.kernel,{
+    effect:async()=>({kind:'effectful-test',may_have_mutated:true}),
+    maxAdvances:1,
+  });
+  assert.equal(loop.state,'RECOVERY_REQUIRED');
+  assert.ok(loop.run);
+  assert.equal(state.kernel.hasUnresolvedEffect(loop.run),true);
+
+  await assert.rejects(
+    resumeTestComputation(state.kernel,{
+      executionContextSha256:testExecutionContext,
+      containmentId:'trusted-test-containment',
+      execute:async()=>{ throw new Error('must not execute'); },
+    },loop.run),
+    /TEST_COMPUTATION_EFFECT_RESERVATION_PRESENT/,
+  );
+  assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
 });
 
 test('invalid test computation packet fails before durable claim',async()=>{
@@ -885,6 +1086,7 @@ test('a second executor cannot unlink or steal a live production socket',async()
       '--concurrency=1',
       `--task-uid=${taskUID}`,
       `--task-gid=${taskGID}`,
+      ...attestationArgs,
     ],
     {stdio:['ignore','ignore','pipe'],env:{}},
   );
@@ -909,6 +1111,7 @@ test('a second executor cannot unlink or steal a live production socket',async()
       '--concurrency=1',
       `--task-uid=${taskUID}`,
       `--task-gid=${taskGID}`,
+      ...attestationArgs,
     ],
     {stdio:['ignore','ignore','pipe'],env:{}},
   );
@@ -922,7 +1125,15 @@ test('a second executor cannot unlink or steal a live production socket',async()
   assert.notEqual(challengerCode,0);
   assert.match(challengerStderr,/socket path already exists/);
 
-  const client=new GoExecutorClient({socketPath,maxConcurrency:1});
+  const client=new GoExecutorClient({
+    socketPath,
+    maxConcurrency:1,
+    executionContextSha256:attestedExecutionContext,
+    containmentId:attestedContainmentId,
+  });
+  await client.ready();
+  assert.equal(client.executionContextSha256,attestedExecutionContext);
+  assert.equal(client.containmentId,attestedContainmentId);
   await client.close();
   const originalCode=await new Promise<number|null>((resolve,reject)=>{
     if (original.exitCode!==null) {
@@ -933,6 +1144,33 @@ test('a second executor cannot unlink or steal a live production socket',async()
     original.once('close',resolve);
   });
   assert.equal(originalCode,0,originalStderr);
+});
+
+test('socket attestation mismatch fails before computation authority is used',async()=>{
+  const socketPath=join(scratch,`attestation-mismatch-${executorSequence++}.sock`);
+  rmSync(socketPath,{force:true});
+  const server=createServer(socket=>{
+    socket.end(JSON.stringify({
+      schema:'overcenter-executor-hello-v1',
+      execution_context_sha256:'sha256:'+'0'.repeat(64),
+      containment_id:'wrong-containment',
+    })+'\n');
+  });
+  await new Promise<void>((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(socketPath,()=>resolve());
+  });
+
+  const client=new GoExecutorClient({
+    socketPath,
+    maxConcurrency:1,
+    executionContextSha256:attestedExecutionContext,
+    containmentId:attestedContainmentId,
+  });
+  await assert.rejects(client.ready(),/GO_EXECUTOR_ATTESTATION_MISMATCH/);
+  await new Promise<void>((resolve,reject)=>{
+    server.close(error=>error?reject(error):resolve());
+  });
 });
 
 test('clean idle transport death terminalizes the client',async()=>{
