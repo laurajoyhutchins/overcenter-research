@@ -211,6 +211,9 @@ function attestingExecutor(
   content:string,
 ):ComputationExecutor {
   return {
+    get executionContextSha256(){ return client.executionContextSha256; },
+    get containmentId(){ return client.containmentId; },
+    ready:()=>client.ready(),
     execute:async(execution:ComputationExecutionV1)=>{
       const evidence=await client.execute(execution);
       assertComputationEvidenceFor(evidence,execution);
