@@ -133,3 +133,37 @@ At minimum:
 - **Canonicalization contract is defective:** neither implementation should be promoted until a language-independent byte-level contract replaces the current behavior.
 
 No broader language migration follows automatically.
+
+
+## Falsification found before control correction
+
+First compiled challenger head:
+
+`c20fcfadeb4d0fe472d373a3200f8dcef5c2ba7a`
+
+Dedicated run `35425839111` produced:
+
+- Lean proof library: **PASS**
+- obligation-key executable: **PASS**
+- 9/10 differential cases: **PASS**
+- Unicode object-key portability case: **FAIL**
+
+The exact-key mismatch was:
+
+```text
+Lean       b8d140f43be5d9c40339c221d5f038cf89dd350a3398ed3e908aa80f0e95344d
+TypeScript b34c0fd339630fc8f1a30f909ea6d1e8fa6193a98064b68946ffee8af6ab2b9a
+```
+
+This is attributable to the current TypeScript canonicalizer's use of `String.localeCompare` for recursive object-key ordering. Locale collation is not an acceptable byte-level identity contract for a durable key intended to be reproduced across implementations.
+
+The same hostile suite also confirmed a separate syntax-sensitivity issue: an exact duplicate semantic edge is accepted by current TypeScript and changes the obligation key, while graph traversal already collapses duplicate upstreams. The challenger rejects exact duplicate semantic edges.
+
+Before judging the language audition, the TypeScript null hypothesis will therefore receive two explicit contract repairs:
+
+1. replace locale collation with a specified Unicode-scalar lexical comparator used by canonicalization and semantic-dependency sorting;
+2. reject exact duplicate dependency records at obligation validation.
+
+These are not Lean accommodations. They remove behavior that is unsuitable for a provider- and language-independent durable identity. The repaired TypeScript implementation remains the control for the final audition.
+
+Changing canonical ordering can change keys for obligations whose JSON object keys sort differently under the old locale-sensitive rule. A production migration would therefore require an explicit compatibility / key-version plan. This research branch does not silently claim migration compatibility.
