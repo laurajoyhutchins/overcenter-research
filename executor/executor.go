@@ -21,6 +21,7 @@ type executionJob struct {
 type executionCompletion struct {
 	key      executionIdentityKey
 	evidence ComputationAttemptEvidenceV1
+	fatal    error
 }
 
 type TaskCredential struct {
@@ -32,6 +33,7 @@ type Runtime struct {
 	workspaceRoot  *os.File
 	maxConcurrency int
 	taskCredential *TaskCredential
+	supervisor     *processSupervisor
 }
 
 func NewRuntime(
@@ -46,10 +48,16 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
+	supervisor, err := newProcessSupervisor()
+	if err != nil {
+		_ = root.Close()
+		return nil, err
+	}
 	return &Runtime{
 		workspaceRoot:  root,
 		maxConcurrency: maxConcurrency,
 		taskCredential: taskCredential,
+		supervisor:     supervisor,
 	}, nil
 }
 
@@ -92,15 +100,16 @@ func (runtime *Runtime) Serve(ctx context.Context, input io.Reader, output io.Wr
 		go func() {
 			defer workers.Done()
 			for job := range jobs {
-				evidence := runProcess(
+				evidence, fatal := runProcess(
 					job.ctx,
 					runtime.workspaceRoot,
 					runtime.taskCredential,
+					runtime.supervisor,
 					job.validated,
 				)
 				job.cancel()
 				select {
-				case completed <- executionCompletion{key: job.key, evidence: evidence}:
+				case completed <- executionCompletion{key: job.key, evidence: evidence, fatal: fatal}:
 				case <-runtimeCtx.Done():
 				}
 			}
@@ -147,6 +156,9 @@ func (runtime *Runtime) Serve(ctx context.Context, input io.Reader, output io.Wr
 			select {
 			case results <- completion.evidence:
 			case <-runtimeCtx.Done():
+			}
+			if completion.fatal != nil {
+				serveErr = completion.fatal
 			}
 		case command, ok := <-commands:
 			if !ok {
