@@ -12,10 +12,11 @@ function required(name:string):string {
 
 const workflowRunId=required('GITHUB_RUN_ID');
 const attempt=required('GITHUB_RUN_ATTEMPT');
-const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF});
+const token=required('GITHUB_TOKEN');
+const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF,githubToken:token});
 const id=`guard-${workflowRunId}-${attempt}-ordered-beta`;
 const work=kernel.inspect().find(candidate=>candidate.id===id);
 assert.ok(work);
-assert.equal(work.status,'READY');
+assert.equal(work.status,'READY',JSON.stringify(kernel.explain(id)));
 const run=kernel.claim(work.id,work.revision);
 console.log(JSON.stringify({id,run}));
