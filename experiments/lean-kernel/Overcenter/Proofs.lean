@@ -350,4 +350,123 @@ example : settle kubePostcondition kubeChangedSnapshot = .recoveryRequired := by
 example : settle kubePostcondition kubePartialPagination = .recoveryRequired := by decide
 example : settle kubePostcondition kubeWrongNamespaceMember = .recoveryRequired := by decide
 
+private def kubeWatchOther490 : KubernetesListMember := {
+  name := "other"
+  namespaceName := "proof"
+  uid := "uid-other"
+  resourceVersion := "490"
+}
+
+private def kubeWatchTarget490 : KubernetesListMember := {
+  name := "missing"
+  namespaceName := "proof"
+  uid := "uid-target"
+  resourceVersion := "490"
+}
+
+private def kubeWatchTarget491 : KubernetesListMember := {
+  kubeWatchTarget490 with
+  resourceVersion := "491"
+}
+
+private def kubeWatchNoTarget : KubernetesWatchTranscript := {
+  authorityId := "cluster-a"
+  requestNamespace := "proof"
+  startResourceVersion := "489"
+  termination := .timeout
+  events := [{
+    eventType := .modified
+    member := kubeWatchOther490
+  }]
+}
+
+private def kubeWatchTargetAdded : KubernetesWatchTranscript := {
+  kubeWatchNoTarget with
+  events := [{
+    eventType := .added
+    member := kubeWatchTarget490
+  }]
+}
+
+private def kubeWatchTargetAddedThenDeleted : KubernetesWatchTranscript := {
+  kubeWatchNoTarget with
+  events := [
+    {
+      eventType := .added
+      member := kubeWatchTarget490
+    },
+    {
+      eventType := .deleted
+      member := kubeWatchTarget491
+    }
+  ]
+}
+
+private def kubeWatchGone : KubernetesWatchTranscript := {
+  kubeWatchNoTarget with
+  termination := .gone
+}
+
+private def kubeWatchError : KubernetesWatchTranscript := {
+  kubeWatchNoTarget with
+  termination := .error
+}
+
+private def kubeWatchWrongAuthority : KubernetesWatchTranscript := {
+  kubeWatchNoTarget with
+  authorityId := "cluster-b"
+}
+
+private def kubeWatchWrongNamespace : KubernetesWatchTranscript := {
+  kubeWatchNoTarget with
+  requestNamespace := "other"
+}
+
+private def kubeWatchWrongStart : KubernetesWatchTranscript := {
+  kubeWatchNoTarget with
+  startResourceVersion := "488"
+}
+
+private def kubeWatchInvalidEvent : KubernetesWatchTranscript := {
+  kubeWatchNoTarget with
+  events := [{
+    eventType := .modified
+    member := { kubeWatchOther490 with namespaceName := "other" }
+  }]
+}
+
+-- WATCH carries a proven absence only from the exact LIST snapshot through a
+-- faithful ordered transcript. It derives target state from events rather than
+-- trusting a caller-provided continuity or absence boolean.
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchNoTarget = some "490" := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchTargetAdded = none := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchTargetAddedThenDeleted = some "491" := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchGone = none := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchError = none := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchWrongAuthority = none := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchWrongNamespace = none := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchWrongStart = none := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePages kubeWatchInvalidEvent = none := by decide
+example :
+    carryKubernetesAbsenceThroughWatchRaw
+      kubeCoordinate "489" kubePresentPages kubeWatchNoTarget = none := by decide
+
 end Overcenter
