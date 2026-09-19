@@ -11,5 +11,6 @@ let stale : evidence = {
   producer = PriorRun
 }
 
+[@@expect_failure]
 let impossible : bound_evidence obligation_a =
   stale
