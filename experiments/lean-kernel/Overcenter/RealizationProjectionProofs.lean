@@ -73,40 +73,13 @@ theorem mutable_done_requires_fresh_verification
                         disposition
                       ] at done
           | none =>
-              cases fresh : input.freshObservation with
-              | none =>
-                  simp [
-                    projectCurrentRealization,
-                    active,
-                    key,
-                    historical,
-                    producerIndependentFresh,
-                    fresh
-                  ] at done
-              | some observation =>
-                  cases disposition : settle input.postcondition observation with
-                  | done =>
-                      exact ⟨observation, rfl, disposition⟩
-                  | ready =>
-                      simp [
-                        projectCurrentRealization,
-                        active,
-                        key,
-                        historical,
-                        producerIndependentFresh,
-                        fresh,
-                        disposition
-                      ] at done
-                  | recoveryRequired =>
-                      simp [
-                        projectCurrentRealization,
-                        active,
-                        key,
-                        historical,
-                        producerIndependentFresh,
-                        fresh,
-                        disposition
-                      ] at done
+              simp [
+                projectCurrentRealization,
+                active,
+                key,
+                historical,
+                unboundFreshObservation
+              ] at done
 
 theorem mutable_without_fresh_observation_never_projects_done
     (input : RealizationProjectionInput)
@@ -195,7 +168,7 @@ example :
       mutableBase with freshObservation := some absentObservation
     }).lifecycle = .unrealized := by decide
 
--- Current verified reality may satisfy an obligation with no producer run.
+-- Bare current reality is not key-bound realization provenance.
 example :
     projectCurrentRealization {
       postcondition := filePostcondition
@@ -203,8 +176,7 @@ example :
       runs := []
       freshObservation := some exactObservation
     } = {
-      lifecycle := .done
-      sourceRunId := none
+      lifecycle := .unrealized
     } := by decide
 
 -- Uncertainty with no known prior realization does not invent a recovery run.
