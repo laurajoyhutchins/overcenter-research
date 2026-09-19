@@ -21,6 +21,7 @@ type Envelope struct {
 	ExecutionAuthorityCommit  string          `json:"execution_authority_commit"`
 	ExecutionCapability       string          `json:"execution_capability"`
 	ExecutionCapabilitySHA256 string          `json:"execution_capability_sha256"`
+	ExecutionSpecSHA256       string          `json:"execution_spec_sha256"`
 	ExecutionSpec             json.RawMessage `json:"execution_spec"`
 }
 
@@ -119,9 +120,16 @@ func validatePlan(envelopes []Envelope) error {
 		if envelope.ExecutionCapability == "" || envelope.ExecutionCapabilitySHA256 == "" {
 			return fmt.Errorf("missing execution capability at index %d", index)
 		}
+		if envelope.ExecutionSpecSHA256 == "" {
+			return fmt.Errorf("missing execution spec digest at index %d", index)
+		}
 		digest := sha256.Sum256([]byte(envelope.ExecutionCapability))
 		if hex.EncodeToString(digest[:]) != envelope.ExecutionCapabilitySHA256 {
 			return fmt.Errorf("execution capability digest mismatch at index %d", index)
+		}
+		specDigest := sha256.Sum256(envelope.ExecutionSpec)
+		if "sha256:"+hex.EncodeToString(specDigest[:]) != envelope.ExecutionSpecSHA256 {
+			return fmt.Errorf("execution spec digest mismatch at index %d", index)
 		}
 		key := fmt.Sprintf("%s/%d/%s", envelope.RunID, envelope.ExecutionGeneration, envelope.ExecutionAuthorityCommit)
 		if _, exists := seen[key]; exists {
@@ -142,7 +150,7 @@ func executeOne(ctx context.Context, envelope Envelope, runner Runner) Evidence 
 		ExecutionGeneration:       envelope.ExecutionGeneration,
 		ExecutionAuthorityCommit:  envelope.ExecutionAuthorityCommit,
 		ExecutionCapabilitySHA256: envelope.ExecutionCapabilitySHA256,
-		ExecutionSpecSHA256:       "sha256:" + hex.EncodeToString(specDigest[:]),
+		ExecutionSpecSHA256:       envelope.ExecutionSpecSHA256,
 	}
 
 	if err := ctx.Err(); err != nil {
