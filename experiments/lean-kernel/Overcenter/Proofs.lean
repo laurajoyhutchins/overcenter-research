@@ -188,6 +188,8 @@ private def kubeMember : KubernetesListMember := {
 }
 
 private def kubePage1 : KubernetesListPage := {
+  authorityId := "cluster-a"
+  requestNamespace := "proof"
   requestContinue := none
   responseContinue := "next"
   snapshotResourceVersion := "489"
@@ -195,6 +197,8 @@ private def kubePage1 : KubernetesListPage := {
 }
 
 private def kubePage2 : KubernetesListPage := {
+  authorityId := "cluster-a"
+  requestNamespace := "proof"
   requestContinue := some "next"
   responseContinue := ""
   snapshotResourceVersion := "489"
@@ -289,6 +293,16 @@ private def kubeWrongNamespacePages : List KubernetesListPage := [
   kubePage2
 ]
 
+private def kubeWrongAuthorityPages : List KubernetesListPage := [
+  { kubePage1 with authorityId := "cluster-b" },
+  kubePage2
+]
+
+private def kubeWrongRequestNamespacePages : List KubernetesListPage := [
+  { kubePage1 with requestNamespace := "other" },
+  kubePage2
+]
+
 private def kubeWrongNamespaceMember : Observation := {
   kubeAbsentObservation with
   absence := some (.kubernetesCompleteList
@@ -325,6 +339,8 @@ example : classifyKubernetesList kubeCoordinate "489" kubeBrokenPages = .indeter
 example : classifyKubernetesList kubeCoordinate "489" kubeChangedSnapshotPages = .indeterminate := by decide
 example : classifyKubernetesList kubeCoordinate "489" kubePartialPages = .indeterminate := by decide
 example : classifyKubernetesList kubeCoordinate "489" kubeWrongNamespacePages = .indeterminate := by decide
+example : classifyKubernetesList kubeCoordinate "489" kubeWrongAuthorityPages = .indeterminate := by decide
+example : classifyKubernetesList kubeCoordinate "489" kubeWrongRequestNamespacePages = .indeterminate := by decide
 
 -- A forged absence certificate cannot override raw-list classification.
 example : settle kubePostcondition kubeAbsentObservation = .ready := by decide
