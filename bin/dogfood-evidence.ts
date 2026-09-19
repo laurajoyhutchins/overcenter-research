@@ -108,7 +108,8 @@ function processSpec(
       OVERCENTER_SOURCE_SHA:sourceSha,
       PATH:'/usr/local/bin:/usr/bin:/bin',
     },
-    timeout_ms:tier==='regression' ? 180_000 : 600_000,
+    // The self-regression suite runs under the real one-CPU production profile.
+    timeout_ms:tier==='regression' ? 300_000 : 600_000,
     stdout_max_bytes:512*1024,
     stderr_max_bytes:512*1024,
   };
