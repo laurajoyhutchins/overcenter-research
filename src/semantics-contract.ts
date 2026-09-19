@@ -8,9 +8,9 @@ export interface SettlementSemantics {
   acceptedAbsenceEvidenceKinds:readonly string[];
 }
 
-export interface EffectEquivalenceWitness {
-  schema:'overcenter-effect-equivalence-certificate-v1';
-  issuer_contract:'overcenter/provider-effect-equivalence-issuer/v1';
+export interface SettlementEquivalenceWitness {
+  schema:'overcenter-settlement-equivalence-witness-v1';
+  issuer_contract:'overcenter/provider-settlement-equivalence-issuer/v1';
   provider:string;
   verifier_contract:string;
   coordinate_contract:string;
@@ -19,8 +19,8 @@ export interface EffectEquivalenceWitness {
   provider_contract_digest:string;
   resource:string;
   operation:string;
-  equivalence_class:string;
+  equivalence_class:'same-project-truth-under-observation-and-settlement';
   effect_semantics_digest:string;
   settlement_semantics_digest:string;
-  certificate_digest:string;
+  witness_digest:string;
 }
