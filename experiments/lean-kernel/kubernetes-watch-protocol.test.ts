@@ -74,7 +74,7 @@ function watch(overrides:Partial<Watch>={}):Watch {
 function carry(
   transcript:Watch,
   pages:Page[]=basePages,
-):{state:string;snapshot_resource_version:string|null} {
+):{schema:string;state:string;snapshot_resource_version:string|null} {
   const request={
     command:'kubernetes-watch-carry',
     coordinate:{
@@ -92,6 +92,7 @@ function carry(
     stdio:['pipe','pipe','pipe'],
   });
   return JSON.parse(stdout) as {
+    schema:string;
     state:string;
     snapshot_resource_version:string|null;
   };
@@ -106,6 +107,7 @@ test('WATCH carries complete LIST absence through irrelevant events',()=>{
       }],
     })),
     {
+      schema:'overcenter-lean-kernel/v1',
       state:'CARRIED',
       snapshot_resource_version:'501',
     },
@@ -134,6 +136,7 @@ test('WATCH target-state fold requires target to end absent',()=>{
     ],
   }));
   assert.deepEqual(deleted,{
+    schema:'overcenter-lean-kernel/v1',
     state:'CARRIED',
     snapshot_resource_version:'502',
   });
