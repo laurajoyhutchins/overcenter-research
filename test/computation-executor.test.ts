@@ -29,7 +29,8 @@ import {
   resumeTestComputation,
   runReadyTestComputation,
 } from '../src/computation-runner.ts';
-import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { runCoreLoop } from '../src/kernel-core.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
@@ -836,7 +837,7 @@ test('an effectful run cannot enter replayable-computation recovery',async()=>{
     },
   });
 
-  const loop=await runGitCoreLoop(state.kernel,{
+  const loop=await runCoreLoop(state.kernel,{
     effect:async()=>({kind:'effectful-test',may_have_mutated:true}),
     maxAdvances:1,
   });

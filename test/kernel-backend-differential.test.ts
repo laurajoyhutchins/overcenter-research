@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
-import { OvercenterKernel, runCoreLoop } from '../src/kernel.ts';
-import type { KernelCore } from '../src/kernel-core.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { OvercenterKernel } from '../src/kernel.ts';
+import { runCoreLoop, type KernelCore } from '../src/kernel-core.ts';
 
 const OMIT=new Set([
   'revision',
@@ -44,9 +44,6 @@ function snapshot(kernel:KernelCore) {
 
 async function exercise(
   kernel:KernelCore,
-  run:(kernel:KernelCore,options:{
-    effect:(packet:Record<string,unknown>)=>Promise<{kind:'ok'}>;
-  })=>Promise<unknown>,
   firstPath:string,
   secondPath:string,
 ) {
@@ -72,7 +69,7 @@ async function exercise(
   });
 
   const before=snapshot(kernel);
-  await run(kernel,{
+  await runCoreLoop(kernel,{
     effect:async packet=>{
       writeFileSync(String(packet.path),String(packet.content));
       return {kind:'ok'};
@@ -95,10 +92,6 @@ test('Git and SQLite kernels derive the same logical project transitions',async(
   try {
     const gitResult=await exercise(
       git,
-      (kernel,options)=>runGitCoreLoop(
-        kernel as GitOvercenterKernel,
-        options,
-      ),
       firstPath,
       secondPath,
     );
@@ -108,7 +101,6 @@ test('Git and SQLite kernels derive the same logical project transitions',async(
 
     const sqliteResult=await exercise(
       sqlite,
-      runCoreLoop,
       firstPath,
       secondPath,
     );

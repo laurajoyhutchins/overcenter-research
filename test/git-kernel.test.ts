@@ -4,7 +4,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { runCoreLoop } from '../src/kernel-core.ts';
 import { RECEIPT_SCHEMA } from '../src/facts.ts';
 
 function fixture() {
@@ -35,7 +36,7 @@ test('kernel-owned evidence drives dependency chain to DONE', async () => {
     const a = f.path('a'), b = f.path('b');
     f.kernel.define({ id: 'a', packet: { path: a, content: 'A' }, postcondition: pc(a, 'A') });
     f.kernel.define({ id: 'b', dependencies: [{ kind: 'control', upstream: 'a' }], packet: { path: b, content: 'B' }, postcondition: pc(b, 'B') });
-    const result = await runGitCoreLoop(f.kernel, {
+    const result = await runCoreLoop(f.kernel, {
       effect: async packet => {
         writeFileSync(String(packet.path), String(packet.content));
         return { kind: 'ok' };
@@ -58,7 +59,7 @@ test('core loop commits an effect reservation before invoking effect handler', a
     });
 
     let effectObservedReservation = false;
-    const result = await runGitCoreLoop(f.kernel, {
+    const result = await runCoreLoop(f.kernel, {
       effect: async (...args) => {
         assert.equal(args.length, 1, 'effect callback must not receive ExecutionPermit');
         const [packet] = args;
@@ -98,7 +99,7 @@ test('core loop never invokes effect handler when effect reservation cannot comm
 
     let executions = 0;
     await assert.rejects(
-      runGitCoreLoop(f.kernel, {
+      runCoreLoop(f.kernel, {
         preflight: async () => {
           writeFileSync(lock, 'held');
           return { kind: 'execute' };
@@ -128,7 +129,7 @@ test('preflight judgment can WAIT without opening the effect boundary', async ()
     });
 
     let executions = 0;
-    const result = await runGitCoreLoop(f.kernel, {
+    const result = await runCoreLoop(f.kernel, {
       preflight: async () => ({
         kind: 'judgment-required',
         question: 'human choice required',
@@ -170,7 +171,7 @@ test('post-reservation judgment is recovery uncertainty, not WAITING', async () 
       postcondition: pc(path, 'present'),
     });
 
-    const result = await runGitCoreLoop(f.kernel, {
+    const result = await runCoreLoop(f.kernel, {
       effect: async () => ({
         kind: 'judgment-required',
         question: 'too late to assert no effect',
