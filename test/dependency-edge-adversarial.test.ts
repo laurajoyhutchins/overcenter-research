@@ -245,4 +245,14 @@ withFixture('active exact run fences amendment even when edge semantics are othe
     ()=>f.amendFile('a',{content:'A2'}),
     /PROJECT_BUSY|AMEND_WHILE_IN_FLIGHT/,
   );
+});withFixture('material packet change invalidates an otherwise identical realization',f=>{
+  f.defineFile('artifact',{content:'same-bytes',packet:{producer:'v1'}});
+  f.settleFile('artifact');
+
+  f.amendFile('artifact',{content:'same-bytes',packet:{producer:'v2'}});
+
+  assert.equal(f.work('artifact').status,'READY');
+  assert.equal(f.work('artifact').run_id,undefined);
 });
+
+
