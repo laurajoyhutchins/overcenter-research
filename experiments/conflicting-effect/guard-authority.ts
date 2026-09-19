@@ -1,6 +1,8 @@
 import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { canonicalDigest } from '../../src/digest.ts';
+import { githubCommitStatusEffectAuthority } from '../../src/provider-effect.ts';
 
 const STATE_REF=githubProofStateRef('conflicting-effect');
 
@@ -43,17 +45,31 @@ const statusPc=(context:string,state:'success'|'failure')=>({
   expected_state:state,
 });
 
+const effectObligation=(id:string,context:string,state:'success'|'failure')=>({
+  id,
+  postcondition:statusPc(context,state),
+  effect_authority:githubCommitStatusEffectAuthority(),
+  result_acceptance:{
+    verifier:'canonical-json-sha256/v1' as const,
+    expected_sha256:canonicalDigest({
+      kind:'conflicting-effect-authorized-result/v1',
+      obligation_id:id,
+    }),
+  },
+});
+
 const uAlpha=`guard-${workflowRunId}-${attempt}-unordered-alpha`;
 const uBeta=`guard-${workflowRunId}-${attempt}-unordered-beta`;
-kernel.define({id:uAlpha,postcondition:statusPc(`${unorderedContext}/Build`,'success')});
+kernel.define(effectObligation(uAlpha,`${unorderedContext}/Build`,'success'));
 const headAfterAlpha=kernel.head();
 assert.ok(headAfterAlpha);
 
 assert.throws(
-  ()=>kernel.define({
-    id:uBeta,
-    postcondition:statusPc(`${unorderedContext}/build`,'failure'),
-  }),
+  ()=>kernel.define(effectObligation(
+    uBeta,
+    `${unorderedContext}/build`,
+    'failure',
+  )),
   /UNORDERED_EFFECT_CONFLICT/,
 );
 assert.equal(
@@ -75,8 +91,11 @@ assert.equal(
 
 const oAlpha=`guard-${workflowRunId}-${attempt}-ordered-alpha`;
 const oBeta=`guard-${workflowRunId}-${attempt}-ordered-beta`;
-kernel.define({id:oAlpha,postcondition:statusPc(orderedContext,'success')});
-kernel.define({id:oBeta,dependencies:[{kind:'control',upstream:oAlpha}],postcondition:statusPc(orderedContext,'failure')});
+kernel.define(effectObligation(oAlpha,`${orderedContext}/Build`,'success'));
+kernel.define({
+  ...effectObligation(oBeta,`${orderedContext}/build`,'failure'),
+  dependencies:[{kind:'control' as const,upstream:oAlpha}],
+});
 
 const alpha=kernel.inspect().find(work=>work.id===oAlpha)!;
 const run=kernel.claim(alpha.id,alpha.revision);
