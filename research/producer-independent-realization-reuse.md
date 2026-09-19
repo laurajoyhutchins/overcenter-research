@@ -97,22 +97,68 @@ Projection exposes `realization_identity` separately from `run_id`, so a
 consumer can tell whether `DONE` came from exact execution settlement or
 producer-independent realization reuse.
 
+## Worker admission
+
+The core loop now selects execution semantics from the obligation rather than
+asking the worker which path to use.
+
+For `realization-content/v1`:
+
+```text
+READY
+  │
+  ▼
+realizationWorker(packet)
+  │
+  ▼
+candidate bytes
+  │
+  ▼
+recordRealization @ exact revision
+  │
+  ▼
+verified realization fact
+  │
+  ▼
+DONE
+```
+
+This path deliberately creates no claim, execution permit, effect reservation,
+or observation receipt. Candidate generation is computation, not authoritative
+mutation. The worker cannot make the project `DONE`; only deterministic
+verification plus authority-ref CAS can do that.
+
+For mutable effects, the existing path remains unchanged:
+
+```text
+claim → reserve → effect → observe → settle
+```
+
+The distinction is mechanically selected from the postcondition class. A worker
+cannot downgrade a mutable provider effect into the cheaper realization path.
+
+The adversarial proof also demonstrates reuse at the worker boundary: two
+equivalent obligations execute the worker once, commit one realization fact,
+and both project `DONE`. A rejected candidate leaves the obligation `READY`
+and creates no run or effect facts.
+
 ## What this still does not prove
 
 The integration does not yet prove that:
 
 - arbitrary postcondition kinds can be classified safely as reusable or
   external-effect semantics;
-- worker execution automatically emits a reusable candidate after successful
-  computation;
+- realization workers are physically sandboxed or receive a task-specific
+  executable capability rather than an in-process callback;
 - the realization fact is a storage system for large artifact bytes. The proof
   stores evidence identities, not an artifact CAS;
+- accepted artifact bytes can always be materialized later by immutable
+  identity;
 - every verifier can safely reconstruct its material configuration and source
   closure; or
 - a reusable realization remains available forever in an external artifact
   store merely because its evidence fact remains durable.
 
 The next implementation step for autonomous software development is therefore
-to make the worker return a candidate realization through a deterministic
-admission boundary, then materialize the accepted artifact by immutable
-identity rather than rerunning the worker.
+artifact materialization by immutable identity, followed by physical isolation
+of the realization worker from provider-mutation authority.
