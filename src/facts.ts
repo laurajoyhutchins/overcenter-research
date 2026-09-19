@@ -11,6 +11,7 @@ import type {
 } from './model.ts';
 import { validatePostcondition } from './observation.ts';
 import { validateEffectAuthority } from './effect-authority.ts';
+import { validateCurrentProviderEffectAuthority } from './provider-effect.ts';
 import { validateResultAcceptance } from './realization.ts';
 
 export const LEGACY_OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
@@ -177,6 +178,7 @@ export function normalizeObligation(input:ObligationInput):Obligation {
   }
   validatePostcondition(input.postcondition);
   validateEffectAuthority(input.effect_authority,input.postcondition);
+  validateCurrentProviderEffectAuthority(input.effect_authority);
   validateResultAcceptance(input.result_acceptance);
   if (input.effect_authority && !input.result_acceptance) {
     throw new Error('EFFECT_RESULT_ACCEPTANCE_REQUIRED');
