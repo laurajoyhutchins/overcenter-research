@@ -16,13 +16,16 @@ theorem derived_claim_admitted_implies_base_claim_admissible
   simp [derivedClaimAdmissible] at admitted
   exact admitted.2.2
 
+private def outputSource : NormalizedSemanticSource :=
+  .fileContent "aaaaaaaa"
+
 private def outputMaterial : SemanticOutputMaterial :=
-  .contentSha256 "aaaaaaaa"
+  semanticOutputMaterialFor outputSource
 
 private def upstream : RawClaimObligation := {
   id := "upstream"
   dependencies := []
-  semanticOutput := some outputMaterial
+  semanticSource := some outputSource
 }
 
 private def outputDependency : RawClaimDependency := {
