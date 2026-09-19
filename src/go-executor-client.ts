@@ -33,6 +33,7 @@ export class GoExecutorClient {
   readonly #closed:Promise<void>;
   #inflight=0;
   #terminalError:Error|null=null;
+  #closing=false;
 
   constructor({
     socketPath,
@@ -85,6 +86,8 @@ export class GoExecutorClient {
           this.#fail(new Error('GO_EXECUTOR_SOCKET_CLOSED_WITH_ERROR'));
         } else if (this.#pending.size>0) {
           this.#fail(new Error('GO_EXECUTOR_SOCKET_CLOSED_WITH_PENDING_EXECUTIONS'));
+        } else if (!this.#closing) {
+          this.#fail(new Error('GO_EXECUTOR_SOCKET_CLOSED'));
         }
         resolve();
       });
@@ -145,6 +148,7 @@ export class GoExecutorClient {
       throw new Error('GO_EXECUTOR_CLOSE_WITH_PENDING_EXECUTIONS');
     }
     await this.#connected;
+    this.#closing=true;
     this.#socket.end();
     await this.#closed;
     if (this.#terminalError) throw this.#terminalError;
@@ -168,8 +172,12 @@ export class GoExecutorClient {
     if (this.#terminalError) throw this.#terminalError;
     const line=JSON.stringify(command)+'\n';
     if (this.#socket.write(line)) return;
-    await once(this.#socket,'drain');
+    await Promise.race([
+      once(this.#socket,'drain'),
+      this.#closed,
+    ]);
     if (this.#terminalError) throw this.#terminalError;
+    if (this.#socket.destroyed) throw new Error('GO_EXECUTOR_SOCKET_CLOSED');
   }
 
   #fail(error:Error):void {
