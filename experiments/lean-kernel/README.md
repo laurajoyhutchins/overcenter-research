@@ -8,15 +8,17 @@ It does **not** rewrite Overcenter in Lean. Git transport, credentials, mutation
 
 ## Current semantic slice
 
-The Lean kernel now owns four decisions:
+The Lean kernel now owns seven classes of truth decision:
 
-1. **Obligation identity material** — verifier semantics are explicit identity.
+1. **Obligation identity material** — verifier semantics and semantic dependency identities are explicit rather than ambient implementation detail.
 2. **Settlement** — admitted observations become `done`, `ready`, or `recoveryRequired`.
-3. **Realization reuse** — immutable realizations may reuse exact identity; mutable external realizations require fresh verification.
+3. **Realization reuse** — immutable realizations may reuse exact identity; mutable external realizations require exactly one fresh verifying observation.
 4. **Kubernetes LIST/WATCH interpretation** — raw page/member evidence becomes `PRESENT`, `ABSENT`, or `INDETERMINATE`, and LIST-proved absence can be carried only through an exact-bound WATCH transcript that still ends absent.
 5. **Execution replay fencing** — starting from an admitted claim, authority rotations, effect reservations, interruptions, and receipts are reduced as a pure durable-fact state machine.
+6. **Claim admission** — lifecycle, dependency satisfaction, semantic-input identity, current-revision fencing, duplicate-run rejection, and capability-digest validity are derived rather than supplied as booleans.
+7. **Admission graph safety** — obligation IDs must be unique, dependencies must exist, the graph must be acyclic, and incompatible GitHub status mutations must be ordered.
 
-The structured semantic key is modeled directly. Cryptographic compression of that key is deliberately outside this slice.
+The semantic keys are modeled structurally. Cryptographic compression of those keys remains outside this slice.
 
 ## Claims and hostile witnesses
 
@@ -26,15 +28,36 @@ The structured semantic key is modeled directly. Cryptographic compression of th
 | `done` requires exact verification. | Wrong coordinate or uncertain read settles `done`. | Change coordinate/certainty while preserving value. |
 | `ready` requires authoritative absence. | Forged negative evidence permits replay. | Change one ENOENT field; require recovery. |
 | Historical `done` is not current truth for mutable external state. | External state drifts after settlement. | Reconstruct without fresh observation; reuse must be false. |
-| Stability is semantic policy. | History relabels mutable state immutable. | History contains no stability flag. |
+| Fresh evidence is singular and current. | Multiple fresh reads let the caller choose a convenient answer. | Supply zero, drifted, and duplicate fresh observations; mutable DONE must not satisfy dependencies. |
 | Exact immutable realizations are reusable. | Producer identity poisons content-addressed reuse. | Exact immutable key reuses without worker execution. |
 | Kubernetes absence requires a complete coherent LIST. | Partial page chain, wrong authority, wrong namespace, changing resourceVersion, or hidden target mints absence. | Feed each hostile transcript; classifier must be indeterminate or present, never absent. |
+| Kubernetes WATCH carry requires exact continuity. | Wrong start version, broken authority, target reappears, or WATCH expires but absence is carried. | Feed hostile transcripts; require relist. |
+| Execution generations are fenced. | Stale generation/authority reserves or settles. | Replay stale authority, reservation, and receipt facts; reject each. |
+| Receipts bind to the exact claim. | A genuine receipt is transplanted to another revision, claim, generation, or authority. | Alter one binding coordinate; replay must reject. |
+| Claimability is derived from realizations. | Caller claims downstream work while a dependency is merely historical, READY, or stale. | Remove fresh upstream verification or change semantic identity; admission must reject. |
+| Claim facts bind to current authority. | A detached synthetic fact is internally self-consistent but not based on the current revision. | Make fact parent = claimed revision != current revision; Lean rejects. |
+| Graph topology is authority-bearing. | Duplicate IDs, dangling dependencies, or cycles enter claimability. | Admit each hostile graph; reject before claim evaluation. |
+| Conflicting provider effects require ordering. | Two unordered writes target the same GitHub repo/SHA/context with incompatible states. | Keep coordinate equal, vary desired state; reject unless an ordering path exists. |
+| GitHub status contexts are case-insensitive. | `Overcenter/Proof` and `overcenter/proof` evade conflict detection. | Vary only context casing; resource identity must remain equal. |
+| Identical GitHub status writes commute. | Two equivalent desired writes are unnecessarily serialized. | Same exact resource + same desired state; admission remains valid. |
 
-`Overcenter/Proofs.lean` contains generic theorems plus concrete hostile examples.
+The generic definitions live in `Overcenter/*.lean`. Closed adversarial fixtures use Lean's compiled decision procedure where ordinary reduction would merely spend time normalizing large finite values.
 
 ## Native JSON boundary
 
-The compiled executable reads JSON from stdin and writes one JSON decision to stdout.
+The compiled executable reads JSON from stdin and writes one JSON decision to stdout. It does not accept caller-provided `verified`, `complete`, `claimable`, `dependencies_done`, or `effect_conflict` booleans.
+
+Current commands include:
+
+- `settle`
+- `kubernetes-list`
+- `kubernetes-watch-carry`
+- `execution-replay`
+- `claim-graph`
+- `claim-effect-ordering`
+- `claim-admission`
+
+Malformed JSON, unknown commands, unsupported verifier families, and malformed typed fields fail closed.
 
 ### Settlement
 
@@ -82,35 +105,85 @@ The compiled executable reads JSON from stdin and writes one JSON decision to st
 }
 ```
 
-For Kubernetes, Lean validates per-page authority, requested namespace, continuation binding, stable snapshot `resourceVersion`, member identity fields, terminal pagination, and target membership. The caller does not get to provide a `complete: true` or `verified: true` bit.
+For Kubernetes, Lean validates per-page authority, requested namespace, continuation binding, stable snapshot `resourceVersion`, member identity fields, terminal pagination, and target membership. The caller does not provide a `complete: true` bit.
 
-Malformed JSON, unknown commands, unsupported verifier families, and malformed typed fields fail closed.
+### Claim admission
+
+The claim boundary receives:
+
+- current authority revision;
+- typed obligations and dependencies;
+- historical run facts;
+- fresh observations;
+- the proposed claim fact.
+
+Lean derives the current lifecycle and semantic obligation key itself. A mutable historical `DONE` does not count unless exactly one fresh observation verifies the current postcondition.
+
+The claim candidate must bind:
+
+```text
+fact parent
+    =
+claimed revision
+    =
+current authority revision
+```
+
+before it can enter the execution reducer.
 
 ## Differential proofs
 
 ### Settlement
 
-`differential.test.ts` compares local-file dispositions from `projectReceipt` and the native Lean kernel for positive verification, wrong content, uncertainty, authoritative ENOENT, and tampered ENOENT certificates.
+`differential.test.ts` compares local-file dispositions from TypeScript `projectReceipt` and the native Lean kernel for positive verification, wrong content, uncertainty, authoritative ENOENT, and tampered ENOENT certificates.
 
 ### Kubernetes provider interpretation
 
-`kubernetes-differential.test.ts` feeds equivalent LIST transcripts to the existing TypeScript Kubernetes verifier and Lean's raw LIST classifier. They currently agree on:
+`kubernetes-differential.test.ts` feeds equivalent LIST transcripts to the TypeScript Kubernetes verifier and Lean's raw LIST classifier. They agree on complete absence, later-page presence, resourceVersion drift, continuation mismatch, wrong authority/namespace, interrupted pagination, and expired continuation.
 
-- complete absence;
-- target present on a later page;
-- `resourceVersion` drift;
-- broken continuation binding;
-- wrong page authority;
-- wrong requested namespace;
-- wrong-namespace member;
-- interrupted pagination;
-- expired continuation.
+`kubernetes-watch-differential.test.ts` does the same for LIST-to-WATCH absence carry.
 
-This is the first point in the experiment where Lean independently interprets provider evidence rather than merely consuming a provider certificate minted by TypeScript.
+### Execution replay
 
-## Known semantic gap
+`execution-replay-differential.test.ts` feeds equivalent durable execution sequences to Lean and TypeScript `replayProjection()`. The hostile suite agrees on acceptance/rejection, final generation, authority commit, lifecycle status, and unresolved-effect state.
 
-`reuse-gap.test.ts` deliberately witnesses one current disagreement:
+### Claim admission
+
+`claim-admission-differential.test.ts` compares claim admission against TypeScript replay for:
+
+- independent work;
+- control dependencies;
+- verified-content semantic dependencies;
+- settlement-receipt semantic dependencies;
+- stale claimed revision;
+- claim-parent mismatch;
+- obligation-key mismatch;
+- duplicate run IDs;
+- already-realized work;
+- invalid capability digests;
+- valid, dangling, cyclic, and duplicate-ID graph shapes.
+
+It also deliberately records two stronger Lean boundaries:
+
+1. TypeScript pure projection assumes the supplied `FactCommit[]` already follows authoritative Git ancestry. Lean claim admission names the current authority revision explicitly and rejects detached self-consistent claims.
+2. TypeScript currently treats historical mutable `DONE` as live. Lean requires one fresh verifying observation before that realization can satisfy a dependency.
+
+### Static effect ordering
+
+`effect-ordering-differential.test.ts` compares Lean's derived GitHub-status effect conflicts with TypeScript admission. They agree on:
+
+- unordered incompatible states;
+- case-insensitive context aliases;
+- commuting identical writes;
+- different repository IDs;
+- different commit SHAs;
+- different contexts;
+- forward dependency ordering;
+- reverse dependency ordering.
+
+## Known production semantic gap
+
+`reuse-gap.test.ts` deliberately witnesses current TypeScript behavior:
 
 ```text
 file = A
@@ -123,12 +196,13 @@ fresh TypeScript reconstruction
   ↓
 DONE
 
-Lean reuse with no fresh observation
+Lean reuse / claim dependency
+without fresh verification
   ↓
-false
+not reusable / not DONE
 ```
 
-The passing test documents current TypeScript behavior. It is not the desired target. It should disappear when production mutable-realization reuse is migrated.
+The passing test documents the present implementation. It is not the desired target. It should disappear when production mutable-realization reuse migrates to the proved semantics.
 
 ## Local-file negative evidence
 
@@ -145,43 +219,45 @@ Lean validates the material direct-coordinate ENOENT certificate fields itself:
 
 ## Kubernetes boundary
 
-Complete LIST and WATCH semantics are no longer abstract booleans in Lean.
+Complete LIST and WATCH semantics are not abstract booleans in Lean.
 
 For LIST, the kernel derives completeness from page authority, request namespace, continuation chaining, exact snapshot `resourceVersion`, terminal pagination, member identity fields, and target membership.
 
-For WATCH, the kernel starts from an actually absent LIST snapshot and requires:
-
-- exact authority and namespace;
-- exact WATCH start `resourceVersion` equal to the LIST snapshot;
-- a concrete ordered event transcript;
-- valid event member identity;
-- no `gone` or transport-error termination;
-- the target-state fold to end absent.
+For WATCH, the kernel starts from an actually absent LIST snapshot and requires exact authority/namespace, exact WATCH start `resourceVersion`, a concrete ordered event transcript, valid member identity, acceptable termination, and the target-state fold to end absent.
 
 `resourceVersion` remains opaque. Lean does not compare it numerically; stream order plus exact start binding carry the semantic meaning.
 
-The TypeScript WATCH adapter currently summarizes this as `continuity: maintained` plus target-event types. `kubernetes-watch-differential.test.ts` confirms that the Lean raw-transcript interpretation agrees with that summary on their overlapping cases, while Lean requires the stronger raw transcript at its own boundary.
-
 ## Execution replay
 
-`Overcenter/Execution.lean` adds the first inward-facing transaction slice. It starts from one admitted claim and folds durable execution facts.
+`Overcenter/Execution.lean` starts from an admitted claim and folds durable execution facts.
 
-The reducer rejects:
+The reducer rejects skipped generations, stale predecessor authority, wrong-run authority changes, stale reservations, duplicate unresolved effects, judgment deferral after reservation, incorrectly bound receipts, and authority/settlement operations after terminal completion.
 
-- skipped execution generations;
-- stale predecessor authority commits;
-- authority changes for the wrong run or obligation;
-- reservations from stale generations or stale authority;
-- duplicate unresolved effects;
-- judgment deferral after an effect has been reserved;
-- receipts bound to the wrong revision, claim, generation, or authority;
-- authority rotation or additional settlement after a terminal receipt.
+It preserves an unresolved effect across worker termination and clears it only on terminal observation settlement.
 
-It preserves an unresolved effect across execution termination and clears it only on terminal observation settlement.
+## Admission graph
 
-`execution-replay-differential.test.ts` feeds equivalent fact sequences to Lean and TypeScript `replayProjection()`. The current hostile suite agrees on acceptance/rejection, final generation, current authority commit, lifecycle status, and unresolved-effect state.
+Claim admission validates graph topology before considering a candidate:
 
-This slice deliberately begins **after claim admission**. Graph topology, semantic-dependency resolution, and claimability remain the next inward boundary rather than being represented by caller-supplied booleans.
+```text
+unique obligation IDs
+        +
+all dependencies exist
+        +
+acyclic graph
+        +
+static provider effects are safely ordered
+        ↓
+eligible for claim evaluation
+```
+
+GitHub status effects use a structured resource coordinate:
+
+```text
+(repository_id, commit_sha, lower(context))
+```
+
+Two writes to that resource with the same desired state commute. Different desired states require a dependency path in either direction.
 
 ## Build
 
@@ -191,7 +267,7 @@ lake build
 ./.lake/build/bin/overcenterKernel
 ```
 
-CI:
+CI currently:
 
 1. builds the Lean/native kernel;
 2. replays `Overcenter.*` declarations through bundled `leanchecker`;
@@ -199,10 +275,12 @@ CI:
 4. differential-tests local-file settlement;
 5. executes the mutable-reuse gap witness;
 6. adversarially tests serialized Kubernetes evidence;
-7. differential-tests Kubernetes provider interpretation against TypeScript;
+7. differential-tests Kubernetes LIST interpretation;
 8. adversarially tests raw Kubernetes WATCH carry;
-9. differential-tests WATCH carry against the current TypeScript summary semantics;
-10. differential-tests execution replay/fencing against TypeScript `replayProjection()`.
+9. differential-tests WATCH carry;
+10. differential-tests execution replay/fencing;
+11. differential-tests claim admission and graph topology;
+12. differential-tests static GitHub effect ordering.
 
 ## Deliberate boundary
 
@@ -216,4 +294,24 @@ That is intentionally much smaller than “Lean runs the orchestrator.”
 
 ## Next core slice
 
-Execution replay now reaches back to an already admitted claim. The next boundary is **claim admission itself**: derive claimability from obligation identity, dependency realizations, and exact current revision without importing a caller-provided `dependencies_done` or `claimable` flag. That is the point where the Lean kernel can begin replacing the remaining lifecycle/eligibility truth decisions rather than merely validating execution after admission.
+Claim admission still accepts `packet_identity` from the caller. That is now the sharpest pure trust boundary.
+
+The next experiment should pass the **raw packet value** into Lean, canonicalize its semantic structure there, and make that normalized value part of the obligation key directly. Cryptographic hashing can remain a representation detail outside the proof model.
+
+The hostile experiment is simple:
+
+```text
+same JSON meaning, different object-key order
+        ↓
+same semantic packet identity
+
+material packet value changes
+        ↓
+different obligation identity
+
+caller lies about packet identity
+        ↓
+impossible: no identity field exists to lie about
+```
+
+That would remove another externally asserted truth bit from the kernel boundary without pulling transport or cryptography into Lean.
