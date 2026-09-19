@@ -16,7 +16,7 @@ gh workflow run github-object-transport-proof.yml
 ```
 
 ## Evidence
-Exact hosted-head evidence is recorded separately from the local deterministic contract.
+The complete hosted path passed at exact revision `570e776aadb131589c9a47309d923e06b476e436` in run `35465653729`: materialize, no-checkout execute, trusted publish, and authoritative readback.
 
 ## Interpretation and non-claims
 Workflow YAML should describe trust domains, not be the only home of experiment semantics. This is not arbitrary filesystem sandboxing or provider-native coordinate-scoped authorization.
