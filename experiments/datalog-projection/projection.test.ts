@@ -20,11 +20,8 @@ import {
   type State,
 } from '../../src/facts.ts';
 import { localFileEnoentEvidence } from '../../src/evidence.ts';
-import {
-  deriveLifecycles,
-  obligationKey,
-} from '../../src/lifecycle.ts';
-import { projectWork } from '../../src/eligibility.ts';
+import { obligationKey } from '../../src/semantic-identity.ts';
+import { deriveProjectProjection } from '../../src/projector.ts';
 import {
   projectReceipt,
 } from '../../src/projection.ts';
@@ -243,13 +240,18 @@ function typescriptProjection(scenario:Scenario):Map<string,WorkStatus> {
     );
   }
 
-  const lifecycles=deriveLifecycles(state,runs,receipts);
-  return new Map(
-    Object.values(state.obligations).map(work=>[
-      work.id,
-      projectWork(state,work,'current-revision',lifecycles).status,
-    ]),
+  const inadmissible=new Set(scenario.inadmissibleRealizationRuns??[]);
+  const admissible=new Set(
+    [...runs.keys()].filter(runId=>!inadmissible.has(runId)),
   );
+  const project=deriveProjectProjection({
+    state,
+    runs,
+    receiptsByRun:receipts,
+    revision:'current-revision',
+    admissibleRealizationRuns:admissible,
+  });
+  return new Map(project.work.map(work=>[work.id,work.status]));
 }
 
 function writeFacts(
@@ -602,10 +604,7 @@ test('mutable historical DONE can be rejected by current realization semantics',
     inadmissibleRealizationRuns:['run-a'],
   };
 
-  // Current TypeScript still reuses this matching historical DONE.
-  assert.equal(typescriptProjection(scenario).get('a'),'DONE');
-
-  // The stronger target semantics can withdraw current admissibility after
-  // mutable external state drifts, without changing the relational rules.
+  // Both implementations consume the stronger current admissibility judgment.
+  assert.equal(typescriptProjection(scenario).get('a'),'READY');
   assert.equal(datalogProjection(scenario).statuses.get('a'),'READY');
 });
