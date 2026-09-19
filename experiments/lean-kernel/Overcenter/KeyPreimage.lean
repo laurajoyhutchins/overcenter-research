@@ -167,17 +167,20 @@ def buildConsumedDependencies
 
 def buildObligationKeyPreimage
     (input : ObligationKeyInput)
-    (results : List KeyHashResult) : Option String := do
-  let planned ← plannedIdentityHashBytes input.context
-  if !hashResultsValid planned results then
+    (results : List KeyHashResult) : Option String :=
+  if !keyPreimageReady input.context then
     none
-  else
-    let consumed ← buildConsumedDependencies input.context results
-    pure <| (Json.mkObj [
-      ("id", input.context.targetId),
-      ("packet", input.packet),
-      ("postcondition", input.postcondition),
-      ("semantic_dependencies", Json.arr consumed.toArray)
-    ]).compress
+  else do
+    let planned ← plannedIdentityHashBytes input.context
+    if !hashResultsValid planned results then
+      none
+    else
+      let consumed ← buildConsumedDependencies input.context results
+      pure <| (Json.mkObj [
+        ("id", input.context.targetId),
+        ("packet", input.packet),
+        ("postcondition", input.postcondition),
+        ("semantic_dependencies", Json.arr consumed.toArray)
+      ]).compress
 
 end Overcenter
