@@ -30,14 +30,14 @@ test('unordered incompatible canonical effects are rejected before definition co
   const f=fixture();
   try {
     f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
-    const acceptedHead=f.kernel.head();
+    const acceptedHead=f.kernel.authorityRevision();
 
     assert.throws(
       ()=>f.kernel.define({id:'beta',postcondition:statusPostcondition('failure')}),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
 
-    assert.equal(f.kernel.head(),acceptedHead);
+    assert.equal(f.kernel.authorityRevision(),acceptedHead);
     assert.deepEqual(
       f.kernel.inspect().map(work=>[work.id,work.status]),
       [['alpha','READY']],
@@ -56,7 +56,7 @@ test('amendment cannot remove ordering and create a static effect conflict', () 
       dependencies:[{kind:'control',upstream:'alpha'}],
       postcondition:statusPostcondition('failure'),
     });
-    const acceptedHead=f.kernel.head()!;
+    const acceptedHead=f.kernel.authorityRevision()!;
 
     assert.throws(
       ()=>f.kernel.amend({
@@ -67,7 +67,7 @@ test('amendment cannot remove ordering and create a static effect conflict', () 
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
 
-    assert.equal(f.kernel.head(),acceptedHead);
+    assert.equal(f.kernel.authorityRevision(),acceptedHead);
     assert.deepEqual(
       f.kernel.inspect().find(work=>work.id==='beta')?.dependencies,
       [{kind:'control',upstream:'alpha'}],
@@ -112,7 +112,7 @@ test('GitHub status contexts differing only by case conflict at admission', () =
       id:'alpha',
       postcondition:statusPostcondition('success','overcenter/Build'),
     });
-    const acceptedHead=f.kernel.head();
+    const acceptedHead=f.kernel.authorityRevision();
 
     assert.throws(
       ()=>f.kernel.define({
@@ -122,7 +122,7 @@ test('GitHub status contexts differing only by case conflict at admission', () =
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
 
-    assert.equal(f.kernel.head(),acceptedHead);
+    assert.equal(f.kernel.authorityRevision(),acceptedHead);
   } finally {
     rmSync(f.root,{recursive:true,force:true});
   }
