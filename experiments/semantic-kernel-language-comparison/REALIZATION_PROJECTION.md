@@ -1,5 +1,35 @@
 # Lean realization projection audition
 
+## Integration falsification and correction
+
+Runtime integration on PR #92 falsified one part of the initial experiment result.
+
+A fresh observation can prove that the postcondition is true **now**, but it cannot by itself prove that the observed state realizes the current semantic-input key. The hostile semantic-dependency suite demonstrated the failure:
+
+```text
+realization under key K is DONE
+semantic dependency changes
+K -> K'
+output bytes happen to remain unchanged
+fresh observation verifies the output
+```
+
+Treating that observation as a new producer-independent DONE would silently launder the stale realization into `K'`, defeating semantic dependency invalidation.
+
+The corrected generic rule is therefore:
+
+```text
+matching key-bound realization + required fresh verification
+        -> may project DONE
+
+no matching key-bound realization + bare ambient observation
+        -> UNREALIZED
+```
+
+Producer-independent realization reuse still belongs in the architecture, but it requires explicit realization provenance bound to the exact obligation key, such as a future realization certificate. Ambient state alone is not that certificate.
+
+This correction was made in the Lean definition and differential rather than weakening the adversarial dependency tests.
+
 ## Question
 
 The Lean semantic kernel now owns settlement, semantic identity, obligation-key preimage construction, claim admission, and execution replay legality.
@@ -75,19 +105,13 @@ Lean derives realization stability from verifier family.
 
 ## Projection rules frozen before implementation
 
-### Fresh verified realization with no producer run
+### Bare fresh observations are not realization provenance
 
-Current truth is producer-independent.
+A fresh observation can revalidate a realization already bound to the current obligation key.
 
-If a mutable external postcondition has a fresh exact observation that settles DONE, the obligation may project DONE even when no historical Overcenter run produced that state.
+It cannot create a new realization for that key by itself.
 
-The projection must preserve that distinction:
-
-- lifecycle truth may be DONE with no producer run;
-- `output / verified-content` semantic consumers may consume that realization;
-- `evidence / settlement-receipt` consumers remain unresolved because no settlement receipt exists.
-
-A run id is evidence about production history, not a prerequisite for observable realization truth.
+This distinction is necessary because the obligation key contains semantic inputs that may not be observable from the postcondition alone. A future producer-independent realization surface therefore needs an explicit exact-key realization certificate rather than inference from ambient provider state.
 
 ### Matching historical DONE
 
@@ -151,8 +175,8 @@ The experiment should be rejected if it requires provider-specific switches insi
 
 At minimum:
 
-1. never-run mutable obligation + exact fresh verification -> DONE with no producer run;
-2. producer-independent DONE resolves verified-content output identity but not settlement-receipt identity;
+1. never-realized obligation + exact bare fresh verification -> UNREALIZED;
+2. stale-key historical DONE + unchanged freshly verified output -> UNREALIZED;
 3. matching immutable DONE reuses without observation;
 4. matching mutable DONE + exact fresh verification -> DONE;
 5. matching mutable DONE + no fresh observation -> RECOVERY_REQUIRED;
@@ -168,10 +192,9 @@ At minimum:
 15. unresolved current key + nonterminal execution -> RECOVERY_REQUIRED;
 16. unresolved current key + only historical terminal runs -> UNREALIZED;
 17. multiple historical matching runs select deterministically from durable order;
-18. changing only producer/run identity does not invalidate an otherwise matching semantic realization;
-19. external drift after historical DONE is visible in current projection;
-20. deleting every materialized/cache projection and recomputing from the same durable history + same fresh observations gives the same result;
-21. changing only current external reality changes current projection deliberately.
+18. external drift after historical DONE is visible in current projection;
+19. deleting every materialized/cache projection and recomputing from the same durable history + same fresh observations gives the same result;
+20. changing only current external reality changes current projection deliberately.
 
 ## Important expected consequence
 
@@ -202,26 +225,22 @@ Production migration is a separate step. This branch may prove the boundary with
 - **Existing lifecycle vocabulary is insufficient.** If uncertainty after historical DONE cannot be represented safely without overloading execution recovery, redesign the state vocabulary before migration.
 
 
-## Pre-implementation correction: realization truth is not execution provenance
+## Runless DONE remains representable, but must be key-bound
 
-The existing semantic-identity protocol currently rejects a DONE lifecycle with no run id. That restriction is stronger than the semantic rule actually needed for verified-content consumers.
+The semantic-identity layer still permits a normalized `DONE + no run` lifecycle because a future non-run producer may provide exact key-bound realization evidence.
 
-This experiment may therefore adjust the normalized lifecycle shape to allow:
-
-```text
-DONE + no run
-```
-
-when DONE was established by current authoritative observation.
-
-This does **not** fabricate settlement provenance:
+That representation does **not** authorize the realization projector to mint such a state from a bare observation.
 
 ```text
-verified-content      -> may resolve from producer-independent DONE
-settlement-receipt    -> still requires exact run + exact DONE receipt + commit
+key-bound runless DONE
+    ├── verified-content   -> may resolve
+    └── settlement-receipt -> unresolved
+
+bare observation
+    -> cannot mint key-bound DONE
 ```
 
-The correction is frozen before challenger implementation.
+The distinction between realization provenance and settlement provenance remains useful; the integration falsification narrowed how realization provenance may be established.
 
 
 ## Final result
@@ -309,29 +328,13 @@ fresh uncertain      -> RECOVERY_REQUIRED
 no fresh observation -> RECOVERY_REQUIRED
 ```
 
-### 3. Current truth is producer-independent
+### 3. Producer-independent realization requires exact-key provenance
 
-Fresh authoritative verification may establish:
+The initial challenger allowed fresh authoritative observation to establish `DONE + no run`. Integration falsified that rule.
 
-```text
-DONE
-source_run_id = null
-```
+A run is not the only possible realization producer, but some durable or otherwise authoritative evidence must bind a realization to the exact semantic obligation key.
 
-even when no Overcenter run produced the state.
-
-That forced a useful correction in both semantic identity implementations:
-
-```text
-DONE + no run
-    │
-    ├── verified-content       -> may resolve
-    └── settlement-receipt     -> unresolved
-```
-
-A producer run is provenance, not a prerequisite for observable realization truth.
-
-This is the missing bridge from worker-independent execution to producer-independent realization reuse: the satisfying producer may be an agent, a human, an earlier run, or anything else capable of creating the exact verified state.
+The current implementation has one such source today: a matching historical run. A future human/foreign-producer adoption path needs an explicit realization certificate. It must not be inferred merely because the current postcondition happens to verify.
 
 ### 4. Failed reuse is not automatically safe re-execution
 
@@ -433,7 +436,7 @@ Lean semantic core
   provider evidence meaning already modeled
   settlement
   current realization projection
-  producer-independent realization truth
+  key-bound realization revalidation
   semantic identity
   obligation-key preimage
   claim admission
