@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { Postcondition } from '../../src/model.ts';
 import type { State } from '../../src/facts.ts';
 import { validateAdmission } from '../../src/admission.ts';
+import { githubCommitStatusEffectAuthority } from '../../src/provider-effect.ts';
 import {
   classifyCapabilityRelation,
   deriveCapabilityRelation,
@@ -66,6 +67,10 @@ function state(
         dependencies:[],
         packet:{},
         postcondition:left,
+        ...(left.verifier==='github-commit-status/v1'
+          || left.verifier==='github-commit-status/v2'
+          ? {effect_authority:githubCommitStatusEffectAuthority()}
+          : {}),
       },
       beta:{
         id:'beta',
@@ -74,6 +79,10 @@ function state(
           : [],
         packet:{},
         postcondition:right,
+        ...(right.verifier==='github-commit-status/v1'
+          || right.verifier==='github-commit-status/v2'
+          ? {effect_authority:githubCommitStatusEffectAuthority()}
+          : {}),
       },
     },
     definition_commits:{alpha:'alpha-def',beta:'beta-def'},
