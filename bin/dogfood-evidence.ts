@@ -345,8 +345,20 @@ try {
     })+'\n');
 
     if (result.state!=='DONE') {
+      const stdout=result.evidence?.stdout_base64
+        ? Buffer.from(result.evidence.stdout_base64,'base64').toString('utf8')
+        : '';
+      const stderr=result.evidence?.stderr_base64
+        ? Buffer.from(result.evidence.stderr_base64,'base64').toString('utf8')
+        : '';
       throw new Error(
-        `self-dogfood evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
+        `self-dogfood evidence did not settle DONE: ${JSON.stringify({
+          explanation:kernel.explain(ready.id),
+          stdout,
+          stderr,
+          stdout_truncated:result.evidence?.stdout_truncated??false,
+          stderr_truncated:result.evidence?.stderr_truncated??false,
+        })}`,
       );
     }
   }
