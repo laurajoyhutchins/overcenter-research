@@ -162,7 +162,7 @@ fn add_readonly_runtime_rules(ruleset: &File, handled: u64) -> io::Result<()> {
     let dir_read = (ACCESS_FS_READ_FILE | ACCESS_FS_READ_DIR) & handled;
     let file_read = ACCESS_FS_READ_FILE & handled;
 
-    for path in ["/usr", "/lib", "/lib64", "/bin", "/proc"] {
+    for path in ["/usr", "/lib", "/lib64", "/bin", "/proc", "/etc/ssl"] {
         let p = Path::new(path);
         if p.exists() {
             add_path_rule(ruleset, p, dir_read)?;
