@@ -1,7 +1,7 @@
 import {spawnSync} from 'node:child_process';
-import {readFileSync, writeFileSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 
-const [tier, expectedSourceSha, marker] = process.argv.slice(2);
+const [tier, expectedSourceSha] = process.argv.slice(2);
 
 if (!['regression', 'local'].includes(tier ?? '')) {
   console.error('DOGFOOD_TIER_INVALID');
@@ -9,10 +9,6 @@ if (!['regression', 'local'].includes(tier ?? '')) {
 }
 if (!/^[0-9a-f]{40,64}$/i.test(expectedSourceSha ?? '')) {
   console.error('DOGFOOD_SOURCE_SHA_INVALID');
-  process.exit(2);
-}
-if (!marker?.startsWith('/workspace/')) {
-  console.error('DOGFOOD_MARKER_OUTSIDE_WORKSPACE');
   process.exit(2);
 }
 
@@ -61,8 +57,4 @@ if (child.signal) {
   console.error(`DOGFOOD_EVIDENCE_SIGNAL:${child.signal}`);
   process.exit(1);
 }
-if (child.status !== 0) {
-  process.exit(child.status ?? 1);
-}
-
-writeFileSync(marker, `passed:${tier}:${expectedSourceSha.toLowerCase()}\n`);
+process.exit(child.status ?? 1);
