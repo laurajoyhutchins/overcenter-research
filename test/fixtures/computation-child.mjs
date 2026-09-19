@@ -1,10 +1,22 @@
 import { appendFileSync, writeFileSync } from 'node:fs';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 const [mode,arg='',pidFile='']=process.argv.slice(2);
 
 function record(label,pid) {
   if (pidFile) appendFileSync(pidFile,`${label}:${pid}\n`);
+}
+
+function runNodeTest(testPath,markerPath) {
+  const result=spawnSync(
+    process.execPath,
+    ['--experimental-strip-types','--test',testPath],
+    {stdio:'inherit',env:{}},
+  );
+  if (result.error) throw result.error;
+  if (result.status!==0) process.exit(result.status??1);
+  writeFileSync(markerPath,'passed');
+  process.stdout.write('test-workload-complete');
 }
 
 if (mode==='env') {
@@ -22,6 +34,10 @@ if (mode==='env') {
     writeFileSync(pidFile,arg);
     process.stdout.write('test-workload-complete');
   },1000);
+} else if (mode==='node-test') {
+  runNodeTest(arg,pidFile);
+} else if (mode==='delayed-node-test') {
+  setTimeout(()=>runNodeTest(arg,pidFile),1000);
 } else if (
   mode==='tree-ignore-term'
   || mode==='tree-child-ignore-term'
