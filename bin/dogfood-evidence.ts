@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
+import {execFileSync,spawnSync} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {
@@ -67,6 +67,26 @@ const workspace=join(scratch,'workspace');
 const attestations=join(scratch,'authority-attestations');
 const control=join(scratch,'control');
 const stateDatabase=join(scratch,'state.sqlite');
+const sourceRoot=join(scratch,'source');
+mkdirSync(sourceRoot,{recursive:true});
+const sourceArchive=execFileSync(
+  'git',
+  ['-C',repoRoot,'archive','--format=tar',sourceSha],
+  {maxBuffer:64*1024*1024},
+);
+const sourceExtract=spawnSync(
+  'tar',
+  ['-xf','-','-C',sourceRoot],
+  {input:sourceArchive},
+);
+if (sourceExtract.status!==0) {
+  throw new Error(
+    `DOGFOOD_SOURCE_SNAPSHOT_EXTRACTION_FAILED:${sourceExtract.stderr?.toString('utf8')??''}`,
+  );
+}
+if (existsSync(join(sourceRoot,'.git'))) {
+  throw new Error('DOGFOOD_SOURCE_SNAPSHOT_CONTAINS_GIT_METADATA');
+}
 mkdirSync(workspace,{recursive:true});
 chmodSync(workspace,0o777);
 mkdirSync(attestations,{recursive:true});
@@ -139,7 +159,7 @@ async function startExecutor():Promise<ExecutorHarness> {
     '--entrypoint','/usr/local/bin/overcenter-executor',
     '-v',`${control}:/control`,
     '-v',`${workspace}:/workspace`,
-    '-v',`${repoRoot}:/workspace/source:ro`,
+    '-v',`${sourceRoot}:/workspace/source:ro`,
     image,
     ...productionExecutorArgs({
       socketPath:`/control/executor-${id}.sock`,
@@ -404,6 +424,7 @@ try {
     receipts,
     reconstructed:true,
     source_mounted_read_only:true,
+    source_snapshot_excludes_git_metadata:true,
     containment_profile:PRODUCTION_COMPUTATION_CONTAINMENT,
     authority_attestations_outside_task_workspace:true,
     external_effect_reservations:0,
