@@ -47,7 +47,7 @@ deterministic kernel
 authoritative project truth
 ```
 
-The production authority store is SQLite: immutable fact-commit rows plus one compare-and-swap authority head, committed atomically in a local transaction. Git implements the same durable-fact contract as a reference, interchange, and independent replay backend; project semantics do not depend on Git.
+The production authority store is SQLite: immutable fact-commit rows plus one compare-and-swap authority head, committed atomically in a local transaction. Git implements the same durable-fact contract as a reference and independent replay backend; project semantics do not depend on Git. Direct migration of an existing history between backends is a separate problem because some durable facts intentionally bind backend-local authority identities.
 
 Project state such as `READY`, `EXECUTING`, `BLOCKED`, `RECOVERY_REQUIRED`, and `DONE` is reconstructed from durable facts and current authority. It is not stored as a privileged lifecycle document.
 
@@ -80,6 +80,7 @@ The repository deliberately does **not** establish that:
 
 - Overcenter is a complete production orchestration system;
 - SQLite is a final distributed/HA authority substrate or suitable for every future deployment scale;
+- arbitrary existing histories can be moved byte-for-byte between Git and SQLite without remapping backend-local authority identities;
 - every project eventually makes progress or completes;
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
@@ -111,7 +112,7 @@ Important entry points:
 - [`src/kernel-core.ts`](./src/kernel-core.ts) - storage-neutral transaction, recovery, and settlement policy.
 - [`src/fact-store.ts`](./src/fact-store.ts) - minimal durable-fact authority contract.
 - [`src/sqlite-store.ts`](./src/sqlite-store.ts) - production append-only SQLite authority store.
-- [`src/git-kernel.ts`](./src/git-kernel.ts) and [`src/git-store.ts`](./src/git-store.ts) - Git reference/interchange implementation of the same contract.
+- [`src/git-kernel.ts`](./src/git-kernel.ts) and [`src/git-store.ts`](./src/git-store.ts) - Git reference implementation of the same durable-fact contract.
 - [`src/facts.ts`](./src/facts.ts) - durable fact schemas plus obligation/fact validation.
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
 - [`src/evidence.ts`](./src/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
@@ -170,7 +171,8 @@ npm run test:github-observation
 npm run test:stress
 npm run test:storage
 npm run test:computation-executor
-npm run demo:git
+npm run demo                       # production SQLite kernel
+npm run demo:git                  # Git reference backend
 ```
 
 `proof:live` dispatches and waits for all three hosted proofs: the disposable-agent trust boundary, the generated GitHub observation/readback proof, and the exact GitHub-object transport proof. It resolves the requested ref once, requires every workflow run to report that exact source SHA, and fails if dispatch cannot be attributed to a concrete run or any run fails.
