@@ -67,6 +67,26 @@ test('wire discriminator registry agrees with TypeScript, Go, and JSON Schema',(
   );
 });
 
+function collectOvercenterKeywords(value:unknown,found=new Set<string>()):Set<string> {
+  if (!value || typeof value!=='object') return found;
+  if (Array.isArray(value)) {
+    for (const member of value) collectOvercenterKeywords(member,found);
+    return found;
+  }
+  for (const [key,member] of Object.entries(value as Record<string,unknown>)) {
+    if (key.startsWith('x-overcenter-')) found.add(key);
+    collectOvercenterKeywords(member,found);
+  }
+  return found;
+}
+
+test('all non-standard validation semantics are declared by the contract',()=>{
+  assert.deepEqual(
+    [...collectOvercenterKeywords(schema)].sort(),
+    [...contract.schema.validationExtensions].sort(),
+  );
+});
+
 test('the checked-in process-spec corpus is executable against the production validator',()=>{
   assert.equal(conformance.schema,'overcenter-process-spec-conformance-v1');
   for (const candidate of conformance.cases as Array<{name:string;valid:boolean;spec:unknown}>) {
