@@ -14,10 +14,16 @@ import {
   type GithubJsonGet,
 } from './providers/github-certified-status.ts';
 import { githubGet } from './providers/github-rest.ts';
+import {
+  kubernetesConfigMapAbsenceEvidenceMatches,
+  observeCertifiedKubernetesConfigMap,
+  type KubernetesListConfigMaps,
+} from './providers/kubernetes-configmap.ts';
 
 export interface ObservationContext {
   githubToken: string | null;
   githubGet?: GithubJsonGet;
+  kubernetesListConfigMaps?: KubernetesListConfigMaps;
   clock?: () => string;
 }
 
@@ -49,6 +55,16 @@ export function validatePostcondition(p: Postcondition): void {
     && typeof p.context==='string'
     && p.context.length > 0
     && ['error','failure','pending','success'].includes(p.expected_state)) return;
+  if (p?.verifier==='kubernetes-configmap-exists/v1'
+    && p.provider==='kubernetes'
+    && typeof p.authority_id==='string'
+    && p.authority_id.length > 0
+    && p.api_group===''
+    && p.resource==='configmaps'
+    && typeof p.namespace==='string'
+    && p.namespace.length > 0
+    && typeof p.name==='string'
+    && p.name.length > 0) return;
   throw new Error('UNSUPPORTED_POSTCONDITION');
 }
 
@@ -147,6 +163,53 @@ export function observePostcondition(
     }
   }
 
+  if (p.verifier==='kubernetes-configmap-exists/v1') {
+    const common={
+      verifier:p.verifier,
+      provider:'kubernetes' as const,
+      authority_id:p.authority_id,
+      api_group:p.api_group,
+      resource:p.resource,
+      namespace:p.namespace,
+      name:p.name,
+    };
+    if (!context.kubernetesListConfigMaps) {
+      return {
+        ...common,
+        mutation_certainty:'uncertain',
+        observation_error:'KUBERNETES_LIST_TRANSPORT_UNAVAILABLE',
+      };
+    }
+    const result=observeCertifiedKubernetesConfigMap(p,{
+      list:context.kubernetesListConfigMaps,
+    });
+    if (result.state==='present') {
+      return {
+        ...common,
+        mutation_certainty:'present',
+        observed_uid:result.uid,
+        observed_resource_version:result.resource_version,
+        snapshot_resource_version:result.snapshot_resource_version,
+        provider_evidence:result.provider_evidence,
+      };
+    }
+    if (result.state==='absent') {
+      return {
+        ...common,
+        mutation_certainty:'absent',
+        snapshot_resource_version:result.snapshot_resource_version,
+        absence_evidence:result.absence_evidence,
+        provider_evidence:result.provider_evidence,
+      };
+    }
+    return {
+      ...common,
+      mutation_certainty:'uncertain',
+      observation_error:result.reason,
+      provider_evidence:result.provider_evidence,
+    };
+  }
+
   if (p.verifier==='eventually-consistent-file-content-equals/v1') {
     const expected=sha256(p.content);
     try {
@@ -240,6 +303,20 @@ function assertObservationCoordinate(
     return;
   }
 
+  if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
+    if (
+      observed.provider!=='kubernetes'
+      || observed.authority_id!==postcondition.authority_id
+      || observed.api_group!==postcondition.api_group
+      || observed.resource!==postcondition.resource
+      || observed.namespace!==postcondition.namespace
+      || observed.name!==postcondition.name
+    ) {
+      throw new Error('OBSERVATION_COORDINATE_MISMATCH');
+    }
+    return;
+  }
+
   if (
     observed.provider!=='github'
     || observed.repository_id!==postcondition.repository_id
@@ -274,6 +351,15 @@ export function authoritativeAbsenceEvidence(
       : null;
   }
 
+  if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
+    return kubernetesConfigMapAbsenceEvidenceMatches(
+      observed.absence_evidence,
+      postcondition,
+    )
+      ? observed.absence_evidence
+      : null;
+  }
+
   return null;
 }
 
@@ -296,6 +382,13 @@ export function observationVerified(
     || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
   ) {
     return observed.actual_sha256===sha256(postcondition.content);
+  }
+
+  if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
+    return typeof observed.observed_uid==='string'
+      && observed.observed_uid.length>0
+      && typeof observed.observed_resource_version==='string'
+      && observed.observed_resource_version.length>0;
   }
 
   return observed.actual_state===postcondition.expected_state;
