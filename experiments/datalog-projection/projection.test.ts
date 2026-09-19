@@ -70,6 +70,7 @@ interface Scenario {
   currentSemanticKeyOverrides?:Record<string,string>;
   extraCurrentSemanticKeys?:Array<[string,string]>;
   omitObservationJudgments?:Array<string>;
+  inadmissibleRealizationRuns?:Array<string>;
 }
 
 const PROGRAM=join(
@@ -289,6 +290,8 @@ const DIAGNOSTICS=[
   'dependency_cycle',
   'duplicate_run_id',
   'run_for_unknown_obligation',
+  'realization_admissibility_for_unknown_run',
+  'realization_admissibility_obligation_mismatch',
   'duplicate_receipt_ordinal',
   'receipt_for_unknown_run',
   'invalid_receipt_kind',
@@ -382,6 +385,23 @@ function datalogProjection(
       ]),
     );
 
+    const inadmissible=new Set(scenario.inadmissibleRealizationRuns??[]);
+    const latest=latestReceipts(scenario.receipts);
+    writeFacts(
+      join(facts,'current_realization_admissible.facts'),
+      scenario.runs.flatMap(run=>{
+        if (inadmissible.has(run.id)) return [];
+        const receipt=latest.get(run.id);
+        if (
+          receipt?.kind==='observation'
+          && receipt.evidence==='verified'
+        ) {
+          return [[run.id,run.obligation]];
+        }
+        return [];
+      }),
+    );
+
     const omitted=new Set(scenario.omitObservationJudgments??[]);
     writeFacts(
       join(facts,'observation_judgment.facts'),
@@ -442,7 +462,7 @@ const chainC=obligation('c','v1',[{kind:'control',upstream:'b'}]);
 
 const scenarios:Scenario[]=[
   {
-    name:'dependency closure and producer-independent exact-key reuse',
+    name:'dependency closure and exact-key admissible reuse',
     definitions:[
       {work:chainA,ordinal:1},
       {work:chainB,ordinal:2},
@@ -629,4 +649,27 @@ test('a later run after an exact-key DONE is rejected as impossible authority hi
     ()=>datalogProjection(scenario),
     /DATALOG_PROJECTION_INPUT_INVALID:run_after_done/,
   );
+});
+
+test('mutable historical DONE can be rejected without changing relational projection rules',()=>{
+  const scenario:Scenario={
+    name:'known TypeScript mutable-reuse gap',
+    definitions:[{work:chainA,ordinal:1}],
+    runs:[{id:'run-a',obligation:'a',definitionOrdinal:1,ordinal:10}],
+    receipts:[{
+      run:'run-a',
+      kind:'observation',
+      evidence:'verified',
+      ordinal:20,
+    }],
+    // Models the Lean target semantics after external mutable state has drifted:
+    // exact historical settlement exists, but it is not currently admissible.
+    inadmissibleRealizationRuns:['run-a'],
+  };
+
+  // Current TypeScript still treats matching historical DONE as current DONE.
+  assert.equal(typescriptProjection(scenario).get('a'),'DONE');
+
+  // Datalog consumes the stronger semantic judgment and does not reuse it.
+  assert.equal(datalogProjection(scenario).statuses.get('a'),'READY');
 });
