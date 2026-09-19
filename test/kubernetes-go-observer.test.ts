@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { execFile } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -214,6 +215,26 @@ test('tampered Go trace coordinates still fail closed in the existing verifier',
     const result=verify(trace);
     assert.equal(result.state,'indeterminate');
     assert.equal(result.reason,'KUBERNETES_LIST_OBSERVATION_COORDINATE_MISMATCH');
+  } finally {
+    server.close();
+  }
+});
+
+test('tampering exact provider bytes without the matching digest fails closed',async()=>{
+  const {server,baseUrl}=await listen((_request,response)=>{
+    response.setHeader('content-type','application/json');
+    response.end(JSON.stringify(body('500','')));
+  });
+  try {
+    const trace=await collect(baseUrl);
+    const original=Buffer.from(trace.pages[0].response.body_base64,'base64').toString('utf8');
+    const tampered=original.replace('"500"','"999"');
+    assert.notEqual(tampered,original);
+    trace.pages[0].response.body_base64=Buffer.from(tampered).toString('base64');
+
+    const result=verify(trace);
+    assert.equal(result.state,'indeterminate');
+    assert.equal(result.reason,'KUBERNETES_GO_TRACE_BODY_DIGEST_MISMATCH');
   } finally {
     server.close();
   }
