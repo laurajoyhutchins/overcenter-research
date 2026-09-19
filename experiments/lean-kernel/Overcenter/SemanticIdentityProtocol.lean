@@ -65,26 +65,28 @@ private def parseDependency (json : Json) : Except String RawClaimDependency := 
     selector
   }
 
-private def parseSemanticOutput (json : Json) : Except String (Option SemanticOutputMaterial) := do
+private def parseSemanticSource (json : Json) : Except String (Option NormalizedSemanticSource) := do
   if json.isNull then
     return none
   let kind ← stringField json "kind"
-  if kind = "content-sha256" then
-    return some (.contentSha256 (← stringField json "digest"))
+  if kind = "file-content" then
+    return some (.fileContent (← stringField json "content_sha256"))
+  if kind = "eventually-consistent-file-content" then
+    return some (.eventuallyConsistentFileContent (← stringField json "content_sha256"))
   if kind = "github-commit-status" then
     return some (.githubCommitStatus
       (← stringField json "repository_id")
       (← stringField json "commit_sha")
       (← stringField json "context")
       (← stringField json "state"))
-  if kind = "kubernetes-exists" then
-    return some (.kubernetesExists
+  if kind = "kubernetes-configmap-exists" then
+    return some (.kubernetesConfigMapExists
       (← stringField json "authority_id")
       (← stringField json "api_group")
       (← stringField json "resource")
       (← stringField json "namespace")
       (← stringField json "name"))
-  throw s!"unsupported semantic output material: {kind}"
+  throw s!"unsupported semantic source: {kind}"
 
 private def parseEffect (json : Json) : Except String (Option ClaimEffect) := do
   if json.isNull then
@@ -102,7 +104,7 @@ private def parseObligation (json : Json) : Except String RawClaimObligation := 
   pure {
     id := ← stringField json "id"
     dependencies
-    semanticOutput := ← parseSemanticOutput (← field json "semantic_output")
+    semanticSource := ← parseSemanticSource (← field json "semantic_source")
     effect := ← parseEffect (← field json "effect")
   }
 
