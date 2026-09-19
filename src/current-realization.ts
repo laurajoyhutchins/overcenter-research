@@ -390,7 +390,10 @@ export function projectCurrentLifecycles(
     if (result.execution_run_id!==null && !executionRun) {
       throw new Error('LEAN_REALIZATION_UNKNOWN_EXECUTION_RUN');
     }
-    if (sourceRun?.obligation_id!==id || executionRun?.obligation_id!==id) {
+    if (
+      (sourceRun && sourceRun.obligation_id!==id)
+      || (executionRun && executionRun.obligation_id!==id)
+    ) {
       throw new Error('LEAN_REALIZATION_RUN_OBLIGATION_MISMATCH');
     }
 
