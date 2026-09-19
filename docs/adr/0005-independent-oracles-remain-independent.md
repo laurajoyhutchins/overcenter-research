@@ -7,7 +7,7 @@
 
 Overcenter uses experiments and differential implementations to falsify production assumptions. Some duplicated-looking code exists because an implementation that does not share the production path is useful evidence.
 
-The [projection implementation bake-off](../../experiments/projection-bakeoff/README.md) compared authoritative mutable SQLite lifecycle, the TypeScript projector, status-free SQL derivation, and Datalog derivation. The result supported derived projection while leaving TypeScript as the production implementation and Datalog as an independent executable oracle.
+The [projection implementation comparison](../../experiments/projection-comparison/README.md) compared authoritative mutable SQLite lifecycle, the TypeScript projector, status-free SQL derivation, and Datalog derivation. The result supported derived projection while leaving TypeScript as the production implementation and Datalog as an independent executable oracle.
 
 Other physical boundaries, such as the isolated Go computation executor, similarly benefit from independent validation rather than shared in-process helpers.
 

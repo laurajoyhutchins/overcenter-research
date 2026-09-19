@@ -355,17 +355,17 @@
       ]
     },
     {
-      "id": "projection-bakeoff",
+      "id": "projection-comparison",
       "kind": "experiment",
       "status": "maintained",
-      "directory": "experiments/projection-bakeoff",
-      "readme": "experiments/projection-bakeoff/README.md",
+      "directory": "experiments/projection-comparison",
+      "readme": "experiments/projection-comparison/README.md",
       "question": "Does derived status beat authoritative mutable lifecycle on reconstruction and repair burden?",
       "claim": "TypeScript, status-free SQL, and Datalog reconstruct without status repair; mutable lifecycle becomes stale and needs repair writes.",
       "contrast": "Mutable SQLite lifecycle versus three derived implementations.",
       "reproduce": {
         "tier": "toolchain",
-        "local": "npm run test:projection-bakeoff"
+        "local": "npm run test:projection-comparison"
       },
       "environment": [
         "Node.js from .node-version",
@@ -419,11 +419,11 @@
       ]
     },
     {
-      "id": "storage-backend-bakeoff",
+      "id": "storage-backend-comparison",
       "kind": "experiment",
       "status": "maintained",
-      "directory": "experiments/storage-backend-bakeoff",
-      "readme": "experiments/storage-backend-bakeoff/README.md",
+      "directory": "experiments/storage-backend-comparison",
+      "readme": "experiments/storage-backend-comparison/README.md",
       "question": "Does Git belong on the frequent durable-fact hot path?",
       "claim": "SQLite preserves the tested immutable-history/CAS/crash-prefix properties without Git's per-fact write cost.",
       "contrast": "Current Git path, batched Git replay, append-only SQLite.",
@@ -442,7 +442,7 @@
         "state": "historical",
         "evaluated_revision": "7b5cac8e4ad67a093b63ad74e5fb1c84d89a679e",
         "artifacts": [
-          "experiments/storage-backend-bakeoff/results/2026-09-19.md"
+          "experiments/storage-backend-comparison/results/2026-09-19.md"
         ]
       },
       "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
