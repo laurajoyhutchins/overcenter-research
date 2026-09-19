@@ -34,6 +34,15 @@ jobs:
             --json criticality.json \
             --markdown criticality.md \
             --min-calibration 0.8
+      - name: Prove exact recomputation
+        run: |
+          node experiments/production-criticality-ranking/analyze.mjs \
+            --config experiments/production-criticality-ranking/config.json \
+            --json criticality-repeat.json \
+            --markdown criticality-repeat.md \
+            --min-calibration 0.8
+          cmp criticality.json criticality-repeat.json
+          cmp criticality.md criticality-repeat.md
       - name: Show ranking
         if: always()
         run: cat criticality.md || true
