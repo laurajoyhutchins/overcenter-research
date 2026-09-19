@@ -1,0 +1,85 @@
+name: Lean semantic oracle
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - src/graph.ts
+      - src/admission.ts
+      - src/semantics.ts
+      - src/model.ts
+      - src/providers/github-rest.ts
+      - test/lean-semantic-oracle.test.ts
+      - .github/workflows/lean-semantic-oracle.yml
+      - package.json
+  push:
+    branches:
+      - main
+    paths:
+      - src/graph.ts
+      - src/admission.ts
+      - src/semantics.ts
+      - src/model.ts
+      - src/providers/github-rest.ts
+      - test/lean-semantic-oracle.test.ts
+      - .github/workflows/lean-semantic-oracle.yml
+      - package.json
+
+permissions:
+  contents: read
+
+jobs:
+  oracle:
+    name: TypeScript vs Lean semantic oracle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      LEAN_ORACLE_SHA: 0c5db60f2dc14af93f554fd9f870181261ce5f11
+      LEAN_ORACLE_BIN: ./lean-oracle/experiments/lean-kernel/.lake/build/bin/overcenterClaimAdmissionComparisonServer
+    steps:
+      - name: Checkout production implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Assert exact production revision
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Checkout pinned Lean semantic reference
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: laurajoyhutchins/overcenter-research
+          ref: 0c5db60f2dc14af93f554fd9f870181261ce5f11
+          path: lean-oracle
+
+      - name: Assert pinned oracle identity
+        working-directory: lean-oracle
+        run: >-
+          test "$(git rev-parse HEAD)" =
+          "0c5db60f2dc14af93f554fd9f870181261ce5f11"
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install pinned Lean toolchain
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          lake-package-directory: lean-oracle/experiments/lean-kernel
+          auto-config: false
+          build: true
+          test: false
+          lint: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          leanchecker: false
+
+      - name: Build semantic comparison oracle
+        working-directory: lean-oracle/experiments/lean-kernel
+        run: lake build overcenterClaimAdmissionComparisonServer
+
+      - name: Compare production semantics with Lean oracle
+        run: npm run test:lean-oracle
