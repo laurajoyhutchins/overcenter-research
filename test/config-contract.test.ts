@@ -136,6 +136,27 @@ test('self-dogfood receives exact source bytes without checkout credentials',()=
   assert.match(dogfood,/DOGFOOD_SOURCE_SNAPSHOT_CONTAINS_GIT_METADATA/);
 });
 
+test('live provider proofs cancel superseded heads before consuming provider quota',()=>{
+  for (const path of [
+    '.github/workflows/conflicting-effect.yml',
+    '.github/workflows/disposable-agent-proof.yml',
+    '.github/workflows/github-object-transport-proof.yml',
+    '.github/workflows/two-effect-concurrency.yml',
+    '.github/workflows/github-observation-grammar.yml',
+  ]) {
+    const source=read(path);
+    assert.match(source,/^concurrency:\n/m,path);
+    assert.match(source,/cancel-in-progress:\s*true/,path);
+    assert.match(
+      source,
+      /group:\s*\$\{\{ github\.workflow \}\}-\$\{\{ github\.(?:event\.pull_request\.number \|\| )?ref \}\}/,
+      path,
+    );
+    assert.doesNotMatch(source,/group:[^\n]*head\.sha/,path);
+    assert.doesNotMatch(source,/group:[^\n]*github\.sha/,path);
+  }
+});
+
 test('ambient credential configuration has one GitHub token spelling',()=>{
   for (const path of executableConfigFiles()) {
     const source=read(path);
@@ -182,7 +203,7 @@ test('production launchers do not restate containment policy literals',()=>{
     '--network=none',
     '--read-only',
     '--cap-drop=ALL',
-    '--pids-limit=128',
+    '--pids-limit=256',
     '--task-uid=65532',
     '--task-gid=65532',
   ];
