@@ -1,13 +1,13 @@
 import type { Postcondition } from '../../src/model.ts';
 import {
-  effectEquivalenceWitness,
   effectSemantics,
+  settlementEquivalenceWitness,
 } from '../../src/semantics.ts';
 
 export interface MutationCapabilityFootprint {
   physical_resource:string;
   semantic_operation:string;
-  equivalence_witness_digest:string|null;
+  settlement_equivalence_witness_digest:string|null;
 }
 
 export type CapabilityRelation =
@@ -17,7 +17,7 @@ export type CapabilityRelation =
       right:MutationCapabilityFootprint;
     }
   | {
-      kind:'parallel-adapter-commutative';
+      kind:'parallel-settlement-equivalent';
       resource:string;
       operation:string;
       left:MutationCapabilityFootprint;
@@ -45,8 +45,8 @@ export function deriveMutationCapabilityFootprint(
   return {
     physical_resource:semantics.resource,
     semantic_operation:semantics.desired,
-    equivalence_witness_digest:
-      effectEquivalenceWitness(postcondition)?.certificate_digest??null,
+    settlement_equivalence_witness_digest:
+      settlementEquivalenceWitness(postcondition)?.witness_digest??null,
   };
 }
 
@@ -63,11 +63,12 @@ export function classifyCapabilityRelation(
   }
 
   if (
-    left.equivalence_witness_digest
-    && left.equivalence_witness_digest===right.equivalence_witness_digest
+    left.settlement_equivalence_witness_digest
+    && left.settlement_equivalence_witness_digest
+      ===right.settlement_equivalence_witness_digest
   ) {
     return {
-      kind:'parallel-adapter-commutative',
+      kind:'parallel-settlement-equivalent',
       resource:left.physical_resource,
       operation:left.semantic_operation,
       left,
