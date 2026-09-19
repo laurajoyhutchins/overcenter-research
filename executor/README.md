@@ -47,6 +47,8 @@ isolated worker/container
 
 The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate disposable containment domain without provider credentials. The supported profile also requires no task network, a read-only container root/source snapshot, `no-new-privileges`, explicit capabilities only, and bounded PID/memory/CPU/open-file/per-file-size resources. Aggregate workspace bytes remain an outer worker-host quota.
 
+The canonical production profile is [`src/production-containment.ts`](../src/production-containment.ts). Production proofs and dogfood derive Docker resource flags, task credentials, and executor concurrency from that object; those values are not parallel shell configuration. Concurrency has no implicit executable default: callers must supply `--concurrency`.
+
 Production socket mode requires `--task-uid` and `--task-gid`. Both must differ from the executor identity; when `--socket-gid` is used to grant the trusted host access to the socket, the task GID must differ from that group too. Task processes are launched with supplementary groups replaced by the task GID only; executor and trusted-socket groups do not cross the boundary.
 
 A typical container boundary therefore has three distinct authorities:

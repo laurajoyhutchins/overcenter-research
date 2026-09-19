@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -n "${GH_TOKEN:-}" ]]; then
+  echo "proof:live ignores GH_TOKEN; use GITHUB_TOKEN or gh auth login" >&2
+  unset GH_TOKEN
+fi
+
 REF=""
 REPO=""
 

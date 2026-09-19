@@ -29,7 +29,7 @@ type executorHelloV1 struct {
 
 func main() {
 	workspaceRoot := flag.String("workspace-root", "", "absolute task workspace root")
-	maxConcurrency := flag.Int("concurrency", 8, "maximum simultaneously admitted computations")
+	maxConcurrency := flag.Int("concurrency", 0, "required maximum simultaneously admitted computations")
 	socketPath := flag.String("socket", "", "Unix socket path for the trusted host connection")
 	socketGID := flag.Int("socket-gid", -1, "optional trusted-host GID for the Unix socket")
 	stdio := flag.Bool("stdio", false, "serve one test/development session over stdin/stdout")

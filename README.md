@@ -194,12 +194,14 @@ These are different evidence classes, not cumulative certification levels. A liv
 Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
-- Go at the version declared in [`executor/go.mod`](./executor/go.mod) for the physical computation executor;
+- Go at the exact version declared in [`.go-version`](./.go-version) for the physical computation executor;
 - Docker for the catastrophic executor-death containment proof;
 - Git;
 - Java 21 for the TLA+ model;
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
 - GitHub CLI authentication for `proof:live`.
+
+`.node-version` and `.go-version` are runtime/toolchain identity. `executor/go.mod` remains the Go language/module compatibility declaration rather than a second runtime-version authority. Production containment policy lives in executable code at [`src/production-containment.ts`](./src/production-containment.ts).
 
 The focused underlying commands remain available when debugging a particular claim:
 
