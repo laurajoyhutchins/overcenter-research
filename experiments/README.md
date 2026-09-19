@@ -14,6 +14,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
 - `provider-observation/` - provider-neutral observation provenance and structural-certificate engine shared by GitHub and Kubernetes experiments.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
+- `go-graph-executor/` - graph-native physical concurrency experiment: deterministic frontier in TypeScript, disposable bounded execution in Go, exact-generation attempt evidence.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 
