@@ -1,0 +1,123 @@
+# Production callable criticality ranking experiment
+
+## Question
+
+Can Overcenter maintain a reproducible total ordering of the importance of its **production code** from quantitative facts rather than periodically repeating a human ranking exercise?
+
+The ranked population in this first experiment is intentionally narrow:
+
+```text
+ranked:       executable callables under src/
+evidence:     src/ + test/ + experiments/ + git history
+not ranked:   tests, experiments, docs, fixtures, workflows
+```
+
+This does **not** yet claim that a callable is the final atomic unit. The experiment first asks whether an executable-callable graph produces a useful ordering. If it does, critical callables can later be refined into invariant/branch-level semantic units without changing the vector or ranking-policy model.
+
+## Existing software used
+
+The experiment deliberately avoids inventing a parser or history engine:
+
+- TypeScript compiler API 5.8.3 supplies the AST, symbols, resolved signatures, and approximate static call graph.
+- Git supplies exact-revision history and line-level blame timestamps.
+- The experiment code only derives Overcenter-specific metrics and graph relations from those facts.
+
+A later comparison can replace or corroborate the TypeScript call graph with CodeQL without changing the metric schema.
+
+## Quantitative vector
+
+Every ranked production callable receives a vector `v = (A, B, I, F, R, E, X, C)`, each normalized to `[0,1]`.
+
+| component | measurement |
+| --- | --- |
+| `A` authority | fraction of declared semantic authority classes whose sink can reach the unit or can be reached by the unit |
+| `B` blast radius | log-normalized count of transitive production callers/dependents |
+| `I` irreversibility | maximum recovery class of influenced authority sinks, normalized by the configured maximum |
+| `F` fan-out/centrality | geometric mean of normalized direct dependents and transitive dependent fraction |
+| `R` recovery criticality | fraction of declared recovery scenarios in which the unit dominates the terminal call |
+| `E` evidence-support gap | `1 - supported evidence tiers / required evidence tiers`; v1 tiers are passing `test/` and `experiments/` call paths |
+| `X` execution-exposure proxy | fraction of statically exported production entrypoints that can reach the unit |
+| `C` change exposure | mean exponentially decayed `git blame` line recency within the callable, measured at the analyzed commit timestamp |
+
+`E` and `X` are explicitly proxies in v1. Static reachability does not prove that a test exercises the relevant hostile case, and exported-entrypoint reachability is not production telemetry. They are quantitative placeholders that can be replaced by obligation-bound evidence and OpenTelemetry transaction observations while preserving the vector shape.
+
+### Authority is configured; propagation is derived
+
+Generic tooling cannot know which operations establish or interpret Overcenter truth. `config.json` therefore names the semantic authority sinks and their recovery classes. It does **not** assign importance to every function. Once the sinks are declared, influence is derived from the static call graph.
+
+### Recovery criticality is graph-theoretic
+
+For each configured recovery scenario `(entry, terminal)`, the analyzer computes call-graph dominators. A production unit contributes to `R` only when every statically resolved call path from the scenario entry to terminal passes through it.
+
+## Total order
+
+The vector is durable data. The total order is replaceable policy.
+
+The initial monotone policy is a weighted sum with two interactions:
+
+```text
+score = Σ wi*vi + λAI*(A*I) + λBE*(B*E)
+```
+
+The score is normalized to 0-100 only for presentation. Ties are broken by stable unit ID so the result is a total order.
+
+The weights in `config.json` are expected to change. Changing them does not alter the measured vector.
+
+## Calibration
+
+The prior human ranking exercise is converted into pairwise regression judgments. The initial corpus includes the earlier ordering that placed:
+
+1. DONE-candidate reuse above obligation/verifier identity;
+2. obligation/verifier identity above settlement;
+3. settlement above authoritative absence;
+4. the verified predicate above authoritative absence;
+5. execution fencing above durable effect reservation;
+6. project-truth derivation above explanation/rendering; and
+7. settlement above error-string plumbing.
+
+A scoring policy is useful only if disagreements are inspectable. The analyzer reports every failed pair with both scores instead of silently fitting them away.
+
+## Hostile cases
+
+The self-test establishes that:
+
+- `test/` and `experiments/` callables never enter the ranked population;
+- a production helper beneath a settlement sink inherits settlement authority;
+- test plus experiment support closes the v1 two-tier evidence-support gap;
+- unsupported production code retains a full evidence-support gap; and
+- calibration is evaluated from the generated scores, not hard-coded ranks.
+
+The live repository run adds harder failure modes: unresolved dynamic calls, sibling authority paths, generated code, local helpers, and real git history.
+
+## Run
+
+The experiment pins TypeScript 5.8.3.
+
+```sh
+npm install --no-save --ignore-scripts typescript@5.8.3
+node --test experiments/production-criticality-ranking/analyze.test.mjs
+node experiments/production-criticality-ranking/analyze.mjs \
+  --config experiments/production-criticality-ranking/config.json \
+  --json /tmp/criticality.json \
+  --markdown /tmp/criticality.md \
+  --min-calibration 0.8
+```
+
+The GitHub workflow runs the exact pull-request head with full history (`fetch-depth: 0`) because both the ranking and change exposure are revision-bound evidence. It requires at least 80% pairwise calibration agreement but still reports every disagreement.
+
+## Success criteria
+
+The first experiment earns promotion only if:
+
+1. the ranked population contains production callables and nothing else;
+2. all configured authority and recovery selectors resolve exactly once;
+3. internal static call resolution is high enough that the graph is informative; external/library calls are excluded from that denominator and unresolved internal/unknown calls are reported;
+4. the calibration corpus substantially agrees with the previous human ranking;
+5. surprising ranks can be decomposed into vector components and graph evidence; and
+6. deleting every generated report and recomputing at the same revision produces the same result.
+
+A poor calibration result is evidence against the formula or the callable-level model, not a reason to hand-edit ranks.
+
+## First live-run lesson
+
+The initial live run is intentionally allowed to falsify the model. In particular, calibration should not be forced to 100% by weight-tuning when one human judgment names a branch-level semantic claim that the callable-level population cannot represent. A monotone ranking cannot repair missing dimensions or the wrong unit boundary; those disagreements are evidence for the next experiment.
