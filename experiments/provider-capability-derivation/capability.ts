@@ -1,30 +1,13 @@
 import type { Postcondition } from '../../src/model.ts';
-import { effectSemantics } from '../../src/semantics.ts';
+import {
+  effectEquivalenceWitness,
+  effectSemantics,
+} from '../../src/semantics.ts';
 
 export interface MutationCapabilityFootprint {
-  /**
-   * Canonical provider coordinate whose state may be mutated.
-   *
-   * For GitHub commit statuses this is derived by the production semantics
-   * adapter from repository identity + exact commit + normalized context.
-   */
   physical_resource:string;
-
-  /**
-   * Provider-semantic operation requested at the coordinate.
-   *
-   * For GitHub commit statuses this is the desired status state.
-   */
   semantic_operation:string;
-
-  /**
-   * Current adapter claim: repeating the same semantic operation on this
-   * resource is equivalent for Overcenter's settlement semantics.
-   *
-   * This is not a claim that the provider's complete mutation history is
-   * identical. It mirrors EffectSemantics.sameDesiredCommutes exactly.
-   */
-  same_operation_equivalent_under_adapter:boolean;
+  equivalence_witness_digest:string|null;
 }
 
 export type CapabilityRelation =
@@ -62,7 +45,8 @@ export function deriveMutationCapabilityFootprint(
   return {
     physical_resource:semantics.resource,
     semantic_operation:semantics.desired,
-    same_operation_equivalent_under_adapter:semantics.sameDesiredCommutes,
+    equivalence_witness_digest:
+      effectEquivalenceWitness(postcondition)?.certificate_digest??null,
   };
 }
 
@@ -78,11 +62,9 @@ export function classifyCapabilityRelation(
     return {kind:'parallel-disjoint',left,right};
   }
 
-  const sameOperation=left.semantic_operation===right.semantic_operation;
   if (
-    sameOperation
-    && left.same_operation_equivalent_under_adapter
-    && right.same_operation_equivalent_under_adapter
+    left.equivalence_witness_digest
+    && left.equivalence_witness_digest===right.equivalence_witness_digest
   ) {
     return {
       kind:'parallel-adapter-commutative',
