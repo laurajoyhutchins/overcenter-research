@@ -44,3 +44,4 @@ jobs:
             echo
             echo '### Report'
             sed 's/^/    /' "$report"
+          } >> "$GITHUB_STEP_SUMMARY"
