@@ -27,7 +27,7 @@ inductive RealizationStability where
 
 inductive Coordinate where
   | opaque (value : String)
-  | kubernetesConfigMap (authorityId : String) (namespace : String) (name : String)
+  | kubernetesConfigMap (authorityId : String) (namespaceName : String) (name : String)
   deriving Repr, BEq, DecidableEq
 
 structure Postcondition where
@@ -39,7 +39,7 @@ structure Postcondition where
 
 structure KubernetesListMember where
   name : String
-  namespace : String
+  namespaceName : String
   uid : String
   resourceVersion : String
   deriving Repr, BEq, DecidableEq
@@ -63,7 +63,7 @@ inductive AbsenceEvidence where
       (provenanceErrorCode : String)
   | kubernetesCompleteList
       (authorityId : String)
-      (namespace : String)
+      (namespaceName : String)
       (targetName : String)
       (snapshotResourceVersion : String)
       (pages : List KubernetesListPage)
