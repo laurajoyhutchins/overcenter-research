@@ -6,8 +6,9 @@ module OvercenterRubyScenarios
   DRIVER = File.join(ROOT, "experiments", "ruby-scenarios", "driver.ts")
 
   class ProviderScript
-    def initialize(scenario, id)
+    def initialize(scenario, kind, id)
       @scenario = scenario
+      @kind = kind
       @id = id
     end
 
@@ -21,6 +22,10 @@ module OvercenterRubyScenarios
 
     def readback(state, as:)
       @scenario.__readback(@id, state, as)
+    end
+
+    def observe(event, as:)
+      @scenario.__provider_observe(@kind, event, as)
     end
   end
 
@@ -71,18 +76,24 @@ module OvercenterRubyScenarios
       }
     end
 
-    def provider(kind, id, expected:, packet: {}, &block)
-      unless kind == :eventually_consistent_file
+    def provider(kind, id, expected: nil, packet: {}, &block)
+      case kind
+      when :eventually_consistent_file
+        raise "expected is required" if expected.nil?
+        obligation(
+          id,
+          content: expected,
+          packet: packet,
+          consistency: :eventual
+        )
+      when :github_status, :kubernetes_configmap
+        # Provider semantics live in the TypeScript fixtures/adapters. Ruby
+        # only names the hostile event sequence and its expected consequences.
+      else
         raise "unsupported scenario provider: #{kind}"
       end
 
-      obligation(
-        id,
-        content: expected,
-        packet: packet,
-        consistency: :eventual
-      )
-      ProviderScript.new(self, id.to_s).instance_eval(&block)
+      ProviderScript.new(self, kind, id.to_s).instance_eval(&block)
     end
 
     def settle(id)
@@ -102,6 +113,20 @@ module OvercenterRubyScenarios
     def reconstruct(name)
       @operations << {
         "op" => "reconstruct",
+        "name" => name.to_s
+      }
+    end
+
+    def __provider_observe(kind, event, name)
+      provider = {
+        github_status: "github-status",
+        kubernetes_configmap: "kubernetes-configmap"
+      }.fetch(kind)
+
+      @operations << {
+        "op" => "provider-observe",
+        "provider" => provider,
+        "event" => event.to_s.tr("_", "-"),
         "name" => name.to_s
       }
     end
@@ -193,6 +218,18 @@ module OvercenterRubyScenarios
         unless absence_evidence == :any || observed["absence_evidence"] == absence_evidence
           raise "expected #{name} absence evidence #{absence_evidence.inspect}, got #{observed["absence_evidence"].inspect}"
         end
+      end
+    end
+
+    def expect_absence_kind(name, kind)
+      @expectations << lambda do |result|
+        receipt = result.fetch("readbacks").fetch(name.to_s)
+        observed = receipt.fetch("observed")
+        evidence = observed["absence_evidence"]
+        actual = evidence && evidence["kind"]
+        next if actual == kind
+
+        raise "expected #{name} absence kind #{kind.inspect}, got #{actual.inspect}"
       end
     end
 
