@@ -1,6 +1,7 @@
 import Lean.Data.Json.Parser
 import Lean.Data.Json.Printer
 import Overcenter.Proofs
+import Overcenter.ExecutionProofs
 
 open Lean
 
@@ -144,6 +145,86 @@ private def parseObservation (json : Json) : Except String Observation := do
     absence := ← parseAbsence (← field json "absence")
   }
 
+private def natField (json : Json) (name : String) : Except String Nat := do
+  (← field json name).getNat?
+
+private def parseExecutionStatus : String → Except String ExecutionStatus
+  | "EXECUTING" => pure .executing
+  | "WAITING" => pure .waiting
+  | "RECOVERY_REQUIRED" => pure .recoveryRequired
+  | "DONE" => pure .done
+  | "READY" => pure .ready
+  | other => throw s!"unsupported execution status: {other}"
+
+private def executionStatusName : ExecutionStatus → String
+  | .executing => "EXECUTING"
+  | .waiting => "WAITING"
+  | .recoveryRequired => "RECOVERY_REQUIRED"
+  | .done => "DONE"
+  | .ready => "READY"
+
+private def parseObservationDisposition : String → Except String ObservationDisposition
+  | "DONE" => pure .done
+  | "READY" => pure .ready
+  | "RECOVERY_REQUIRED" => pure .recoveryRequired
+  | other => throw s!"unsupported observation disposition: {other}"
+
+private def parseExecutionSeed (json : Json) : Except String ExecutionState := do
+  pure {
+    runId := ← stringField json "run_id"
+    obligationId := ← stringField json "obligation_id"
+    claimedRevision := ← stringField json "claimed_revision"
+    claimCommit := ← stringField json "claim_commit"
+    generation := ← natField json "generation"
+    authorityCommit := ← stringField json "authority_commit"
+    capabilityDigest := ← stringField json "capability_digest"
+    status := ← parseExecutionStatus (← stringField json "status")
+    unresolvedEffect := ← boolField json "unresolved_effect"
+  }
+
+private def parseExecutionFact (json : Json) : Except String ExecutionFact := do
+  let kind ← stringField json "kind"
+  if kind = "rotate-authority" then
+    return .rotateAuthority
+      (← stringField json "commit")
+      (← stringField json "run_id")
+      (← stringField json "obligation_id")
+      (← natField json "generation")
+      (← stringField json "previous_authority_commit")
+      (← stringField json "capability_digest")
+  if kind = "reserve-effect" then
+    return .reserveEffect
+      (← stringField json "commit")
+      (← stringField json "run_id")
+      (← stringField json "obligation_id")
+      (← natField json "generation")
+      (← stringField json "authority_commit")
+  if kind = "receipt" then
+    let receiptKind ← stringField json "receipt_kind"
+    let parsedKind ←
+      if receiptKind = "judgment-required" then
+        pure ExecutionReceiptKind.judgmentRequired
+      else if receiptKind = "execution-terminated" then
+        pure ExecutionReceiptKind.executionTerminated
+      else if receiptKind = "observation" then
+        pure (.observation (← parseObservationDisposition (← stringField json "disposition")))
+      else
+        throw s!"unsupported execution receipt kind: {receiptKind}"
+    return .receipt
+      (← stringField json "commit")
+      (← stringField json "run_id")
+      (← stringField json "obligation_id")
+      (← stringField json "claimed_revision")
+      (← stringField json "claim_commit")
+      (← natField json "generation")
+      (← stringField json "authority_commit")
+      parsedKind
+  throw s!"unsupported execution fact kind: {kind}"
+
+private def parseExecutionFacts (json : Json) : Except String (List ExecutionFact) := do
+  let facts ← json.getArr?
+  facts.toList.mapM parseExecutionFact
+
 private def dispositionName : Disposition → String
   | .done => "DONE"
   | .ready => "READY"
@@ -158,6 +239,25 @@ private def kubernetesDisposition : KubernetesListState → Disposition
   | .present => .done
   | .absent => .ready
   | .indeterminate => .recoveryRequired
+
+private def handleExecutionReplay (request : Json) : Except String Json := do
+  let seed ← parseExecutionSeed (← field request "seed")
+  let facts ← parseExecutionFacts (← field request "facts")
+  match replayExecutionFacts seed facts with
+  | none =>
+      pure <| Json.mkObj [
+        ("schema", "overcenter-lean-kernel/v1"),
+        ("accepted", false)
+      ]
+  | some state =>
+      pure <| Json.mkObj [
+        ("schema", "overcenter-lean-kernel/v1"),
+        ("accepted", true),
+        ("generation", toString state.generation),
+        ("authority_commit", state.authorityCommit),
+        ("status", executionStatusName state.status),
+        ("unresolved_effect", state.unresolvedEffect)
+      ]
 
 private def handleSettlement (request : Json) : Except String Json := do
   let postcondition ← parsePostcondition (← field request "postcondition")
@@ -204,7 +304,9 @@ private def handleKubernetesWatchCarry (request : Json) : Except String Json := 
 
 def handleJson (request : Json) : Except String Json := do
   let command ← stringField request "command"
-  if command = "settle" then
+  if command = "execution-replay" then
+    handleExecutionReplay request
+  else if command = "settle" then
     handleSettlement request
   else if command = "kubernetes-list" then
     handleKubernetesList request
