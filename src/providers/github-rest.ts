@@ -2,6 +2,16 @@ import { execFileSync } from 'node:child_process';
 
 export type GithubJsonGet=(token:string,path:string)=>unknown;
 
+const GITHUB_OBJECT_ID=/^[0-9a-f]{40,64}$/i;
+
+export function isGithubObjectId(value:unknown):value is string {
+  return typeof value==='string' && GITHUB_OBJECT_ID.test(value);
+}
+
+export function sameGithubObjectId(left:string,right:string):boolean {
+  return left.toLowerCase()===right.toLowerCase();
+}
+
 export function githubStatusContextKey(context:string):string {
   return context.toLowerCase();
 }
