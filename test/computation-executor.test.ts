@@ -28,7 +28,7 @@ import {
   resumeTestComputation,
   runReadyTestComputation,
 } from '../src/computation-runner.ts';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
@@ -477,6 +477,94 @@ test('exact spec bytes cannot change under an old digest',()=>{
     }),
     /EXECUTION_SPEC_DIGEST_MISMATCH/,
   );
+});
+
+test('RED TEAM: unresolved effect reservation can be laundered through pure-test recovery',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`effect-launder-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
+  const output=join(workdir,'result.txt');
+
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:spec('write-file','passed',{
+        pidFile:output,
+        timeoutMs:5000,
+      }),
+    },
+    postcondition:{
+      verifier:'eventually-consistent-file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const effectful=await runGitCoreLoop(state.kernel,{
+    effect:async()=>({kind:'provider-effect-attempted'}),
+    maxAdvances:1,
+  });
+  assert.equal(effectful.state,'RECOVERY_REQUIRED');
+  assert.ok(effectful.run);
+
+  const commitsBefore=execFileSync(
+    'git',
+    ['-C',state.repo,'rev-list','refs/overcenter/state'],
+    {encoding:'utf8'},
+  ).trim().split(/\n+/).filter(Boolean);
+  const reservationsBefore=commitsBefore.filter(commit=>{
+    try {
+      execFileSync(
+        'git',
+        ['-C',state.repo,'cat-file','-e',`${commit}:effect-reservation.json`],
+        {stdio:'ignore'},
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  assert.equal(reservationsBefore.length,1);
+
+  const harness=await startExecutor(1,workdir);
+  try {
+    const recovered=await resumeTestComputation(
+      state.kernel,
+      harness.client,
+      effectful.run,
+    );
+    assert.equal(recovered.execution_generation,2);
+    assert.equal(recovered.state,'DONE');
+    assert.equal(readFileSync(output,'utf8'),'passed');
+
+    const commitsAfter=execFileSync(
+      'git',
+      ['-C',state.repo,'rev-list','refs/overcenter/state'],
+      {encoding:'utf8'},
+    ).trim().split(/\n+/).filter(Boolean);
+    const reservationsAfter=commitsAfter.filter(commit=>{
+      try {
+        execFileSync(
+          'git',
+          ['-C',state.repo,'cat-file','-e',`${commit}:effect-reservation.json`],
+          {stdio:'ignore'},
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    assert.equal(
+      reservationsAfter.length,
+      1,
+      'generation 2 opened no new effect reservation',
+    );
+    assert.equal(state.kernel.inspect()[0]?.status,'DONE');
+  } finally {
+    await harness.close();
+  }
 });
 
 test('test workload crosses Go but settles only by independent observation',async()=>{
