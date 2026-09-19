@@ -226,6 +226,7 @@ example :
     } = {
       lifecycle := .recoveryRequired
       sourceRunId := some "run-active"
+      executionRunId := some "run-active"
     } := by decide
 
 -- An unresolved current semantic key cannot erase active execution.
@@ -238,6 +239,7 @@ example :
     } = {
       lifecycle := .recoveryRequired
       sourceRunId := some "run-active"
+      executionRunId := some "run-active"
     } := by decide
 
 private def immutablePostcondition : Postcondition := {
