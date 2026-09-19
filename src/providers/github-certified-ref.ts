@@ -12,9 +12,12 @@ import {
   rawGithubObserved200,
   type CertifiedGithubRepositoryEvidence,
 } from './github-certified-repository.ts';
-import { githubGet, type GithubJsonGet } from './github-rest.ts';
-
-const SHA=/^[0-9a-f]{40,64}$/i;
+import {
+  githubGet,
+  isGithubObjectId,
+  sameGithubObjectId,
+  type GithubJsonGet,
+} from './github-rest.ts';
 
 export interface CertifiedGithubRefEvidence {
   provider:'github';
@@ -74,7 +77,7 @@ export function observeCertifiedGithubRefFence(
     clock?:()=>string;
   },
 ):CertifiedGithubRefFenceResult {
-  if (!SHA.test(expectedSha)) throw new Error('GITHUB_REF_EXPECTED_SHA_INVALID');
+  if (!isGithubObjectId(expectedSha)) throw new Error('GITHUB_REF_EXPECTED_SHA_INVALID');
   const canonicalRef=canonicalGithubRef(ref);
   const requestedRef=apiRef(canonicalRef);
 
@@ -114,7 +117,7 @@ export function observeCertifiedGithubRefFence(
     if (!['commit','tag'].includes(value.object.type)) {
       throw new Error('GITHUB_REF_OBJECT_TYPE_INVALID');
     }
-    if (!SHA.test(value.object.sha)) throw new Error('GITHUB_REF_OBJECT_SHA_INVALID');
+    if (!isGithubObjectId(value.object.sha)) throw new Error('GITHUB_REF_OBJECT_SHA_INVALID');
     if (canonicalGithubRef(value.ref)!==canonicalRef) {
       throw new Error('GITHUB_REF_RESPONSE_COORDINATE_MISMATCH');
     }
@@ -138,7 +141,7 @@ export function observeCertifiedGithubRefFence(
       optional_absent_paths:certified.structural_validation.optional_absent_paths,
     };
 
-    const current=value.object.sha.toLowerCase()===expectedSha.toLowerCase();
+    const current=sameGithubObjectId(value.object.sha,expectedSha);
     return {
       state:current?'CURRENT':'STALE',
       reason:current?'AUTHORITATIVE_BINDING_MATCHES':'AUTHORITATIVE_BINDING_DIFFERS',
