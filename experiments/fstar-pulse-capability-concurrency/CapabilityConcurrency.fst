@@ -20,6 +20,7 @@ fn increment_coordinate (coordinate:ref int) (#before:erased int)
 
 // Positive control: disjoint mutation authority can be split across workers
 // and recombined after parallel execution.
+divergent
 fn independent_parallel
   (left right:ref int)
   (#left_before #right_before:erased int)
@@ -49,6 +50,7 @@ fn same_coordinate_sequential
 // exclusive mutation capability. This declaration verifies only if Pulse
 // rejects the attempted parallel split.
 [@@expect_failure]
+divergent
 fn same_coordinate_parallel
   (coordinate:ref int)
   (#before:erased int)
