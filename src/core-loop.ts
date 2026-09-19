@@ -1,9 +1,13 @@
 import type {
   Data,
-  ExecuteOutcome,
   ExecutionPermit,
 } from './model.ts';
 import { GitOvercenterKernel } from './git-kernel.ts';
+
+export interface ExecuteOutcome extends Data {
+  kind?:string;
+  may_have_mutated?:boolean;
+}
 
 export interface PreflightOutcome extends Data {
   kind:'execute'|'judgment-required';
