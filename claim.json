@@ -1,0 +1,20 @@
+{
+  "schema": "overcenter-git-claim-v4",
+  "run_id": "4fe1c30c-d55e-48d7-89b9-b375415048db",
+  "obligation_id": "actions-trust-proof-35430705827-1",
+  "claimed_revision": "785acfa7d86b7ff2429c4a09fea59f095d1cb488",
+  "obligation_key": "d8dfb9cf9ee433c848238f3dddeabe834d4766cd204bcc7befae649c037742c5",
+  "execution_capability_sha256": "bb5bbe780aa4cc151c67c9d6aa5f8d10d2244b59e6626c1ddbd20cbf5ef8ee30",
+  "current_observations": {
+    "actions-trust-proof-35430705827-1": {
+      "verifier": "github-commit-status/v1",
+      "provider": "github",
+      "repository_id": 1354872053,
+      "commit_sha": "a6a1191ea4974ced5e9765d90b353670654b7fa2",
+      "context": "overcenter/trust-proof/35430705827/1",
+      "expected_state": "success",
+      "mutation_certainty": "uncertain",
+      "observation_error": "GITHUB_TOKEN_UNAVAILABLE"
+    }
+  }
+}
