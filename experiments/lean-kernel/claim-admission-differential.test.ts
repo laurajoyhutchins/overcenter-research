@@ -11,9 +11,11 @@ import type {
   FactCommit,
   ObligationFact,
   ReceiptFact,
+  State,
 } from '../../src/facts.ts';
 import { canonicalDigest } from '../../src/digest.ts';
 import { obligationKey } from '../../src/lifecycle.ts';
+import { validateGraph } from '../../src/graph.ts';
 import type {
   Dependency,
   Obligation,
@@ -320,6 +322,77 @@ function tsAdmission(input:{
     return false;
   }
 }
+
+
+function leanGraphValid(graph:Obligation[]):boolean {
+  const stdout=execFileSync(kernel,[],{
+    input:JSON.stringify({
+      command:'claim-graph',
+      obligations:graph.map(leanObligation),
+    }),
+    encoding:'utf8',
+    stdio:['pipe','pipe','pipe'],
+  });
+  return (JSON.parse(stdout) as {valid:boolean}).valid;
+}
+
+function tsGraphValid(graph:Obligation[]):boolean {
+  const state:State={
+    obligations:Object.fromEntries(graph.map(obligation=>[
+      obligation.id,
+      structuredClone(obligation),
+    ])),
+    definition_commits:Object.fromEntries(graph.map((obligation,index)=>[
+      obligation.id,
+      \`definition-\${index}\`,
+    ])),
+  };
+  try {
+    validateGraph(state);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test('Lean graph topology validation agrees with TypeScript on hostile graphs',()=>{
+  assert.equal(leanGraphValid(obligations),true);
+  assert.equal(tsGraphValid(obligations),true);
+
+  const dangling:Obligation={
+    ...structuredClone(control),
+    id:'dangling',
+    dependencies:[{kind:'control',upstream:'missing'}],
+  };
+  assert.equal(leanGraphValid([dangling]),false);
+  assert.equal(tsGraphValid([dangling]),false);
+
+  const cycleA=work(
+    'cycle-a',
+    '/provider/cycle-a',
+    'A',
+    [{kind:'control',upstream:'cycle-b'}],
+  );
+  const cycleB=work(
+    'cycle-b',
+    '/provider/cycle-b',
+    'B',
+    [{
+      kind:'semantic',
+      upstream:'cycle-a',
+      consumes:{kind:'output',selector:'verified-content'},
+    }],
+  );
+  assert.equal(leanGraphValid([cycleA,cycleB]),false);
+  assert.equal(tsGraphValid([cycleA,cycleB]),false);
+
+  const duplicate=[upstream,{...structuredClone(upstream),packet:{duplicate:true}}];
+  assert.equal(leanGraphValid(duplicate),false);
+
+  const first=definitionRecord(duplicate[0],'duplicate-1',null);
+  const second=definitionRecord(duplicate[1],'duplicate-2','duplicate-1');
+  assert.throws(()=>replayProjection([first,second]),/DUPLICATE_OBLIGATION/);
+});
 
 test('Lean claim admission agrees with TypeScript replay on valid-chain hostile cases',()=>{
   const done=upstreamDoneHistory();
