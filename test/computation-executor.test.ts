@@ -552,6 +552,39 @@ test('a second executor cannot unlink or steal a live production socket',async()
   assert.equal(originalCode,0,originalStderr);
 });
 
+test('clean idle transport death terminalizes the client',async()=>{
+  const socketPath=join(scratch,`dead-transport-${executorSequence++}.sock`);
+  rmSync(socketPath,{force:true});
+  const server=createServer(socket=>socket.end());
+  await new Promise<void>((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(socketPath,()=>resolve());
+  });
+
+  const client=new GoExecutorClient({socketPath,maxConcurrency:1});
+  await new Promise(resolve=>setTimeout(resolve,50));
+  const execution=computationExecution(
+    permit(950),
+    {
+      schema:PROCESS_SPEC_SCHEMA,
+      executable:'/bin/true',
+      argv:[],
+      cwd:'.',
+      env:{},
+      timeout_ms:1000,
+      stdout_max_bytes:0,
+      stderr_max_bytes:0,
+    },
+  );
+  await assert.rejects(
+    client.execute(execution),
+    /GO_EXECUTOR_SOCKET_CLOSED/,
+  );
+  await new Promise<void>((resolve,reject)=>{
+    server.close(error=>error?reject(error):resolve());
+  });
+});
+
 test('completion evidence releases server capacity before replacement work is admitted',async()=>{
   const harness=await startExecutor(1);
   const {client}=harness;
