@@ -29,15 +29,19 @@ const token=required('GITHUB_TOKEN');
 const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF,githubToken:token});
 const prefix=`guard-${workflowRunId}-${attempt}-`;
 const works=kernel.inspect().filter(work=>work.id.startsWith(prefix));
-assert.equal(works.length,4);
+assert.equal(works.length,3);
 
+const uAlphaId=`${prefix}unordered-alpha`;
+const uBetaId=`${prefix}unordered-beta`;
 const unordered=works.filter(work=>work.id.includes('-unordered-'));
-assert.equal(unordered.length,2);
-assert.ok(unordered.every(work=>work.status==='BLOCKED' && !work.run_id && work.blocked_reason?.startsWith('UNORDERED_EFFECT_CONFLICT:')));
-const uAlpha=unordered.find(work=>work.id.endsWith('-alpha'))!;
-assert.throws(
-  ()=>kernel.claim(uAlpha.id,uAlpha.revision),
-  /UNORDERED_EFFECT_CONFLICT/,
+assert.equal(unordered.length,1);
+assert.equal(unordered[0]?.id,uAlphaId);
+assert.equal(unordered[0]?.status,'READY');
+assert.equal(unordered[0]?.run_id,undefined);
+assert.equal(
+  works.some(work=>work.id===uBetaId),
+  false,
+  'conflicting beta must remain outside authority',
 );
 
 const ordered=works.filter(work=>work.id.includes('-ordered-'));
@@ -59,7 +63,7 @@ const latest=statuses.find((status:any)=>status.context===beta.postcondition.con
 assert.equal(latest.state,'failure');
 
 console.log(JSON.stringify({
-  unordered:unordered.map(work=>({id:work.id,status:work.status})),
+  unordered:{admitted:unordered.map(work=>({id:work.id,status:work.status})),rejected:[uBetaId]},
   ordered:ordered.map(work=>({id:work.id,status:work.status,run_id:work.run_id})),
   provider_now:latest.state,
   authority:kernel.head(),

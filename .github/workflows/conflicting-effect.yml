@@ -21,7 +21,7 @@ permissions: {}
 
 jobs:
   authority:
-    name: Reject unordered conflict, claim ordered predecessor
+    name: Reject unordered conflict at admission, claim ordered predecessor
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -35,7 +35,7 @@ jobs:
           node-version-file: '.node-version'
       - name: Full regression suite
         run: npm test
-      - name: Prove unordered pair is unclaimable and claim ordered alpha
+      - name: Prove unordered beta is rejected and claim ordered alpha
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/conflicting-effect/guard-authority.ts
