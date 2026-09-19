@@ -351,7 +351,7 @@ test('RED TEAM CONTROL: checkout authentication material stays outside the sourc
     assert.ok(result);
     assert.equal(result.evidence?.outcome,'completed');
     assert.equal(readFileSync(marker,'utf8'),'absent');
-    assert.equal(result.state,'READY');
+    assert.equal(result.state,'RECOVERY_REQUIRED');
     assert.equal(result.receipt.verified,false);
     assertNoEffectReservations(state.repo);
   } finally {
