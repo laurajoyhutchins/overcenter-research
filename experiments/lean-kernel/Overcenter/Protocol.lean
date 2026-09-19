@@ -79,6 +79,37 @@ private def parseKubernetesPages (json : Json) : Except String (List KubernetesL
   let pages ← json.getArr?
   pages.toList.mapM parseKubernetesPage
 
+private def parseWatchEventType : String → Except String KubernetesWatchEventType
+  | "ADDED" => pure .added
+  | "MODIFIED" => pure .modified
+  | "DELETED" => pure .deleted
+  | other => throw s!"unsupported Kubernetes watch event type: {other}"
+
+private def parseWatchTermination : String → Except String KubernetesWatchTermination
+  | "client-stop" => pure .clientStop
+  | "eof" => pure .eof
+  | "timeout" => pure .timeout
+  | "gone" => pure .gone
+  | "error" => pure .error
+  | other => throw s!"unsupported Kubernetes watch termination: {other}"
+
+private def parseKubernetesWatchEvent (json : Json) : Except String KubernetesWatchEvent := do
+  pure {
+    eventType := ← parseWatchEventType (← stringField json "type")
+    member := ← parseKubernetesMember (← field json "member")
+  }
+
+private def parseKubernetesWatch (json : Json) : Except String KubernetesWatchTranscript := do
+  let eventJson ← (← field json "events").getArr?
+  let events ← eventJson.toList.mapM parseKubernetesWatchEvent
+  pure {
+    authorityId := ← stringField json "authority_id"
+    requestNamespace := ← stringField json "request_namespace"
+    startResourceVersion := ← stringField json "start_resource_version"
+    termination := ← parseWatchTermination (← stringField json "termination")
+    events
+  }
+
 private def parseAbsence (json : Json) : Except String (Option AbsenceEvidence) := do
   if json.isNull then
     return none
@@ -147,12 +178,38 @@ private def handleKubernetesList (request : Json) : Except String Json := do
     ("disposition", dispositionName (kubernetesDisposition state))
   ]
 
+private def handleKubernetesWatchCarry (request : Json) : Except String Json := do
+  let coordinate ← parseCoordinate .kubernetesConfigMapExists (← field request "coordinate")
+  let snapshotResourceVersion ← stringField request "snapshot_resource_version"
+  let pages ← parseKubernetesPages (← field request "pages")
+  let watch ← parseKubernetesWatch (← field request "watch")
+  let carried := carryKubernetesAbsenceThroughWatchRaw
+    coordinate
+    snapshotResourceVersion
+    pages
+    watch
+  match carried with
+  | some resourceVersion =>
+      pure <| Json.mkObj [
+        ("schema", "overcenter-lean-kernel/v1"),
+        ("state", "CARRIED"),
+        ("snapshot_resource_version", resourceVersion)
+      ]
+  | none =>
+      pure <| Json.mkObj [
+        ("schema", "overcenter-lean-kernel/v1"),
+        ("state", "RELIST_REQUIRED"),
+        ("snapshot_resource_version", Json.null)
+      ]
+
 def handleJson (request : Json) : Except String Json := do
   let command ← stringField request "command"
   if command = "settle" then
     handleSettlement request
   else if command = "kubernetes-list" then
     handleKubernetesList request
+  else if command = "kubernetes-watch-carry" then
+    handleKubernetesWatchCarry request
   else
     throw s!"unsupported command: {command}"
 
