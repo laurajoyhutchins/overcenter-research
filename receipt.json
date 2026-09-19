@@ -6,12 +6,69 @@
   "claim_commit": "f1604d461aeee79bc4063caf11556f2d30850a8a",
   "execution_generation": 2,
   "execution_authority_commit": "e4cff4ab5c804b99f5cda48bcbd1aebc81af6a68",
-  "kind": "execution-terminated",
-  "observed": null,
-  "diagnostic": {
-    "source": "github-actions-job-supervisor",
-    "slot": "beta",
-    "outcome": "failure"
+  "kind": "observation",
+  "observed": {
+    "verifier": "github-commit-status/v1",
+    "provider": "github",
+    "repository_id": 1354872053,
+    "commit_sha": "e47b3c55b6249317a93b5981d240e1a622743922",
+    "context": "overcenter/conflict-guard/35465823813/1/ordered",
+    "expected_state": "failure",
+    "repository_full_name": "laurajoyhutchins/overcenter-research",
+    "actual_state": "failure",
+    "mutation_certainty": "present",
+    "provider_evidence": {
+      "provider": "github",
+      "api_version": "2026-03-10",
+      "schema_sha256": "9d0534e66064a95f0637d542b463a868fc60a53a8cac37eddc85d72a465b8810",
+      "schema_source_commit": "d4278c869e367f5d6d4e0f46878119128abba77b",
+      "observer": {
+        "kind": "git-kernel",
+        "id": "github-commit-status/v2"
+      },
+      "repository_id": 1354872053,
+      "requested_repository_full_name": "laurajoyhutchins/overcenter-research",
+      "repository": {
+        "operation_id": "repos/get",
+        "observed_at": "2026-09-19T19:58:12.687Z",
+        "node_id": "R_kgDOUMG09Q",
+        "canonical_full_name": "laurajoyhutchins/overcenter-research",
+        "validated_paths": [
+          "id",
+          "node_id",
+          "full_name",
+          "name",
+          "owner.login"
+        ],
+        "optional_absent_paths": []
+      },
+      "commit_sha": "e47b3c55b6249317a93b5981d240e1a622743922",
+      "status_operation_id": "repos/list-commit-statuses-for-ref",
+      "pages": [
+        {
+          "observed_at": "2026-09-19T19:58:12.980Z",
+          "validated_paths": [
+            "[].id",
+            "[].node_id",
+            "[].state",
+            "[].context",
+            "[].target_url",
+            "[].created_at",
+            "[].updated_at"
+          ],
+          "optional_absent_paths": [],
+          "page": 1,
+          "member_count": 2
+        }
+      ],
+      "bootstrap_hint": {
+        "endpoint": "/repositories/{repository_id}",
+        "repository_id": 1354872053,
+        "full_name": "laurajoyhutchins/overcenter-research",
+        "authoritative": false
+      }
+    }
   },
-  "settled_at": "2026-09-19T19:58:09.786Z"
+  "diagnostic": {},
+  "settled_at": "2026-09-19T19:58:12.980Z"
 }
