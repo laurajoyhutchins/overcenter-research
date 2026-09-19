@@ -23,7 +23,7 @@ if (brokerOutcome !== 'failure') {
 const kernel = new GitOvercenterKernel(process.cwd(), {
   remote: 'origin',
   ref: stateRef,
-  githubToken: token,
+  observationContext: { githubToken: token },
 });
 
 const candidates = kernel.inspect().filter(work => {
