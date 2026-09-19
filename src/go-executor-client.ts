@@ -1,5 +1,5 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { once } from 'node:events';
+import { createConnection, type Socket } from 'node:net';
 import { createInterface } from 'node:readline';
 import {
   EXECUTOR_COMMAND_SCHEMA,
@@ -20,48 +20,39 @@ interface PendingExecution {
 }
 
 export interface GoExecutorClientOptions {
-  binaryPath:string;
-  workspaceRoot:string;
+  socketPath:string;
   maxConcurrency:number;
 }
 
 export class GoExecutorClient {
-  readonly #child:ChildProcessWithoutNullStreams;
+  readonly #socket:Socket;
   readonly #maxConcurrency:number;
   readonly #pending=new Map<string,PendingExecution>();
   readonly #capacityWaiters:Array<()=>void>=[];
-  readonly #closed:Promise<{code:number|null;signal:NodeJS.Signals|null}>;
+  readonly #connected:Promise<void>;
+  readonly #closed:Promise<void>;
   #inflight=0;
   #terminalError:Error|null=null;
-  #stderr='';
 
   constructor({
-    binaryPath,
-    workspaceRoot,
+    socketPath,
     maxConcurrency,
   }:GoExecutorClientOptions) {
+    if (!socketPath.startsWith('/')) {
+      throw new Error('GO_EXECUTOR_SOCKET_MUST_BE_ABSOLUTE');
+    }
     if (!Number.isSafeInteger(maxConcurrency) || maxConcurrency<=0) {
       throw new Error('GO_EXECUTOR_CONCURRENCY_INVALID');
     }
     this.#maxConcurrency=maxConcurrency;
-    this.#child=spawn(
-      binaryPath,
-      [
-        `--workspace-root=${workspaceRoot}`,
-        `--concurrency=${maxConcurrency}`,
-      ],
-      {
-        stdio:['pipe','pipe','pipe'],
-        env:{},
-      },
-    );
+    this.#socket=createConnection({path:socketPath});
 
-    this.#child.stderr.setEncoding('utf8');
-    this.#child.stderr.on('data',chunk=>{
-      this.#stderr=(this.#stderr+String(chunk)).slice(-16*1024);
+    this.#connected=new Promise((resolve,reject)=>{
+      this.#socket.once('connect',resolve);
+      this.#socket.once('error',reject);
     });
 
-    const lines=createInterface({input:this.#child.stdout,crlfDelay:Infinity});
+    const lines=createInterface({input:this.#socket,crlfDelay:Infinity});
     lines.on('line',line=>{
       try {
         const evidence=validateComputationEvidence(JSON.parse(line));
@@ -87,25 +78,22 @@ export class GoExecutorClient {
       }
     });
 
+    this.#socket.on('error',error=>this.#fail(error));
     this.#closed=new Promise(resolve=>{
-      this.#child.once('close',(code,signal)=>{
-        const result={code,signal};
-        if (code!==0 || signal!==null) {
-          this.#fail(new Error(
-            `GO_EXECUTOR_EXITED:code=${String(code)}:signal=${String(signal)}:stderr=${this.#stderr}`,
-          ));
+      this.#socket.once('close',hadError=>{
+        if (hadError) {
+          this.#fail(new Error('GO_EXECUTOR_SOCKET_CLOSED_WITH_ERROR'));
         } else if (this.#pending.size>0) {
-          this.#fail(new Error('GO_EXECUTOR_EXITED_WITH_PENDING_EXECUTIONS'));
+          this.#fail(new Error('GO_EXECUTOR_SOCKET_CLOSED_WITH_PENDING_EXECUTIONS'));
         }
-        resolve(result);
+        resolve();
       });
     });
-
-    this.#child.once('error',error=>this.#fail(error));
   }
 
   async execute(execution:ComputationExecutionV1):Promise<ComputationAttemptEvidenceV1> {
     validateComputationExecution(execution);
+    await this.#connected;
     await this.#acquireCapacity();
     if (this.#terminalError) {
       this.#releaseCapacity();
@@ -143,6 +131,7 @@ export class GoExecutorClient {
 
   async cancel(execution:ComputationExecutionV1):Promise<void> {
     validateComputationExecution(execution);
+    await this.#connected;
     const command:ExecutorCommandV1={
       schema:EXECUTOR_COMMAND_SCHEMA,
       kind:'cancel',
@@ -155,11 +144,10 @@ export class GoExecutorClient {
     if (this.#pending.size>0) {
       throw new Error('GO_EXECUTOR_CLOSE_WITH_PENDING_EXECUTIONS');
     }
-    this.#child.stdin.end();
-    const {code,signal}=await this.#closed;
-    if (code!==0 || signal!==null) {
-      throw this.#terminalError??new Error('GO_EXECUTOR_CLOSE_FAILED');
-    }
+    await this.#connected;
+    this.#socket.end();
+    await this.#closed;
+    if (this.#terminalError) throw this.#terminalError;
   }
 
   async #acquireCapacity():Promise<void> {
@@ -179,8 +167,8 @@ export class GoExecutorClient {
   async #writeCommand(command:ExecutorCommandV1):Promise<void> {
     if (this.#terminalError) throw this.#terminalError;
     const line=JSON.stringify(command)+'\n';
-    if (this.#child.stdin.write(line)) return;
-    await once(this.#child.stdin,'drain');
+    if (this.#socket.write(line)) return;
+    await once(this.#socket,'drain');
     if (this.#terminalError) throw this.#terminalError;
   }
 
@@ -193,6 +181,6 @@ export class GoExecutorClient {
     }
     this.#pending.clear();
     for (const wake of this.#capacityWaiters.splice(0)) wake();
-    if (!this.#child.killed) this.#child.kill('SIGKILL');
+    if (!this.#socket.destroyed) this.#socket.destroy();
   }
 }
