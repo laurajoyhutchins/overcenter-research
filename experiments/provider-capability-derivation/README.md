@@ -17,9 +17,11 @@ The live GitHub status adapter is more expressive. Its production `effectSemanti
 
 1. the canonical **physical mutation coordinate**;
 2. the requested **semantic operation**;
-3. whether identical operations on that coordinate commute.
+3. whether repeating the same desired operation is treated as commutative by the adapter's settlement semantics.
 
-The bridge therefore derives two axes rather than collapsing them into one opaque capability key:
+The third item is intentionally narrower than “the provider's physical history is identical.” Posting the same GitHub commit status twice can still create two provider records. The current Overcenter claim is that those writes are equivalent for the postcondition semantics that matter to admission and settlement.
+
+The bridge therefore preserves both physical overlap and adapter-level semantic compatibility:
 
 ```text
 postcondition
@@ -29,7 +31,7 @@ production effectSemantics
      │
      ├── physical_resource
      ├── semantic_operation
-     └── same_operation_commutes
+     └── sameDesiredCommutes
                │
                ▼
        pair classification
@@ -43,8 +45,8 @@ different physical resource
 
 same physical resource
 + same semantic operation
-+ both adapters assert commutativity
-        -> parallel-commutative
++ both adapters assert settlement-level commutativity
+        -> parallel-adapter-commutative
 
 same physical resource
 + incompatible/non-commutative operation
@@ -66,14 +68,22 @@ repository_id
 + normalized status context
 ```
 
-The experiment does not copy GitHub normalization logic. It calls `effectSemantics` and tests the resulting coordinate, including case-insensitive status-context identity.
+The experiment does not copy GitHub normalization logic. It calls `effectSemantics` and tests the resulting coordinate.
+
+The hostile identity checks include:
+
+- status-context case folding;
+- repository identity changes;
+- exact commit changes;
+- context changes;
+- GitHub v2 repository renames, which must not change capability identity because stable `repository_id`, not mutable owner/name, is authoritative.
 
 ## Agreement with current admission
 
 The experiment cross-checks the derived relation against `validateAdmission`:
 
 - disjoint GitHub status coordinates are accepted unordered;
-- same coordinate + same desired state is accepted unordered because the adapter currently marks it commutative;
+- same coordinate + same desired state is accepted unordered because the adapter currently marks it commutative under Overcenter's semantics;
 - same coordinate + incompatible desired state is rejected unordered;
 - the same incompatible pair is accepted when a control dependency orders it.
 
@@ -88,7 +98,7 @@ A single exclusive `pts_to` resource correctly models:
 - disjoint coordinates;
 - incompatible same-coordinate effects that require sequencing.
 
-It does **not** model Overcenter's current claim that two identical GitHub status writes to the same coordinate commute.
+It does **not** model Overcenter's current adapter-level claim that two identical GitHub status writes to the same coordinate may remain unordered.
 
 So the production-relevant model is not merely:
 
@@ -101,19 +111,20 @@ It is:
 ```text
 physical overlap
         ×
-semantic compatibility
+settlement-level semantic compatibility
 ```
 
-That is useful falsification, not a failure of the Pulse result. The Pulse result proved what exclusive mutation ownership implies. This bridge identifies where Overcenter intentionally relies on a stronger provider-specific commutativity claim.
+That is useful falsification, not a failure of the Pulse result. The Pulse result proved what exclusive mutation ownership implies. This bridge identifies where Overcenter relies on an additional provider-specific equivalence claim.
 
 ## Architectural warning
 
 `sameDesiredCommutes` is currently a boolean in `EffectSemantics`.
 
-That is enough to express the existing GitHub experiment, but it is weak evidence for a future authority boundary. If concurrent same-coordinate effects become production-significant, the boolean should probably become a provider-derived commutativity witness/certificate with enough provenance to answer:
+That is enough to express the existing GitHub experiment, but it is weak evidence for a future authority boundary. If same-coordinate concurrency becomes production-significant, the boolean should probably become a provider-derived commutativity witness/certificate with enough provenance to answer:
 
-- which provider operation is being claimed commutative;
+- which provider operation is being claimed equivalent;
 - under which canonical coordinate semantics;
+- under which observation/settlement semantics;
 - for which operation identity;
 - under which adapter/version contract.
 
