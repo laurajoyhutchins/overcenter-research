@@ -50,16 +50,17 @@ def reusable
     (current : Obligation)
     (historical : HistoricalRealization)
     (freshObservation : Option Observation) : Bool :=
-  if historical.disposition != .done then
-    false
-  else if historical.key != obligationKey current then
-    false
+  if historical.disposition = .done then
+    if historical.key = obligationKey current then
+      match historical.stability with
+      | .immutable => true
+      | .mutableExternal =>
+          match freshObservation with
+          | none => false
+          | some observation => verifies current.postcondition observation
+    else
+      false
   else
-    match historical.stability with
-    | .immutable => true
-    | .mutableExternal =>
-        match freshObservation with
-        | none => false
-        | some observation => verifies current.postcondition observation
+    false
 
 end Overcenter
