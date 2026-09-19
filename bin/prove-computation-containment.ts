@@ -43,14 +43,21 @@ try {
     ...productionDockerIsolationArgs(),
     '-v',`${work}:/workspace`,
     image,
-    `--concurrency=${PRODUCTION_COMPUTATION_CONTAINMENT.executor_concurrency}`,
-    `--task-uid=${PRODUCTION_COMPUTATION_CONTAINMENT.task_uid}`,
-    `--task-gid=${PRODUCTION_COMPUTATION_CONTAINMENT.task_gid}`,
+    '--concurrency',String(PRODUCTION_COMPUTATION_CONTAINMENT.executor_concurrency),
+    '--task-uid',String(PRODUCTION_COMPUTATION_CONTAINMENT.task_uid),
+    '--task-gid',String(PRODUCTION_COMPUTATION_CONTAINMENT.task_gid),
   ]);
 
   const deadline=Date.now()+10_000;
   while (!existsSync(join(work,'executor-killed')) && Date.now()<deadline) {
+    const running=docker(['inspect','--format','{{.State.Running}}',name]).trim();
+    if (running!=='true') break;
     await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  if (!existsSync(join(work,'credential-proof')) || !existsSync(join(work,'executor-killed'))) {
+    const state=docker(['inspect','--format','{{json .State}}',name]);
+    const logs=docker(['logs',name]);
+    throw new Error(`containment driver did not reach executor death proof: state=${state} logs=${logs}`);
   }
 
   assert.equal(
