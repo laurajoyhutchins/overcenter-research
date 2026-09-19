@@ -6,7 +6,6 @@ import { GitOvercenterKernel } from './git-kernel.ts';
 
 export interface ExecuteOutcome extends Data {
   kind?:string;
-  may_have_mutated?:boolean;
 }
 
 export interface PreflightOutcome extends Data {
@@ -32,7 +31,6 @@ export async function runGitCoreLoop(
   kernel:GitOvercenterKernel,
   {preflight,effect,maxAdvances=100}:LoopOptions,
 ):Promise<LoopResult> {
-  kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
     const work=kernel.nextReadyWork();
     if (!work) {
@@ -68,7 +66,6 @@ export async function runGitCoreLoop(
       outcome={
         kind:'execution-error',
         error:errorMessage(error),
-        may_have_mutated:true,
       };
     }
 
