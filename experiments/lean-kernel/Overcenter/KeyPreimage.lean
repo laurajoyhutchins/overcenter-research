@@ -165,9 +165,9 @@ def buildConsumedDependencies
   let entries ← (semanticDependencies ctx).mapM (consumedDependencyJson ctx results)
   pure (sortJsonByCompressed entries)
 
-def buildObligationKeyPreimage
+def buildObligationKeyPreimageModel
     (input : ObligationKeyInput)
-    (results : List KeyHashResult) : Option String :=
+    (results : List KeyHashResult) : Option (List Json) :=
   if !keyPreimageReady input.context then
     none
   else do
@@ -175,12 +175,22 @@ def buildObligationKeyPreimage
     if !hashResultsValid planned results then
       none
     else
-      let consumed ← buildConsumedDependencies input.context results
-      pure <| (Json.mkObj [
-        ("id", input.context.targetId),
-        ("packet", input.packet),
-        ("postcondition", input.postcondition),
-        ("semantic_dependencies", Json.arr consumed.toArray)
-      ]).compress
+      buildConsumedDependencies input.context results
+
+def serializeObligationKeyPreimage
+    (input : ObligationKeyInput)
+    (consumed : List Json) : String :=
+  (Json.mkObj [
+    ("id", input.context.targetId),
+    ("packet", input.packet),
+    ("postcondition", input.postcondition),
+    ("semantic_dependencies", Json.arr consumed.toArray)
+  ]).compress
+
+def buildObligationKeyPreimage
+    (input : ObligationKeyInput)
+    (results : List KeyHashResult) : Option String :=
+  (buildObligationKeyPreimageModel input results).map
+    (serializeObligationKeyPreimage input)
 
 end Overcenter
