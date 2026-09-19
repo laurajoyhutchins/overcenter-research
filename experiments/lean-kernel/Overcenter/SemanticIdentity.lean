@@ -209,7 +209,7 @@ def rawToBaseClaimContext (ctx : RawClaimContext) : ClaimContext := {
 
 def derivedClaimAdmissible (ctx : RawClaimContext) : Bool :=
   rawContextBasicWellFormed ctx &&
-  rawSemanticInputsResolved ctx &&
-  claimAdmissible (rawToBaseClaimContext ctx)
+  (rawSemanticInputsResolved ctx &&
+   claimAdmissible (rawToBaseClaimContext ctx))
 
 end Overcenter
