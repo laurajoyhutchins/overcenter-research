@@ -212,6 +212,53 @@ async function startIsolatedExecutor(
   };
 }
 
+test('RED TEAM: failed computation can forge the writable success marker and settle DONE',async()=>{
+  const state=kernelFixture();
+  const workspace=freshWorkspace('forged-success-redteam-workspace');
+  const marker=join(workspace,'test-result.txt');
+
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'/usr/local/bin/node',
+        argv:[
+          '-e',
+          "require('node:fs').writeFileSync('/workspace/test-result.txt','passed'); process.exit(1)",
+        ],
+        cwd:'.',
+        env:{},
+        timeout_ms:5000,
+        stdout_max_bytes:4096,
+        stderr_max_bytes:4096,
+      },
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:marker,
+      content:'passed',
+    },
+  });
+
+  const executor=await startIsolatedExecutor(workspace);
+  try {
+    const result=await runReadyTestComputation(state.kernel,executor.client);
+    assert.ok(result);
+    assert.equal(result.evidence?.outcome,'failed');
+    assert.equal(result.evidence?.exit_code,1);
+    assert.equal(readFileSync(marker,'utf8'),'passed');
+    assert.equal(result.state,'DONE','failed computation forged project truth');
+    assert.equal(result.receipt.verified,true);
+    assert.equal(state.kernel.inspect()[0]?.status,'DONE');
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await executor.close();
+  }
+});
+
 test('RED TEAM: task-controlled symlink can steer trusted observation outside the workspace',async()=>{
   const state=kernelFixture();
   const workspace=freshWorkspace('symlink-redteam-workspace');
