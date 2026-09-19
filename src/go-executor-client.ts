@@ -67,7 +67,11 @@ export class GoExecutorClient {
     }
     if (
       containmentId!==undefined
-      && (containmentId.length===0 || containmentId.length>512 || containmentId.includes('\0'))
+      && (
+        containmentId.length===0
+        || Buffer.byteLength(containmentId,'utf8')>512
+        || containmentId.includes('\0')
+      )
     ) {
       throw new Error('GO_EXECUTOR_CONTAINMENT_ID_INVALID');
     }
