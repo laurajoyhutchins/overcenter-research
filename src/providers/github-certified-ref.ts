@@ -10,7 +10,7 @@ import {
   observeCertifiedGithubRepository,
   type CertifiedGithubRepositoryEvidence,
 } from './github-certified-repository.ts';
-import { observeCertifiedGithubRead200 } from './github-certified-read.ts';
+import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
 import {
   githubGet,
   isGithubObjectId,
