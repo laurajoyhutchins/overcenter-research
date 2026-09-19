@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import {
   chmodSync,
   existsSync,
@@ -254,6 +256,78 @@ test('confined observation rejects a task-controlled result symlink',async()=>{
   assert.equal(receipt.disposition,'RECOVERY_REQUIRED');
   assert.equal(receipt.verified,false);
   assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
+});
+
+test('production computation cannot emit a network effect',async()=>{
+  let effects=0;
+  const server=createServer((request,response)=>{
+    if (request.method==='POST') effects+=1;
+    request.resume();
+    response.end('ok');
+  });
+  await new Promise<void>((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(0,'0.0.0.0',()=>resolve());
+  });
+
+  try {
+    const address=server.address() as AddressInfo;
+    const gateway=docker([
+      'network',
+      'inspect',
+      'bridge',
+      '--format',
+      '{{(index .IPAM.Config 0).Gateway}}',
+    ]).trim();
+    assert.ok(gateway);
+
+    const workspace=freshWorkspace('network-denied-workspace');
+    const state=kernelFixture(workspace);
+    const marker=join(workspace,'test-result.txt');
+    state.kernel.define({
+      id:'test',
+      packet:{
+        schema:TEST_COMPUTATION_PACKET_SCHEMA,
+        kind:'test',
+        process_spec:{
+          schema:PROCESS_SPEC_SCHEMA,
+          executable:'/usr/local/bin/node',
+          argv:[
+            '/fixture.mjs',
+            'network-effect-then-write',
+            `http://${gateway}:${address.port}/effect`,
+            '/workspace/test-result.txt',
+          ],
+          cwd:'.',
+          env:{},
+          timeout_ms:5000,
+          stdout_max_bytes:4096,
+          stderr_max_bytes:4096,
+        },
+      },
+      postcondition:{
+        verifier:'file-content-equals/v1',
+        path:marker,
+        content:'passed',
+      },
+    });
+
+    const executor=await startIsolatedExecutor(workspace);
+    try {
+      const result=await runReadyTestComputation(state.kernel,executor.client);
+      assert.ok(result);
+      assert.equal(effects,0,'isolated computation must not reach the host network');
+      assert.equal(result.state,'READY');
+      assert.equal(existsSync(marker),false);
+      assertNoEffectReservations(state.repo);
+    } finally {
+      await executor.close();
+    }
+  } finally {
+    await new Promise<void>((resolve,reject)=>{
+      server.close(error=>error?reject(error):resolve());
+    });
+  }
 });
 
 test('real test workload runs through the isolated production socket and settles by observation',async()=>{
