@@ -32,6 +32,20 @@ function status(
   };
 }
 
+function statusV2(
+  repository_full_name:string,
+):Postcondition {
+  return {
+    verifier:'github-commit-status/v2',
+    provider:'github',
+    repository_id:123,
+    repository_full_name,
+    commit_sha:'a'.repeat(40),
+    context:'overcenter/Build',
+    expected_state:'success',
+  };
+}
+
 function file(path='/tmp/effect'):Postcondition {
   return {
     verifier:'file-content-equals/v1',
@@ -71,7 +85,7 @@ test('derives the physical GitHub status coordinate from production semantics',(
   assert.deepEqual(footprint,{
     physical_resource:`github-status:123:${'a'.repeat(40)}:overcenter/build`,
     semantic_operation:'success',
-    same_operation_commutes:true,
+    same_operation_equivalent_under_adapter:true,
   });
 });
 
@@ -85,6 +99,14 @@ test('GitHub status context case is normalized before capability derivation',()=
   assert.ok(upper);
   assert.ok(lower);
   assert.equal(upper.physical_resource,lower.physical_resource);
+});
+
+test('GitHub v2 repository rename does not change capability identity',()=>{
+  const before=deriveMutationCapabilityFootprint(statusV2('owner/old-name'));
+  const after=deriveMutationCapabilityFootprint(statusV2('owner/new-name'));
+  assert.ok(before);
+  assert.ok(after);
+  assert.equal(before.physical_resource,after.physical_resource);
 });
 
 test('different repository identity derives disjoint physical capabilities',()=>{
@@ -111,13 +133,13 @@ test('different normalized context derives disjoint physical capabilities',()=>{
   assert.equal(relation.kind,'parallel-disjoint');
 });
 
-test('same coordinate and same desired state derives explicit commutative overlap',()=>{
+test('same coordinate and same desired state derives adapter-level commutative overlap',()=>{
   const relation=deriveCapabilityRelation(
     status('success',{context:'overcenter/Build'}),
     status('success',{context:'overcenter/build'}),
   );
-  assert.equal(relation.kind,'parallel-commutative');
-  if (relation.kind!=='parallel-commutative') return;
+  assert.equal(relation.kind,'parallel-adapter-commutative');
+  if (relation.kind!=='parallel-adapter-commutative') return;
   assert.equal(relation.operation,'success');
 });
 
@@ -132,16 +154,16 @@ test('same coordinate and incompatible desired state derives ordering requiremen
   assert.equal(relation.right_operation,'failure');
 });
 
-test('commutativity is not inferred merely from matching resource and operation',()=>{
+test('adapter commutativity is not inferred merely from matching resource and operation',()=>{
   const left:MutationCapabilityFootprint={
     physical_resource:'provider:resource',
     semantic_operation:'same',
-    same_operation_commutes:true,
+    same_operation_equivalent_under_adapter:true,
   };
   const right:MutationCapabilityFootprint={
     physical_resource:'provider:resource',
     semantic_operation:'same',
-    same_operation_commutes:false,
+    same_operation_equivalent_under_adapter:false,
   };
   assert.equal(classifyCapabilityRelation(left,right).kind,'ordered-conflict');
 });
@@ -161,10 +183,13 @@ test('derived disjoint relation agrees with admission accepting unordered effect
   assert.doesNotThrow(()=>validateAdmission(state(left,right)));
 });
 
-test('derived commutative overlap agrees with admission accepting unordered identical effects',()=>{
+test('derived adapter-commutative overlap agrees with admission accepting unordered identical effects',()=>{
   const left=status('success',{context:'overcenter/Build'});
   const right=status('success',{context:'overcenter/build'});
-  assert.equal(deriveCapabilityRelation(left,right).kind,'parallel-commutative');
+  assert.equal(
+    deriveCapabilityRelation(left,right).kind,
+    'parallel-adapter-commutative',
+  );
   assert.doesNotThrow(()=>validateAdmission(state(left,right)));
 });
 
