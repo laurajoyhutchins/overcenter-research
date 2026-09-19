@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
 import type { State } from '../src/facts.ts';
 import { validateAdmission } from '../src/admission.ts';
+import { githubCommitStatusEffectAuthority } from '../src/provider-effect.ts';
 
 const fileObligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligation=>({
   id,
@@ -23,6 +24,7 @@ const statusObligation=(
   id,
   dependencies,
   packet:{},
+  effect_authority:githubCommitStatusEffectAuthority(),
   postcondition:{
     verifier:'github-commit-status/v1',
     provider:'github',
@@ -41,6 +43,7 @@ const statusObligationV2=(
   id,
   dependencies,
   packet:{},
+  effect_authority:githubCommitStatusEffectAuthority(),
   postcondition:{
     verifier:'github-commit-status/v2',
     provider:'github',
@@ -127,4 +130,17 @@ test('admission rejects cross-verifier overlap without an explicit bridge witnes
     ()=>validateAdmission(state),
     /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
   );
+});
+
+
+test('observation-only GitHub postconditions do not create mutation conflicts',()=>{
+  const alpha=statusObligation('alpha','success');
+  const beta=statusObligation('beta','failure');
+  delete alpha.effect_authority;
+  delete beta.effect_authority;
+  const state:State={
+    obligations:{alpha,beta},
+    definition_commits:{alpha:'alpha-def',beta:'beta-def'},
+  };
+  assert.doesNotThrow(()=>validateAdmission(state));
 });
