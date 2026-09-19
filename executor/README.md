@@ -45,7 +45,7 @@ isolated worker/container
 +-------------------------------+
 ```
 
-The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate container without provider credentials.
+The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate container without provider credentials, without network access, and with a read-only container root. The writable workspace is the computation's only ordinary mutation surface.
 
 Production socket mode requires `--task-uid` and `--task-gid`. Both must differ from the executor identity; when `--socket-gid` is used to grant the trusted host access to the socket, the task GID must differ from that group too. Task processes are launched with supplementary groups replaced by the task GID only; executor and trusted-socket groups do not cross the boundary.
 
@@ -71,7 +71,9 @@ The first authority-side production integration is the pure `test` workload in `
 
 TypeScript selects an already-derived `READY` test obligation, acquires the exact claim/generation, converts its durable process specification to `ProcessSpecV1`, and sends that exact computation to this executor. Go returns attempt evidence only. TypeScript independently observes the obligation postcondition and settles from that observation.
 
-No effect reservation is created for this pure-computation path. A zero exit code is not project truth: if independent observation does not satisfy the postcondition, the obligation does not become `DONE`.
+No effect reservation is created for this pure-computation path. That is safe only because the production execution envelope mechanically removes ordinary external-effect channels rather than trusting the packet to be "pure": CI requires Docker network mode `none`, a read-only container root, read-only source, no provider credentials, and one writable workspace. A zero exit code is not project truth: if independent observation does not satisfy the postcondition, the obligation does not become `DONE`.
+
+Trusted host observation is separately confined. For the production file-result path the host verifier accepts only a direct regular-file child of the configured workspace root and opens the final component with `O_NOFOLLOW`; task-created symlinks therefore cannot redirect settlement reads outside the workspace.
 
 If the executor transport dies, TypeScript records an interrupted-execution receipt. A successor reconstructs the run and process specification from durable facts, acquires a fresh execution generation, recreates the workspace, and may retry the pure computation. Provider-mutating work does not use this path.
 
