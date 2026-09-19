@@ -43,6 +43,7 @@ import {
 } from './lifecycle.ts';
 import {
   claimabilityError,
+  executableFrontier,
   projectWork,
 } from './eligibility.ts';
 import {
@@ -158,13 +159,28 @@ export class GitOvercenterKernel {
       .map(work=>projectWork(state,work,head,history.lifecycles));
   }
 
-  deriveReadyWork():Work|null {
+  deriveReadyFrontier():Work[] {
     const head=this.#requireHead();
     const {state,history}=this.#projection(head);
-    const work=Object.values(state.obligations)
-      .sort((a,b)=>a.id.localeCompare(b.id))
-      .find(candidate=>claimabilityError(state,candidate,history.lifecycles)===null);
-    return work ? projectWork(state,work,head,history.lifecycles) : null;
+    return executableFrontier(state,history.lifecycles)
+      .map(work=>projectWork(state,work,head,history.lifecycles));
+  }
+
+  deriveReadyWork():Work|null {
+    return this.deriveReadyFrontier()[0]??null;
+  }
+
+  claimReadyFrontier(maxClaims=Number.MAX_SAFE_INTEGER):ExecutionPermit[] {
+    if (!Number.isSafeInteger(maxClaims) || maxClaims<0) {
+      throw new Error('INVALID_FRONTIER_CLAIM_LIMIT');
+    }
+    const permits:ExecutionPermit[]=[];
+    while (permits.length<maxClaims) {
+      const ready=this.deriveReadyWork();
+      if (!ready) break;
+      permits.push(this.claim(ready.id,ready.revision));
+    }
+    return permits;
   }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {
