@@ -170,10 +170,13 @@ private def verifierChangedObligation : Obligation := {
   }
 }
 
+private def kubeCoordinate : Coordinate :=
+  .kubernetesConfigMap "cluster-a" "proof" "missing"
+
 private def kubePostcondition : Postcondition := {
   family := .kubernetesConfigMapExists
   verifierRevision := "kubernetes-configmap-exists/v1@semantics-1"
-  coordinate := .kubernetesConfigMap "cluster-a" "proof" "missing"
+  coordinate := kubeCoordinate
   expected := "exists"
 }
 
@@ -198,18 +201,20 @@ private def kubePage2 : KubernetesListPage := {
   members := []
 }
 
+private def kubePages : List KubernetesListPage := [kubePage1, kubePage2]
+
 private def kubeAbsence : AbsenceEvidence :=
   .kubernetesCompleteList
     "cluster-a"
     "proof"
     "missing"
     "489"
-    [kubePage1, kubePage2]
+    kubePages
 
 private def kubeAbsentObservation : Observation := {
   family := .kubernetesConfigMapExists
   verifierRevision := "kubernetes-configmap-exists/v1@semantics-1"
-  coordinate := .kubernetesConfigMap "cluster-a" "proof" "missing"
+  coordinate := kubeCoordinate
   certainty := .absent
   actual := none
   absence := some kubeAbsence
@@ -222,6 +227,11 @@ private def kubeTargetMember : KubernetesListMember := {
   resourceVersion := "488"
 }
 
+private def kubePresentPages : List KubernetesListPage := [
+  kubePage1,
+  { kubePage2 with members := [kubeTargetMember] }
+]
+
 private def kubeTargetHiddenOnLaterPage : Observation := {
   kubeAbsentObservation with
   absence := some (.kubernetesCompleteList
@@ -229,11 +239,13 @@ private def kubeTargetHiddenOnLaterPage : Observation := {
     "proof"
     "missing"
     "489"
-    [
-      kubePage1,
-      { kubePage2 with members := [kubeTargetMember] }
-    ])
+    kubePresentPages)
 }
+
+private def kubeBrokenPages : List KubernetesListPage := [
+  kubePage1,
+  { kubePage2 with requestContinue := some "wrong" }
+]
 
 private def kubeBrokenContinuation : Observation := {
   kubeAbsentObservation with
@@ -242,11 +254,13 @@ private def kubeBrokenContinuation : Observation := {
     "proof"
     "missing"
     "489"
-    [
-      kubePage1,
-      { kubePage2 with requestContinue := some "wrong" }
-    ])
+    kubeBrokenPages)
 }
+
+private def kubeChangedSnapshotPages : List KubernetesListPage := [
+  kubePage1,
+  { kubePage2 with snapshotResourceVersion := "490" }
+]
 
 private def kubeChangedSnapshot : Observation := {
   kubeAbsentObservation with
@@ -255,11 +269,10 @@ private def kubeChangedSnapshot : Observation := {
     "proof"
     "missing"
     "489"
-    [
-      kubePage1,
-      { kubePage2 with snapshotResourceVersion := "490" }
-    ])
+    kubeChangedSnapshotPages)
 }
+
+private def kubePartialPages : List KubernetesListPage := [kubePage1]
 
 private def kubePartialPagination : Observation := {
   kubeAbsentObservation with
@@ -268,10 +281,13 @@ private def kubePartialPagination : Observation := {
     "proof"
     "missing"
     "489"
-    [
-      kubePage1
-    ])
+    kubePartialPages)
 }
+
+private def kubeWrongNamespacePages : List KubernetesListPage := [
+  { kubePage1 with members := [{ kubeMember with namespaceName := "other" }] },
+  kubePage2
+]
 
 private def kubeWrongNamespaceMember : Observation := {
   kubeAbsentObservation with
@@ -280,10 +296,7 @@ private def kubeWrongNamespaceMember : Observation := {
     "proof"
     "missing"
     "489"
-    [
-      { kubePage1 with members := [{ kubeMember with namespaceName := "other" }] },
-      kubePage2
-    ])
+    kubeWrongNamespacePages)
 }
 
 example : settle filePostcondition exactObservation = .done := by decide
@@ -305,7 +318,15 @@ example : reusable immutableObligation immutableHistory none = true := by decide
 example : obligationKey verifierChangedObligation ≠ obligationKey fileObligation := by decide
 example : reusable verifierChangedObligation mutableHistory (some exactObservation) = false := by decide
 
--- Kubernetes complete LIST evidence derives its own completeness.
+-- Kubernetes raw LIST classification owns both positive and negative interpretation.
+example : classifyKubernetesList kubeCoordinate "489" kubePages = .absent := by decide
+example : classifyKubernetesList kubeCoordinate "489" kubePresentPages = .present := by decide
+example : classifyKubernetesList kubeCoordinate "489" kubeBrokenPages = .indeterminate := by decide
+example : classifyKubernetesList kubeCoordinate "489" kubeChangedSnapshotPages = .indeterminate := by decide
+example : classifyKubernetesList kubeCoordinate "489" kubePartialPages = .indeterminate := by decide
+example : classifyKubernetesList kubeCoordinate "489" kubeWrongNamespacePages = .indeterminate := by decide
+
+-- A forged absence certificate cannot override raw-list classification.
 example : settle kubePostcondition kubeAbsentObservation = .ready := by decide
 example : settle kubePostcondition kubeTargetHiddenOnLaterPage = .recoveryRequired := by decide
 example : settle kubePostcondition kubeBrokenContinuation = .recoveryRequired := by decide
