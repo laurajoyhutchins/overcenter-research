@@ -1,22 +1,22 @@
 import type { Postcondition } from './model.ts';
 import { canonicalDigest, sha256 } from './digest.ts';
 import {
-  githubCommitStatusEffectEquivalenceWitness,
   githubCommitStatusEffectSemantics,
+  githubCommitStatusSettlementEquivalenceWitness,
   githubCommitStatusSettlementSemantics,
 } from './providers/github-semantics.ts';
 import { githubStatusContextKey } from './providers/github-rest.ts';
 import { LOCAL_FILE_ENOENT_EVIDENCE } from './evidence.ts';
 import { KUBERNETES_COMPLETE_LIST_ABSENCE } from './providers/kubernetes-configmap.ts';
 import type {
-  EffectEquivalenceWitness,
   EffectSemantics,
+  SettlementEquivalenceWitness,
   SettlementSemantics,
 } from './semantics-contract.ts';
 
 export type {
-  EffectEquivalenceWitness,
   EffectSemantics,
+  SettlementEquivalenceWitness,
   SettlementSemantics,
 } from './semantics-contract.ts';
 
@@ -92,36 +92,36 @@ export function effectSemantics(postcondition:Postcondition):EffectSemantics|nul
   return null;
 }
 
-export function effectEquivalenceWitness(
+export function settlementEquivalenceWitness(
   postcondition:Postcondition,
-):EffectEquivalenceWitness|null {
+):SettlementEquivalenceWitness|null {
   if (
     postcondition.verifier==='github-commit-status/v1'
     || postcondition.verifier==='github-commit-status/v2'
   ) {
-    return githubCommitStatusEffectEquivalenceWitness(postcondition);
+    return githubCommitStatusSettlementEquivalenceWitness(postcondition);
   }
   return null;
 }
 
-export function validateEffectEquivalenceWitness(
+export function validateSettlementEquivalenceWitness(
   postcondition:Postcondition,
-  witness:EffectEquivalenceWitness,
+  witness:SettlementEquivalenceWitness,
 ):boolean {
-  const expected=effectEquivalenceWitness(postcondition);
+  const expected=settlementEquivalenceWitness(postcondition);
   if (!expected) return false;
   return canonicalDigest(expected)===canonicalDigest(witness);
 }
 
-export function effectEquivalenceWitnessesAuthorizeUnorderedOverlap(
+export function settlementEquivalenceWitnessesAuthorizeUnorderedOverlap(
   left:Postcondition,
   right:Postcondition,
 ):boolean {
-  const leftWitness=effectEquivalenceWitness(left);
-  const rightWitness=effectEquivalenceWitness(right);
+  const leftWitness=settlementEquivalenceWitness(left);
+  const rightWitness=settlementEquivalenceWitness(right);
   return Boolean(
     leftWitness
     && rightWitness
-    && leftWitness.certificate_digest===rightWitness.certificate_digest,
+    && leftWitness.witness_digest===rightWitness.witness_digest,
   );
 }

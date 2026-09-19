@@ -1,7 +1,7 @@
 import type { GitHubCommitStatusPostcondition } from '../model.ts';
 import { canonicalDigest } from '../digest.ts';
 import type {
-  EffectEquivalenceWitness,
+  SettlementEquivalenceWitness,
   EffectSemantics,
   SettlementSemantics,
 } from '../semantics-contract.ts';
@@ -72,10 +72,10 @@ export const GITHUB_STATUS_COORDINATE_CONTRACT=
   'github-commit-status-coordinate/v1' as const;
 export const GITHUB_STATUS_OPERATION_CLASS=
   `github-rest:create-commit-status@${GITHUB_API_VERSION}` as const;
-export const EFFECT_EQUIVALENCE_ISSUER_CONTRACT=
-  'overcenter/provider-effect-equivalence-issuer/v1' as const;
-export const EFFECT_EQUIVALENCE_CERTIFICATE_SCHEMA=
-  'overcenter-effect-equivalence-certificate-v1' as const;
+export const SETTLEMENT_EQUIVALENCE_ISSUER_CONTRACT=
+  'overcenter/provider-settlement-equivalence-issuer/v1' as const;
+export const SETTLEMENT_EQUIVALENCE_WITNESS_SCHEMA=
+  'overcenter-settlement-equivalence-witness-v1' as const;
 
 function githubStatusObservationContract(
   postcondition:GitHubCommitStatusPostcondition,
@@ -103,9 +103,9 @@ export function githubCommitStatusSettlementSemantics(
   };
 }
 
-export function githubCommitStatusEffectEquivalenceWitness(
+export function githubCommitStatusSettlementEquivalenceWitness(
   postcondition:GitHubCommitStatusPostcondition,
-):EffectEquivalenceWitness {
+):SettlementEquivalenceWitness {
   const effect=githubCommitStatusEffectSemantics(postcondition);
   const settlement=githubCommitStatusSettlementSemantics(postcondition);
   const contract={
@@ -123,17 +123,17 @@ export function githubCommitStatusEffectEquivalenceWitness(
     }),
   };
   const payload={
-    schema:EFFECT_EQUIVALENCE_CERTIFICATE_SCHEMA,
-    issuer_contract:EFFECT_EQUIVALENCE_ISSUER_CONTRACT,
+    schema:SETTLEMENT_EQUIVALENCE_WITNESS_SCHEMA,
+    issuer_contract:SETTLEMENT_EQUIVALENCE_ISSUER_CONTRACT,
     ...contract,
     resource:effect.resource,
     operation:effect.desired,
-    equivalence_class:'same-desired-under-overcenter-settlement',
+    equivalence_class:'same-project-truth-under-observation-and-settlement' as const,
     effect_semantics_digest:canonicalDigest({contract,effect}),
     settlement_semantics_digest:canonicalDigest({contract,settlement}),
   };
   return {
     ...payload,
-    certificate_digest:canonicalDigest(payload),
+    witness_digest:canonicalDigest(payload),
   };
 }

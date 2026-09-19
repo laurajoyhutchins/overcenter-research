@@ -4,8 +4,8 @@ import {
   validateGraph,
 } from './graph.ts';
 import {
-  effectEquivalenceWitnessesAuthorizeUnorderedOverlap,
   effectSemantics,
+  settlementEquivalenceWitnessesAuthorizeUnorderedOverlap,
   settlementSemantics,
   verifiedContentIdentity,
 } from './semantics.ts';
@@ -59,7 +59,7 @@ export function staticEffectConflictError(
     if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
 
     if (
-      effectEquivalenceWitnessesAuthorizeUnorderedOverlap(
+      settlementEquivalenceWitnessesAuthorizeUnorderedOverlap(
         work.postcondition,
         other.postcondition,
       )
