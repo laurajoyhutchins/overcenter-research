@@ -26,7 +26,7 @@ withExperiment('material packet change invalidates an otherwise identical realiz
 
   assert.equal(before.status,'DONE');
   assert.equal(after.status,'READY');
-  assert.equal(after.run_id,null);
+  assert.equal(after.run_id,undefined);
 });
 
 withExperiment('producer-local changes preserve a consumer of unchanged verified output',x=>{
