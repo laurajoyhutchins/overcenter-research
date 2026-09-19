@@ -165,7 +165,6 @@ export function reconstructProjection(commits:FactCommit[]):Projection {
         execution_authority_commit:record.commit,
         execution_capability_sha256:claim.execution_capability_sha256,
         obligation:structuredClone(obligation),
-        definition_commit:catalog.definition_commits[claim.obligation_id],
       };
       runs.set(run.id,run);
       lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
