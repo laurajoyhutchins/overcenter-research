@@ -62,7 +62,7 @@ test('runtime toolchains have one exact checked-in version source',()=>{
 });
 
 test('CI execution substrate and third-party actions are immutable',()=>{
-  const paths=filesUnder('.github/workflows');
+  const paths=filesUnder('.github').filter(path=>/\.ya?ml$/.test(path));
   for (const path of paths) {
     const source=read(path);
     assert.doesNotMatch(source,/ubuntu-latest/,path);
@@ -70,6 +70,14 @@ test('CI execution substrate and third-party actions are immutable',()=>{
       .map(match=>match[0]);
     assert.deepEqual(mutable,[],`${path} contains mutable actions: ${mutable.join(', ')}`);
   }
+});
+
+test('a Rust runtime cannot appear without an exact toolchain pin',()=>{
+  const rustSources=filesUnder('runtime').filter(path=>path.endsWith('.rs'));
+  if (rustSources.length===0) return;
+  assert.ok(existsSync(join(root,'rust-toolchain.toml')),'Rust runtime requires rust-toolchain.toml');
+  const toolchain=read('rust-toolchain.toml');
+  assert.match(toolchain,/channel\s*=\s*"\d+\.\d+\.\d+"/);
 });
 
 test('ambient credential configuration has one GitHub token spelling',()=>{
