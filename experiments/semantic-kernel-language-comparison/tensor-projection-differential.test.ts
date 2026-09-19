@@ -191,7 +191,16 @@ function verify(
     encoding:'utf8',
     stdio:['pipe','pipe','pipe'],
   });
-  return JSON.parse(stdout) as {accepted:boolean;reason:string};
+  const response=JSON.parse(stdout) as {
+    schema:string;
+    accepted:boolean;
+    reason:string;
+  };
+  assert.equal(
+    response.schema,
+    'overcenter-lean-graph-tensor-verification/v1',
+  );
+  return {accepted:response.accepted,reason:response.reason};
 }
 
 const base=context([
