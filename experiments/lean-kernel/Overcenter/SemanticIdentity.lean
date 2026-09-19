@@ -149,7 +149,10 @@ def rawContextBasicWellFormed (ctx : RawClaimContext) : Bool :=
 def deriveSemanticIdentityMaterial
     (ctx : RawClaimContext)
     (dependency : RawClaimDependency) : Option SemanticIdentityMaterial :=
-  match dependency.kind, dependency.selector with
+  if !rawContextBasicWellFormed ctx then
+    none
+  else
+    match dependency.kind, dependency.selector with
   | .control, _ => none
   | .semantic, none => none
   | .semantic, some selector =>
