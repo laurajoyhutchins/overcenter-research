@@ -2,87 +2,104 @@
 
 ## Question
 
-Can an Overcenter-like settlement boundary make stale or semantically mismatched evidence unrepresentable while allowing the same verified realization to be reused regardless of who produced it?
+Can a verified realization remain reusable across producers, obligation instances, and execution-authority rotations while settlement still requires exact current authority?
 
 This is a bounded language experiment, not a proposal to rewrite Overcenter in F*.
 
-## Model
+## Corrected model
 
-The experiment separates **material identity** from **producer provenance**.
+The original version of this experiment put semantic identity, obligation identity, revision, and authority generation into one `material_key`. That proved exact evidence binding, but it was too strong for the reuse claim: changing execution authority also invalidated the realization.
+
+The corrected model separates three identities:
 
 ```text
-material key
-  obligation id
-  revision
-  authority generation
+semantic realization identity
   verifier version
   source input
   material config
   acceptance predicate
-        │
-        ▼
-bound_evidence obligation
-        │
-        ▼
-settle
+  semantic dependency closure
+           │
+           ▼
+   verified realization
+           │
+           │ reusable across runs / producers /
+           │ authority generations / obligation instances
+           ▼
 
-producer provenance = Agent | Human | PriorRun
-        │
-        └── preserved on evidence, but deliberately not part of the material key
+obligation instance
+  obligation_id
+  current revision
+  current authority generation
+           │
+           ▼
+ current settlement authority
+           │
+           ▼
+
+verified realization + current settlement authority
+                    │
+                    ▼
+                 settle
 ```
 
-`bound_evidence o` is a refinement of raw `evidence`. It can only contain evidence whose material key is exactly the key required by `o`.
-
-`validate` is the runtime boundary that attempts to upgrade raw evidence into bound evidence. `settle` accepts only bound evidence and preserves the producer recorded on that evidence.
+Producer provenance remains attached to the realization but is not part of semantic identity.
 
 ## Positive controls
 
-`Positive.fst` constructs three independently sourced witnesses with the same material key:
+The proof demonstrates all of the following:
 
-- agent-produced evidence;
-- human-produced evidence;
-- prior-run evidence.
+- agent, human, and prior-run realizations with the same semantic key can settle the same obligation;
+- a prior-run realization remains valid after revision and authority-generation rotation when semantic identity is unchanged;
+- the same realization can satisfy a distinct obligation instance with the same semantic identity;
+- settlement after either reuse case still requires a fresh authority value bound to the current obligation instance, revision, and authority generation.
 
-All three satisfy the same obligation. Producer provenance is not rewritten to demonstrate reuse; it is retained on the evidence and copied into the settlement result. This keeps "producer-independent satisfaction" separate from "provenance may be falsified."
+The key distinction is:
+
+```text
+authority changes
+    -> realization survives
+    -> old authority dies
+    -> fresh authority + old realization may settle
+
+semantic input changes
+    -> old realization dies
+```
 
 ## Hostile controls
 
-Each hostile file contains an `[@@expect_failure]` declaration. The module verifies only if F* rejects construction of the invalid `bound_evidence`.
+The hostile modules require F* to reject:
 
-The controls independently change:
+- authority for the wrong obligation instance;
+- stale revision authority;
+- stale authority generation;
+- realization reuse after verifier change;
+- realization reuse after source-input change;
+- realization reuse after material-configuration change;
+- realization reuse after acceptance-predicate change;
+- realization reuse after semantic-dependency change.
 
-- obligation identity;
-- exact revision;
-- authority generation;
-- verifier version;
-- source input;
-- material configuration;
-- acceptance predicate.
-
-Producer identity is the deliberate counterexample: distinct producers with the same material key remain valid evidence for the same obligation.
+This directly tests the split rather than merely documenting it.
 
 ## What success means
 
 A green run supports this narrow claim:
 
-> Once evidence has been refined against an exact material key, the settlement function cannot be called with evidence from a different obligation, revision, authority generation, verifier, source input, material configuration, or acceptance predicate without crossing an explicit unverified boundary.
+> Semantic realization reuse and current execution/settlement authority can be represented as independent proof obligations. A realization may survive authority rotation or obligation-instance changes when semantic identity is exact, while settlement still cannot proceed without authority bound to the current obligation instance, revision, and generation.
 
-It separately supports the narrower reuse claim that evidence from different producers can satisfy the same obligation when every material component is identical, without discarding the original producer provenance.
-
-The experiment also extracts the verified kernel to OCaml to make sure this is executable verified programming rather than a theorem-only artifact.
+That is stronger and more accurate than the original experiment's claim.
 
 ## What this does not prove
 
-This experiment does not prove that:
+This experiment still does not prove that:
 
-- Overcenter's current TypeScript implementation satisfies the F* model;
-- material keys are complete in production;
+- Overcenter's TypeScript realization key contains every material semantic dependency;
+- production authority values cannot be forged before validation;
 - provider observations are truthful;
-- authority generations cannot be forged before validation;
-- extracted unverified callers preserve F* refinements;
-- concurrent mutation authority is separated.
+- an external-effect realization is safe to reuse as though it were a pure build artifact;
+- the TypeScript kernel already implements this F* split.
 
-Those require separate experiments. Pulse is the obvious next candidate for the concurrency/capability question if this one survives.
+Those remain separate production and provider boundaries.
 
 ## Run
 
