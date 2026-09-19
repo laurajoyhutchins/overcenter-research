@@ -36,14 +36,15 @@ const work=kernel.inspect().find(candidate=>{
 assert.ok(work,`missing unresolved run for ${slot}`);
 assert.ok(work.run_id);
 
-const recovery=kernel.recoverInterrupted(work.run_id,{
+const permit=kernel.acquireExecution(work.run_id);
+const recovery=kernel.recoverInterrupted(permit,{
   source:'github-actions-job-supervisor',
   workflow_run_id:workflowRunId,
   workflow_run_attempt:attempt,
   slot,
   outcome,
 });
-const settled=kernel.reconcile(work.run_id);
+const settled=kernel.reconcile(permit);
 assert.equal(settled.disposition,'DONE');
 assert.equal(settled.verified,true);
 assert.equal(settled.claim_commit,recovery.claim_commit);
