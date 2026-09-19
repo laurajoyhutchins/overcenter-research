@@ -8,6 +8,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -247,7 +248,7 @@ test('isolated executor death recovers the real test from durable facts in gener
   const workspace=freshWorkspace('recovery-test-workspace');
   const oldOnly=join(workspace,'old-workspace-only');
   const marker=join(workspace,'test-result.txt');
-  await import('node:fs').then(({writeFileSync})=>writeFileSync(oldOnly,'old'));
+  writeFileSync(oldOnly,'old');
 
   state.kernel.define({
     id:'test',
