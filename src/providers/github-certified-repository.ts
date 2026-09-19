@@ -1,39 +1,17 @@
-import type { ProviderObservation } from '../provider-observation/observation.ts';
-import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './github-contract.ts';
 import { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
+import { materializeGithubOperationRequest } from './github-openapi.ts';
 import {
-  materializeGithubOperationRequest,
-  type GithubObservationOperation,
-} from './github-openapi.ts';
+  observeCertifiedGithubRead200,
+  rawGithubObserved200,
+  type GithubRawObservation,
+} from './github-certified-read.ts';
 import { GITHUB_REPOSITORY_RESPONSE_SLICE } from './github-semantics.ts';
 import { githubGet, type GithubJsonGet } from './github-rest.ts';
-
-interface GithubObservationRequest {
-  method:'GET';
-  path_template:string;
-  path:string;
-  parameters:Record<string,string|number|boolean>;
-  headers:Record<string,string>;
-  authorization:'bearer';
-}
-
-interface GithubObservationResponse {
-  date:string|null;
-  etag:string|null;
-  link:string|null;
-  request_id:string|null;
-}
-
-export type GithubRawObservation=ProviderObservation<
-  'github',
-  GithubObservationRequest,
-  GithubObservationResponse
->;
 
 export interface RepositoryIdentityFact {
   kind:'repository-identity';
@@ -124,21 +102,15 @@ export function observeCertifiedGithubRepository(
 ):CertifiedGithubRepository {
   const {owner,repo}=githubRepositoryCoordinate(repositoryFullName);
   const request=materializeGithubOperationRequest(GITHUB_REPOSITORY_OPERATION,{owner,repo});
-  const body=get(token,request.path);
-  const observedAt=clock();
-  const raw=rawGithubObserved200({
+  const {observed_at:observedAt,certified}=observeCertifiedGithubRead200({
+    token,
     operation:GITHUB_REPOSITORY_OPERATION,
-    path:request.path,
-    parameters:request.parameters,
-    body,
-    observedAt,
+    request,
+    fields:GITHUB_REPOSITORY_RESPONSE_SLICE,
+    get,
+    clock,
     observerId,
   });
-  const certified=validateObservationSlice(
-    GITHUB_REPOSITORY_OPERATION,
-    raw,
-    GITHUB_REPOSITORY_RESPONSE_SLICE,
-  );
   const value=certified.outcome.value as {
     id:number;
     node_id:string;
@@ -187,4 +159,5 @@ export {
 export { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
 export { GITHUB_REPOSITORY_RESPONSE_SLICE } from './github-semantics.ts';
 export type { GithubObservationOperation } from './github-openapi.ts';
+export type { GithubRawObservation } from './github-certified-read.ts';
 export type { GithubJsonGet } from './github-rest.ts';
