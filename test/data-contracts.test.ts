@@ -59,11 +59,11 @@ test('wire discriminator registry agrees with TypeScript, Go, and JSON Schema',(
     ['ExecutorCommandSchema',EXECUTOR_COMMAND_SCHEMA],
     ['ComputationEvidenceSchema',COMPUTATION_EVIDENCE_SCHEMA],
   ] as const) {
-    assert.match(goProtocol,new RegExp(goName+'\\\\s*=\\\\s*"'+value+'"'));
+    assert.match(goProtocol,new RegExp(goName+'\\s*=\\s*"'+value+'"'));
   }
   assert.match(
     goMain,
-    new RegExp('executorHelloSchema\\\\s*=\\\\s*"'+EXECUTOR_HELLO_SCHEMA+'"'),
+    new RegExp('executorHelloSchema\\s*=\\s*"'+EXECUTOR_HELLO_SCHEMA+'"'),
   );
 });
 
