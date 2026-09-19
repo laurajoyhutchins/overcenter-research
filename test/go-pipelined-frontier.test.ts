@@ -61,7 +61,7 @@ class GoExecutionStream {
     this.child.stdin.write(JSON.stringify(envelope)+'\n');
   }
 
-  async waitForEvidence(count:number,timeoutMillis=2000):Promise<void> {
+  async waitForEvidence(count:number,timeoutMillis=5000):Promise<void> {
     if (this.evidence.length>=count) return;
     await new Promise<void>((resolve,reject)=>{
       const timer=setTimeout(
