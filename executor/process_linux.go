@@ -49,33 +49,51 @@ func explicitEnvironment(environment map[string]string) []string {
 	return values
 }
 
-func confinedWorkingDirectory(workspaceRoot, relative string) (string, error) {
-	root, err := filepath.EvalSymlinks(workspaceRoot)
-	if err != nil {
-		return "", fmt.Errorf("resolve workspace root: %w", err)
+const confinedDirectoryOpenFlags = syscall.O_RDONLY | syscall.O_DIRECTORY | syscall.O_NOFOLLOW | syscall.O_CLOEXEC
+
+func openWorkspaceRoot(workspaceRoot string) (*os.File, error) {
+	if !filepath.IsAbs(workspaceRoot) {
+		return nil, errors.New("workspace root must be absolute")
 	}
-	root, err = filepath.Abs(root)
+	clean := filepath.Clean(workspaceRoot)
+	fd, err := syscall.Open(clean, confinedDirectoryOpenFlags, 0)
 	if err != nil {
-		return "", fmt.Errorf("absolute workspace root: %w", err)
+		return nil, fmt.Errorf("open workspace root: %w", err)
+	}
+	return os.NewFile(uintptr(fd), clean), nil
+}
+
+func openConfinedWorkingDirectory(workspaceRoot *os.File, relative string) (*os.File, error) {
+	clean := filepath.Clean(relative)
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.IsAbs(clean) {
+		return nil, errors.New("cwd escapes workspace")
 	}
 
-	candidate := filepath.Join(root, relative)
-	resolved, err := filepath.EvalSymlinks(candidate)
-	if err != nil {
-		return "", fmt.Errorf("resolve cwd: %w", err)
+	parentFD := int(workspaceRoot.Fd())
+	var current *os.File
+	components := strings.Split(clean, string(filepath.Separator))
+	if clean == "." {
+		components = []string{"."}
 	}
-	resolved, err = filepath.Abs(resolved)
-	if err != nil {
-		return "", fmt.Errorf("absolute cwd: %w", err)
+	for _, component := range components {
+		if component == "" {
+			continue
+		}
+		fd, err := syscall.Openat(parentFD, component, confinedDirectoryOpenFlags, 0)
+		if current != nil {
+			_ = current.Close()
+			current = nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("open cwd component %q: %w", component, err)
+		}
+		current = os.NewFile(uintptr(fd), component)
+		parentFD = fd
 	}
-	within, err := filepath.Rel(root, resolved)
-	if err != nil {
-		return "", fmt.Errorf("relativize cwd: %w", err)
+	if current == nil {
+		return nil, errors.New("cwd invalid")
 	}
-	if within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) || filepath.IsAbs(within) {
-		return "", errors.New("cwd escapes workspace after symlink resolution")
-	}
-	return resolved, nil
+	return current, nil
 }
 
 func killProcessGroup(pid int, signal syscall.Signal) error {
@@ -119,7 +137,7 @@ func waitAfterCancellation(command *exec.Cmd, wait <-chan error) error {
 
 func runProcess(
 	ctx context.Context,
-	workspaceRoot string,
+	workspaceRoot *os.File,
 	taskCredential *TaskCredential,
 	validated validatedExecution,
 ) ComputationAttemptEvidenceV1 {
@@ -135,16 +153,17 @@ func runProcess(
 		return evidence
 	}
 
-	cwd, err := confinedWorkingDirectory(workspaceRoot, spec.Cwd)
+	cwd, err := openConfinedWorkingDirectory(workspaceRoot, spec.Cwd)
 	if err != nil {
 		evidence.Error = err.Error()
 		return evidence
 	}
+	cwdPath := fmt.Sprintf("/proc/self/fd/%d", cwd.Fd())
 
 	stdout := newBoundedDigestWriter(spec.StdoutMaxBytes)
 	stderr := newBoundedDigestWriter(spec.StderrMaxBytes)
 	command := exec.Command(spec.Executable, spec.Argv...)
-	command.Dir = cwd
+	command.Dir = cwdPath
 	command.Env = explicitEnvironment(spec.Env)
 	command.Stdout = stdout
 	command.Stderr = stderr
@@ -162,11 +181,13 @@ func runProcess(
 	}
 
 	if err := command.Start(); err != nil {
+		_ = cwd.Close()
 		evidence.Error = fmt.Sprintf("start process: %v", err)
 		evidence.StdoutSHA256 = stdout.sha256()
 		evidence.StderrSHA256 = stderr.sha256()
 		return evidence
 	}
+	_ = cwd.Close()
 
 	wait := make(chan error, 1)
 	go func() {
@@ -215,16 +236,3 @@ func runProcess(
 	return evidence
 }
 
-func validateWorkspaceRoot(workspaceRoot string) (string, error) {
-	if !filepath.IsAbs(workspaceRoot) {
-		return "", errors.New("workspace root must be absolute")
-	}
-	info, err := os.Stat(workspaceRoot)
-	if err != nil {
-		return "", fmt.Errorf("workspace root unavailable: %w", err)
-	}
-	if !info.IsDir() {
-		return "", errors.New("workspace root must be a directory")
-	}
-	return filepath.Clean(workspaceRoot), nil
-}
