@@ -47,6 +47,8 @@ on:
       - test/config-contract.test.ts
       - test/fixtures/computation-child.mjs
       - package.json
+      - scripts/proof-production.sh
+      - bin/prove-computation-containment.ts
 
 permissions:
   contents: read
