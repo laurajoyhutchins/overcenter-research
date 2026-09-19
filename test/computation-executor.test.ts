@@ -56,6 +56,7 @@ async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
       `--socket=${socketPath}`,
       `--workspace-root=${workspace}`,
       `--concurrency=${maxConcurrency}`,
+      '--unsafe-test-same-uid',
     ],
     {stdio:['pipe','pipe','pipe'],env:{}},
   );
@@ -321,6 +322,7 @@ test('a second executor cannot unlink or steal a live socket',async()=>{
       `--socket=${harness.socketPath}`,
       `--workspace-root=${workspace}`,
       '--concurrency=1',
+      '--unsafe-test-same-uid',
     ],
     {stdio:['ignore','ignore','pipe'],env:{}},
   );
