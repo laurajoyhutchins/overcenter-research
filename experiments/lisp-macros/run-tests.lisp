@@ -129,8 +129,8 @@
         (replace-once *base-source*
           "  (settlement present-or-declared-absence)\n"
           "")))
-    "MISSING_FORM:settlement")
-  "missing settlement semantics rejected")
+    nil)
+  "missing settlement semantics rejected by macro shape")
 
 (check
   (signals-error-p
