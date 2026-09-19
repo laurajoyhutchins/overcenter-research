@@ -161,7 +161,7 @@ func (runtime *Runtime) Serve(ctx context.Context, input io.Reader, output io.Wr
 				}
 				key := identityKey(identityFor(*command.Execution))
 				if _, duplicate := seen[key]; duplicate {
-					serveErr = fmt.Errorf("duplicate execution identity: %s", key)
+					serveErr = fmt.Errorf("duplicate execution identity: %v", key)
 					continue
 				}
 				if inflight >= runtime.maxConcurrency {
