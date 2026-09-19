@@ -38,6 +38,12 @@ export type ProjectExplanation =
           disposition:'READY';
           settlement_commit?:string;
         };
+        rejected_realization?:{
+          run_id:string;
+          disposition:'DONE';
+          reason:'not-currently-admissible';
+          settlement_commit?:string;
+        };
       };
     }
   | {
@@ -420,6 +426,21 @@ function deriveExplanation(
             released_by:{
               run_id:latest.id,
               disposition:'READY' as const,
+              ...(receipt.settlement_commit
+                ? {settlement_commit:receipt.settlement_commit}
+                : {}),
+            },
+          }
+        : {}),
+      ...(latest
+        && receipt?.disposition==='DONE'
+        && admissibleRealizationRuns!==null
+        && !admissibleRealizationRuns.has(latest.id)
+        ? {
+            rejected_realization:{
+              run_id:latest.id,
+              disposition:'DONE' as const,
+              reason:'not-currently-admissible' as const,
               ...(receipt.settlement_commit
                 ? {settlement_commit:receipt.settlement_commit}
                 : {}),
