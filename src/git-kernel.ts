@@ -62,16 +62,14 @@ export class GitOvercenterKernel {
     {
       ref=DEFAULT_AUTHORITY_REF,
       remote=null,
-      githubToken=null,
       observationContext={},
     }:{
       ref?:string;
       remote?:string|null;
-      githubToken?:string|null;
-      observationContext?:Omit<ObservationContext,'githubToken'>;
+      observationContext?:ObservationContext;
     }={},
   ) {
-    this.#observationContext={githubToken,...observationContext};
+    this.#observationContext=observationContext;
     this.#store=new GitFactStore(repo,{ref,remote});
   }
 
