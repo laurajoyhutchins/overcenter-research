@@ -265,6 +265,52 @@ test('RED TEAM: task-controlled symlink can steer trusted observation outside th
   }
 });
 
+test('RED TEAM: isolated task can read persisted checkout authentication material',async()=>{
+  const state=kernelFixture();
+  const workspace=freshWorkspace('credential-redteam-workspace');
+  const marker=join(workspace,'credential-result.txt');
+
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'/usr/local/bin/node',
+        argv:[
+          '/fixture.mjs',
+          'detect-git-auth',
+          '/source/.git/config',
+          '/workspace/credential-result.txt',
+        ],
+        cwd:'.',
+        env:{},
+        timeout_ms:5000,
+        stdout_max_bytes:4096,
+        stderr_max_bytes:4096,
+      },
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:marker,
+      content:'present',
+    },
+  });
+
+  const executor=await startIsolatedExecutor(workspace);
+  try {
+    const result=await runReadyTestComputation(state.kernel,executor.client);
+    assert.ok(result);
+    assert.equal(result.evidence?.outcome,'completed');
+    assert.equal(readFileSync(marker,'utf8'),'present');
+    assert.equal(result.state,'DONE');
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await executor.close();
+  }
+});
+
 test('RED TEAM: retryable test computation can duplicate an external network effect',async()=>{
   let effects=0;
   const server=createServer((request,response)=>{
