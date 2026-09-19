@@ -75,6 +75,15 @@ def findClaimLifecycle
   | none => none
   | some lifecycle => some lifecycle.status
 
+def claimLifecycleIndex :
+    List ClaimLifecycleFact →
+    Std.HashMap String ClaimLifecycle
+  | [] => Std.HashMap.emptyWithCapacity 0
+  | lifecycle :: rest =>
+      (claimLifecycleIndex rest).insert
+        lifecycle.obligationId
+        lifecycle.status
+
 def claimDependsOnWithFuel
     (obligations : List ClaimObligation)
     (fromId targetId : String) :
@@ -260,12 +269,20 @@ def claimContextWellFormed (ctx : ClaimContext) : Bool :=
   claimGraphAcyclic ctx &&
   claimLifecycleCoverage ctx
 
-def claimDependenciesDone (ctx : ClaimContext) : Bool :=
+def claimDependenciesDoneReference (ctx : ClaimContext) : Bool :=
   match findClaimObligation ctx.obligations ctx.targetId with
   | none => false
   | some target =>
       target.dependencies.all (fun dependency =>
         findClaimLifecycle ctx.lifecycles dependency.upstream == some .done)
+
+def claimDependenciesDone (ctx : ClaimContext) : Bool :=
+  match findClaimObligation ctx.obligations ctx.targetId with
+  | none => false
+  | some target =>
+      let lifecycleIndex := claimLifecycleIndex ctx.lifecycles
+      target.dependencies.all (fun dependency =>
+        lifecycleIndex[dependency.upstream]? == some .done)
 
 def claimSemanticInputsResolved (ctx : ClaimContext) : Bool :=
   match findClaimObligation ctx.obligations ctx.targetId with
