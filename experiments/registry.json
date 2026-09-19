@@ -355,6 +355,43 @@
       ]
     },
     {
+      "id": "production-criticality-ranking",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/production-criticality-ranking",
+      "readme": "experiments/production-criticality-ranking/README.md",
+      "question": "Can production-code importance be maintained as a reproducible quantitative ordering rather than a repeated human ranking exercise?",
+      "claim": "A callable-level authority and call-graph vector produces a deterministic total order with substantial agreement to the prior human ranking while keeping disagreements inspectable.",
+      "contrast": "Manual one-off rankings or line-count/churn-only heuristics.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --test experiments/production-criticality-ranking/analyze.test.mjs && node experiments/production-criticality-ranking/analyze.mjs --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "TypeScript compiler API 5.8.3 installed without lifecycle scripts.",
+        "StrykerJS 10.0.0 is optional for the targeted hostile mutation probe."
+      ],
+      "success_criteria": [
+        "Only production callables enter the ranked population.",
+        "Configured authority and recovery selectors resolve exactly once.",
+        "Internal call resolution and pairwise calibration are explicitly reported.",
+        "The ordering is deterministic at one revision and disagreements remain visible rather than hand-tuned away."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          "GitHub Actions run 35464525878: exact-head callable ranking passed its 80% calibration threshold; targeted mutation evidence remains under evaluation in draft PR #111."
+        ]
+      },
+      "interpretation": "Treat the result as evidence about callable-level criticality instrumentation, not as a final atomic ranking of every code expression.",
+      "non_claims": [
+        "Callable boundaries are the final semantic unit.",
+        "Static reachability is production telemetry.",
+        "The current change-exposure proxy is sufficiently discriminative."
+      ]
+    },
+    {
       "id": "projection-bakeoff",
       "kind": "experiment",
       "status": "maintained",
@@ -385,6 +422,14 @@
       "non_claims": [
         "Anything outside the documented experiment boundary."
       ]
+    },
+    {
+      "id": "provider-observation",
+      "kind": "support",
+      "status": "maintained",
+      "directory": "experiments/provider-observation",
+      "readme": "experiments/provider-observation/README.md",
+      "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     },
     {
       "id": "sqlite-baseline",
@@ -481,14 +526,6 @@
       "non_claims": [
         "Anything outside the documented experiment boundary."
       ]
-    },
-    {
-      "id": "provider-observation",
-      "kind": "support",
-      "status": "maintained",
-      "directory": "experiments/provider-observation",
-      "readme": "experiments/provider-observation/README.md",
-      "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     }
   ]
 }
