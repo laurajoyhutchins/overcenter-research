@@ -146,9 +146,9 @@ test('SQLite serializes simultaneous writers and admits exactly one same-head CA
       child.stdout.on('data',chunk=>{stdout+=String(chunk);});
       child.stderr.on('data',chunk=>{stderr+=String(chunk);});
       child.once('error',reject);
-      child.once('close',code=>{
+      child.once('close',(code,signal)=>{
         if (code!==0) {
-          reject(new Error(`contender failed (${code}): ${stderr}`));
+          reject(new Error(`contender failed (code=${code}, signal=${signal}): ${stderr}`));
           return;
         }
         const record=JSON.parse(stdout.trim()) as {commit:string|null};
