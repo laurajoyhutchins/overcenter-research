@@ -1,0 +1,51 @@
+name: HolyC scratch verification
+
+on:
+  push:
+    branches:
+      - experiment/holyc-graph-kernel
+    paths:
+      - experiments/holyc/**
+      - .github/workflows/holyc-scratch-verify.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact branch revision
+        uses: actions/checkout@v4
+
+      - name: Record exact source identity
+        run: |
+          set -euxo pipefail
+          git rev-parse HEAD
+          sha256sum experiments/holyc/frontier.HC
+
+      - name: Fetch pinned HolyC compiler release
+        run: |
+          set -euxo pipefail
+          curl -fL             https://github.com/Jamesbarford/holyc-lang/releases/download/v0.0.15-beta/hcc-v0.0.15-beta-linux-x86_64.zip             -o "$RUNNER_TEMP/hcc.zip"
+          echo "518327931736ce74536e1338908df5f2e028e8fbfd4999c1f4ef9d31f8dc7841  $RUNNER_TEMP/hcc.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/hcc.zip" -d "$RUNNER_TEMP/hcc-dist"
+          find "$RUNNER_TEMP/hcc-dist" -maxdepth 3 -type f -print
+
+      - name: Compile exact HolyC Easter egg
+        run: |
+          set -euxo pipefail
+          HCC="$(find "$RUNNER_TEMP/hcc-dist" -type f -name hcc -print -quit)"
+          test -n "$HCC"
+          chmod +x "$HCC"
+          "$HCC" experiments/holyc/frontier.HC -o "$RUNNER_TEMP/frontier"
+
+      - name: Execute twice and prove deterministic zero-failure result
+        run: |
+          set -euxo pipefail
+          "$RUNNER_TEMP/frontier" | tee "$RUNNER_TEMP/run-1.txt"
+          "$RUNNER_TEMP/frontier" | tee "$RUNNER_TEMP/run-2.txt"
+          cmp "$RUNNER_TEMP/run-1.txt" "$RUNNER_TEMP/run-2.txt"
+          grep -F "READY: execute" "$RUNNER_TEMP/run-1.txt"
+          grep -F "HolyC frontier checks complete: 0 failure(s)." "$RUNNER_TEMP/run-1.txt"
