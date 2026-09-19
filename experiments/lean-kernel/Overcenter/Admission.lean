@@ -161,11 +161,11 @@ private def claimKahnLoop
     (dependents : Std.HashMap String (List String)) :
     Std.HashMap String Nat →
     List String →
+    List String →
     Nat →
-    Nat →
-    Option Nat
-  | indegree, queue, processed, 0 => some processed
-  | indegree, [], processed, _ + 1 => some processed
+    Option (List String)
+  | _, _, processed, 0 => some processed.reverse
+  | _, [], processed, _ + 1 => some processed.reverse
   | indegree, node :: queue, processed, fuel + 1 =>
       let released :=
         releaseClaimDependents
@@ -175,11 +175,17 @@ private def claimKahnLoop
       match released with
       | none => none
       | some (indegree, queue) =>
-          claimKahnLoop dependents indegree queue (processed + 1) fuel
+          claimKahnLoop
+            dependents
+            indegree
+            queue
+            (node :: processed)
+            fuel
 
-def claimGraphAcyclic (ctx : ClaimContext) : Bool :=
+def claimGraphTopologicalOrder? (ctx : ClaimContext) :
+    Option (List String) :=
   if !uniqueStrings (claimObligationIds ctx) then
-    false
+    none
   else
     let dependents := claimDependentsIndex ctx
     let indegree := claimIndegreeIndex ctx
@@ -189,11 +195,44 @@ def claimGraphAcyclic (ctx : ClaimContext) : Bool :=
         dependents
         indegree
         queue
-        0
+        []
         ctx.obligations.length
     with
-    | none => false
-    | some processed => processed == ctx.obligations.length
+    | none => none
+    | some order =>
+        if order.length == ctx.obligations.length then
+          some order
+        else
+          none
+
+def claimTopologicalCertificateBuildValid
+    (ctx : ClaimContext) :
+    List String →
+    List String →
+    Bool
+  | _, [] => true
+  | seen, id :: rest =>
+      match findClaimObligation ctx.obligations id with
+      | none => false
+      | some obligation =>
+          obligation.dependencies.all (fun dependency =>
+            seen.contains dependency.upstream) &&
+          claimTopologicalCertificateBuildValid
+            ctx
+            (id :: seen)
+            rest
+
+def claimTopologicalCertificateValid
+    (ctx : ClaimContext)
+    (order : List String) : Bool :=
+  ctx.obligations.all (fun obligation =>
+    order.contains obligation.id) &&
+  claimTopologicalCertificateBuildValid ctx [] order
+
+def claimGraphAcyclic (ctx : ClaimContext) : Bool :=
+  match claimGraphTopologicalOrder? ctx with
+  | none => false
+  | some order => claimTopologicalCertificateValid ctx order
 
 private def claimLifecycleIdSet (ctx : ClaimContext) : Std.HashSet String :=
   (Std.HashSet.emptyWithCapacity ctx.lifecycles.length).insertMany
