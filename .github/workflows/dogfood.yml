@@ -42,7 +42,5 @@ jobs:
           {
             echo '## Overcenter self-dogfood'
             echo
-            echo '\`\`\`json'
-            cat "$report"
-            echo '\`\`\`'
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo '### Report'
+            sed 's/^/    /' "$report"
