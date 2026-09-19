@@ -18,11 +18,11 @@ The current bound is:
 | every absent single-edge insertion | 1-5 vertices | 15,975 mutations |
 | unlabeled DAG coverage check | 1-5 vertices | 1, 2, 6, 31, 302 classes |
 | lifecycle projection | 1-4 vertices, 5 lifecycle assignments per vertex | 41,055 graph/state scenarios |
-| typed dependency graphs | 1-4 vertices, each potential edge absent/control/semantic | 760 graphs |
-| material output amendments | every vertex of every typed graph | 3,004 mutations |
-| same-output packet amendment + resettlement | every vertex of every typed graph | 3,004 resumptions |
+| typed dependency graphs | 1-4 vertices, each potential edge absent/control/verified-content/settlement-receipt | 4,165 graphs |
+| material output amendments | every vertex of every typed graph | 16,585 mutations |
+| same-output packet amendment + resettlement | every vertex of every typed graph | 16,585 resumptions |
 
-The bounds are deliberately asymmetric. Topology is cheap enough to push to six vertices. Full lifecycle assignment grows as `5^n`. Typed dependency graphs grow as `3^(n(n-1)/2)`, so four vertices already includes chains, forks, joins, diamonds, mixed edge kinds, and multi-hop semantic propagation without turning the test into a CI furnace.
+The bounds are deliberately asymmetric. Topology is cheap enough to push to six vertices. Full lifecycle assignment grows as `5^n`. Typed dependency graphs grow as `4^(n(n-1)/2)`, so four vertices already includes chains, forks, joins, diamonds, both supported semantic selectors, mixed edge kinds, and multi-hop semantic propagation without turning the test into a CI furnace.
 
 ## Independent oracles
 
@@ -35,7 +35,7 @@ The experiment does not merely ask the implementation whether it agrees with its
    - an unrealized obligation is `READY` iff every direct dependency is `DONE`;
    - otherwise it is `BLOCKED`.
 4. Material output amendment is expected to invalidate exactly the amended obligation plus the transitive cone reachable through **semantic** edges. Control-only descendants must keep their prior semantic realization.
-5. If an amendment changes only the packet and the amended obligation is resettled with the same verified output identity, all historical semantic descendants must become reusable again.
+5. If an amendment changes only the packet and the amended obligation is resettled with the same verified output identity, `verified-content` consumers may reuse historical realizations when their semantic upstreams remain resolved, while direct `settlement-receipt` consumers must invalidate because the settlement identity changed. The expected reusable set is derived independently from those selector rules.
 
 Production code under test includes `validateGraph`, `dependsOn`, `validateAdmission`, `obligationKey`, and `deriveProjectProjection`.
 
