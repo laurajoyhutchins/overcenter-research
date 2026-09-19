@@ -37,14 +37,7 @@ import type {
 } from './facts.ts';
 import { withObligation } from './graph.ts';
 import { validateAdmission } from './admission.ts';
-import {
-  hasInFlight,
-  obligationKey,
-} from './lifecycle.ts';
-import {
-  claimabilityError,
-  projectWork,
-} from './eligibility.ts';
+import { hasInFlight } from './projector.ts';
 import {
   projectReceipt,
   replayProjection,
@@ -106,8 +99,8 @@ export class GitOvercenterKernel {
     const {id}=obligation;
     const head=this.#requireHead();
     const projection=this.#projection(head);
-    const {state,history}=projection;
-    if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    const {state,project}=projection;
+    if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
     if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
 
     const next=withObligation(state,obligation,head);
@@ -128,8 +121,8 @@ export class GitOvercenterKernel {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
     const projection=this.#projection(head);
-    const {state,history}=projection;
-    if (hasInFlight(history.lifecycles)) throw new Error('PROJECT_BUSY');
+    const {state,project}=projection;
+    if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
     if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
 
     const previous=state.definition_commits[id];
@@ -152,30 +145,23 @@ export class GitOvercenterKernel {
 
   inspect():Work[] {
     const head=this.#requireHead();
-    const {state,history}=this.#projection(head);
-    return Object.values(state.obligations)
-      .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work=>projectWork(state,work,head,history.lifecycles));
+    return this.#projection(head).project.work;
   }
 
   deriveReadyWork():Work|null {
     const head=this.#requireHead();
-    const {state,history}=this.#projection(head);
-    const work=Object.values(state.obligations)
-      .sort((a,b)=>a.id.localeCompare(b.id))
-      .find(candidate=>claimabilityError(state,candidate,history.lifecycles)===null);
-    return work ? projectWork(state,work,head,history.lifecycles) : null;
+    return this.#projection(head).project.readyWork;
   }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const {state,history}=this.#projection(head);
+    const {state,project}=this.#projection(head);
     const work=state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    const claimError=claimabilityError(state,work,history.lifecycles);
+    const claimError=project.claimabilityErrors.get(id);
     if (claimError) throw new Error(claimError);
-    const key=obligationKey(state,work,history.lifecycles,history.receiptsByRun);
+    const key=project.semanticKeys.get(id);
     if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
 
     const runId=randomUUID();
@@ -211,14 +197,14 @@ export class GitOvercenterKernel {
   acquireExecution(runId:string):ExecutionPermit {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {history}=this.#projection(head);
+      const {history,project}=this.#projection(head);
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','READY'].includes(prior.disposition)) {
         throw new Error('RUN_ALREADY_TERMINAL');
       }
-      const lifecycle=history.lifecycles.get(run.obligation_id);
+      const lifecycle=project.lifecycles.get(run.obligation_id);
       if (
         lifecycle?.run?.id!==runId
         || !['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(lifecycle.status)
@@ -256,9 +242,9 @@ export class GitOvercenterKernel {
   beginEffect(permit:ExecutionPermit):string {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {history}=this.#projection(head);
+      const {history,project}=this.#projection(head);
       const run=this.#requireExecutionPermit(history,permit);
-      const lifecycle=history.lifecycles.get(run.obligation_id);
+      const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
         throw new Error('RUN_NOT_EXECUTING');
       }
@@ -295,7 +281,7 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const {state,history,project}=this.#projection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
@@ -303,7 +289,7 @@ export class GitOvercenterKernel {
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','READY'].includes(prior.disposition)) return prior;
       const run=this.#requireExecutionPermit(history,permit);
-      const lifecycle=history.lifecycles.get(run.obligation_id);
+      const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId) {
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
@@ -330,14 +316,14 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const {state,history,project}=this.#projection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       const run=this.#requireExecutionPermit(history,permit);
-      const lifecycle=history.lifecycles.get(run.obligation_id);
+      const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
         if (prior) return prior;
         throw new Error('AUTHORITY_LOST');
@@ -362,14 +348,14 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
-      const {state,history}=this.#projection(head);
+      const {state,history,project}=this.#projection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       const run=this.#requireExecutionPermit(history,permit);
-      const lifecycle=history.lifecycles.get(run.obligation_id);
+      const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
         if (prior) return prior;
         throw new Error('RUN_NOT_EXECUTING');
@@ -399,7 +385,7 @@ export class GitOvercenterKernel {
 
   receipts(runId:string|null=null):Receipt[] {
     const head=this.#requireHead();
-    const {history}=this.#projection(head);
+    const {history,project}=this.#projection(head);
     return runId
       ? history.receipts.filter(receipt=>receipt.run_id===runId)
       : history.receipts;
