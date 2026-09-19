@@ -215,19 +215,6 @@ jobs:
             test "${actual_perm}" = "${expected_perm}"
           }
 
-          assert_identity() {
-            local root="$1"
-            local entry="$2"
-            local path mode expected_sha256 actual_sha256
-
-            path="$(jq -r '.path' <<<"${entry}")"
-            mode="$(jq -r '.mode' <<<"${entry}")"
-            expected_sha256="$(jq -r '.content_sha256' <<<"${entry}")"
-            assert_shape "${root}" "${path}" "${mode}"
-            actual_sha256="$(sha256sum "${root}/${path}" | cut -d' ' -f1)"
-            test "${actual_sha256}" = "${expected_sha256}"
-          }
-
           cd input
           sha256sum --check manifest.sha256
           manifest_sha256="$(cut -d' ' -f1 manifest.sha256)"
@@ -237,13 +224,10 @@ jobs:
           tar -xf workspace.tar -C original
           cp -a original/. work/
 
+          # No checkout exists in this job. The verifier is itself one of the
+          # exact read-only GitHub blobs in the manifest-bound input capsule.
+          node original/experiments/github-object-transport/contract.mjs verify-manifest manifest.json original
           jq -r '.entries[].path' manifest.json | LC_ALL=C sort > expected-files
-          find original -type f -printf '%P\n' | LC_ALL=C sort > actual-files
-          diff -u expected-files actual-files
-
-          while IFS= read -r entry; do
-            assert_identity original "${entry}"
-          done < <(jq -c '.entries[]' manifest.json)
 
           # Negative control: a mode-only mutation to a read-only entry must be
           # detected by the same shape check used during real collection.
