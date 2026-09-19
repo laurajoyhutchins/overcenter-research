@@ -26,7 +26,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
       },
     });
 
-    const ready=kernel.deriveReadyWork()!;
+    const ready=kernel.nextReadyWork()!;
     const run=kernel.claim(ready.id,ready.revision);
 
     let effectAttempts=0;
@@ -43,7 +43,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
     // accepts the mutation. The caller then loses the outcome.
     kernel.beginEffect(run);
     performProviderEffect();
-    kernel.recoverInterrupted(run,{source:'hostile-provider-timeout'});
+    kernel.recordExecutionTerminated(run,{source:'hostile-provider-timeout'});
 
     // First readback is a stale 404 / missing object. Because this provider's
     // read model is eventually consistent, that negative is not authoritative.
@@ -52,7 +52,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
     assert.equal(missing.observed?.mutation_certainty,'uncertain');
     assert.equal(missing.observed?.absence_evidence,undefined);
     assert.equal(missing.observed?.observation_error,'NEGATIVE_READ_NOT_AUTHORITATIVE');
-    assert.equal(kernel.deriveReadyWork(),null);
+    assert.equal(kernel.nextReadyWork(),null);
     assert.equal(kernel.inspect()[0].run_id,run.id);
 
     // Readback advances, but only to an older value. A non-match is still not
@@ -63,7 +63,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
     assert.equal(stale.observed?.mutation_certainty,'uncertain');
     assert.equal(stale.observed?.absence_evidence,undefined);
     assert.equal(stale.observed?.observation_error,'NON_MATCHING_READ_NOT_AUTHORITATIVE');
-    assert.equal(kernel.deriveReadyWork(),null);
+    assert.equal(kernel.nextReadyWork(),null);
 
     // Once the read model converges, the same run settles without replaying.
     writeFileSync(readModel,'created');
