@@ -8,6 +8,7 @@ trap 'rm -rf "$tmp"' EXIT
 root="$tmp/task-root"
 outside="$tmp/outside"
 launcher="$tmp/landlock-launcher"
+node_bin="$(command -v node)"
 
 mkdir -p "$root" "$outside"
 printf 'SAFE\n' > "$root/input.txt"
@@ -24,7 +25,7 @@ rustc --edition=2021 -D warnings "$here/launcher.rs" -o "$launcher"
 echo "== launch an ordinary Node worker inside the Landlock domain =="
 "$launcher" \
   "$root" \
-  /usr/bin/node \
+  "$node_bin" \
   "$root/worker.mjs" \
   "$root/input.txt" \
   "$outside/secret.txt" \
