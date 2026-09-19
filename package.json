@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:unit",
+    "test": "npm run test:experiment-contract && npm run test:unit",
     "test:unit": "node --experimental-strip-types --test test/digest-pure.test.ts test/evidence-pure.test.ts test/graph-pure.test.ts test/admission-pure.test.ts test/projector-pure.test.ts test/projector-explanation.test.ts test/realization-admissibility.test.ts test/fact-store-contract.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts test/git-kernel.test.ts test/provider-observation.test.ts test/kubernetes-core-verifier.test.ts test/github-openapi-contract.test.ts test/github-certified-read.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts test/github-authority-command.test.ts test/projection-pure.test.ts test/projector-boundary.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts test/proof-environment.test.ts test/github-actions-boundary.test.ts test/data-contracts.test.ts",
-    "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/current-realization-admissibility/current-realization-admissibility.test.ts experiments/github-observation-grammar/github-observation.test.ts experiments/provider-observation/response-slice.test.ts experiments/kubernetes-observation/kubernetes-observation.test.ts experiments/lisp-semantics/lisp-semantics.test.ts experiments/bounded-graph-exhaustion/bounded-graph.test.ts",
+    "test:experiments": "node --test experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/current-realization-admissibility/current-realization-admissibility.test.ts experiments/github-observation-grammar/github-observation.test.ts experiments/provider-observation/response-slice.test.ts experiments/kubernetes-observation/kubernetes-observation.test.ts experiments/lisp-semantics/lisp-semantics.test.ts experiments/bounded-graph-exhaustion/bounded-graph.test.ts && npm run test:github-object-transport",
     "demo": "node --experimental-strip-types examples/sqlite-demo.ts",
     "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts experiments/disposable-agent/disposable-agent.test.ts",
     "demo:git": "node --experimental-strip-types examples/git-demo.ts",
@@ -21,7 +21,7 @@
     "test:current-realization-admissibility": "node --experimental-strip-types --test experiments/current-realization-admissibility/current-realization-admissibility.test.ts",
     "test:dependency-edges": "node --experimental-strip-types --test test/dependency-edge-adversarial.test.ts",
     "test:formal": "bash formal/check.sh",
-    "proof:local": "npm run test:experiments && npm run test:stress",
+    "proof:local": "npm run test:experiment-contract && npm run test:experiments && npm run test:stress",
     "proof:formal": "npm run test:formal",
     "proof:live": "bash scripts/proof-live.sh",
     "test:kubernetes-observation": "node --experimental-strip-types --test experiments/kubernetes-observation/kubernetes-observation.test.ts",
@@ -37,6 +37,11 @@
     "test:storage": "node --experimental-strip-types --test test/fact-store-contract.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts",
     "demo:sqlite": "node --experimental-strip-types examples/sqlite-demo.ts",
     "proof:production": "bash scripts/proof-production.sh",
+    "test:experiment-contract": "node scripts/experiments.mjs verify",
+    "experiments:list": "node scripts/experiments.mjs list",
+    "experiment": "node scripts/experiments.mjs run",
+    "experiments:deterministic": "node scripts/experiments.mjs run --all-deterministic",
+    "test:github-object-transport": "node --test experiments/github-object-transport/contract.test.mjs",
     "test:data-contracts": "node --experimental-strip-types --test test/data-contracts.test.ts"
   }
 }
