@@ -194,12 +194,14 @@ These are different evidence classes, not cumulative certification levels. A liv
 Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
-- Go at the version declared in [`executor/go.mod`](./executor/go.mod) for the physical computation executor;
+- Go at the exact runtime version declared in [`.go-version`](./.go-version) for the physical computation executor (`executor/go.mod` remains the Go language/module compatibility declaration);
 - Docker for the catastrophic executor-death containment proof;
 - Git;
 - Java 21 for the TLA+ model;
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
 - GitHub CLI authentication for `proof:live`.
+
+Runtime configuration is intentionally narrow. Overcenter does not define a general `.env` surface: authority database paths, socket locations, exact revisions, and execution identity are explicit arguments or protocol data. `GITHUB_TOKEN` is the credential spelling used by the GitHub authority CLI. `TLA2TOOLS_JAR` is a developer/formal-proof override only, and its bytes are still checked against the pinned SHA-256 before use. `OVERCENTER_*` variables used inside CI proof harnesses are internal process handoffs, not supported operator configuration.
 
 The focused underlying commands remain available when debugging a particular claim:
 
