@@ -103,9 +103,9 @@ function processSpec(
       : [npmCli,'run','proof:local'],
     cwd:'source',
     env:{
-      HOME:'/workspace',
-      TMPDIR:'/workspace',
-      NPM_CONFIG_CACHE:'/workspace/.npm-cache',
+      HOME:'/tmp',
+      TMPDIR:'/tmp',
+      NPM_CONFIG_CACHE:'/tmp/npm-cache',
       OVERCENTER_SOURCE_SHA:sourceSha,
       PATH:'/usr/local/bin:/usr/bin:/bin',
     },

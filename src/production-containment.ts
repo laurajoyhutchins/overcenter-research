@@ -11,6 +11,11 @@ export const PRODUCTION_CONTAINMENT_PROFILE={
   cpus:1,
   nofile:256,
   file_size_bytes:64*1024*1024,
+  temp:{
+    path:'/tmp',
+    bytes:64*1024*1024,
+    options:['rw','nosuid','nodev'],
+  },
   task_uid:65532,
   task_gid:65532,
   executor_concurrency:1,
@@ -32,6 +37,7 @@ export function productionDockerRunArgs():string[] {
     `--cpus=${profile.cpus}`,
     `--ulimit=nofile=${profile.nofile}:${profile.nofile}`,
     `--ulimit=fsize=${profile.file_size_bytes}:${profile.file_size_bytes}`,
+    `--tmpfs=${profile.temp.path}:${[...profile.temp.options,`size=${profile.temp.bytes}`].join(',')}`,
   ];
 }
 
