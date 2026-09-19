@@ -1,0 +1,113 @@
+{
+  "schema": "overcenter-process-spec-conformance-v1",
+  "cases": [
+    {
+      "name": "minimal-valid",
+      "valid": true,
+      "spec": {
+        "schema": "overcenter-process-spec-v1",
+        "executable": "/bin/echo",
+        "argv": [
+          "hello"
+        ],
+        "cwd": ".",
+        "env": {
+          "LANG": "C"
+        },
+        "timeout_ms": 1000,
+        "stdout_max_bytes": 1024,
+        "stderr_max_bytes": 1024
+      }
+    },
+    {
+      "name": "nested-relative-cwd-valid",
+      "valid": true,
+      "spec": {
+        "schema": "overcenter-process-spec-v1",
+        "executable": "/usr/bin/env",
+        "argv": [],
+        "cwd": "work/subdir",
+        "env": {
+          "A": "1",
+          "B": "two"
+        },
+        "timeout_ms": 5000,
+        "stdout_max_bytes": 0,
+        "stderr_max_bytes": 4096
+      }
+    },
+    {
+      "name": "relative-executable-invalid",
+      "valid": false,
+      "spec": {
+        "schema": "overcenter-process-spec-v1",
+        "executable": "node",
+        "argv": [],
+        "cwd": ".",
+        "env": {},
+        "timeout_ms": 1000,
+        "stdout_max_bytes": 1024,
+        "stderr_max_bytes": 1024
+      }
+    },
+    {
+      "name": "parent-cwd-invalid",
+      "valid": false,
+      "spec": {
+        "schema": "overcenter-process-spec-v1",
+        "executable": "/bin/echo",
+        "argv": [],
+        "cwd": "../escape",
+        "env": {},
+        "timeout_ms": 1000,
+        "stdout_max_bytes": 1024,
+        "stderr_max_bytes": 1024
+      }
+    },
+    {
+      "name": "zero-timeout-invalid",
+      "valid": false,
+      "spec": {
+        "schema": "overcenter-process-spec-v1",
+        "executable": "/bin/echo",
+        "argv": [],
+        "cwd": ".",
+        "env": {},
+        "timeout_ms": 0,
+        "stdout_max_bytes": 1024,
+        "stderr_max_bytes": 1024
+      }
+    },
+    {
+      "name": "bad-env-key-invalid",
+      "valid": false,
+      "spec": {
+        "schema": "overcenter-process-spec-v1",
+        "executable": "/bin/echo",
+        "argv": [],
+        "cwd": ".",
+        "env": {
+          "BAD-KEY": "x"
+        },
+        "timeout_ms": 1000,
+        "stdout_max_bytes": 1024,
+        "stderr_max_bytes": 1024
+      }
+    },
+    {
+      "name": "unknown-field-invalid",
+      "valid": false,
+      "spec": {
+        "schema": "overcenter-process-spec-v1",
+        "executable": "/bin/echo",
+        "argv": [],
+        "cwd": ".",
+        "env": {},
+        "timeout_ms": 1000,
+        "stdout_max_bytes": 1024,
+        "stderr_max_bytes": 1024,
+        "shell": true
+      }
+    }
+  ]
+}
