@@ -1116,3 +1116,57 @@ Do not add another GitHub endpoint merely because the observation grammar can de
 A new consumer should require a concrete correctness question that agents or kernel code are currently handling manually.
 
 The Kubernetes second-provider experiment should decide which of the remaining GitHub-specific machinery deserves promotion into a provider-general boundary.
+
+
+## Integrated runtime migration
+
+Landing the provider experiments together changed one important detail of the first runtime consumer.
+
+The structural-certificate engine is now promoted exactly once:
+
+```text
+src/provider-observation/
+        ↑
+experiments/provider-observation/   thin re-export only
+        ↑
+GitHub + Kubernetes experiments
+```
+
+The GitHub commit-status postcondition now has two durable versions:
+
+```text
+github-commit-status/v1
+  historical contract
+  stable repository ID, commit, context, desired state
+
+github-commit-status/v2
+  current contract
+  adds repository_full_name as a locator for certified repos/get
+```
+
+The locator is not part of effect identity. Repository ID remains the stable identity.
+
+Unresolved v1 work remains safely recoverable. Its numeric-ID endpoint is used only to discover a candidate current owner/repo locator:
+
+```text
+GET /repositories/{id}
+      ↓
+non-authoritative locator hint
+      ↓
+documented repos/get
+      ↓
+schema-certified response
+      ↓
+returned id must equal stable repository id
+```
+
+Authority therefore comes from the certified documented read, not from the bootstrap hint.
+
+Finally, receipt-v5 absence certificates remain the negative-evidence contract. A GitHub status collection miss produces:
+
+```text
+mutation_certainty = uncertain
+absence_evidence   = none
+```
+
+and cannot authorize replay.
