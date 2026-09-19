@@ -21,3 +21,6 @@ lean_exe overcenterObligationKeyPreimage where
 
 lean_exe overcenterRealizationProjection where
   root := `RealizationProjectionMain
+
+lean_exe overcenterGraphTensor where
+  root := `GraphTensorMain
