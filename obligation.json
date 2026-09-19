@@ -2,7 +2,7 @@
   "schema": "overcenter-git-obligation-v3",
   "kind": "defined",
   "obligation": {
-    "id": "guard-35469946584-1-unordered-alpha",
+    "id": "guard-35469946584-1-ordered-alpha",
     "dependencies": [],
     "packet": {},
     "postcondition": {
@@ -10,7 +10,7 @@
       "provider": "github",
       "repository_id": 1354872053,
       "commit_sha": "ccbbd9286bd5143fba49c810d50efa1b5f6f7ffd",
-      "context": "overcenter/conflict-guard/35469946584/1/unordered/Build",
+      "context": "overcenter/conflict-guard/35469946584/1/ordered",
       "expected_state": "success"
     }
   }
