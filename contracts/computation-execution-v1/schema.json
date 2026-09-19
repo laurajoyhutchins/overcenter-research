@@ -33,7 +33,8 @@
           "type": "string",
           "x-overcenter-noNul": true,
           "x-overcenter-maxUtf8Bytes": 4096,
-          "x-overcenter-path": "absolute"
+          "x-overcenter-path": "absolute",
+          "minLength": 1
         },
         "argv": {
           "type": "array",
@@ -48,7 +49,8 @@
           "type": "string",
           "x-overcenter-noNul": true,
           "x-overcenter-maxUtf8Bytes": 4096,
-          "x-overcenter-path": "workspace-relative-normalized-no-parent-escape"
+          "x-overcenter-path": "workspace-relative-normalized-no-parent-escape",
+          "minLength": 1
         },
         "env": {
           "type": "object",
@@ -101,17 +103,20 @@
         "run_id": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 256
+          "x-overcenter-maxUtf8Bytes": 256,
+          "minLength": 1
         },
         "obligation_id": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 512
+          "x-overcenter-maxUtf8Bytes": 512,
+          "minLength": 1
         },
         "claimed_revision": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 256
+          "x-overcenter-maxUtf8Bytes": 256,
+          "minLength": 1
         },
         "execution_generation": {
           "type": "integer",
@@ -121,12 +126,14 @@
         "execution_authority_commit": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 256
+          "x-overcenter-maxUtf8Bytes": 256,
+          "minLength": 1
         },
         "execution_capability": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 4096
+          "x-overcenter-maxUtf8Bytes": 4096,
+          "minLength": 1
         },
         "execution_capability_sha256": {
           "$ref": "#/$defs/Sha256Hex"
@@ -155,7 +162,8 @@
         "run_id": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 256
+          "x-overcenter-maxUtf8Bytes": 256,
+          "minLength": 1
         },
         "execution_generation": {
           "type": "integer",
@@ -165,7 +173,8 @@
         "execution_authority_commit": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 256
+          "x-overcenter-maxUtf8Bytes": 256,
+          "minLength": 1
         }
       }
     },
@@ -244,17 +253,20 @@
         "run_id": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 256
+          "x-overcenter-maxUtf8Bytes": 256,
+          "minLength": 1
         },
         "obligation_id": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 512
+          "x-overcenter-maxUtf8Bytes": 512,
+          "minLength": 1
         },
         "claimed_revision": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 256
+          "x-overcenter-maxUtf8Bytes": 256,
+          "minLength": 1
         },
         "execution_generation": {
           "type": "integer",
@@ -264,7 +276,8 @@
         "execution_authority_commit": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 256
+          "x-overcenter-maxUtf8Bytes": 256,
+          "minLength": 1
         },
         "execution_capability_sha256": {
           "$ref": "#/$defs/Sha256Hex"
@@ -292,7 +305,8 @@
           "type": "string",
           "contentEncoding": "base64",
           "x-overcenter-canonicalBase64": true,
-          "x-overcenter-maxDecodedBytes": 16777216
+          "x-overcenter-maxDecodedBytes": 16777216,
+          "minLength": 1
         },
         "stdout_sha256": {
           "$ref": "#/$defs/Sha256Tagged"
@@ -304,7 +318,8 @@
           "type": "string",
           "contentEncoding": "base64",
           "x-overcenter-canonicalBase64": true,
-          "x-overcenter-maxDecodedBytes": 16777216
+          "x-overcenter-maxDecodedBytes": 16777216,
+          "minLength": 1
         },
         "stderr_sha256": {
           "$ref": "#/$defs/Sha256Tagged"
@@ -335,7 +350,8 @@
         "containment_id": {
           "type": "string",
           "x-overcenter-noNul": true,
-          "x-overcenter-maxUtf8Bytes": 512
+          "x-overcenter-maxUtf8Bytes": 512,
+          "minLength": 1
         }
       }
     },
