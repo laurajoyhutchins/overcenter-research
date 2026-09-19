@@ -158,11 +158,14 @@ export async function runSynthetic(
   }
   if ((spec.delay_ms??0)>0) {
     await new Promise<void>((resolve,reject)=>{
-      const timer=setTimeout(resolve,spec.delay_ms);
       const abort=()=>{
         clearTimeout(timer);
         reject(signal.reason instanceof Error?signal.reason:new Error('aborted'));
       };
+      const timer=setTimeout(()=>{
+        signal.removeEventListener('abort',abort);
+        resolve();
+      },spec.delay_ms);
       signal.addEventListener('abort',abort,{once:true});
       if (signal.aborted) abort();
     });
