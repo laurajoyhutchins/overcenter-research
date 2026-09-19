@@ -32,7 +32,9 @@ The executor process environment is not inherited by the task.
 
 At execution time the workspace root is pinned as an open directory. The cwd is traversed relative to that directory with no-follow directory opens, so cwd symlink components are rejected and a checked pathname cannot be swapped before process start.
 
-The contract binds the exact executable **path string**, not the executable file contents. Production deployment must therefore provide executable/toolchain paths from task-immutable image or mount content. Binding toolchain bytes, if required for a workload class, belongs in the authority-side input identity rather than being inferred by Go.
+The contract binds the exact executable **path string**, not the executable file contents. The admitted replayable test workload therefore adds an authority-side execution-context digest to the durable packet. Production deployment derives that digest from the task-immutable image, exact source snapshot, and containment profile, and the trusted client refuses an executor whose context does not match. Because the packet is part of the obligation key, changing that context changes obligation meaning rather than silently replaying different bytes.
+
+The writable workspace is not an input channel for the production replayable profile: every attempt starts from an empty workspace. Source is an exact read-only snapshot outside that workspace. General mutable-input closure remains a separate problem and is not implied by the v1 process-spec digest.
 
 ## Evidence
 
