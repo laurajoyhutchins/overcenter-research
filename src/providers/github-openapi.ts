@@ -161,6 +161,7 @@ export function deriveGithubObservationOperation(
   if (!found) throw new Error(`GITHUB_OPENAPI_OPERATION_NOT_FOUND:${operationId}`);
 
   const parameters=mergeParameters(document,found.pathItem.parameters,found.operation.parameters);
+  const pagination=derivePagePagination(parameters);
   const outcomes=Object.entries(found.operation.responses??{}).map(([status,response])=>({
     status,
     description:typeof response.description==='string'?response.description:'',
@@ -174,9 +175,7 @@ export function deriveGithubObservationOperation(
     path_template:found.pathTemplate,
     operation_id:operationId,
     parameters,
-    ...((pagination=>pagination?{pagination}:{})(
-      derivePagePagination(parameters),
-    )),
+    ...(pagination?{pagination}:{}),
     outcomes,
     github_extensions:found.operation['x-github']??{},
   };

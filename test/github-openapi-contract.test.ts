@@ -126,6 +126,15 @@ test('page collection traversal fails closed on unsupported or hostile shapes',(
     /GITHUB_PAGE_SCAN_PAGE_OVERSIZED/,
   );
 
+  const ended=scanGithubPageCollection({
+    operation:GITHUB_COMMIT_STATUSES_OPERATION,
+    parameters:{owner:'acme',repo:'widget',ref:'abc'},
+    readPage:()=>({members:[],evidence:{}}),
+    matches:()=>false,
+  });
+  assert.equal(ended.state,'collection-end-observed');
+  assert.equal(ended.pages.length,1);
+
   const limited=scanGithubPageCollection({
     operation:GITHUB_COMMIT_STATUSES_OPERATION,
     parameters:{owner:'acme',repo:'widget',ref:'abc'},
@@ -138,4 +147,11 @@ test('page collection traversal fails closed on unsupported or hostile shapes',(
   });
   assert.equal(limited.state,'limit-reached');
   assert.equal(limited.pages.length,2);
+});
+
+test('certified status verifier contains no GitHub page-parameter convention',()=>{
+  const source=readFileSync('src/providers/github-certified-status.ts','utf8');
+  assert.doesNotMatch(source,/['"`]page['"`]/);
+  assert.doesNotMatch(source,/['"`]per_page['"`]/);
+  assert.doesNotMatch(source,/default_page_size/);
 });

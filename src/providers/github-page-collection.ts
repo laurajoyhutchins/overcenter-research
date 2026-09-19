@@ -49,6 +49,14 @@ export function scanGithubPageCollection<T,E extends object>({
   if (!pagination || pagination.kind!=='page-number') {
     throw new Error(`GITHUB_OPERATION_PAGE_PAGINATION_UNAVAILABLE:${operation.operation_id}`);
   }
+  if (
+    !Number.isSafeInteger(pagination.first_page)
+    || pagination.first_page<1
+    || !Number.isSafeInteger(pagination.default_page_size)
+    || pagination.default_page_size<1
+  ) {
+    throw new Error('GITHUB_PAGE_SCAN_METADATA_INVALID');
+  }
   if (!Number.isSafeInteger(maxPages) || maxPages<1) {
     throw new Error('GITHUB_PAGE_SCAN_LIMIT_INVALID');
   }
