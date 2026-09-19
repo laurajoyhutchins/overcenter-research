@@ -29,7 +29,8 @@ test('ranks only production callables and derives structural authority/evidence 
   assert.equal(r.ranking.some(x=>x.file.startsWith('experiments/')),false);
   const settle=r.ranking.find(x=>x.name==='settle');
   const helper=r.ranking.find(x=>x.name==='helper');
-  const low=r.ranking.find(x=>x.name==='low');\n  const inert=r.ranking.find(x=>x.name==='inert');
+  const low=r.ranking.find(x=>x.name==='low');
+  const inert=r.ranking.find(x=>x.name==='inert');
   assert.equal(settle.vector.A,1);
   assert.equal(helper.vector.A,1,'helper should inherit authority from the settlement path');
   assert.equal(settle.vector.E,0,'test + experiment support closes the two-tier proxy gap');
@@ -37,5 +38,7 @@ test('ranks only production callables and derives structural authority/evidence 
   assert.equal(r.calibration.agreement,1);
   assert.ok(settle.consequenceScore>low.consequenceScore);
   assert.ok(Number.isFinite(settle.attentionScore));
-  assert.ok(settle.consequenceRank<low.consequenceRank);\n  assert.equal(inert.consequenceScore,0,'isolated unexported code has no measured consequence in the fixture');\n  assert.equal(inert.attentionScore,0,'evidence gap and churn cannot create attention without consequence');
+  assert.ok(settle.consequenceRank<low.consequenceRank);
+  assert.equal(inert.consequenceScore,0,'isolated unexported code has no measured consequence in the fixture');
+  assert.equal(inert.attentionScore,0,'evidence gap and churn cannot create attention without consequence');
 });
