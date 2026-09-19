@@ -34,7 +34,7 @@ function semanticDependencyIdentity(
   const upstream=state.obligations[edge.upstream];
   if (!upstream) throw new Error(`UNKNOWN_DEPENDENCY:${edge.upstream}`);
   const lifecycle=lifecycles.get(edge.upstream);
-  if (lifecycle?.status!=='DONE' || !lifecycle.run) return null;
+  if (lifecycle?.status!=='DONE') return null;
 
   if (edge.consumes.kind==='output' && edge.consumes.selector==='verified-content') {
     const identity=verifiedContentIdentity(upstream.postcondition);
@@ -42,6 +42,7 @@ function semanticDependencyIdentity(
   }
 
   if (edge.consumes.kind==='evidence' && edge.consumes.selector==='settlement-receipt') {
+    if (!lifecycle.run) return null;
     const receipt=receiptsByRun.get(lifecycle.run.id);
     if (receipt?.disposition!=='DONE' || !receipt.settlement_commit) return null;
     return `settlement:${receipt.settlement_commit}`;
