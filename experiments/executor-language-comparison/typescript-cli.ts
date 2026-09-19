@@ -1,5 +1,5 @@
 import { createInterface } from 'node:readline';
-import { executeStream,runSupervisedSubprocess } from './typescript-executor.ts';
+import { executeStream,runSupervisedSubprocess,runSynthetic } from './typescript-executor.ts';
 import type { GraphExecutionEnvelope } from '../go-graph-executor/adapter.ts';
 
 function argument(name:string,fallback:string):string {
@@ -9,6 +9,9 @@ function argument(name:string,fallback:string):string {
 
 const concurrency=Number.parseInt(argument('concurrency','8'),10);
 const timeoutMillis=Number.parseInt(argument('timeout-ms','30000'),10);
+const runnerName=argument('runner','supervised');
+const runner=runnerName==='synthetic'?runSynthetic:runnerName==='supervised'?runSupervisedSubprocess:null;
+if (!runner) throw new Error('unknown runner: '+runnerName);
 const controller=new AbortController();
 const timer=setTimeout(()=>controller.abort(new Error('context deadline exceeded')),timeoutMillis);
 
@@ -25,7 +28,7 @@ try {
     controller.signal,
     input(),
     concurrency,
-    runSupervisedSubprocess,
+    runner,
   )) {
     process.stdout.write(JSON.stringify(evidence)+'\n');
   }
