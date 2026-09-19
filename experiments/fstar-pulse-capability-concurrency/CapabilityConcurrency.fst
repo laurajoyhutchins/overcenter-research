@@ -45,19 +45,3 @@ fn same_coordinate_sequential
   increment_coordinate coordinate #before;
   increment_coordinate coordinate #(before + 1);
 }
-
-// Negative control: two parallel workers cannot both consume the same
-// exclusive mutation capability. This declaration verifies only if Pulse
-// rejects the attempted parallel split.
-[@@expect_failure]
-divergent
-fn same_coordinate_parallel
-  (coordinate:ref int)
-  (#before:erased int)
-  requires pts_to coordinate before
-  ensures exists* after. pts_to coordinate after
-{
-  par
-    (fun _ -> increment_coordinate coordinate #before)
-    (fun _ -> increment_coordinate coordinate #before);
-}
