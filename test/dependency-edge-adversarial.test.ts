@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { sha256 } from '../src/digest.ts';
 import { GitOvercenterKernel } from '../src/git-kernel.ts';
 
 type Edge =
@@ -20,6 +21,21 @@ const pc = (path: string, content: string) => ({
   verifier: 'file-content-equals/v1' as const,
   path,
   content,
+});
+
+const rpc = (content: string) => ({
+  verifier: 'realization-content/v1' as const,
+  expected_sha256: sha256(content),
+});
+
+const realization = (content: string) => ({
+  verifier_identity: 'artifact-sha256/v1',
+  material_configuration: { target: 'test' },
+  source_inputs: { fixture: 'dependency-edge' },
+  acceptance_predicate: {
+    kind: 'sha256-equals/v1' as const,
+    expected_sha256: sha256(content),
+  },
 });
 
 function fixture() {
@@ -379,7 +395,7 @@ test('reclassifying control dependency as semantic cannot reuse old completion s
   }
 });
 
-test('rewiring a satisfied control edge does not change downstream semantic identity', () => {
+test('rewiring a satisfied control edge preserves semantic key but does not turn a run receipt into reusable completion', () => {
   const f = fixture();
   try {
     const a = f.path('a');
@@ -411,7 +427,8 @@ test('rewiring a satisfied control edge does not change downstream semantic iden
     }, f.kernel.head()!);
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
-    assert.equal(projectedB.status, 'DONE');
+    assert.equal(projectedB.status, 'READY');
+    assert.equal(projectedB.run_id, undefined);
     assert.equal(
       f.kernel.receipts(b1.run.id).at(-1)?.settlement_commit,
       b1.receipt.settlement_commit,
@@ -421,7 +438,7 @@ test('rewiring a satisfied control edge does not change downstream semantic iden
   }
 });
 
-test('content-selected semantic dependency can reuse across equivalent producers', () => {
+test('content-selected semantic dependency can reuse a verified realization across equivalent producers', () => {
   const f = fixture();
   try {
     const a = f.path('a');
@@ -436,19 +453,25 @@ test('content-selected semantic dependency can reuse across equivalent producers
       id: 'c',
       postcondition: pc(c, 'same-content'),
     });
-    defineWithEdges(f.kernel, {
+    f.kernel.define({
       id: 'b',
-      edges: [{
+      dependencies: [{
         kind: 'semantic',
         upstream: 'a',
         consumes: { kind: 'output', selector: 'verified-content' },
       }],
-      postcondition: pc(b, 'B'),
+      postcondition: rpc('B'),
+      realization: realization('B'),
     });
 
     settleFile(f.kernel, 'a', a, 'same-content');
     settleFile(f.kernel, 'c', c, 'same-content');
-    const b1 = settleFile(f.kernel, 'b', b, 'B');
+    const realized = f.kernel.recordRealization(
+      'b',
+      { producer: { kind: 'human', id: 'producer-a' }, content: 'B' },
+      f.kernel.head()!,
+    );
+    assert.equal(f.kernel.inspect().find(work => work.id === 'b')?.run_id, undefined);
 
     f.kernel.amend({
       id: 'b',
@@ -457,15 +480,14 @@ test('content-selected semantic dependency can reuse across equivalent producers
         upstream: 'c',
         consumes: { kind: 'output', selector: 'verified-content' },
       }],
-      postcondition: pc(b, 'B'),
+      postcondition: rpc('B'),
+      realization: realization('B'),
     }, f.kernel.head()!);
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
     assert.equal(projectedB.status, 'DONE');
-    assert.equal(
-      f.kernel.receipts(b1.run.id).at(-1)?.settlement_commit,
-      b1.receipt.settlement_commit,
-    );
+    assert.equal(projectedB.realization_identity, realized.fact.realization_identity);
+    assert.equal(projectedB.run_id, undefined);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
@@ -503,7 +525,7 @@ test('unsupported semantic selector is rejected before any definition fact is co
   }
 });
 
-test('semantic edge declaration order does not change obligation identity', () => {
+test('semantic edge declaration order does not change reusable realization identity', () => {
   const f = fixture();
   try {
     const a = f.path('a');
@@ -518,9 +540,9 @@ test('semantic edge declaration order does not change obligation identity', () =
       id: 'c',
       postcondition: pc(c, 'C'),
     });
-    defineWithEdges(f.kernel, {
+    f.kernel.define({
       id: 'b',
-      edges: [
+      dependencies: [
         {
           kind: 'semantic',
           upstream: 'a',
@@ -532,12 +554,17 @@ test('semantic edge declaration order does not change obligation identity', () =
           consumes: { kind: 'output', selector: 'verified-content' },
         },
       ],
-      postcondition: pc(b, 'B'),
+      postcondition: rpc('B'),
+      realization: realization('B'),
     });
 
     settleFile(f.kernel, 'a', a, 'A');
     settleFile(f.kernel, 'c', c, 'C');
-    const b1 = settleFile(f.kernel, 'b', b, 'B');
+    const realized = f.kernel.recordRealization(
+      'b',
+      { producer: { kind: 'agent', id: 'producer-b' }, content: 'B' },
+      f.kernel.head()!,
+    );
 
     f.kernel.amend({
       id: 'b',
@@ -553,15 +580,13 @@ test('semantic edge declaration order does not change obligation identity', () =
           consumes: { kind: 'output', selector: 'verified-content' },
         },
       ],
-      postcondition: pc(b, 'B'),
+      postcondition: rpc('B'),
+      realization: realization('B'),
     }, f.kernel.head()!);
 
     const projectedB = f.kernel.inspect().find(work => work.id === 'b')!;
     assert.equal(projectedB.status, 'DONE');
-    assert.equal(
-      f.kernel.receipts(b1.run.id).at(-1)?.settlement_commit,
-      b1.receipt.settlement_commit,
-    );
+    assert.equal(projectedB.realization_identity, realized.fact.realization_identity);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
