@@ -11,7 +11,10 @@ import type {
   Work,
 } from './model.ts';
 import { GitFactStore } from './git-store.ts';
-import { observePostcondition } from './observation.ts';
+import {
+  observePostcondition,
+  type ObservationContext,
+} from './observation.ts';
 import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
@@ -58,6 +61,7 @@ export class GitOvercenterKernel {
   readonly ref:string;
   readonly remote:string|null;
   readonly githubToken:string|null;
+  readonly observationContext:ObservationContext;
   readonly #store:GitFactStore;
 
   constructor(
@@ -66,12 +70,19 @@ export class GitOvercenterKernel {
       ref=STATE_REF,
       remote=null,
       githubToken=null,
-    }:{ref?:string;remote?:string|null;githubToken?:string|null}={},
+      observationContext={},
+    }:{
+      ref?:string;
+      remote?:string|null;
+      githubToken?:string|null;
+      observationContext?:Omit<ObservationContext,'githubToken'>;
+    }={},
   ) {
     this.repo=repo;
     this.ref=ref;
     this.remote=remote;
     this.githubToken=githubToken;
+    this.observationContext={githubToken,...observationContext};
     this.#store=new GitFactStore(repo,{ref,remote});
   }
 
@@ -414,7 +425,7 @@ export class GitOvercenterKernel {
   }
 
   #observe(postcondition:Postcondition):Observation {
-    return observePostcondition(postcondition,{githubToken:this.githubToken});
+    return observePostcondition(postcondition,this.observationContext);
   }
 
   #capabilityDigest(capability:string):string {
