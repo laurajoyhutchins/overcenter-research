@@ -24,9 +24,10 @@ const statusObligation=(
   dependencies,
   packet:{},
   postcondition:{
-    verifier:'github-commit-status/v1',
+    verifier:'github-commit-status/v2',
     provider:'github',
     repository_id:123,
+    repository_full_name:'owner/repo',
     commit_sha:'a'.repeat(40),
     context:'overcenter/admission',
     expected_state:state,

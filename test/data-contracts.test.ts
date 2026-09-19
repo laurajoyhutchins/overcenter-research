@@ -8,7 +8,6 @@ import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
-  LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
   validateAuthorityFact,
@@ -243,14 +242,10 @@ test('durable authority contract preserves backend-neutral logical facts',()=>{
     CLAIM_SCHEMA,
     EXECUTION_AUTHORITY_SCHEMA,
     EFFECT_RESERVATION_SCHEMA,
-    LEGACY_RECEIPT_SCHEMA,
     RECEIPT_SCHEMA,
   ]);
-  assert.deepEqual(authorityContract.compatibility.receipt.read,[
-    LEGACY_RECEIPT_SCHEMA,
-    RECEIPT_SCHEMA,
-  ]);
-  assert.equal(authorityContract.compatibility.receipt.write,RECEIPT_SCHEMA);
+  assert.equal(authorityContract.compatibility.outerFactUnknownFields,'reject');
+  assert.equal('receipt' in authorityContract.compatibility,false);
 
   assert.equal(
     authoritySchema.$defs.DefinedObligationFact.properties.schema.const,
@@ -273,12 +268,22 @@ test('durable authority contract preserves backend-neutral logical facts',()=>{
     EFFECT_RESERVATION_SCHEMA,
   );
   assert.equal(
-    authoritySchema.$defs.ReceiptFactV4.properties.schema.const,
-    LEGACY_RECEIPT_SCHEMA,
-  );
-  assert.equal(
     authoritySchema.$defs.ReceiptFactV5.properties.schema.const,
     RECEIPT_SCHEMA,
+  );
+});
+
+test('removed schema variants fail closed',()=>{
+  assert.throws(
+    ()=>validateAuthorityFact({schema:'overcenter-git-receipt-v4'}),
+    /UNKNOWN_AUTHORITY_FACT_SCHEMA/,
+  );
+  assert.throws(
+    ()=>validateObservationEnvelope({
+      verifier:'github-commit-status/v1',
+      mutation_certainty:'present',
+    }),
+    /OBSERVATION_VERIFIER_INVALID/,
   );
 });
 

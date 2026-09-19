@@ -17,9 +17,10 @@ function fixture() {
 
 function statusPostcondition(state:'success'|'failure',context='overcenter/conflict') {
   return {
-    verifier:'github-commit-status/v1' as const,
+    verifier:'github-commit-status/v2' as const,
     provider:'github' as const,
     repository_id:123,
+    repository_full_name:'owner/repo',
     commit_sha:'a'.repeat(40),
     context,
     expected_state:state,
