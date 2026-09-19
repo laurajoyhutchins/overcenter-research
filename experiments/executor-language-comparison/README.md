@@ -53,3 +53,36 @@ Those measurements explain maintenance cost; they do not override failed semanti
 Go earns this executor role only if the experiment shows a material advantage under the rule above that is not offset by a new correctness failure.
 
 If TypeScript passes the same hostile cases and Go does not cross the 2x operational threshold, the evidence says to keep this role in TypeScript and delete or archive the Go implementation rather than retaining a second language on taste.
+
+
+## Hosted result
+
+The strengthened hosted run at code head `1b932b4e7e35f836aa8984cb21249b03887bdab6` passed all seven differential tests:
+
+- equivalent normalized completion evidence
+- TypeScript bounded concurrency
+- TypeScript duplicate-identity rejection without duplicate execution
+- forged execution-spec digest rejected before child start
+- SIGTERM-resistant parent and grandchild escalated to SIGKILL in both implementations
+- ordinary cancellation left no orphan grandchildren in either implementation
+- 20,000-envelope operational comparison completed successfully
+
+Pre-registered benchmark, median of three runs:
+
+| Measurement | Go | TypeScript | Go advantage |
+| --- | ---: | ---: | ---: |
+| 20,000-envelope elapsed time | 428.16 ms | 1162.78 ms | 2.72x throughput |
+| Peak resident memory | 10,948 KiB | 146,340 KiB | 13.37x lower RSS |
+| Measured runtime source lines | 264 | 197 | TypeScript is smaller |
+
+Both runtime implementations use only standard-library facilities for the executor mechanics.
+
+### Interpretation
+
+Go crosses the pre-registered 2x materiality threshold on both throughput and memory while preserving the same hostile-case behavior.
+
+This does **not** show that Go should replace TypeScript in the kernel, graph semantics, provider interpretation, or settlement. It supports a much narrower claim:
+
+> For a high-throughput, long-lived, bounded physical executor that consumes already-authorized envelopes, Go has a measured operational advantage large enough to justify evaluating a production language boundary.
+
+The counterweight is maintenance cost: the Go runtime is larger in measured source lines and introduces a second toolchain. The experiment therefore supports Go specifically where executor density, throughput, or resource isolation is material. It does not support using Go merely because concurrent code is pleasant to write.
