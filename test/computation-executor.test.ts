@@ -87,11 +87,18 @@ async function startExecutor(
   child.stderr.setEncoding('utf8');
   child.stderr.on('data',chunk=>{stderr+=String(chunk);});
 
+  if (child.pid===undefined) throw new Error('executor pid unavailable');
+  const containmentId=`process:${child.pid}`;
   const relaySockets=new Set<Socket>();
   const relay=createServer(socket=>{
     relaySockets.add(socket);
     socket.on('close',()=>relaySockets.delete(socket));
     socket.on('error',()=>{});
+    socket.write(JSON.stringify({
+      schema:'overcenter-executor-hello-v1',
+      execution_context_sha256:executionContextSha256,
+      containment_id:containmentId,
+    })+'\n');
     socket.pipe(child.stdin);
     child.stdout.pipe(socket);
   });
@@ -117,12 +124,11 @@ async function startExecutor(
     });
   };
 
-  if (child.pid===undefined) throw new Error('executor pid unavailable');
   const client=new GoExecutorClient({
     socketPath,
     maxConcurrency,
     executionContextSha256,
-    containmentId:`process:${child.pid}`,
+    containmentId,
   });
   return {
     client,
