@@ -66,6 +66,7 @@ inductive ClaimLifecycle where
 structure ClaimCandidate where
   runId : String
   obligationId : String
+  parentRevision : String
   claimedRevision : String
   obligationKey : ClaimObligationKey
   capabilityDigest : String
@@ -259,7 +260,9 @@ def admitClaim
   | some obligation =>
       if runs.any (fun run => run.runId == candidate.runId) then
         .rejected .duplicateRun
-      else if candidate.claimedRevision != currentRevision then
+      else if candidate.parentRevision != currentRevision ||
+              candidate.claimedRevision != currentRevision ||
+              candidate.parentRevision != candidate.claimedRevision then
         .rejected .revisionMismatch
       else
         match deriveClaimLifecycle
