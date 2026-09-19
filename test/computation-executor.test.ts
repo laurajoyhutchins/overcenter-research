@@ -291,6 +291,28 @@ test('exact cancellation kills SIGTERM-resistant parent and grandchild',async()=
   }
 });
 
+test('cancellation kills a stubborn grandchild even when its parent exits on SIGTERM',async()=>{
+  const pidFile=join(workspace,'tree-parent-exits.pid');
+  rmSync(pidFile,{force:true});
+  const execution=computationExecution(
+    permit(6),
+    spec('tree-child-ignore-term','',{pidFile,timeoutMs:10_000}),
+  );
+  const harness=await startExecutor(1);
+  const {client}=harness;
+  try {
+    const pending=client.execute(execution);
+    const pids=await waitForPidFile(pidFile,2);
+    assert.ok(pids.every(alive));
+    await client.cancel(execution);
+    const evidence=await pending;
+    assert.equal(evidence.outcome,'cancelled');
+    await assertDead(pids);
+  } finally {
+    await harness.close();
+  }
+});
+
 test('a second executor cannot unlink or steal a live socket',async()=>{
   const harness=await startExecutor(1);
   const challenger=spawn(
