@@ -153,37 +153,37 @@ def deriveSemanticIdentityMaterial
     none
   else
     match dependency.kind, dependency.selector with
-  | .control, _ => none
-  | .semantic, none => none
-  | .semantic, some selector =>
-      match findRawObligation ctx.obligations dependency.upstream,
-            findRawLifecycleFact ctx.lifecycles dependency.upstream with
-      | some upstream, some lifecycle =>
-          if lifecycle.status != .done then
-            none
-          else
-            match selector with
-            | .verifiedContent =>
-                match upstream.semanticSource with
-                | some source => some (.output (semanticOutputMaterialFor source))
-                | none => none
-            | .settlementReceipt =>
-                match lifecycle.runId with
-                | none => none
-                | some runId =>
-                    match findRawReceipt ctx.receipts runId with
-                    | none => none
-                    | some receipt =>
-                        if receipt.obligationId != dependency.upstream then
-                          none
-                        else if receipt.disposition != .done then
-                          none
-                        else
-                          match receipt.settlementCommit with
-                          | some commit =>
-                              if commit.isEmpty then none else some (.settlementReceipt commit)
-                          | none => none
-      | _, _ => none
+    | .control, _ => none
+    | .semantic, none => none
+    | .semantic, some selector =>
+        match findRawObligation ctx.obligations dependency.upstream,
+              findRawLifecycleFact ctx.lifecycles dependency.upstream with
+        | some upstream, some lifecycle =>
+            if lifecycle.status != .done then
+              none
+            else
+              match selector with
+              | .verifiedContent =>
+                  match upstream.semanticSource with
+                  | some source => some (.output (semanticOutputMaterialFor source))
+                  | none => none
+              | .settlementReceipt =>
+                  match lifecycle.runId with
+                  | none => none
+                  | some runId =>
+                      match findRawReceipt ctx.receipts runId with
+                      | none => none
+                      | some receipt =>
+                          if receipt.obligationId != dependency.upstream then
+                            none
+                          else if receipt.disposition != .done then
+                            none
+                          else
+                            match receipt.settlementCommit with
+                            | some commit =>
+                                if commit.isEmpty then none else some (.settlementReceipt commit)
+                            | none => none
+        | _, _ => none
 
 def rawSemanticInputsResolved (ctx : RawClaimContext) : Bool :=
   match findRawObligation ctx.obligations ctx.targetId with
