@@ -38,6 +38,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
 
       - name: Regression and concurrency tests
         run: npm test
@@ -64,6 +65,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - name: Execute alpha and die
         id: agent
         continue-on-error: true
@@ -94,6 +96,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - name: Execute beta and die
         id: agent
         continue-on-error: true
@@ -126,6 +129,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - name: Recover and settle alpha
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -150,6 +154,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - name: Recover and settle beta
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -171,6 +176,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - name: Read final authority
         env:
           GITHUB_TOKEN: ${{ github.token }}
