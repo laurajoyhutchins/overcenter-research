@@ -35,6 +35,11 @@ import {
 } from '../src/computation-runner.ts';
 import { OvercenterKernel } from '../src/kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
+import {
+  PRODUCTION_CONTAINMENT_PROFILE,
+  productionDockerRunArgs,
+  productionExecutorSocketArgs,
+} from '../src/production-containment.ts';
 
 const image=process.env.OVERCENTER_EXECUTOR_IMAGE;
 if (!image) {
@@ -56,23 +61,7 @@ if (sourceExtract.status!==0) {
   throw new Error(`source snapshot extraction failed: ${sourceExtract.stderr?.toString('utf8')??''}`);
 }
 const dockerLabel=`overcenter.computation-test=${process.pid}`;
-const containerProfile={
-  network:'none',
-  read_only_root:true,
-  no_new_privileges:true,
-  cap_drop:['ALL'],
-  cap_add:['CHOWN','DAC_OVERRIDE','KILL','SETGID','SETUID'],
-  pids_limit:64,
-  memory_bytes:512*1024*1024,
-  memory_swap_bytes:512*1024*1024,
-  nano_cpus:1_000_000_000,
-  nofile:256,
-  file_size_bytes:64*1024*1024,
-  task_uid:65532,
-  task_gid:65532,
-  source:'read-only',
-  workspace:'fresh-empty-disposable-host-workspace',
-} as const;
+const containerProfile=PRODUCTION_CONTAINMENT_PROFILE;
 let sequence=0;
 
 function docker(args:string[],encoding:'utf8'='utf8'):string {
@@ -190,17 +179,7 @@ async function startIsolatedExecutor(
     dockerLabel,
     '--label',
     `overcenter.containment=${containmentId}`,
-    '--network=none',
-    '--read-only',
-    '--security-opt=no-new-privileges:true',
-    '--cap-drop=ALL',
-    ...containerProfile.cap_add.flatMap(capability=>['--cap-add',capability]),
-    `--pids-limit=${containerProfile.pids_limit}`,
-    `--memory=${containerProfile.memory_bytes}`,
-    `--memory-swap=${containerProfile.memory_swap_bytes}`,
-    '--cpus=1',
-    `--ulimit=nofile=${containerProfile.nofile}:${containerProfile.nofile}`,
-    `--ulimit=fsize=${containerProfile.file_size_bytes}:${containerProfile.file_size_bytes}`,
+    ...productionDockerRunArgs(),
     '--entrypoint',
     '/usr/local/bin/overcenter-executor',
     '-v',
@@ -210,14 +189,13 @@ async function startIsolatedExecutor(
     '-v',
     `${sourceRoot}:/source:ro`,
     image,
-    '--socket=/control/executor.sock',
-    '--workspace-root=/workspace',
-    '--concurrency=1',
-    '--task-uid=65532',
-    '--task-gid=65532',
-    `--socket-gid=${gid}`,
-    `--execution-context-sha256=${contextSha256}`,
-    `--containment-id=${containmentId}`,
+    ...productionExecutorSocketArgs({
+      socketPath:'/control/executor.sock',
+      workspaceRoot:'/workspace',
+      socketGid:gid,
+      executionContextSha256:contextSha256,
+      containmentId,
+    }),
   ]);
 
   const deadline=Date.now()+10_000;
@@ -251,6 +229,7 @@ async function startIsolatedExecutor(
     MemorySwap:number;
     NanoCpus:number;
     Ulimits:Array<{Name:string;Soft:number;Hard:number}>|null;
+    Tmpfs:Record<string,string>|null;
   };
   assert.equal(hostConfig.NetworkMode,containerProfile.network);
   assert.equal(hostConfig.ReadonlyRootfs,true);
@@ -265,10 +244,13 @@ async function startIsolatedExecutor(
   assert.equal(hostConfig.PidsLimit,containerProfile.pids_limit);
   assert.equal(hostConfig.Memory,containerProfile.memory_bytes);
   assert.equal(hostConfig.MemorySwap,containerProfile.memory_swap_bytes);
-  assert.equal(hostConfig.NanoCpus,containerProfile.nano_cpus);
+  assert.equal(hostConfig.NanoCpus,containerProfile.cpus*1_000_000_000);
   const ulimits=new Map((hostConfig.Ulimits??[]).map(limit=>[limit.Name,limit]));
   assert.equal(ulimits.get('nofile')?.Soft,containerProfile.nofile);
   assert.equal(ulimits.get('fsize')?.Soft,containerProfile.file_size_bytes);
+  const tempOptions=new Set((hostConfig.Tmpfs?.[containerProfile.temp.path]??'').split(',').filter(Boolean));
+  for (const option of containerProfile.temp.options) assert.ok(tempOptions.has(option));
+  assert.ok(tempOptions.has(`size=${containerProfile.temp.bytes}`));
 
   const client=new GoExecutorClient({
     socketPath,
@@ -459,8 +441,8 @@ test('real test workload runs through the isolated production socket and settles
     assert.equal(result.evidence?.outcome,'completed');
     assert.equal(readFileSync(marker,'utf8'),'passed');
     const stat=statSync(marker);
-    assert.equal(stat.uid,65532);
-    assert.equal(stat.gid,65532);
+    assert.equal(stat.uid,containerProfile.task_uid);
+    assert.equal(stat.gid,containerProfile.task_gid);
     assert.equal(state.kernel.inspect()[0]?.status,'DONE');
     assertNoEffectReservations(state.db);
   } finally {
@@ -533,11 +515,40 @@ test('isolated executor death recovers the real test from durable facts in gener
     );
     assert.equal(readFileSync(marker,'utf8'),'passed');
     const stat=statSync(marker);
-    assert.equal(stat.uid,65532);
-    assert.equal(stat.gid,65532);
+    assert.equal(stat.uid,containerProfile.task_uid);
+    assert.equal(stat.gid,containerProfile.task_gid);
     assert.equal(recoveredKernel.inspect()[0]?.status,'DONE');
     assertNoEffectReservations(state.db);
   } finally {
     await second.close();
+  }
+});
+
+
+test('worker-container teardown kills descendants after catastrophic executor death',async()=>{
+  const workspace=freshWorkspace('catastrophic-death-workspace');
+  const container=`overcenter-catastrophic-death-${process.pid}-${sequence++}`;
+  docker(['run','-d','--name',container,'--label',dockerLabel,...productionDockerRunArgs(),'-v',`${workspace}:/workspace`,image!]);
+  try {
+    const deadline=Date.now()+10_000;
+    while (!existsSync(join(workspace,'executor-killed')) && Date.now()<deadline) {
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+    assert.ok(existsSync(join(workspace,'credential-proof')),'credential proof missing');
+    assert.ok(existsSync(join(workspace,'executor-killed')),'executor death marker missing');
+    assert.equal(
+      readFileSync(join(workspace,'credential-proof'),'utf8').trim(),
+      `executor=0 task=${containerProfile.task_uid} groups=${containerProfile.task_gid}`,
+    );
+    const pids=docker(['top',container,'-eo','pid']).trim().split(/\s+/).slice(1)
+      .map(value=>Number.parseInt(value,10)).filter(Number.isSafeInteger);
+    assert.ok(pids.length>=2,'expected worker driver plus hostile survivor');
+    docker(['kill',container]);
+    docker(['wait',container]);
+    for (const pid of pids) {
+      assert.throws(()=>process.kill(pid,0),undefined,`container teardown left host process alive: ${pid}`);
+    }
+  } finally {
+    try { execFileSync('docker',['rm','-f',container],{stdio:'ignore'}); } catch {}
   }
 });

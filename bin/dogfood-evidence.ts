@@ -27,6 +27,11 @@ import {
 } from '../src/computation-runner.ts';
 import {OvercenterKernel} from '../src/kernel.ts';
 import {GoExecutorClient} from '../src/go-executor-client.ts';
+import {
+  PRODUCTION_CONTAINMENT_PROFILE,
+  productionDockerRunArgs,
+  productionExecutorSocketArgs,
+} from '../src/production-containment.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
 const image=process.env.OVERCENTER_DOGFOOD_IMAGE;
@@ -82,12 +87,7 @@ function executionContextSha256():string {
     schema:'overcenter-dogfood-execution-context-v1',
     image_id:imageId,
     source_sha:sourceSha,
-    containment:{
-      network:'none',
-      task_uid:65532,
-      task_gid:65532,
-      source:'read-only',
-    },
+    containment:PRODUCTION_CONTAINMENT_PROFILE,
   });
   return 'sha256:'+createHash('sha256').update(bytes).digest('hex');
 }
@@ -104,6 +104,7 @@ function processSpec(
     cwd:'source',
     env:{
       HOME:'/tmp',
+      TMPDIR:'/tmp',
       NPM_CONFIG_CACHE:'/tmp/npm-cache',
       OVERCENTER_SOURCE_SHA:sourceSha,
       PATH:'/usr/local/bin:/usr/bin:/bin',
@@ -135,20 +136,19 @@ async function startExecutor():Promise<ExecutorHarness> {
     '--name',container,
     '--label',label,
     '--label',`overcenter.containment=${containmentId}`,
-    '--network=none',
+    ...productionDockerRunArgs(),
     '--entrypoint','/usr/local/bin/overcenter-executor',
     '-v',`${control}:/control`,
     '-v',`${workspace}:/workspace`,
     '-v',`${repoRoot}:/workspace/source:ro`,
     image,
-    `--socket=/control/executor-${id}.sock`,
-    '--workspace-root=/workspace',
-    '--concurrency=1',
-    '--task-uid=65532',
-    '--task-gid=65532',
-    `--socket-gid=${gid}`,
-    `--execution-context-sha256=${contextSha256}`,
-    `--containment-id=${containmentId}`,
+    ...productionExecutorSocketArgs({
+      socketPath:`/control/executor-${id}.sock`,
+      workspaceRoot:'/workspace',
+      socketGid:gid,
+      executionContextSha256:contextSha256,
+      containmentId,
+    }),
   ]);
 
   const deadline=Date.now()+10_000;
@@ -345,8 +345,20 @@ try {
     })+'\n');
 
     if (result.state!=='DONE') {
+      const stdout=result.evidence?.stdout_base64
+        ? Buffer.from(result.evidence.stdout_base64,'base64').toString('utf8')
+        : '';
+      const stderr=result.evidence?.stderr_base64
+        ? Buffer.from(result.evidence.stderr_base64,'base64').toString('utf8')
+        : '';
       throw new Error(
-        `self-dogfood evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
+        `self-dogfood evidence did not settle DONE: ${JSON.stringify({
+          explanation:kernel.explain(ready.id),
+          stdout,
+          stderr,
+          stdout_truncated:result.evidence?.stdout_truncated??false,
+          stderr_truncated:result.evidence?.stderr_truncated??false,
+        })}`,
       );
     }
   }

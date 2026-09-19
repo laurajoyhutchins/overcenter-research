@@ -47,6 +47,12 @@ isolated worker/container
 
 The production TypeScript client connects to an existing Unix socket. It does not spawn the executor. Deployment is responsible for running the executor in a separate disposable containment domain without provider credentials. The supported profile also requires no task network, a read-only container root/source snapshot, `no-new-privileges`, explicit capabilities only, and bounded PID/memory/CPU/open-file/per-file-size resources. Aggregate workspace bytes remain an outer worker-host quota.
 
+The canonical production profile is [`src/production-containment.ts`](../src/production-containment.ts). Production proofs and dogfood derive Docker resource flags, task credentials, and executor concurrency from that object; those values are not parallel shell configuration. Concurrency has no implicit executable default: callers must supply `--concurrency`.
+
+The PID/thread ceiling is 256. Self-dogfood falsified both smaller candidates against the admitted regression workload: at 64 the SQLite simultaneous-writer proof could not spawn its exact child (`EAGAIN`), and at 128 the child started but Node could not create a required pthread. The cgroup PID controller accounts for threads as well as processes. The ceiling remains explicit and bounded rather than introducing a test-only escape hatch.
+
+The memory ceiling is 1 GiB with memory+swap capped at the same value (no additional swap allowance). The earlier 512 MiB candidate was falsified by `experiments/git-stress/git-stress.test.ts`: its intentional 16-disposable-Node-process authority race was killed with `SIGKILL` after the preceding 56 local adversarial tests passed. The stress proof remains admitted; the containment budget changed instead of weakening the proof surface.
+
 Production socket mode requires `--task-uid` and `--task-gid`. Both must differ from the executor identity; when `--socket-gid` is used to grant the trusted host access to the socket, the task GID must differ from that group too. Task processes are launched with supplementary groups replaced by the task GID only; executor and trusted-socket groups do not cross the boundary.
 
 A typical container boundary therefore has three distinct authorities:

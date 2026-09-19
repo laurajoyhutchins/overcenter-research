@@ -274,6 +274,23 @@ test('TypeScript and Go accept the same process-spec conformance corpus',()=>{
   }
 });
 
+test('executor requires explicit concurrency',async()=>{
+  const child=spawn(
+    binary,
+    ['--stdio',`--workspace-root=${workspace}`,'--unsafe-test-same-uid'],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let stderr='';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data',chunk=>{stderr+=String(chunk);});
+  const code=await new Promise<number|null>((resolve,reject)=>{
+    child.once('error',reject);
+    child.once('close',resolve);
+  });
+  assert.notEqual(code,0);
+  assert.match(stderr,/max concurrency must be positive/);
+});
+
 test('production socket mode fails closed without a distinct task credential',async()=>{
   const missingSocket=join(scratch,'missing-credential.sock');
   const missing=spawn(
