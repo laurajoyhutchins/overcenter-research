@@ -23,9 +23,12 @@ test('generated GitHub operation catalog is bound to semantic operation IDs',()=
     Object.keys(GITHUB_OPERATION_SEMANTICS).sort(),
   );
   for (const [name,semantic] of Object.entries(GITHUB_OPERATION_SEMANTICS)) {
+    const operation=GITHUB_OBSERVATION_OPERATIONS[name as keyof typeof GITHUB_OBSERVATION_OPERATIONS];
+    assert.equal(operation.operation_id,semantic.operation_id);
     assert.equal(
-      GITHUB_OBSERVATION_OPERATIONS[name as keyof typeof GITHUB_OBSERVATION_OPERATIONS].operation_id,
-      semantic.operation_id,
+      operation.github_extensions.enabledForGitHubApps,
+      true,
+      `registered observation is not callable by a GitHub App: ${semantic.operation_id}`,
     );
   }
 });
