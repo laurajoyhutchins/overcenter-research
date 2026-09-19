@@ -229,6 +229,7 @@ async function startIsolatedExecutor(
     MemorySwap:number;
     NanoCpus:number;
     Ulimits:Array<{Name:string;Soft:number;Hard:number}>|null;
+    Tmpfs:Record<string,string>|null;
   };
   assert.equal(hostConfig.NetworkMode,containerProfile.network);
   assert.equal(hostConfig.ReadonlyRootfs,true);
@@ -247,6 +248,12 @@ async function startIsolatedExecutor(
   const ulimits=new Map((hostConfig.Ulimits??[]).map(limit=>[limit.Name,limit]));
   assert.equal(ulimits.get('nofile')?.Soft,containerProfile.nofile);
   assert.equal(ulimits.get('fsize')?.Soft,containerProfile.file_size_bytes);
+  const tmpfsOptions=new Set(
+    (hostConfig.Tmpfs?.[containerProfile.tmpfs.path]??'').split(',').filter(Boolean),
+  );
+  for (const option of containerProfile.tmpfs.options.split(',')) {
+    assert.ok(tmpfsOptions.has(option),`missing tmpfs option: ${option}`);
+  }
 
   const client=new GoExecutorClient({
     socketPath,
