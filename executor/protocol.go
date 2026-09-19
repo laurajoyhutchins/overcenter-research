@@ -68,6 +68,7 @@ type ExecutorCommandV1 struct {
 	Kind      string
 	Execution *ComputationExecutionV1
 	Identity  *ExecutionIdentityV1
+	validated *validatedExecution
 }
 
 type ComputationAttemptEvidenceV1 struct {
@@ -171,6 +172,7 @@ func parseCommand(line []byte) (ExecutorCommandV1, error) {
 			Schema:    wire.Schema,
 			Kind:      wire.Kind,
 			Execution: &validated.Execution,
+			validated: &validated,
 		}, nil
 	case "cancel":
 		if len(wire.Identity) == 0 || len(wire.Execution) != 0 {
