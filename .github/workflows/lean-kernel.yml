@@ -64,3 +64,6 @@ jobs:
 
       - name: Differential settlement proof
         run: node --experimental-strip-types --test experiments/lean-kernel/differential.test.ts
+
+      - name: Witness current mutable-reuse gap
+        run: node --experimental-strip-types --test experiments/lean-kernel/reuse-gap.test.ts
