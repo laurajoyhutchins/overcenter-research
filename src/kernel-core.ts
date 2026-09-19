@@ -638,6 +638,10 @@ export async function runCoreLoop(
       return {state:'IDLE',advances:i};
     }
 
+    if (work.effect_authority || 'provider' in work.postcondition) {
+      throw new Error('PROVIDER_EFFECT_BROKER_REQUIRED');
+    }
+
     let run:ExecutionPermit;
     try {
       run=kernel.claim(work.id,work.revision);
@@ -659,10 +663,6 @@ export async function runCoreLoop(
         };
       }
       if (decision.kind!=='execute') throw new Error('INVALID_PREFLIGHT_OUTCOME');
-    }
-
-    if (work.effect_authority || 'provider' in work.postcondition) {
-      throw new Error('PROVIDER_EFFECT_BROKER_REQUIRED');
     }
 
     // This compatibility loop is restricted to non-provider local effects.

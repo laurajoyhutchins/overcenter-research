@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { OvercenterKernel } from '../src/kernel.ts';
+import { OvercenterKernel, runCoreLoop } from '../src/kernel.ts';
 import { canonicalDigest } from '../src/digest.ts';
 import { bindTaskSession, executeAuthorizedEffect } from '../src/effect-broker.ts';
 import {
@@ -105,7 +105,7 @@ test('dispatch-bound session and result cannot inherit rotated authority',()=>{
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });
 
-test('observe-only provider postcondition cannot derive mutation authority',async()=>{
+test('generic loop rejects provider work before changing authority',async()=>{
   const f=fixture();
   try {
     f.kernel.define({
@@ -120,6 +120,17 @@ test('observe-only provider postcondition cannot derive mutation authority',asyn
         expected_state:'success',
       },
     });
+    const before=f.kernel.head();
+    await assert.rejects(
+      runCoreLoop(f.kernel,{
+        effect:async()=>({kind:'forbidden'}),
+        maxAdvances:1,
+      }),
+      /PROVIDER_EFFECT_BROKER_REQUIRED/,
+    );
+    assert.equal(f.kernel.head(),before);
+    assert.equal(f.kernel.inspect()[0]?.status,'READY');
+
     const ready=f.kernel.deriveReadyWork();
     assert.ok(ready);
     const permit=f.kernel.claim('observe-only',ready.revision);
@@ -151,6 +162,17 @@ test('broker requires accepted realization and reserves before provider mutation
     assert.equal(github.writes(),0);
 
     const realization=f.kernel.acceptRealization(task.session,task.result);
+
+    await assert.rejects(
+      executeAuthorizedEffect(f.kernel,task.session,{}),
+      /GITHUB_EFFECT_TOKEN_MISSING/,
+    );
+    assert.equal(
+      f.kernel.inspect().find(work=>work.id==='verified-effect')?.execution_generation,
+      1,
+    );
+    assert.equal(f.kernel.hasUnresolvedEffect(task.session.run_id),false);
+
     const attempt=await executeAuthorizedEffect(f.kernel,task.session,{
       githubToken:'broker-token',
       githubFetch:github.fetchImpl,

@@ -70,12 +70,24 @@ export function deriveAuthorizedProviderEffect(
   return pinned;
 }
 
+export function validateProviderEffectExecutionContext(
+  authorized:AuthorizedProviderEffect,
+  context:ProviderEffectExecutionContext,
+):void {
+  if (authorized.effect.provider==='github') {
+    if (!context.githubToken) throw new Error('GITHUB_EFFECT_TOKEN_MISSING');
+    return;
+  }
+  const exhaustive:never=authorized.effect;
+  throw new Error(`UNSUPPORTED_PROVIDER_EFFECT:${String(exhaustive)}`);
+}
+
 export async function executeAuthorizedProviderEffect(
   authorized:AuthorizedProviderEffect,
   context:ProviderEffectExecutionContext,
 ):Promise<ProviderEffectAttemptEvidence> {
+  validateProviderEffectExecutionContext(authorized,context);
   if (authorized.effect.provider==='github') {
-    if (!context.githubToken) throw new Error('GITHUB_EFFECT_TOKEN_MISSING');
     return executeGithubCommitStatusEffect(authorized.effect,{
       token:context.githubToken,
       fetch:context.githubFetch,

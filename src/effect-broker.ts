@@ -6,6 +6,7 @@ import type { KernelCore } from './kernel-core.ts';
 import {
   deriveAuthorizedProviderEffect,
   executeAuthorizedProviderEffect,
+  validateProviderEffectExecutionContext,
   type AuthorizedProviderEffect,
   type ProviderEffectAttemptEvidence,
   type ProviderEffectExecutionContext,
@@ -104,6 +105,7 @@ export async function executeAuthorizedEffect(
 
   const realization=kernel.acceptedRealization(session);
   if (!realization) throw new Error('REALIZATION_REQUIRED');
+  validateProviderEffectExecutionContext(authorizedEffect,context);
 
   const permit=kernel.acquireExecution(session.run_id,{
     expectedGeneration:session.execution_generation,
