@@ -35,11 +35,18 @@ jobs:
           echo "$expected  $archive" | sha256sum --check
 
           mkdir -p .fstar
-          tar -xzf "$archive" -C .fstar --strip-components=1
-          test -x .fstar/bin/fstar.exe
+          tar -xzf "$archive" -C .fstar
 
-          .fstar/bin/fstar.exe --version
-          echo "FSTAR_BIN=$PWD/.fstar/bin/fstar.exe" >> "$GITHUB_ENV"
+          mapfile -t candidates < <(find .fstar -type f -name fstar.exe -perm -111)
+          if (( ${#candidates[@]} != 1 )); then
+            printf 'expected exactly one fstar.exe, found %s\n' "${#candidates[@]}" >&2
+            printf '%s\n' "${candidates[@]}" >&2
+            exit 1
+          fi
+
+          fstar_bin="$(realpath "${candidates[0]}")"
+          "$fstar_bin" --version
+          echo "FSTAR_BIN=$fstar_bin" >> "$GITHUB_ENV"
 
       - name: Verify settlement experiment
         run: bash experiments/fstar-settlement-kernel/check.sh
