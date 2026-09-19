@@ -9,30 +9,34 @@ Can Overcenter replace `sameDesiredCommutes: boolean` with a recomputable, prove
 The experiment mints a certificate only from trusted production semantics:
 
 ```text
-postcondition
-     │
-     ├── effectSemantics
-     └── settlementSemantics
-              │
-              ▼
- effect-equivalence payload
-              │
-              ▼
-       canonical digest
-              │
-              ▼
- equivalence certificate
+authoritative postcondition
+          │
+          ├── provider contract
+          ├── effectSemantics
+          └── settlementSemantics
+                   │
+                   ▼
+        effect-equivalence payload
+                   │
+                   ▼
+            canonical digest
+                   │
+                   ▼
+        equivalence certificate
 ```
 
 The certificate binds:
 
 - provider;
 - verifier/adapter contract;
+- canonical coordinate contract;
+- observation contract;
+- provider operation class;
 - canonical mutation resource;
 - requested operation;
 - equivalence class;
-- digest of the production effect semantics;
-- digest of the production settlement semantics;
+- digest of the production effect semantics under that contract;
+- digest of the production settlement semantics under that contract;
 - issuer-contract version;
 - digest of the complete payload.
 
@@ -45,6 +49,9 @@ Two overlapping effects may remain unordered only when both certificates validat
 ```text
 provider
 + exact verifier contract
++ coordinate contract
++ observation contract
++ operation class
 + canonical resource
 + semantic operation
 + equivalence class
@@ -68,6 +75,9 @@ They also mutate the supplied certificate itself:
 - resource;
 - operation;
 - verifier contract;
+- coordinate contract;
+- observation contract;
+- operation class;
 - issuer contract;
 - certificate digest.
 
@@ -86,17 +96,19 @@ github-commit-status/v2 success
 
 when both resolve to the same canonical resource. That follows from the current boolean `sameDesiredCommutes` policy.
 
-The version-bound certificate deliberately refuses to inherit that equivalence. The pair needs a separate, explicit cross-version equivalence witness.
+The version-bound certificate deliberately refuses to inherit that equivalence. The two verifier versions carry different observation-contract identities, so the pair needs a separate, explicit cross-version equivalence witness.
 
 This means the experiment is stricter than the current production admission rule in one intentional place.
 
-That is the point: adapter/version identity is material to an authority-bearing equivalence claim unless equivalence across versions has itself been established.
+That is the point: adapter/version and observation semantics are material to an authority-bearing equivalence claim unless equivalence across versions has itself been established.
 
 ## Boundary
 
 This certificate is a deterministic evidence object, not a cryptographic credential.
 
 Its authority comes from being recomputed by trusted Overcenter code from authoritative postconditions and provider semantics. Signing arbitrary certificate JSON would not improve the claim unless the signer performed the same validation.
+
+The named provider contracts in this experiment are still manually versioned declarations. A production implementation should place those declarations with the provider adapter that owns the semantics, not in generic scheduling code.
 
 ## Run
 
