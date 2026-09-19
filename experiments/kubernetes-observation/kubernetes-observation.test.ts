@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ObservationOperation, RawObservation } from './observation.ts';
-import { validateObservationSlice } from '../provider-observation/response-slice.ts';
+import { validateObservationSlice } from '../../src/provider-observation/response-slice.ts';
 import {
   assembleCompleteList,
   evaluateSnapshotMembership,
