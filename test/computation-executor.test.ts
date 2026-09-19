@@ -29,7 +29,7 @@ import {
   resumeTestComputation,
   runReadyTestComputation,
 } from '../src/computation-runner.ts';
-import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
@@ -836,20 +836,20 @@ test('an effectful run cannot enter replayable-computation recovery',async()=>{
     },
   });
 
-  const loop=await runGitCoreLoop(state.kernel,{
-    effect:async()=>({kind:'effectful-test',may_have_mutated:true}),
-    maxAdvances:1,
-  });
-  assert.equal(loop.state,'RECOVERY_REQUIRED');
-  assert.ok(loop.run);
-  assert.equal(state.kernel.hasUnresolvedEffect(loop.run),true);
+  const ready=state.kernel.deriveReadyWork();
+  assert.ok(ready);
+  const permit=state.kernel.claim(ready.id,ready.revision);
+  state.kernel.beginEffect(permit);
+  const uncertain=state.kernel.resolve(permit);
+  assert.equal(uncertain.disposition,'RECOVERY_REQUIRED');
+  assert.equal(state.kernel.hasUnresolvedEffect(permit.id),true);
 
   await assert.rejects(
     resumeTestComputation(state.kernel,{
       executionContextSha256:testExecutionContext,
       containmentId:'trusted-test-containment',
       execute:async()=>{ throw new Error('must not execute'); },
-    },loop.run),
+    },permit.id),
     /TEST_COMPUTATION_EFFECT_RESERVATION_PRESENT/,
   );
   assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
