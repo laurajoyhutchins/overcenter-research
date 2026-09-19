@@ -30,9 +30,10 @@ def verifies (postcondition : Postcondition) (observation : Observation) : Bool 
   observation.certainty == .present &&
   observation.actual == some postcondition.expected
 
-def localFileEnoentAuthoritative (coordinate : String) (evidence : AbsenceEvidence) : Bool :=
-  match evidence with
-  | .localFileEnoent
+def localFileEnoentAuthoritative (coordinate : Coordinate) (evidence : AbsenceEvidence) : Bool :=
+  match coordinate, evidence with
+  | .opaque path,
+    .localFileEnoent
       subjectCoordinate
       scopeCoordinate
       snapshotIsNull
@@ -41,21 +42,66 @@ def localFileEnoentAuthoritative (coordinate : String) (evidence : AbsenceEviden
       provenanceAdapter
       provenanceOperation
       provenanceErrorCode =>
-      subjectCoordinate == coordinate &&
-      scopeCoordinate == coordinate &&
+      subjectCoordinate == path &&
+      scopeCoordinate == path &&
       snapshotIsNull &&
       completenessKind == "direct-coordinate-read" &&
       completenessResult == "ENOENT" &&
       provenanceAdapter == "node:fs" &&
       provenanceOperation == "readFileSync" &&
       provenanceErrorCode == "ENOENT"
-  | _ => false
+  | _, _ => false
 
-def kubernetesAbsenceAuthoritative (coordinate : String) (evidence : AbsenceEvidence) : Bool :=
-  match evidence with
-  | .kubernetesCompleteList evidenceCoordinate complete =>
-      evidenceCoordinate == coordinate && complete
-  | _ => false
+def validKubernetesMember
+    (namespace targetName : String)
+    (member : KubernetesListMember) : Bool :=
+  !member.name.isEmpty &&
+  member.namespace == namespace &&
+  !member.uid.isEmpty &&
+  !member.resourceVersion.isEmpty &&
+  member.name != targetName
+
+def validKubernetesPage
+    (namespace targetName snapshotResourceVersion : String)
+    (expectedRequest : Option String)
+    (page : KubernetesListPage) : Bool :=
+  page.requestContinue == expectedRequest &&
+  page.snapshotResourceVersion == snapshotResourceVersion &&
+  page.members.all (validKubernetesMember namespace targetName)
+
+def validKubernetesPages
+    (namespace targetName snapshotResourceVersion : String)
+    (expectedRequest : Option String) :
+    List KubernetesListPage → Bool
+  | [] => false
+  | page :: [] =>
+      validKubernetesPage namespace targetName snapshotResourceVersion expectedRequest page &&
+      page.responseContinue == ""
+  | page :: next :: rest =>
+      validKubernetesPage namespace targetName snapshotResourceVersion expectedRequest page &&
+      !page.responseContinue.isEmpty &&
+      validKubernetesPages
+        namespace
+        targetName
+        snapshotResourceVersion
+        (some page.responseContinue)
+        (next :: rest)
+
+def kubernetesAbsenceAuthoritative (coordinate : Coordinate) (evidence : AbsenceEvidence) : Bool :=
+  match coordinate, evidence with
+  | .kubernetesConfigMap authorityId namespace targetName,
+    .kubernetesCompleteList
+      evidenceAuthorityId
+      evidenceNamespace
+      evidenceTargetName
+      snapshotResourceVersion
+      pages =>
+      evidenceAuthorityId == authorityId &&
+      evidenceNamespace == namespace &&
+      evidenceTargetName == targetName &&
+      !snapshotResourceVersion.isEmpty &&
+      validKubernetesPages namespace targetName snapshotResourceVersion none pages
+  | _, _ => false
 
 def authoritativeAbsence (postcondition : Postcondition) (observation : Observation) : Bool :=
   if !sameObservationCoordinate postcondition observation then
