@@ -221,22 +221,20 @@ test('counterexample: legacy core loop bypasses the new broker boundary',async()
 
     let arbitraryEffectCalls=0;
 
-    await assert.rejects(
-      runGitCoreLoop(f.kernel,{
-        effect:async packet=>{
-          arbitraryEffectCalls+=1;
-          assert.equal(packet.kind,'arbitrary-provider-command/v1');
-          return {
-            kind:'arbitrary-effect-ran',
-            may_have_mutated:true,
-          };
-        },
-        maxAdvances:1,
-      }),
-      /GITHUB_TOKEN_REQUIRED|GITHUB_PROVIDER_READ_FAILED|github/i,
-    );
+    const result=await runGitCoreLoop(f.kernel,{
+      effect:async packet=>{
+        arbitraryEffectCalls+=1;
+        assert.equal(packet.kind,'arbitrary-provider-command/v1');
+        return {
+          kind:'arbitrary-effect-ran',
+          may_have_mutated:true,
+        };
+      },
+      maxAdvances:1,
+    });
 
     assert.equal(arbitraryEffectCalls,1);
+    assert.equal(result.state,'RECOVERY_REQUIRED');
 
     // The arbitrary callback crossed the effect boundary before observation
     // failed. No TaskSession, worker-signal grammar, or provider adapter was
