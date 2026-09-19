@@ -152,11 +152,14 @@ def tensorWitnessEdges (projection : GraphTensorProjection) : List GraphViewEdge
     relation := entry.relation
   })
 
-def finalizeGraphTensor
-    (projection : GraphTensorProjection) : Option GraphTensorProjection :=
-  if tensorAligned projection then some projection else none
+structure CertifiedGraphTensor (ctx : RawClaimContext) where
+  projection : GraphTensorProjection
+  currentViewKey :
+    projection.viewKey = graphViewKey (graphView ctx)
+  aligned : tensorAligned projection = true
 
-def buildGraphTensor (ctx : RawClaimContext) : Option GraphTensorProjection :=
+def buildCertifiedGraphTensor
+    (ctx : RawClaimContext) : Option (CertifiedGraphTensor ctx) :=
   if !rawContextBasicWellFormed ctx then
     none
   else
@@ -167,11 +170,22 @@ def buildGraphTensor (ctx : RawClaimContext) : Option GraphTensorProjection :=
       match view.edges.mapM (tensorEntryFor view.nodeIds) with
       | none => none
       | some entries =>
-          finalizeGraphTensor {
+          let projection : GraphTensorProjection := {
             viewKey := graphViewKey view
             nodeIds := view.nodeIds
             entries
           }
+          if h : tensorAligned projection then
+            some {
+              projection
+              currentViewKey := by rfl
+              aligned := h
+            }
+          else
+            none
+
+def buildGraphTensor (ctx : RawClaimContext) : Option GraphTensorProjection :=
+  (buildCertifiedGraphTensor ctx).map (fun certified => certified.projection)
 
 def hasGraphViewEdge
     (view : GraphView)
