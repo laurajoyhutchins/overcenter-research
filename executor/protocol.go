@@ -25,10 +25,14 @@ const (
 	maxArgBytes       = 32 * 1024
 	maxEnvCount       = 256
 	maxEnvValueBytes  = 128 * 1024
-	maxTimeoutMillis  = 24 * 60 * 60 * 1000
-	maxCaptureBytes   = 16 * 1024 * 1024
-	maxIdentityBytes  = 512
-	maxCapabilityBytes = 4096
+	maxTimeoutMillis       = 24 * 60 * 60 * 1000
+	maxCaptureBytes        = 16 * 1024 * 1024
+	maxRunIDBytes          = 256
+	maxObligationIDBytes   = 512
+	maxRevisionBytes       = 256
+	maxAuthorityCommitBytes = 256
+	maxCapabilityBytes     = 4096
+	maxExecutionGeneration = 9007199254740991
 )
 
 var envKeyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
@@ -121,20 +125,30 @@ func validateString(value, name string, maxBytes int) error {
 }
 
 func validateIdentity(identity ExecutionIdentityV1) error {
-	if err := validateString(identity.RunID, "run_id", 256); err != nil {
+	if err := validateString(identity.RunID, "run_id", maxRunIDBytes); err != nil {
 		return err
 	}
-	if identity.ExecutionGeneration <= 0 {
+	if identity.ExecutionGeneration <= 0 || identity.ExecutionGeneration > maxExecutionGeneration {
 		return errors.New("execution_generation invalid")
 	}
-	if err := validateString(identity.ExecutionAuthorityCommit, "execution_authority_commit", 256); err != nil {
+	if err := validateString(identity.ExecutionAuthorityCommit, "execution_authority_commit", maxAuthorityCommitBytes); err != nil {
 		return err
 	}
 	return nil
 }
 
-func identityKey(identity ExecutionIdentityV1) string {
-	return fmt.Sprintf("%s/%d/%s", identity.RunID, identity.ExecutionGeneration, identity.ExecutionAuthorityCommit)
+type executionIdentityKey struct {
+	RunID                    string
+	ExecutionGeneration      int64
+	ExecutionAuthorityCommit string
+}
+
+func identityKey(identity ExecutionIdentityV1) executionIdentityKey {
+	return executionIdentityKey{
+		RunID:                    identity.RunID,
+		ExecutionGeneration:      identity.ExecutionGeneration,
+		ExecutionAuthorityCommit: identity.ExecutionAuthorityCommit,
+	}
 }
 
 func identityFor(execution ComputationExecutionV1) ExecutionIdentityV1 {
@@ -203,17 +217,21 @@ func validateExecutionBytes(data []byte) (validatedExecution, error) {
 	if execution.Schema != ComputationExecutionSchema {
 		return validatedExecution{}, errors.New("computation execution schema mismatch")
 	}
-	for name, value := range map[string]string{
-		"run_id":                     execution.RunID,
-		"obligation_id":              execution.ObligationID,
-		"claimed_revision":           execution.ClaimedRevision,
-		"execution_authority_commit": execution.ExecutionAuthorityCommit,
+	for _, field := range []struct {
+		name     string
+		value    string
+		maxBytes int
+	}{
+		{name: "run_id", value: execution.RunID, maxBytes: maxRunIDBytes},
+		{name: "obligation_id", value: execution.ObligationID, maxBytes: maxObligationIDBytes},
+		{name: "claimed_revision", value: execution.ClaimedRevision, maxBytes: maxRevisionBytes},
+		{name: "execution_authority_commit", value: execution.ExecutionAuthorityCommit, maxBytes: maxAuthorityCommitBytes},
 	} {
-		if err := validateString(value, name, maxIdentityBytes); err != nil {
+		if err := validateString(field.value, field.name, field.maxBytes); err != nil {
 			return validatedExecution{}, err
 		}
 	}
-	if execution.ExecutionGeneration <= 0 {
+	if execution.ExecutionGeneration <= 0 || execution.ExecutionGeneration > maxExecutionGeneration {
 		return validatedExecution{}, errors.New("execution_generation invalid")
 	}
 	if err := validateString(execution.ExecutionCapability, "execution_capability", maxCapabilityBytes); err != nil {
