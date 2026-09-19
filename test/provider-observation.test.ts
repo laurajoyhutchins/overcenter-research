@@ -156,3 +156,32 @@ test('provider-specific outer fields require explicit declaration',()=>{
     {topLevelExtensions:['authority_id']},
   ));
 });
+
+
+test('conditional revalidation provenance is explicit and closed',()=>{
+  const base={
+    contract:{
+      provider:'github',
+      api_version:'2026-03-10',
+      operation_id:'repos/get',
+      schema_sha256:'a'.repeat(64),
+    },
+    observer:{kind:'git-kernel',id:'conditional-proof'},
+    observed_at:'2026-09-19T00:00:01.000Z',
+    request:{path:'/repos/o/r'},
+    response:{etag:'"abc"'},
+    outcome:{status:200,visibility:'observed' as const,value:{}},
+    revalidated_from:{
+      observed_at:'2026-09-19T00:00:00.000Z',
+      etag:'"abc"',
+    },
+  };
+  assert.doesNotThrow(()=>validateProviderObservationEnvelope(base));
+  assert.throws(
+    ()=>validateProviderObservationEnvelope({
+      ...base,
+      revalidated_from:{...base.revalidated_from,surprise:true},
+    }),
+    /PROVIDER_OBSERVATION_REVALIDATION_SHAPE_INVALID:UNKNOWN_FIELD:surprise/,
+  );
+});

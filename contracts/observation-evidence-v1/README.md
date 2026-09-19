@@ -12,7 +12,7 @@ They share provenance concerns, but they do not share authority.
 
 The provider-neutral envelope binds the provider/API operation and exact provider schema digest to an observer, time, request, response metadata, and outcome.
 
-Provider-specific request and response semantics remain provider-owned. Any field added to the neutral outer envelope must be explicitly declared. Kubernetes currently declares one outer extension, `authority_id`, because cluster identity is part of the observation coordinate. `structural_validation` is a known derived certificate produced by schema-slice validation; recertification may replace it with a fresh certificate rather than treating it as provider data.
+Provider-specific request and response semantics remain provider-owned. Any field added to the neutral outer envelope must be explicitly declared. Kubernetes currently declares one outer extension, `authority_id`, because cluster identity is part of the observation coordinate. `structural_validation` is a known derived certificate produced by schema-slice validation; recertification may replace it with a fresh certificate rather than treating it as provider data. Conditional HTTP revalidation may also add the closed `revalidated_from` provenance record binding the refreshed observation to the prior ETag-bearing observation.
 
 ## Settlement observations
 

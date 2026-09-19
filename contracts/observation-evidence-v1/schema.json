@@ -112,6 +112,9 @@
         },
         "structural_validation": {
           "$ref": "#/$defs/StructuralValidationCertificate"
+        },
+        "revalidated_from": {
+          "$ref": "#/$defs/RevalidationProvenance"
         }
       }
     },
@@ -157,6 +160,9 @@
         },
         "structural_validation": {
           "$ref": "#/$defs/StructuralValidationCertificate"
+        },
+        "revalidated_from": {
+          "$ref": "#/$defs/RevalidationProvenance"
         }
       }
     },
@@ -737,6 +743,24 @@
         "schema_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "RevalidationProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_at",
+        "etag"
+      ],
+      "properties": {
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "etag": {
+          "type": "string",
+          "minLength": 1
         }
       }
     }

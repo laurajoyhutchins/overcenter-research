@@ -70,9 +70,10 @@
       "resultFields": [
         "outcome"
       ],
-      "note": "Provider-specific coordinate and response semantics remain in provider adapters. structural_validation is a derived schema-binding certificate and may be replaced by a fresh certification pass.",
+      "note": "Provider-specific coordinate and response semantics remain in provider adapters. structural_validation is a derived schema-binding certificate; revalidated_from records exact conditional-HTTP provenance. Both are known derived stages, not provider-owned extension buckets.",
       "derivedFields": [
-        "structural_validation"
+        "structural_validation",
+        "revalidated_from"
       ]
     },
     "settlementObservation": {

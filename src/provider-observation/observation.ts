@@ -15,6 +15,11 @@ export interface ProviderStructuralValidation {
   schema_sha256:string;
 }
 
+export interface ProviderRevalidationProvenance {
+  observed_at:string;
+  etag:string;
+}
+
 export interface ProviderObservation<
   Provider extends string,
   Request,
@@ -38,6 +43,7 @@ export interface ProviderObservation<
     transport_error?: string;
   } & OutcomeExtra;
   structural_validation?:ProviderStructuralValidation;
+  revalidated_from?:ProviderRevalidationProvenance;
 }
 
 export interface ProviderObservationValidationOptions {
@@ -81,7 +87,7 @@ export function validateProviderObservationEnvelope(
   exactKeys(
     value,
     ['contract','observer','observed_at','request','response','outcome'],
-    ['structural_validation',...topLevelExtensions],
+    ['structural_validation','revalidated_from',...topLevelExtensions],
   );
 
   if (!data(value.contract)) throw new Error('PROVIDER_OBSERVATION_CONTRACT_INVALID');
@@ -167,5 +173,25 @@ export function validateProviderObservationEnvelope(
     ) {
       throw new Error('PROVIDER_OBSERVATION_STRUCTURAL_VALIDATION_INVALID');
     }
+  }
+
+  if (value.revalidated_from!==undefined) {
+    if (!data(value.revalidated_from)) {
+      throw new Error('PROVIDER_OBSERVATION_REVALIDATION_INVALID');
+    }
+    exactKeys(
+      value.revalidated_from,
+      ['observed_at','etag'],
+      [],
+      'PROVIDER_OBSERVATION_REVALIDATION_SHAPE_INVALID',
+    );
+    nonEmptyString(
+      value.revalidated_from.observed_at,
+      'PROVIDER_OBSERVATION_REVALIDATION_TIME_INVALID',
+    );
+    nonEmptyString(
+      value.revalidated_from.etag,
+      'PROVIDER_OBSERVATION_REVALIDATION_ETAG_INVALID',
+    );
   }
 }
