@@ -100,9 +100,20 @@ test('semantic identity is explicit, complete, and separate from diagnostic evid
   }
 
   const identity=new Set(evidence.identityBindingFields as string[]);
-  for (const field of evidence.nonAuthoritativeFields as string[]) {
-    assert.equal(identity.has(field),false,'diagnostic/evidence field leaked into identity: '+field);
+  const result=new Set(evidence.resultFields as string[]);
+  const diagnostic=new Set(evidence.diagnosticFields as string[]);
+  for (const field of [...result,...diagnostic]) {
+    assert.equal(identity.has(field),false,'non-identity field leaked into identity: '+field);
   }
+  for (const field of diagnostic) {
+    assert.equal(result.has(field),false,'diagnostic field leaked into attempt result: '+field);
+  }
+
+  const classified=new Set([...identity,...result,...diagnostic]);
+  const payloadFields=Object.keys(
+    schema.$defs.ComputationAttemptEvidenceV1.properties,
+  ).filter(field=>field!=='schema');
+  assert.deepEqual([...classified].sort(),payloadFields.sort());
   assert.equal(evidence.settlementAuthority,false);
 });
 
