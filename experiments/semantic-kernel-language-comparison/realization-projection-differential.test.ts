@@ -136,7 +136,17 @@ function freshDisposition(
     observed:observation,
     settled_at:'2026-09-19T00:00:00.000Z',
   };
-  return projectReceipt(fact,work).disposition as 'DONE'|'READY'|'RECOVERY_REQUIRED';
+  try {
+    return projectReceipt(fact,work).disposition as 'DONE'|'READY'|'RECOVERY_REQUIRED';
+  } catch (error:unknown) {
+    if (
+      error instanceof Error
+      && error.message==='OBSERVATION_COORDINATE_MISMATCH'
+    ) {
+      return 'RECOVERY_REQUIRED';
+    }
+    throw error;
+  }
 }
 
 function correctedTsProject(input:ProjectionRequest):ProjectionResult {
