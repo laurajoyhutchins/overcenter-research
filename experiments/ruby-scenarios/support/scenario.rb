@@ -27,6 +27,10 @@ module OvercenterRubyScenarios
     def observe(event, as:)
       @scenario.__provider_observe(@kind, event, as)
     end
+
+    def continuity(state, as:)
+      @scenario.__provider_continuity(@kind, state, as)
+    end
   end
 
   class Scenario
@@ -155,6 +159,20 @@ module OvercenterRubyScenarios
       }
     end
 
+    def __provider_continuity(kind, state, name)
+      provider = {
+        github_status: "github-status",
+        kubernetes_configmap: "kubernetes-configmap"
+      }.fetch(kind)
+
+      @operations << {
+        "op" => "provider-continuity",
+        "provider" => provider,
+        "continuity" => state.to_s,
+        "name" => name.to_s
+      }
+    end
+
     def __provider_effect(id)
       @operations << {
         "op" => "provider-effect",
@@ -254,6 +272,16 @@ module OvercenterRubyScenarios
         next if actual == kind
 
         raise "expected #{name} absence kind #{kind.inspect}, got #{actual.inspect}"
+      end
+    end
+
+    def expect_evidence_preserved(name, expected)
+      @expectations << lambda do |result|
+        outcome = result.fetch("outcomes").fetch(name.to_s)
+        actual = outcome.fetch("evidence_preserved")
+        next if actual == expected
+
+        raise "expected #{name} evidence_preserved=#{expected}, got #{actual}"
       end
     end
 
