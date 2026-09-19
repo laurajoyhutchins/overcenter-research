@@ -65,6 +65,32 @@ function fakeGithub() {
   return {fetchImpl,writes:()=>writes};
 }
 
+test('new effect authority rejects an unsupported adapter contract at admission',()=>{
+  const f=fixture();
+  try {
+    assert.throws(()=>f.kernel.define({
+      id:'stale-adapter',
+      packet:{kind:'worker-task/v1'},
+      postcondition:{
+        verifier:'github-commit-status/v1',
+        provider:'github',
+        repository_id:123,
+        commit_sha:'a'.repeat(40),
+        context:'overcenter/stale-adapter',
+        expected_state:'success',
+      },
+      effect_authority:{
+        ...githubCommitStatusEffectAuthority(),
+        adapter_contract_digest:'0'.repeat(64),
+      },
+      result_acceptance:{
+        verifier:'canonical-json-sha256/v1',
+        expected_sha256:canonicalDigest({kind:'verified-result/v1',value:'stale-adapter'}),
+      },
+    }),/EFFECT_ADAPTER_CONTRACT_MISMATCH/);
+  } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
+});
+
 test('effect authority requires deterministic result acceptance',()=>{
   const f=fixture();
   try {
