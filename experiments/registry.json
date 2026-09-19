@@ -347,9 +347,10 @@
         "A semantic-key mismatch remains structurally valid in LinkML and is rejected by an independent Overcenter semantic check."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
+        "evaluated_revision": "13c1c8f2b5c22037ae90334ea0c2c6013f2dace9",
         "artifacts": [
-          "Pending exact-head GitHub Actions run."
+          "GitHub Actions run 35475542035: 5/5 exact-head tests passed; JSON Schema and TypeScript were byte-stable, SHACL was RDF-isomorphic but not byte-stable, and cardinality propagated to JSON Schema/SHACL but not TypeScript."
         ]
       },
       "interpretation": "A positive result supports LinkML only as structural vocabulary/projection tooling; semantic authority remains in deterministic Overcenter mechanisms.",
