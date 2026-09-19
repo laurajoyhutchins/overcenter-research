@@ -259,3 +259,62 @@ test('explanations are total only for projected obligations',()=>{
     /UNKNOWN_OBLIGATION:missing/,
   );
 });
+
+
+test('static effect-conflict provenance preserves obligation IDs containing colons',()=>{
+  const left:Obligation={
+    id:'left:status',
+    dependencies:[],
+    packet:{},
+    postcondition:{
+      verifier:'github-commit-status/v2',
+      provider:'github',
+      repository_id:1,
+      repository_full_name:'example/repo',
+      commit_sha:'a'.repeat(40),
+      context:'overcenter/test',
+      expected_state:'success',
+    },
+  };
+  const right:Obligation={
+    id:'right:status',
+    dependencies:[],
+    packet:{},
+    postcondition:{
+      verifier:'github-commit-status/v2',
+      provider:'github',
+      repository_id:1,
+      repository_full_name:'example/repo',
+      commit_sha:'a'.repeat(40),
+      context:'overcenter/test',
+      expected_state:'failure',
+    },
+  };
+  const conflicting:State={
+    obligations:{
+      [left.id]:left,
+      [right.id]:right,
+    },
+    definition_commits:{
+      [left.id]:'define-left',
+      [right.id]:'define-right',
+    },
+  };
+  const project=deriveProjectProjection({
+    state:conflicting,
+    runs:new Map(),
+    receiptsByRun:new Map(),
+    revision:'legacy-conflict',
+  });
+
+  const explanation=explainProjectWork(project,left.id);
+  assert.equal(explanation.status,'BLOCKED');
+  assert.equal(explanation.reason.kind,'static-effect-conflict');
+  if (explanation.reason.kind!=='static-effect-conflict') {
+    assert.fail('expected static-effect-conflict explanation');
+  }
+  assert.deepEqual(
+    explanation.reason.conflicting_obligations,
+    ['left:status','right:status'],
+  );
+});
