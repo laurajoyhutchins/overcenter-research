@@ -31,19 +31,13 @@ export function githubCommitStatusEffectAuthority():EffectAuthority {
   };
 }
 
-export function deriveAuthorizedProviderEffect(
+export function derivePinnedProviderEffect(
   work:Obligation,
 ):AuthorizedProviderEffect|null {
   const authority=work.effect_authority;
   if (!authority) return null;
 
   if (authority.contract===GITHUB_COMMIT_STATUS_EFFECT_CONTRACT) {
-    if (
-      authority.adapter_contract_digest
-      !==GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST
-    ) {
-      throw new Error('EFFECT_ADAPTER_CONTRACT_MISMATCH');
-    }
     const effect=deriveGithubCommitStatusEffect(work.postcondition);
     if (!effect) throw new Error('EFFECT_AUTHORITY_POSTCONDITION_MISMATCH');
     const payload={
@@ -59,6 +53,21 @@ export function deriveAuthorizedProviderEffect(
 
   const exhaustive:never=authority;
   throw new Error(`UNSUPPORTED_EFFECT_AUTHORITY:${String(exhaustive)}`);
+}
+
+export function deriveAuthorizedProviderEffect(
+  work:Obligation,
+):AuthorizedProviderEffect|null {
+  const pinned=derivePinnedProviderEffect(work);
+  if (!pinned) return null;
+  if (
+    pinned.effect_contract===GITHUB_COMMIT_STATUS_EFFECT_CONTRACT
+    && pinned.adapter_contract_digest
+      !==GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST
+  ) {
+    throw new Error('EFFECT_ADAPTER_CONTRACT_MISMATCH');
+  }
+  return pinned;
 }
 
 export async function executeAuthorizedProviderEffect(
