@@ -1,0 +1,46 @@
+name: Production criticality ranking
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'experiments/**'
+      - '.github/workflows/production-criticality-ranking.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rank:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Install pinned TypeScript analyzer
+        run: npm install --no-save --ignore-scripts typescript@5.8.3
+      - name: Prove analyzer invariants
+        run: node --test experiments/production-criticality-ranking/analyze.test.mjs
+      - name: Rank production callables
+        run: |
+          node experiments/production-criticality-ranking/analyze.mjs \
+            --config experiments/production-criticality-ranking/config.json \
+            --json criticality.json \
+            --markdown criticality.md \
+            --fail-calibration
+      - name: Show ranking
+        if: always()
+        run: cat criticality.md || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-criticality-ranking
+          path: |
+            criticality.json
+            criticality.md
+          if-no-files-found: ignore
