@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { sha256 } from './digest.ts';
 import type {
   AbsenceEvidenceCertificate,
   Observation,
@@ -28,7 +28,6 @@ export interface ObservationContext {
   clock?: () => string;
 }
 
-const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 const errorMessage=(e:unknown)=>e instanceof Error ? e.message : String(e);
 
 export function validatePostcondition(p: Postcondition): void {
