@@ -288,6 +288,27 @@ test('absence certificate cannot cross namespace or name coordinates',()=>{
   );
 });
 
+test('durable LIST page-chain tampering cannot authorize absence',()=>{
+  const result=observeCertifiedKubernetesConfigMap(pc(),{list:pagedAbsence()});
+  assert.equal(result.state,'absent');
+  assert.ok(result.absence_evidence);
+
+  const badDigest=structuredClone(result.absence_evidence);
+  badDigest.completeness.page_chain_digest=`sha256:${'0'.repeat(64)}`;
+  assert.equal(
+    kubernetesConfigMapAbsenceEvidenceMatches(badDigest,pc()),
+    false,
+  );
+
+  const brokenChain=structuredClone(result.absence_evidence);
+  const pages=brokenChain.provenance.pages as Array<Record<string,unknown>>;
+  pages[1].request_continue='wrong-token';
+  assert.equal(
+    kubernetesConfigMapAbsenceEvidenceMatches(brokenChain,pc()),
+    false,
+  );
+});
+
 test('broken WATCH continuity cannot carry LIST absence forward',()=>{
   const result=observeCertifiedKubernetesConfigMap(pc(),{list:pagedAbsence()});
   assert.equal(result.state,'absent');
