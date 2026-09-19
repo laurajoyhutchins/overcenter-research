@@ -1,4 +1,4 @@
-import { appendFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { request } from 'node:http';
 
@@ -58,6 +58,11 @@ if (mode==='env') {
   process.stdout.write('symlink-created');
 } else if (mode==='network-effect-then-write') {
   postThenWrite(arg,pidFile,1500);
+} else if (mode==='detect-git-auth') {
+  const config=readFileSync(arg,'utf8');
+  const present=/authorization|extraheader/i.test(config);
+  writeFileSync(pidFile,present?'present':'absent');
+  process.stdout.write('credential-check-complete');
 } else if (
   mode==='tree-ignore-term'
   || mode==='tree-child-ignore-term'
