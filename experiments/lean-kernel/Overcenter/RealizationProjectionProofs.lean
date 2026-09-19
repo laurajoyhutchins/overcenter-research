@@ -18,8 +18,15 @@ theorem mutable_done_requires_fresh_verification
           simp [projectCurrentRealization, active, key] at done
       | some currentKey =>
           by_cases same : run.obligationKey == currentKey
-          · cases run.status <;>
-              simp [projectCurrentRealization, active, key, same, currentFromExecution] at done
+          · cases status : run.status <;>
+              simp [
+                projectCurrentRealization,
+                active,
+                key,
+                same,
+                currentFromExecution,
+                status
+              ] at done
           · simp [projectCurrentRealization, active, key, same] at done
   | none =>
       cases key : input.currentKey with
@@ -42,7 +49,7 @@ theorem mutable_done_requires_fresh_verification
               | some observation =>
                   cases disposition : settle input.postcondition observation with
                   | done =>
-                      exact ⟨observation, fresh, disposition⟩
+                      exact ⟨observation, rfl, rfl⟩
                   | ready =>
                       simp [
                         projectCurrentRealization,
@@ -79,7 +86,7 @@ theorem mutable_done_requires_fresh_verification
               | some observation =>
                   cases disposition : settle input.postcondition observation with
                   | done =>
-                      exact ⟨observation, fresh, disposition⟩
+                      exact ⟨observation, rfl, rfl⟩
                   | ready =>
                       simp [
                         projectCurrentRealization,
