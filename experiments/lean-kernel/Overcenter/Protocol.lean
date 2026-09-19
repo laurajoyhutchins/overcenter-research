@@ -174,7 +174,6 @@ private def parseExecutionSeed (json : Json) : Except String ExecutionState := d
   pure {
     runId := ← stringField json "run_id"
     obligationId := ← stringField json "obligation_id"
-    parentRevision := ← stringField json "parent_revision"
     claimedRevision := ← stringField json "claimed_revision"
     claimCommit := ← stringField json "claim_commit"
     generation := ← natField json "generation"
@@ -315,6 +314,7 @@ private def parseClaimCandidate (json : Json) : Except String ClaimCandidate := 
   pure {
     runId := ← stringField json "run_id"
     obligationId := ← stringField json "obligation_id"
+    parentRevision := ← stringField json "parent_revision"
     claimedRevision := ← stringField json "claimed_revision"
     obligationKey := ← parseClaimKey (← field json "obligation_key")
     capabilityDigest := ← stringField json "capability_digest"
