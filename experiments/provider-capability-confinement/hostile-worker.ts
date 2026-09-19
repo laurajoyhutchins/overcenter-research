@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
-import { effectReadySignal } from '../../src/execution-signal.ts';
+import { workerResult } from '../../src/realization.ts';
 import { githubProofStateRef } from '../proof-environment.ts';
 
 function required(name:string):string {
@@ -42,19 +42,12 @@ assert.equal(candidates.length,1);
 const work=candidates[0];
 assert.equal(work.execution_generation,1);
 assert.equal(work.postcondition.verifier,'github-commit-status/v1');
-if (work.postcondition.verifier!=='github-commit-status/v1') {
-  throw new Error('WRONG_VERIFIER');
-}
+if (work.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha,sourceSha);
 
-const repositoryResponse=await github(
-  '/repositories/'+work.postcondition.repository_id,
-);
+const repositoryResponse=await github('/repositories/'+work.postcondition.repository_id);
 assert.equal(repositoryResponse.status,200);
-const repository=await repositoryResponse.json() as {
-  id:number;
-  full_name:string;
-};
+const repository=await repositoryResponse.json() as {id:number;full_name:string};
 assert.equal(repository.id,work.postcondition.repository_id);
 
 const directContexts=[
@@ -75,45 +68,53 @@ for (const context of directContexts) {
     },
   );
   directStatuses.push(response.status);
-  assert.equal(
-    response.status,
-    403,
-    'worker unexpectedly mutated provider at '+context,
-  );
+  assert.equal(response.status,403);
 }
 
-const valid=effectReadySignal();
+const valid=workerResult({
+  kind:'provider-capability-confinement-result/v1',
+  source_sha:sourceSha,
+  authorized_write_status:directStatuses[0],
+  forged_write_status:directStatuses[1],
+});
+
 const variants:Record<string,unknown>={
   valid,
-  'target-run':{...valid,run_id:'some-other-run'},
-  'target-obligation':{...valid,obligation_id:'some-other-obligation'},
-  'target-revision':{...valid,claimed_revision:'forged-revision'},
-  'target-repository':{...valid,repository_id:work.postcondition.repository_id+1},
-  'target-commit':{...valid,commit_sha:'0'.repeat(40)},
-  'target-context':{...valid,context:work.postcondition.context+'/forged'},
-  'target-state':{...valid,state:'failure'},
+  'forged-result':workerResult({
+    kind:'provider-capability-confinement-result/v1',
+    source_sha:sourceSha,
+    authorized_write_status:201,
+    forged_write_status:201,
+  }),
+  'target-run':{...structuredClone(valid),run_id:'some-other-run'},
+  'target-obligation':{...structuredClone(valid),obligation_id:'some-other-obligation'},
+  'target-repository':{...structuredClone(valid),repository_id:work.postcondition.repository_id+1},
+  'target-commit':{...structuredClone(valid),commit_sha:'0'.repeat(40)},
+  'target-context':{...structuredClone(valid),context:work.postcondition.context+'/forged'},
+  'target-state':{...structuredClone(valid),state:'failure'},
   'smuggled-effect':{
-    ...valid,
+    ...structuredClone(valid),
     effect:{
       kind:'github-commit-status/v1',
-      repository_id:work.postcondition.repository_id,
-      commit_sha:work.postcondition.commit_sha,
       context:work.postcondition.context+'/forged',
       state:'failure',
     },
   },
-  'extra-field':{...valid,smuggled_provider_argument:'surprise'},
+  'extra-result-field':workerResult({
+    ...(valid.result as Record<string,unknown>),
+    smuggled_provider_argument:'surprise',
+  }),
 };
 
-mkdirSync('candidate-signals',{recursive:true});
+mkdirSync('candidate-results',{recursive:true});
 for (const [name,value] of Object.entries(variants)) {
   writeFileSync(
-    'candidate-signals/'+name+'.json',
+    'candidate-results/'+name+'.json',
     JSON.stringify(value,null,2)+'\n',
   );
 }
 writeFileSync(
-  'candidate-signals/worker-proof.json',
+  'candidate-results/worker-proof.json',
   JSON.stringify({
     direct_provider_statuses:directStatuses,
     direct_contexts:directContexts,
@@ -126,10 +127,9 @@ if (summary) {
     '## Hostile reasoning worker',
     '',
     '- Job permission: contents read only.',
-    '- Direct mutation of authorized context: HTTP '+directStatuses[0]+'.',
-    '- Direct mutation of forged context: HTTP '+directStatuses[1]+'.',
-    '- Emitted one legal effect-ready signal plus nine attempts to smuggle authority-bearing fields.',
-    '- Legal signal contains no run, obligation, revision, repository, commit, context, state, or effect payload.',
+    '- Direct writes to authorized and forged coordinates both returned HTTP 403.',
+    '- Emitted one acceptable result plus nine forged/smuggled variants.',
+    '- Result bytes never select the provider effect.',
     '',
   ].join('\n'));
 }
