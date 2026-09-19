@@ -328,6 +328,23 @@ test('every intentionally open authority payload is named in contract metadata',
 });
 
 
+test('provider observation schema fences provider-specific outer extensions',()=>{
+  const generic=schemaCandidate=>schemaCandidate;
+  const providerDefs=observationSchema.$defs;
+  assert.equal(
+    providerDefs.KubernetesProviderContract.properties.provider.const,
+    'kubernetes',
+  );
+  const genericProviderConstraint=
+    providerDefs.GenericProviderObservation.properties.contract.allOf[1]
+      .properties.provider.not.const;
+  assert.equal(genericProviderConstraint,'kubernetes');
+  assert.equal(
+    providerDefs.KubernetesProviderObservation.required.includes('authority_id'),
+    true,
+  );
+});
+
 test('observation contract separates envelope validity from negative-evidence authority',()=>{
   assert.equal(observationContract.id,'observation-evidence');
   assert.equal(observationContract.version,'1.0.0');

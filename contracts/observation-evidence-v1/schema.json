@@ -3,34 +3,6 @@
   "$id": "https://overcenter.dev/contracts/observation-evidence-v1/schema.json",
   "title": "Overcenter observation and evidence v1",
   "$defs": {
-    "ProviderContract": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "provider",
-        "api_version",
-        "operation_id",
-        "schema_sha256"
-      ],
-      "properties": {
-        "provider": {
-          "type": "string",
-          "minLength": 1
-        },
-        "api_version": {
-          "type": "string",
-          "minLength": 1
-        },
-        "operation_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "schema_sha256": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        }
-      }
-    },
     "ObservationObserver": {
       "type": "object",
       "additionalProperties": false,
@@ -75,49 +47,6 @@
         }
       }
     },
-    "GithubProviderObservation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "contract",
-        "observer",
-        "observed_at",
-        "request",
-        "response",
-        "outcome"
-      ],
-      "properties": {
-        "contract": {
-          "$ref": "#/$defs/ProviderContract"
-        },
-        "observer": {
-          "$ref": "#/$defs/ObservationObserver"
-        },
-        "observed_at": {
-          "type": "string",
-          "minLength": 1
-        },
-        "request": {
-          "type": "object",
-          "additionalProperties": true,
-          "x-overcenter-providerOwned": true
-        },
-        "response": {
-          "type": "object",
-          "additionalProperties": true,
-          "x-overcenter-providerOwned": true
-        },
-        "outcome": {
-          "$ref": "#/$defs/ProviderOutcome"
-        },
-        "structural_validation": {
-          "$ref": "#/$defs/StructuralValidationCertificate"
-        },
-        "revalidated_from": {
-          "$ref": "#/$defs/RevalidationProvenance"
-        }
-      }
-    },
     "KubernetesProviderObservation": {
       "type": "object",
       "additionalProperties": false,
@@ -132,7 +61,7 @@
       ],
       "properties": {
         "contract": {
-          "$ref": "#/$defs/ProviderContract"
+          "$ref": "#/$defs/KubernetesProviderContract"
         },
         "observer": {
           "$ref": "#/$defs/ObservationObserver"
@@ -169,7 +98,7 @@
     "ProviderObservation": {
       "oneOf": [
         {
-          "$ref": "#/$defs/GithubProviderObservation"
+          "$ref": "#/$defs/GenericProviderObservation"
         },
         {
           "$ref": "#/$defs/KubernetesProviderObservation"
@@ -761,6 +690,144 @@
         "etag": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "GenericProviderContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "api_version",
+        "operation_id",
+        "schema_sha256"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "api_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "GithubProviderContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "api_version",
+        "operation_id",
+        "schema_sha256"
+      ],
+      "properties": {
+        "provider": {
+          "const": "github"
+        },
+        "api_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "KubernetesProviderContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "api_version",
+        "operation_id",
+        "schema_sha256"
+      ],
+      "properties": {
+        "provider": {
+          "const": "kubernetes"
+        },
+        "api_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "GenericProviderObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "observer",
+        "observed_at",
+        "request",
+        "response",
+        "outcome"
+      ],
+      "properties": {
+        "contract": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/GenericProviderContract"
+            },
+            {
+              "properties": {
+                "provider": {
+                  "not": {
+                    "const": "kubernetes"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "observer": {
+          "$ref": "#/$defs/ObservationObserver"
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request": {
+          "type": "object",
+          "x-overcenter-providerOwned": true,
+          "additionalProperties": true
+        },
+        "response": {
+          "type": "object",
+          "x-overcenter-providerOwned": true,
+          "additionalProperties": true
+        },
+        "outcome": {
+          "$ref": "#/$defs/ProviderOutcome"
+        },
+        "structural_validation": {
+          "$ref": "#/$defs/StructuralValidationCertificate"
+        },
+        "revalidated_from": {
+          "$ref": "#/$defs/RevalidationProvenance"
         }
       }
     }
