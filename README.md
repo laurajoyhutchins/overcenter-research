@@ -196,6 +196,10 @@ The short version: changes should name the claim they affect, the hostile case t
 
 For suspected security issues, see [`SECURITY.md`](./SECURITY.md).
 
+## License
+
+Overcenter is licensed under the [Apache License 2.0](./LICENSE).
+
 ## Architectural test
 
 When adding machinery, ask:
