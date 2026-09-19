@@ -67,25 +67,28 @@ def validKubernetesMember
   !member.resourceVersion.isEmpty
 
 def validKubernetesPage
-    (namespaceName snapshotResourceVersion : String)
+    (authorityId namespaceName snapshotResourceVersion : String)
     (expectedRequest : Option String)
     (page : KubernetesListPage) : Bool :=
+  page.authorityId == authorityId &&
+  page.requestNamespace == namespaceName &&
   page.requestContinue == expectedRequest &&
   page.snapshotResourceVersion == snapshotResourceVersion &&
   page.members.all (validKubernetesMember namespaceName)
 
 def validKubernetesPages
-    (namespaceName snapshotResourceVersion : String)
+    (authorityId namespaceName snapshotResourceVersion : String)
     (expectedRequest : Option String) :
     List KubernetesListPage → Bool
   | [] => false
   | page :: [] =>
-      validKubernetesPage namespaceName snapshotResourceVersion expectedRequest page &&
+      validKubernetesPage authorityId namespaceName snapshotResourceVersion expectedRequest page &&
       page.responseContinue == ""
   | page :: next :: rest =>
-      validKubernetesPage namespaceName snapshotResourceVersion expectedRequest page &&
+      validKubernetesPage authorityId namespaceName snapshotResourceVersion expectedRequest page &&
       !page.responseContinue.isEmpty &&
       validKubernetesPages
+        authorityId
         namespaceName
         snapshotResourceVersion
         (some page.responseContinue)
@@ -104,10 +107,10 @@ def classifyKubernetesList
     (snapshotResourceVersion : String)
     (pages : List KubernetesListPage) : KubernetesListState :=
   match coordinate with
-  | .kubernetesConfigMap _ namespaceName targetName =>
+  | .kubernetesConfigMap authorityId namespaceName targetName =>
       if snapshotResourceVersion.isEmpty then
         .indeterminate
-      else if !validKubernetesPages namespaceName snapshotResourceVersion none pages then
+      else if !validKubernetesPages authorityId namespaceName snapshotResourceVersion none pages then
         .indeterminate
       else if kubernetesTargetPresent namespaceName targetName pages then
         .present
