@@ -16,8 +16,8 @@ derive READY work
 claim @ exact revision
         ↓
 choose trusted execution boundary
-        ├── pure computation → exact ProcessSpec → isolated executor
-        └── provider effect  → durable reservation → trusted mutation
+        ├── supported: replay-safe computation → isolated executor
+        └── research-held: provider effect → explicit authority + broker
         ↓
 observe authoritative reality
         ↓
@@ -41,7 +41,7 @@ The supported implementation boundary is intentionally smaller than the research
 | worker filesystem/process confinement | Rust | promising experiment, not yet on the supported path |
 | semantic proofs and differential oracles | Lean, Datalog, F*, bounded model checks | evidence only; no runtime authority |
 
-The production path currently proves a real `READY → claim → isolated Go execution → independent observation → settlement` cycle, including executor death, fresh execution generation recovery, and workspace recreation. Mutable historical `DONE` is also rechecked against fresh authority before it may satisfy current project truth.
+The production path currently proves a real `READY → claim → isolated Go execution → trusted evidence check → confined observation → settlement` cycle. Replay after executor death is available only for the replay-safe packet form: its durable obligation identity binds a trusted execution-context digest, the writable workspace begins empty, the source snapshot and container root are read-only, networking is absent, any unresolved provider-effect reservation blocks the replay lane, and trusted recovery must prove the prior containment domain is dead before rotating the execution generation. Mutable historical `DONE` is also rechecked against fresh authority before it may satisfy current project truth.
 
 Run the supported slice with:
 
@@ -49,7 +49,9 @@ Run the supported slice with:
 npm run proof:production
 ```
 
-That command is the same machinery CI uses: Go runtime tests, the cross-language exact-byte contract, a networkless read-only container boundary, confined no-follow result observation, catastrophic-death containment, the real test-workload recovery proof, hostile symlink/network checks, and the deterministic repository regression suite.
+That command is the same machinery CI uses: Go runtime tests, the cross-language exact-byte contract, an exact source snapshot, empty writable workspace, networkless read-only container boundary, confined no-follow result observation, failed-attempt rejection, catastrophic-death containment, containment-before-replay fencing, hostile symlink/network/effect-laundering checks, and the deterministic repository regression suite.
+
+Provider mutation is deliberately **not** part of this supported slice. The effect-broker experiments have useful physical credential-separation results, but current red-team evidence shows that production mutation still needs dispatch-bound task sessions, explicit effect authority distinct from observation authority, deterministic verified transition readiness, and one exclusive mutation path before it should be promoted.
 
 ## What is Overcenter?
 
@@ -86,13 +88,13 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Unresolved effects survive authority handoff.** Effects routed through the kernel reservation boundary are durably reserved before mutation; a successor generation may reconcile the reservation but cannot issue another effect through that boundary until authoritative observation settles it.
 - **Semantic dependency identity is explicit.** Control dependencies constrain executability; semantic dependencies contribute selected upstream identity to downstream meaning. Historical realizations are reused only when the current obligation key still matches.
 - **Historical `DONE` does not overrule current reality.** Current project reads and new claims overlay fresh realization-admissibility judgments. Authoritative contradiction can withdraw stale satisfaction, ambiguous readback blocks rather than guesses, and restored reality can reuse the same historical settlement without a repair write.
-- **Pure computation has crossed the production boundary.** The first `test` workload is claimed and fenced in TypeScript, executed through the isolated Go executor over an exact-byte Unix-socket contract, and settled only after independent TypeScript observation. Executor death reconstructs through a fresh generation rather than a durable executor queue.
+- **Replay-safe computation has crossed the production boundary.** The first `test` workload is claimed and fenced in TypeScript, executed through the isolated Go executor over an exact-byte Unix-socket contract, and settled only after successful attempt evidence plus confined TypeScript observation. A failed attempt cannot manufacture `DONE` by writing the expected marker. Executor death can rotate to a fresh generation only when the packet binds the same trusted execution context, no unresolved external effect exists, and the previous containment domain is proven terminated.
 - **Workers are disposable.** A worker can disappear with its checkout, cache, local database, refs, and process memory; a fresh worker can reconstruct the unresolved run from authority and reconcile it.
 - **Settlement is independent of worker assertion.** Verification semantics are committed before execution and authoritative readback determines whether the required postcondition actually holds.
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
-- **The hosted trust-boundary proof separates worker authority from provider mutation authority.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, it emits a candidate effect intent, and a separate trusted broker validates, reserves, and performs the provider mutation before fresh-generation recovery settles from authoritative readback.
+- **The hosted trust-boundary experiment proves physical credential separation for one GitHub mutation path.** The disposable worker has `contents: read` but no `statuses: write`, and its direct status-write attempt is rejected by GitHub. This is evidence for the broker architecture, not a claim that the current effect-ready protocol is production-safe; adversarial tests have since exposed authority-binding gaps that remain research work.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
 
 The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
@@ -107,6 +109,7 @@ The repository deliberately does **not** establish that:
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
+- the current effect-ready/provider-mutation path is production-safe or exclusive;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
 - direct low-level callers outside `runGitCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
@@ -161,7 +164,7 @@ The command name states what kind of evidence a green check supports:
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
-| `npm run proof:production` | Supported production slice: Go executor contract/runtime, networkless/read-only containment, confined observation, catastrophic-death recovery, and deterministic regression. |
+| `npm run proof:production` | Supported computation slice: Go executor contract/runtime, exact source/context identity, networkless/read-only containment, confined observation, teardown-fenced recovery, hostile boundary checks, and deterministic regression. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
