@@ -4,26 +4,20 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - src/graph.ts
-      - src/admission.ts
-      - src/semantics.ts
-      - src/model.ts
-      - src/providers/github-rest.ts
+      - src/**
       - test/lean-semantic-oracle.test.ts
       - .github/workflows/lean-semantic-oracle.yml
       - package.json
+      - .node-version
   push:
     branches:
       - main
     paths:
-      - src/graph.ts
-      - src/admission.ts
-      - src/semantics.ts
-      - src/model.ts
-      - src/providers/github-rest.ts
+      - src/**
       - test/lean-semantic-oracle.test.ts
       - .github/workflows/lean-semantic-oracle.yml
       - package.json
+      - .node-version
 
 permissions:
   contents: read
