@@ -12,6 +12,8 @@ type Member={
 };
 
 type Page={
+  authority_id:string;
+  request_namespace:string;
   request_continue:string|null;
   response_continue:string;
   snapshot_resource_version:string;
@@ -20,6 +22,8 @@ type Page={
 
 function page(overrides:Partial<Page>={}):Page {
   return {
+    authority_id:'kind:test-cluster',
+    request_namespace:'proof',
     request_continue:null,
     response_continue:'',
     snapshot_resource_version:'500',
@@ -115,6 +119,20 @@ test('Kubernetes LIST hostile pagination cases fail closed at the Lean boundary'
             resource_version:'499',
           }],
         }),
+      ],
+    },
+    {
+      name:'wrong page authority',
+      pages:[
+        page({authority_id:'kind:other-cluster',response_continue:'token-1'}),
+        page({request_continue:'token-1'}),
+      ],
+    },
+    {
+      name:'wrong request namespace',
+      pages:[
+        page({request_namespace:'other',response_continue:'token-1'}),
+        page({request_continue:'token-1'}),
       ],
     },
     {
