@@ -68,3 +68,8 @@ jobs:
         run: >-
           node --experimental-strip-types
           experiments/lean-runtime-performance/benchmark.ts
+
+      - name: Run adversarial topology benchmark
+        run: >-
+          node --experimental-strip-types
+          experiments/lean-runtime-performance/topology-benchmark.ts
