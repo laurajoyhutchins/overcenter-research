@@ -42,6 +42,18 @@ function executableConfigFiles():string[] {
   );
 }
 
+test('active surfaces use self-application terminology consistently',()=>{
+  const legacyTerm=['dog','food'].join('');
+  const paths=[...executableConfigFiles(),'README.md','executor/README.md'];
+  for (const path of paths) {
+    assert.equal(
+      read(path).toLowerCase().includes(legacyTerm),
+      false,
+      `${path} contains legacy self-use terminology`,
+    );
+  }
+});
+
 test('runtime toolchains and executor images have exact checked-in identities',()=>{
   const nodeVersion=read('.node-version').trim();
   const goVersion=read('.go-version').trim();
