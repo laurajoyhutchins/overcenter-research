@@ -82,3 +82,6 @@ jobs:
 
       - name: Execution replay differential proof
         run: node --experimental-strip-types --test experiments/lean-kernel/execution-replay-differential.test.ts
+
+      - name: Claim admission differential proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/claim-admission-differential.test.ts
