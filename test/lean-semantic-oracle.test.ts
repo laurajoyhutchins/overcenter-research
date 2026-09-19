@@ -532,6 +532,61 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
       );
       comparisons+=1;
     }
+
+    const multiEffectConflict=stateFromDependencies(
+      [[],[],[]],
+      {
+        target:0,
+        competitor:1,
+        targetDesired:'success',
+        competitorDesired:'success',
+      },
+    );
+    multiEffectConflict.obligations['n-2'].postcondition=
+      statusPostcondition('failure');
+    for(const order of [forward,reverse]){
+      const observed=await oracle.compare(
+        leanRequest(multiEffectConflict,'n-0',order),
+      );
+      assert.equal(
+        observed.optimized_effect_conflict,
+        observed.reference_effect_conflict,
+      );
+      assert.equal(
+        observed.reference_effect_conflict,
+        staticEffectConflict(multiEffectConflict,'n-0')!==null,
+      );
+      comparisons+=1;
+    }
+
+    const multiEffectSafe=stateFromDependencies(
+      [[],[],[]],
+      {
+        target:0,
+        competitor:1,
+        targetDesired:'success',
+        competitorDesired:'success',
+      },
+    );
+    multiEffectSafe.obligations['n-2'].postcondition=
+      statusPostcondition(
+        'failure',
+        'overcenter/lean-oracle/other',
+      );
+    for(const order of [forward,reverse]){
+      const observed=await oracle.compare(
+        leanRequest(multiEffectSafe,'n-0',order),
+      );
+      assert.equal(
+        observed.optimized_effect_conflict,
+        observed.reference_effect_conflict,
+      );
+      assert.equal(
+        observed.reference_effect_conflict,
+        staticEffectConflict(multiEffectSafe,'n-0')!==null,
+      );
+      comparisons+=1;
+    }
   }finally{
     await oracle.close();
   }
