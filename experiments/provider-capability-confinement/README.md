@@ -2,112 +2,84 @@
 
 ## Question
 
-Can the real execution substrate enforce the capability structure suggested by the Pulse experiment without asking the worker to restate provider authority?
+Can an untrusted reasoning worker participate in an effectful task without
+possessing provider mutation credentials or choosing the provider mutation?
 
-The supported claim is narrower than provider-native least privilege. GitHub gives the trusted broker repository-scoped `statuses: write`; it does not issue a credential restricted to one SHA/context coordinate.
-
-Overcenter instead uses this boundary:
-
-```text
-trusted scheduler / authority
-        │
-        ├── exact run
-        ├── claimed revision
-        └── worker generation
-                 │
-                 ▼
-       server-side TaskSession
-
-untrusted reasoning worker
-  contents: read
-  statuses: none
-        │
-        │  { schema, kind:"effect-ready" }
-        ▼
-trusted broker
-        │
-        ├── validate two-field signal
-        ├── resolve exact TaskSession
-        ├── fence expected generation
-        ├── derive provider effect from postcondition
-        ├── reserve effect durably
-        └── execute provider adapter
-                 │
-                 ▼
-               GitHub
-```
-
-The worker does not name:
-
-- obligation;
-- run;
-- revision;
-- repository;
-- commit;
-- context;
-- desired state;
-- provider operation;
-- provider request body.
-
-Those values are not merely rejected when wrong. They are absent from the legal worker protocol.
-
-## Hostile cases
-
-The untrusted worker:
-
-- attempts direct GitHub status mutation of the authorized coordinate;
-- attempts direct mutation of a forged sibling coordinate;
-- emits one valid `effect-ready` signal;
-- tries to smuggle run, obligation, revision, repository, commit, context, state, an entire effect object, and an unrelated extra field into otherwise valid signals.
-
-The direct writes must return HTTP 403.
-
-Every signal carrying an authority-bearing field must fail protocol validation before execution authority changes.
-
-The broker then binds the legal signal to the exact authoritative run and generation.
-
-## Session and replay fences
-
-A TaskSession is broker-side state, not a worker credential.
-
-It binds:
+For the hosted GitHub commit-status path, the repaired boundary is:
 
 ```text
-run id
-obligation id
-claimed revision
-worker execution generation
+trusted authority
+  define obligation
+    + explicit effect contract
+    + pinned adapter contract digest
+    + deterministic result acceptance
+  claim run
+  bind TaskSession(g1)
+        │
+        ├── trusted session artifact ─────────────┐
+        │                                         │
+        ▼                                         │
+untrusted worker                                  │
+  contents: read                                  │
+  statuses: none                                  │
+  direct provider writes -> HTTP 403              │
+  emit result data                                │
+        │                                         │
+        └── untrusted result artifact ───────┐     │
+                                             ▼     ▼
+                                         trusted broker
+                                           verify result
+                                           commit realization
+                                           fence original session
+                                           derive explicit effect
+                                           reserve exact identity
+                                           execute once
+                                                 │
+                                                 ▼
+                                               GitHub
 ```
 
-After the first authorized effect:
+The session is bound before worker execution. The worker result does not carry
+authority, and no worker `effect-ready` assertion exists.
 
-1. the original worker session is stale and must fail with `TASK_SESSION_STALE`;
-2. a freshly bound session may rotate execution authority;
-3. the existing durable reservation must still reject replay with `UNRESOLVED_EFFECT` before a second provider mutation occurs.
+## Explicit mutation authority
 
-Recovery then observes exactly one authorized status record and settles from canonical readback.
+A verifier/postcondition describes what authoritative observation means. It does
+not grant permission to make that state true.
 
-## Provider command derivation
-
-For the GitHub commit-status path the obligation postcondition is sufficient authority for the provider adapter:
+An effectful obligation separately carries:
 
 ```text
-github commit-status postcondition
-        │
-        ▼
-deriveGithubCommitStatusEffect(...)
-        │
-        ▼
-trusted GitHub effect adapter
-        │
-        ▼
-POST /repos/{canonical repo}/statuses/{sha}
+effect contract
++ pinned adapter-contract digest
 ```
 
-The experiment no longer stores a duplicate `packet.effect` for this path.
+For the demonstrated path the contract is
+`github-commit-status/set-from-postcondition/v1`. The adapter derives the
+repository, SHA, context, and desired state from the authoritative postcondition,
+so those coordinates are not duplicated.
 
-## What success does not mean
+An otherwise identical GitHub-status obligation without an effect grant remains
+observation-only.
 
-This does not make GitHub's credential itself coordinate-scoped. The broker remains trusted and its provider credential is broader than the task.
+## Accepted realization
 
-A task-specific local executable can still be useful ergonomically, but it does not provide this security property. A hostile worker can bypass local software. The actual boundary is isolated provider credentials, broker-side task-session binding, exact-generation fencing, provider-effect derivation from authority, and durable reservation.
+When `result_acceptance` is present, the broker cannot reserve an effect until
+the kernel has committed an accepted-realization fact bound to the original run,
+revision, execution generation, and authority commit.
+
+A stale dispatch session cannot accept a result after authority rotates.
+
+## Replay
+
+The reservation records the exact effect contract, pinned adapter digest,
+canonical effect digest, and accepted realization identity. A fresh execution
+generation cannot create another reservation while the first remains unresolved.
+
+Recovery independently observes provider truth and settles without replay.
+
+## Boundary
+
+GitHub still gives the trusted broker repository-scoped `statuses: write`.
+Provider-native coordinate-scoped IAM is not claimed. The security property is
+credential isolation plus a single supported broker/adapter mutation path.
