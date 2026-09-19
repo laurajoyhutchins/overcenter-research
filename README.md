@@ -63,7 +63,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Execution authority is independently fenced.** Within the Git kernel permit boundary, recovery can rotate an in-flight run to a new execution generation without changing its claimed revision; the old generation's ephemeral permit is then rejected.
 - **The normal core loop cannot invoke its effect handler before reservation.** Preflight judgment happens before the effect boundary; then the kernel validates the execution permit and durably reserves the effect before invoking the effect callback. The callback receives the work packet, not the `ExecutionPermit`; a failed reservation means provider code is never called.
 - **Unresolved effects survive authority handoff.** Effects routed through the kernel reservation boundary are durably reserved before mutation; a successor generation may reconcile the reservation but cannot issue another effect through that boundary until authoritative observation settles it.
-- **Semantic dependency identity is explicit.** Control dependencies constrain executability; semantic dependencies contribute selected upstream identity to downstream meaning. Historical realizations are reused only when the current obligation key still matches.
+- **Semantic dependency identity is explicit.** Control dependencies constrain executability; semantic dependencies contribute selected upstream identity to downstream meaning. Run-bound historical completion is invalidated when the current obligation key changes. A separate executable proof now establishes producer-independent reuse for content-addressed verified realizations, including material-input invalidation, cache-free reconstruction, and explicit exclusion of mutable external effects.
 - **Workers are disposable.** A worker can disappear with its checkout, cache, local database, refs, and process memory; a fresh worker can reconstruct the unresolved run from authority and reconcile it.
 - **Settlement is independent of worker assertion.** Verification semantics are committed before execution and authoritative readback determines whether the required postcondition actually holds.
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
@@ -87,6 +87,7 @@ The repository deliberately does **not** establish that:
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
 - direct low-level callers outside `runGitCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
+- the Git kernel does not yet admit or consume producer-independent realization facts; its current lifecycle still derives historical completion from runs and receipts;
 - every provider or execution substrate offers an equally strong physical credential boundary; the demonstrated hosted boundary is specifically GitHub Actions job permissions.
 
 The safety claim is narrower: an uncertain or even locally hostile worker does not get to manufacture authoritative project truth merely by claiming success.
@@ -111,6 +112,7 @@ Important entry points:
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
 - [`src/evidence.ts`](./src/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
+- [`src/realization.ts`](./src/realization.ts) - producer-independent material keys, candidate verification, and reusable realization facts.
 - [`src/graph.ts`](./src/graph.ts) - provider-agnostic dependency topology, validation, and ordering queries.
 - [`src/admission.ts`](./src/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
 - [`src/lifecycle.ts`](./src/lifecycle.ts) - semantic realization identity and internal realization lifecycle (`UNREALIZED` through `DONE`).
