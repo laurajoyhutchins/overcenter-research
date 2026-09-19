@@ -60,13 +60,13 @@ private def leafContext : ClaimContext := {
   lifecycles := [{ obligationId := "leaf", status := .unrealized }]
 }
 
-example : claimAdmissible leafContext = true := by decide
-example : claimAdmissible { leafContext with expectedRevision := "stale" } = false := by decide
+example : claimAdmissible leafContext = true := by native_decide
+example : claimAdmissible { leafContext with expectedRevision := "stale" } = false := by native_decide
 example :
     claimAdmissible {
       leafContext with
       lifecycles := [{ obligationId := "leaf", status := .executing }]
-    } = false := by decide
+    } = false := by native_decide
 
 private def upstream : ClaimObligation := {
   id := "upstream"
@@ -93,7 +93,7 @@ private def semanticContext : ClaimContext := {
   ]
 }
 
-example : claimAdmissible semanticContext = true := by decide
+example : claimAdmissible semanticContext = true := by native_decide
 example :
     claimAdmissible {
       semanticContext with
@@ -108,7 +108,7 @@ example :
           }]
         }
       ]
-    } = false := by decide
+    } = false := by native_decide
 
 private def statusSuccess : ClaimEffect := {
   resource := "github-status:1:sha:ctx"
@@ -144,7 +144,7 @@ private def conflictContext : ClaimContext := {
   ]
 }
 
-example : claimAdmissible conflictContext = false := by decide
+example : claimAdmissible conflictContext = false := by native_decide
 
 private def betaOrdered : ClaimObligation := {
   betaConflict with
@@ -158,6 +158,6 @@ example :
     claimAdmissible {
       conflictContext with
       obligations := [alpha, betaOrdered]
-    } = true := by decide
+    } = true := by native_decide
 
 end Overcenter
