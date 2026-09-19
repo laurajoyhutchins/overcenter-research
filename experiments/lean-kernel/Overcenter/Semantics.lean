@@ -12,6 +12,14 @@ def obligationKey (obligation : Obligation) : ObligationKey := {
   semanticInputs := obligation.semanticInputs
 }
 
+def realizationStability (family : VerifierFamily) : RealizationStability :=
+  match family with
+  | .immutableArtifact => .immutable
+  | .fileContent => .mutableExternal
+  | .eventuallyConsistentFileContent => .mutableExternal
+  | .githubCommitStatus => .mutableExternal
+  | .kubernetesConfigMapExists => .mutableExternal
+
 def sameObservationCoordinate (postcondition : Postcondition) (observation : Observation) : Bool :=
   postcondition.family == observation.family &&
   postcondition.verifierRevision == observation.verifierRevision &&
@@ -52,7 +60,7 @@ def reusable
     (freshObservation : Option Observation) : Bool :=
   if historical.disposition = .done then
     if historical.key = obligationKey current then
-      match historical.stability with
+      match realizationStability current.postcondition.family with
       | .immutable => true
       | .mutableExternal =>
           match freshObservation with
