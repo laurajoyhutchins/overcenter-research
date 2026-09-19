@@ -15,6 +15,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
+- `linkml-ontology/` - structural ontology audition: one LinkML model projected to JSON Schema, TypeScript, and SHACL with an explicit semantic-boundary negative control.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.

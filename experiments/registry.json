@@ -323,6 +323,44 @@
       ]
     },
     {
+      "id": "linkml-ontology",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/linkml-ontology",
+      "readme": "experiments/linkml-ontology/README.md",
+      "question": "Can LinkML own Overcenter's structural ontology vocabulary without owning semantic truth?",
+      "claim": "On a representative slice, LinkML deterministically projects one structural model and rejects structural contradictions while semantic identity remains an external invariant.",
+      "contrast": "Hand-maintain vocabulary and structural constraints independently across TypeScript, data contracts, documentation, and graph representations.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:linkml-ontology"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "LinkML 1.11.1",
+        "Python >=3.10; hosted proof uses ubuntu-24.04 Python and records the resolved dependency set."
+      ],
+      "success_criteria": [
+        "Schema and valid fixture validate while missing evidence and undeclared vocabulary fail.",
+        "Repeated JSON Schema, TypeScript, and SHACL generation is byte-identical within one pinned toolchain run.",
+        "Renaming a modeled relation changes all three tested projections.",
+        "A semantic-key mismatch remains structurally valid in LinkML and is rejected by an independent Overcenter semantic check."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          "Pending exact-head GitHub Actions run."
+        ]
+      },
+      "interpretation": "A positive result supports LinkML only as structural vocabulary/projection tooling; semantic authority remains in deterministic Overcenter mechanisms.",
+      "non_claims": [
+        "LinkML expresses Overcenter's temporal, transactional, evidentiary, or authority semantics.",
+        "LinkML belongs in the production runtime.",
+        "Generated TypeScript is a runtime validator.",
+        "Every generator preserves every source constraint."
+      ]
+    },
+    {
       "id": "lisp-semantics",
       "kind": "experiment",
       "status": "maintained",
@@ -385,6 +423,14 @@
       "non_claims": [
         "Anything outside the documented experiment boundary."
       ]
+    },
+    {
+      "id": "provider-observation",
+      "kind": "support",
+      "status": "maintained",
+      "directory": "experiments/provider-observation",
+      "readme": "experiments/provider-observation/README.md",
+      "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     },
     {
       "id": "sqlite-baseline",
@@ -481,14 +527,6 @@
       "non_claims": [
         "Anything outside the documented experiment boundary."
       ]
-    },
-    {
-      "id": "provider-observation",
-      "kind": "support",
-      "status": "maintained",
-      "directory": "experiments/provider-observation",
-      "readme": "experiments/provider-observation/README.md",
-      "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     }
   ]
 }

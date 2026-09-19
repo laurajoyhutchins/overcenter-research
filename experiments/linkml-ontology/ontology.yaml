@@ -1,0 +1,107 @@
+id: https://overcenter.dev/schema/ontology-experiment
+name: overcenter_ontology_experiment
+title: Overcenter ontology experiment slice
+description: >-
+  A deliberately small structural slice used to test whether LinkML can serve
+  as a canonical vocabulary and projection source without owning Overcenter's
+  temporal, evidentiary, or settlement semantics.
+license: Apache-2.0
+prefixes:
+  oc: https://overcenter.dev/ontology/
+  linkml: https://w3id.org/linkml/
+default_prefix: oc
+default_range: string
+
+classes:
+  OntologySlice:
+    tree_root: true
+    description: One obligation, one attempt, and one settlement for the bounded experiment.
+    attributes:
+      obligation:
+        range: Obligation
+        required: true
+        inlined: true
+      attempt:
+        range: Attempt
+        required: true
+        inlined: true
+      settlement:
+        range: Settlement
+        required: true
+        inlined: true
+
+  Obligation:
+    description: A durable requirement identified by its current semantic meaning.
+    attributes:
+      id:
+        identifier: true
+        required: true
+      semantic_key:
+        required: true
+      material_inputs:
+        range: MaterialInput
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        required: true
+        minimum_cardinality: 1
+
+  MaterialInput:
+    description: An input whose identity contributes to obligation meaning.
+    attributes:
+      id:
+        identifier: true
+        required: true
+      digest:
+        required: true
+
+  Attempt:
+    description: A physical execution attempt against an obligation.
+    attributes:
+      id:
+        identifier: true
+        required: true
+      obligation:
+        range: Obligation
+        inlined: false
+        required: true
+      execution_identity:
+        required: true
+
+  Evidence:
+    description: Evidence produced or observed for one attempt.
+    attributes:
+      id:
+        identifier: true
+        required: true
+      attempt:
+        range: Attempt
+        inlined: false
+        required: true
+      semantic_key:
+        required: true
+      verifier_version:
+        required: true
+
+  Settlement:
+    description: A candidate authoritative settlement record.
+    attributes:
+      id:
+        identifier: true
+        required: true
+      obligation:
+        range: Obligation
+        inlined: false
+        required: true
+      semantic_key:
+        required: true
+      evidence:
+        range: Evidence
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        required: true
+        minimum_cardinality: 1
+      establishes_project_truth:
+        range: boolean
+        required: true
