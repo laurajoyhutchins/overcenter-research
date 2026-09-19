@@ -76,11 +76,15 @@ Recovery does not reconstruct an in-memory queue. Overcenter re-reads durable fa
 
 ## Catastrophic death
 
-Normal cancellation kills the entire task process group, escalating from SIGTERM to SIGKILL.
+Normal cancellation first fences the task process group, escalating from SIGTERM to SIGKILL.
 
-If the executor itself is SIGKILLed, it can no longer perform process-group cleanup. Linux `Pdeathsig` protects the direct child, but arbitrary grandchildren are not trusted to disappear.
+Process groups are not treated as a complete process tree. The executor also marks itself as a Linux child subreaper. After every top-level task exit it checks for descendants that outlived that parent, including descendants that created a new session/process group. With no other top-level task active, those descendants are SIGKILLed and reaped before executor capacity is reusable. A nominally successful task that leaves a background descendant is reported failed.
 
-Therefore the worker container is the outer containment boundary. CI deliberately kills the executor while a hostile grandchild survives, then asserts that destroying the worker container removes every remaining host process from that container.
+If orphan attribution becomes ambiguous while other top-level tasks are still active, the executor fails its entire lifetime rather than guessing across task boundaries. The trusted host therefore treats the transport loss as a worker failure and recovery begins from durable facts.
+
+If the executor itself is SIGKILLed, none of this local cleanup is available. Linux `Pdeathsig` protects the direct child, but arbitrary detached descendants are not trusted to disappear.
+
+Therefore the worker container is the outer containment boundary. CI deliberately kills the executor while a detached hostile grandchild survives, then asserts that destroying the worker container removes every remaining host process from that container.
 
 ## Wire contract
 
