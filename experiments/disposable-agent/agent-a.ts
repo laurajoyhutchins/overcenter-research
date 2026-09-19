@@ -45,8 +45,8 @@ assert.equal(candidates.length, 1, `expected one immutable execution snapshot, f
 const work = candidates[0];
 const snapshot = structuredClone(work);
 assert.ok(snapshot.run_id);
-assert.equal(snapshot.postcondition.verifier, 'github-commit-status/v1');
-if (snapshot.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
+assert.equal(snapshot.postcondition.verifier, 'github-commit-status/v2');
+if (snapshot.postcondition.verifier !== 'github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 assert.equal(snapshot.postcondition.commit_sha, sourceSha);
 
 const attacker = join(tmpdir(), `overcenter-attacker-${workflowRunId}.git`);
@@ -56,13 +56,8 @@ execFileSync('git', ['update-ref', stateRef, sourceSha], { stdio: 'ignore' });
 writeFileSync('src/git-kernel.ts', '// Agent A locally replaced the kernel. This must not affect authority.\n');
 writeFileSync('agent-cache.sqlite', 'arbitrary disposable local database');
 
-const repositoryIdentity = await github(`/repositories/${snapshot.postcondition.repository_id}`);
-if (!repositoryIdentity.ok) throw new Error(`repository identity read failed: ${repositoryIdentity.status}`);
-const repository = await repositoryIdentity.json() as { id: number; full_name: string };
-assert.equal(repository.id, snapshot.postcondition.repository_id);
-
 const attemptedAuthorityRewrite = await github(
-  `/repos/${repository.full_name}/git/refs/${stateRefApi}`,
+  `/repos/${snapshot.postcondition.repository_full_name}/git/refs/${stateRefApi}`,
   {
     method: 'PATCH',
     body: JSON.stringify({ sha: sourceSha, force: true }),
@@ -70,13 +65,13 @@ const attemptedAuthorityRewrite = await github(
 );
 assert.equal(attemptedAuthorityRewrite.ok, false, 'worker token unexpectedly rewrote project authority');
 
-const authoritativeRef = await github(`/repos/${repository.full_name}/git/ref/${stateRefApi}`);
+const authoritativeRef = await github(`/repos/${snapshot.postcondition.repository_full_name}/git/ref/${stateRefApi}`);
 if (!authoritativeRef.ok) throw new Error(`authority read failed: ${authoritativeRef.status}`);
 const authoritative = await authoritativeRef.json() as { object: { sha: string } };
 assert.equal(authoritative.object.sha, snapshot.revision, 'sandbox tampering escaped into Git authority');
 
 const attemptedStatus = await github(
-  `/repos/${repository.full_name}/statuses/${snapshot.postcondition.commit_sha}`,
+  `/repos/${snapshot.postcondition.repository_full_name}/statuses/${snapshot.postcondition.commit_sha}`,
   {
     method: 'POST',
     body: JSON.stringify({

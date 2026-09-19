@@ -61,10 +61,9 @@ const betaDone=receipts.filter(receipt=>receipt.obligation_id===beta.id && recei
 assert.equal(alphaDone?.observed?.actual_state,'success');
 assert.equal(betaDone?.observed?.actual_state,'failure');
 
-if (beta.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
-const repoInfo=await github(`/repositories/${beta.postcondition.repository_id}`);
+if (beta.postcondition.verifier!=='github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 const statuses=await github(
-  `/repos/${repoInfo.full_name}/commits/${beta.postcondition.commit_sha}/statuses?per_page=100`,
+  `/repos/${beta.postcondition.repository_full_name}/commits/${beta.postcondition.commit_sha}/statuses?per_page=100`,
 );
 const latest=statuses.find((status:any)=>status.context===beta.postcondition.context);
 assert.equal(latest.state,'failure');

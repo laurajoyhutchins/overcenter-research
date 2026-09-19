@@ -38,7 +38,6 @@
     "unknownProviderObservationFields": "reject unless explicitly declared as a provider extension",
     "unknownSettlementObservationFields": "reject",
     "absenceEnvelopeUnknownFields": "reject",
-    "legacyReceiptV4": "Historical receipt-v4 observations remain permissive on read and are not retroactively upgraded.",
     "changeRule": "New provider-specific evidence kinds may extend the generic envelope only through a new recognized kind contract; authority is opt-in, not inherited."
   },
   "governance": {

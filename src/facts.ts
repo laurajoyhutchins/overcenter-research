@@ -16,9 +16,7 @@ export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
-export const LEGACY_RECEIPT_SCHEMA='overcenter-git-receipt-v4' as const;
 export const RECEIPT_SCHEMA='overcenter-git-receipt-v5' as const;
-export type ReceiptSchema=typeof LEGACY_RECEIPT_SCHEMA|typeof RECEIPT_SCHEMA;
 
 export interface ObligationInput {
   id:string;
@@ -78,7 +76,7 @@ export interface EffectReservation extends EffectReservationFact {
 export type ReceiptKind='observation'|'judgment-required'|'execution-terminated';
 
 export interface ReceiptFact {
-  schema:ReceiptSchema;
+  schema:typeof RECEIPT_SCHEMA;
   run_id:string;
   obligation_id:string;
   claimed_revision:string;
@@ -187,7 +185,6 @@ export function normalizeObligation(input:ObligationInput):Obligation {
 export function validateStoredObligation(obligation:Obligation):Obligation {
   if (!data(obligation)) throw new Error('INVALID_OBLIGATION');
   const raw=obligation as unknown as Record<string,unknown>;
-  if ('deps' in raw) throw new Error('LEGACY_DEPENDENCY_PROJECTION_UNSUPPORTED');
   exactKeys(raw,['id','dependencies','packet','postcondition'],[],'INVALID_OBLIGATION');
   nonEmptyString(obligation.id,'INVALID_OBLIGATION_ID');
   if (!Array.isArray(obligation.dependencies)) throw new Error('INVALID_DEPENDENCIES');
@@ -314,10 +311,7 @@ export function validateReceiptFact(value:unknown):ReceiptFact {
     'observed',
     'settled_at',
   ],['diagnostic'],'INVALID_RECEIPT_FACT');
-  if (
-    value.schema!==RECEIPT_SCHEMA
-    && value.schema!==LEGACY_RECEIPT_SCHEMA
-  ) {
+  if (value.schema!==RECEIPT_SCHEMA) {
     throw new Error('INVALID_RECEIPT_SCHEMA');
   }
   nonEmptyString(value.run_id,'INVALID_RUN_ID');
@@ -335,7 +329,7 @@ export function validateReceiptFact(value:unknown):ReceiptFact {
   if (value.observed!==null && !data(value.observed)) {
     throw new Error('INVALID_RECEIPT_OBSERVATION');
   }
-  if (value.schema===RECEIPT_SCHEMA && value.observed!==null) {
+  if (value.observed!==null) {
     validateObservationEnvelope(value.observed);
   }
   if (value.diagnostic!==undefined && !data(value.diagnostic)) {
@@ -363,7 +357,6 @@ export function validateAuthorityFact(value:unknown):AuthorityFact {
       return validateExecutionAuthorityFact(value);
     case EFFECT_RESERVATION_SCHEMA:
       return validateEffectReservationFact(value);
-    case LEGACY_RECEIPT_SCHEMA:
     case RECEIPT_SCHEMA:
       return validateReceiptFact(value);
     default:

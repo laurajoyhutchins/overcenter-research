@@ -28,19 +28,15 @@ const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_RE
 const work=kernel.inspect().find(candidate=>candidate.id.endsWith(`-${slot}`) && candidate.status==='EXECUTING');
 assert.ok(work);
 assert.ok(work.run_id);
-assert.equal(work.postcondition.verifier,'github-commit-status/v1');
-if (work.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
-
-const repositoryResponse=await github(`/repositories/${work.postcondition.repository_id}`);
-if (!repositoryResponse.ok) throw new Error(`repository lookup failed: ${repositoryResponse.status}`);
-const repository=await repositoryResponse.json() as {id:number;full_name:string};
+assert.equal(work.postcondition.verifier,'github-commit-status/v2');
+if (work.postcondition.verifier!=='github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 
 const writtenContext=process.env.WRITE_CONTEXT_CASE==='upper'
   ? work.postcondition.context.toUpperCase()
   : work.postcondition.context;
 
 const response=await github(
-  `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
+  `/repos/${work.postcondition.repository_full_name}/statuses/${work.postcondition.commit_sha}`,
   {
     method:'POST',
     body:JSON.stringify({

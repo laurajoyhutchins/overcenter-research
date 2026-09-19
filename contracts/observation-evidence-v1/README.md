@@ -18,8 +18,6 @@ Provider-specific request and response semantics remain provider-owned. Any fiel
 
 Current receipt-v5 observations have a closed outer vocabulary. Verifier-specific coordinate checks still decide whether the observation applies to a particular postcondition.
 
-Receipt v4 is historical compatibility data. It remains permissive on read rather than being retroactively reinterpreted as a v1 settlement-observation contract.
-
 ## Absence evidence
 
 `overcenter-absence-evidence-v1` is an envelope, not a permission slip.
