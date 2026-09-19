@@ -25,21 +25,28 @@ jobs:
           git rev-parse HEAD
           sha256sum experiments/holyc/frontier.HC
 
-      - name: Fetch pinned HolyC compiler release
+      - name: Fetch and install pinned HolyC compiler release
         run: |
           set -euxo pipefail
           curl -fL             https://github.com/Jamesbarford/holyc-lang/releases/download/v0.0.15-beta/hcc-v0.0.15-beta-linux-x86_64.zip             -o "$RUNNER_TEMP/hcc.zip"
           echo "518327931736ce74536e1338908df5f2e028e8fbfd4999c1f4ef9d31f8dc7841  $RUNNER_TEMP/hcc.zip" | sha256sum -c -
           unzip -q "$RUNNER_TEMP/hcc.zip" -d "$RUNNER_TEMP/hcc-dist"
-          find "$RUNNER_TEMP/hcc-dist" -maxdepth 3 -type f -print
+          DIST="$(find "$RUNNER_TEMP/hcc-dist" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+          test -n "$DIST"
+          sudo install -m 0755 "$DIST/hcc" /usr/local/bin/hcc
+          sudo install -m 0644 "$DIST/include/tos.HH" /usr/local/include/tos.HH
+          sudo install -m 0644 "$DIST/lib/libtos.a" /usr/local/lib/libtos.a
+          sudo install -m 0755 "$DIST/lib/libtos.so.0.0.1" /usr/local/lib/libtos.so.0.0.1
+          sudo ln -sf libtos.so.0.0.1 /usr/local/lib/libtos.so.0
+          sudo ln -sf libtos.so.0 /usr/local/lib/libtos.so
+          sudo ldconfig
+          /usr/local/bin/hcc --help >/dev/null
 
       - name: Compile exact HolyC Easter egg
         run: |
           set -euxo pipefail
-          HCC="$(find "$RUNNER_TEMP/hcc-dist" -type f -name hcc -print -quit)"
-          test -n "$HCC"
-          chmod +x "$HCC"
-          "$HCC" experiments/holyc/frontier.HC -o "$RUNNER_TEMP/frontier"
+          /usr/local/bin/hcc experiments/holyc/frontier.HC -o "$RUNNER_TEMP/frontier"
+          file "$RUNNER_TEMP/frontier"
 
       - name: Execute twice and prove deterministic zero-failure result
         run: |
