@@ -75,6 +75,20 @@ Lean derives realization stability from verifier family.
 
 ## Projection rules frozen before implementation
 
+### Fresh verified realization with no producer run
+
+Current truth is producer-independent.
+
+If a mutable external postcondition has a fresh exact observation that settles DONE, the obligation may project DONE even when no historical Overcenter run produced that state.
+
+The projection must preserve that distinction:
+
+- lifecycle truth may be DONE with no producer run;
+- `output / verified-content` semantic consumers may consume that realization;
+- `evidence / settlement-receipt` consumers remain unresolved because no settlement receipt exists.
+
+A run id is evidence about production history, not a prerequisite for observable realization truth.
+
 ### Matching historical DONE
 
 If the latest matching semantic realization is historically DONE:
@@ -137,25 +151,27 @@ The experiment should be rejected if it requires provider-specific switches insi
 
 At minimum:
 
-1. matching immutable DONE reuses without observation;
-2. matching mutable DONE + exact fresh verification -> DONE;
-3. matching mutable DONE + no fresh observation -> RECOVERY_REQUIRED;
-4. matching mutable DONE + uncertain fresh observation -> RECOVERY_REQUIRED;
-5. matching mutable DONE + authoritative absence -> UNREALIZED;
-6. matching mutable DONE + wrong-coordinate observation -> fail closed / RECOVERY_REQUIRED;
-7. stale-key historical DONE -> UNREALIZED;
-8. current matching EXECUTING -> EXECUTING;
-9. current matching WAITING -> WAITING;
-10. current matching RECOVERY_REQUIRED -> RECOVERY_REQUIRED;
-11. current matching READY -> UNREALIZED;
-12. stale-key nonterminal execution -> RECOVERY_REQUIRED;
-13. unresolved current key + nonterminal execution -> RECOVERY_REQUIRED;
-14. unresolved current key + only historical terminal runs -> UNREALIZED;
-15. multiple historical matching runs select deterministically from durable order;
-16. changing only producer/run identity does not invalidate an otherwise matching semantic realization;
-17. external drift after historical DONE is visible in current projection;
-18. deleting every materialized/cache projection and recomputing from the same durable history + same fresh observations gives the same result;
-19. changing only current external reality changes current projection deliberately.
+1. never-run mutable obligation + exact fresh verification -> DONE with no producer run;
+2. producer-independent DONE resolves verified-content output identity but not settlement-receipt identity;
+3. matching immutable DONE reuses without observation;
+4. matching mutable DONE + exact fresh verification -> DONE;
+5. matching mutable DONE + no fresh observation -> RECOVERY_REQUIRED;
+6. matching mutable DONE + uncertain fresh observation -> RECOVERY_REQUIRED;
+7. matching mutable DONE + authoritative absence -> UNREALIZED;
+8. matching mutable DONE + wrong-coordinate observation -> fail closed / RECOVERY_REQUIRED;
+9. stale-key historical DONE -> UNREALIZED;
+10. current matching EXECUTING -> EXECUTING;
+11. current matching WAITING -> WAITING;
+12. current matching RECOVERY_REQUIRED -> RECOVERY_REQUIRED;
+13. current matching READY -> UNREALIZED;
+14. stale-key nonterminal execution -> RECOVERY_REQUIRED;
+15. unresolved current key + nonterminal execution -> RECOVERY_REQUIRED;
+16. unresolved current key + only historical terminal runs -> UNREALIZED;
+17. multiple historical matching runs select deterministically from durable order;
+18. changing only producer/run identity does not invalidate an otherwise matching semantic realization;
+19. external drift after historical DONE is visible in current projection;
+20. deleting every materialized/cache projection and recomputing from the same durable history + same fresh observations gives the same result;
+21. changing only current external reality changes current projection deliberately.
 
 ## Important expected consequence
 
@@ -184,3 +200,25 @@ Production migration is a separate step. This branch may prove the boundary with
 - **Lean earns current realization projection.**
 - **TypeScript retains it.**
 - **Existing lifecycle vocabulary is insufficient.** If uncertainty after historical DONE cannot be represented safely without overloading execution recovery, redesign the state vocabulary before migration.
+
+
+## Pre-implementation correction: realization truth is not execution provenance
+
+The existing semantic-identity protocol currently rejects a DONE lifecycle with no run id. That restriction is stronger than the semantic rule actually needed for verified-content consumers.
+
+This experiment may therefore adjust the normalized lifecycle shape to allow:
+
+```text
+DONE + no run
+```
+
+when DONE was established by current authoritative observation.
+
+This does **not** fabricate settlement provenance:
+
+```text
+verified-content      -> may resolve from producer-independent DONE
+settlement-receipt    -> still requires exact run + exact DONE receipt + commit
+```
+
+The correction is frozen before challenger implementation.
