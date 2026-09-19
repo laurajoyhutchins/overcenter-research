@@ -13,14 +13,21 @@ import {
   type GraphExecutionEnvelope,
   type GraphExecutionEvidence,
 } from '../experiments/go-graph-executor/adapter.ts';
-import { claimAndDispatchReadyFrontier } from '../experiments/go-graph-executor/pipeline.ts';
+import {
+  claimAndDispatchComputationFrontier,
+  claimReserveAndDispatchEffectFrontier,
+} from '../experiments/go-graph-executor/pipeline.ts';
 import { GitOvercenterKernel } from '../src/git-kernel.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
 const experimentDir=fileURLToPath(new URL('../experiments/go-graph-executor/',import.meta.url));
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 
-function envelopeFor(permit:ExecutionPermit,delayMillis=5):GraphExecutionEnvelope {
+function envelopeFor(
+  permit:ExecutionPermit,
+  delayMillis=5,
+  effectReservationCommit?:string,
+):GraphExecutionEnvelope {
   const executionSpec={
     delay_ms:delayMillis,
     result:`candidate:${permit.obligation_id}:g${permit.execution_generation}`,
@@ -28,6 +35,7 @@ function envelopeFor(permit:ExecutionPermit,delayMillis=5):GraphExecutionEnvelop
   return executionEnvelope(permit,{
     executionSpec,
     executionSpecSha256:`sha256:${sha256(JSON.stringify(executionSpec))}`,
+    ...(effectReservationCommit?{effectReservationCommit}:{}),
   });
 }
 
@@ -126,7 +134,7 @@ test('first durable permit executes before the authority frontier stream closes'
     assertExecutionEvidenceFor(go.evidence[0],firstEnvelope);
     assert.equal(kernel.deriveReadyFrontier().length,3);
 
-    const rest=claimAndDispatchReadyFrontier(kernel,{
+    const rest=claimAndDispatchComputationFrontier(kernel,{
       envelopeFor:permit=>envelopeFor(permit),
       dispatch:envelope=>go.send(envelope),
     });
@@ -186,7 +194,7 @@ test('dispatch failure leaves an ordinary durable claim, not hidden pipeline sta
   const {root,repo,kernel}=makeKernel(['alpha','beta']);
   try {
     assert.throws(
-      ()=>claimAndDispatchReadyFrontier(kernel,{
+      ()=>claimAndDispatchComputationFrontier(kernel,{
         envelopeFor:permit=>envelopeFor(permit),
         dispatch:()=>{throw new Error('synthetic transport death');},
       }),
@@ -201,6 +209,74 @@ test('dispatch failure leaves an ordinary durable claim, not hidden pipeline sta
 
     const recovered=restarted.acquireExecution(work.get('alpha')!.run_id!);
     assert.equal(recovered.execution_generation,2);
+  } finally {
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
+
+test('effectful pipeline reserves mutation before dispatch and binds reservation through evidence',async()=>{
+  const {root,kernel}=makeKernel(['alpha']);
+  const go=new GoExecutionStream(1);
+  try {
+    const [claimed]=claimReserveAndDispatchEffectFrontier(kernel,{
+      envelopeFor:(permit,reservationCommit)=>envelopeFor(permit,1,reservationCommit),
+      dispatch:envelope=>go.send(envelope),
+    });
+    assert.ok(claimed.effect_reservation_commit);
+    assert.equal(
+      claimed.envelope.effect_reservation_commit,
+      claimed.effect_reservation_commit,
+    );
+
+    await go.close();
+    assert.equal(go.evidence.length,1);
+    assertExecutionEvidenceFor(go.evidence[0],claimed.envelope);
+    assert.equal(
+      go.evidence[0].effect_reservation_commit,
+      claimed.effect_reservation_commit,
+    );
+  } finally {
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
+test('crash after effect reservation cannot be recovered by blind re-execution',()=>{
+  const {root,repo,kernel}=makeKernel(['alpha']);
+  try {
+    assert.throws(
+      ()=>claimReserveAndDispatchEffectFrontier(kernel,{
+        envelopeFor:(permit,reservationCommit)=>envelopeFor(permit,1,reservationCommit),
+        dispatch:()=>{throw new Error('crash after reservation before transport');},
+      }),
+      /crash after reservation before transport/,
+    );
+
+    const restarted=new GitOvercenterKernel(repo);
+    const [projected]=restarted.inspect();
+    assert.equal(projected.status,'EXECUTING');
+    assert.ok(projected.run_id);
+
+    const recovered=restarted.acquireExecution(projected.run_id);
+    assert.equal(recovered.execution_generation,2);
+
+    // The unresolved generation-1 reservation survives authority reacquisition,
+    // so a fresh mutation cannot be reserved or replayed.
+    assert.throws(
+      ()=>restarted.beginEffect(recovered),
+      /UNRESOLVED_EFFECT/,
+    );
+
+    // Independent observation resolves the ambiguity. This fixture never
+    // dispatched the effect, so authoritative ENOENT makes the run READY and
+    // clears the reservation rather than guessing that replay is safe.
+    const receipt=restarted.resolve(recovered);
+    assert.equal(receipt.disposition,'READY');
+    assert.equal(restarted.inspect()[0].status,'READY');
+
+    const retry=restarted.claim('alpha',restarted.head()!);
+    const reservation=restarted.beginEffect(retry);
+    assert.ok(reservation);
   } finally {
     rmSync(root,{recursive:true,force:true});
   }
