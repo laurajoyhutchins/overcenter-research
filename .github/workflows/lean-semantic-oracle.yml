@@ -10,7 +10,6 @@ on:
       - package.json
       - .node-version
       - formal/lean-semantic-oracle-revision.txt
-      - formal/lean-semantic-oracle-revision.txt
   push:
     branches:
       - main
@@ -20,6 +19,7 @@ on:
       - .github/workflows/lean-semantic-oracle.yml
       - package.json
       - .node-version
+      - formal/lean-semantic-oracle-revision.txt
 
 permissions:
   contents: read
@@ -46,7 +46,7 @@ jobs:
         id: oracle-revision
         shell: bash
         run: |
-          sha="$(tr -d '\\r\\n' < formal/lean-semantic-oracle-revision.txt)"
+          sha="$(tr -d '\r\n' < formal/lean-semantic-oracle-revision.txt)"
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
