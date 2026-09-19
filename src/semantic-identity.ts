@@ -64,6 +64,8 @@ export function obligationKey(
     id:work.id,
     packet:work.packet,
     postcondition:work.postcondition,
+    effect_authority:work.effect_authority??null,
+    result_acceptance:work.result_acceptance??null,
     semantic_dependencies:consumed,
   });
 }

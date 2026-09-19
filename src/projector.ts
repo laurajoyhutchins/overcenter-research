@@ -344,6 +344,7 @@ function projectWork(
           run_id:lifecycle.run.id,
           claimed_revision:lifecycle.run.claimed_revision,
           execution_generation:lifecycle.run.execution_generation,
+          execution_authority_commit:lifecycle.run.execution_authority_commit,
         }
       : {}),
   } as Work;
