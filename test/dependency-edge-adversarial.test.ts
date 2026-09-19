@@ -65,7 +65,7 @@ function settleFile(
   const run = kernel.claim(id, ready.revision);
   kernel.beginEffect(run);
   writeFileSync(path, content);
-  const receipt = kernel.resolve(run);
+  const receipt = kernel.reconcile(run);
   assert.equal(receipt.disposition, 'DONE');
   return { run, receipt };
 }
@@ -598,7 +598,7 @@ test('active exact run fences amendment even when edge semantics are otherwise v
       postcondition: pc(a, 'A1'),
     });
 
-    const ready = f.kernel.deriveReadyWork()!;
+    const ready = f.kernel.nextReadyWork()!;
     f.kernel.claim('a', ready.revision);
 
     assert.throws(
