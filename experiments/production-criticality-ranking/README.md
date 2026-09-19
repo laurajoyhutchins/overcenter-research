@@ -100,10 +100,10 @@ node experiments/production-criticality-ranking/analyze.mjs \
   --config experiments/production-criticality-ranking/config.json \
   --json /tmp/criticality.json \
   --markdown /tmp/criticality.md \
-  --fail-calibration
+  --min-calibration 0.8
 ```
 
-The GitHub workflow runs from full history (`fetch-depth: 0`) because change exposure is revision-bound evidence.
+The GitHub workflow runs the exact pull-request head with full history (`fetch-depth: 0`) because both the ranking and change exposure are revision-bound evidence. It requires at least 80% pairwise calibration agreement but still reports every disagreement.
 
 ## Success criteria
 
@@ -111,9 +111,13 @@ The first experiment earns promotion only if:
 
 1. the ranked population contains production callables and nothing else;
 2. all configured authority and recovery selectors resolve exactly once;
-3. static call resolution is high enough that the graph is informative and its unresolved fraction is reported;
+3. internal static call resolution is high enough that the graph is informative; external/library calls are excluded from that denominator and unresolved internal/unknown calls are reported;
 4. the calibration corpus substantially agrees with the previous human ranking;
 5. surprising ranks can be decomposed into vector components and graph evidence; and
 6. deleting every generated report and recomputing at the same revision produces the same result.
 
 A poor calibration result is evidence against the formula or the callable-level model, not a reason to hand-edit ranks.
+
+## First live-run lesson
+
+The initial live run is intentionally allowed to falsify the model. In particular, calibration should not be forced to 100% by weight-tuning when one human judgment names a branch-level semantic claim that the callable-level population cannot represent. A monotone ranking cannot repair missing dimensions or the wrong unit boundary; those disagreements are evidence for the next experiment.

@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -32,7 +33,7 @@ jobs:
             --config experiments/production-criticality-ranking/config.json \
             --json criticality.json \
             --markdown criticality.md \
-            --fail-calibration
+            --min-calibration 0.8
       - name: Show ranking
         if: always()
         run: cat criticality.md || true

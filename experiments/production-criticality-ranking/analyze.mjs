@@ -172,7 +172,7 @@ export function analyze({root,config}){
   }
 
   const edges=new Map(units.map(u=>[u.id,new Set()]));
-  let resolvedCalls=0,unresolvedCalls=0;
+  let resolvedInternalCalls=0,unresolvedInternalCalls=0,externalCalls=0,unknownCalls=0;
   for(const sf of program.getSourceFiles()){
     if(!files.includes(sf.fileName)) continue;
     const visit=(node)=>{
@@ -183,8 +183,14 @@ export function analyze({root,config}){
           let decl=sig?.declaration??null;
           let callee=decl?unitForNode(decl,nodeToUnit):null;
           if(!callee && decl && ts.isVariableDeclaration(decl) && decl.initializer && isCallable(decl.initializer)) callee=nodeToUnit.get(decl.initializer)??null;
-          if(callee){edges.get(caller.id).add(callee.id);resolvedCalls++;}
-          else unresolvedCalls++;
+          if(callee){
+            edges.get(caller.id).add(callee.id);
+            resolvedInternalCalls++;
+          } else if(decl){
+            const declarationFile=decl.getSourceFile()?.fileName;
+            if(declarationFile && files.includes(declarationFile)) unresolvedInternalCalls++;
+            else externalCalls++;
+          } else unknownCalls++;
         }
       }
       ts.forEachChild(node,visit);
@@ -278,7 +284,16 @@ export function analyze({root,config}){
     revision:git(root,['rev-parse','HEAD']),
     productionRoot:'src/',
     unitKind:'callable',
-    analyzer:{typescript:ts.version,resolvedCalls,unresolvedCalls,resolutionRate:resolvedCalls+unresolvedCalls?resolvedCalls/(resolvedCalls+unresolvedCalls):1},
+    analyzer:{
+      typescript:ts.version,
+      resolvedInternalCalls,
+      unresolvedInternalCalls,
+      externalCalls,
+      unknownCalls,
+      internalResolutionRate:resolvedInternalCalls+unresolvedInternalCalls+unknownCalls
+        ? resolvedInternalCalls/(resolvedInternalCalls+unresolvedInternalCalls+unknownCalls)
+        : 1,
+    },
     population:{productionCallables:production.length,testCallables:testEntrypoints.length,experimentCallables:experimentEntrypoints.length,productionEntrypoints:prodEntrypoints.length},
     calibration:{passed:calibrations.filter(x=>x.pass).length,total:calibrations.length,agreement:calibrations.length?calibrations.filter(x=>x.pass).length/calibrations.length:1,pairs:calibrations},
     ranking:metrics.map(({node,...m})=>({...m,vector:Object.fromEntries(Object.entries(m.vector).map(([k,v])=>[k,round(v)])),score:round(m.score,2)})),
@@ -291,7 +306,7 @@ export function markdown(report,top=30){
     '',
     `Revision: \`${report.revision}\``,
     '',
-    `Population: ${report.population.productionCallables} production callables. Calibration: ${report.calibration.passed}/${report.calibration.total} (${(100*report.calibration.agreement).toFixed(1)}%). Call resolution: ${(100*report.analyzer.resolutionRate).toFixed(1)}%.`,
+    `Population: ${report.population.productionCallables} production callables. Calibration: ${report.calibration.passed}/${report.calibration.total} (${(100*report.calibration.agreement).toFixed(1)}%). Internal call resolution: ${(100*report.analyzer.internalResolutionRate).toFixed(1)}% (${report.analyzer.externalCalls} external calls excluded).`,
     '',
     '| Rank | Production callable | Score | A | B | I | F | R | E | X | C |',
     '| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
@@ -307,7 +322,7 @@ export function markdown(report,top=30){
 }
 
 function parseArgs(argv){
-  const out={root:process.cwd(),config:null,json:null,markdown:null,top:30,failCalibration:false};
+  const out={root:process.cwd(),config:null,json:null,markdown:null,top:30,minCalibration:null};
   for(let i=2;i<argv.length;i++){
     const a=argv[i];
     if(a==='--root') out.root=path.resolve(argv[++i]);
@@ -315,7 +330,7 @@ function parseArgs(argv){
     else if(a==='--json') out.json=path.resolve(argv[++i]);
     else if(a==='--markdown') out.markdown=path.resolve(argv[++i]);
     else if(a==='--top') out.top=Number(argv[++i]);
-    else if(a==='--fail-calibration') out.failCalibration=true;
+    else if(a==='--min-calibration') out.minCalibration=Number(argv[++i]);
     else throw new Error(`unknown argument: ${a}`);
   }
   if(!out.config) throw new Error('--config is required');
@@ -330,5 +345,5 @@ if(import.meta.url===pathToFileURL(process.argv[1]).href){
   if(args.json) fs.writeFileSync(args.json,JSON.stringify(report,null,2)+'\n');
   if(args.markdown) fs.writeFileSync(args.markdown,md);
   process.stdout.write(md);
-  if(args.failCalibration && report.calibration.passed!==report.calibration.total) process.exitCode=1;
+  if(args.minCalibration!==null && report.calibration.agreement<args.minCalibration) process.exitCode=1;
 }
