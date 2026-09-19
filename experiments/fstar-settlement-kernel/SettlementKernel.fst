@@ -47,10 +47,3 @@ let settle (o:obligation) (e:bound_evidence o)
       settled_key = o.key;
       evidence_producer = e.producer
     }
-
-let reattribute
-    (o:obligation)
-    (e:bound_evidence o)
-    (p:producer)
-  : Tot (bound_evidence o)
-  = { e with producer = p }
