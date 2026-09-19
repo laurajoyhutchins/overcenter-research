@@ -10,7 +10,10 @@ import type {
   State,
 } from './facts.ts';
 import { dependencyUpstreams } from './graph.ts';
-import { staticEffectConflictError } from './admission.ts';
+import {
+  staticEffectConflict,
+  type StaticEffectConflict,
+} from './admission.ts';
 import { obligationKey } from './semantic-identity.ts';
 
 export type RealizationStatus =
@@ -146,6 +149,7 @@ interface RealizationRelations {
 interface Claimability {
   error:string|null;
   unsatisfiedDependencies:string[];
+  staticConflict:StaticEffectConflict|null;
 }
 
 function deriveRealizationRelations(
@@ -224,7 +228,11 @@ function deriveClaimability(
 ):Claimability {
   const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
   if (realization!=='UNREALIZED') {
-    return {error:'NOT_READY',unsatisfiedDependencies:[]};
+    return {
+      error:'NOT_READY',
+      unsatisfiedDependencies:[],
+      staticConflict:null,
+    };
   }
 
   const unsatisfiedDependencies=dependencyUpstreams(work)
@@ -233,21 +241,25 @@ function deriveClaimability(
     return {
       error:'DEPENDENCIES_NOT_DONE',
       unsatisfiedDependencies,
+      staticConflict:null,
     };
   }
   if (!semanticKey) {
     return {
       error:'SEMANTIC_DEPENDENCY_UNRESOLVED',
       unsatisfiedDependencies:[],
+      staticConflict:null,
     };
   }
 
   // Admission rejects new static conflicts. Keep this defensive projection for
   // older or externally constructed histories so they cannot become executable
   // merely because policy moved earlier.
+  const conflict=staticEffectConflict(state,work.id);
   return {
-    error:staticEffectConflictError(state,work.id),
+    error:conflict?.code??null,
     unsatisfiedDependencies:[],
+    staticConflict:conflict,
   };
 }
 
@@ -290,11 +302,6 @@ function requiredStatus(
   const status=statusById.get(obligationId);
   if (!status) throw new Error(`EXPLANATION_DEPENDENCY_STATUS_MISSING:${obligationId}`);
   return status;
-}
-
-function conflictObligations(code:string):string[] {
-  const [kind,...ids]=code.split(':');
-  return kind==='UNORDERED_EFFECT_CONFLICT' ? ids : [];
 }
 
 function deriveExplanation(
@@ -410,8 +417,8 @@ function deriveExplanation(
     if (!claimability.error) {
       throw new Error(`EXPLANATION_BLOCKED_WITHOUT_REASON:${obligation.id}`);
     }
-    const conflicts=conflictObligations(claimability.error);
-    if (conflicts.length===0) {
+    const conflict=claimability.staticConflict;
+    if (!conflict) {
       throw new Error(
         `EXPLANATION_UNSUPPORTED_BLOCK_REASON:${obligation.id}:${claimability.error}`,
       );
@@ -422,7 +429,7 @@ function deriveExplanation(
       reason:{
         kind:'static-effect-conflict',
         code:claimability.error,
-        conflicting_obligations:conflicts,
+        conflicting_obligations:[conflict.left,conflict.right],
       },
     };
   }
