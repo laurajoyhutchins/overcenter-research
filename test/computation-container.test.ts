@@ -35,6 +35,11 @@ import {
 } from '../src/computation-runner.ts';
 import { OvercenterKernel } from '../src/kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
+import {
+  PRODUCTION_COMPUTATION_CONTAINMENT,
+  productionDockerIsolationArgs,
+  productionExecutorArgs,
+} from '../src/production-containment.ts';
 
 const image=process.env.OVERCENTER_EXECUTOR_IMAGE;
 if (!image) {
@@ -56,23 +61,7 @@ if (sourceExtract.status!==0) {
   throw new Error(`source snapshot extraction failed: ${sourceExtract.stderr?.toString('utf8')??''}`);
 }
 const dockerLabel=`overcenter.computation-test=${process.pid}`;
-const containerProfile={
-  network:'none',
-  read_only_root:true,
-  no_new_privileges:true,
-  cap_drop:['ALL'],
-  cap_add:['CHOWN','DAC_OVERRIDE','KILL','SETGID','SETUID'],
-  pids_limit:64,
-  memory_bytes:512*1024*1024,
-  memory_swap_bytes:512*1024*1024,
-  nano_cpus:1_000_000_000,
-  nofile:256,
-  file_size_bytes:64*1024*1024,
-  task_uid:65532,
-  task_gid:65532,
-  source:'read-only',
-  workspace:'fresh-empty-disposable-host-workspace',
-} as const;
+const containerProfile=PRODUCTION_COMPUTATION_CONTAINMENT;
 let sequence=0;
 
 function docker(args:string[],encoding:'utf8'='utf8'):string {
@@ -190,17 +179,7 @@ async function startIsolatedExecutor(
     dockerLabel,
     '--label',
     `overcenter.containment=${containmentId}`,
-    '--network=none',
-    '--read-only',
-    '--security-opt=no-new-privileges:true',
-    '--cap-drop=ALL',
-    ...containerProfile.cap_add.flatMap(capability=>['--cap-add',capability]),
-    `--pids-limit=${containerProfile.pids_limit}`,
-    `--memory=${containerProfile.memory_bytes}`,
-    `--memory-swap=${containerProfile.memory_swap_bytes}`,
-    '--cpus=1',
-    `--ulimit=nofile=${containerProfile.nofile}:${containerProfile.nofile}`,
-    `--ulimit=fsize=${containerProfile.file_size_bytes}:${containerProfile.file_size_bytes}`,
+    ...productionDockerIsolationArgs(),
     '--entrypoint',
     '/usr/local/bin/overcenter-executor',
     '-v',
@@ -210,14 +189,13 @@ async function startIsolatedExecutor(
     '-v',
     `${sourceRoot}:/source:ro`,
     image,
-    '--socket=/control/executor.sock',
-    '--workspace-root=/workspace',
-    '--concurrency=1',
-    '--task-uid=65532',
-    '--task-gid=65532',
-    `--socket-gid=${gid}`,
-    `--execution-context-sha256=${contextSha256}`,
-    `--containment-id=${containmentId}`,
+    ...productionExecutorArgs({
+      socketPath:'/control/executor.sock',
+      workspaceRoot:'/workspace',
+      socketGid:gid,
+      executionContextSha256:contextSha256,
+      containmentId,
+    }),
   ]);
 
   const deadline=Date.now()+10_000;
