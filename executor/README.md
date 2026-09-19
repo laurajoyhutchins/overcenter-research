@@ -49,6 +49,8 @@ The production TypeScript client connects to an existing Unix socket. It does no
 
 The canonical production profile is [`src/production-containment.ts`](../src/production-containment.ts). Production proofs and dogfood derive Docker resource flags, task credentials, and executor concurrency from that object; those values are not parallel shell configuration. Concurrency has no implicit executable default: callers must supply `--concurrency`.
 
+The PID ceiling is 128. The earlier 64-PID candidate was falsified by the admitted self-dogfood regression workload: the SQLite simultaneous-writer proof failed to spawn its exact child process with `EAGAIN` under that cgroup budget, while the same revision passed outside the 64-PID boundary. The ceiling remains explicit and bounded rather than introducing a test-only escape hatch.
+
 Production socket mode requires `--task-uid` and `--task-gid`. Both must differ from the executor identity; when `--socket-gid` is used to grant the trusted host access to the socket, the task GID must differ from that group too. Task processes are launched with supplementary groups replaced by the task GID only; executor and trusted-socket groups do not cross the boundary.
 
 A typical container boundary therefore has three distinct authorities:
