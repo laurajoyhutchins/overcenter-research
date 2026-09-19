@@ -22,6 +22,30 @@ inductive SemanticOutputMaterial where
       (name : String)
   deriving Repr, BEq, DecidableEq
 
+inductive NormalizedSemanticSource where
+  | fileContent (contentSha256 : String)
+  | eventuallyConsistentFileContent (contentSha256 : String)
+  | githubCommitStatus
+      (repositoryId : String)
+      (commitSha : String)
+      (context : String)
+      (state : String)
+  | kubernetesConfigMapExists
+      (authorityId : String)
+      (apiGroup : String)
+      (resource : String)
+      (namespaceName : String)
+      (name : String)
+  deriving Repr, BEq, DecidableEq
+
+def semanticOutputMaterialFor : NormalizedSemanticSource → SemanticOutputMaterial
+  | .fileContent digest => .contentSha256 digest
+  | .eventuallyConsistentFileContent digest => .contentSha256 digest
+  | .githubCommitStatus repositoryId commitSha context state =>
+      .githubCommitStatus repositoryId commitSha context state
+  | .kubernetesConfigMapExists authorityId apiGroup resource namespaceName name =>
+      .kubernetesExists authorityId apiGroup resource namespaceName name
+
 inductive SemanticIdentityMaterial where
   | output (material : SemanticOutputMaterial)
   | settlementReceipt (commit : String)
@@ -36,7 +60,7 @@ structure RawClaimDependency where
 structure RawClaimObligation where
   id : String
   dependencies : List RawClaimDependency
-  semanticOutput : Option SemanticOutputMaterial := none
+  semanticSource : Option NormalizedSemanticSource := none
   effect : Option ClaimEffect := none
   deriving Repr, BEq, DecidableEq
 
@@ -137,8 +161,8 @@ def deriveSemanticIdentityMaterial
           else
             match selector with
             | .verifiedContent =>
-                match upstream.semanticOutput with
-                | some material => some (.output material)
+                match upstream.semanticSource with
+                | some source => some (.output (semanticOutputMaterialFor source))
                 | none => none
             | .settlementReceipt =>
                 match lifecycle.runId with
