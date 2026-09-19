@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { Postcondition } from '../../src/model.ts';
 import type { State } from '../../src/facts.ts';
 import { validateAdmission } from '../../src/admission.ts';
+import { githubCommitStatusEffectAuthority } from '../../src/provider-effect.ts';
 import {
   issueSettlementEquivalenceWitness,
   validateSettlementEquivalenceWitness,
@@ -50,8 +51,20 @@ function statusV2(
 function state(left:Postcondition,right:Postcondition):State {
   return {
     obligations:{
-      alpha:{id:'alpha',dependencies:[],packet:{},postcondition:left},
-      beta:{id:'beta',dependencies:[],packet:{},postcondition:right},
+      alpha:{
+        id:'alpha',
+        dependencies:[],
+        packet:{},
+        effect_authority:githubCommitStatusEffectAuthority(),
+        postcondition:left,
+      },
+      beta:{
+        id:'beta',
+        dependencies:[],
+        packet:{},
+        effect_authority:githubCommitStatusEffectAuthority(),
+        postcondition:right,
+      },
     },
     definition_commits:{alpha:'alpha-def',beta:'beta-def'},
   };
