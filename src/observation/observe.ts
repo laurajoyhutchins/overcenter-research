@@ -14,13 +14,13 @@ import {
 import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
-} from '../providers/github-certified-status.ts';
-import { githubGet, isGithubObjectId } from '../providers/github-rest.ts';
+} from '../providers/github/certified-status.ts';
+import { githubGet, isGithubObjectId } from '../providers/github/rest.ts';
 import {
   kubernetesConfigMapAbsenceEvidenceMatches,
   observeCertifiedKubernetesConfigMap,
   type KubernetesListConfigMaps,
-} from '../providers/kubernetes-configmap.ts';
+} from '../providers/kubernetes/configmap.ts';
 
 export interface ObservationContext {
   githubToken: string | null;

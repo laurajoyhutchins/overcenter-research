@@ -1,8 +1,8 @@
 import type { Postcondition } from './model.ts';
 import { canonicalDigest, sha256 } from './digest.ts';
-import { githubStatusContextKey } from './providers/github-rest.ts';
+import { githubStatusContextKey } from './providers/github/rest.ts';
 import { LOCAL_FILE_ENOENT_EVIDENCE } from './evidence.ts';
-import { KUBERNETES_COMPLETE_LIST_ABSENCE } from './providers/kubernetes-configmap.ts';
+import { KUBERNETES_COMPLETE_LIST_ABSENCE } from './providers/kubernetes/configmap.ts';
 
 export interface EffectSemantics {
   resource:string;

@@ -4,16 +4,16 @@ import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
-} from '../src/providers/github-contract.ts';
+} from '../src/providers/github/contract.ts';
 import {
   deriveGithubObservationOperation,
   type GithubOpenApiDocument,
   type JsonObject,
-} from '../src/providers/github-openapi.ts';
-import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github-semantics.ts';
+} from '../src/providers/github/openapi.ts';
+import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github/semantics.ts';
 
 const schemaPath=process.argv[2];
-const outputPath=process.argv[3]??'src/providers/github-operations.generated.ts';
+const outputPath=process.argv[3]??'src/providers/github/operations.generated.ts';
 if (!schemaPath) throw new Error('usage: generate-github-operations.ts <api.github.com.json> [output.ts]');
 
 const source=readFileSync(schemaPath,'utf8');
@@ -155,7 +155,7 @@ const generated=[
   '// GENERATED FILE. DO NOT EDIT.',
   `// Source: github/rest-api-description@${GITHUB_OPENAPI_SOURCE_COMMIT}`,
   `// SHA-256: ${GITHUB_OPENAPI_SHA256}`,
-  "import type { GithubObservationOperation } from './github-openapi.ts';",
+  "import type { GithubObservationOperation } from './openapi.ts';",
   '',
   ...operations.flatMap(([,name,operation])=>[
     `export const ${name}:GithubObservationOperation=${JSON.stringify(operation,null,2)};`,
