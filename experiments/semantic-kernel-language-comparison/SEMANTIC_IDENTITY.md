@@ -202,3 +202,7 @@ The null hypothesis loses for semantic identity **selection and binding**.
 It does not lose for ordinary provider normalization or hashing.
 
 The next useful falsifier is obligation-key construction: have Lean construct the complete canonical semantic key preimage, including sorted semantic dependencies, while leaving only the final SHA-256 primitive outside. That would test whether the truth-deciding core can absorb identity composition without absorbing infrastructure.
+
+## Current-head confirmation
+
+Exact evaluated revision `59fea88829fbfd09aa681165e9f5f4ddb87a361d` passed semantic-identity run `35425208329`, claim-admission audition `35425208320`, Lean kernel `35425208411`, and repository Evidence `35425208281`. Later documentation-only commits should cite this evaluated revision rather than silently treating branch HEAD as evidence identity.
