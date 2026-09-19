@@ -54,6 +54,16 @@ jobs:
           printf '%s\n' '{"command":"claim-admission","current_revision":"r1","expected_revision":"r1","target_id":"leaf","obligations":[{"id":"leaf","dependencies":[],"effect":null}],"lifecycles":[{"obligation_id":"leaf","status":"UNREALIZED"}]}' |
             ./experiments/lean-kernel/.lake/build/bin/overcenterClaimAdmissionServer
 
+      - name: Guard indexed fail-closed semantics
+        run: >-
+          node --experimental-strip-types --test
+          experiments/lean-runtime-performance/indexed-semantics.test.ts
+
+      - name: Differential hostile cases
+        run: >-
+          node --experimental-strip-types --test
+          experiments/semantic-kernel-language-comparison/claim-admission-differential.test.ts
+
       - name: Run production-shaped benchmark
         run: >-
           node --experimental-strip-types
