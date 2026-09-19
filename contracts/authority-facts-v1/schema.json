@@ -274,12 +274,6 @@
         }
       }
     },
-    "ObservationPayload": {
-      "type": "object",
-      "x-overcenter-openBoundary": true,
-      "additionalProperties": true,
-      "description": "Observation/evidence contract boundary. Closed by provider/verifier contracts, not by the outer fact envelope."
-    },
     "DiagnosticPayload": {
       "type": "object",
       "x-overcenter-openBoundary": true,
@@ -340,7 +334,7 @@
         "observed": {
           "oneOf": [
             {
-              "$ref": "#/$defs/ObservationPayload"
+              "$ref": "#/$defs/LegacyObservationPayload"
             },
             {
               "type": "null"
@@ -410,7 +404,7 @@
         "observed": {
           "oneOf": [
             {
-              "$ref": "#/$defs/ObservationPayload"
+              "$ref": "#/$defs/CurrentObservationPayload"
             },
             {
               "type": "null"
@@ -454,6 +448,15 @@
           "$ref": "#/$defs/ReceiptFact"
         }
       ]
+    },
+    "LegacyObservationPayload": {
+      "type": "object",
+      "x-overcenter-openBoundary": true,
+      "additionalProperties": true,
+      "description": "Historical receipt-v4 observation payload. Permissive on read for compatibility."
+    },
+    "CurrentObservationPayload": {
+      "$ref": "../observation-evidence-v1/schema.json#/$defs/SettlementObservation"
     }
   }
 }

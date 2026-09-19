@@ -88,7 +88,8 @@
       "role": "observation-evidence",
       "authoritative": true,
       "identityImpact": "does not alter the claimed obligation identity; participates in settlement",
-      "closure": "owned by observation/evidence contracts"
+      "closure": "receipt-v5 owned by ../observation-evidence-v1; receipt-v4 remains legacy-permissive",
+      "contractRef": "../observation-evidence-v1/schema.json#/$defs/SettlementObservation"
     },
     {
       "path": "ReceiptFact.diagnostic",

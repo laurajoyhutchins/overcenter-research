@@ -41,4 +41,6 @@ Start with boundaries where disagreement is expensive:
 3. provider observations and absence evidence;
 4. application-defined packets and other intentionally extensible payloads.
 
+The first three migration slices now have machine-readable contract packages. The remaining intentionally open payloads should be contracted only when their semantics become reusable rather than merely because they contain JSON.
+
 Do not migrate a type solely to increase schema coverage. The contract should remove ambiguity or duplicated semantic authority.

@@ -1,0 +1,142 @@
+{
+  "apiVersion": "overcenter.dev/data-contract/v1",
+  "kind": "DataContract",
+  "id": "observation-evidence",
+  "version": "1.0.0",
+  "status": "active",
+  "description": {
+    "purpose": "Define provider-neutral observations, settlement observation envelopes, and absence-evidence certificates without confusing structural evidence with settlement authority.",
+    "limitations": "Envelope validity never grants negative-evidence authority by itself. Provider/verifier-specific matchers must bind evidence to the exact postcondition coordinate and completeness semantics."
+  },
+  "participants": {
+    "producers": [
+      "provider-adapters",
+      "trusted-observers"
+    ],
+    "consumers": [
+      "verifiers",
+      "settlement",
+      "durable-receipts"
+    ]
+  },
+  "schema": {
+    "format": "json-schema",
+    "draft": "https://json-schema.org/draft/2020-12/schema",
+    "path": "./schema.json",
+    "entrypoints": {
+      "providerObservation": "#/$defs/ProviderObservation",
+      "settlementObservation": "#/$defs/SettlementObservation",
+      "absenceEvidenceEnvelope": "#/$defs/AbsenceEvidenceEnvelope",
+      "knownAuthoritativeAbsenceEvidence": "#/$defs/KnownAuthoritativeAbsenceEvidence"
+    },
+    "validationExtensions": [
+      "x-overcenter-providerOwned",
+      "x-overcenter-kindOwned"
+    ]
+  },
+  "compatibility": {
+    "unknownProviderObservationFields": "reject unless explicitly declared as a provider extension",
+    "unknownSettlementObservationFields": "reject",
+    "absenceEnvelopeUnknownFields": "reject",
+    "legacyReceiptV4": "Historical receipt-v4 observations remain permissive on read and are not retroactively upgraded.",
+    "changeRule": "New provider-specific evidence kinds may extend the generic envelope only through a new recognized kind contract; authority is opt-in, not inherited."
+  },
+  "governance": {
+    "structureAuthority": "./schema.json",
+    "providerEnvelopeValidator": "../../src/provider-observation/observation.ts",
+    "settlementEnvelopeValidator": "../../src/observation.ts",
+    "absenceEnvelopeValidator": "../../src/evidence.ts",
+    "conflictPolicy": "machine-readable-structure-wins",
+    "generatedOutputIsNotVerifiedOutput": true
+  },
+  "semanticRoles": {
+    "providerObservation": {
+      "contractBindingFields": [
+        "contract.provider",
+        "contract.api_version",
+        "contract.operation_id",
+        "contract.schema_sha256"
+      ],
+      "provenanceFields": [
+        "observer",
+        "observed_at"
+      ],
+      "coordinateFields": [
+        "request"
+      ],
+      "transportMetadataFields": [
+        "response"
+      ],
+      "resultFields": [
+        "outcome"
+      ],
+      "note": "Provider-specific coordinate and response semantics remain in provider adapters."
+    },
+    "settlementObservation": {
+      "bindingFields": [
+        "verifier"
+      ],
+      "certaintyField": "mutation_certainty",
+      "absenceEvidenceField": "absence_evidence",
+      "providerEvidenceField": "provider_evidence",
+      "note": "Verifier-specific coordinate checks determine whether a structurally valid observation applies to the postcondition."
+    },
+    "absenceEvidence": {
+      "envelopeFields": [
+        "schema",
+        "kind",
+        "subject",
+        "scope",
+        "snapshot",
+        "completeness",
+        "provenance"
+      ],
+      "authorityRule": "The generic envelope carries evidence. Only a kind-specific matcher accepted by the verifier can make negative evidence authoritative."
+    }
+  },
+  "providerExtensions": [
+    {
+      "provider": "kubernetes",
+      "observation": "KubernetesConfigMapListObservation",
+      "topLevelFields": [
+        "authority_id"
+      ],
+      "rationale": "Cluster authority identity is part of the observed coordinate and is checked by the Kubernetes verifier."
+    }
+  ],
+  "knownAbsenceEvidenceKinds": [
+    {
+      "kind": "local-file-enoent/v1",
+      "matcher": "localFileEnoentEvidenceMatches",
+      "source": "../../src/evidence.ts"
+    },
+    {
+      "kind": "kubernetes-complete-list-absence/v1",
+      "matcher": "kubernetesConfigMapAbsenceEvidenceMatches",
+      "source": "../../src/providers/kubernetes-configmap.ts"
+    }
+  ],
+  "quality": [
+    {
+      "id": "provider-envelope-regression",
+      "type": "executable",
+      "path": "../../test/provider-observation.test.ts"
+    },
+    {
+      "id": "absence-envelope-regression",
+      "type": "executable",
+      "path": "../../test/evidence-pure.test.ts"
+    },
+    {
+      "id": "kubernetes-negative-evidence",
+      "type": "executable",
+      "path": "../../test/kubernetes-core-verifier.test.ts"
+    },
+    {
+      "id": "contract-regression",
+      "type": "executable",
+      "path": "../../test/data-contracts.test.ts"
+    }
+  ],
+  "extensions": {}
+}

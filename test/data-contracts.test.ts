@@ -15,6 +15,16 @@ import {
 } from '../src/facts.ts';
 
 import {
+  validateAbsenceEvidenceEnvelope,
+} from '../src/evidence.ts';
+import {
+  validateObservationEnvelope,
+} from '../src/observation.ts';
+import {
+  validateProviderObservationEnvelope,
+} from '../src/provider-observation/observation.ts';
+
+import {
   COMPUTATION_EVIDENCE_SCHEMA,
   COMPUTATION_EXECUTION_SCHEMA,
   EXECUTOR_COMMAND_SCHEMA,
@@ -29,6 +39,7 @@ import { GoExecutorClient } from '../src/go-executor-client.ts';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const contractDir=join(root,'contracts/computation-execution-v1');
 const authorityContractDir=join(root,'contracts/authority-facts-v1');
+const observationContractDir=join(root,'contracts/observation-evidence-v1');
 const readJson=(path:string):any=>JSON.parse(readFileSync(path,'utf8'));
 
 const contract=readJson(join(contractDir,'contract.json'));
@@ -38,6 +49,15 @@ const authorityContract=readJson(join(authorityContractDir,'contract.json'));
 const authoritySchema=readJson(join(authorityContractDir,'schema.json'));
 const authorityConformance=readJson(
   join(authorityContractDir,'authority-fact-conformance.json'),
+);
+const observationContract=readJson(
+  join(observationContractDir,'contract.json'),
+);
+const observationSchema=readJson(
+  join(observationContractDir,'schema.json'),
+);
+const observationConformance=readJson(
+  join(observationContractDir,'observation-evidence-conformance.json'),
 );
 const goProtocol=readFileSync(join(root,'executor/protocol.go'),'utf8');
 const goMain=readFileSync(join(root,'executor/cmd/overcenter-executor/main.go'),'utf8');
@@ -305,4 +325,59 @@ test('every intentionally open authority payload is named in contract metadata',
   const schemaText=JSON.stringify(authoritySchema);
   assert.match(schemaText,new RegExp(openKeyword));
   assert.ok(authorityContract.schema.validationExtensions.includes(openKeyword));
+});
+
+
+test('observation contract separates envelope validity from negative-evidence authority',()=>{
+  assert.equal(observationContract.id,'observation-evidence');
+  assert.equal(observationContract.version,'1.0.0');
+  assert.equal(observationContract.status,'active');
+  assert.equal(
+    observationSchema.$defs.AbsenceEvidenceEnvelope.properties.schema.const,
+    'overcenter-absence-evidence-v1',
+  );
+  assert.deepEqual(
+    observationContract.knownAbsenceEvidenceKinds.map(
+      (entry:{kind:string})=>entry.kind,
+    ),
+    ['local-file-enoent/v1','kubernetes-complete-list-absence/v1'],
+  );
+});
+
+test('observation/evidence conformance corpus runs against production envelope validators',()=>{
+  assert.equal(
+    observationConformance.schema,
+    'overcenter-observation-evidence-conformance-v1',
+  );
+  for (const candidate of observationConformance.cases as Array<{
+    name:string;
+    kind:string;
+    valid:boolean;
+    value:unknown;
+  }>) {
+    const validate=()=>{
+      if (candidate.kind==='provider-observation') {
+        validateProviderObservationEnvelope(candidate.value);
+        return;
+      }
+      if (candidate.kind==='kubernetes-provider-observation') {
+        validateProviderObservationEnvelope(
+          candidate.value,
+          {topLevelExtensions:['authority_id']},
+        );
+        return;
+      }
+      if (candidate.kind==='settlement-observation') {
+        validateObservationEnvelope(candidate.value);
+        return;
+      }
+      if (candidate.kind==='absence-envelope') {
+        validateAbsenceEvidenceEnvelope(candidate.value);
+        return;
+      }
+      throw new Error('UNKNOWN_OBSERVATION_CONFORMANCE_KIND');
+    };
+    if (candidate.valid) assert.doesNotThrow(validate,candidate.name);
+    else assert.throws(validate,undefined,candidate.name);
+  }
 });
