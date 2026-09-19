@@ -15,6 +15,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `provider-observation/` - provider-neutral observation provenance and structural-certificate engine shared by GitHub and Kubernetes experiments.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
+- `verifier-semantic-role-generalization/` - typed, data-only semantic roles differentially tested against every current verifier.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
@@ -200,6 +201,7 @@ npm test                              # fast deterministic regression only
 npm run proof:local                  # adversarial local experiments
 npm run test:kubernetes-observation # focused deterministic Kubernetes semantics
 npm run test:lisp-semantics          # focused semantic-coherence experiment
+npm run test:verifier-semantics       # real-verifier semantic-role differential
 npm run test:datalog                # Soufflé projection differential
 ```
 
