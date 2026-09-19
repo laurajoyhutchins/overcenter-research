@@ -11,5 +11,6 @@ let forged : evidence = {
   producer = Agent
 }
 
+[@@expect_failure]
 let impossible : bound_evidence obligation_a =
   forged
