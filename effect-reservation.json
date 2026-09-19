@@ -1,0 +1,12 @@
+{
+  "schema": "overcenter-git-effect-reservation-v2",
+  "run_id": "99214b03-f211-4595-8397-0f1dbee2aa4d",
+  "obligation_id": "actions-trust-proof-35468131291-1",
+  "execution_generation": 2,
+  "execution_authority_commit": "0f2c3c401d6d29a5434a60d0e84e75bcad16d9f5",
+  "effect_contract": "github-commit-status/set-from-postcondition/v1",
+  "adapter_contract_digest": "95c7beb518a1704854dd78ac12ae166fff51990ba32c18afb53ab4fbbe081c6b",
+  "effect_digest": "f01a8ac221a40eb62545451a725a2655f1aeec2e9c4427904d6b04bcb8a4af8f",
+  "worker_result_commit": "f3b77aafc98c54b5f91fa11840a5c6bf1e281d94",
+  "worker_result_digest": "9f315a240a14894966d1c3a307017c779a89f321395f7e5ea9e95715148fb1be"
+}
