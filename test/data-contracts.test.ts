@@ -329,7 +329,6 @@ test('every intentionally open authority payload is named in contract metadata',
 
 
 test('provider observation schema fences provider-specific outer extensions',()=>{
-  const generic=schemaCandidate=>schemaCandidate;
   const providerDefs=observationSchema.$defs;
   assert.equal(
     providerDefs.KubernetesProviderContract.properties.provider.const,
