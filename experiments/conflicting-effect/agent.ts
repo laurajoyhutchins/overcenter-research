@@ -1,6 +1,8 @@
 import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { bindTaskSession, executeAuthorizedEffect } from '../../src/effect-broker.ts';
+import { workerResult } from '../../src/realization.ts';
 
 const STATE_REF=githubProofStateRef('conflicting-effect');
 
@@ -10,52 +12,46 @@ function required(name:string):string {
   return value;
 }
 
-async function github(path:string,init:RequestInit={}):Promise<Response> {
-  const token=required('GITHUB_TOKEN');
-  return fetch(`https://api.github.com${path}`,{
-    ...init,
-    headers:{
-      Authorization:`Bearer ${token}`,
-      Accept:'application/vnd.github+json',
-      'X-GitHub-Api-Version':'2022-11-28',
-      'Content-Type':'application/json',
-    },
-  });
-}
-
 const slot=required('SLOT');
+const token=required('GITHUB_TOKEN');
 const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF});
 const work=kernel.inspect().find(candidate=>candidate.id.endsWith(`-${slot}`) && candidate.status==='EXECUTING');
 assert.ok(work);
 assert.ok(work.run_id);
 assert.equal(work.postcondition.verifier,'github-commit-status/v1');
-if (work.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 
-const repositoryResponse=await github(`/repositories/${work.postcondition.repository_id}`);
-if (!repositoryResponse.ok) throw new Error(`repository lookup failed: ${repositoryResponse.status}`);
-const repository=await repositoryResponse.json() as {id:number;full_name:string};
-
-const writtenContext=process.env.WRITE_CONTEXT_CASE==='upper'
-  ? work.postcondition.context.toUpperCase()
-  : work.postcondition.context;
-
-const response=await github(
-  `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
-  {
-    method:'POST',
-    body:JSON.stringify({
-      state:work.postcondition.expected_state,
-      context:writtenContext,
-      description:`Conflict counterexample ${slot}`,
-    }),
-  },
+const session=bindTaskSession(work);
+const result={
+  kind:'conflicting-effect-authorized-result/v1',
+  obligation_id:work.id,
+};
+const realization=kernel.acceptRealization(
+  session,
+  workerResult(session,result),
 );
-if (response.status!==201) throw new Error(`status write failed: ${response.status} ${await response.text()}`);
+const attempt=await executeAuthorizedEffect(
+  kernel,
+  session,
+  {githubToken:token},
+);
+
+assert.equal(attempt.evidence.provider,'github');
+assert.equal(attempt.evidence.operation,'create-commit-status');
+assert.equal(attempt.evidence.repository_id,work.postcondition.repository_id);
+assert.equal(attempt.evidence.commit_sha,work.postcondition.commit_sha);
+assert.equal(attempt.evidence.context.toLowerCase(),work.postcondition.context.toLowerCase());
+assert.equal(attempt.evidence.state,work.postcondition.expected_state);
+assert.equal(kernel.hasUnresolvedEffect(session.run_id),true);
+
 console.log(JSON.stringify({
   slot,
   run_id:work.run_id,
+  worker_generation:session.execution_generation,
+  broker_generation:attempt.broker_execution_generation,
+  realization_commit:realization.realization_commit,
+  reservation_commit:attempt.reservation_commit,
+  effect_digest:attempt.authorized_effect.effect_digest,
   state:work.postcondition.expected_state,
-  expected_context:work.postcondition.context,
-  written_context:writtenContext,
+  context:work.postcondition.context,
 }));
 process.exit(86);
