@@ -380,13 +380,15 @@
         "Every surprising rank decomposes into quantitative vector components and graph evidence."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
         "artifacts": [
           "Draft PR #111",
-          "GitHub Actions criticality ranking workflow"
+          "Production criticality ranking run 35474689271 at 5afdb52731b3ba42705656817b66797fab73af06",
+          "Criticality mutation probe run 35471986995 at 13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+          "experiments/production-criticality-ranking/mutation-evidence.json"
         ]
       },
-      "interpretation": "Treat the ranking as a revision-bound experimental projection. The vector components are durable inputs; the weighting policy and callable-level unit boundary remain replaceable.",
+      "interpretation": "A production-only callable graph can derive a reproducible consequence order and a separate engineering-attention order from quantitative facts. The current production graph resolves 84.6% of internal/unknown calls and agrees with 6/7 prior pairwise judgments; the lone reuse-over-identity disagreement remains evidence that callable granularity cannot represent every branch-level semantic claim. Exact-blob mutation evidence materially improves E and is safely reusable across revisions with unchanged production bytes; stale mutation evidence fails closed.",
       "non_claims": [
         "Callable boundaries are the final semantic unit.",
         "Static test reachability is equivalent to hostile-case evidence.",
