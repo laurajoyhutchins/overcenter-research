@@ -8,7 +8,12 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
-import { runProviderObservationCase, type ScenarioObservation, type ScenarioProvider } from './provider-fixtures.ts';
+import {
+  runProviderContinuityCase,
+  runProviderObservationCase,
+  type ScenarioObservation,
+  type ScenarioProvider,
+} from './provider-fixtures.ts';
 
 type Dependency =
   | { kind:'control'; upstream:string }
@@ -34,6 +39,7 @@ type Operation =
   | { op:'renew-execution'; permit:string; name:string }
   | { op:'reserve-effect'; permit:string; name:string }
   | { op:'provider-observe'; provider:ScenarioProvider; event:ScenarioObservation; name:string }
+  | { op:'provider-continuity'; provider:ScenarioProvider; continuity:'maintained'|'broken'; name:string }
   | { op:'provider-effect'; id:string }
   | { op:'interrupt'; id:string }
   | {
@@ -164,6 +170,12 @@ try {
         checkpoints[operation.name]=[result.work];
         break;
       }
+      case 'provider-continuity':
+        outcomes[operation.name]=runProviderContinuityCase(
+          operation.provider,
+          operation.continuity,
+        );
+        break;
       case 'provider-effect': {
         const work=kernel.inspect().find(candidate=>candidate.id===operation.id);
         if (!work) throw new Error(`UNKNOWN_WORK:${operation.id}`);
