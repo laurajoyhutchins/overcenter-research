@@ -3,9 +3,9 @@ import { canonicalDigest, sha256 } from './digest.ts';
 import { githubStatusContextKey } from './providers/github-rest.ts';
 import { LOCAL_FILE_ENOENT_EVIDENCE } from './evidence.ts';
 
-export interface EffectSemantics {
-  resource:string;
-  desired:string;
+export interface EffectConflictSemantics {
+  coordinate:string;
+  desiredState:string;
   sameDesiredCommutes:boolean;
 }
 
@@ -35,7 +35,7 @@ export function settlementSemantics(postcondition:Postcondition):SettlementSeman
   throw new Error(`UNSUPPORTED_SETTLEMENT_SEMANTICS:${String(exhaustive)}`);
 }
 
-export function verifiedContentIdentity(postcondition:Postcondition):string|null {
+export function verifiedRealizationIdentity(postcondition:Postcondition):string|null {
   if (
     postcondition.verifier==='file-content-equals/v1'
     || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
@@ -57,14 +57,14 @@ export function verifiedContentIdentity(postcondition:Postcondition):string|null
   return null;
 }
 
-export function effectSemantics(postcondition:Postcondition):EffectSemantics|null {
+export function effectConflictSemantics(postcondition:Postcondition):EffectConflictSemantics|null {
   if (
     postcondition.verifier!=='github-commit-status/v1'
     && postcondition.verifier!=='github-commit-status/v2'
   ) return null;
   return {
-    resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,
-    desired:postcondition.expected_state,
+    coordinate:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,
+    desiredState:postcondition.expected_state,
     sameDesiredCommutes:true,
   };
 }
