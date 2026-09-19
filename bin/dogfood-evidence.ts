@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
+import {DatabaseSync} from 'node:sqlite';
 import {
   chmodSync,
   existsSync,
@@ -23,7 +24,7 @@ import {
   runReadyTestComputation,
   type ComputationExecutor,
 } from '../src/computation-runner.ts';
-import {GitOvercenterKernel} from '../src/git-kernel.ts';
+import {OvercenterKernel} from '../src/kernel.ts';
 import {GoExecutorClient} from '../src/go-executor-client.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
@@ -59,13 +60,12 @@ const scratch=mkdtempSync(join(tmpdir(),'overcenter-self-dogfood-'));
 const workspace=join(scratch,'workspace');
 const attestations=join(scratch,'authority-attestations');
 const control=join(scratch,'control');
-const stateRepo=join(scratch,'state.git');
+const stateDatabase=join(scratch,'state.sqlite');
 mkdirSync(workspace,{recursive:true});
 chmodSync(workspace,0o777);
 mkdirSync(attestations,{recursive:true});
 mkdirSync(control,{recursive:true});
 chmodSync(control,0o750);
-execFileSync('git',['init','--bare',stateRepo],{stdio:'ignore'});
 
 let sequence=0;
 const label=`overcenter.self-dogfood=${process.pid}`;
@@ -197,26 +197,24 @@ function attestingExecutor(
 }
 
 function assertNoEffectReservations():void {
-  const output=execFileSync(
-    'git',
-    ['-C',stateRepo,'rev-list','refs/overcenter/state'],
-    {encoding:'utf8'},
-  ).trim();
-  for (const commit of output.split(/\n+/).filter(Boolean)) {
-    try {
-      execFileSync(
-        'git',
-        ['-C',stateRepo,'cat-file','-e',`${commit}:effect-reservation.json`],
-        {stdio:'ignore'},
+  const db=new DatabaseSync(stateDatabase);
+  try {
+    const row=db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM fact_commits
+      WHERE files_json LIKE '%"effect-reservation.json"%'
+    `).get() as {count:number|bigint};
+    if (Number(row.count)!==0) {
+      throw new Error(
+        `pure dogfood computation reserved ${String(row.count)} external effects`,
       );
-    } catch {
-      continue;
     }
-    throw new Error(`pure dogfood computation reserved an external effect at ${commit}`);
+  } finally {
+    db.close();
   }
 }
 
-function summarize(kernel:GitOvercenterKernel) {
+function summarize(kernel:OvercenterKernel) {
   return kernel.inspect().map(work=>({
     id:work.id,
     status:work.status,
@@ -233,7 +231,7 @@ const regressionContent=`passed:regression:${sourceSha}\n`;
 const localMarker=join(attestations,'local.passed');
 const localContent=`passed:local:${sourceSha}\n`;
 
-const kernel=new GitOvercenterKernel(stateRepo);
+const kernel=new OvercenterKernel(stateDatabase);
 kernel.initialize();
 kernel.define({
   id:'self-regression',
@@ -329,7 +327,8 @@ try {
   await executor.close();
   executor=null;
 
-  const reconstructed=new GitOvercenterKernel(stateRepo);
+  kernel.close();
+  const reconstructed=new OvercenterKernel(stateDatabase);
   assert.equal(reconstructed.head(),authorityHead);
   const reconstructedWork=summarize(reconstructed);
   assert.ok(reconstructedWork.every(work=>work.status==='DONE'));
@@ -360,7 +359,13 @@ try {
   const serialized=JSON.stringify(report,null,2)+'\n';
   process.stdout.write(serialized);
   if (reportPath) writeFileSync(reportPath,serialized);
+  reconstructed.close();
 } finally {
+  try {
+    kernel.close();
+  } catch {
+    // The successful reconstruction path already closed the original handle.
+  }
   if (executor) await executor.abort();
   try {
     const ids=docker(['ps','-aq','--filter',`label=${label}`])
