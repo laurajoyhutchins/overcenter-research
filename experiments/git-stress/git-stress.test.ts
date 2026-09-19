@@ -71,11 +71,11 @@ test('reachable state and receipts survive aggressive GC in SHA-256 repo', () =>
     k.beginEffect(run);
     writeFileSync(path, 'yes');
     k.reconcile(run);
-    const head = k.head();
+    const head = k.authorityRevision();
     assert.equal(head?.length, 64);
     execFileSync('git', ['-C', repo, 'gc', '--prune=now'], { stdio: 'ignore' });
     const restarted = new GitOvercenterKernel(repo);
-    assert.equal(restarted.head(), head);
+    assert.equal(restarted.authorityRevision(), head);
     assert.equal(restarted.inspect()[0].status, 'DONE');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
