@@ -53,6 +53,7 @@ interface Scenario {
   receipts:ReceiptFixture[];
   expectedClosure?:string[];
   currentSemanticKeyOverrides?:Record<string,string>;
+  extraCurrentSemanticKeys?:Array<[string,string]>;
 }
 
 const PROGRAM=join(
@@ -250,11 +251,14 @@ function datalogProjection(
 
     writeFacts(
       join(facts,'current_semantic_key.facts'),
-      [...currentDefinitions(scenario.definitions)].map(([id,definition])=>[
-        id,
-        scenario.currentSemanticKeyOverrides?.[id]
-          ?? keys.get(definition.ordinal)!,
-      ]),
+      [
+        ...[...currentDefinitions(scenario.definitions)].map(([id,definition])=>[
+          id,
+          scenario.currentSemanticKeyOverrides?.[id]
+            ?? keys.get(definition.ordinal)!,
+        ] as [string,string]),
+        ...(scenario.extraCurrentSemanticKeys??[]),
+      ],
     );
 
     writeFacts(
@@ -296,6 +300,22 @@ function datalogProjection(
       ['-F',facts,'-D',output,PROGRAM],
       {stdio:'pipe'},
     );
+
+    const malformedDiagnostics=[
+      'duplicate_definition_ordinal',
+      'duplicate_semantic_key',
+      'duplicate_receipt_ordinal',
+      'unknown_dependency',
+      'dependency_cycle',
+    ] as const;
+    for (const diagnostic of malformedDiagnostics) {
+      const rows=readPairs(join(output,`${diagnostic}.csv`));
+      if (rows.length>0) {
+        throw new Error(
+          `DATALOG_PROJECTION_INPUT_INVALID:${diagnostic}:${rows.join(',')}`,
+        );
+      }
+    }
 
     const statuses=new Map<string,WorkStatus>();
     for (const pair of readPairs(join(output,'project_status.csv'))) {
@@ -439,4 +459,22 @@ test('current semantic identity may change while the definition stays identical'
   };
   const invalidated=datalogProjection(changed);
   assert.equal(invalidated.statuses.get('stable'),'READY');
+});
+
+test('contradictory semantic-key input is rejected before projection is trusted',()=>{
+  const stableDefinition=obligation('contradictory','v1');
+  const scenario:Scenario={
+    name:'duplicate current semantic key',
+    definitions:[{work:stableDefinition,ordinal:1}],
+    runs:[],
+    receipts:[],
+    extraCurrentSemanticKeys:[
+      ['contradictory','sha256:contradictory-second-key'],
+    ],
+  };
+
+  assert.throws(
+    ()=>datalogProjection(scenario),
+    /DATALOG_PROJECTION_INPUT_INVALID:duplicate_semantic_key/,
+  );
 });
