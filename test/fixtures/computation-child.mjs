@@ -14,16 +14,31 @@ if (mode==='env') {
   process.stderr.write('y'.repeat(Number.parseInt(arg,10)));
 } else if (mode==='sleep') {
   setTimeout(()=>process.stdout.write(arg),250);
-} else if (mode==='tree-ignore-term' || mode==='tree-child-ignore-term') {
+} else if (
+  mode==='tree-ignore-term'
+  || mode==='tree-child-ignore-term'
+  || mode==='tree-detached-ignore-term'
+) {
   record('parent',process.pid);
-  if (mode==='tree-ignore-term') {
+  if (mode!=='tree-child-ignore-term') {
     process.on('SIGTERM',()=>{});
   }
+  const detached=mode==='tree-detached-ignore-term';
   const grandchild=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"],{
-    stdio:'ignore',
+    detached,
+    stdio:detached?'inherit':'ignore',
   });
+  if (detached) grandchild.unref();
   record('grandchild',grandchild.pid);
   setInterval(()=>{},1000);
+} else if (mode==='detached-child-exit') {
+  record('parent',process.pid);
+  const grandchild=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{}); setInterval(()=>{},1000)"],{
+    detached:true,
+    stdio:'inherit',
+  });
+  grandchild.unref();
+  record('grandchild',grandchild.pid);
 } else {
   process.stderr.write('unknown mode');
   process.exit(2);
