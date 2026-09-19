@@ -18,6 +18,7 @@ func main() {
 	workspaceRoot := flag.String("workspace-root", "", "absolute task workspace root")
 	maxConcurrency := flag.Int("concurrency", 8, "maximum simultaneously admitted computations")
 	socketPath := flag.String("socket", "", "Unix socket path for the trusted host connection")
+	socketGID := flag.Int("socket-gid", -1, "optional trusted-host GID for the Unix socket")
 	stdio := flag.Bool("stdio", false, "serve one test/development session over stdin/stdout")
 	taskUID := flag.Int("task-uid", -1, "UID for untrusted task processes")
 	taskGID := flag.Int("task-gid", -1, "GID for untrusted task processes")
@@ -36,6 +37,7 @@ func main() {
 		*socketPath != "",
 		*taskUID,
 		*taskGID,
+		*socketGID,
 		*unsafeSameUID,
 	)
 	if err != nil {
@@ -59,7 +61,7 @@ func main() {
 		}
 		return
 	}
-	if err := serveUnixSocket(ctx, runtime, *socketPath); err != nil {
+	if err := serveUnixSocket(ctx, runtime, *socketPath, *socketGID); err != nil {
 		fail(err)
 	}
 }
@@ -68,6 +70,7 @@ func resolveTaskCredential(
 	productionSocket bool,
 	taskUID int,
 	taskGID int,
+	socketGID int,
 	unsafeSameUID bool,
 ) (*executor.TaskCredential, error) {
 	if unsafeSameUID {
@@ -85,13 +88,24 @@ func resolveTaskCredential(
 	if taskUID == os.Geteuid() {
 		return nil, errors.New("task uid must differ from executor uid")
 	}
+	if taskGID == os.Getegid() {
+		return nil, errors.New("task gid must differ from executor gid")
+	}
+	if socketGID >= 0 && taskGID == socketGID {
+		return nil, errors.New("task gid must differ from trusted socket gid")
+	}
 	return &executor.TaskCredential{
 		UID: uint32(taskUID),
 		GID: uint32(taskGID),
 	}, nil
 }
 
-func serveUnixSocket(ctx context.Context, runtime *executor.Runtime, socketPath string) error {
+func serveUnixSocket(
+	ctx context.Context,
+	runtime *executor.Runtime,
+	socketPath string,
+	socketGID int,
+) error {
 	if !filepath.IsAbs(socketPath) {
 		return errors.New("socket path must be absolute")
 	}
@@ -114,6 +128,11 @@ func serveUnixSocket(ctx context.Context, runtime *executor.Runtime, socketPath 
 	}
 	listener.SetUnlinkOnClose(true)
 	defer listener.Close()
+	if socketGID >= 0 {
+		if err := os.Chown(socketPath, -1, socketGID); err != nil {
+			return err
+		}
+	}
 	if err := os.Chmod(socketPath, 0o660); err != nil {
 		return err
 	}
