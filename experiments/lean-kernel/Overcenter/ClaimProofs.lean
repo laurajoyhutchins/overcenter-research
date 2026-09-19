@@ -351,4 +351,96 @@ example :
       (candidateFor upstream [] []) =
         .rejected .invalidGraph := by native_decide
 
+private def githubStatusPostcondition
+    (context expected : String) : Postcondition := {
+  family := .githubCommitStatus
+  verifierRevision := "github-commit-status/v2@semantics-1"
+  coordinate := .githubCommitStatus 123 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" context
+  expected
+}
+
+private def statusSuccess : ClaimObligation := {
+  id := "status-success"
+  packetIdentity := "packet-status-success"
+  postcondition := githubStatusPostcondition "Overcenter/Proof" "success"
+  dependencies := []
+}
+
+private def statusFailure : ClaimObligation := {
+  id := "status-failure"
+  packetIdentity := "packet-status-failure"
+  postcondition := githubStatusPostcondition "overcenter/proof" "failure"
+  dependencies := []
+}
+
+private def statusSuccessAgain : ClaimObligation := {
+  id := "status-success-again"
+  packetIdentity := "packet-status-success-again"
+  postcondition := githubStatusPostcondition "OVERCENTER/PROOF" "success"
+  dependencies := []
+}
+
+private def statusOtherContext : ClaimObligation := {
+  id := "status-other"
+  packetIdentity := "packet-status-other"
+  postcondition := githubStatusPostcondition "overcenter/other" "failure"
+  dependencies := []
+}
+
+private def unorderedStatusConflict : List ClaimObligation :=
+  [statusSuccess, statusFailure]
+
+private def commutingStatusWrites : List ClaimObligation :=
+  [statusSuccess, statusSuccessAgain]
+
+private def independentStatusCoordinates : List ClaimObligation :=
+  [statusSuccess, statusOtherContext]
+
+private def orderedStatusFailure : ClaimObligation := {
+  statusFailure with
+  dependencies := [.control "status-success"]
+}
+
+private def orderedStatusConflict : List ClaimObligation :=
+  [statusSuccess, orderedStatusFailure]
+
+example : claimGraphValid unorderedStatusConflict = true := by native_decide
+example : claimStaticEffectOrderingValid unorderedStatusConflict = false := by native_decide
+
+-- GitHub status context identity is case-insensitive.
+example :
+    (claimEffectSemantics statusSuccess.postcondition).map (fun effect => effect.resource) =
+    (claimEffectSemantics statusFailure.postcondition).map (fun effect => effect.resource) := by
+  native_decide
+
+-- Identical writes to the same coordinate commute.
+example : claimStaticEffectOrderingValid commutingStatusWrites = true := by native_decide
+
+-- Different contexts are different provider resources.
+example : claimStaticEffectOrderingValid independentStatusCoordinates = true := by native_decide
+
+-- Incompatible writes are legal only when the graph orders them.
+example : claimStaticEffectOrderingValid orderedStatusConflict = true := by native_decide
+
+example :
+    admitClaim
+      "revision-a"
+      unorderedStatusConflict
+      []
+      []
+      {
+        runId := "run-status-success"
+        obligationId := "status-success"
+        parentRevision := "revision-a"
+        claimedRevision := "revision-a"
+        obligationKey := {
+          id := "status-success"
+          packetIdentity := "packet-status-success"
+          postcondition := statusSuccess.postcondition
+          semanticInputs := []
+        }
+        capabilityDigest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      } =
+        .rejected .unorderedEffectConflict := by native_decide
+
 end Overcenter
