@@ -141,7 +141,7 @@ export class GitOvercenterKernel {
 
   inspect():Work[] {
     const revision=this.#requireAuthorityRevision();
-    const {catalog,history}=this.#reconstructProjection(revision);
+    const {history}=this.#reconstructProjection(revision);
     return Object.values(catalog.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
       .map(work=>projectWork(catalog,work,revision,history.lifecycles));
@@ -149,7 +149,7 @@ export class GitOvercenterKernel {
 
   nextReadyWork():Work|null {
     const revision=this.#requireAuthorityRevision();
-    const {catalog,history}=this.#reconstructProjection(revision);
+    const {history}=this.#reconstructProjection(revision);
     const work=Object.values(catalog.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
       .find(candidate=>claimBlockReason(catalog,candidate,history.lifecycles)===null);
@@ -159,7 +159,7 @@ export class GitOvercenterKernel {
   claim(id:string,expectedRevision:string):ExecutionPermit {
     const revision=this.#requireAuthorityRevision();
     if (revision!==expectedRevision) throw new Error('STALE_REVISION');
-    const {catalog,history}=this.#reconstructProjection(revision);
+    const {history}=this.#reconstructProjection(revision);
     const work=catalog.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
     const claimError=claimBlockReason(catalog,work,history.lifecycles);
@@ -277,10 +277,9 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const revision=this.#requireAuthorityRevision();
-      const {catalog,history}=this.#reconstructProjection(revision);
+      const {history}=this.#reconstructProjection(revision);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
-      if (!catalog.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       if (prior && ['DONE','ABSENT'].includes(prior.disposition)) return prior;
@@ -312,10 +311,9 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const revision=this.#requireAuthorityRevision();
-      const {catalog,history}=this.#reconstructProjection(revision);
+      const {history}=this.#reconstructProjection(revision);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
-      if (!catalog.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       const run=this.#requireExecutionPermit(history,permit);
@@ -344,10 +342,9 @@ export class GitOvercenterKernel {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const revision=this.#requireAuthorityRevision();
-      const {catalog,history}=this.#reconstructProjection(revision);
+      const {history}=this.#reconstructProjection(revision);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
-      if (!catalog.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
       const prior=history.receiptsByRun.get(runId);
       const run=this.#requireExecutionPermit(history,permit);
