@@ -147,13 +147,14 @@ test('live provider proofs cancel superseded heads before consuming provider quo
     const source=read(path);
     assert.match(source,/^concurrency:\n/m,path);
     assert.match(source,/cancel-in-progress:\s*true/,path);
-    assert.match(
-      source,
-      /group:\s*\$\{\{ github\.workflow \}\}-\$\{\{ github\.(?:event\.pull_request\.number \|\| )?ref \}\}/,
+    const group=source.match(/^\s*group:\s*(.+)$/m)?.[1]??'';
+    assert.match(group,/github\.workflow/,path);
+    assert.ok(
+      group.includes('github.event.pull_request.number') || group.includes('github.ref'),
       path,
     );
-    assert.doesNotMatch(source,/group:[^\n]*head\.sha/,path);
-    assert.doesNotMatch(source,/group:[^\n]*github\.sha/,path);
+    assert.doesNotMatch(group,/head\.sha/,path);
+    assert.doesNotMatch(group,/github\.sha/,path);
   }
 });
 
