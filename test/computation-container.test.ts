@@ -223,10 +223,14 @@ async function startIsolatedExecutor(
     'true',
   );
 
+  const containmentId=docker(['inspect','--format','{{.Id}}',container]).trim();
+  assert.ok(containmentId);
+
   const client=new GoExecutorClient({
     socketPath,
     maxConcurrency:1,
     executionContextSha256:executionContextSha256(),
+    containmentId,
   });
 
   const remove=():void=>{
@@ -258,6 +262,11 @@ async function startIsolatedExecutor(
     },
   };
 }
+
+test('production source snapshot excludes Git metadata and checkout credentials',()=>{
+  assert.equal(existsSync(join(sourceRoot,'.git')),false);
+  assert.ok(existsSync(join(sourceRoot,'package.json')));
+});
 
 test('production computation refuses a pre-populated writable workspace',async()=>{
   const workspace=freshWorkspace('prepopulated-workspace');
@@ -457,6 +466,14 @@ test('isolated executor death recovers the real test from durable facts in gener
       recoveredKernel,
       second.client,
       interrupted.run_id,
+      {
+        assertTerminated:async containmentId=>{
+          assert.throws(
+            ()=>docker(['inspect',containmentId]),
+            /No such object|No such container/,
+          );
+        },
+      },
     );
     assert.equal(recovered.state,'DONE');
     assert.equal(recovered.execution_generation,2);
