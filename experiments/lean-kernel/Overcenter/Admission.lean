@@ -1,3 +1,4 @@
+import Std.Data.HashMap
 import Std.Data.HashSet
 import Overcenter.Semantics
 
@@ -104,10 +105,95 @@ def claimGraphReferencesKnown (ctx : ClaimContext) : Bool :=
     obligation.dependencies.all (fun dependency =>
       obligationIds.contains dependency.upstream))
 
+private def claimObligationIndexFromList
+    (obligations : List ClaimObligation) :
+    Std.HashMap String ClaimObligation :=
+  (Std.HashMap.emptyWithCapacity obligations.length).insertMany
+    (obligations.map (fun obligation => (obligation.id, obligation)))
+
+private def claimDependentsIndex (ctx : ClaimContext) :
+    Std.HashMap String (List String) :=
+  ctx.obligations.foldl
+    (fun dependents obligation =>
+      obligation.dependencies.foldl
+        (fun dependents dependency =>
+          dependents.alter dependency.upstream (fun current =>
+            some (obligation.id :: current.getD [])))
+        dependents)
+    (Std.HashMap.emptyWithCapacity ctx.obligations.length)
+
+private def claimIndegreeIndex (ctx : ClaimContext) :
+    Std.HashMap String Nat :=
+  ctx.obligations.foldl
+    (fun indegree obligation =>
+      indegree.insert obligation.id obligation.dependencies.length)
+    (Std.HashMap.emptyWithCapacity ctx.obligations.length)
+
+private def claimZeroIndegreeQueue (ctx : ClaimContext) : List String :=
+  ctx.obligations.foldl
+    (fun queue obligation =>
+      if obligation.dependencies.isEmpty then
+        obligation.id :: queue
+      else
+        queue)
+    []
+
+private def releaseClaimDependents :
+    List String →
+    Std.HashMap String Nat →
+    List String →
+    Option (Std.HashMap String Nat × List String)
+  | [], indegree, queue => some (indegree, queue)
+  | dependent :: rest, indegree, queue =>
+      match indegree[dependent]? with
+      | none => none
+      | some 0 => none
+      | some (Nat.succ prior) =>
+          let indegree := indegree.insert dependent prior
+          let queue :=
+            if prior == 0 then
+              dependent :: queue
+            else
+              queue
+          releaseClaimDependents rest indegree queue
+
+private def claimKahnLoop
+    (dependents : Std.HashMap String (List String)) :
+    Std.HashMap String Nat →
+    List String →
+    Nat →
+    Nat →
+    Option Nat
+  | indegree, queue, processed, 0 => some processed
+  | indegree, [], processed, _ + 1 => some processed
+  | indegree, node :: queue, processed, fuel + 1 =>
+      let released :=
+        releaseClaimDependents
+          ((dependents[node]?).getD [])
+          indegree
+          queue
+      match released with
+      | none => none
+      | some (indegree, queue) =>
+          claimKahnLoop dependents indegree queue (processed + 1) fuel
+
 def claimGraphAcyclic (ctx : ClaimContext) : Bool :=
-  !ctx.obligations.any (fun obligation =>
-    obligation.dependencies.any (fun dependency =>
-      claimDependsOn ctx.obligations dependency.upstream obligation.id))
+  if !uniqueStrings (claimObligationIds ctx) then
+    false
+  else
+    let dependents := claimDependentsIndex ctx
+    let indegree := claimIndegreeIndex ctx
+    let queue := claimZeroIndegreeQueue ctx
+    match
+      claimKahnLoop
+        dependents
+        indegree
+        queue
+        0
+        ctx.obligations.length
+    with
+    | none => false
+    | some processed => processed == ctx.obligations.length
 
 private def claimLifecycleIdSet (ctx : ClaimContext) : Std.HashSet String :=
   (Std.HashSet.emptyWithCapacity ctx.lifecycles.length).insertMany
@@ -153,6 +239,35 @@ def claimEffectsConflict (left right : ClaimEffect) : Bool :=
   else
     true
 
+private def claimDependsOnIndexedWithFuel
+    (obligations : Std.HashMap String ClaimObligation)
+    (fromId targetId : String) :
+    Nat → Bool
+  | 0 => false
+  | fuel + 1 =>
+      if fromId == targetId then
+        true
+      else
+        match obligations[fromId]? with
+        | none => false
+        | some obligation =>
+            obligation.dependencies.any (fun dependency =>
+              claimDependsOnIndexedWithFuel
+                obligations
+                dependency.upstream
+                targetId
+                fuel)
+
+private def claimDependsOnIndexed
+    (obligations : Std.HashMap String ClaimObligation)
+    (obligationCount : Nat)
+    (fromId targetId : String) : Bool :=
+  claimDependsOnIndexedWithFuel
+    obligations
+    fromId
+    targetId
+    (obligationCount + 1)
+
 def claimUnorderedEffectConflict (ctx : ClaimContext) : Bool :=
   match findClaimObligation ctx.obligations ctx.targetId with
   | none => true
@@ -160,6 +275,8 @@ def claimUnorderedEffectConflict (ctx : ClaimContext) : Bool :=
       match target.effect with
       | none => false
       | some targetEffect =>
+          let obligationIndex :=
+            claimObligationIndexFromList ctx.obligations
           ctx.obligations.any (fun other =>
             if other.id == target.id then
               false
@@ -168,8 +285,16 @@ def claimUnorderedEffectConflict (ctx : ClaimContext) : Bool :=
               | none => false
               | some otherEffect =>
                   claimEffectsConflict targetEffect otherEffect &&
-                  !(claimDependsOn ctx.obligations target.id other.id ||
-                    claimDependsOn ctx.obligations other.id target.id))
+                  !(claimDependsOnIndexed
+                      obligationIndex
+                      ctx.obligations.length
+                      target.id
+                      other.id ||
+                    claimDependsOnIndexed
+                      obligationIndex
+                      ctx.obligations.length
+                      other.id
+                      target.id))
 
 def claimAdmissible (ctx : ClaimContext) : Bool :=
   claimContextWellFormed ctx &&
