@@ -150,14 +150,16 @@ function doneReceipt(
   };
 }
 
-function semanticOutputMaterial(postcondition:Postcondition):unknown {
+function semanticSource(postcondition:Postcondition):unknown {
   if (
     postcondition.verifier==='file-content-equals/v1'
     || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
   ) {
     return {
-      kind:'content-sha256',
-      digest:sha256(postcondition.content),
+      kind:postcondition.verifier==='file-content-equals/v1'
+        ? 'file-content'
+        : 'eventually-consistent-file-content',
+      content_sha256:sha256(postcondition.content),
     };
   }
   if (
@@ -174,7 +176,7 @@ function semanticOutputMaterial(postcondition:Postcondition):unknown {
   }
   if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
     return {
-      kind:'kubernetes-exists',
+      kind:'kubernetes-configmap-exists',
       authority_id:postcondition.authority_id,
       api_group:postcondition.api_group,
       resource:postcondition.resource,
@@ -202,7 +204,7 @@ function rawRequest(
         kind:edge.kind,
         selector:edge.kind==='semantic' ? edge.consumes.selector : null,
       })),
-      semantic_output:semanticOutputMaterial(obligation.postcondition),
+      semantic_source:semanticSource(obligation.postcondition),
       effect:(()=>{
         const effect=effectSemantics(obligation.postcondition);
         return effect
@@ -479,7 +481,7 @@ test('Lean raw-facts boundary rejects facts that TypeScript replay already forbi
   const source=(missingOutput.obligations as Array<Record<string,unknown>>)
     .find(item=>item.id==='source');
   assert.ok(source);
-  source.semantic_output=null;
+  source.semantic_source=null;
   assert.equal(
     runKernel({command:'claim-admission-derived',...missingOutput}).admitted,
     false,
