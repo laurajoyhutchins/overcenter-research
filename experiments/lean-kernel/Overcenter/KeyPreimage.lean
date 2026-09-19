@@ -1,3 +1,4 @@
+import Lean.Data.Json.Parser
 import Lean.Data.Json.Printer
 import Overcenter.SemanticIdentityProofs
 
@@ -14,7 +15,6 @@ structure ObligationKeyInput where
   context : RawClaimContext
   packet : Json
   postcondition : Json
-  deriving Repr
 
 def semanticDependencies (ctx : RawClaimContext) : List RawClaimDependency :=
   match findRawObligation ctx.obligations ctx.targetId with
@@ -66,16 +66,19 @@ def semanticIdentityHashBytes : SemanticIdentityMaterial → Option String
   | .output (.contentSha256 _) => none
   | .settlementReceipt _ => none
   | .output (.githubCommitStatus repositoryId commitSha context state) =>
-      match repositoryId.toNat? with
-      | none => none
-      | some repositoryIdNat =>
-          some <| (Json.mkObj [
-            ("provider", "github"),
-            ("repository_id", toJson repositoryIdNat),
-            ("commit_sha", commitSha),
-            ("context", context),
-            ("state", state)
-          ]).compress
+      match Json.parse repositoryId with
+      | .error _ => none
+      | .ok repositoryIdJson =>
+          match repositoryIdJson.getNat? with
+          | .error _ => none
+          | .ok _ =>
+              some <| (Json.mkObj [
+                ("provider", "github"),
+                ("repository_id", repositoryIdJson),
+                ("commit_sha", commitSha),
+                ("context", context),
+                ("state", state)
+              ]).compress
   | .output (.kubernetesExists authorityId apiGroup resource namespaceName name) =>
       some <| (Json.mkObj [
         ("provider", "kubernetes"),
