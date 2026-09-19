@@ -7,6 +7,7 @@ import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   LEGACY_EFFECT_RESERVATION_SCHEMA,
+  LEGACY_OBLIGATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
   REALIZATION_SCHEMA,
   LEGACY_RECEIPT_SCHEMA,
@@ -114,7 +115,12 @@ export function replayProjection(commits:FactCommit[]):Projection {
   for (const record of commits) {
     if (record.obligation!=null) {
       const fact=record.obligation as ObligationFact;
-      if (fact.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
+      if (
+        fact.schema!==OBLIGATION_SCHEMA
+        && fact.schema!==LEGACY_OBLIGATION_SCHEMA
+      ) {
+        throw new Error('INVALID_OBLIGATION_SCHEMA');
+      }
       const obligation=validateStoredObligation(fact.obligation);
       const id=obligation.id;
 
@@ -132,6 +138,17 @@ export function replayProjection(commits:FactCommit[]):Projection {
 
       state.obligations[id]=obligation;
       state.definition_commits[id]=record.commit;
+      if (fact.schema===LEGACY_OBLIGATION_SCHEMA) {
+        state.legacy_effect_ids??={};
+        if (
+          obligation.postcondition.verifier==='github-commit-status/v1'
+          || obligation.postcondition.verifier==='github-commit-status/v2'
+        ) {
+          state.legacy_effect_ids[id]=true;
+        }
+      } else if (state.legacy_effect_ids?.[id]) {
+        delete state.legacy_effect_ids[id];
+      }
       validateGraph(state);
       lifecycles=deriveLifecycles(state,runs,receiptsByRun);
     }
