@@ -37,7 +37,7 @@ OVERCENTER_EXECUTOR_IMAGE="$image" \
   node --experimental-strip-types --test test/computation-container.test.ts
 
 docker rm -f "$name" >/dev/null 2>&1 || true
-docker run -d --name "$name" -v "$work:/workspace" "$image" >/dev/null
+docker run -d --name "$name" --network=none --read-only -v "$work:/workspace" "$image" >/dev/null
 
 for _ in $(seq 1 100); do
   if [[ -f "$work/executor-killed" ]]; then
