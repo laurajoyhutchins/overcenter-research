@@ -19,13 +19,33 @@ func main() {
 	maxConcurrency := flag.Int("concurrency", 8, "maximum simultaneously admitted computations")
 	socketPath := flag.String("socket", "", "Unix socket path for the trusted host connection")
 	stdio := flag.Bool("stdio", false, "serve one test/development session over stdin/stdout")
+	taskUID := flag.Int("task-uid", -1, "UID for untrusted task processes")
+	taskGID := flag.Int("task-gid", -1, "GID for untrusted task processes")
+	unsafeSameUID := flag.Bool(
+		"unsafe-test-same-uid",
+		false,
+		"allow test-only execution without dropping task credentials",
+	)
 	flag.Parse()
 
 	if (*socketPath == "") == !*stdio {
 		fail(errors.New("choose exactly one transport: --socket or --stdio"))
 	}
 
-	runtime, err := executor.NewRuntime(*workspaceRoot, *maxConcurrency)
+	taskCredential, err := resolveTaskCredential(
+		*socketPath != "",
+		*taskUID,
+		*taskGID,
+		*unsafeSameUID,
+	)
+	if err != nil {
+		fail(err)
+	}
+	runtime, err := executor.NewRuntime(
+		*workspaceRoot,
+		*maxConcurrency,
+		taskCredential,
+	)
 	if err != nil {
 		fail(err)
 	}
@@ -42,6 +62,33 @@ func main() {
 	if err := serveUnixSocket(ctx, runtime, *socketPath); err != nil {
 		fail(err)
 	}
+}
+
+func resolveTaskCredential(
+	productionSocket bool,
+	taskUID int,
+	taskGID int,
+	unsafeSameUID bool,
+) (*executor.TaskCredential, error) {
+	if unsafeSameUID {
+		if taskUID >= 0 || taskGID >= 0 {
+			return nil, errors.New("unsafe same-uid mode cannot also set task credentials")
+		}
+		return nil, nil
+	}
+	if taskUID < 0 || taskGID < 0 {
+		if productionSocket {
+			return nil, errors.New("socket mode requires --task-uid and --task-gid")
+		}
+		return nil, errors.New("set task credentials or use --unsafe-test-same-uid")
+	}
+	if taskUID == os.Geteuid() {
+		return nil, errors.New("task uid must differ from executor uid")
+	}
+	return &executor.TaskCredential{
+		UID: uint32(taskUID),
+		GID: uint32(taskGID),
+	}, nil
 }
 
 func serveUnixSocket(ctx context.Context, runtime *executor.Runtime, socketPath string) error {
