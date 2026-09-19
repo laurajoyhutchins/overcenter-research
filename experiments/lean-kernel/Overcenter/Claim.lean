@@ -79,6 +79,7 @@ structure ClaimCandidate where
 
 inductive ClaimAdmissionError where
   | invalidGraph
+  | unorderedEffectConflict
   | unknownObligation
   | duplicateRun
   | revisionMismatch
@@ -160,6 +161,79 @@ def claimGraphValid (obligations : List ClaimObligation) : Bool :=
   claimObligationIdsUnique obligations &&
   claimDependenciesKnown obligations &&
   !claimGraphHasCycle obligations
+
+structure ClaimEffectResource where
+  repositoryId : Nat
+  commitSha : String
+  normalizedContext : String
+  deriving Repr, BEq, DecidableEq
+
+structure ClaimEffectSemantics where
+  resource : ClaimEffectResource
+  desired : String
+  sameDesiredCommutes : Bool
+  deriving Repr, BEq, DecidableEq
+
+def claimEffectSemantics (postcondition : Postcondition) : Option ClaimEffectSemantics :=
+  match postcondition.family, postcondition.coordinate with
+  | .githubCommitStatus, .githubCommitStatus repositoryId commitSha context =>
+      some {
+        resource := {
+          repositoryId
+          commitSha
+          normalizedContext := context.toLower
+        }
+        desired := postcondition.expected
+        sameDesiredCommutes := true
+      }
+  | _, _ => none
+
+def claimDependsOn
+    (obligations : List ClaimObligation)
+    (fromId targetId : String)
+    (fuel : Nat) : Bool :=
+  if fromId == targetId then
+    true
+  else
+    match fuel with
+    | 0 => false
+    | fuel + 1 =>
+        match findClaimObligation obligations fromId with
+        | none => false
+        | some obligation =>
+            obligation.dependencies.any (fun dependency =>
+              let upstream := claimDependencyUpstream dependency
+              upstream == targetId ||
+              claimDependsOn obligations upstream targetId fuel)
+
+def claimHasUnorderedEffectConflict
+    (obligations : List ClaimObligation)
+    (work : ClaimObligation) : Bool :=
+  match claimEffectSemantics work.postcondition with
+  | none => false
+  | some semantics =>
+      obligations.any (fun other =>
+        if other.id == work.id then
+          false
+        else
+          match claimEffectSemantics other.postcondition with
+          | none => false
+          | some otherSemantics =>
+              if otherSemantics.resource != semantics.resource then
+                false
+              else
+                let sameDesired := otherSemantics.desired == semantics.desired
+                if sameDesired &&
+                    semantics.sameDesiredCommutes &&
+                    otherSemantics.sameDesiredCommutes then
+                  false
+                else
+                  !(claimDependsOn obligations work.id other.id (obligations.length + 1) ||
+                    claimDependsOn obligations other.id work.id (obligations.length + 1)))
+
+def claimStaticEffectOrderingValid (obligations : List ClaimObligation) : Bool :=
+  obligations.all (fun obligation =>
+    !claimHasUnorderedEffectConflict obligations obligation)
 
 def claimVerifiedContentIdentity
     (postcondition : Postcondition) : ClaimSemanticIdentity :=
@@ -348,6 +422,8 @@ def admitClaim
     (candidate : ClaimCandidate) : ClaimAdmissionResult :=
   if !claimGraphValid obligations then
     .rejected .invalidGraph
+  else if !claimStaticEffectOrderingValid obligations then
+    .rejected .unorderedEffectConflict
   else
     match findClaimObligation obligations candidate.obligationId with
     | none => .rejected .unknownObligation
