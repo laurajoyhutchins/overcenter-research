@@ -176,7 +176,7 @@ export async function runSynthetic(
 
 interface SubprocessSpec {
   fixture:string;
-  mode:'complete'|'fail'|'hang'|'grandchild-hang';
+  mode:'complete'|'fail'|'hang'|'grandchild-hang'|'grandchild-ignore-term';
   result?:string;
   pid_file?:string;
 }
