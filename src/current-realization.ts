@@ -43,8 +43,22 @@ const DEFAULT_PROJECTOR=fileURLToPath(
   ),
 );
 
-function verifierRevision(postcondition:Postcondition):string {
-  return `${postcondition.verifier}@semantics-1`;
+function verifierRevision(verifier:Postcondition['verifier']):string {
+  return `${verifier}@semantics-1`;
+}
+
+function verifierFamily(verifier:Postcondition['verifier']):string {
+  if (verifier==='file-content-equals/v1') return 'file-content';
+  if (verifier==='eventually-consistent-file-content-equals/v1') {
+    return 'eventually-consistent-file-content';
+  }
+  if (
+    verifier==='github-commit-status/v1'
+    || verifier==='github-commit-status/v2'
+  ) {
+    return 'github-commit-status';
+  }
+  return 'kubernetes-configmap-exists';
 }
 
 function githubCoordinate(postcondition:Extract<
@@ -68,7 +82,7 @@ function leanPostcondition(postcondition:Postcondition):Record<string,unknown> {
       family:postcondition.verifier==='file-content-equals/v1'
         ? 'file-content'
         : 'eventually-consistent-file-content',
-      verifier_revision:verifierRevision(postcondition),
+      verifier_revision:verifierRevision(postcondition.verifier),
       coordinate:postcondition.path,
       expected:sha256(postcondition.content),
     };
@@ -80,7 +94,7 @@ function leanPostcondition(postcondition:Postcondition):Record<string,unknown> {
   ) {
     return {
       family:'github-commit-status',
-      verifier_revision:verifierRevision(postcondition),
+      verifier_revision:verifierRevision(postcondition.verifier),
       coordinate:githubCoordinate(postcondition),
       expected:postcondition.expected_state,
     };
@@ -88,7 +102,7 @@ function leanPostcondition(postcondition:Postcondition):Record<string,unknown> {
 
   return {
     family:'kubernetes-configmap-exists',
-    verifier_revision:verifierRevision(postcondition),
+    verifier_revision:verifierRevision(postcondition.verifier),
     coordinate:{
       authority_id:postcondition.authority_id,
       namespace:postcondition.namespace,
@@ -168,6 +182,31 @@ function kubernetesAbsence(
   };
 }
 
+function observationCoordinate(observation:Observation):unknown {
+  if (
+    observation.verifier==='file-content-equals/v1'
+    || observation.verifier==='eventually-consistent-file-content-equals/v1'
+  ) {
+    return typeof observation.path==='string' ? observation.path : '';
+  }
+  if (
+    observation.verifier==='github-commit-status/v1'
+    || observation.verifier==='github-commit-status/v2'
+  ) {
+    return [
+      'github-status',
+      String(observation.repository_id??''),
+      String(observation.commit_sha??''),
+      githubStatusContextKey(String(observation.context??'')),
+    ].join(':');
+  }
+  return {
+    authority_id:String(observation.authority_id??''),
+    namespace:String(observation.namespace??''),
+    name:String(observation.name??''),
+  };
+}
+
 function leanObservation(
   postcondition:Postcondition,
   observation:Observation|null,
@@ -178,8 +217,8 @@ function leanObservation(
   let absence:Record<string,unknown>|null=null;
 
   if (
-    postcondition.verifier==='file-content-equals/v1'
-    || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+    observation.verifier==='file-content-equals/v1'
+    || observation.verifier==='eventually-consistent-file-content-equals/v1'
   ) {
     actual=typeof observation.actual_sha256==='string'
       ? observation.actual_sha256
@@ -188,21 +227,26 @@ function leanObservation(
       absence=localAbsence(observation.absence_evidence);
     }
   } else if (
-    postcondition.verifier==='github-commit-status/v1'
-    || postcondition.verifier==='github-commit-status/v2'
+    observation.verifier==='github-commit-status/v1'
+    || observation.verifier==='github-commit-status/v2'
   ) {
     actual=typeof observation.actual_state==='string'
       ? observation.actual_state
       : null;
   } else {
     actual=observation.mutation_certainty==='present' ? 'exists' : null;
-    if (observation.absence_evidence) {
+    if (
+      postcondition.verifier==='kubernetes-configmap-exists/v1'
+      && observation.absence_evidence
+    ) {
       absence=kubernetesAbsence(postcondition,observation.absence_evidence);
     }
   }
 
   return {
-    ...leanPostcondition(postcondition),
+    family:verifierFamily(observation.verifier),
+    verifier_revision:verifierRevision(observation.verifier),
+    coordinate:observationCoordinate(observation),
     certainty:observation.mutation_certainty,
     actual,
     absence,
