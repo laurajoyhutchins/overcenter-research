@@ -30,6 +30,48 @@ recompute project projection ↺
 
 The worker does not decide that its work succeeded.
 
+## Current production slice
+
+The supported runtime boundary is intentionally smaller than the research surface:
+
+| Concern | Current owner | Status |
+| --- | --- | --- |
+| durable authority, graph semantics, claim/recovery fencing, observation, settlement | TypeScript + SQLite | production reference path |
+| isolated replay-safe pure computation and attempt evidence | Go | admitted for the `test` workload |
+| worker filesystem/process confinement | Rust | experiment only |
+| Lean, Datalog, F*, bounded model checks | proof/differential oracles | no runtime authority |
+
+The production computation profile is fail-closed:
+
+```text
+SQLite authority
+      |
+ exact READY claim + generation
+      |
+ trusted execution-context digest
+      |
+ Unix socket hello attestation
+      |
+ Go executor
+      |
+ UID/GID-isolated task
+      |
+ attempt evidence
+      |
+ confined TypeScript observation
+      |
+ settlement
+```
+
+The executor container runs without network access, with a read-only root/source snapshot, `no-new-privileges`, an explicit minimal capability set, PID/memory/CPU/open-file/per-file-size ceilings, and a fresh writable workspace. Aggregate workspace exhaustion belongs to the disposable outer worker-host quota rather than being delegated to the task container.
+
+Run the same supported-slice proof used by CI:
+
+```sh
+npm run proof:production
+```
+
+
 ## What is Overcenter?
 
 Overcenter separates reasoning from execution correctness.
@@ -119,9 +161,9 @@ Important entry points:
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
 - [`src/graph.ts`](./src/graph.ts) - provider-agnostic dependency topology, validation, and ordering queries.
 - [`src/admission.ts`](./src/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
-- [`src/lifecycle.ts`](./src/lifecycle.ts) - semantic realization identity and internal realization lifecycle (`UNREALIZED` through `DONE`).
-- [`src/eligibility.ts`](./src/eligibility.ts) - maps an unrealized obligation to public `READY` or `BLOCKED` using deterministic execution eligibility.
-- [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to current project projection.
+- [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to historical project facts.
+- [`src/projector.ts`](./src/projector.ts) - the single derived project-status/claimability projection.
+- [`src/realization-admissibility.ts`](./src/realization-admissibility.ts) - fresh-authority classification for historical realization reuse.
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
 - [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
@@ -142,6 +184,7 @@ The command name states what kind of evidence a green check supports:
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
+| `npm run proof:production` | Supported SQLite + Go computation slice, containment, recovery, and deterministic regression. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import type {
   AbsenceEvidenceCertificate,
   Observation,
@@ -25,11 +26,44 @@ export interface ObservationContext {
   githubGet?: GithubJsonGet;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
+  // Optional trusted confinement root for local-file observations. In confined
+  // mode the observed file must be a direct child of this root and the final
+  // component must not be a symlink. This deliberately avoids traversing
+  // task-writable parent directories without an openat-style directory handle.
+  localFileRoot?: string;
   clock?: () => string;
 }
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 const errorMessage=(e:unknown)=>e instanceof Error ? e.message : String(e);
+
+function readLocalFile(path:string,context:ObservationContext):string {
+  const target=resolve(path);
+  if (context.localFileRoot) {
+    let root:string;
+    try {
+      root=realpathSync(context.localFileRoot);
+    } catch {
+      throw new Error('LOCAL_FILE_CONFINEMENT_ROOT_UNAVAILABLE');
+    }
+    if (dirname(target)!==root) {
+      throw new Error('LOCAL_FILE_OUTSIDE_CONFINED_ROOT');
+    }
+  }
+
+  const fd=openSync(
+    target,
+    constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
+  );
+  try {
+    if (!fstatSync(fd).isFile()) {
+      throw new Error('LOCAL_FILE_NOT_REGULAR');
+    }
+    return readFileSync(fd,'utf8');
+  } finally {
+    closeSync(fd);
+  }
+}
 
 export function validatePostcondition(p: Postcondition): void {
   if (p?.verifier==='file-content-equals/v1'
@@ -217,7 +251,7 @@ export function observePostcondition(
   if (p.verifier==='eventually-consistent-file-content-equals/v1') {
     const expected=sha256(p.content);
     try {
-      const actual=readFileSync(p.path,'utf8');
+      const actual=readLocalFile(p.path,context);
       const actualSha=sha256(actual);
       if (actual===p.content) {
         return {
@@ -259,7 +293,7 @@ export function observePostcondition(
 
   const expected=sha256(p.content);
   try {
-    const actual=readFileSync(p.path,'utf8');
+    const actual=readLocalFile(p.path,context);
     const actualSha=sha256(actual);
     return {
       verifier:p.verifier,

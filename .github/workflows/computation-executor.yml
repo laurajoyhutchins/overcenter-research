@@ -16,10 +16,12 @@ on:
       - src/kernel.ts
       - src/sqlite-store.ts
       - src/go-executor-client.ts
+      - src/observation.ts
       - test/computation-executor.test.ts
       - test/computation-container.test.ts
       - test/fixtures/computation-child.mjs
       - package.json
+      - scripts/proof-production.sh
   pull_request:
     paths:
       - .github/workflows/computation-executor.yml
@@ -51,6 +53,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
@@ -58,52 +62,5 @@ jobs:
         with:
           go-version-file: executor/go.mod
           cache: false
-      - name: Go protocol and runtime unit tests
-        working-directory: executor
-        run: go test ./...
-      - name: Cross-language production boundary
-        run: npm run test:computation-executor
-      - name: Isolated test workload and catastrophic executor-death containment
-        shell: bash
-        run: |
-          set -euo pipefail
-          image=overcenter-executor-containment:${{ github.sha }}
-          name=overcenter-executor-containment
-          work="$RUNNER_TEMP/overcenter-executor-containment"
-          rm -rf "$work"
-          mkdir -p "$work"
-
-          docker build -f executor/containment/Dockerfile -t "$image" .
-
-          OVERCENTER_EXECUTOR_IMAGE="$image" \
-            node --experimental-strip-types --test test/computation-container.test.ts
-
-          docker run -d --name "$name" -v "$work:/workspace" "$image"
-
-          for _ in $(seq 1 100); do
-            if [ -f "$work/executor-killed" ]; then
-              break
-            fi
-            sleep 0.1
-          done
-          test -f "$work/credential-proof"
-          test -f "$work/executor-killed"
-          grep -Fx 'executor=0 task=65532 groups=65532' "$work/credential-proof"
-
-          docker top "$name" -eo pid,ppid,cmd
-          mapfile -t pids < <(docker top "$name" -eo pid | tail -n +2 | tr -d ' ')
-          if [ "${#pids[@]}" -lt 2 ]; then
-            echo "expected worker driver plus hostile survivor after executor SIGKILL" >&2
-            exit 1
-          fi
-
-          docker kill "$name" >/dev/null
-          for pid in "${pids[@]}"; do
-            if kill -0 "$pid" 2>/dev/null; then
-              echo "container teardown left host process alive: $pid" >&2
-              exit 1
-            fi
-          done
-          docker rm "$name" >/dev/null
-      - name: Repository regression
-        run: npm test
+      - name: Production slice proof
+        run: npm run proof:production

@@ -18,6 +18,7 @@ import {
 } from './kernel-core.ts';
 
 export const TEST_COMPUTATION_PACKET_SCHEMA='overcenter-test-computation-v1' as const;
+export const REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA='overcenter-replay-safe-test-computation-v1' as const;
 export const COMPUTATION_ATTEMPT_SUMMARY_SCHEMA='overcenter-computation-attempt-summary-v1' as const;
 export const COMPUTATION_TRANSPORT_FAILURE_SCHEMA='overcenter-computation-transport-failure-v1' as const;
 
@@ -27,7 +28,21 @@ export interface TestComputationPacketV1 {
   process_spec:ProcessSpecV1;
 }
 
+export interface ReplaySafeTestComputationPacketV1 {
+  schema:typeof REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA;
+  kind:'test';
+  execution_context_sha256:string;
+  process_spec:ProcessSpecV1;
+}
+
+export type TestComputationPacket =
+  | TestComputationPacketV1
+  | ReplaySafeTestComputationPacketV1;
+
 export interface ComputationExecutor {
+  readonly executionContextSha256?:string;
+  readonly containmentId?:string;
+  ready?():Promise<void>;
   execute(
     execution:ComputationExecutionV1,
   ):Promise<ComputationAttemptEvidenceV1>;
@@ -44,6 +59,10 @@ export interface TestComputationResult {
   transport_error?:string;
 }
 
+export interface ComputationRecoveryAuthority {
+  assertTerminated(containmentId:string):Promise<void>;
+}
+
 function errorMessage(error:unknown):string {
   const message=error instanceof Error ? error.message : String(error);
   return message.length<=2048 ? message : message.slice(0,2048);
@@ -55,24 +74,50 @@ function isRecord(value:unknown):value is Record<string,unknown> {
 
 export function validateTestComputationPacket(
   value:unknown,
-):TestComputationPacketV1 {
+):TestComputationPacket {
   if (!isRecord(value)) throw new Error('TEST_COMPUTATION_PACKET_INVALID');
-  const keys=Object.keys(value).sort();
-  const expected=['kind','process_spec','schema'];
-  if (
-    keys.length!==expected.length
-    || keys.some((key,index)=>key!==expected[index])
-  ) {
-    throw new Error('TEST_COMPUTATION_PACKET_SHAPE_INVALID');
+  if (value.kind!=='test') throw new Error('TEST_COMPUTATION_PACKET_SCHEMA_MISMATCH');
+
+  if (value.schema===TEST_COMPUTATION_PACKET_SCHEMA) {
+    const keys=Object.keys(value).sort();
+    const expected=['kind','process_spec','schema'];
+    if (
+      keys.length!==expected.length
+      || keys.some((key,index)=>key!==expected[index])
+    ) {
+      throw new Error('TEST_COMPUTATION_PACKET_SHAPE_INVALID');
+    }
+    return {
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:validateProcessSpec(value.process_spec),
+    };
   }
-  if (value.schema!==TEST_COMPUTATION_PACKET_SCHEMA || value.kind!=='test') {
-    throw new Error('TEST_COMPUTATION_PACKET_SCHEMA_MISMATCH');
+
+  if (value.schema===REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) {
+    const keys=Object.keys(value).sort();
+    const expected=['execution_context_sha256','kind','process_spec','schema'];
+    if (
+      keys.length!==expected.length
+      || keys.some((key,index)=>key!==expected[index])
+    ) {
+      throw new Error('TEST_COMPUTATION_PACKET_SHAPE_INVALID');
+    }
+    if (
+      typeof value.execution_context_sha256!=='string'
+      || !/^sha256:[0-9a-f]{64}$/.test(value.execution_context_sha256)
+    ) {
+      throw new Error('TEST_COMPUTATION_EXECUTION_CONTEXT_INVALID');
+    }
+    return {
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      execution_context_sha256:value.execution_context_sha256,
+      process_spec:validateProcessSpec(value.process_spec),
+    };
   }
-  return {
-    schema:TEST_COMPUTATION_PACKET_SCHEMA,
-    kind:'test',
-    process_spec:validateProcessSpec(value.process_spec),
-  };
+
+  throw new Error('TEST_COMPUTATION_PACKET_SCHEMA_MISMATCH');
 }
 
 function attemptSummary(
@@ -111,13 +156,16 @@ function resultState(receipt:Receipt):TestComputationResult['state'] {
 
 function readyTestWork(kernel:KernelCore):{
   work:Work;
-  packet:TestComputationPacketV1;
+  packet:TestComputationPacket;
 }|null {
   for (const work of kernel.inspect()) {
     if (work.status!=='READY') continue;
     if (
       !isRecord(work.packet)
-      || work.packet.schema!==TEST_COMPUTATION_PACKET_SCHEMA
+      || (
+        work.packet.schema!==TEST_COMPUTATION_PACKET_SCHEMA
+        && work.packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA
+      )
     ) {
       continue;
     }
@@ -134,7 +182,7 @@ function recoveringTestWork(
   runId:string,
 ):{
   work:Work;
-  packet:TestComputationPacketV1;
+  packet:TestComputationPacket;
 } {
   const work=kernel.inspect().find(candidate=>candidate.run_id===runId);
   if (!work) throw new Error('TEST_COMPUTATION_RUN_NOT_PROJECTED');
@@ -147,11 +195,22 @@ function recoveringTestWork(
   };
 }
 
+async function assertExecutionContext(
+  packet:TestComputationPacket,
+  executor:ComputationExecutor,
+):Promise<void> {
+  await executor.ready?.();
+  if (packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) return;
+  if (executor.executionContextSha256!==packet.execution_context_sha256) {
+    throw new Error('TEST_COMPUTATION_EXECUTION_CONTEXT_MISMATCH');
+  }
+}
+
 async function executeTestAttempt(
   kernel:KernelCore,
   executor:ComputationExecutor,
   work:Work,
-  packet:TestComputationPacketV1,
+  packet:TestComputationPacket,
   permit:ExecutionPermit,
 ):Promise<TestComputationResult> {
   const execution=computationExecution(permit,packet.process_spec);
@@ -165,6 +224,7 @@ async function executeTestAttempt(
       computation_transport_failure:{
         schema:COMPUTATION_TRANSPORT_FAILURE_SCHEMA,
         execution_spec_sha256:execution.execution_spec_sha256,
+        ...(executor.containmentId?{containment_id:executor.containmentId}:{}),
         error:transportError,
       },
     });
@@ -176,6 +236,22 @@ async function executeTestAttempt(
       execution_spec_sha256:execution.execution_spec_sha256,
       receipt,
       transport_error:transportError,
+    };
+  }
+
+  if (evidence.outcome!=='completed' || evidence.exit_code!==0) {
+    const receipt=kernel.recoverInterrupted(permit,{
+      computation_attempt:attemptSummary(evidence),
+      computation_rejection:'PROCESS_DID_NOT_COMPLETE_SUCCESSFULLY',
+    });
+    return {
+      state:'RECOVERY_REQUIRED',
+      work_id:work.id,
+      run_id:permit.id,
+      execution_generation:permit.execution_generation,
+      execution_spec_sha256:execution.execution_spec_sha256,
+      receipt,
+      evidence,
     };
   }
 
@@ -203,6 +279,7 @@ export async function runReadyTestComputation(
   // Validate the exact computation packet before opening a durable claim. An
   // invalid test packet is a definition/admission defect, not a stranded run.
   const {work,packet}=candidate;
+  await assertExecutionContext(packet,executor);
   const permit=kernel.claim(work.id,work.revision);
   return await executeTestAttempt(kernel,executor,work,packet,permit);
 }
@@ -211,10 +288,35 @@ export async function resumeTestComputation(
   kernel:KernelCore,
   executor:ComputationExecutor,
   runId:string,
+  recoveryAuthority?:ComputationRecoveryAuthority,
 ):Promise<TestComputationResult> {
   // Reconstruct the process spec from durable project facts before issuing a
   // fresh execution generation. No in-memory executor queue participates.
   const {work,packet}=recoveringTestWork(kernel,runId);
+  if (kernel.hasUnresolvedEffect(runId)) {
+    throw new Error('TEST_COMPUTATION_EFFECT_RESERVATION_PRESENT');
+  }
+  if (packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) {
+    throw new Error('TEST_COMPUTATION_REPLAY_IDENTITY_UNPROVEN');
+  }
+  await assertExecutionContext(packet,executor);
+
+  const prior=kernel.receipts(runId).at(-1);
+  const diagnostic=isRecord(prior?.diagnostic) ? prior.diagnostic : null;
+  const transportFailure=diagnostic && isRecord(diagnostic.computation_transport_failure)
+    ? diagnostic.computation_transport_failure
+    : null;
+  if (transportFailure) {
+    const containmentId=transportFailure.containment_id;
+    if (typeof containmentId!=='string' || containmentId.length===0) {
+      throw new Error('TEST_COMPUTATION_CONTAINMENT_ID_UNAVAILABLE');
+    }
+    if (!recoveryAuthority) {
+      throw new Error('TEST_COMPUTATION_CONTAINMENT_TERMINATION_UNPROVEN');
+    }
+    await recoveryAuthority.assertTerminated(containmentId);
+  }
+
   const permit=kernel.acquireExecution(runId);
   return await executeTestAttempt(kernel,executor,work,packet,permit);
 }

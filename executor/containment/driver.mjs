@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 
 const workspace='/workspace';
-chmodSync(workspace,0o777);
 const capability='containment-capability';
 const spec={
   schema:'overcenter-process-spec-v1',
