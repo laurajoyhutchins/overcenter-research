@@ -43,11 +43,13 @@ on:
       - src/github-authority-command.ts
       - src/provider-observation/**
       - src/providers/**
+      - scripts/generate-github-operations.ts
       - bin/github-authority.ts
       - test/provider-observation.test.ts
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
       - test/github-certified-pr.test.ts
+      - test/github-openapi-contract.test.ts
       - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md

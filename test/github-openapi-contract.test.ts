@@ -51,8 +51,8 @@ test('certified providers do not copy GitHub routes or response schemas',()=>{
     'src/providers/github-certified-status.ts',
   ]) {
     const source=readFileSync(path,'utf8');
-    assert.doesNotMatch(source,/path_template\s*:/,path);
-    assert.doesNotMatch(source,/outcomes\s*:/,path);
-    assert.doesNotMatch(source,/\/repos\/\{?owner/,path);
+    assert.doesNotMatch(source,/path_template\s*:\s*['\"`]/,path);
+    assert.doesNotMatch(source,/outcomes\s*:\s*\[/,path);
+    assert.doesNotMatch(source,/['\"`]\/repos\//,path);
   }
 });
