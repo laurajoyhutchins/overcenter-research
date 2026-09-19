@@ -1,3 +1,5 @@
+> **Narrowed by PR #70.** This experiment proves that an equivalence assertion can be recomputed and provenance-bound. It does **not** by itself prove that the underlying provider effects are equivalent. PR #70 narrows the production claim to settlement equivalence and supplies the live GitHub provider witness plus a mixed-state counterexample.
+
 # Provider effect-equivalence certificate
 
 ## Question
