@@ -18,6 +18,7 @@ interface CommitRow {
   sequence:number|bigint;
   commit_id:string;
   parent_id:string|null;
+  message:string;
   files_json:string;
 }
 
@@ -35,15 +36,19 @@ export class SqliteFactStore implements DurableFactStore {
       CREATE TABLE IF NOT EXISTS fact_commits (
         sequence INTEGER PRIMARY KEY,
         commit_id TEXT NOT NULL UNIQUE,
-        parent_id TEXT,
+        parent_id TEXT REFERENCES fact_commits(commit_id),
         message TEXT NOT NULL,
         files_json TEXT NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS authority (
         singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
-        head TEXT,
-        sequence INTEGER NOT NULL CHECK(sequence >= 0)
+        head TEXT REFERENCES fact_commits(commit_id),
+        sequence INTEGER NOT NULL CHECK(sequence >= 0),
+        CHECK(
+          (head IS NULL AND sequence = 0)
+          OR (head IS NOT NULL AND sequence > 0)
+        )
       );
 
       INSERT OR IGNORE INTO authority(singleton,head,sequence)
@@ -135,7 +140,7 @@ export class SqliteFactStore implements DurableFactStore {
     if (!terminal) throw new Error('UNKNOWN_AUTHORITY_HEAD');
 
     const rows=this.#db.prepare(`
-      SELECT sequence, commit_id, parent_id, files_json
+      SELECT sequence, commit_id, parent_id, message, files_json
       FROM fact_commits
       WHERE sequence <= ?
       ORDER BY sequence
@@ -153,6 +158,16 @@ export class SqliteFactStore implements DurableFactStore {
         throw new Error('FACT_HISTORY_PARENT_MISMATCH');
       }
       const files=JSON.parse(row.files_json) as Record<string,unknown>;
+      const expectedCommitId=canonicalDigest({
+        schema:COMMIT_SCHEMA,
+        sequence,
+        parent:row.parent_id,
+        message:row.message,
+        files,
+      });
+      if (row.commit_id!==expectedCommitId) {
+        throw new Error('FACT_COMMIT_DIGEST_MISMATCH');
+      }
       history.push(
         factCommitFromFiles(
           row.commit_id,
