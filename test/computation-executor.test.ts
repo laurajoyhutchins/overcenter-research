@@ -289,6 +289,32 @@ test('exact cancellation kills SIGTERM-resistant parent and grandchild',async()=
   }
 });
 
+test('completion evidence releases server capacity before replacement work is admitted',async()=>{
+  const harness=await startExecutor(1);
+  const {client}=harness;
+  try {
+    for (let index=0;index<64;index+=1) {
+      const execution=computationExecution(
+        permit(1000+index),
+        {
+          schema:PROCESS_SPEC_SCHEMA,
+          executable:'/bin/true',
+          argv:[],
+          cwd:'.',
+          env:{},
+          timeout_ms:1000,
+          stdout_max_bytes:0,
+          stderr_max_bytes:0,
+        },
+      );
+      const evidence=await client.execute(execution);
+      assert.equal(evidence.outcome,'completed');
+    }
+  } finally {
+    await harness.close();
+  }
+});
+
 test('production Go executor source contains no provider or settlement machinery',()=>{
   const files=[
     'protocol.go',
