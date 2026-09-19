@@ -19,23 +19,7 @@ import (
 
 const executorHelloSchema = "overcenter-executor-hello-v1"
 
-var executionContextPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}package main
-
-import (
-	"context"
-	"encoding/json"
-	"errors"
-	"flag"
-	"fmt"
-	"net"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"regexp"
-	"strings"
-	"syscall"
-
-)
+var executionContextPattern = regexp.MustCompile("^sha256:[0-9a-f]{64}$")
 
 type executorHelloV1 struct {
 	Schema                 string `json:"schema"`
