@@ -184,8 +184,7 @@ The hostile fixtures cover:
 8. uncertain observation remaining `RECOVERY_REQUIRED`;
 9. append-only receipt history where later verified evidence supersedes an
    earlier recovery receipt;
-10. missing semantic judgment, contradictory identity, and impossible
-    run-after-`DONE` history all failing closed;
+10. missing semantic judgment and contradictory identity failing closed;
 11. the known TypeScript mutable-reuse gap: TypeScript still projects historical
     `DONE`, while Datalog can project `READY` when the semantic layer withdraws
     current realization admissibility after external drift.
@@ -239,7 +238,10 @@ A green run supports a bounded implementation claim:
 > fail-closed realization-reuse rule already exercised by Lean.
 
 It does **not** prove the Datalog rules complete for all Overcenter semantics,
-nor that Soufflé should become a production dependency. If the experiment
+nor that Soufflé should become a production dependency. In particular, Datalog
+intentionally does not infer whether a historical claim was legal from current
+realization admissibility; that temporal authority question belongs to the
+transaction/history validator. If the experiment
 continues to absorb projection logic without absorbing authority, semantic
 hashing, or provider state machines, that is evidence that the architectural
 boundary is real.
