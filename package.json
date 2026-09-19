@@ -1,6 +1,7 @@
 {
   "name": "overcenter-research",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "test": "npm run test:unit",
