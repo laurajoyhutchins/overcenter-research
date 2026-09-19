@@ -2,10 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { sha256 } from './digest.ts';
 import type {
   Data,
-  ExecuteOutcome,
   ExecutionPermit,
-  LoopOptions,
-  LoopResult,
   Observation,
   Postcondition,
   Run,
@@ -55,7 +52,6 @@ import type { Projection } from './projection.ts';
 export type { Receipt } from './facts.ts';
 
 const DEFAULT_AUTHORITY_REF='refs/overcenter/state';
-const errorMessage=(error:unknown)=>error instanceof Error ? error.message : String(error);
 
 export class GitOvercenterKernel {
   readonly #observationContext:ObservationContext;
@@ -452,82 +448,3 @@ export class GitOvercenterKernel {
   }
 }
 
-export async function runGitCoreLoop(
-  kernel:GitOvercenterKernel,
-  {preflight,effect,maxAdvances=100}:LoopOptions,
-):Promise<LoopResult> {
-  kernel.inspect();
-  for (let i=0;i<maxAdvances;i+=1) {
-    const work=kernel.nextReadyWork();
-    if (!work) {
-      const blocked=kernel.inspect().find(candidate=>candidate.status==='BLOCKED');
-      if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
-      return {state:'IDLE',advances:i};
-    }
-
-    let run:ExecutionPermit;
-    try {
-      run=kernel.claim(work.id,work.revision);
-    } catch (error:unknown) {
-      const message=errorMessage(error);
-      if (message==='STALE_REVISION' || message==='CLAIM_LOST') continue;
-      throw error;
-    }
-
-    if (preflight) {
-      const decision=await preflight(work.packet);
-      if (decision.kind==='judgment-required') {
-        kernel.deferForJudgment(run,{decision});
-        return {
-          state:'WAITING',
-          work:work.id,
-          run:run.id,
-          advances:i+1,
-        };
-      }
-      if (decision.kind!=='execute') throw new Error('INVALID_PREFLIGHT_OUTCOME');
-    }
-
-    // Crossing into the effectful executor is only legal after the kernel has
-    // validated the current execution permit and durably reserved the effect.
-    // A failed reservation therefore fails before provider code is invoked.
-    kernel.beginEffect(run);
-
-    let outcome:ExecuteOutcome;
-    try {
-      outcome=await effect(work.packet);
-    } catch (error:unknown) {
-      outcome={
-        kind:'execution-error',
-        error:errorMessage(error),
-        may_have_mutated:true,
-      };
-    }
-
-    // Once the effect boundary has been crossed, an effect handler can no longer
-    // downgrade the attempt to a non-effectful WAITING state. Its outcome must
-    // be reconciled as a potentially mutating interrupted execution.
-    if (outcome.kind==='judgment-required') {
-      kernel.recordExecutionTerminated(run,{
-        outcome,
-        protocol_error:'JUDGMENT_AFTER_EFFECT_RESERVATION',
-      });
-      return {
-        state:'RECOVERY_REQUIRED',
-        work:work.id,
-        run:run.id,
-        advances:i+1,
-      };
-    }
-
-    const receipt=kernel.reconcile(run);
-    if (receipt.disposition==='DONE' || receipt.disposition==='ABSENT') continue;
-    return {
-      state:'RECOVERY_REQUIRED',
-      work:work.id,
-      run:run.id,
-      advances:i+1,
-    };
-  }
-  return {state:'BUDGET_EXHAUSTED',advances:maxAdvances};
-}
