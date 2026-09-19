@@ -36,13 +36,46 @@ private def parseCertainty : String → Except String MutationCertainty
   | "uncertain" => pure .uncertain
   | other => throw s!"unsupported mutation certainty: {other}"
 
+private def parseCoordinate (family : VerifierFamily) (json : Json) : Except String Coordinate := do
+  match family with
+  | .kubernetesConfigMapExists =>
+      pure (.kubernetesConfigMap
+        (← stringField json "authority_id")
+        (← stringField json "namespace")
+        (← stringField json "name"))
+  | _ =>
+      pure (.opaque (← json.getStr?))
+
 private def parsePostcondition (json : Json) : Except String Postcondition := do
+  let family ← parseFamily (← stringField json "family")
   pure {
-    family := ← parseFamily (← stringField json "family")
+    family
     verifierRevision := ← stringField json "verifier_revision"
-    coordinate := ← stringField json "coordinate"
+    coordinate := ← parseCoordinate family (← field json "coordinate")
     expected := ← stringField json "expected"
   }
+
+private def parseKubernetesMember (json : Json) : Except String KubernetesListMember := do
+  pure {
+    name := ← stringField json "name"
+    namespace := ← stringField json "namespace"
+    uid := ← stringField json "uid"
+    resourceVersion := ← stringField json "resource_version"
+  }
+
+private def parseKubernetesPage (json : Json) : Except String KubernetesListPage := do
+  let membersJson ← (← field json "members").getArr?
+  let members ← membersJson.toList.mapM parseKubernetesMember
+  pure {
+    requestContinue := ← optionalStringField json "request_continue"
+    responseContinue := ← stringField json "response_continue"
+    snapshotResourceVersion := ← stringField json "snapshot_resource_version"
+    members
+  }
+
+private def parseKubernetesPages (json : Json) : Except String (List KubernetesListPage) := do
+  let pages ← json.getArr?
+  pages.toList.mapM parseKubernetesPage
 
 private def parseAbsence (json : Json) : Except String (Option AbsenceEvidence) := do
   if json.isNull then
@@ -60,15 +93,19 @@ private def parseAbsence (json : Json) : Except String (Option AbsenceEvidence) 
       (← stringField json "provenance_error_code"))
   if kind = "kubernetes-complete-list-absence/v1" then
     return some (.kubernetesCompleteList
-      (← stringField json "coordinate")
-      (← boolField json "complete"))
+      (← stringField json "authority_id")
+      (← stringField json "namespace")
+      (← stringField json "name")
+      (← stringField json "snapshot_resource_version")
+      (← parseKubernetesPages (← field json "pages")))
   throw s!"unsupported absence evidence kind: {kind}"
 
 private def parseObservation (json : Json) : Except String Observation := do
+  let family ← parseFamily (← stringField json "family")
   pure {
-    family := ← parseFamily (← stringField json "family")
+    family
     verifierRevision := ← stringField json "verifier_revision"
-    coordinate := ← stringField json "coordinate"
+    coordinate := ← parseCoordinate family (← field json "coordinate")
     certainty := ← parseCertainty (← stringField json "certainty")
     actual := ← optionalStringField json "actual"
     absence := ← parseAbsence (← field json "absence")
