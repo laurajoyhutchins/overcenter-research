@@ -46,8 +46,11 @@ export interface ProviderObservation<
   revalidated_from?:ProviderRevalidationProvenance;
 }
 
+export type ProviderObservationExtensionKind = 'non-empty-string';
+
 export interface ProviderObservationValidationOptions {
   topLevelExtensions?: readonly string[];
+  requiredTopLevelExtensions?: Readonly<Record<string,ProviderObservationExtensionKind>>;
   outcomeExtensions?: readonly string[];
 }
 
@@ -80,15 +83,33 @@ export function validateProviderObservationEnvelope(
   value:unknown,
   {
     topLevelExtensions=[],
+    requiredTopLevelExtensions={},
     outcomeExtensions=[],
   }:ProviderObservationValidationOptions={},
 ):asserts value is ProviderObservation<string,unknown,unknown> {
   if (!data(value)) throw new Error('PROVIDER_OBSERVATION_INVALID');
+  const requiredExtensionNames=Object.keys(requiredTopLevelExtensions);
   exactKeys(
     value,
-    ['contract','observer','observed_at','request','response','outcome'],
+    [
+      'contract',
+      'observer',
+      'observed_at',
+      'request',
+      'response',
+      'outcome',
+      ...requiredExtensionNames,
+    ],
     ['structural_validation','revalidated_from',...topLevelExtensions],
   );
+  for (const [name,kind] of Object.entries(requiredTopLevelExtensions)) {
+    if (kind==='non-empty-string') {
+      nonEmptyString(
+        value[name],
+        `PROVIDER_OBSERVATION_EXTENSION_INVALID:${name}`,
+      );
+    }
+  }
 
   if (!data(value.contract)) throw new Error('PROVIDER_OBSERVATION_CONTRACT_INVALID');
   exactKeys(

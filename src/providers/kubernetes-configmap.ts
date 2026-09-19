@@ -353,7 +353,11 @@ export function observeCertifiedKubernetesConfigMap(
         observation,
         LIST_RESPONSE_SLICE,
         resolveRef,
-        {topLevelExtensions:['authority_id']},
+        {
+          requiredTopLevelExtensions:{
+            authority_id:'non-empty-string',
+          },
+        },
       );
       const body=data(certified.outcome.value);
       const metadata=data(body?.metadata);

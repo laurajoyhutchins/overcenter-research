@@ -379,7 +379,11 @@ test('observation/evidence conformance corpus runs against production envelope v
       if (candidate.kind==='kubernetes-provider-observation') {
         validateProviderObservationEnvelope(
           candidate.value,
-          {topLevelExtensions:['authority_id']},
+          {
+            requiredTopLevelExtensions:{
+              authority_id:'non-empty-string',
+            },
+          },
         );
         return;
       }
@@ -396,4 +400,78 @@ test('observation/evidence conformance corpus runs against production envelope v
     if (candidate.valid) assert.doesNotThrow(validate,candidate.name);
     else assert.throws(validate,undefined,candidate.name);
   }
+});
+
+
+test('provider runtime bounds agree with canonical observation schema',()=>{
+  const defs=observationSchema.$defs;
+  assert.equal(defs.ProviderOutcome.properties.status.maximum,Number.MAX_SAFE_INTEGER);
+  assert.equal(
+    defs.SettlementObservation.properties.repository_id.maximum,
+    Number.MAX_SAFE_INTEGER,
+  );
+  assert.equal(
+    defs.KubernetesPageEvidence.properties.page.maximum,
+    Number.MAX_SAFE_INTEGER,
+  );
+  assert.equal(
+    defs.KubernetesCompleteList.properties.page_count.maximum,
+    Number.MAX_SAFE_INTEGER,
+  );
+  assert.equal(
+    defs.KubernetesCompleteListPlusWatch.properties.page_count.maximum,
+    Number.MAX_SAFE_INTEGER,
+  );
+
+  const noNul=defs.NonEmptyNoNulString;
+  assert.equal(noNul.type,'string');
+  assert.equal(noNul.minLength,1);
+  assert.equal(noNul.pattern,'^[^\\\\u0000]+$');
+});
+
+test('all authority and observation schema extensions are declared',()=>{
+  assert.deepEqual(
+    [...collectOvercenterKeywords(authoritySchema)].sort(),
+    [...authorityContract.schema.validationExtensions].sort(),
+  );
+  assert.deepEqual(
+    [...collectOvercenterKeywords(observationSchema)].sort(),
+    [...observationContract.schema.validationExtensions].sort(),
+  );
+});
+
+test('authority non-empty strings match runtime NUL rejection',()=>{
+  const visit=(value:unknown):void=>{
+    if (!value || typeof value!=='object') return;
+    if (Array.isArray(value)) {
+      for (const member of value) visit(member);
+      return;
+    }
+    const object=value as Record<string,unknown>;
+    if (object.type==='string' && object.minLength===1) {
+      assert.equal(
+        object.pattern,
+        '^[^\\\\u0000]+$',
+        'non-empty authority string accepts NUL unlike runtime',
+      );
+    }
+    for (const member of Object.values(object)) visit(member);
+  };
+  visit(authoritySchema);
+});
+
+test('Kubernetes provider extension is required in schema and contract metadata',()=>{
+  const extension=observationContract.providerExtensions.find(
+    (entry:{provider:string})=>entry.provider==='kubernetes',
+  );
+  assert.deepEqual(extension.topLevelFields,[{
+    name:'authority_id',
+    required:true,
+    kind:'non-empty-string',
+  }]);
+  assert.equal(
+    observationSchema.$defs.KubernetesProviderObservation.required
+      .includes('authority_id'),
+    true,
+  );
 });

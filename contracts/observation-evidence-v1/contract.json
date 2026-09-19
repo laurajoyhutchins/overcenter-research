@@ -103,9 +103,13 @@
       "provider": "kubernetes",
       "observation": "KubernetesConfigMapListObservation",
       "topLevelFields": [
-        "authority_id"
+        {
+          "name": "authority_id",
+          "required": true,
+          "kind": "non-empty-string"
+        }
       ],
-      "rationale": "Cluster authority identity is part of the observed coordinate and is checked by the Kubernetes verifier."
+      "rationale": "Cluster authority identity is part of the observed coordinate and is required before structural certification."
     }
   ],
   "knownAbsenceEvidenceKinds": [

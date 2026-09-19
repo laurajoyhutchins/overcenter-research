@@ -153,8 +153,35 @@ test('provider-specific outer fields require explicit declaration',()=>{
   assert.throws(()=>validateProviderObservationEnvelope(observation));
   assert.doesNotThrow(()=>validateProviderObservationEnvelope(
     observation,
-    {topLevelExtensions:['authority_id']},
+    {
+      requiredTopLevelExtensions:{
+        authority_id:'non-empty-string',
+      },
+    },
   ));
+  const {authority_id:_,...missing}=observation;
+  assert.throws(
+    ()=>validateProviderObservationEnvelope(
+      missing,
+      {
+        requiredTopLevelExtensions:{
+          authority_id:'non-empty-string',
+        },
+      },
+    ),
+    /PROVIDER_OBSERVATION_SHAPE_INVALID:MISSING_FIELD:authority_id/,
+  );
+  assert.throws(
+    ()=>validateProviderObservationEnvelope(
+      {...observation,authority_id:''},
+      {
+        requiredTopLevelExtensions:{
+          authority_id:'non-empty-string',
+        },
+      },
+    ),
+    /PROVIDER_OBSERVATION_EXTENSION_INVALID:authority_id/,
+  );
 });
 
 
@@ -183,5 +210,36 @@ test('conditional revalidation provenance is explicit and closed',()=>{
       revalidated_from:{...base.revalidated_from,surprise:true},
     }),
     /PROVIDER_OBSERVATION_REVALIDATION_SHAPE_INVALID:UNKNOWN_FIELD:surprise/,
+  );
+});
+
+
+test('provider envelope rejects unsafe status and NUL-bearing identity strings',()=>{
+  const base={
+    contract:{
+      provider:'github',
+      api_version:'2026-03-10',
+      operation_id:'repos/get',
+      schema_sha256:'a'.repeat(64),
+    },
+    observer:{kind:'git-kernel',id:'red-team'},
+    observed_at:'2026-09-19T00:00:00.000Z',
+    request:{},
+    response:{},
+    outcome:{status:200,visibility:'observed' as const,value:{}},
+  };
+  assert.throws(
+    ()=>validateProviderObservationEnvelope({
+      ...base,
+      outcome:{...base.outcome,status:Number.MAX_SAFE_INTEGER+1},
+    }),
+    /PROVIDER_OBSERVATION_STATUS_INVALID/,
+  );
+  assert.throws(
+    ()=>validateProviderObservationEnvelope({
+      ...base,
+      contract:{...base.contract,operation_id:'repos/get\0forged'},
+    }),
+    /PROVIDER_OBSERVATION_OPERATION_ID_INVALID/,
   );
 });
