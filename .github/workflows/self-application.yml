@@ -21,7 +21,6 @@ jobs:
     timeout-minutes: 20
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      OVERCENTER_SELF_APPLICATION_IMAGE: overcenter-self-application:${{ github.run_id }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -39,13 +38,14 @@ jobs:
             --build-arg GO_VERSION="$(cat .go-version)" \
             --build-arg NODE_VERSION="$(cat .node-version)" \
             -f executor/self-application/Dockerfile \
-            -t "$OVERCENTER_SELF_APPLICATION_IMAGE" \
+            -t "overcenter-self-application:${{ github.run_id }}" \
             .
       - name: Let Overcenter verify this exact revision
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/overcenter-self-application.json"
           node --experimental-strip-types bin/self-application-evidence.ts \
+            --image "overcenter-self-application:${{ github.run_id }}" \
             --source-sha "$SOURCE_SHA" \
             --report "$report"
           {
