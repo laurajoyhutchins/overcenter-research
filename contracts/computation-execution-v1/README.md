@@ -30,6 +30,10 @@ The process spec is intentionally restrictive:
 
 The executor process environment is not inherited by the task.
 
+At execution time the workspace root is pinned as an open directory. The cwd is traversed relative to that directory with no-follow directory opens, so cwd symlink components are rejected and a checked pathname cannot be swapped before process start.
+
+The contract binds the exact executable **path string**, not the executable file contents. Production deployment must therefore provide executable/toolchain paths from task-immutable image or mount content. Binding toolchain bytes, if required for a workload class, belongs in the authority-side input identity rather than being inferred by Go.
+
 ## Evidence
 
 `overcenter-computation-attempt-evidence-v1` is attempt evidence, not settlement authority. It reports exact execution identity, process outcome, exit/signal information, and bounded stdout/stderr captures plus full-stream digests.
