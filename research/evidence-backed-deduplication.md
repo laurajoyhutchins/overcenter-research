@@ -120,6 +120,39 @@ OvercenterKernel ----/
 
 The backend differential test now changes only the backend while holding the semantic loop fixed. That makes the test say what the architecture says: storage is the variable; project-transition semantics are not.
 
+## Second application: semantic selector grammar
+
+Semantic dependencies have two currently supported selectors:
+
+```text
+output   / verified-content
+evidence / settlement-receipt
+```
+
+Before this cleanup, both admission and semantic identity independently encoded that selector grammar. They need different surrounding behavior:
+
+- admission rejects unsupported selectors before authority changes and additionally checks that a selected output can actually be identified;
+- replay/identity derives the exact selected identity from already admitted history.
+
+What they do **not** need is two copies of the list of legal selector strings or two copies of the unsupported-selector error rule.
+
+The [bounded graph exhaustion experiment](../experiments/bounded-graph-exhaustion/README.md) is the evidence for collapsing that grammar. Its typed dependency corpus exhaustively covers every graph through four vertices where each possible edge is absent, control, verified-content, or settlement-receipt. The current bound contains 4,165 typed graphs, plus 16,585 material-output mutations and 16,585 same-output resettlement cases. Production `validateAdmission` and `obligationKey` are both checked against independent reference rules over that corpus.
+
+The focused [dependency-edge adversarial tests](../test/dependency-edge-adversarial.test.ts) additionally establish that unsupported selectors fail before a definition fact is committed.
+
+So the shared boundary is now:
+
+```text
+                   semanticDependencySelection()
+                         /             \
+                        /               \
+          admission-time checks     replay-time identity
+          output availability       selected evidence
+          authority unchanged       historical meaning
+```
+
+This is deliberately **not** a merger of admission and replay. It is one owner for the stable selector vocabulary while preserving the different safety jobs on either side.
+
 ## Ongoing rule
 
 For each future deduplication, leave an evidence trail:
