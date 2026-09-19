@@ -13,9 +13,9 @@ import {
   type ProcessSpecV1,
 } from './computation-execution.ts';
 import {
-  GitOvercenterKernel,
+  KernelCore,
   type Receipt,
-} from './git-kernel.ts';
+} from './kernel-core.ts';
 
 export const TEST_COMPUTATION_PACKET_SCHEMA='overcenter-test-computation-v1' as const;
 export const COMPUTATION_ATTEMPT_SUMMARY_SCHEMA='overcenter-computation-attempt-summary-v1' as const;
@@ -109,7 +109,7 @@ function resultState(receipt:Receipt):TestComputationResult['state'] {
   throw new Error(`TEST_COMPUTATION_UNEXPECTED_DISPOSITION:${receipt.disposition}`);
 }
 
-function readyTestWork(kernel:GitOvercenterKernel):{
+function readyTestWork(kernel:KernelCore):{
   work:Work;
   packet:TestComputationPacketV1;
 }|null {
@@ -130,7 +130,7 @@ function readyTestWork(kernel:GitOvercenterKernel):{
 }
 
 function recoveringTestWork(
-  kernel:GitOvercenterKernel,
+  kernel:KernelCore,
   runId:string,
 ):{
   work:Work;
@@ -148,7 +148,7 @@ function recoveringTestWork(
 }
 
 async function executeTestAttempt(
-  kernel:GitOvercenterKernel,
+  kernel:KernelCore,
   executor:ComputationExecutor,
   work:Work,
   packet:TestComputationPacketV1,
@@ -194,7 +194,7 @@ async function executeTestAttempt(
 }
 
 export async function runReadyTestComputation(
-  kernel:GitOvercenterKernel,
+  kernel:KernelCore,
   executor:ComputationExecutor,
 ):Promise<TestComputationResult|null> {
   const candidate=readyTestWork(kernel);
@@ -208,7 +208,7 @@ export async function runReadyTestComputation(
 }
 
 export async function resumeTestComputation(
-  kernel:GitOvercenterKernel,
+  kernel:KernelCore,
   executor:ComputationExecutor,
   runId:string,
 ):Promise<TestComputationResult> {

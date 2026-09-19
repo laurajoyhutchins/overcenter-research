@@ -47,7 +47,7 @@ deterministic kernel
 authoritative project truth
 ```
 
-The current reference mechanism uses immutable Git objects plus compare-and-swap on an authority ref. Git is the experimental transaction substrate here, not a claim about the final production storage architecture.
+The production authority store is SQLite: immutable fact-commit rows plus one compare-and-swap authority head, committed atomically in a local transaction. Git implements the same durable-fact contract as a reference and independent replay backend; project semantics do not depend on Git. Direct migration of an existing history between backends is a separate problem because some durable facts intentionally bind backend-local authority identities.
 
 Project state such as `READY`, `EXECUTING`, `BLOCKED`, `RECOVERY_REQUIRED`, and `DONE` is reconstructed from durable facts and current authority. It is not stored as a privileged lifecycle document.
 
@@ -58,9 +58,9 @@ For the full model, read [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 The executable and formal proofs currently establish bounded claims about the core loop:
 
 - **Projection is reconstructible.** Current project state can be rebuilt from immutable obligation, claim, and receipt facts after materialized status/cache state is deleted. The authority history contains no privileged `state.json`.
-- **Projection is separable from Git transport.** Pure fact replay and lifecycle derivation are tested independently from Git object storage and authority-ref CAS.
+- **Projection is separable from storage transport.** Pure fact replay and lifecycle derivation are tested independently from storage mechanics, and the durable-fact contract is exercised against both SQLite and Git.
 - **Claims are exact-revision bound.** Stale authority and stale semantic obligation identity are rejected rather than silently reinterpreted.
-- **Execution authority is independently fenced.** Within the Git kernel permit boundary, recovery can rotate an in-flight run to a new execution generation without changing its claimed revision; the old generation's ephemeral permit is then rejected.
+- **Execution authority is independently fenced.** Within the kernel permit boundary, recovery can rotate an in-flight run to a new execution generation without changing its claimed revision; the old generation's ephemeral permit is then rejected.
 - **The normal core loop cannot invoke its effect handler before reservation.** Preflight judgment happens before the effect boundary; then the kernel validates the execution permit and durably reserves the effect before invoking the effect callback. The callback receives the work packet, not the `ExecutionPermit`; a failed reservation means provider code is never called.
 - **Unresolved effects survive authority handoff.** Effects routed through the kernel reservation boundary are durably reserved before mutation; a successor generation may reconcile the reservation but cannot issue another effect through that boundary until authoritative observation settles it.
 - **Semantic dependency identity is explicit.** Control dependencies constrain executability; semantic dependencies contribute selected upstream identity to downstream meaning. Historical realizations are reused only when the current obligation key still matches.
@@ -79,13 +79,14 @@ The detailed empirical lineage and live hosted proof evidence live under [`exper
 The repository deliberately does **not** establish that:
 
 - Overcenter is a complete production orchestration system;
-- Git is the optimal production authority substrate;
+- SQLite is a final distributed/HA authority substrate or suitable for every future deployment scale;
+- arbitrary existing histories can be moved byte-for-byte between Git and SQLite without remapping backend-local authority identities;
 - every project eventually makes progress or completes;
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
-- direct low-level callers outside `runGitCoreLoop` cannot bypass the execution-permit/effect-reservation API;
+- direct low-level callers outside `runCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
 - every provider or execution substrate offers an equally strong physical credential boundary; the demonstrated hosted boundary is specifically GitHub Actions job permissions.
 
@@ -107,8 +108,11 @@ examples/     small runnable demonstrations
 
 Important entry points:
 
-- [`src/git-kernel.ts`](./src/git-kernel.ts) - transaction policy over durable facts and authoritative readback.
-- [`src/git-store.ts`](./src/git-store.ts) - Git object storage, history access, and authority-ref CAS.
+- [`src/kernel.ts`](./src/kernel.ts) - production SQLite-backed kernel entry point.
+- [`src/kernel-core.ts`](./src/kernel-core.ts) - storage-neutral transaction, recovery, and settlement policy.
+- [`src/fact-store.ts`](./src/fact-store.ts) - minimal durable-fact authority contract.
+- [`src/sqlite-store.ts`](./src/sqlite-store.ts) - production append-only SQLite authority store.
+- [`src/git-kernel.ts`](./src/git-kernel.ts) and [`src/git-store.ts`](./src/git-store.ts) - Git reference implementation of the same durable-fact contract.
 - [`src/facts.ts`](./src/facts.ts) - durable fact schemas plus obligation/fact validation.
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
 - [`src/evidence.ts`](./src/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
@@ -165,8 +169,10 @@ npm run test:concurrency
 npm run test:effect-order
 npm run test:github-observation
 npm run test:stress
+npm run test:storage
 npm run test:computation-executor
-npm run demo:git
+npm run demo                       # production SQLite kernel
+npm run demo:git                  # Git reference backend
 ```
 
 `proof:live` dispatches and waits for all three hosted proofs: the disposable-agent trust boundary, the generated GitHub observation/readback proof, and the exact GitHub-object transport proof. It resolves the requested ref once, requires every workflow run to report that exact source SHA, and fails if dispatch cannot be attributed to a concrete run or any run fails.
