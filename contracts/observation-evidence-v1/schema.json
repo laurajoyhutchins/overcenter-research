@@ -721,33 +721,6 @@
         }
       }
     },
-    "GithubProviderContract": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "provider",
-        "api_version",
-        "operation_id",
-        "schema_sha256"
-      ],
-      "properties": {
-        "provider": {
-          "const": "github"
-        },
-        "api_version": {
-          "type": "string",
-          "minLength": 1
-        },
-        "operation_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "schema_sha256": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        }
-      }
-    },
     "KubernetesProviderContract": {
       "type": "object",
       "additionalProperties": false,
