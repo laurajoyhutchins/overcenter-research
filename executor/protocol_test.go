@@ -83,6 +83,62 @@ func TestExecutionBindsExactSpecBytes(t *testing.T) {
 	}
 }
 
+func TestExecutionIdentityKeyDoesNotAliasDelimiterShapedFields(t *testing.T) {
+	first := identityKey(ExecutionIdentityV1{
+		RunID:                    "a/1",
+		ExecutionGeneration:      2,
+		ExecutionAuthorityCommit: "c",
+	})
+	second := identityKey(ExecutionIdentityV1{
+		RunID:                    "a",
+		ExecutionGeneration:      1,
+		ExecutionAuthorityCommit: "2/c",
+	})
+	if first == second {
+		t.Fatal("distinct execution identity tuples aliased")
+	}
+}
+
+func TestGoExecutionValidationMatchesTrustedIdentityBounds(t *testing.T) {
+	capability := "capability"
+	capabilityDigest := sha256.Sum256([]byte(capability))
+	spec := []byte(`{"schema":"overcenter-process-spec-v1","executable":"/bin/true","argv":[],"cwd":".","env":{},"timeout_ms":1000,"stdout_max_bytes":0,"stderr_max_bytes":0}`)
+	specDigest := sha256.Sum256(spec)
+
+	base := ComputationExecutionV1{
+		Schema:                    ComputationExecutionSchema,
+		RunID:                     "run",
+		ObligationID:              "obligation",
+		ClaimedRevision:           "revision",
+		ExecutionGeneration:       1,
+		ExecutionAuthorityCommit:  "authority",
+		ExecutionCapability:       capability,
+		ExecutionCapabilitySHA256: hex.EncodeToString(capabilityDigest[:]),
+		ExecutionSpecBase64:       base64.StdEncoding.EncodeToString(spec),
+		ExecutionSpecSHA256:       "sha256:" + hex.EncodeToString(specDigest[:]),
+	}
+
+	oversizedRunID := base
+	oversizedRunID.RunID = string(make([]byte, maxRunIDBytes+1))
+	raw, err := json.Marshal(oversizedRunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := validateExecutionBytes(raw); err == nil {
+		t.Fatal("Go accepted run_id outside the trusted TypeScript contract")
+	}
+
+	unsafeGeneration := base
+	unsafeGeneration.ExecutionGeneration = maxExecutionGeneration + 1
+	raw, err = json.Marshal(unsafeGeneration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := validateExecutionBytes(raw); err == nil {
+		t.Fatal("Go accepted execution_generation outside the trusted TypeScript contract")
+	}
+}
+
 func TestBoundedDigestWriterHashesUncapturedBytes(t *testing.T) {
 	writer := newBoundedDigestWriter(4)
 	input := []byte("abcdefgh")
