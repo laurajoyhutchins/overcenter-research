@@ -135,7 +135,7 @@ The callable ranking deliberately does not treat ordinary reachability as proof 
 - exact execution-permit fencing; and
 - verification / authoritative-absence predicates.
 
-This is an independent validation layer, not another ranking coefficient. It mutates expressions and branches inside those regions and runs the ordinary unit suite against every generated mutant. The result is reported per semantic region as killed, survived, uncovered, timeout/error, and mutation score.
+This is an independent validation layer, not another ranking coefficient. `mutation-probes.json` names production callables semantically; the resolver turns those selectors into exact revision-bound source ranges before Stryker runs, so ordinary line movement cannot silently retarget the probe. It mutates expressions and branches inside those regions and runs the focused semantic tests against every generated mutant. The result is reported per semantic region as killed, survived, uncovered, timeout/error, and mutation score.
 
 A surviving mutant is useful evidence that the current `E` proxy overstates protection. A fully killed region is evidence that reachable tests actually distinguish at least the mutation operators Stryker generated there. Neither outcome changes the criticality score automatically; the purpose of this pass is to determine whether mutation evidence is stable enough to replace the v1 binary support proxy.
 

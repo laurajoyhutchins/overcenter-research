@@ -32,7 +32,7 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Install pinned mutation engine
-        run: npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0
+        run: npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0 typescript@5.8.3
       - name: Prove mutation summarizer
         run: node --test experiments/production-criticality-ranking/summarize-mutation.test.mjs
       - name: Probe hostile mutations
@@ -41,7 +41,7 @@ jobs:
         if: always()
         run: |
           if [[ -f mutation.json ]]; then
-            node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-summary.md
+            node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-ranges.json mutation-summary.md
           fi
       - name: Show mutation summary
         if: always()
