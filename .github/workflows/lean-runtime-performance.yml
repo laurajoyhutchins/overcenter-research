@@ -47,7 +47,11 @@ jobs:
 
       - name: Build benchmark executables
         working-directory: experiments/lean-kernel
-        run: lake build overcenterClaimAdmission overcenterClaimAdmissionServer
+        run: >-
+          lake build
+          overcenterClaimAdmission
+          overcenterClaimAdmissionServer
+          overcenterClaimAdmissionComparisonServer
 
       - name: Smoke persistent protocol
         run: |
@@ -63,6 +67,11 @@ jobs:
         run: >-
           node --experimental-strip-types --test
           experiments/semantic-kernel-language-comparison/claim-admission-differential.test.ts
+
+      - name: Exhaust small-DAG effect-order differential
+        run: >-
+          node --experimental-strip-types --test
+          experiments/lean-runtime-performance/effect-order-exhaustive.test.ts
 
       - name: Run production-shaped benchmark
         run: >-
