@@ -55,18 +55,18 @@ theorem claimObligationIndex_lookup_eq_find
   | nil =>
       simp [claimObligationIndex, findClaimObligation]
   | cons obligation rest ih =>
-      by_cases matches : obligation.id = id
+      by_cases sameId : obligation.id = id
       · simp [
           claimObligationIndex,
           findClaimObligation,
           ih,
-          matches
+          sameId
         ]
       · simp [
           claimObligationIndex,
           findClaimObligation,
           ih,
-          matches
+          sameId
         ]
 
 private theorem findClaimObligation_mem
