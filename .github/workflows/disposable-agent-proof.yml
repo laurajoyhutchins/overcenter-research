@@ -35,6 +35,10 @@ on:
       - research/claims.md
       - research/proof-obligations.md
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions: {}
 
 env:
