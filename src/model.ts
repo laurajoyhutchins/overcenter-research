@@ -65,6 +65,35 @@ export type Postcondition =
   | GitHubCommitStatusPostcondition
   | KubernetesConfigMapExistsPostcondition;
 
+export interface GitHubCommitStatusEffectAuthority {
+  contract: 'github-commit-status/set-from-postcondition/v1';
+  adapter_contract_digest: string;
+}
+
+export type EffectAuthority = GitHubCommitStatusEffectAuthority;
+
+export interface CanonicalResultAcceptance {
+  verifier: 'canonical-json-sha256/v1';
+  expected_sha256: string;
+}
+
+export type ResultAcceptance = CanonicalResultAcceptance;
+
+export interface WorkerResultEnvelope extends Data {
+  schema: 'overcenter-worker-result-v2';
+  task_session_sha256: string;
+  result: Data;
+}
+
+export interface TaskSession {
+  schema: 'overcenter-task-session-v2';
+  run_id: string;
+  obligation_id: string;
+  claimed_revision: string;
+  execution_generation: number;
+  execution_authority_commit: string;
+}
+
 export interface Observation extends Data {
   verifier: Postcondition['verifier'];
   mutation_certainty: MutationCertainty;
@@ -104,6 +133,8 @@ export interface Obligation {
   dependencies: Dependency[];
   packet: Data;
   postcondition: Postcondition;
+  effect_authority?: EffectAuthority;
+  result_acceptance?: ResultAcceptance;
 }
 
 export interface Work extends Obligation {
@@ -112,6 +143,7 @@ export interface Work extends Obligation {
   run_id?: string;
   claimed_revision?: string;
   execution_generation?: number;
+  execution_authority_commit?: string;
   blocked_reason?: string;
 }
 
