@@ -42,6 +42,12 @@ import {
   obligationKey,
 } from './lifecycle.ts';
 import {
+  observeCurrentSnapshot,
+  projectCurrentLifecycles,
+  type CurrentLifecycle,
+  type CurrentObservationSnapshot,
+} from './current-realization.ts';
+import {
   claimabilityError,
   projectWork,
 } from './eligibility.ts';
@@ -152,30 +158,36 @@ export class GitOvercenterKernel {
 
   inspect():Work[] {
     const head=this.#requireHead();
-    const {state,history}=this.#projection(head);
+    const projection=this.#projection(head);
+    const {state}=projection;
+    const {lifecycles}=this.#currentProjection(projection);
     return Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .map(work=>projectWork(state,work,head,history.lifecycles));
+      .map(work=>projectWork(state,work,head,lifecycles));
   }
 
   deriveReadyWork():Work|null {
     const head=this.#requireHead();
-    const {state,history}=this.#projection(head);
+    const projection=this.#projection(head);
+    const {state}=projection;
+    const {lifecycles}=this.#currentProjection(projection);
     const work=Object.values(state.obligations)
       .sort((a,b)=>a.id.localeCompare(b.id))
-      .find(candidate=>claimabilityError(state,candidate,history.lifecycles)===null);
-    return work ? projectWork(state,work,head,history.lifecycles) : null;
+      .find(candidate=>claimabilityError(state,candidate,lifecycles)===null);
+    return work ? projectWork(state,work,head,lifecycles) : null;
   }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const {state,history}=this.#projection(head);
+    const projection=this.#projection(head);
+    const {state,history}=projection;
+    const {lifecycles,observations}=this.#currentProjection(projection);
     const work=state.obligations[id];
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    const claimError=claimabilityError(state,work,history.lifecycles);
+    const claimError=claimabilityError(state,work,lifecycles);
     if (claimError) throw new Error(claimError);
-    const key=obligationKey(state,work,history.lifecycles,history.receiptsByRun);
+    const key=obligationKey(state,work,lifecycles,history.receiptsByRun);
     if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
 
     const runId=randomUUID();
@@ -188,6 +200,7 @@ export class GitOvercenterKernel {
       claimed_revision:head,
       obligation_key:key,
       execution_capability_sha256:executionCapabilitySha256,
+      current_observations:observations,
     };
     const commit=this.#store.createCommit(
       head,
@@ -424,6 +437,23 @@ export class GitOvercenterKernel {
     return replayProjection(commits);
   }
 
+  #currentProjection(projection:Projection):{
+    lifecycles:Map<string,CurrentLifecycle>;
+    observations:CurrentObservationSnapshot;
+  } {
+    const observations=observeCurrentSnapshot(
+      projection.state,
+      postcondition=>this.#observe(postcondition),
+    );
+    const lifecycles=projectCurrentLifecycles(
+      projection.state,
+      projection.history.runs,
+      projection.history.receiptsByRun,
+      observations,
+    );
+    return {lifecycles,observations};
+  }
+
   #observe(postcondition:Postcondition):Observation {
     return observePostcondition(postcondition,this.observationContext);
   }
@@ -480,7 +510,26 @@ export async function runGitCoreLoop(
   for (let i=0;i<maxAdvances;i+=1) {
     const work=kernel.deriveReadyWork();
     if (!work) {
-      const blocked=kernel.inspect().find(candidate=>candidate.status==='BLOCKED');
+      const projected=kernel.inspect();
+      const recovery=projected.find(candidate=>candidate.status==='RECOVERY_REQUIRED');
+      if (recovery) {
+        return {
+          state:'RECOVERY_REQUIRED',
+          work:recovery.id,
+          ...(recovery.run_id?{run:recovery.run_id}:{}),
+          advances:i,
+        };
+      }
+      const waiting=projected.find(candidate=>candidate.status==='WAITING');
+      if (waiting) {
+        return {
+          state:'WAITING',
+          work:waiting.id,
+          ...(waiting.run_id?{run:waiting.run_id}:{}),
+          advances:i,
+        };
+      }
+      const blocked=projected.find(candidate=>candidate.status==='BLOCKED');
       if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
       return {state:'IDLE',advances:i};
     }

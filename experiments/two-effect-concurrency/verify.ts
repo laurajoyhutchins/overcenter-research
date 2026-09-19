@@ -35,12 +35,12 @@ assert.deepEqual(
 );
 
 for (const work of works) {
-  assert.ok(work.run_id);
-  const receipt=kernel.receipts(work.run_id).at(-1);
+  assert.ok(work.source_run_id);
+  const receipt=kernel.receipts(work.source_run_id).at(-1);
   assert.ok(receipt);
   assert.equal(receipt.disposition,'DONE');
   assert.equal(receipt.verified,true);
-  assert.equal(receipt.run_id,work.run_id);
+  assert.equal(receipt.run_id,work.source_run_id);
   assert.equal(receipt.obligation_id,work.id);
   assert.equal(receipt.claimed_revision,work.claimed_revision);
   assert.ok(receipt.claim_commit);
@@ -53,8 +53,8 @@ if (summary) appendFileSync(summary,[
   '',
   ...works.map(work=>{
     const slot=(work.packet.executor as Record<string,unknown>).slot;
-    const receipt=kernel.receipts(work.run_id!).at(-1)!;
-    return `- ${slot}: **DONE**, run \`${work.run_id}\`, claim \`${receipt.claim_commit}\``;
+    const receipt=kernel.receipts(work.source_run_id!).at(-1)!;
+    return `- ${slot}: **DONE**, source run \`${work.source_run_id}\`, claim \`${receipt.claim_commit}\``;
   }),
   `- Final authority: \`${kernel.head()}\``,
   '- Both effects overlapped, both workers died, and both were independently recovered through one linear Git authority ref.',
@@ -67,7 +67,7 @@ console.log(JSON.stringify({
   works:works.map(work=>({
     id:work.id,
     status:work.status,
-    run_id:work.run_id,
+    source_run_id:work.source_run_id,
     claim_commit:work.claim_commit,
   })),
 }));

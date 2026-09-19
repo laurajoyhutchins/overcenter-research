@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
-  CLAIM_SCHEMA,
+  LEGACY_CLAIM_SCHEMA,
   LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
@@ -48,7 +48,7 @@ function claimCommit(parent:string):FactCommit {
     commit:'claim-1',
     parent,
     claim:{
-      schema:CLAIM_SCHEMA,
+      schema:LEGACY_CLAIM_SCHEMA,
       run_id:'run-1',
       obligation_id:'a',
       claimed_revision:parent,

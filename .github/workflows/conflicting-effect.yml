@@ -33,6 +33,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - name: Full regression suite
         run: npm test
       - name: Prove unordered pair is unclaimable and claim ordered alpha
@@ -57,6 +58,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - id: agent
         name: Alpha effect then terminate
         continue-on-error: true
@@ -85,6 +87,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/conflicting-effect/recovery.ts
@@ -103,6 +106,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - run: node --experimental-strip-types experiments/conflicting-effect/guard-claim-beta.ts
 
   beta:
@@ -122,6 +126,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - id: agent
         name: Beta effect then terminate
         continue-on-error: true
@@ -149,6 +154,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/conflicting-effect/recovery.ts
@@ -168,6 +174,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: ./.github/actions/setup-overcenter-runtime
       - env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/conflicting-effect/guard-verify.ts

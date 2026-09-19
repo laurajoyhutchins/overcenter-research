@@ -46,9 +46,9 @@ assert.ok(ordered.every(work=>work.status==='DONE'));
 
 const alpha=ordered.find(work=>work.id.endsWith('-alpha'))!;
 const beta=ordered.find(work=>work.id.endsWith('-beta'))!;
-assert.ok(alpha.run_id && beta.run_id);
-assert.equal(kernel.receipts(alpha.run_id).at(-1)?.observed?.actual_state,'success');
-assert.equal(kernel.receipts(beta.run_id).at(-1)?.observed?.actual_state,'failure');
+assert.ok(alpha.source_run_id && beta.source_run_id);
+assert.equal(kernel.receipts(alpha.source_run_id).at(-1)?.observed?.actual_state,'success');
+assert.equal(kernel.receipts(beta.source_run_id).at(-1)?.observed?.actual_state,'failure');
 
 if (beta.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 const repoInfo=await github(`/repositories/${beta.postcondition.repository_id}`);
@@ -60,7 +60,7 @@ assert.equal(latest.state,'failure');
 
 console.log(JSON.stringify({
   unordered:unordered.map(work=>({id:work.id,status:work.status})),
-  ordered:ordered.map(work=>({id:work.id,status:work.status,run_id:work.run_id})),
+  ordered:ordered.map(work=>({id:work.id,status:work.status,source_run_id:work.source_run_id})),
   provider_now:latest.state,
   authority:kernel.head(),
 }));

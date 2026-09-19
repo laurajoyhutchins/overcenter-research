@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
-test('gap witness: historical DONE currently survives mutable external file drift',()=>{
+test('runtime current projection rejects historical DONE after mutable external drift',()=>{
   const root=mkdtempSync(join(tmpdir(),'overcenter-lean-reuse-gap-'));
   const repo=join(root,'authority.git');
   const external=join(root,'mutable.txt');
@@ -36,15 +36,13 @@ test('gap witness: historical DONE currently survives mutable external file drif
     // Hostile external drift after the durable DONE receipt.
     writeFileSync(external,'B');
 
-    // Fresh reconstruction uses only durable history. Today it does not
-    // re-observe mutable external reality before projecting DONE.
+    // Durable history still records that this run once settled DONE, but the
+    // runtime current-realization overlay re-observes mutable external reality.
     const fresh=new GitOvercenterKernel(repo);
     const projected=fresh.inspect().find(work=>work.id==='mutable-file');
-    assert.equal(projected?.status,'DONE');
-
-    // This is intentionally a gap witness, not desired behavior. The Lean
-    // theorem mutable_external_without_fresh_observation_never_reuses proves
-    // that the target semantics reject this historical reuse.
+    assert.equal(projected?.status,'RECOVERY_REQUIRED');
+    assert.equal(projected?.source_run_id,permit.id);
+    assert.equal(projected?.run_id,undefined);
   } finally {
     rmSync(root,{recursive:true,force:true});
   }

@@ -329,16 +329,16 @@ export function observeCertifiedKubernetesConfigMap(
       }
 
       const nextContinue=metadata.continue ?? '';
-      const pageEvidence={
-        page:pageNumber,
-        request_continue:continueToken,
-        response_continue:nextContinue,
-        snapshot_resource_version:metadata.resourceVersion,
-        schema_sha256:certified.contract.schema_sha256,
-        validated_paths:structural.validated_paths,
-        optional_absent_paths:structural.optional_absent_paths,
-      };
-      pages.push(pageEvidence);
+      const members:Array<{
+        name:string;
+        namespace:string;
+        uid:string;
+        resource_version:string;
+      }>=[];
+      let target:{
+        uid:string;
+        resource_version:string;
+      }|null=null;
 
       for (const item of body.items) {
         const object=data(item);
@@ -353,20 +353,45 @@ export function observeCertifiedKubernetesConfigMap(
         ) {
           throw new Error('KUBERNETES_LIST_MEMBER_INVALID');
         }
+        members.push({
+          name:itemMetadata.name,
+          namespace:itemMetadata.namespace,
+          uid:itemMetadata.uid,
+          resource_version:itemMetadata.resourceVersion,
+        });
         if (itemMetadata.name===postcondition.name) {
-          return {
-            state:'present',
-            reason:'AUTHORITATIVE_COLLECTION_MEMBER_PRESENT',
+          target={
             uid:itemMetadata.uid,
             resource_version:itemMetadata.resourceVersion,
-            snapshot_resource_version:metadata.resourceVersion,
-            provider_evidence:{
-              provider:'kubernetes',
-              authority_id:postcondition.authority_id,
-              pages,
-            },
           };
         }
+      }
+
+      const pageEvidence={
+        page:pageNumber,
+        request_continue:continueToken,
+        response_continue:nextContinue,
+        snapshot_resource_version:metadata.resourceVersion,
+        schema_sha256:certified.contract.schema_sha256,
+        validated_paths:structural.validated_paths,
+        optional_absent_paths:structural.optional_absent_paths,
+        members,
+      };
+      pages.push(pageEvidence);
+
+      if (target) {
+        return {
+          state:'present',
+          reason:'AUTHORITATIVE_COLLECTION_MEMBER_PRESENT',
+          uid:target.uid,
+          resource_version:target.resource_version,
+          snapshot_resource_version:metadata.resourceVersion,
+          provider_evidence:{
+            provider:'kubernetes',
+            authority_id:postcondition.authority_id,
+            pages,
+          },
+        };
       }
 
       if (nextContinue==='') {

@@ -110,6 +110,7 @@ export interface Work extends Obligation {
   status: WorkStatus;
   revision: string;
   run_id?: string;
+  source_run_id?: string;
   claimed_revision?: string;
   execution_generation?: number;
   blocked_reason?: string;

@@ -65,7 +65,7 @@ jobs:
       - name: Differential settlement proof
         run: node --experimental-strip-types --test experiments/lean-kernel/differential.test.ts
 
-      - name: Witness current mutable-reuse gap
+      - name: Verify current mutable-reuse integration
         run: node --experimental-strip-types --test experiments/lean-kernel/reuse-gap.test.ts
 
       - name: Kubernetes serialized evidence proof

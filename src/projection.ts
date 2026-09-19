@@ -5,6 +5,7 @@ import {
 } from './observation.ts';
 import {
   CLAIM_SCHEMA,
+  LEGACY_CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
   LEGACY_RECEIPT_SCHEMA,
@@ -14,7 +15,7 @@ import {
   validateStoredObligation,
 } from './facts.ts';
 import type {
-  ClaimFact,
+  StoredClaimFact,
   EffectReservation,
   EffectReservationFact,
   ExecutionAuthorityFact,
@@ -35,6 +36,10 @@ import {
   hasInFlight,
   obligationKey,
 } from './lifecycle.ts';
+import {
+  projectCurrentLifecycles,
+  validateCurrentObservationSnapshot,
+} from './current-realization.ts';
 import type { Lifecycle } from './lifecycle.ts';
 
 export interface HistoryProjection {
@@ -130,21 +135,43 @@ export function replayProjection(commits:FactCommit[]):Projection {
     }
 
     if (record.claim!=null) {
-      const claim=record.claim as ClaimFact;
-      if (claim.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
+      const claim=record.claim as StoredClaimFact;
+      if (
+        claim.schema!==CLAIM_SCHEMA
+        && claim.schema!==LEGACY_CLAIM_SCHEMA
+      ) {
+        throw new Error('INVALID_CLAIM_SCHEMA');
+      }
       const obligation=state.obligations[claim.obligation_id];
       if (!obligation) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
       if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
       if (record.parent!==claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
 
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
-      const current=lifecycles.get(claim.obligation_id);
+      let admissionLifecycles;
+      if (claim.schema===CLAIM_SCHEMA) {
+        validateCurrentObservationSnapshot(state,claim.current_observations);
+        admissionLifecycles=projectCurrentLifecycles(
+          state,
+          runs,
+          receiptsByRun,
+          claim.current_observations,
+        );
+      } else {
+        admissionLifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      }
+
+      const current=admissionLifecycles.get(claim.obligation_id);
       if (current?.status!=='UNREALIZED') throw new Error('CLAIM_WHILE_NOT_READY');
       const unsatisfied=dependencyUpstreams(obligation)
-        .filter(dependency=>lifecycles.get(dependency)?.status!=='DONE');
+        .filter(dependency=>admissionLifecycles.get(dependency)?.status!=='DONE');
       if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
 
-      const expectedKey=obligationKey(state,obligation,lifecycles,receiptsByRun);
+      const expectedKey=obligationKey(
+        state,
+        obligation,
+        admissionLifecycles,
+        receiptsByRun,
+      );
       if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
       if (claim.obligation_key!==expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
 

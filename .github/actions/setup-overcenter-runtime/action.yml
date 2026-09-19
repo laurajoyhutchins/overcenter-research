@@ -1,0 +1,19 @@
+name: Setup Overcenter runtime
+description: Install Lean and build the proof-bearing semantic runtime used by GitOvercenterKernel
+runs:
+  using: composite
+  steps:
+    - name: Install Lean toolchain
+      uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+      with:
+        lake-package-directory: experiments/lean-kernel
+        auto-config: false
+        build: true
+        test: false
+        lint: false
+        use-github-cache: false
+        use-mathlib-cache: false
+        leanchecker: false
+    - name: Build current-realization authority
+      shell: bash
+      run: npm run build:semantic-kernel
