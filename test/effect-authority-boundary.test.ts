@@ -3,7 +3,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { OvercenterKernel, runCoreLoop } from '../src/kernel.ts';
+import * as kernelModule from '../src/kernel.ts';
+import * as gitKernelModule from '../src/git-kernel.ts';
+import { OvercenterKernel } from '../src/kernel.ts';
 import { canonicalDigest } from '../src/digest.ts';
 import { bindTaskSession, executeAuthorizedEffect } from '../src/effect-broker.ts';
 import {
@@ -131,9 +133,17 @@ test('dispatch-bound session and result cannot inherit rotated authority',()=>{
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });
 
-test('generic loop rejects provider work before changing authority',async()=>{
+test('production kernel exposes no arbitrary effect callback executor',()=> {
+  assert.equal('runCoreLoop' in kernelModule,false);
+  assert.equal('runGitCoreLoop' in gitKernelModule,false);
+
   const f=fixture();
   try {
+    assert.equal(
+      typeof (f.kernel as unknown as {performEffect?:unknown}).performEffect,
+      'undefined',
+    );
+
     f.kernel.define({
       id:'observe-only',
       packet:{kind:'observe-only/v1'},
@@ -146,16 +156,6 @@ test('generic loop rejects provider work before changing authority',async()=>{
         expected_state:'success',
       },
     });
-    const before=f.kernel.head();
-    await assert.rejects(
-      runCoreLoop(f.kernel,{
-        effect:async()=>({kind:'forbidden'}),
-        maxAdvances:1,
-      }),
-      /PROVIDER_EFFECT_BROKER_REQUIRED/,
-    );
-    assert.equal(f.kernel.head(),before);
-    assert.equal(f.kernel.inspect()[0]?.status,'READY');
 
     const ready=f.kernel.deriveReadyWork();
     assert.ok(ready);
@@ -165,10 +165,6 @@ test('generic loop rejects provider work before changing authority',async()=>{
     assert.throws(
       ()=>f.kernel.beginEffect(permit),
       /EFFECT_AUTHORITY_REQUIRED/,
-    );
-    await assert.rejects(
-      f.kernel.performEffect(permit,async()=>({kind:'forbidden'})),
-      /PROVIDER_EFFECT_BROKER_REQUIRED/,
     );
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });

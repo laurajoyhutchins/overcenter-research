@@ -162,24 +162,3 @@ export interface ExecutionPermit extends Run {
   execution_capability: string;
 }
 
-export interface ExecuteOutcome extends Data {
-  kind?: string;
-  may_have_mutated?: boolean;
-}
-
-export interface PreflightOutcome extends Data {
-  kind: 'execute' | 'judgment-required';
-}
-
-export interface LoopOptions {
-  preflight?: (packet: Data) => Promise<PreflightOutcome>;
-  effect: (packet: Data) => Promise<ExecuteOutcome>;
-  maxAdvances?: number;
-}
-
-export interface LoopResult {
-  state: 'IDLE' | 'BLOCKED' | 'RECOVERY_REQUIRED' | 'WAITING' | 'BUDGET_EXHAUSTED';
-  advances: number;
-  work?: string;
-  run?: string;
-}

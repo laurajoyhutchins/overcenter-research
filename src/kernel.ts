@@ -1,6 +1,5 @@
 import {
   KernelCore,
-  runCoreLoop,
   type KernelOptions,
 } from './kernel-core.ts';
 import { SqliteFactStore } from './sqlite-store.ts';
@@ -27,4 +26,3 @@ export class OvercenterKernel extends KernelCore {
   }
 }
 
-export { runCoreLoop };

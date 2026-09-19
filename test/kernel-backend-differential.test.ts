@@ -5,8 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
-import { OvercenterKernel, runCoreLoop } from '../src/kernel.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { OvercenterKernel } from '../src/kernel.ts';
+import { runLocalEffectLoopForTest } from './support/local-effect-loop.ts';
 import type { KernelCore } from '../src/kernel-core.ts';
 
 const OMIT=new Set([
@@ -95,7 +96,7 @@ test('Git and SQLite kernels derive the same logical project transitions',async(
   try {
     const gitResult=await exercise(
       git,
-      (kernel,options)=>runGitCoreLoop(
+      (kernel,options)=>runLocalEffectLoopForTest(
         kernel as GitOvercenterKernel,
         options,
       ),
@@ -108,7 +109,7 @@ test('Git and SQLite kernels derive the same logical project transitions',async(
 
     const sqliteResult=await exercise(
       sqlite,
-      runCoreLoop,
+      runLocalEffectLoopForTest,
       firstPath,
       secondPath,
     );

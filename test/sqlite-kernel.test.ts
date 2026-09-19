@@ -5,10 +5,8 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
-import {
-  OvercenterKernel,
-  runCoreLoop,
-} from '../src/kernel.ts';
+import { OvercenterKernel } from '../src/kernel.ts';
+import { runLocalEffectLoopForTest } from './support/local-effect-loop.ts';
 
 const pc=(path:string,content:string)=>({
   verifier:'file-content-equals/v1' as const,
@@ -39,7 +37,7 @@ test('SQLite production kernel reconstructs project truth after close and reopen
       postcondition:pc(secondPath,'B'),
     });
 
-    const result=await runCoreLoop(kernel,{
+    const result=await runLocalEffectLoopForTest(kernel,{
       effect:async packet=>{
         writeFileSync(
           String(packet.path),
