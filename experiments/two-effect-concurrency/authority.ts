@@ -1,8 +1,8 @@
-import { githubProofStateRef } from '../proof-environment.ts';
+import { githubProofAuthorityRef } from '../proof-environment.ts';
 import { appendFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
-const STATE_REF=githubProofStateRef('two-effect-concurrency');
+const AUTHORITY_REF=githubProofAuthorityRef('two-effect-concurrency');
 
 function required(name:string):string {
   const value=process.env[name];
@@ -30,7 +30,7 @@ const sourceSha=required('GITHUB_SHA');
 const info=await github(`/repos/${repository}`);
 if (!Number.isSafeInteger(info.id)) throw new Error('REPOSITORY_ID_UNAVAILABLE');
 
-const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF});
+const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:AUTHORITY_REF});
 kernel.initialize();
 
 for (const slot of ['alpha','beta']) {
@@ -89,11 +89,11 @@ const summary=process.env.GITHUB_STEP_SUMMARY;
 if (summary) appendFileSync(summary,[
   '## Trusted two-effect authority',
   '',
-  `- State ref: \`${STATE_REF}\``,
+  `- Authority ref: \`${AUTHORITY_REF}\``,
   `- Exact input: \`${sourceSha}\``,
   ...claims.map(({slot,run})=>`- ${slot}: run \`${run.id}\`, claim \`${run.claim_commit}\``),
   '- Both obligations are EXECUTING simultaneously before either disposable agent starts.',
   '',
 ].join('\n'));
 
-console.log(JSON.stringify({state_ref:STATE_REF,claims}));
+console.log(JSON.stringify({authority_ref:AUTHORITY_REF,claims}));
