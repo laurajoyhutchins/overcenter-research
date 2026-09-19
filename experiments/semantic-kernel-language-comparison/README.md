@@ -168,3 +168,7 @@ The null hypothesis survives for ordinary Overcenter software but loses for this
 There is no evidence here for rewriting the integration plane in Lean. There **is** evidence for moving admission predicates whose correctness can be stated as invariants behind an executable proof-bearing kernel, provided the normalization boundary remains small and differential tests continue to bind Lean behavior to production semantics.
 
 The next useful falsifier is not a larger rewrite. It is to reduce the amount of semantic preprocessing the TypeScript side performs and see whether Lean can own the next derivation without becoming a duplicate provider adapter.
+
+## Current-head confirmation
+
+Exact evaluated revision `d63d65eea923ceac2902488c47eab29111344dd6` passed claim-admission audition `35424504409`, Lean kernel `35424504483`, and repository Evidence `35424504511`. This revision is the reproducible evidence identity for the current stacked result.
