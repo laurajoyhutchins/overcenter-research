@@ -82,7 +82,8 @@ test('every material semantic change invalidates reuse',()=>{
     contract({source_inputs:{commit:'2222222222222222222222222222222222222222'}}),
     contract({acceptance_predicate:{
       kind:'sha256-equals/v1',
-      expected_sha256:sha256('different accepted output'),
+      expected_sha256:sha256(OUTPUT),
+      policy_revision:'2',
     }}),
     contract({packet:{command:'build',target:'different-app'}}),
   ];
