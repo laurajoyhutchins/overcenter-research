@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { sha256 } from './digest.ts';
 import type {
   AbsenceEvidenceCertificate,
   Observation,
@@ -13,7 +13,7 @@ import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
 } from './providers/github-certified-status.ts';
-import { githubGet } from './providers/github-rest.ts';
+import { githubApiGet } from './providers/github-rest.ts';
 
 export interface ObservationContext {
   githubToken: string | null;
@@ -21,7 +21,6 @@ export interface ObservationContext {
   clock?: () => string;
 }
 
-const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 const errorMessage=(e:unknown)=>e instanceof Error ? e.message : String(e);
 
 export function validatePostcondition(p: Postcondition): void {
@@ -81,7 +80,7 @@ export function observePostcondition(
       };
     }
 
-    const get=context.githubGet??githubGet;
+    const get=context.githubGet??githubApiGet;
     try {
       let repositoryFullName:string;
       let bootstrapHint:Record<string,unknown>|undefined;
@@ -284,7 +283,7 @@ export function observationAuthoritativelyAbsent(
   return authoritativeAbsenceEvidence(postcondition,observed)!==null;
 }
 
-export function observationVerified(
+export function observationSatisfiesPostcondition(
   postcondition: Postcondition,
   observed: Observation,
 ): boolean {

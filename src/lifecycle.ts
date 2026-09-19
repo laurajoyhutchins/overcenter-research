@@ -4,12 +4,12 @@ import type {
   Run,
 } from './model.ts';
 import type {
-  HistoricalRun,
+  RunRecord,
   Receipt,
-  State,
+  ObligationCatalog,
 } from './facts.ts';
 import { canonicalDigest } from './digest.ts';
-import { verifiedContentIdentity } from './semantics.ts';
+import { verifiedRealizationIdentity } from './semantics.ts';
 
 export type RealizationStatus =
   | 'UNREALIZED'
@@ -18,26 +18,26 @@ export type RealizationStatus =
   | 'RECOVERY_REQUIRED'
   | 'DONE';
 
-export interface Lifecycle {
+export interface RealizationLifecycle {
   status:RealizationStatus;
   run?:Run;
 }
 
-const IN_FLIGHT=new Set<RealizationStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
+const UNSETTLED_RUN_STATES=new Set<RealizationStatus>(['EXECUTING','WAITING','RECOVERY_REQUIRED']);
 
 function semanticDependencyIdentity(
-  state:State,
+  catalog:ObligationCatalog,
   edge:Extract<Dependency,{kind:'semantic'}>,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationLifecycle>,
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
-  const upstream=state.obligations[edge.upstream];
+  const upstream=catalog.obligations[edge.upstream];
   if (!upstream) throw new Error(`UNKNOWN_DEPENDENCY:${edge.upstream}`);
   const lifecycle=lifecycles.get(edge.upstream);
   if (lifecycle?.status!=='DONE' || !lifecycle.run) return null;
 
   if (edge.consumes.kind==='output' && edge.consumes.selector==='verified-content') {
-    const identity=verifiedContentIdentity(upstream.postcondition);
+    const identity=verifiedRealizationIdentity(upstream.postcondition);
     if (identity) return identity;
   }
 
@@ -53,9 +53,9 @@ function semanticDependencyIdentity(
 }
 
 export function obligationKey(
-  state:State,
+  catalog:ObligationCatalog,
   work:Obligation,
-  lifecycles:Map<string,Lifecycle>,
+  lifecycles:Map<string,RealizationLifecycle>,
   receiptsByRun:Map<string,Receipt>,
 ):string|null {
   const semantic=work.dependencies
@@ -84,28 +84,28 @@ export function obligationKey(
 }
 
 export function deriveLifecycles(
-  state:State,
-  runs:Map<string,HistoricalRun>,
+  catalog:ObligationCatalog,
+  runs:Map<string,RunRecord>,
   receiptsByRun:Map<string,Receipt>,
-):Map<string,Lifecycle> {
-  const lifecycles=new Map<string,Lifecycle>();
+):Map<string,RealizationLifecycle> {
+  const lifecycles=new Map<string,RealizationLifecycle>();
   const visiting=new Set<string>();
   const allRuns=[...runs.values()];
 
-  const derive=(id:string):Lifecycle=>{
+  const derive=(id:string):RealizationLifecycle=>{
     const existing=lifecycles.get(id);
     if (existing) return existing;
     if (visiting.has(id)) throw new Error(`DEPENDENCY_CYCLE:${id}`);
     visiting.add(id);
 
-    const work=state.obligations[id];
+    const work=catalog.obligations[id];
     if (!work) throw new Error(`UNKNOWN_OBLIGATION:${id}`);
     for (const edge of work.dependencies) {
       if (edge.kind==='semantic') derive(edge.upstream);
     }
 
-    const key=obligationKey(state,work,lifecycles,receiptsByRun);
-    let lifecycle:Lifecycle={status:'UNREALIZED'};
+    const key=obligationKey(catalog,work,lifecycles,receiptsByRun);
+    let lifecycle:RealizationLifecycle={status:'UNREALIZED'};
 
     if (key) {
       const candidates=allRuns.filter(
@@ -134,10 +134,10 @@ export function deriveLifecycles(
     return lifecycle;
   };
 
-  for (const id of Object.keys(state.obligations)) derive(id);
+  for (const id of Object.keys(catalog.obligations)) derive(id);
   return lifecycles;
 }
 
-export function hasInFlight(lifecycles:Map<string,Lifecycle>):boolean {
-  return [...lifecycles.values()].some(({status})=>IN_FLIGHT.has(status));
+export function hasUnsettledRun(lifecycles:Map<string,RealizationLifecycle>):boolean {
+  return [...lifecycles.values()].some(({status})=>UNSETTLED_RUN_STATES.has(status));
 }
