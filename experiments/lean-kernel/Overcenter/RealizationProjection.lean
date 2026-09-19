@@ -72,16 +72,14 @@ def currentFromExecution (run : RealizationRun) : CurrentRealization :=
   | .done => { lifecycle := .unrealized }
   | .ready => { lifecycle := .unrealized }
 
-def producerIndependentFresh
-    (postcondition : Postcondition)
-    (fresh : Option Observation) : CurrentRealization :=
-  match fresh with
-  | none => { lifecycle := .unrealized }
-  | some observation =>
-      match settle postcondition observation with
-      | .done => { lifecycle := .done }
-      | .ready => { lifecycle := .unrealized }
-      | .recoveryRequired => { lifecycle := .unrealized }
+def unboundFreshObservation
+    (_postcondition : Postcondition)
+    (_fresh : Option Observation) : CurrentRealization :=
+  -- A bare observation can prove the postcondition, but cannot prove that the
+  -- observed state realizes the current semantic-input key. New realizations
+  -- need key-bound provenance (for example a matching historical run or a
+  -- future explicit realization certificate).
+  { lifecycle := .unrealized }
 
 def revalidateHistoricalDone
     (postcondition : Postcondition)
@@ -134,6 +132,6 @@ def projectCurrentRealization
                 historicalDone
                 input.freshObservation
           | none =>
-              producerIndependentFresh input.postcondition input.freshObservation
+              unboundFreshObservation input.postcondition input.freshObservation
 
 end Overcenter
