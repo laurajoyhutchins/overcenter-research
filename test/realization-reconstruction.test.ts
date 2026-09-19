@@ -38,12 +38,12 @@ function readFacts(store:GitFactStore):VerifiedRealizationFact[] {
 
 test('reuse reconstructs identically from durable Git facts after all materialized cache is deleted',()=>{
   const root=mkdtempSync(join(tmpdir(),'overcenter-realization-reuse-'));
-  const repo=join(root,'authority.git');
+  const authority=join(root,'authority.git');
   const cache=join(root,'materialized');
-  execFileSync('git',['init','--bare',repo],{stdio:'ignore'});
+  execFileSync('git',['init','--bare',authority],{stdio:'ignore'});
 
   try {
-    const store=new GitFactStore(repo,{ref:REF});
+    const store=new GitFactStore(authority,{ref:REF});
     const initial=store.createCommit(null,'initialize realization proof');
     assert.equal(store.cas(initial,store.zeroObjectId()),true);
 
@@ -69,7 +69,15 @@ test('reuse reconstructs identically from durable Git facts after all materializ
     rmSync(cache,{recursive:true,force:true});
     assert.equal(existsSync(cache),false);
 
-    const freshStore=new GitFactStore(repo,{ref:REF});
+    const reconstructedRepo=join(root,'reconstructor.git');
+    execFileSync('git',['init','--bare',reconstructedRepo],{stdio:'ignore'});
+    execFileSync('git',['-C',reconstructedRepo,'remote','add','origin',authority]);
+    execFileSync(
+      'git',
+      ['-C',reconstructedRepo,'fetch','--no-tags','origin',`+${REF}:${REF}`],
+      {stdio:'ignore'},
+    );
+    const freshStore=new GitFactStore(reconstructedRepo,{ref:REF});
     const after=reusableRealization(current,readFacts(freshStore));
     assert.deepEqual(after,before);
 
