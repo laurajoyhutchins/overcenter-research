@@ -49,19 +49,26 @@ Generic tooling cannot know which operations establish or interpret Overcenter t
 
 For each configured recovery scenario `(entry, terminal)`, the analyzer computes call-graph dominators. A production unit contributes to `R` only when every statically resolved call path from the scenario entry to terminal passes through it.
 
-## Total order
+## Total orders
 
-The vector is durable data. The total order is replaceable policy.
+The vector is durable data. Ordering is replaceable policy, and v2 deliberately exposes two different total orders instead of mixing consequence with uncertainty.
 
-The initial monotone policy is a weighted sum with two interactions:
+**Consequence criticality** asks: if this production unit is wrong, how much can it matter?
 
 ```text
-score = Σ wi*vi + λAI*(A*I) + λBE*(B*E)
+consequence = Σ wi*vi + λAI*(A*I)
+inputs      = A, B, I, F, R, X
 ```
 
-The score is normalized to 0-100 only for presentation. Ties are broken by stable unit ID so the result is a total order.
+**Engineering-attention priority** asks: where should we investigate next?
 
-The weights in `config.json` are expected to change. Changing them does not alter the measured vector.
+```text
+attention = wc*consequence + wE*E + wC*C + λBE*(B*E)
+```
+
+Evidence gap `E` and change exposure `C` therefore cannot make code more consequential; they can only increase attention. Prior human ranking judgments calibrate the consequence order. Both scores are normalized to 0-100 only for presentation, and stable unit ID breaks ties.
+
+The policies in `config.json` are expected to change. Changing either policy does not alter the measured vector.
 
 ## Calibration
 
