@@ -46,7 +46,7 @@ assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
 if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha, sourceSha);
 
-const realization = kernel.acceptRealization(session, candidateResult);
+const acceptedWorkerResult = kernel.acceptWorkerResult(session, candidateResult);
 const attempt = await executeAuthorizedEffect(
   kernel,
   session,
@@ -68,7 +68,7 @@ if (summary) {
     '## Trusted effect broker',
     '',
     `- Reused trusted dispatch session generation \`${session.execution_generation}\`.`,
-    `- Deterministically accepted realization \`${realization.result_digest}\`.`,
+    `- Deterministically accepted worker result \`${acceptedWorkerResult.result_digest}\`.`,
     `- Rotated provider authority to generation \`${attempt.broker_execution_generation}\`.`,
     `- Reserved exact effect digest \`${attempt.authorized_effect.effect_digest}\` before mutation.`,
     `- Wrote status context \`${attempt.evidence.context}\` through the pinned provider adapter.`,
@@ -82,7 +82,7 @@ console.log(JSON.stringify({
   run_id: session.run_id,
   worker_generation: session.execution_generation,
   broker_generation: attempt.broker_execution_generation,
-  realization_commit: realization.realization_commit,
+  worker_result_commit: acceptedWorkerResult.worker_result_commit,
   reservation_commit: attempt.reservation_commit,
   effect_digest: attempt.authorized_effect.effect_digest,
   provider_status_id: attempt.evidence.provider_status_id,

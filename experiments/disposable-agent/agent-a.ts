@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 import { validateTaskSession } from '../../src/effect-broker.ts';
-import { workerResult } from '../../src/realization.ts';
+import { workerResult } from '../../src/worker-result.ts';
 
 function required(name: string): string {
   const value = process.env[name];

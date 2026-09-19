@@ -10,7 +10,7 @@ import {
   deriveAuthorizedProviderEffect,
   githubCommitStatusEffectAuthority,
 } from '../src/provider-effect.ts';
-import { workerResult } from '../src/realization.ts';
+import { workerResult } from '../src/worker-result.ts';
 
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'overcenter-effect-authority-'));
@@ -116,7 +116,7 @@ test('dispatch-bound session and result cannot inherit rotated authority',()=>{
     const task=defineEffect(f.kernel,'stale-session');
     f.kernel.acquireExecution(task.session.run_id);
     assert.throws(
-      ()=>f.kernel.acceptRealization(task.session,task.result),
+      ()=>f.kernel.acceptWorkerResult(task.session,task.result),
       /TASK_SESSION_STALE/,
     );
 
@@ -125,7 +125,7 @@ test('dispatch-bound session and result cannot inherit rotated authority',()=>{
     const successorSession=bindTaskSession(successorWork);
     assert.equal(successorSession.execution_generation,2);
     assert.throws(
-      ()=>f.kernel.acceptRealization(successorSession,task.result),
+      ()=>f.kernel.acceptWorkerResult(successorSession,task.result),
       /WORKER_RESULT_SESSION_MISMATCH/,
     );
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
@@ -173,7 +173,7 @@ test('generic loop rejects provider work before changing authority',async()=>{
   } finally { f.kernel.close(); rmSync(f.root,{recursive:true,force:true}); }
 });
 
-test('broker requires accepted realization and reserves before provider mutation',async()=>{
+test('broker requires accepted worker result and reserves before provider mutation',async()=>{
   const f=fixture();
   try {
     const task=defineEffect(f.kernel,'verified-effect');
@@ -183,11 +183,11 @@ test('broker requires accepted realization and reserves before provider mutation
         githubToken:'broker-token',
         githubFetch:github.fetchImpl,
       }),
-      /REALIZATION_REQUIRED/,
+      /ACCEPTED_WORKER_RESULT_REQUIRED/,
     );
     assert.equal(github.writes(),0);
 
-    const realization=f.kernel.acceptRealization(task.session,task.result);
+    const acceptedWorkerResult=f.kernel.acceptWorkerResult(task.session,task.result);
 
     await assert.rejects(
       executeAuthorizedEffect(f.kernel,task.session,{}),
@@ -207,7 +207,7 @@ test('broker requires accepted realization and reserves before provider mutation
     assert.equal(attempt.broker_execution_generation,2);
     assert.equal(attempt.authorized_effect.effect_digest.length,64);
     assert.ok(attempt.reservation_commit);
-    assert.equal(realization.result_digest,task.work.result_acceptance?.expected_sha256);
+    assert.equal(acceptedWorkerResult.result_digest,task.work.result_acceptance?.expected_sha256);
     assert.equal(f.kernel.hasUnresolvedEffect(task.session.run_id),true);
 
     const brokerWork=f.kernel.inspect().find(work=>work.id==='verified-effect');

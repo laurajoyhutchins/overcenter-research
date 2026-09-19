@@ -21,20 +21,20 @@ import {
   AUTHORIZED_EFFECT_RESERVATION_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
-  REALIZATION_SCHEMA,
+  ACCEPTED_WORKER_RESULT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
   normalizeObligation,
 } from './facts.ts';
 import type {
-  AcceptedRealization,
+  AcceptedWorkerResult,
   ClaimFact,
   EffectReservationFact,
   ExecutionAuthorityFact,
   HistoricalRun,
   ObligationFact,
   ObligationInput,
-  RealizationFact,
+  AcceptedWorkerResultFact,
   Receipt,
   ReceiptFact,
   ReceiptKind,
@@ -53,7 +53,7 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
-import { verifyWorkerResult } from './realization.ts';
+import { verifyWorkerResult } from './worker-result.ts';
 import { deriveAuthorizedProviderEffect } from './provider-effect.ts';
 
 export type { Receipt } from './facts.ts';
@@ -62,8 +62,8 @@ export interface EffectReservationIdentity {
   effect_contract:string;
   adapter_contract_digest:string;
   effect_digest:string;
-  realization_commit:string;
-  realization_digest:string;
+  worker_result_commit:string;
+  worker_result_digest:string;
 }
 
 const errorMessage=(error:unknown)=>error instanceof Error ? error.message : String(error);
@@ -210,27 +210,27 @@ export class KernelCore {
     };
   }
 
-  acceptRealization(
+  acceptWorkerResult(
     session:TaskSession,
     candidate:unknown,
-  ):AcceptedRealization {
+  ):AcceptedWorkerResult {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
       const {history,project}=this.#historicalProjection(head);
       const run=this.#requireTaskSession(history,session);
       const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
-        throw new Error('REALIZATION_WHILE_NOT_EXECUTING');
+        throw new Error('WORKER_RESULT_WHILE_NOT_EXECUTING');
       }
       if (history.unresolvedReservationsByRun.has(run.id)) {
-        throw new Error('REALIZATION_AFTER_EFFECT_RESERVATION');
+        throw new Error('WORKER_RESULT_AFTER_EFFECT_RESERVATION');
       }
-      const existing=history.acceptedRealizationsByRun.get(run.id);
+      const existing=history.acceptedWorkerResultsByRun.get(run.id);
       if (existing) return existing;
 
       const verified=verifyWorkerResult(run.obligation,session,candidate);
-      const fact:RealizationFact={
-        schema:REALIZATION_SCHEMA,
+      const fact:AcceptedWorkerResultFact={
+        schema:ACCEPTED_WORKER_RESULT_SCHEMA,
         run_id:run.id,
         obligation_id:run.obligation_id,
         claimed_revision:run.claimed_revision,
@@ -241,19 +241,19 @@ export class KernelCore {
       };
       const commit=this.#store.append(
         head,
-        `overcenter: accept realization ${run.obligation_id} ${run.id} g${run.execution_generation}`,
-        {'realization.json':fact},
+        `overcenter: accept worker result ${run.obligation_id} ${run.id} g${run.execution_generation}`,
+        {'accepted-worker-result.json':fact},
       );
-      if (commit) return {...fact,realization_commit:commit};
+      if (commit) return {...fact,worker_result_commit:commit};
     }
-    throw new Error('REALIZATION_ACCEPTANCE_CONTENTION_EXHAUSTED');
+    throw new Error('WORKER_RESULT_ACCEPTANCE_CONTENTION_EXHAUSTED');
   }
 
-  acceptedRealization(session:TaskSession):AcceptedRealization|null {
+  acceptedWorkerResult(session:TaskSession):AcceptedWorkerResult|null {
     const head=this.#requireHead();
     const {history}=this.#historicalProjection(head);
     const run=this.#requireTaskSession(history,session);
-    return history.acceptedRealizationsByRun.get(run.id)??null;
+    return history.acceptedWorkerResultsByRun.get(run.id)??null;
   }
 
   acquireExecution(
@@ -340,12 +340,12 @@ export class KernelCore {
           || identity.adapter_contract_digest!==expectedEffect.adapter_contract_digest
           || identity.effect_digest!==expectedEffect.effect_digest
         ) throw new Error('EFFECT_IDENTITY_MISMATCH');
-        const realization=history.acceptedRealizationsByRun.get(run.id);
-        if (!realization) throw new Error('REALIZATION_REQUIRED');
+        const acceptedWorkerResult=history.acceptedWorkerResultsByRun.get(run.id);
+        if (!acceptedWorkerResult) throw new Error('ACCEPTED_WORKER_RESULT_REQUIRED');
         if (
-          identity.realization_commit!==realization.realization_commit
-          || identity.realization_digest!==realization.result_digest
-        ) throw new Error('EFFECT_REALIZATION_MISMATCH');
+          identity.worker_result_commit!==acceptedWorkerResult.worker_result_commit
+          || identity.worker_result_digest!==acceptedWorkerResult.result_digest
+        ) throw new Error('EFFECT_WORKER_RESULT_MISMATCH');
         fact={
           schema:AUTHORIZED_EFFECT_RESERVATION_SCHEMA,
           run_id:run.id,
@@ -355,8 +355,8 @@ export class KernelCore {
           effect_contract:identity.effect_contract,
           adapter_contract_digest:identity.adapter_contract_digest,
           effect_digest:identity.effect_digest,
-          realization_commit:identity.realization_commit,
-          realization_digest:identity.realization_digest,
+          worker_result_commit:identity.worker_result_commit,
+          worker_result_digest:identity.worker_result_digest,
         };
       } else {
         if (run.obligation.effect_authority) throw new Error('EFFECT_AUTHORITY_INVALID');

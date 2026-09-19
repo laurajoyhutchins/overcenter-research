@@ -2,7 +2,7 @@ import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 import { bindTaskSession, executeAuthorizedEffect } from '../../src/effect-broker.ts';
-import { workerResult } from '../../src/realization.ts';
+import { workerResult } from '../../src/worker-result.ts';
 
 const STATE_REF=githubProofStateRef('conflicting-effect');
 
@@ -25,7 +25,7 @@ const result={
   kind:'conflicting-effect-authorized-result/v1',
   obligation_id:work.id,
 };
-const realization=kernel.acceptRealization(
+const acceptedWorkerResult=kernel.acceptWorkerResult(
   session,
   workerResult(session,result),
 );
@@ -48,7 +48,7 @@ console.log(JSON.stringify({
   run_id:work.run_id,
   worker_generation:session.execution_generation,
   broker_generation:attempt.broker_execution_generation,
-  realization_commit:realization.realization_commit,
+  worker_result_commit:acceptedWorkerResult.worker_result_commit,
   reservation_commit:attempt.reservation_commit,
   effect_digest:attempt.authorized_effect.effect_digest,
   state:work.postcondition.expected_state,

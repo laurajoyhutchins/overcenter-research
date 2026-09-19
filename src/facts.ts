@@ -12,14 +12,14 @@ import type {
 import { validatePostcondition } from './observation.ts';
 import { validateEffectAuthority } from './effect-authority.ts';
 import { validateCurrentProviderEffectAuthority } from './provider-effect.ts';
-import { validateResultAcceptance } from './realization.ts';
+import { validateResultAcceptance } from './worker-result.ts';
 
 export const LEGACY_OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
 export const OBLIGATION_SCHEMA='overcenter-git-obligation-v4' as const;
 export type ObligationSchema=typeof LEGACY_OBLIGATION_SCHEMA|typeof OBLIGATION_SCHEMA;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
-export const REALIZATION_SCHEMA='overcenter-git-realization-v1' as const;
+export const ACCEPTED_WORKER_RESULT_SCHEMA='overcenter-git-accepted-worker-result-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
 export const AUTHORIZED_EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v2' as const;
 export const LEGACY_RECEIPT_SCHEMA='overcenter-git-receipt-v4' as const;
@@ -72,8 +72,8 @@ export interface ExecutionAuthorityFact {
   execution_capability_sha256:string;
 }
 
-export interface RealizationFact {
-  schema:typeof REALIZATION_SCHEMA;
+export interface AcceptedWorkerResultFact {
+  schema:typeof ACCEPTED_WORKER_RESULT_SCHEMA;
   run_id:string;
   obligation_id:string;
   claimed_revision:string;
@@ -83,8 +83,8 @@ export interface RealizationFact {
   result_digest:string;
 }
 
-export interface AcceptedRealization extends RealizationFact {
-  realization_commit:string;
+export interface AcceptedWorkerResult extends AcceptedWorkerResultFact {
+  worker_result_commit:string;
 }
 
 export type EffectReservationFact =
@@ -104,8 +104,8 @@ export type EffectReservationFact =
       effect_contract:string;
       adapter_contract_digest:string;
       effect_digest:string;
-      realization_commit:string;
-      realization_digest:string;
+      worker_result_commit:string;
+      worker_result_digest:string;
     };
 
 export type EffectReservation=EffectReservationFact & {
@@ -145,7 +145,7 @@ export interface FactCommit {
   obligation?:unknown|null;
   claim?:unknown|null;
   execution_authority?:unknown|null;
-  realization?:unknown|null;
+  accepted_worker_result?:unknown|null;
   effect_reservation?:unknown|null;
   receipt?:unknown|null;
 }

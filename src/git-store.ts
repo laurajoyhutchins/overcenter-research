@@ -67,7 +67,7 @@ export class GitFactStore implements DurableFactStore {
         'obligation.json',
         'claim.json',
         'execution-authority.json',
-        'realization.json',
+        'accepted-worker-result.json',
         'effect-reservation.json',
         'receipt.json',
       ]) {
