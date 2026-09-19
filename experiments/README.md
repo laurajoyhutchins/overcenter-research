@@ -19,7 +19,8 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `fstar-settlement-kernel/` - proof-bound settlement evidence and producer-independent realization reuse in F*.
 - `fstar-pulse-capability-concurrency/` - separation-logic proof that disjoint mutation authority may run concurrently while aliasing one exclusive capability fails.
 - `provider-capability-derivation/` - derives physical effect footprints and semantic compatibility from production provider semantics, then cross-checks graph admission.
-- `effect-equivalence-certificate/` - replaces boolean same-effect commutativity with a recomputable, version-bound provider equivalence witness.
+- `settlement-equivalence-witness/` - binds unordered same-resource execution to exact observation/settlement equivalence evidence.
+- `github-settlement-equivalence/` - live provider proof that physically distinct same-state GitHub status writes derive the same settlement truth while mixed states remain order-sensitive.
 
 Reusable mechanism belongs in `src/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
 
@@ -191,7 +192,7 @@ repository identity
 + normalized status context
 ```
 
-Identical desired states may commute. Incompatible desired states must be graph-ordered; otherwise they remain blocked rather than racing.
+Identical desired states may remain unordered only under a provider settlement-equivalence witness. Incompatible desired states must be graph-ordered; otherwise they remain blocked rather than racing.
 
 ## Running experiments
 
