@@ -333,6 +333,7 @@ private def parseClaimCandidate (json : Json) : Except String ClaimCandidate := 
   }
 
 private def claimAdmissionReasonName : ClaimAdmissionError → String
+  | .invalidGraph => "INVALID_GRAPH"
   | .unknownObligation => "UNKNOWN_OBLIGATION"
   | .duplicateRun => "DUPLICATE_RUN"
   | .revisionMismatch => "REVISION_MISMATCH"
@@ -341,6 +342,13 @@ private def claimAdmissionReasonName : ClaimAdmissionError → String
   | .unresolvedSemanticDependency => "UNRESOLVED_SEMANTIC_DEPENDENCY"
   | .obligationKeyMismatch => "OBLIGATION_KEY_MISMATCH"
   | .invalidCapabilityDigest => "INVALID_CAPABILITY_DIGEST"
+
+private def handleClaimGraph (request : Json) : Except String Json := do
+  let obligations ← parseClaimObligations (← field request "obligations")
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-kernel/v1"),
+    ("valid", claimGraphValid obligations)
+  ]
 
 private def handleClaimAdmission (request : Json) : Except String Json := do
   let currentRevision ← stringField request "current_revision"
@@ -441,7 +449,9 @@ private def handleKubernetesWatchCarry (request : Json) : Except String Json := 
 
 def handleJson (request : Json) : Except String Json := do
   let command ← stringField request "command"
-  if command = "claim-admission" then
+  if command = "claim-graph" then
+    handleClaimGraph request
+  else if command = "claim-admission" then
     handleClaimAdmission request
   else if command = "execution-replay" then
     handleExecutionReplay request
