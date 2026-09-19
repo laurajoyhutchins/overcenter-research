@@ -1,0 +1,340 @@
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import test from 'node:test';
+
+import {
+  staticEffectConflict,
+} from '../src/admission.ts';
+import type { State } from '../src/facts.ts';
+import { validateGraph } from '../src/graph.ts';
+import type {
+  Obligation,
+  Postcondition,
+} from '../src/model.ts';
+import { effectSemantics } from '../src/semantics.ts';
+
+const EXPECTED_ORACLE_SHA='0c5db60f2dc14af93f554fd9f870181261ce5f11';
+const oracleBin=process.env.LEAN_ORACLE_BIN;
+const oracleSha=process.env.LEAN_ORACLE_SHA;
+
+if (!oracleBin) {
+  throw new Error('LEAN_ORACLE_BIN is required');
+}
+if (oracleSha!==EXPECTED_ORACLE_SHA) {
+  throw new Error(
+    `LEAN_ORACLE_SHA must be exact pinned reference ${EXPECTED_ORACLE_SHA}; got ${oracleSha??'<unset>'}`,
+  );
+}
+
+type LeanComparison = {
+  schema:string;
+  graph_acyclic:boolean;
+  optimized_dependencies_done:boolean;
+  reference_dependencies_done:boolean;
+  optimized_effect_conflict:boolean;
+  reference_effect_conflict:boolean;
+};
+
+class LeanOracle {
+  readonly child=spawn(oracleBin,[],{stdio:['pipe','pipe','pipe']});
+  buffer='';
+  stderr='';
+  pending:Array<{
+    resolve:(value:LeanComparison)=>void;
+    reject:(error:Error)=>void;
+  }>=[];
+  constructor(){
+    this.child.stdout.setEncoding('utf8');
+    this.child.stderr.setEncoding('utf8');
+    this.child.stderr.on('data',(chunk:string)=>{
+      this.stderr+=chunk;
+    });
+    this.child.stdout.on('data',(chunk:string)=>{
+      this.buffer+=chunk;
+      for(;;){
+        const newline=this.buffer.indexOf('\n');
+        if(newline<0)break;
+        const line=this.buffer.slice(0,newline);
+        this.buffer=this.buffer.slice(newline+1);
+        const next=this.pending.shift();
+        if(!next)continue;
+        try{
+          next.resolve(JSON.parse(line) as LeanComparison);
+        }catch(error){
+          next.reject(error as Error);
+        }
+      }
+    });
+    this.child.on('exit',(code)=>{
+      if(code===0)return;
+      const error=new Error(
+        `Lean semantic oracle exited ${code}: ${this.stderr}`,
+      );
+      for(const item of this.pending.splice(0)){
+        item.reject(error);
+      }
+    });
+  }
+  compare(request:unknown):Promise<LeanComparison>{
+    return new Promise((resolve,reject)=>{
+      this.pending.push({resolve,reject});
+      this.child.stdin.write(JSON.stringify(request)+'\n');
+    });
+  }
+  async close():Promise<void>{
+    this.child.stdin.end();
+    const [code]=await once(this.child,'exit');
+    assert.equal(code,0,this.stderr);
+  }
+}
+
+function filePostcondition(id:string):Postcondition{
+  return {
+    verifier:'file-content-equals/v1',
+    path:`/tmp/oracle/${id}`,
+    content:id,
+  };
+}
+
+function statusPostcondition(
+  desired:'success'|'failure',
+):Postcondition{
+  return {
+    verifier:'github-commit-status/v1',
+    provider:'github',
+    repository_id:123,
+    commit_sha:'a'.repeat(40),
+    context:'overcenter/lean-oracle',
+    expected_state:desired,
+  };
+}
+
+function obligation(
+  id:string,
+  upstreams:number[],
+  postcondition:Postcondition=filePostcondition(id),
+):Obligation{
+  return {
+    id,
+    dependencies:upstreams.map(upstream=>({
+      kind:'control' as const,
+      upstream:`n-${upstream}`,
+    })),
+    packet:{kind:'lean-semantic-oracle'},
+    postcondition,
+  };
+}
+
+function stateFromDependencies(
+  dependencies:number[][],
+  effectTarget:number|null=null,
+  effectCompetitor:number|null=null,
+):State{
+  const obligations:Record<string,Obligation>={};
+  const definition_commits:Record<string,string>={};
+  for(let i=0;i<dependencies.length;i+=1){
+    const id=`n-${i}`;
+    const postcondition=i===effectTarget
+      ?statusPostcondition('success')
+      :i===effectCompetitor
+        ?statusPostcondition('failure')
+        :filePostcondition(id);
+    obligations[id]=obligation(id,dependencies[i],postcondition);
+    definition_commits[id]=`definition-${i}`;
+  }
+  return {obligations,definition_commits};
+}
+
+function typeScriptGraphValid(state:State):boolean{
+  try{
+    validateGraph(state);
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+function leanEffect(postcondition:Postcondition){
+  const semantics=effectSemantics(postcondition);
+  return semantics
+    ?{
+        resource:semantics.resource,
+        desired:semantics.desired,
+        same_desired_commutes:semantics.sameDesiredCommutes,
+      }
+    :null;
+}
+
+function leanRequest(
+  state:State,
+  targetId:string,
+  order:string[]=Object.keys(state.obligations),
+){
+  return {
+    command:'claim-admission',
+    current_revision:'oracle-revision',
+    expected_revision:'oracle-revision',
+    target_id:targetId,
+    obligations:order.map(id=>{
+      const item=state.obligations[id];
+      return {
+        id:item.id,
+        dependencies:item.dependencies.map(edge=>({
+          upstream:edge.upstream,
+          kind:edge.kind,
+          semantic_identity:null,
+        })),
+        effect:leanEffect(item.postcondition),
+      };
+    }),
+    lifecycles:order.map(id=>({
+      obligation_id:id,
+      status:id===targetId?'UNREALIZED':'DONE',
+    })),
+  };
+}
+
+function allDirectedGraphSlots(nodeCount:number):Array<[number,number]>{
+  const slots:Array<[number,number]>=[];
+  for(let from=0;from<nodeCount;from+=1){
+    for(let to=0;to<nodeCount;to+=1){
+      if(from!==to)slots.push([from,to]);
+    }
+  }
+  return slots;
+}
+
+function graphFromMask(
+  nodeCount:number,
+  slots:Array<[number,number]>,
+  mask:number,
+):number[][]{
+  const dependencies=Array.from({length:nodeCount},()=>[] as number[]);
+  for(let bit=0;bit<slots.length;bit+=1){
+    if((mask&(1<<bit))===0)continue;
+    const [from,to]=slots[bit];
+    dependencies[from].push(to);
+  }
+  return dependencies;
+}
+
+function dagSlots(nodeCount:number):Array<[number,number]>{
+  const slots:Array<[number,number]>=[];
+  for(let downstream=1;downstream<nodeCount;downstream+=1){
+    for(let upstream=0;upstream<downstream;upstream+=1){
+      slots.push([downstream,upstream]);
+    }
+  }
+  return slots;
+}
+
+test('current TypeScript graph validity agrees with pinned Lean semantic oracle',async()=>{
+  const oracle=new LeanOracle();
+  const nodeCount=4;
+  const slots=allDirectedGraphSlots(nodeCount);
+  let comparisons=0;
+  try{
+    for(let mask=0;mask<(1<<slots.length);mask+=1){
+      const state=stateFromDependencies(
+        graphFromMask(nodeCount,slots,mask),
+      );
+      const expected=typeScriptGraphValid(state);
+      const observed=await oracle.compare(
+        leanRequest(state,'n-0'),
+      );
+      assert.equal(
+        observed.graph_acyclic,
+        expected,
+        `graph disagreement mask=${mask}`,
+      );
+      comparisons+=1;
+    }
+
+    const unknown=stateFromDependencies([[],[]]);
+    unknown.obligations['n-1'].dependencies=[
+      {kind:'control',upstream:'missing'},
+    ];
+    assert.equal(typeScriptGraphValid(unknown),false);
+    assert.equal(
+      (await oracle.compare(leanRequest(unknown,'n-1'))).graph_acyclic,
+      false,
+    );
+
+    const duplicateEdge=stateFromDependencies([[],[0]]);
+    duplicateEdge.obligations['n-1'].dependencies.push(
+      {kind:'control',upstream:'n-0'},
+    );
+    assert.equal(typeScriptGraphValid(duplicateEdge),true);
+    assert.equal(
+      (await oracle.compare(leanRequest(duplicateEdge,'n-1'))).graph_acyclic,
+      true,
+    );
+  }finally{
+    await oracle.close();
+  }
+
+  console.log('LEAN_GRAPH_ORACLE '+JSON.stringify({
+    oracle_sha:EXPECTED_ORACLE_SHA,
+    node_count:nodeCount,
+    directed_graphs:1<<slots.length,
+    additional_hostile_cases:2,
+    comparisons,
+  }));
+});
+
+test('current TypeScript effect ordering agrees with pinned Lean semantic oracle',async()=>{
+  const oracle=new LeanOracle();
+  const nodeCount=5;
+  const slots=dagSlots(nodeCount);
+  const forward=Array.from({length:nodeCount},(_,i)=>`n-${i}`);
+  const reverse=[...forward].reverse();
+  let comparisons=0;
+
+  try{
+    for(let mask=0;mask<(1<<slots.length);mask+=1){
+      const dependencies=graphFromMask(nodeCount,slots,mask);
+      for(let target=0;target<nodeCount;target+=1){
+        for(let competitor=0;competitor<nodeCount;competitor+=1){
+          if(target===competitor)continue;
+          const state=stateFromDependencies(
+            dependencies,
+            target,
+            competitor,
+          );
+          const expected=
+            staticEffectConflict(state,`n-${target}`)!==null;
+
+          for(const order of [forward,reverse]){
+            const observed=await oracle.compare(
+              leanRequest(state,`n-${target}`,order),
+            );
+            assert.equal(
+              observed.graph_acyclic,
+              true,
+              `oracle rejected canonical DAG mask=${mask}`,
+            );
+            assert.equal(
+              observed.optimized_effect_conflict,
+              expected,
+              `effect disagreement mask=${mask} target=${target} competitor=${competitor} order=${order.join(',')}`,
+            );
+            comparisons+=1;
+          }
+        }
+      }
+    }
+  }finally{
+    await oracle.close();
+  }
+
+  console.log('LEAN_EFFECT_ORACLE '+JSON.stringify({
+    oracle_sha:EXPECTED_ORACLE_SHA,
+    node_count:nodeCount,
+    possible_edges:slots.length,
+    dags:1<<slots.length,
+    target_competitor_pairs:nodeCount*(nodeCount-1),
+    obligation_orders:2,
+    comparisons,
+  }));
+});
