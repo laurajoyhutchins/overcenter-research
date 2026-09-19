@@ -7,7 +7,8 @@ on:
     paths:
       - ".github/workflows/provider-capability-confinement.yml"
       - "experiments/provider-capability-confinement/**"
-      - "src/execution-signal.ts"
+      - "src/realization.ts"
+      - "src/effect-authority.ts"
       - "src/effect-broker.ts"
       - "src/provider-effect.ts"
       - "src/providers/github-effect.ts"
@@ -17,7 +18,8 @@ on:
     paths:
       - ".github/workflows/provider-capability-confinement.yml"
       - "experiments/provider-capability-confinement/**"
-      - "src/execution-signal.ts"
+      - "src/realization.ts"
+      - "src/effect-authority.ts"
       - "src/effect-broker.ts"
       - "src/provider-effect.ts"
       - "src/providers/github-effect.ts"
@@ -46,13 +48,20 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
-      - name: Define and claim exact task capability
+      - name: Define, claim, and bind trusted dispatch session
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/provider-capability-confinement/authority.ts
+      - name: Upload trusted dispatch session
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: provider-capability-task-session
+          path: task-session.json
+          if-no-files-found: error
+          retention-days: 1
 
   hostile-worker:
-    name: Untrusted worker smuggles authority fields without mutation credentials
+    name: Untrusted worker forges results without mutation credentials
     needs: authority
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -66,20 +75,20 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
-      - name: Attempt direct mutation and emit hostile effect-ready signals
+      - name: Attempt direct mutation and emit hostile worker results
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/provider-capability-confinement/hostile-worker.ts
-      - name: Upload hostile signals
+      - name: Upload hostile results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: provider-capability-signals
-          path: candidate-signals
+          name: provider-capability-results
+          path: candidate-results
           if-no-files-found: error
           retention-days: 1
 
   broker:
-    name: Trusted broker binds signal, executes once, blocks replay
+    name: Trusted broker verifies result, executes once, blocks replay
     needs: hostile-worker
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -96,12 +105,18 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download trusted dispatch session
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: provider-capability-signals
-          path: candidate-signals
+          name: provider-capability-task-session
+          path: trusted-session
+      - name: Download hostile worker results
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: provider-capability-results
+          path: candidate-results
       - id: broker
-        name: Bind effect-ready signal, mutate once, reject replay
+        name: Verify result, mutate once, reject replay
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
