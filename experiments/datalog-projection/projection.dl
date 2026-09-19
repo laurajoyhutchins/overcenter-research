@@ -324,13 +324,6 @@ contradictory_observation_judgment(R, N) :-
 contradictory_observation_judgment(R, N) :-
     observation_judgment(R, N, "true", "true").
 
-.decl run_after_done(obligation:symbol, run_id:symbol)
-run_after_done(O, LaterRun) :-
-    matching_run(DoneRun, O, DoneOrdinal),
-    latest_receipt(DoneRun, "DONE"),
-    matching_run(LaterRun, O, LaterOrdinal),
-    LaterOrdinal > DoneOrdinal.
-
 .decl invalid_input(flag:symbol)
 invalid_input("invalid") :- missing_current_semantic_key(O).
 invalid_input("invalid") :- semantic_key_for_unknown_obligation(O).
@@ -350,7 +343,6 @@ invalid_input("invalid") :- missing_observation_judgment(R, N).
 invalid_input("invalid") :- unexpected_observation_judgment(R, N).
 invalid_input("invalid") :- invalid_observation_boolean(R, N).
 invalid_input("invalid") :- contradictory_observation_judgment(R, N).
-invalid_input("invalid") :- run_after_done(O, R).
 
 .decl valid_input(flag:symbol)
 valid_input("valid") :- !invalid_input("invalid").
@@ -395,4 +387,3 @@ project_status(O, "READY") :-
 .output unexpected_observation_judgment
 .output invalid_observation_boolean
 .output contradictory_observation_judgment
-.output run_after_done
