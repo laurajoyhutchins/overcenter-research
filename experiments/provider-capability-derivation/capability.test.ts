@@ -149,7 +149,7 @@ test('different normalized context derives disjoint physical capabilities',()=>{
   );
 });
 
-test('same coordinate and same settlement-equivalence witness derives adapter-level commutative overlap',()=>{
+test('same coordinate and same settlement-equivalence witness derives unordered-safe overlap',()=>{
   const relation=deriveCapabilityRelation(
     status('success',{context:'overcenter/Build'}),
     status('success',{context:'overcenter/build'}),
