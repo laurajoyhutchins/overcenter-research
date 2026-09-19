@@ -310,6 +310,18 @@ private def parseHistoricalClaimRuns (json : Json) : Except String (List Histori
   let runs ← json.getArr?
   runs.toList.mapM parseHistoricalClaimRun
 
+
+private def parseFreshClaimObservation (json : Json) : Except String FreshClaimObservation := do
+  pure {
+    obligationId := ← stringField json "obligation_id"
+    observation := ← parseObservation (← field json "observation")
+  }
+
+private def parseFreshClaimObservations
+    (json : Json) : Except String (List FreshClaimObservation) := do
+  let observations ← json.getArr?
+  observations.toList.mapM parseFreshClaimObservation
+
 private def parseClaimCandidate (json : Json) : Except String ClaimCandidate := do
   pure {
     runId := ← stringField json "run_id"
@@ -334,8 +346,9 @@ private def handleClaimAdmission (request : Json) : Except String Json := do
   let currentRevision ← stringField request "current_revision"
   let obligations ← parseClaimObligations (← field request "obligations")
   let runs ← parseHistoricalClaimRuns (← field request "runs")
+  let freshObservations ← parseFreshClaimObservations (← field request "fresh_observations")
   let candidate ← parseClaimCandidate (← field request "candidate")
-  match admitClaim currentRevision obligations runs candidate with
+  match admitClaim currentRevision obligations runs freshObservations candidate with
   | .accepted =>
       pure <| Json.mkObj [
         ("schema", "overcenter-lean-kernel/v1"),
