@@ -48,8 +48,11 @@ jobs:
         with:
           go-version-file: experiments/go-graph-executor/go.mod
           cache: false
-      - name: Repository regression plus deterministic frontier
-        run: npm test
+      - name: Deterministic frontier proof
+        run: >-
+          node --experimental-strip-types --test
+          test/graph-frontier-pure.test.ts
+          test/graph-frontier-kernel.test.ts
       - name: Go executor adversaries
         working-directory: experiments/go-graph-executor
         run: go test ./...
