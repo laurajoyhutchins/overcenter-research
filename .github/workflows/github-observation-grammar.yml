@@ -8,10 +8,23 @@ on:
       - experiment/github-observation-grammar
       - experiment/github-observation-semantics
       - experiment/provider-certificate-reuse
+      - experiment/github-authority-command
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
       - experiments/provider-observation/**
+      - src/model.ts
+      - src/observation.ts
+      - src/semantics.ts
+      - src/github-authority-command.ts
+      - src/provider-observation/**
+      - src/providers/**
+      - bin/github-authority.ts
+      - test/provider-observation.test.ts
+      - test/github-certified-status.test.ts
+      - test/github-certified-ref.test.ts
+      - test/github-certified-pr.test.ts
+      - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
       - package.json
@@ -22,6 +35,18 @@ on:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
       - experiments/provider-observation/**
+      - src/model.ts
+      - src/observation.ts
+      - src/semantics.ts
+      - src/github-authority-command.ts
+      - src/provider-observation/**
+      - src/providers/**
+      - bin/github-authority.ts
+      - test/provider-observation.test.ts
+      - test/github-certified-status.test.ts
+      - test/github-certified-ref.test.ts
+      - test/github-certified-pr.test.ts
+      - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
       - package.json
@@ -68,6 +93,10 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/github/rest-api-description/d4278c869e367f5d6d4e0f46878119128abba77b/descriptions/api.github.com/dereferenced/api.github.com.2026-03-10.deref.json \
             --output "$RUNNER_TEMP/github-openapi.json"
+      - name: Verify runtime GitHub contracts against pinned OpenAPI
+        run: |
+          node --experimental-strip-types experiments/github-observation-grammar/verify-kernel-github-contract.ts \
+            "$RUNNER_TEMP/github-openapi.json"
       - name: Generate complete read-only observation inventory
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/inventory.ts \
@@ -94,3 +123,64 @@ jobs:
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/live-semantic-proof.ts \
             "$RUNNER_TEMP/github-openapi.json"
+
+      - name: Prove runtime commit-status readback uses certified observations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types experiments/github-observation-grammar/live-kernel-status-readback.ts
+
+      - name: Prove runtime ref authority fence uses certified observations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node --experimental-strip-types experiments/github-observation-grammar/live-kernel-ref-fence.ts
+
+      - name: Prove runtime PR work identity uses certified observations
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PULL_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NODE_ID: ${{ github.event.pull_request.node_id }}
+          PR_STATE: ${{ github.event.pull_request.state }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node --experimental-strip-types experiments/github-observation-grammar/live-kernel-pr-identity.ts
+
+      - name: Exercise semantic GitHub ref authority command
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          npm run github:authority -- ref \
+            --repository-id 1354872053 \
+            --repository laurajoyhutchins/overcenter-research \
+            --ref "heads/$SOURCE_REF" \
+            --expected-sha "$SOURCE_SHA"
+
+          set +e
+          npm run github:authority -- ref \
+            --repository-id 1354872053 \
+            --repository laurajoyhutchins/overcenter-research \
+            --ref "heads/$SOURCE_REF" \
+            --expected-sha 0000000000000000000000000000000000000000
+          stale_code=$?
+          set -e
+          test "$stale_code" -eq 2
+
+      - name: Exercise semantic GitHub PR authority command
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          npm run github:authority -- pr \
+            --repository-id 1354872053 \
+            --repository laurajoyhutchins/overcenter-research \
+            --pull-number "${{ github.event.pull_request.number }}" \
+            --node-id "${{ github.event.pull_request.node_id }}" \
+            --state "${{ github.event.pull_request.state }}" \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
+            --base-ref "${{ github.event.pull_request.base.ref }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}"
