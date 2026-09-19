@@ -186,6 +186,54 @@ test('TypeScript and Go accept the same process-spec conformance corpus',()=>{
   }
 });
 
+test('production socket mode fails closed without a distinct task credential',async()=>{
+  const missingSocket=join(scratch,'missing-credential.sock');
+  const missing=spawn(
+    binary,
+    [
+      `--socket=${missingSocket}`,
+      `--workspace-root=${workspace}`,
+      '--concurrency=1',
+    ],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let missingStderr='';
+  missing.stderr.setEncoding('utf8');
+  missing.stderr.on('data',chunk=>{missingStderr+=String(chunk);});
+  const missingCode=await new Promise<number|null>((resolve,reject)=>{
+    missing.once('error',reject);
+    missing.once('close',resolve);
+  });
+  assert.notEqual(missingCode,0);
+  assert.match(missingStderr,/requires --task-uid and --task-gid/);
+
+  const uid=process.getuid?.();
+  const gid=process.getgid?.();
+  assert.equal(typeof uid,'number');
+  assert.equal(typeof gid,'number');
+  const sameSocket=join(scratch,'same-credential.sock');
+  const same=spawn(
+    binary,
+    [
+      `--socket=${sameSocket}`,
+      `--workspace-root=${workspace}`,
+      '--concurrency=1',
+      `--task-uid=${uid}`,
+      `--task-gid=${gid}`,
+    ],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let sameStderr='';
+  same.stderr.setEncoding('utf8');
+  same.stderr.on('data',chunk=>{sameStderr+=String(chunk);});
+  const sameCode=await new Promise<number|null>((resolve,reject)=>{
+    same.once('error',reject);
+    same.once('close',resolve);
+  });
+  assert.notEqual(sameCode,0);
+  assert.match(sameStderr,/task uid must differ from executor uid/);
+});
+
 test('production executor receives only explicit task environment',async()=>{
   process.env.GITHUB_TOKEN='host-secret-that-must-not-cross';
   const execution=computationExecution(
