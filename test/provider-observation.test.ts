@@ -107,6 +107,10 @@ test('production structural validator binds certificate to operation and schema 
   assert.equal(certified.structural_validation.operation_id,'test/get');
   assert.equal(certified.structural_validation.schema_sha256,'a'.repeat(64));
   assert.deepEqual(certified.structural_validation.validated_paths,['id']);
+
+  const recertified=validateObservationSlice(operation,certified,[{path:'id'}]);
+  assert.equal(recertified.structural_validation.operation_id,'test/get');
+  assert.deepEqual(recertified.structural_validation.validated_paths,['id']);
 });
 
 

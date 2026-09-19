@@ -70,7 +70,10 @@
       "resultFields": [
         "outcome"
       ],
-      "note": "Provider-specific coordinate and response semantics remain in provider adapters."
+      "note": "Provider-specific coordinate and response semantics remain in provider adapters. structural_validation is a derived schema-binding certificate and may be replaced by a fresh certification pass.",
+      "derivedFields": [
+        "structural_validation"
+      ]
     },
     "settlementObservation": {
       "bindingFields": [

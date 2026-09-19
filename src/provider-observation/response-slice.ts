@@ -2,6 +2,7 @@ import {
   validateProviderObservationEnvelope,
   type ProviderObservation,
   type ProviderObservationValidationOptions,
+  type ProviderStructuralValidation,
 } from './observation.ts';
 
 export interface ResponseFieldSpec {
@@ -27,9 +28,7 @@ export interface ResponseSliceResult {
 }
 
 export type CertifiedObservation<T extends StructuralObservation = StructuralObservation> = T & {
-  structural_validation: ResponseSliceResult & {
-    schema_sha256: string;
-  };
+  structural_validation:ProviderStructuralValidation;
 };
 
 type Schema = Record<string, unknown>;

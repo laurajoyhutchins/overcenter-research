@@ -7,6 +7,14 @@ export interface ObservationObserver {
   id: string;
 }
 
+export interface ProviderStructuralValidation {
+  operation_id:string;
+  status:string;
+  validated_paths:string[];
+  optional_absent_paths:string[];
+  schema_sha256:string;
+}
+
 export interface ProviderObservation<
   Provider extends string,
   Request,
@@ -29,6 +37,7 @@ export interface ProviderObservation<
     value?: unknown;
     transport_error?: string;
   } & OutcomeExtra;
+  structural_validation?:ProviderStructuralValidation;
 }
 
 export interface ProviderObservationValidationOptions {
@@ -72,7 +81,7 @@ export function validateProviderObservationEnvelope(
   exactKeys(
     value,
     ['contract','observer','observed_at','request','response','outcome'],
-    topLevelExtensions,
+    ['structural_validation',...topLevelExtensions],
   );
 
   if (!data(value.contract)) throw new Error('PROVIDER_OBSERVATION_CONTRACT_INVALID');
@@ -123,4 +132,40 @@ export function validateProviderObservationEnvelope(
       || value.outcome.transport_error.length===0
     )
   ) throw new Error('PROVIDER_OBSERVATION_TRANSPORT_ERROR_INVALID');
+
+  if (value.structural_validation!==undefined) {
+    if (!data(value.structural_validation)) {
+      throw new Error('PROVIDER_OBSERVATION_STRUCTURAL_VALIDATION_INVALID');
+    }
+    exactKeys(
+      value.structural_validation,
+      [
+        'operation_id',
+        'status',
+        'validated_paths',
+        'optional_absent_paths',
+        'schema_sha256',
+      ],
+      [],
+      'PROVIDER_OBSERVATION_STRUCTURAL_VALIDATION_SHAPE_INVALID',
+    );
+    nonEmptyString(
+      value.structural_validation.operation_id,
+      'PROVIDER_OBSERVATION_STRUCTURAL_OPERATION_INVALID',
+    );
+    nonEmptyString(
+      value.structural_validation.status,
+      'PROVIDER_OBSERVATION_STRUCTURAL_STATUS_INVALID',
+    );
+    if (
+      !Array.isArray(value.structural_validation.validated_paths)
+      || !value.structural_validation.validated_paths.every(path=>typeof path==='string')
+      || !Array.isArray(value.structural_validation.optional_absent_paths)
+      || !value.structural_validation.optional_absent_paths.every(path=>typeof path==='string')
+      || typeof value.structural_validation.schema_sha256!=='string'
+      || !/^[0-9a-f]{64}$/.test(value.structural_validation.schema_sha256)
+    ) {
+      throw new Error('PROVIDER_OBSERVATION_STRUCTURAL_VALIDATION_INVALID');
+    }
+  }
 }

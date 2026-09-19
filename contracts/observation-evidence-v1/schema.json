@@ -109,6 +109,9 @@
         },
         "outcome": {
           "$ref": "#/$defs/ProviderOutcome"
+        },
+        "structural_validation": {
+          "$ref": "#/$defs/StructuralValidationCertificate"
         }
       }
     },
@@ -151,6 +154,9 @@
         "authority_id": {
           "type": "string",
           "minLength": 1
+        },
+        "structural_validation": {
+          "$ref": "#/$defs/StructuralValidationCertificate"
         }
       }
     },
@@ -694,6 +700,43 @@
           "type": "object",
           "additionalProperties": true,
           "x-overcenter-providerOwned": true
+        }
+      }
+    },
+    "StructuralValidationCertificate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "status",
+        "validated_paths",
+        "optional_absent_paths",
+        "schema_sha256"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validated_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optional_absent_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       }
     }
