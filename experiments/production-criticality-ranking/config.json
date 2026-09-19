@@ -124,20 +124,29 @@
     }
   ],
   "rankingPolicy": {
-    "version": "criticality-ranking/v1",
-    "weights": {
-      "A": 4,
-      "B": 2.5,
-      "I": 3,
-      "F": 1.5,
-      "R": 2.5,
-      "E": 1,
-      "X": 1,
-      "C": 0.5
+    "version": "criticality-ranking/v2",
+    "consequence": {
+      "weights": {
+        "A": 4,
+        "B": 2.5,
+        "I": 3,
+        "F": 1.5,
+        "R": 2.5,
+        "X": 1
+      },
+      "interactions": {
+        "AI": 2.5
+      }
     },
-    "interactions": {
-      "AI": 2.5,
-      "BE": 1.5
+    "attention": {
+      "consequenceWeight": 5,
+      "weights": {
+        "E": 3,
+        "C": 1
+      },
+      "interactions": {
+        "BE": 1.5
+      }
     }
   },
   "calibrationPairs": [
