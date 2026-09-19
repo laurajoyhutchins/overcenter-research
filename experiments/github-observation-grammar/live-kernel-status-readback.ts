@@ -45,7 +45,7 @@ const missing=observePostcondition({
 },{githubToken:token});
 
 assert.equal(missing.mutation_certainty,'uncertain');
-assert.equal(missing.negative_evidence_authoritative,false);
+assert.equal(missing.absence_evidence,undefined);
 assert.equal(missing.observation_error,'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
 
 console.log(JSON.stringify({
@@ -65,7 +65,7 @@ console.log(JSON.stringify({
   missing:{
     context:missing.context,
     mutation_certainty:missing.mutation_certainty,
-    negative_evidence_authoritative:missing.negative_evidence_authoritative,
+    absence_evidence:missing.absence_evidence,
     reason:missing.observation_error,
   },
 },null,2));
