@@ -108,3 +108,63 @@ The output of this experiment should be one of three conclusions:
 - **Boundary is wrong**: the experiment discovers that claim admission should be decomposed differently before choosing a language.
 
 No conclusion about the rest of Overcenter follows automatically.
+
+
+## Result
+
+**Lean earns the bounded claim-admission decision role.**
+
+Final evaluated head before this result note:
+
+`72560b8e062b212b58cdbcb5b5a8c075e8b0448b`
+
+Exact-head evidence:
+
+- Lean vs TypeScript claim admission, PR run `35424430244`: **PASS**
+- Lean semantic kernel proof, run `35424430234`: **PASS**
+- repository Evidence workflow, run `35424430237`: **PASS**
+- independent branch push audition, run `35424428123`: **PASS**
+
+The result satisfies the precommitted admission rule:
+
+1. **Behavioral parity:** every frozen positive and hostile case agrees with the current TypeScript control.
+2. **Generic safety proofs:** Lean proves that any admitted claim implies well-formed context, exact revision, unrealized target, DONE direct dependencies, resolved semantic inputs, and absence of an unordered incompatible effect.
+3. **No second graph authority:** the kernel receives normalized obligation/dependency/lifecycle/effect facts and derives admission; it receives no readiness or conflict-free assertion.
+4. **Fail closed boundary:** malformed lifecycle values and unsupported commands are rejected rather than admitted.
+5. **Operationally narrow:** the challenger is a stdin/stdout executable with no persistence, provider credentials, network access, scheduler, or daemon state.
+6. **Stronger property:** TypeScript and Lean implement the same tested decision for this slice, but Lean additionally establishes universal implications for every value accepted by `claimAdmissible`.
+
+### What the audition did not show
+
+Lean did **not** discover a new TypeScript claim-admission bug in the frozen cases. The TypeScript control behaved correctly throughout.
+
+The earned boundary is therefore deliberately narrower than “Lean owns all admission semantics”:
+
+```text
+TypeScript / provider-specific deterministic software
+  normalize authenticated durable facts
+  derive canonical provider mutation semantics
+  derive semantic dependency identity material
+                     |
+                     v
+             Lean admission kernel
+  graph well-formedness
+  exact revision
+  target lifecycle
+  dependency satisfaction
+  semantic-input availability
+  effect ordering
+                     |
+                     v
+                ADMIT / REJECT
+```
+
+Canonical hashing, provider semantics, authenticated fact acquisition, and durable claim commit remain outside this experiment.
+
+### Interpretation
+
+The null hypothesis survives for ordinary Overcenter software but loses for this bounded truth-deciding slice.
+
+There is no evidence here for rewriting the integration plane in Lean. There **is** evidence for moving admission predicates whose correctness can be stated as invariants behind an executable proof-bearing kernel, provided the normalization boundary remains small and differential tests continue to bind Lean behavior to production semantics.
+
+The next useful falsifier is not a larger rewrite. It is to reduce the amount of semantic preprocessing the TypeScript side performs and see whether Lean can own the next derivation without becoming a duplicate provider adapter.
