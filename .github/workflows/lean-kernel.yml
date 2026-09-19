@@ -24,7 +24,7 @@ jobs:
       - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Build and independently check Lean kernel
+      - name: Build Lean kernel
         uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
         with:
           lake-package-directory: experiments/lean-kernel
@@ -34,7 +34,11 @@ jobs:
           lint: false
           use-github-cache: false
           use-mathlib-cache: false
-          leanchecker: true
+          leanchecker: false
+
+      - name: Replay declarations with Lean checker
+        working-directory: experiments/lean-kernel
+        run: lake env leanchecker Overcenter
 
       - name: Execute compiled kernel witness
         run: ./experiments/lean-kernel/.lake/build/bin/overcenterKernel
