@@ -426,7 +426,9 @@ test('provider runtime bounds agree with canonical observation schema',()=>{
   const noNul=defs.NonEmptyNoNulString;
   assert.equal(noNul.type,'string');
   assert.equal(noNul.minLength,1);
-  assert.equal(noNul.pattern,'^[^\\\\u0000]+$');
+  const noNulPattern=new RegExp(noNul.pattern);
+  assert.equal(noNulPattern.test('ordinary-value'),true);
+  assert.equal(noNulPattern.test('forged\0value'),false);
 });
 
 test('all authority and observation schema extensions are declared',()=>{
@@ -449,9 +451,15 @@ test('authority non-empty strings match runtime NUL rejection',()=>{
     }
     const object=value as Record<string,unknown>;
     if (object.type==='string' && object.minLength===1) {
+      const pattern=new RegExp(String(object.pattern));
       assert.equal(
-        object.pattern,
-        '^[^\\\\u0000]+$',
+        pattern.test('ordinary-value'),
+        true,
+        'authority non-empty pattern rejects ordinary text',
+      );
+      assert.equal(
+        pattern.test('forged\0value'),
+        false,
         'non-empty authority string accepts NUL unlike runtime',
       );
     }

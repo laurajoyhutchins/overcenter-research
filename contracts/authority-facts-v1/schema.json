@@ -22,7 +22,7 @@
         "upstream": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         }
       }
     },
@@ -43,7 +43,7 @@
         "selector": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         }
       }
     },
@@ -62,7 +62,7 @@
         "upstream": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "consumes": {
           "$ref": "#/$defs/SemanticConsumption"
@@ -92,7 +92,7 @@
         "id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "dependencies": {
           "type": "array",
@@ -159,7 +159,7 @@
         "previous_definition_commit": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         }
       }
     },
@@ -191,22 +191,22 @@
         "run_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "obligation_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "claimed_revision": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "obligation_key": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "execution_capability_sha256": {
           "$ref": "#/$defs/Sha256Hex"
@@ -231,12 +231,12 @@
         "run_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "obligation_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "generation": {
           "type": "integer",
@@ -246,7 +246,7 @@
         "previous_authority_commit": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "execution_capability_sha256": {
           "$ref": "#/$defs/Sha256Hex"
@@ -270,12 +270,12 @@
         "run_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "obligation_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "execution_generation": {
           "type": "integer",
@@ -285,7 +285,7 @@
         "execution_authority_commit": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         }
       }
     },
@@ -317,22 +317,22 @@
         "run_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "obligation_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "claimed_revision": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "claim_commit": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "execution_generation": {
           "type": "integer",
@@ -342,7 +342,7 @@
         "execution_authority_commit": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "kind": {
           "enum": [
@@ -367,7 +367,7 @@
         "settled_at": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         }
       }
     },
@@ -393,22 +393,22 @@
         "run_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "obligation_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "claimed_revision": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "claim_commit": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "execution_generation": {
           "type": "integer",
@@ -418,7 +418,7 @@
         "execution_authority_commit": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         },
         "kind": {
           "enum": [
@@ -443,7 +443,7 @@
         "settled_at": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^\\\\u0000]+$"
+          "pattern": "^[^\\u0000]+$"
         }
       }
     },
