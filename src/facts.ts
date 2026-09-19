@@ -7,7 +7,10 @@ import type {
   Postcondition,
   Run,
 } from './model.ts';
-import { validatePostcondition } from './observation.ts';
+import {
+  validateObservationEnvelope,
+  validatePostcondition,
+} from './observation.ts';
 
 export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
@@ -331,6 +334,9 @@ export function validateReceiptFact(value:unknown):ReceiptFact {
   }
   if (value.observed!==null && !data(value.observed)) {
     throw new Error('INVALID_RECEIPT_OBSERVATION');
+  }
+  if (value.schema===RECEIPT_SCHEMA && value.observed!==null) {
+    validateObservationEnvelope(value.observed);
   }
   if (value.diagnostic!==undefined && !data(value.diagnostic)) {
     throw new Error('INVALID_RECEIPT_DIAGNOSTIC');

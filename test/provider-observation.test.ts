@@ -6,6 +6,9 @@ import {
   type SchemaResolver,
   type StructuralOperation,
 } from '../src/provider-observation/response-slice.ts';
+import {
+  validateProviderObservationEnvelope,
+} from '../src/provider-observation/observation.ts';
 
 test('production structural validator follows provider-supplied local refs', () => {
   const schemas:Record<string,unknown>={
@@ -88,6 +91,10 @@ test('production structural validator binds certificate to operation and schema 
       operation_id:'test/get',
       schema_sha256:'a'.repeat(64),
     },
+    observer:{kind:'test',id:'provider-observation'},
+    observed_at:'2026-09-19T00:00:00.000Z',
+    request:{},
+    response:{},
     outcome:{
       status:200,
       visibility:'observed' as const,
@@ -100,4 +107,48 @@ test('production structural validator binds certificate to operation and schema 
   assert.equal(certified.structural_validation.operation_id,'test/get');
   assert.equal(certified.structural_validation.schema_sha256,'a'.repeat(64));
   assert.deepEqual(certified.structural_validation.validated_paths,['id']);
+});
+
+
+test('provider observation envelope rejects undeclared outer fields',()=>{
+  const observation={
+    contract:{
+      provider:'github',
+      api_version:'2026-03-10',
+      operation_id:'repos/get',
+      schema_sha256:'a'.repeat(64),
+    },
+    observer:{kind:'git-kernel',id:'test'},
+    observed_at:'2026-09-19T00:00:00.000Z',
+    request:{path:'/repos/o/r'},
+    response:{},
+    outcome:{status:200,visibility:'observed',value:{}},
+    surprise:true,
+  };
+  assert.throws(
+    ()=>validateProviderObservationEnvelope(observation),
+    /PROVIDER_OBSERVATION_SHAPE_INVALID:UNKNOWN_FIELD:surprise/,
+  );
+});
+
+test('provider-specific outer fields require explicit declaration',()=>{
+  const observation={
+    contract:{
+      provider:'kubernetes',
+      api_version:'v1',
+      operation_id:'listCoreV1NamespacedConfigMap',
+      schema_sha256:'a'.repeat(64),
+    },
+    observer:{kind:'test',id:'kubernetes'},
+    observed_at:'2026-09-19T00:00:00.000Z',
+    request:{namespace:'proof',continue_token:null,limit:100},
+    response:{},
+    outcome:{status:200,visibility:'observed',value:{}},
+    authority_id:'kind:test-cluster',
+  };
+  assert.throws(()=>validateProviderObservationEnvelope(observation));
+  assert.doesNotThrow(()=>validateProviderObservationEnvelope(
+    observation,
+    {topLevelExtensions:['authority_id']},
+  ));
 });
