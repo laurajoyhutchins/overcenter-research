@@ -1,0 +1,31 @@
+name: Setup pinned F*
+description: Install the exact F* release used by Overcenter proof workflows
+runs:
+  using: composite
+  steps:
+    - name: Install pinned F*
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="2026.09.13"
+        expected="41b3b86b37734aae6a7b1beae808f3029568a67883f6be757d13e6d153ae255b"
+        archive="$RUNNER_TEMP/fstar-v${version}-Linux-x86_64.tar.gz"
+        root="$RUNNER_TEMP/overcenter-fstar-${version}"
+        url="https://github.com/FStarLang/FStar/releases/download/v${version}/fstar-v${version}-Linux-x86_64.tar.gz"
+
+        rm -rf "$root"
+        mkdir -p "$root"
+        curl --fail --location --retry 3 "$url" --output "$archive"
+        echo "$expected  $archive" | sha256sum --check
+        tar -xzf "$archive" -C "$root"
+
+        mapfile -t candidates < <(find "$root" -type f -name fstar.exe -perm -111)
+        if (( ${#candidates[@]} != 1 )); then
+          printf "expected exactly one fstar.exe, found %s\n" "${#candidates[@]}" >&2
+          printf "%s\n" "${candidates[@]}" >&2
+          exit 1
+        fi
+
+        fstar_bin="$(realpath "${candidates[0]}")"
+        "$fstar_bin" --version
+        echo "FSTAR_BIN=$fstar_bin" >> "$GITHUB_ENV"

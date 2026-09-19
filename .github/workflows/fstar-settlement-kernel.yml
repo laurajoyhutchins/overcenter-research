@@ -7,10 +7,12 @@ on:
     paths:
       - "experiments/fstar-settlement-kernel/**"
       - ".github/workflows/fstar-settlement-kernel.yml"
+      - ".github/actions/setup-fstar/**"
   pull_request:
     paths:
       - "experiments/fstar-settlement-kernel/**"
       - ".github/workflows/fstar-settlement-kernel.yml"
+      - ".github/actions/setup-fstar/**"
   workflow_dispatch:
 
 permissions:
@@ -18,35 +20,12 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Install pinned F*
-        shell: bash
-        run: |
-          set -euo pipefail
-          archive=fstar-v2026.09.13-Linux-x86_64.tar.gz
-          url="https://github.com/FStarLang/FStar/releases/download/v2026.09.13/$archive"
-          expected="41b3b86b37734aae6a7b1beae808f3029568a67883f6be757d13e6d153ae255b"
-
-          curl --fail --location --retry 3 "$url" --output "$archive"
-          echo "$expected  $archive" | sha256sum --check
-
-          mkdir -p .fstar
-          tar -xzf "$archive" -C .fstar
-
-          mapfile -t candidates < <(find .fstar -type f -name fstar.exe -perm -111)
-          if (( ${#candidates[@]} != 1 )); then
-            printf 'expected exactly one fstar.exe, found %s\n' "${#candidates[@]}" >&2
-            printf '%s\n' "${candidates[@]}" >&2
-            exit 1
-          fi
-
-          fstar_bin="$(realpath "${candidates[0]}")"
-          "$fstar_bin" --version
-          echo "FSTAR_BIN=$fstar_bin" >> "$GITHUB_ENV"
+      - uses: ./.github/actions/setup-fstar
 
       - name: Verify settlement experiment
         run: bash experiments/fstar-settlement-kernel/check.sh
