@@ -73,3 +73,6 @@ jobs:
 
       - name: Kubernetes provider differential proof
         run: node --experimental-strip-types --test experiments/lean-kernel/kubernetes-differential.test.ts
+
+      - name: Kubernetes WATCH continuity proof
+        run: node --experimental-strip-types --test experiments/lean-kernel/kubernetes-watch-protocol.test.ts
