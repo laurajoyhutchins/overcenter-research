@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { createServer } from 'node:net';
+import { createServer, type Socket } from 'node:net';
 import {
   existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -22,6 +23,12 @@ import {
   validateProcessSpec,
   type ProcessSpecV1,
 } from '../src/computation-execution.ts';
+import {
+  TEST_COMPUTATION_PACKET_SCHEMA,
+  resumeTestComputation,
+  runReadyTestComputation,
+} from '../src/computation-runner.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
@@ -41,22 +48,27 @@ after(()=>rmSync(scratch,{recursive:true,force:true}));
 const sha256=(value:string|Buffer)=>createHash('sha256').update(value).digest('hex');
 
 let executorSequence=0;
+let kernelSequence=0;
 
 interface ExecutorHarness {
   client:GoExecutorClient;
   child:ChildProcessWithoutNullStreams;
   socketPath:string;
   close:()=>Promise<void>;
+  abort:()=>Promise<void>;
 }
 
-async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
+async function startExecutor(
+  maxConcurrency:number,
+  workspaceRoot=workspace,
+):Promise<ExecutorHarness> {
   const socketPath=join(scratch,`executor-${executorSequence++}.sock`);
   rmSync(socketPath,{force:true});
   const child=spawn(
     binary,
     [
       '--stdio',
-      `--workspace-root=${workspace}`,
+      `--workspace-root=${workspaceRoot}`,
       `--concurrency=${maxConcurrency}`,
       '--unsafe-test-same-uid',
     ],
@@ -66,7 +78,11 @@ async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
   child.stderr.setEncoding('utf8');
   child.stderr.on('data',chunk=>{stderr+=String(chunk);});
 
+  const relaySockets=new Set<Socket>();
   const relay=createServer(socket=>{
+    relaySockets.add(socket);
+    socket.on('close',()=>relaySockets.delete(socket));
+    socket.on('error',()=>{});
     socket.pipe(child.stdin);
     child.stdout.pipe(socket);
   });
@@ -75,6 +91,23 @@ async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
     relay.listen(socketPath,()=>resolve());
   });
 
+  const waitForChild=async():Promise<number|null>=>{
+    if (child.exitCode!==null || child.signalCode!==null) {
+      return child.exitCode;
+    }
+    return await new Promise<number|null>((resolve,reject)=>{
+      child.once('error',reject);
+      child.once('close',resolve);
+    });
+  };
+  const closeRelay=async():Promise<void>=>{
+    for (const socket of relaySockets) socket.destroy();
+    if (!relay.listening) return;
+    await new Promise<void>((resolve,reject)=>{
+      relay.close(error=>error?reject(error):resolve());
+    });
+  };
+
   const client=new GoExecutorClient({socketPath,maxConcurrency});
   return {
     client,
@@ -82,20 +115,49 @@ async function startExecutor(maxConcurrency:number):Promise<ExecutorHarness> {
     socketPath,
     close:async()=>{
       await client.close();
-      await new Promise<void>((resolve,reject)=>{
-        relay.close(error=>error?reject(error):resolve());
-      });
-      const code=await new Promise<number|null>((resolve,reject)=>{
-        if (child.exitCode!==null) {
-          resolve(child.exitCode);
-          return;
-        }
-        child.once('error',reject);
-        child.once('close',resolve);
-      });
+      await closeRelay();
+      const code=await waitForChild();
       assert.equal(code,0,stderr);
     },
+    abort:async()=>{
+      if (child.exitCode===null && child.signalCode===null) {
+        child.kill('SIGKILL');
+      }
+      await closeRelay();
+      await waitForChild();
+    },
   };
+}
+
+function kernelFixture():{
+  root:string;
+  repo:string;
+  kernel:GitOvercenterKernel;
+} {
+  const root=join(scratch,`kernel-${kernelSequence++}`);
+  const repo=join(root,'state.git');
+  mkdirSync(root,{recursive:true});
+  execFileSync('git',['init','--bare',repo],{stdio:'ignore'});
+  const kernel=new GitOvercenterKernel(repo);
+  kernel.initialize();
+  return {root,repo,kernel};
+}
+
+function assertNoEffectReservations(repo:string):void {
+  const commits=execFileSync(
+    'git',
+    ['-C',repo,'rev-list','refs/overcenter/state'],
+    {encoding:'utf8'},
+  ).trim().split(/\n+/).filter(Boolean);
+  for (const commit of commits) {
+    assert.throws(
+      ()=>execFileSync(
+        'git',
+        ['-C',repo,'cat-file','-e',`${commit}:effect-reservation.json`],
+        {stdio:'ignore'},
+      ),
+    );
+  }
 }
 
 function permit(index:number,generation=1,authority=`authority-${index}-g${generation}`):ExecutionPermit {
@@ -417,6 +479,202 @@ test('exact spec bytes cannot change under an old digest',()=>{
   );
 });
 
+test('test workload crosses Go but settles only by independent observation',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`test-workload-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
+  const output=join(workdir,'result.txt');
+  const processSpec=spec('write-file','passed',{
+    pidFile:output,
+    timeoutMs:5000,
+  });
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:processSpec,
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const harness=await startExecutor(1,workdir);
+  try {
+    const result=await runReadyTestComputation(state.kernel,harness.client);
+    assert.ok(result);
+    assert.equal(result.state,'DONE');
+    assert.equal(result.execution_generation,1);
+    assert.equal(result.evidence?.outcome,'completed');
+    assert.equal(state.kernel.inspect()[0]?.status,'DONE');
+    assert.equal(result.receipt.verified,true);
+    assert.equal(readFileSync(output,'utf8'),'passed');
+
+    const summary=(result.receipt.diagnostic as {
+      computation_attempt?:Record<string,unknown>;
+    }|undefined)?.computation_attempt;
+    assert.ok(summary);
+    assert.equal(summary.execution_generation,1);
+    assert.equal(summary.execution_spec_sha256,result.execution_spec_sha256);
+    assert.equal(summary.stdout_sha256,result.evidence?.stdout_sha256);
+    assert.equal('stdout_base64' in summary,false);
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('successful process evidence is not project truth',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`test-observation-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
+  const output=join(workdir,'never-created.txt');
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'/bin/true',
+        argv:[],
+        cwd:'.',
+        env:{},
+        timeout_ms:1000,
+        stdout_max_bytes:0,
+        stderr_max_bytes:0,
+      },
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const harness=await startExecutor(1,workdir);
+  try {
+    const result=await runReadyTestComputation(state.kernel,harness.client);
+    assert.ok(result);
+    assert.equal(result.evidence?.outcome,'completed');
+    assert.equal(result.evidence?.exit_code,0);
+    assert.equal(result.state,'READY');
+    assert.equal(result.receipt.verified,false);
+    assert.equal(state.kernel.inspect()[0]?.status,'READY');
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('executor death reconstructs test work with a fresh generation and workspace',async()=>{
+  const state=kernelFixture();
+  const workdir=join(scratch,`test-recovery-${executorSequence++}`);
+  mkdirSync(workdir,{recursive:true});
+  const oldOnly=join(workdir,'old-workspace-only');
+  writeFileSync(oldOnly,'old');
+  const output=join(workdir,'result.txt');
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:spec('delayed-write-file','passed',{
+        pidFile:output,
+        timeoutMs:5000,
+      }),
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const first=await startExecutor(1,workdir);
+  const pending=runReadyTestComputation(state.kernel,first.client);
+  await new Promise(resolve=>setTimeout(resolve,100));
+  await first.abort();
+  const interrupted=await pending;
+  assert.ok(interrupted);
+  assert.equal(interrupted.state,'RECOVERY_REQUIRED');
+  assert.equal(interrupted.execution_generation,1);
+  assert.equal(interrupted.evidence,undefined);
+  assert.ok(interrupted.transport_error);
+  assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
+  assert.equal(existsSync(output),false);
+  assertNoEffectReservations(state.repo);
+
+  const recoveredKernel=new GitOvercenterKernel(state.repo);
+  const recoveredProjection=recoveredKernel.inspect()[0]!;
+  assert.equal(recoveredProjection.status,'RECOVERY_REQUIRED');
+  assert.equal(recoveredProjection.execution_generation,1);
+
+  rmSync(workdir,{recursive:true,force:true});
+  mkdirSync(workdir,{recursive:true});
+  assert.equal(existsSync(oldOnly),false);
+
+  const second=await startExecutor(1,workdir);
+  try {
+    const recovered=await resumeTestComputation(
+      recoveredKernel,
+      second.client,
+      interrupted.run_id,
+    );
+    assert.equal(recovered.state,'DONE');
+    assert.equal(recovered.execution_generation,2);
+    assert.equal(recovered.evidence?.execution_generation,2);
+    assert.equal(recoveredKernel.inspect()[0]?.status,'DONE');
+    assert.equal(readFileSync(output,'utf8'),'passed');
+    assertNoEffectReservations(state.repo);
+  } finally {
+    await second.close();
+  }
+});
+
+test('invalid test computation packet fails before durable claim',async()=>{
+  const state=kernelFixture();
+  const output=join(scratch,`invalid-${executorSequence++}.txt`);
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      process_spec:{
+        schema:PROCESS_SPEC_SCHEMA,
+        executable:'relative-executable',
+        argv:[],
+        cwd:'.',
+        env:{},
+        timeout_ms:1000,
+        stdout_max_bytes:0,
+        stderr_max_bytes:0,
+      },
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  await assert.rejects(
+    runReadyTestComputation(state.kernel,{
+      execute:async()=>{
+        throw new Error('executor must not be reached');
+      },
+    }),
+    /EXECUTABLE_MUST_BE_ABSOLUTE/,
+  );
+  const projected=state.kernel.inspect()[0]!;
+  assert.equal(projected.status,'READY');
+  assert.equal(projected.run_id,undefined);
+  assert.deepEqual(state.kernel.receipts(),[]);
+});
+
 test('stale exact-generation cancel cannot hit a newer execution',async()=>{
   const current=computationExecution(
     permit(4,2,'authority-4-g2'),
@@ -720,6 +978,18 @@ test('completion evidence releases server capacity before replacement work is ad
     }
   } finally {
     await harness.close();
+  }
+});
+
+test('test computation runner cannot open the provider effect boundary',()=>{
+  const source=readFileSync(join(repoRoot,'src/computation-runner.ts'),'utf8');
+  for (const forbidden of [
+    /beginEffect/,
+    /performEffect/,
+    /github/i,
+    /kubernetes/i,
+  ]) {
+    assert.equal(forbidden.test(source),false,String(forbidden));
   }
 });
 
