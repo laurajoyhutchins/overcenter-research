@@ -27,6 +27,10 @@ inductive RealizationStability where
 
 inductive Coordinate where
   | opaque (value : String)
+  | githubCommitStatus
+      (repositoryId : Nat)
+      (commitSha : String)
+      (context : String)
   | kubernetesConfigMap (authorityId : String) (namespaceName : String) (name : String)
   deriving Repr, BEq, DecidableEq
 
