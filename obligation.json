@@ -2,16 +2,21 @@
   "schema": "overcenter-git-obligation-v4",
   "kind": "defined",
   "obligation": {
-    "id": "guard-35468131244-1-ordered-alpha",
-    "dependencies": [],
+    "id": "guard-35468131244-1-ordered-beta",
+    "dependencies": [
+      {
+        "kind": "control",
+        "upstream": "guard-35468131244-1-ordered-alpha"
+      }
+    ],
     "packet": {},
     "postcondition": {
       "verifier": "github-commit-status/v1",
       "provider": "github",
       "repository_id": 1354872053,
       "commit_sha": "f4e464671a6b3262b15bb885f5a7cf1b9197d284",
-      "context": "overcenter/conflict-guard/35468131244/1/ordered/Build",
-      "expected_state": "success"
+      "context": "overcenter/conflict-guard/35468131244/1/ordered/build",
+      "expected_state": "failure"
     },
     "effect_authority": {
       "contract": "github-commit-status/set-from-postcondition/v1",
@@ -19,7 +24,7 @@
     },
     "result_acceptance": {
       "verifier": "canonical-json-sha256/v1",
-      "expected_sha256": "d75fe11839065b4fbed3e7fc820e5b0716e0020a42b13692c525e3ab720b6038"
+      "expected_sha256": "1144e5708d2c0aab15bc22bb877b21d5866a3fd89a40587aeee74a7f30aede69"
     }
   }
 }
