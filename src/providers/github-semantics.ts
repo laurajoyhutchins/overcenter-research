@@ -7,6 +7,11 @@ import type {
 } from '../semantics-contract.ts';
 import type { ResponseFieldSpec } from '../provider-observation/response-slice.ts';
 import { githubStatusContextKey } from './github-rest.ts';
+import {
+  GITHUB_API_VERSION,
+  GITHUB_OPENAPI_SHA256,
+  GITHUB_OPENAPI_SOURCE_COMMIT,
+} from './github-contract.ts';
 
 export interface GithubSemanticOperation {
   operation_id:string;
@@ -66,7 +71,7 @@ export const GITHUB_COMMIT_STATUS_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.comm
 export const GITHUB_STATUS_COORDINATE_CONTRACT=
   'github-commit-status-coordinate/v1' as const;
 export const GITHUB_STATUS_OPERATION_CLASS=
-  'github-commit-status/set-state/v1' as const;
+  `github-rest:create-commit-status@${GITHUB_API_VERSION}` as const;
 export const EFFECT_EQUIVALENCE_ISSUER_CONTRACT=
   'overcenter/provider-effect-equivalence-issuer/v1' as const;
 export const EFFECT_EQUIVALENCE_CERTIFICATE_SCHEMA=
@@ -109,6 +114,13 @@ export function githubCommitStatusEffectEquivalenceWitness(
     coordinate_contract:GITHUB_STATUS_COORDINATE_CONTRACT,
     observation_contract:githubStatusObservationContract(postcondition),
     operation_class:GITHUB_STATUS_OPERATION_CLASS,
+    provider_contract_digest:canonicalDigest({
+      api_version:GITHUB_API_VERSION,
+      openapi_sha256:GITHUB_OPENAPI_SHA256,
+      openapi_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
+      method:'POST',
+      path_template:'/repos/{owner}/{repo}/statuses/{sha}',
+    }),
   };
   const payload={
     schema:EFFECT_EQUIVALENCE_CERTIFICATE_SCHEMA,
