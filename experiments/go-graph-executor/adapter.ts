@@ -8,6 +8,7 @@ export interface GraphExecutionEnvelope {
   execution_authority_commit:string;
   execution_capability:string;
   execution_capability_sha256:string;
+  effect_reservation_commit?:string;
   execution_spec_sha256:string;
   execution_spec:unknown;
 }
@@ -20,6 +21,7 @@ export interface GraphExecutionEvidence {
   execution_generation:number;
   execution_authority_commit:string;
   execution_capability_sha256:string;
+  effect_reservation_commit?:string;
   execution_spec_sha256:string;
   outcome:'completed'|'failed'|'cancelled';
   output_base64?:string;
@@ -32,9 +34,11 @@ export function executionEnvelope(
   {
     executionSpec,
     executionSpecSha256,
+    effectReservationCommit,
   }:{
     executionSpec:unknown;
     executionSpecSha256:string;
+    effectReservationCommit?:string;
   },
 ):GraphExecutionEnvelope {
   return {
@@ -45,6 +49,7 @@ export function executionEnvelope(
     execution_authority_commit:permit.execution_authority_commit,
     execution_capability:permit.execution_capability,
     execution_capability_sha256:permit.execution_capability_sha256,
+    ...(effectReservationCommit?{effect_reservation_commit:effectReservationCommit}:{}),
     execution_spec_sha256:executionSpecSha256,
     execution_spec:structuredClone(executionSpec),
   };
@@ -64,6 +69,7 @@ export function assertExecutionEvidenceFor(
     || evidence.execution_generation!==envelope.execution_generation
     || evidence.execution_authority_commit!==envelope.execution_authority_commit
     || evidence.execution_capability_sha256!==envelope.execution_capability_sha256
+    || evidence.effect_reservation_commit!==envelope.effect_reservation_commit
   ) {
     throw new Error('EXECUTION_EVIDENCE_AUTHORITY_MISMATCH');
   }
