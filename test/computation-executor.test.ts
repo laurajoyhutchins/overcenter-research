@@ -232,6 +232,52 @@ test('production socket mode fails closed without a distinct task credential',as
   });
   assert.notEqual(sameCode,0);
   assert.match(sameStderr,/task uid must differ from executor uid/);
+
+  const sameGidSocket=join(scratch,'same-gid.sock');
+  const sameGid=spawn(
+    binary,
+    [
+      `--socket=${sameGidSocket}`,
+      `--workspace-root=${workspace}`,
+      '--concurrency=1',
+      `--task-uid=${uid!+1}`,
+      `--task-gid=${gid}`,
+    ],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let sameGidStderr='';
+  sameGid.stderr.setEncoding('utf8');
+  sameGid.stderr.on('data',chunk=>{sameGidStderr+=String(chunk);});
+  const sameGidCode=await new Promise<number|null>((resolve,reject)=>{
+    sameGid.once('error',reject);
+    sameGid.once('close',resolve);
+  });
+  assert.notEqual(sameGidCode,0);
+  assert.match(sameGidStderr,/task gid must differ from executor gid/);
+
+  const socketGroup=gid!+1;
+  const overlapSocket=join(scratch,'socket-group-overlap.sock');
+  const overlap=spawn(
+    binary,
+    [
+      `--socket=${overlapSocket}`,
+      `--workspace-root=${workspace}`,
+      '--concurrency=1',
+      `--task-uid=${uid!+1}`,
+      `--task-gid=${socketGroup}`,
+      `--socket-gid=${socketGroup}`,
+    ],
+    {stdio:['ignore','ignore','pipe'],env:{}},
+  );
+  let overlapStderr='';
+  overlap.stderr.setEncoding('utf8');
+  overlap.stderr.on('data',chunk=>{overlapStderr+=String(chunk);});
+  const overlapCode=await new Promise<number|null>((resolve,reject)=>{
+    overlap.once('error',reject);
+    overlap.once('close',resolve);
+  });
+  assert.notEqual(overlapCode,0);
+  assert.match(overlapStderr,/task gid must differ from trusted socket gid/);
 });
 
 test('production executor receives only explicit task environment',async()=>{
