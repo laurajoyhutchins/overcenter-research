@@ -11,14 +11,14 @@ import (
 )
 
 type executionJob struct {
-	key       string
+	key       executionIdentityKey
 	validated validatedExecution
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
 
 type executionCompletion struct {
-	key      string
+	key      executionIdentityKey
 	evidence ComputationAttemptEvidenceV1
 }
 
@@ -119,8 +119,8 @@ func (runtime *Runtime) Serve(ctx context.Context, input io.Reader, output io.Wr
 		}
 	}()
 
-	seen := map[string]struct{}{}
-	running := map[string]context.CancelFunc{}
+	seen := map[executionIdentityKey]struct{}{}
+	running := map[executionIdentityKey]context.CancelFunc{}
 	inflight := 0
 	var serveErr error
 	commandsOpen := true
