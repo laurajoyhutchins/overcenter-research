@@ -16,6 +16,12 @@ export interface SettlementSemantics {
 }
 
 export function settlementSemantics(postcondition:Postcondition):SettlementSemantics {
+  if (postcondition.verifier==='realization-content/v1') {
+    return {
+      verifier:postcondition.verifier,
+      acceptedAbsenceEvidenceKinds:[],
+    };
+  }
   if (postcondition.verifier==='file-content-equals/v1') {
     return {
       verifier:postcondition.verifier,
@@ -43,6 +49,9 @@ export function settlementSemantics(postcondition:Postcondition):SettlementSeman
 }
 
 export function verifiedContentIdentity(postcondition:Postcondition):string|null {
+  if (postcondition.verifier==='realization-content/v1') {
+    return `sha256:${postcondition.expected_sha256}`;
+  }
   if (
     postcondition.verifier==='file-content-equals/v1'
     || postcondition.verifier==='eventually-consistent-file-content-equals/v1'

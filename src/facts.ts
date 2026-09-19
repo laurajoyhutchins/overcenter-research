@@ -8,6 +8,7 @@ import type {
   Run,
 } from './model.ts';
 import { validatePostcondition } from './observation.ts';
+import { validateRealizationDeclaration } from './realization.ts';
 
 export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
@@ -22,6 +23,7 @@ export interface ObligationInput {
   dependencies?:Dependency[];
   packet?:Data;
   postcondition:Postcondition;
+  realization?:Obligation['realization'];
 }
 
 export interface State {
@@ -107,6 +109,7 @@ export interface FactCommit {
   execution_authority?:unknown|null;
   effect_reservation?:unknown|null;
   receipt?:unknown|null;
+  realization?:unknown|null;
 }
 
 export function emptyState():State {
@@ -138,11 +141,15 @@ export function normalizeObligation(input:ObligationInput):Obligation {
   validatePostcondition(input.postcondition);
   const dependencies:Dependency[]=structuredClone(input.dependencies??[]);
   validateDependencies(dependencies);
+  const realization=input.realization==null
+    ? undefined
+    : validateRealizationDeclaration(input.realization);
   return {
     id:input.id,
     dependencies,
     packet:structuredClone(input.packet??{}),
     postcondition:structuredClone(input.postcondition),
+    ...(realization?{realization}:{}),
   };
 }
 
@@ -159,5 +166,6 @@ export function validateStoredObligation(obligation:Obligation):Obligation {
   }
   validateDependencies(obligation.dependencies);
   validatePostcondition(obligation.postcondition);
+  if (obligation.realization!=null) validateRealizationDeclaration(obligation.realization);
   return structuredClone(obligation);
 }

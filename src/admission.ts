@@ -74,6 +74,26 @@ export function staticEffectConflictError(
   return null;
 }
 
+function validateRealizationBoundaries(state:State):void {
+  for (const obligation of Object.values(state.obligations)) {
+    if (obligation.postcondition.verifier==='realization-content/v1') {
+      if (!obligation.realization) {
+        throw new Error(`REALIZATION_DECLARATION_REQUIRED:${obligation.id}`);
+      }
+      if (
+        obligation.realization.acceptance_predicate.expected_sha256
+        !==obligation.postcondition.expected_sha256
+      ) {
+        throw new Error(`REALIZATION_ACCEPTANCE_MISMATCH:${obligation.id}`);
+      }
+      continue;
+    }
+    if (obligation.realization) {
+      throw new Error(`REUSABLE_REALIZATION_FOR_EXTERNAL_EFFECT:${obligation.id}`);
+    }
+  }
+}
+
 function validateStaticEffectOrdering(state:State):void {
   for (const obligation of Object.values(state.obligations)
     .sort((a,b)=>a.id.localeCompare(b.id))) {
@@ -88,5 +108,6 @@ export function validateAdmission(state:State):void {
     settlementSemantics(obligation.postcondition);
   }
   validateSemanticEdges(state);
+  validateRealizationBoundaries(state);
   validateStaticEffectOrdering(state);
 }

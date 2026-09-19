@@ -60,24 +60,59 @@ fact.
 5. reuse reconstructs identically from durable Git realization facts after a
    materialized reuse index is deleted.
 
-## What this does not yet prove
+## Kernel integration
 
-This branch deliberately does not wire realization facts into
-`GitOvercenterKernel`.
+The kernel now consumes the same durable realization facts during lifecycle
+projection.
 
-The current lifecycle model still discovers historical completion through
-`HistoricalRun` plus a `DONE` receipt. That is run-derived completion, not
-the producer-independent realization model proved here.
+A historical run receipt is intentionally narrower than a realization fact:
 
-That integration should be a separate step because it must answer two safety
-questions explicitly:
+```text
+DONE receipt
+  authority: exact obligation definition that produced the run
 
-1. which existing postconditions denote reusable, content-addressed
-   realizations rather than mutable external state; and
-2. how current-definition completion remains `DONE` while historical
-   external-effect receipts stop acting like cache hits across semantic
-   revisions.
+verified realization
+  authority: any current obligation whose material realization key matches
+```
 
-Until those are resolved, this proof is a semantic primitive and adversarial
-boundary test, not a claim that the runtime already performs safe
-producer-independent reuse.
+This removes the previous accidental equivalence between "same obligation key"
+and "safe cache hit." A same-key receipt from an older definition remains
+factual execution history but does not make the amended obligation `DONE`.
+
+Reusable semantics are opt-in on the obligation and use a dedicated
+`realization-content/v1` postcondition. The declaration supplies the verifier
+identity, material configuration, source inputs, and acceptance predicate;
+packet and selected semantic-dependency identities come from the current
+graph. The postcondition digest and acceptance-predicate digest must agree, and
+the kernel verifies a candidate against that contract before committing
+`realization.json`.
+
+Mutable postconditions are barred from that path. File coordinates, GitHub
+commit-status effects, and eventually-consistent provider state remain
+observation-driven and fail admission if marked reusable. Realization-only completion also cannot satisfy a
+semantic edge that explicitly consumes a settlement receipt, because no receipt
+was produced.
+
+Projection exposes `realization_identity` separately from `run_id`, so a
+consumer can tell whether `DONE` came from exact execution settlement or
+producer-independent realization reuse.
+
+## What this still does not prove
+
+The integration does not yet prove that:
+
+- arbitrary postcondition kinds can be classified safely as reusable or
+  external-effect semantics;
+- worker execution automatically emits a reusable candidate after successful
+  computation;
+- the realization fact is a storage system for large artifact bytes. The proof
+  stores evidence identities, not an artifact CAS;
+- every verifier can safely reconstruct its material configuration and source
+  closure; or
+- a reusable realization remains available forever in an external artifact
+  store merely because its evidence fact remains durable.
+
+The next implementation step for autonomous software development is therefore
+to make the worker return a candidate realization through a deterministic
+admission boundary, then materialize the accepted artifact by immutable
+identity rather than rerunning the worker.

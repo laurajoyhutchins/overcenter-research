@@ -50,6 +50,9 @@ export function projectWork(
           execution_generation:lifecycle.run.execution_generation,
         }
       : {}),
+    ...(lifecycle.realization
+      ? {realization_identity:lifecycle.realization.realization_identity}
+      : {}),
   } as Work;
 
   if (lifecycle.status!=='UNREALIZED') return projected;

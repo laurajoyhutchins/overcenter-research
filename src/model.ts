@@ -1,3 +1,5 @@
+import type { RealizationDeclaration } from './realization.ts';
+
 export type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
 export type WorkStatus = LifecycleStatus | 'BLOCKED';
 export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
@@ -12,6 +14,11 @@ export interface AbsenceEvidenceCertificate extends Data {
   snapshot: Data | null;
   completeness: Data;
   provenance: Data;
+}
+
+export interface RealizationContentPostcondition {
+  verifier: 'realization-content/v1';
+  expected_sha256: string;
 }
 
 export interface FileContentPostcondition {
@@ -60,6 +67,7 @@ export interface KubernetesConfigMapExistsPostcondition {
 }
 
 export type Postcondition =
+  | RealizationContentPostcondition
   | FileContentPostcondition
   | EventuallyConsistentFilePostcondition
   | GitHubCommitStatusPostcondition
@@ -104,6 +112,7 @@ export interface Obligation {
   dependencies: Dependency[];
   packet: Data;
   postcondition: Postcondition;
+  realization?: RealizationDeclaration;
 }
 
 export interface Work extends Obligation {
@@ -112,6 +121,7 @@ export interface Work extends Obligation {
   run_id?: string;
   claimed_revision?: string;
   execution_generation?: number;
+  realization_identity?: string;
   blocked_reason?: string;
 }
 
