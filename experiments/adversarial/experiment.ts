@@ -3,12 +3,9 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
-import type { ExecutionPermit, Work } from '../../src/model.ts';
-import type { ObligationInput } from '../../src/facts.ts';
+import type { Dependency, ExecutionPermit, Work } from '../../src/model.ts';
 
 const STATE_REF='refs/overcenter/state';
-
-export type Dependency=NonNullable<ObligationInput['dependencies']>[number];
 
 export const semantic=(upstream:string):Dependency=>({
   kind:'semantic',
