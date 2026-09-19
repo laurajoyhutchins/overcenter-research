@@ -31,6 +31,24 @@ export function githubCommitStatusEffectAuthority():EffectAuthority {
   };
 }
 
+export function validateCurrentProviderEffectAuthority(
+  authority:EffectAuthority|undefined,
+):void {
+  if (!authority) return;
+  if (authority.contract===GITHUB_COMMIT_STATUS_EFFECT_CONTRACT) {
+    if (
+      authority.adapter_contract_digest
+      !==GITHUB_COMMIT_STATUS_ADAPTER_CONTRACT_DIGEST
+    ) {
+      throw new Error('EFFECT_ADAPTER_CONTRACT_MISMATCH');
+    }
+    return;
+  }
+
+  const exhaustive:never=authority;
+  throw new Error(`UNSUPPORTED_EFFECT_AUTHORITY:${String(exhaustive)}`);
+}
+
 export function derivePinnedProviderEffect(
   work:Obligation,
 ):AuthorizedProviderEffect|null {
