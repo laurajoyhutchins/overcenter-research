@@ -1,14 +1,21 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   assertExecutionEvidenceFor,
+  executionEnvelope,
   type GraphExecutionEnvelope,
   type GraphExecutionEvidence,
 } from '../experiments/go-graph-executor/adapter.ts';
 import { stressPlan } from '../experiments/go-graph-executor/stress-fixture.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
 
+const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 const experimentDir=fileURLToPath(new URL('../experiments/go-graph-executor/',import.meta.url));
 
 async function execute(
@@ -119,5 +126,69 @@ test('Go executor source contains no graph lifecycle or settlement vocabulary',a
     'claimability',
   ]) {
     assert.equal(source.includes(forbidden),false,`forbidden semantic vocabulary: ${forbidden}`);
+  }
+});
+
+
+test('real Git-kernel permits cross into Go and superseded generation evidence fails closed',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'overcenter-go-frontier-authority-'));
+  const repo=join(root,'repo');
+  execFileSync('git',['init',repo],{stdio:'ignore'});
+  execFileSync('git',['-C',repo,'config','user.email','test@example.com']);
+  execFileSync('git',['-C',repo,'config','user.name','Test']);
+  const kernel=new GitOvercenterKernel(repo);
+  try {
+    kernel.initialize();
+    for (const id of ['alpha','beta','gamma']) {
+      kernel.define({
+        id,
+        packet:{kind:'authority-crossing-proof',id},
+        postcondition:{
+          verifier:'file-content-equals/v1',
+          path:`/provider/${id}`,
+          content:id,
+        },
+      });
+    }
+
+    const permits=kernel.claimReadyFrontier();
+    assert.deepEqual(
+      permits.map(permit=>permit.obligation_id),
+      ['alpha','beta','gamma'],
+    );
+
+    const envelopes=permits.map((permit,index)=>{
+      const spec={delay_ms:index,result:`candidate:${permit.obligation_id}`};
+      return executionEnvelope(permit,{
+        executionSpec:spec,
+        executionSpecSha256:`sha256:${sha256(JSON.stringify(spec))}`,
+      });
+    });
+    const evidence=await execute(envelopes,3);
+    assert.equal(evidence.length,3);
+    for (const item of evidence) {
+      const envelope=envelopes.find(candidate=>candidate.run_id===item.run_id);
+      assert.ok(envelope);
+      assertExecutionEvidenceFor(item,envelope);
+    }
+
+    const alphaPermit=permits.find(permit=>permit.obligation_id==='alpha');
+    assert.ok(alphaPermit);
+    const fresh=kernel.acquireExecution(alphaPermit.id);
+    assert.equal(fresh.execution_generation,alphaPermit.execution_generation+1);
+
+    const spec={delay_ms:0,result:'candidate:alpha'};
+    const freshEnvelope=executionEnvelope(fresh,{
+      executionSpec:spec,
+      executionSpecSha256:`sha256:${sha256(JSON.stringify(spec))}`,
+    });
+    const oldEvidence=evidence.find(item=>item.obligation_id==='alpha');
+    assert.ok(oldEvidence);
+    assert.throws(
+      ()=>assertExecutionEvidenceFor(oldEvidence,freshEnvelope),
+      /EXECUTION_EVIDENCE_AUTHORITY_MISMATCH/,
+    );
+  } finally {
+    rmSync(root,{recursive:true,force:true});
   }
 });
