@@ -2,6 +2,7 @@ import type { Postcondition } from './model.ts';
 import { canonicalDigest, sha256 } from './digest.ts';
 import { githubStatusContextKey } from './providers/github-rest.ts';
 import { LOCAL_FILE_ENOENT_EVIDENCE } from './evidence.ts';
+import { KUBERNETES_COMPLETE_LIST_ABSENCE } from './providers/kubernetes-configmap.ts';
 
 export interface EffectSemantics {
   resource:string;
@@ -19,6 +20,12 @@ export function settlementSemantics(postcondition:Postcondition):SettlementSeman
     return {
       verifier:postcondition.verifier,
       acceptedAbsenceEvidenceKinds:[LOCAL_FILE_ENOENT_EVIDENCE],
+    };
+  }
+  if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
+    return {
+      verifier:postcondition.verifier,
+      acceptedAbsenceEvidenceKinds:[KUBERNETES_COMPLETE_LIST_ABSENCE],
     };
   }
   if (
@@ -41,6 +48,17 @@ export function verifiedContentIdentity(postcondition:Postcondition):string|null
     || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
   ) {
     return `sha256:${sha256(postcondition.content)}`;
+  }
+  if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
+    return canonicalDigest({
+      provider:'kubernetes',
+      authority_id:postcondition.authority_id,
+      api_group:postcondition.api_group,
+      resource:postcondition.resource,
+      namespace:postcondition.namespace,
+      name:postcondition.name,
+      state:'exists',
+    });
   }
   if (
     postcondition.verifier==='github-commit-status/v1'
