@@ -17,7 +17,7 @@ test('generated GitHub operation catalog is bound to semantic operation IDs',()=
   assert.equal(GITHUB_REF_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.ref.operation_id);
   assert.equal(GITHUB_PULL_REQUEST_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.pull_request.operation_id);
   assert.equal(GITHUB_COMMIT_STATUSES_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.commit_statuses.operation_id);
-  assert.equal(Object.keys(GITHUB_OPERATION_SEMANTICS).length,17);
+  assert.equal(Object.keys(GITHUB_OPERATION_SEMANTICS).length,42);
   assert.deepEqual(
     Object.keys(GITHUB_OBSERVATION_OPERATIONS).sort(),
     Object.keys(GITHUB_OPERATION_SEMANTICS).sort(),
