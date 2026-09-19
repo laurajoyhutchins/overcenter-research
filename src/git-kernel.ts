@@ -276,13 +276,6 @@ export class GitOvercenterKernel {
     throw new Error('EFFECT_RESERVATION_CONTENTION_EXHAUSTED');
   }
 
-  async performEffect<T>(
-    permit:ExecutionPermit,
-    effect:()=>Promise<T>|T,
-  ):Promise<T> {
-    this.beginEffect(permit);
-    return await effect();
-  }
 
   reconcile(permit:ExecutionPermit):Receipt {
     const runId=permit.id;
@@ -316,7 +309,7 @@ export class GitOvercenterKernel {
       );
       if (this.#store.cas(commit,head)) return {...receipt,settlement_commit:commit};
     }
-    throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
+    throw new Error('RECONCILE_CONTENTION_EXHAUSTED');
   }
 
   deferForJudgment(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
@@ -383,7 +376,7 @@ export class GitOvercenterKernel {
       );
       if (this.#store.cas(commit,head)) return {...receipt,settlement_commit:commit};
     }
-    throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
+    throw new Error('TERMINATION_RECORD_CONTENTION_EXHAUSTED');
   }
 
 
