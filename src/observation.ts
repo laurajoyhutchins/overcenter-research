@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { sha256 } from './digest.ts';
 import type {
   AbsenceEvidenceCertificate,
   Observation,
@@ -21,14 +21,13 @@ import {
 } from './providers/kubernetes-configmap.ts';
 
 export interface ObservationContext {
-  githubToken: string | null;
+  githubToken?: string | null;
   githubGet?: GithubJsonGet;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
   clock?: () => string;
 }
 
-const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 const errorMessage=(e:unknown)=>e instanceof Error ? e.message : String(e);
 
 export function validatePostcondition(p: Postcondition): void {
@@ -367,14 +366,7 @@ export function authoritativeAbsenceEvidence(
   return null;
 }
 
-export function observationAuthoritativelyAbsent(
-  postcondition:Postcondition,
-  observed:Observation,
-):boolean {
-  return authoritativeAbsenceEvidence(postcondition,observed)!==null;
-}
-
-export function observationVerified(
+export function observationSatisfiesPostcondition(
   postcondition: Postcondition,
   observed: Observation,
 ): boolean {

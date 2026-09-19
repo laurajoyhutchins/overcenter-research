@@ -9,43 +9,43 @@ interface GitResult {
 const json=(value:unknown)=>`${JSON.stringify(value,null,2)}\n`;
 
 export class GitFactStore {
-  readonly repo:string;
-  readonly ref:string;
-  readonly remote:string|null;
+  readonly #repo:string;
+  readonly #ref:string;
+  readonly #remote:string|null;
 
   constructor(
     repo:string,
     {ref,remote=null}:{ref:string;remote?:string|null},
   ) {
-    this.repo=repo;
-    this.ref=ref;
-    this.remote=remote;
+    this.#repo=repo;
+    this.#ref=ref;
+    this.#remote=remote;
     this.#git(['rev-parse','--git-dir']);
   }
 
-  head():string|null {
-    if (!this.remote) {
-      const result=this.#git(['rev-parse','-q','--verify',this.ref],{allowFailure:true});
+  refRevision():string|null {
+    if (!this.#remote) {
+      const result=this.#git(['rev-parse','-q','--verify',this.#ref],{allowFailure:true});
       return result.ok ? result.stdout.trim() : null;
     }
-    const listed=this.#git(['ls-remote',this.remote,this.ref],{allowFailure:true});
+    const listed=this.#git(['ls-remote',this.#remote,this.#ref],{allowFailure:true});
     if (!listed.ok) throw new Error('AUTHORITY_UNREACHABLE');
     const line=listed.stdout.trim();
     if (!line) {
-      this.#git(['update-ref','-d',this.ref],{allowFailure:true});
+      this.#git(['update-ref','-d',this.#ref],{allowFailure:true});
       return null;
     }
     const sha=line.split(/\s+/)[0];
     const fetched=this.#git(
-      ['fetch','--no-tags',this.remote,`+${this.ref}:${this.ref}`],
+      ['fetch','--no-tags',this.#remote,`+${this.#ref}:${this.#ref}`],
       {allowFailure:true},
     );
     if (!fetched.ok) throw new Error('AUTHORITY_UNREACHABLE');
     return sha;
   }
 
-  revisions(head:string):string[] {
-    return this.#git(['rev-list','--reverse',head]).stdout.trim().split(/\n+/).filter(Boolean);
+  revisions(revision:string):string[] {
+    return this.#git(['rev-list','--reverse',revision]).stdout.trim().split(/\n+/).filter(Boolean);
   }
 
   parent(commit:string):string|null {
@@ -83,19 +83,19 @@ export class GitFactStore {
   }
 
   cas(next:string,expected:string):boolean {
-    if (!this.remote) {
-      return this.#git(['update-ref',this.ref,next,expected],{allowFailure:true}).ok;
+    if (!this.#remote) {
+      return this.#git(['update-ref',this.#ref,next,expected],{allowFailure:true}).ok;
     }
     const zero='0'.repeat(this.#objectIdLength());
     const lease=expected===zero
-      ? `--force-with-lease=${this.ref}:`
-      : `--force-with-lease=${this.ref}:${expected}`;
+      ? `--force-with-lease=${this.#ref}:`
+      : `--force-with-lease=${this.#ref}:${expected}`;
     const pushed=this.#git(
-      ['push','--porcelain',lease,this.remote,`${next}:${this.ref}`],
+      ['push','--porcelain',lease,this.#remote,`${next}:${this.#ref}`],
       {allowFailure:true},
     );
     if (!pushed.ok) return false;
-    this.#git(['update-ref',this.ref,next]);
+    this.#git(['update-ref',this.#ref,next]);
     return true;
   }
 
@@ -126,7 +126,7 @@ export class GitFactStore {
     try {
       const stdout=execFileSync(
         'git',
-        ['-C',this.repo,...args],
+        ['-C',this.#repo,...args],
         {input,env,encoding:'utf8',stdio:['pipe','pipe','pipe']},
       );
       return {ok:true,stdout};

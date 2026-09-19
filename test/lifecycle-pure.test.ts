@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { HistoricalRun, Receipt, State } from '../src/facts.ts';
+import type { ObligationCatalog, Receipt, RunRecord } from '../src/facts.ts';
 import { deriveLifecycles, obligationKey } from '../src/lifecycle.ts';
 import { claimabilityError, projectWork } from '../src/eligibility.ts';
 
@@ -11,7 +11,7 @@ const work:Obligation={
   packet:{},
   postcondition:{verifier:'file-content-equals/v1',path:'/provider/a',content:'A'},
 };
-const state:State={obligations:{a:work},definition_commits:{a:'define-a'}};
+const state:ObligationCatalog={obligations:{a:work},definition_commits:{a:'define-a'}};
 
 test('unrealized lifecycle becomes public READY only after eligibility',()=>{
   const lifecycles=deriveLifecycles(state,new Map(),new Map());
@@ -22,12 +22,12 @@ test('unrealized lifecycle becomes public READY only after eligibility',()=>{
 
 test('a valid historical realization remains DONE, not READY',()=>{
   const receipts=new Map<string,Receipt>();
-  const base=deriveLifecycles(state,new Map<string,HistoricalRun>(),receipts);
+  const base=deriveLifecycles(state,new Map<string,RunRecord>(),receipts);
   const key=obligationKey(state,work,base,receipts);
   assert.ok(key);
-  const run:HistoricalRun={
+  const run:RunRecord={
     id:'run-a',obligation_id:'a',claimed_revision:'revision-a',claim_commit:'claim-a',
-    obligation_key:key,obligation:work,definition_commit:'define-a',
+    obligation_key:key,obligation:work,
   };
   const receipt:Receipt={
     schema:'overcenter-git-receipt-v3',run_id:'run-a',obligation_id:'a',

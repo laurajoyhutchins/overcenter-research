@@ -4,7 +4,7 @@ import {
   validateResponseSlice,
   type SchemaResolver,
   type StructuralOperation,
-} from './response-slice.ts';
+} from '../../src/provider-observation/response-slice.ts';
 
 test('shared structural validator follows provider-supplied local refs', () => {
   const schemas: Record<string, unknown> = {

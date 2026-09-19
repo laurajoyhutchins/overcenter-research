@@ -18,7 +18,7 @@ const token=required('GITHUB_TOKEN');
 const kernel=new GitOvercenterKernel(process.cwd(),{
   remote:'origin',
   ref:STATE_REF,
-  githubToken:token,
+  observationContext:{githubToken:token},
 });
 
 const works=kernel.inspect().filter(candidate=>{
@@ -56,14 +56,14 @@ if (summary) appendFileSync(summary,[
     const receipt=kernel.receipts(work.run_id!).at(-1)!;
     return `- ${slot}: **DONE**, run \`${work.run_id}\`, claim \`${receipt.claim_commit}\``;
   }),
-  `- Final authority: \`${kernel.head()}\``,
+  `- Final authority: \`${kernel.authorityRevision()}\``,
   '- Both effects overlapped, both workers died, and both were independently recovered through one linear Git authority ref.',
   '',
 ].join('\n'));
 
 console.log(JSON.stringify({
   state_ref:STATE_REF,
-  authority:kernel.head(),
+  authority:kernel.authorityRevision(),
   works:works.map(work=>({
     id:work.id,
     status:work.status,

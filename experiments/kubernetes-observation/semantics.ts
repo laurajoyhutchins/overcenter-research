@@ -1,5 +1,5 @@
 import type { RawObservation } from './observation.ts';
-import { structurallyValidatedFor, type CertifiedObservation } from '../provider-observation/response-slice.ts';
+import { structurallyValidatedFor, type CertifiedObservation } from '../../src/provider-observation/response-slice.ts';
 
 type StructurallyValidatedObservation = CertifiedObservation<RawObservation>;
 

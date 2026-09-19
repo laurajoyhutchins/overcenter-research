@@ -2,7 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { runGitCoreLoop } from '../src/core-loop.ts';
 
 const root = mkdtempSync(join(tmpdir(), 'overcenter-git-demo-'));
 const repo = join(root, 'state.git');
@@ -25,7 +26,7 @@ kernel.define({
   postcondition: { verifier: 'file-content-equals/v1', path: build, content: 'build-passes' },
 });
 
-console.log('state ref before:', kernel.head());
+console.log('state ref before:', kernel.authorityRevision());
 console.log('before:', kernel.inspect().map(({ id, status }) => ({ id, status })));
 
 const result = await runGitCoreLoop(kernel, {
@@ -36,7 +37,7 @@ const result = await runGitCoreLoop(kernel, {
 });
 
 console.log('loop:', result);
-console.log('state ref after:', kernel.head());
+console.log('state ref after:', kernel.authorityRevision());
 console.log('after:', kernel.inspect().map(({ id, status }) => ({ id, status })));
 console.log('receipt commits:', kernel.receipts().map(({ obligation_id, disposition, settlement_commit }) => ({
   obligation_id,

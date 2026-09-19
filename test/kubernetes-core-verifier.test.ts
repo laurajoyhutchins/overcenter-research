@@ -176,11 +176,11 @@ test('complete Kubernetes LIST absence drives generic settlement to READY and la
     f.kernel.define({id:'ensure-configmap',postcondition:pc()});
     const first=f.kernel.claim(
       'ensure-configmap',
-      f.kernel.deriveReadyWork()!.revision,
+      f.kernel.nextReadyWork()!.revision,
     );
-    const absent=f.kernel.resolve(first);
+    const absent=f.kernel.reconcile(first);
 
-    assert.equal(absent.disposition,'READY');
+    assert.equal(absent.disposition,'ABSENT');
     assert.equal(absent.verified,false);
     assert.equal(absent.observed?.mutation_certainty,'absent');
     assert.equal(
@@ -196,9 +196,9 @@ test('complete Kubernetes LIST absence drives generic settlement to READY and la
     present=true;
     const second=f.kernel.claim(
       'ensure-configmap',
-      f.kernel.deriveReadyWork()!.revision,
+      f.kernel.nextReadyWork()!.revision,
     );
-    const done=f.kernel.resolve(second);
+    const done=f.kernel.reconcile(second);
     assert.equal(done.disposition,'DONE');
     assert.equal(done.verified,true);
     assert.equal(done.observed?.observed_uid,'uid-target');

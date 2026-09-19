@@ -1,8 +1,8 @@
-import { githubProofStateRef } from '../proof-environment.ts';
+import { githubProofAuthorityRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
-const STATE_REF=githubProofStateRef('conflicting-effect');
+const AUTHORITY_REF=githubProofAuthorityRef('conflicting-effect');
 
 function required(name:string):string {
   const value=process.env[name];
@@ -31,7 +31,7 @@ const info=await github(`/repos/${repository}`);
 const unorderedContext=`overcenter/conflict-guard/${workflowRunId}/${attempt}/unordered`;
 const orderedContext=`overcenter/conflict-guard/${workflowRunId}/${attempt}/ordered`;
 
-const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF});
+const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:AUTHORITY_REF});
 kernel.initialize();
 
 const statusPc=(context:string,state:'success'|'failure')=>({
@@ -65,7 +65,7 @@ const alpha=kernel.inspect().find(work=>work.id===oAlpha)!;
 const run=kernel.claim(alpha.id,alpha.revision);
 
 console.log(JSON.stringify({
-  state_ref:STATE_REF,
+  authority_ref:AUTHORITY_REF,
   unordered:{alpha:uAlpha,beta:uBeta,contexts:[`${unorderedContext}/Build`,`${unorderedContext}/build`]},
   ordered:{alpha:oAlpha,beta:oBeta,context:orderedContext,alpha_run:run},
 }));

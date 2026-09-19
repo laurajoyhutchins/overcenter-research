@@ -15,12 +15,12 @@ const outcome=required('AGENT_OUTCOME');
 const token=required('GITHUB_TOKEN');
 if (outcome!=='failure') throw new Error(`AGENT_DID_NOT_TERMINATE: ${outcome}`);
 
-const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF,githubToken:token});
+const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_REF,observationContext:{githubToken:token}});
 const work=kernel.inspect().find(candidate=>candidate.id.endsWith(`-${slot}`) && candidate.status==='EXECUTING');
 assert.ok(work);
 assert.ok(work.run_id);
 
-kernel.recoverInterrupted(work.run_id,{source:'github-actions-job-supervisor',slot,outcome});
+kernel.recordExecutionTerminated(work.run_id,{source:'github-actions-job-supervisor',slot,outcome});
 const receipt=kernel.reconcile(work.run_id);
 assert.equal(receipt.disposition,'DONE');
 assert.equal(receipt.verified,true);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { State } from '../src/facts.ts';
+import type { ObligationCatalog } from '../src/facts.ts';
 import {
   dependencyUpstreams,
   dependsOn,
@@ -21,7 +21,7 @@ const obligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligati
 });
 
 test('static graph validation accepts an acyclic dependency chain',()=>{
-  let state:State={obligations:{},definition_commits:{}};
+  let state:ObligationCatalog={obligations:{},definition_commits:{}};
   state=withObligation(state,obligation('a'),'a-def');
   state=withObligation(
     state,
@@ -41,7 +41,7 @@ test('static graph validation accepts an acyclic dependency chain',()=>{
 });
 
 test('static graph validation rejects unknown dependencies and cycles',()=>{
-  const unknown:State={
+  const unknown:ObligationCatalog={
     obligations:{
       a:obligation('a',[{kind:'control',upstream:'missing'}]),
     },
@@ -49,7 +49,7 @@ test('static graph validation rejects unknown dependencies and cycles',()=>{
   };
   assert.throws(()=>validateGraph(unknown),/UNKNOWN_DEPENDENCY:a:missing/);
 
-  const cycle:State={
+  const cycle:ObligationCatalog={
     obligations:{
       a:obligation('a',[{kind:'control',upstream:'b'}]),
       b:obligation('b',[{kind:'control',upstream:'a'}]),

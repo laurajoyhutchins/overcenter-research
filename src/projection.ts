@@ -1,7 +1,7 @@
 import type { Obligation } from './model.ts';
 import {
   authoritativeAbsenceEvidence,
-  observationVerified,
+  observationSatisfiesPostcondition,
 } from './observation.ts';
 import {
   CLAIM_SCHEMA,
@@ -10,20 +10,19 @@ import {
   LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
-  emptyState,
+  emptyObligationCatalog,
   validateStoredObligation,
 } from './facts.ts';
 import type {
   ClaimFact,
-  EffectReservation,
   EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
-  HistoricalRun,
+  RunRecord,
   ObligationFact,
   Receipt,
   ReceiptFact,
-  State,
+  ObligationCatalog,
 } from './facts.ts';
 import {
   dependencyUpstreams,
@@ -32,21 +31,21 @@ import {
 import { settlementSemantics } from './semantics.ts';
 import {
   deriveLifecycles,
-  hasInFlight,
+  hasUnsettledRun,
   obligationKey,
 } from './lifecycle.ts';
-import type { Lifecycle } from './lifecycle.ts';
+import type { RealizationLifecycle } from './lifecycle.ts';
 
 export interface HistoryProjection {
-  lifecycles:Map<string,Lifecycle>;
-  runs:Map<string,HistoricalRun>;
+  lifecycles:Map<string,RealizationLifecycle>;
+  runs:Map<string,RunRecord>;
   receiptsByRun:Map<string,Receipt>;
-  unresolvedReservationsByRun:Map<string,EffectReservation>;
+  unresolvedReservationsByRun:Map<string,EffectReservationFact>;
   receipts:Receipt[];
 }
 
 export interface Projection {
-  state:State;
+  catalog:ObligationCatalog;
   history:HistoryProjection;
 }
 
@@ -62,15 +61,15 @@ export function projectReceipt(
     if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
     if (fact.schema===LEGACY_RECEIPT_SCHEMA) {
       verified=fact.observed.mutation_certainty==='present'
-        ? observationVerified(work.postcondition,fact.observed)
+        ? observationSatisfiesPostcondition(work.postcondition,fact.observed)
         : false;
       disposition=verified
         ? 'DONE'
         : fact.observed.mutation_certainty==='absent'
-          ? 'READY'
+          ? 'ABSENT'
           : 'RECOVERY_REQUIRED';
     } else {
-      verified=observationVerified(work.postcondition,fact.observed);
+      verified=observationSatisfiesPostcondition(work.postcondition,fact.observed);
       const policy=settlementSemantics(work.postcondition);
       const absenceEvidence=authoritativeAbsenceEvidence(
         work.postcondition,
@@ -80,7 +79,7 @@ export function projectReceipt(
         ? 'DONE'
         : absenceEvidence
           && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind)
-          ? 'READY'
+          ? 'ABSENT'
           : 'RECOVERY_REQUIRED';
     }
   } else {
@@ -96,12 +95,12 @@ export function projectReceipt(
   };
 }
 
-export function replayProjection(commits:FactCommit[]):Projection {
-  const state=emptyState();
-  let lifecycles=new Map<string,Lifecycle>();
-  const runs=new Map<string,HistoricalRun>();
+export function reconstructProjection(commits:FactCommit[]):Projection {
+  const catalog=emptyObligationCatalog();
+  let lifecycles=new Map<string,RealizationLifecycle>();
+  const runs=new Map<string,RunRecord>();
   const receiptsByRun=new Map<string,Receipt>();
-  const unresolvedReservationsByRun=new Map<string,EffectReservation>();
+  const unresolvedReservationsByRun=new Map<string,EffectReservationFact>();
   const receipts:Receipt[]=[];
 
   for (const record of commits) {
@@ -112,39 +111,39 @@ export function replayProjection(commits:FactCommit[]):Projection {
       const id=obligation.id;
 
       if (fact.kind==='defined') {
-        if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
+        if (catalog.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
       } else if (fact.kind==='amended') {
-        if (!state.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
-        if (fact.previous_definition_commit!==state.definition_commits[id]) {
+        if (!catalog.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
+        if (fact.previous_definition_commit!==catalog.definition_commits[id]) {
           throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
         }
-        if (hasInFlight(lifecycles)) throw new Error('AMEND_WHILE_IN_FLIGHT');
+        if (hasUnsettledRun(lifecycles)) throw new Error('AMEND_WHILE_IN_FLIGHT');
       } else {
         throw new Error('INVALID_OBLIGATION_KIND');
       }
 
-      state.obligations[id]=obligation;
-      state.definition_commits[id]=record.commit;
-      validateGraph(state);
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      catalog.obligations[id]=obligation;
+      catalog.definition_commits[id]=record.commit;
+      validateGraph(catalog);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
     }
 
     if (record.claim!=null) {
       const claim=record.claim as ClaimFact;
       if (claim.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
-      const obligation=state.obligations[claim.obligation_id];
+      const obligation=catalog.obligations[claim.obligation_id];
       if (!obligation) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
       if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
       if (record.parent!==claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
 
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
       const current=lifecycles.get(claim.obligation_id);
       if (current?.status!=='UNREALIZED') throw new Error('CLAIM_WHILE_NOT_READY');
       const unsatisfied=dependencyUpstreams(obligation)
         .filter(dependency=>lifecycles.get(dependency)?.status!=='DONE');
       if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
 
-      const expectedKey=obligationKey(state,obligation,lifecycles,receiptsByRun);
+      const expectedKey=obligationKey(catalog,obligation,lifecycles,receiptsByRun);
       if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
       if (claim.obligation_key!==expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
 
@@ -155,7 +154,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
         throw new Error('INVALID_EXECUTION_CAPABILITY_DIGEST');
       }
 
-      const run:HistoricalRun={
+      const run:RunRecord={
         id:claim.run_id,
         obligation_id:claim.obligation_id,
         claimed_revision:claim.claimed_revision,
@@ -165,10 +164,9 @@ export function replayProjection(commits:FactCommit[]):Projection {
         execution_authority_commit:record.commit,
         execution_capability_sha256:claim.execution_capability_sha256,
         obligation:structuredClone(obligation),
-        definition_commit:state.definition_commits[claim.obligation_id],
       };
       runs.set(run.id,run);
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
     }
 
     if (record.execution_authority!=null) {
@@ -181,7 +179,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
       if (run.obligation_id!==fact.obligation_id) {
         throw new Error('EXECUTION_AUTHORITY_OBLIGATION_MISMATCH');
       }
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
       const current=lifecycles.get(run.obligation_id);
       if (
         current?.run?.id!==run.id
@@ -207,7 +205,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
         execution_authority_commit:record.commit,
         execution_capability_sha256:fact.execution_capability_sha256,
       });
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
     }
 
     if (record.effect_reservation!=null) {
@@ -220,7 +218,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
       if (run.obligation_id!==fact.obligation_id) {
         throw new Error('EFFECT_RESERVATION_OBLIGATION_MISMATCH');
       }
-      lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+      lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
       const current=lifecycles.get(run.obligation_id);
       if (current?.run?.id!==run.id || current.status!=='EXECUTING') {
         throw new Error('EFFECT_RESERVATION_WHILE_NOT_EXECUTING');
@@ -234,10 +232,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
       if (unresolvedReservationsByRun.has(run.id)) {
         throw new Error('DUPLICATE_UNRESOLVED_EFFECT');
       }
-      unresolvedReservationsByRun.set(run.id,{
-        ...fact,
-        reservation_commit:record.commit,
-      });
+      unresolvedReservationsByRun.set(run.id,fact);
     }
 
     if (record.receipt==null) continue;
@@ -263,7 +258,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
       throw new Error('RECEIPT_EXECUTION_AUTHORITY_MISMATCH');
     }
 
-    lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+    lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
     const current=lifecycles.get(run.obligation_id);
     if (current?.run?.id!==run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
     if (fact.kind==='judgment-required' && current.status!=='EXECUTING') {
@@ -282,22 +277,22 @@ export function replayProjection(commits:FactCommit[]):Projection {
       throw new Error('OBSERVATION_WHILE_NOT_RESOLVABLE');
     }
     const previous=receiptsByRun.get(run.id);
-    if (previous && ['DONE','READY'].includes(previous.disposition)) {
+    if (previous && ['DONE','ABSENT'].includes(previous.disposition)) {
       throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
     }
 
     const receipt=projectReceipt(fact,run.obligation,record.commit);
     receiptsByRun.set(run.id,receipt);
-    if (receipt.disposition==='DONE' || receipt.disposition==='READY') {
+    if (receipt.disposition==='DONE' || receipt.disposition==='ABSENT') {
       unresolvedReservationsByRun.delete(run.id);
     }
     receipts.push(receipt);
-    lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+    lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
   }
 
-  lifecycles=deriveLifecycles(state,runs,receiptsByRun);
+  lifecycles=deriveLifecycles(catalog,runs,receiptsByRun);
   return {
-    state,
+    catalog,
     history:{lifecycles,runs,receiptsByRun,unresolvedReservationsByRun,receipts},
   };
 }

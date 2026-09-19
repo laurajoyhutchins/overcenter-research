@@ -1,7 +1,7 @@
 import type {
   Data,
   Dependency,
-  Disposition,
+  ReceiptDisposition,
   Obligation,
   Observation,
   Postcondition,
@@ -24,7 +24,7 @@ export interface ObligationInput {
   postcondition:Postcondition;
 }
 
-export interface State {
+export interface ObligationCatalog {
   obligations:Record<string,Obligation>;
   definition_commits:Record<string,string>;
 }
@@ -68,10 +68,6 @@ export interface EffectReservationFact {
   execution_authority_commit:string;
 }
 
-export interface EffectReservation extends EffectReservationFact {
-  reservation_commit:string;
-}
-
 export type ReceiptKind='observation'|'judgment-required'|'execution-terminated';
 
 export interface ReceiptFact {
@@ -89,14 +85,13 @@ export interface ReceiptFact {
 }
 
 export interface Receipt extends ReceiptFact {
-  disposition:Disposition;
+  disposition:ReceiptDisposition;
   verified:boolean;
   settlement_commit?:string;
 }
 
-export interface HistoricalRun extends Run {
+export interface RunRecord extends Run {
   obligation:Obligation;
-  definition_commit:string;
 }
 
 export interface FactCommit {
@@ -109,7 +104,7 @@ export interface FactCommit {
   receipt?:unknown|null;
 }
 
-export function emptyState():State {
+export function emptyObligationCatalog():ObligationCatalog {
   return {obligations:{},definition_commits:{}};
 }
 

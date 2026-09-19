@@ -32,7 +32,7 @@ import { reconstructGithubProjection } from './reconstruction.ts';
 import {
   validateObservationSlice,
   validateResponseSlice,
-} from '../provider-observation/response-slice.ts';
+} from '../../src/provider-observation/response-slice.ts';
 import { RESPONSE_SLICES } from './response-slices.ts';
 
 const SHA_A = 'a'.repeat(40);
