@@ -1,6 +1,6 @@
 import { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
 import { materializeGithubOperationRequest } from './github-openapi.ts';
-import { observeCertifiedGithubRead200 } from './github-certified-read.ts';
+import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
 import { GITHUB_REPOSITORY_RESPONSE_SLICE } from './github-semantics.ts';
 import { githubGet, type GithubJsonGet } from './github-rest.ts';
 
