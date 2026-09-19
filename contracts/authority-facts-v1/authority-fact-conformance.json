@@ -2,6 +2,64 @@
   "schema": "overcenter-authority-fact-conformance-v1",
   "cases": [
     {
+      "name": "defined-obligation-v4-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-obligation-v4",
+        "kind": "defined",
+        "obligation": {
+          "id": "current-alpha",
+          "dependencies": [],
+          "packet": {
+            "kind": "example"
+          },
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/current",
+            "content": "A"
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy-obligation-v3-extra-postcondition-field-readable",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-obligation-v3",
+        "kind": "defined",
+        "obligation": {
+          "id": "legacy-alpha",
+          "dependencies": [],
+          "packet": {},
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/legacy",
+            "content": "A",
+            "historical_extension": true
+          }
+        }
+      }
+    },
+    {
+      "name": "obligation-v4-extra-postcondition-field-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-obligation-v4",
+        "kind": "defined",
+        "obligation": {
+          "id": "current-alpha",
+          "dependencies": [],
+          "packet": {},
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/current",
+            "content": "A",
+            "surprise": true
+          }
+        }
+      }
+    },
+    {
       "name": "defined-obligation-valid",
       "valid": true,
       "fact": {

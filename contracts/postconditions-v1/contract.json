@@ -1,0 +1,183 @@
+{
+  "apiVersion": "overcenter.dev/data-contract/v1",
+  "kind": "DataContract",
+  "id": "postconditions",
+  "version": "1.0.0",
+  "status": "active",
+  "description": {
+    "purpose": "Define canonical verifier-owned postconditions written into current obligations.",
+    "limitations": "Historical obligation-v3 facts remain readable under their original permissive nested-postcondition policy. Canonical closure begins with obligation-v4 writes."
+  },
+  "participants": {
+    "producers": [
+      "typescript-authority"
+    ],
+    "consumers": [
+      "obligation-writer",
+      "admission",
+      "observation",
+      "settlement",
+      "realization-admissibility"
+    ]
+  },
+  "schema": {
+    "format": "json-schema",
+    "draft": "https://json-schema.org/draft/2020-12/schema",
+    "path": "./schema.json",
+    "entrypoint": "#/$defs/Postcondition",
+    "wireDiscriminators": [
+      "file-content-equals/v1",
+      "eventually-consistent-file-content-equals/v1",
+      "github-commit-status/v1",
+      "github-commit-status/v2",
+      "kubernetes-configmap-exists/v1"
+    ],
+    "validationExtensions": []
+  },
+  "compatibility": {
+    "unknownFields": "reject on canonical obligation-v4 writes",
+    "historicalObligationV3": "read-compatible with previously tolerated nested fields",
+    "currentObligationWrite": "overcenter-git-obligation-v4",
+    "changeRule": "Incompatible structural or semantic changes require a new verifier discriminator or contract version; obligation-v3 replay is not tightened retroactively."
+  },
+  "semanticRoles": {
+    "verifierField": "verifier",
+    "identityRule": "The entire canonical postcondition participates by value in obligation semantic identity.",
+    "perVerifier": [
+      {
+        "verifier": "file-content-equals/v1",
+        "coordinateFields": [
+          "path"
+        ],
+        "desiredFields": [
+          "content"
+        ],
+        "acceptedAbsenceEvidenceKinds": [
+          "local-file-enoent/v1"
+        ],
+        "verifiedContentIdentity": "sha256(content)",
+        "effectSemantics": null
+      },
+      {
+        "verifier": "eventually-consistent-file-content-equals/v1",
+        "coordinateFields": [
+          "path"
+        ],
+        "desiredFields": [
+          "content"
+        ],
+        "acceptedAbsenceEvidenceKinds": [],
+        "verifiedContentIdentity": "sha256(content)",
+        "effectSemantics": null
+      },
+      {
+        "verifier": "github-commit-status/v1",
+        "coordinateFields": [
+          "provider",
+          "repository_id",
+          "commit_sha",
+          "context"
+        ],
+        "desiredFields": [
+          "expected_state"
+        ],
+        "acceptedAbsenceEvidenceKinds": [],
+        "verifiedContentIdentity": "canonical(provider,repository_id,commit_sha,normalized-context,state)",
+        "effectSemantics": {
+          "resource": "github-status(repository_id,commit_sha,normalized-context)",
+          "desired": "expected_state",
+          "sameDesiredCommutes": true
+        }
+      },
+      {
+        "verifier": "github-commit-status/v2",
+        "coordinateFields": [
+          "provider",
+          "repository_id",
+          "repository_full_name",
+          "commit_sha",
+          "context"
+        ],
+        "desiredFields": [
+          "expected_state"
+        ],
+        "acceptedAbsenceEvidenceKinds": [],
+        "verifiedContentIdentity": "canonical(provider,repository_id,commit_sha,normalized-context,state)",
+        "effectSemantics": {
+          "resource": "github-status(repository_id,commit_sha,normalized-context)",
+          "desired": "expected_state",
+          "sameDesiredCommutes": true
+        }
+      },
+      {
+        "verifier": "kubernetes-configmap-exists/v1",
+        "coordinateFields": [
+          "provider",
+          "authority_id",
+          "api_group",
+          "resource",
+          "namespace",
+          "name"
+        ],
+        "desiredFields": [],
+        "acceptedAbsenceEvidenceKinds": [
+          "kubernetes-complete-list-absence/v1"
+        ],
+        "verifiedContentIdentity": "canonical(provider,authority_id,api_group,resource,namespace,name,state=exists)",
+        "effectSemantics": null
+      }
+    ]
+  },
+  "governance": {
+    "structureAuthority": "./schema.json",
+    "runtimeWriteValidator": "../../src/postconditions.ts",
+    "semanticAuthority": "../../src/semantics.ts",
+    "conflictPolicy": "machine-readable-structure-wins",
+    "generatedOutputIsNotVerifiedOutput": true
+  },
+  "quality": [
+    {
+      "id": "postcondition-conformance",
+      "type": "conformance-corpus",
+      "path": "./postcondition-conformance.json"
+    },
+    {
+      "id": "contract-regression",
+      "type": "executable",
+      "path": "../../test/data-contracts.test.ts"
+    },
+    {
+      "id": "admission-semantics",
+      "type": "executable",
+      "path": "../../test/admission-pure.test.ts"
+    },
+    {
+      "id": "realization-admissibility",
+      "type": "executable",
+      "path": "../../test/realization-admissibility.test.ts"
+    }
+  ],
+  "authoritativeDefinitions": [
+    {
+      "type": "wire-schema",
+      "path": "./schema.json"
+    },
+    {
+      "type": "runtime-validator",
+      "path": "../../src/postconditions.ts"
+    },
+    {
+      "type": "semantic-derivation",
+      "path": "../../src/semantics.ts"
+    },
+    {
+      "type": "observer",
+      "path": "../../src/observation.ts"
+    },
+    {
+      "type": "durable-writer",
+      "path": "../../src/facts.ts"
+    }
+  ],
+  "extensions": {}
+}

@@ -25,6 +25,7 @@
     "entrypoint": "#/$defs/AuthorityFact",
     "wireDiscriminators": [
       "overcenter-git-obligation-v3",
+      "overcenter-git-obligation-v4",
       "overcenter-git-claim-v3",
       "overcenter-git-execution-authority-v1",
       "overcenter-git-effect-reservation-v1",
@@ -44,7 +45,14 @@
       ],
       "write": "overcenter-git-receipt-v5"
     },
-    "changeRule": "Incompatible outer-envelope or semantic-role changes require a new persisted discriminator. Existing discriminators are immutable historical contracts."
+    "changeRule": "Incompatible outer-envelope or semantic-role changes require a new persisted discriminator. Existing discriminators are immutable historical contracts.",
+    "obligation": {
+      "read": [
+        "overcenter-git-obligation-v3",
+        "overcenter-git-obligation-v4"
+      ],
+      "write": "overcenter-git-obligation-v4"
+    }
   },
   "governance": {
     "structureAuthority": "./schema.json",
@@ -77,11 +85,11 @@
       "closure": "intentionally-open"
     },
     {
-      "path": "Obligation.postcondition",
-      "role": "verifier-contract",
+      "path": "LegacyObligationV3.postcondition",
+      "role": "legacy-verifier-contract",
       "authoritative": true,
-      "identityImpact": "included by value in obligation semantic identity",
-      "closure": "owned by verifier/observation contracts"
+      "identityImpact": "included by value in historical obligation semantic identity",
+      "closure": "historical-v3-permissive"
     },
     {
       "path": "ReceiptFact.observed",
@@ -208,5 +216,15 @@
       "path": "../../src/fact-store.ts"
     }
   ],
-  "extensions": {}
+  "extensions": {},
+  "closedBoundaries": [
+    {
+      "path": "Obligation.postcondition",
+      "role": "verifier-contract",
+      "authoritative": true,
+      "identityImpact": "included by value in obligation semantic identity",
+      "closure": "obligation-v4 owned by ../postconditions-v1",
+      "contractRef": "../postconditions-v1/schema.json#/$defs/Postcondition"
+    }
+  ]
 }

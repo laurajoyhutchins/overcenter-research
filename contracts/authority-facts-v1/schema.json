@@ -107,13 +107,7 @@
           "description": "Application-defined packet; intentionally open but authoritative by value."
         },
         "postcondition": {
-          "type": "object",
-          "x-overcenter-openBoundary": true,
-          "additionalProperties": true,
-          "required": [
-            "verifier"
-          ],
-          "description": "Verifier-owned postcondition contract; intentionally open here."
+          "$ref": "../postconditions-v1/schema.json#/$defs/Postcondition"
         }
       }
     },
@@ -127,7 +121,7 @@
       ],
       "properties": {
         "schema": {
-          "const": "overcenter-git-obligation-v3"
+          "const": "overcenter-git-obligation-v4"
         },
         "kind": {
           "const": "defined"
@@ -148,7 +142,7 @@
       ],
       "properties": {
         "schema": {
-          "const": "overcenter-git-obligation-v3"
+          "const": "overcenter-git-obligation-v4"
         },
         "kind": {
           "const": "amended"
@@ -165,6 +159,12 @@
     },
     "ObligationFact": {
       "oneOf": [
+        {
+          "$ref": "#/$defs/LegacyDefinedObligationFactV3"
+        },
+        {
+          "$ref": "#/$defs/LegacyAmendedObligationFactV3"
+        },
         {
           "$ref": "#/$defs/DefinedObligationFact"
         },
@@ -484,6 +484,90 @@
     },
     "CurrentObservationPayload": {
       "$ref": "../observation-evidence-v1/schema.json#/$defs/SettlementObservation"
+    },
+    "LegacyObligationV3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "dependencies",
+        "packet",
+        "postcondition"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000]+$"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Dependency"
+          }
+        },
+        "packet": {
+          "type": "object",
+          "x-overcenter-openBoundary": true,
+          "additionalProperties": true,
+          "description": "Application-defined packet; intentionally open but authoritative by value."
+        },
+        "postcondition": {
+          "type": "object",
+          "x-overcenter-openBoundary": true,
+          "additionalProperties": true,
+          "required": [
+            "verifier"
+          ],
+          "description": "Verifier-owned postcondition contract; intentionally open here."
+        }
+      }
+    },
+    "LegacyDefinedObligationFactV3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "obligation"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-obligation-v3"
+        },
+        "kind": {
+          "const": "defined"
+        },
+        "obligation": {
+          "$ref": "#/$defs/LegacyObligationV3"
+        }
+      }
+    },
+    "LegacyAmendedObligationFactV3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "obligation",
+        "previous_definition_commit"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-git-obligation-v3"
+        },
+        "kind": {
+          "const": "amended"
+        },
+        "obligation": {
+          "$ref": "#/$defs/LegacyObligationV3"
+        },
+        "previous_definition_commit": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000]+$"
+        }
+      }
     }
   }
 }

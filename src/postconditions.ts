@@ -1,6 +1,14 @@
 import type { Postcondition } from './model.ts';
 import { isGithubObjectId } from './providers/github-rest.ts';
 
+export const POSTCONDITION_VERIFIERS=[
+  'file-content-equals/v1',
+  'eventually-consistent-file-content-equals/v1',
+  'github-commit-status/v1',
+  'github-commit-status/v2',
+  'kubernetes-configmap-exists/v1',
+] as const;
+
 function data(value:unknown):value is Record<string,unknown> {
   return !!value && typeof value==='object' && !Array.isArray(value);
 }

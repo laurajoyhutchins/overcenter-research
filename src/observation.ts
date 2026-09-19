@@ -21,7 +21,10 @@ import {
   observeCertifiedKubernetesConfigMap,
   type KubernetesListConfigMaps,
 } from './providers/kubernetes-configmap.ts';
-import { validatePostcondition } from './postconditions.ts';
+import {
+  POSTCONDITION_VERIFIERS,
+  validatePostcondition,
+} from './postconditions.ts';
 
 export interface ObservationContext {
   githubToken: string | null;
@@ -62,13 +65,9 @@ export function validateObservationEnvelope(
   for (const key of required) {
     if (!(key in value)) throw new Error(`OBSERVATION_MISSING_FIELD:${key}`);
   }
-  if (![
-    'file-content-equals/v1',
-    'eventually-consistent-file-content-equals/v1',
-    'github-commit-status/v1',
-    'github-commit-status/v2',
-    'kubernetes-configmap-exists/v1',
-  ].includes(String(value.verifier))) throw new Error('OBSERVATION_VERIFIER_INVALID');
+  if (!new Set<string>(POSTCONDITION_VERIFIERS).has(String(value.verifier))) {
+    throw new Error('OBSERVATION_VERIFIER_INVALID');
+  }
   if (!['present','absent','uncertain'].includes(String(value.mutation_certainty))) {
     throw new Error('OBSERVATION_MUTATION_CERTAINTY_INVALID');
   }

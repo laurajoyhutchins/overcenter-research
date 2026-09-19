@@ -1,0 +1,139 @@
+{
+  "schema": "overcenter-postcondition-conformance-v1",
+  "cases": [
+    {
+      "name": "file-content-valid",
+      "valid": true,
+      "postcondition": {
+        "verifier": "file-content-equals/v1",
+        "path": "/provider/a",
+        "content": "A"
+      }
+    },
+    {
+      "name": "eventual-file-valid",
+      "valid": true,
+      "postcondition": {
+        "verifier": "eventually-consistent-file-content-equals/v1",
+        "path": "/provider/a",
+        "content": "A"
+      }
+    },
+    {
+      "name": "github-v1-valid",
+      "valid": true,
+      "postcondition": {
+        "verifier": "github-commit-status/v1",
+        "provider": "github",
+        "repository_id": 123,
+        "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "context": "overcenter/test",
+        "expected_state": "success"
+      }
+    },
+    {
+      "name": "github-v2-valid",
+      "valid": true,
+      "postcondition": {
+        "verifier": "github-commit-status/v2",
+        "provider": "github",
+        "repository_id": 123,
+        "repository_full_name": "owner/repo",
+        "commit_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "context": "overcenter/test",
+        "expected_state": "failure"
+      }
+    },
+    {
+      "name": "kubernetes-valid",
+      "valid": true,
+      "postcondition": {
+        "verifier": "kubernetes-configmap-exists/v1",
+        "provider": "kubernetes",
+        "authority_id": "kind:cluster",
+        "api_group": "",
+        "resource": "configmaps",
+        "namespace": "default",
+        "name": "proof"
+      }
+    },
+    {
+      "name": "unknown-field-invalid",
+      "valid": false,
+      "postcondition": {
+        "verifier": "file-content-equals/v1",
+        "path": "/provider/a",
+        "content": "A",
+        "surprise": true
+      }
+    },
+    {
+      "name": "empty-path-invalid",
+      "valid": false,
+      "postcondition": {
+        "verifier": "file-content-equals/v1",
+        "path": "",
+        "content": "A"
+      }
+    },
+    {
+      "name": "nul-path-invalid",
+      "valid": false,
+      "postcondition": {
+        "verifier": "file-content-equals/v1",
+        "path": "/provider/\u0000a",
+        "content": "A"
+      }
+    },
+    {
+      "name": "unsafe-repository-id-invalid",
+      "valid": false,
+      "postcondition": {
+        "verifier": "github-commit-status/v1",
+        "provider": "github",
+        "repository_id": 9007199254740992,
+        "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "context": "overcenter/test",
+        "expected_state": "success"
+      }
+    },
+    {
+      "name": "bad-github-object-id-invalid",
+      "valid": false,
+      "postcondition": {
+        "verifier": "github-commit-status/v1",
+        "provider": "github",
+        "repository_id": 123,
+        "commit_sha": "not-a-sha",
+        "context": "overcenter/test",
+        "expected_state": "success"
+      }
+    },
+    {
+      "name": "bad-repository-full-name-invalid",
+      "valid": false,
+      "postcondition": {
+        "verifier": "github-commit-status/v2",
+        "provider": "github",
+        "repository_id": 123,
+        "repository_full_name": "owner/repo/extra",
+        "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "context": "overcenter/test",
+        "expected_state": "success"
+      }
+    },
+    {
+      "name": "kubernetes-empty-authority-invalid",
+      "valid": false,
+      "postcondition": {
+        "verifier": "kubernetes-configmap-exists/v1",
+        "provider": "kubernetes",
+        "authority_id": "",
+        "api_group": "",
+        "resource": "configmaps",
+        "namespace": "default",
+        "name": "proof"
+      }
+    }
+  ]
+}
