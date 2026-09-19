@@ -75,11 +75,17 @@ test('runtime toolchains and executor images have exact checked-in identities',(
     const dockerfile=read(path);
     assert.match(dockerfile,/^ARG GO_IMAGE$/m);
     assert.match(dockerfile,/^ARG NODE_IMAGE$/m);
+    assert.match(dockerfile,/^ARG GO_VERSION$/m);
+    assert.match(dockerfile,/^ARG NODE_VERSION$/m);
     assert.match(dockerfile,/^FROM \$\{GO_IMAGE\} AS build$/m);
     assert.match(dockerfile,/^FROM \$\{NODE_IMAGE\}$/m);
+    assert.match(dockerfile,/go env GOVERSION/);
+    assert.match(dockerfile,/node --version/);
     assert.doesNotMatch(dockerfile,/FROM (?:golang|node):[^$]/);
   }
-  assert.doesNotMatch(read('executor/dogfood/Dockerfile'),/apt-get/);
+  const dogfoodDockerfile=read('executor/dogfood/Dockerfile');
+  assert.doesNotMatch(dogfoodDockerfile,/apt-get/);
+  assert.match(dogfoodDockerfile,/git --version/);
 
   const workflow=read('.github/workflows/computation-executor.yml');
   assert.match(workflow,/go-version-file: '\.go-version'/);
