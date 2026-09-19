@@ -360,35 +360,38 @@
       "status": "maintained",
       "directory": "experiments/production-criticality-ranking",
       "readme": "experiments/production-criticality-ranking/README.md",
-      "question": "Can production-code importance be maintained as a reproducible quantitative ordering rather than a repeated human ranking exercise?",
-      "claim": "A callable-level authority and call-graph vector produces a deterministic total order with substantial agreement to the prior human ranking while keeping disagreements inspectable.",
-      "contrast": "Manual one-off rankings or line-count/churn-only heuristics.",
+      "question": "Can Overcenter maintain a reproducible total ordering of production-code importance from quantitative facts?",
+      "claim": "A revision-bound callable graph plus explicit authority/recovery semantics can derive an inspectable production-code criticality vector and a calibrated total order without ranking tests or experiments themselves.",
+      "contrast": "Periodically repeat a human ranking exercise or rely on generic complexity/hotspot metrics alone.",
       "reproduce": {
         "tier": "toolchain",
         "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --test experiments/production-criticality-ranking/analyze.test.mjs && node experiments/production-criticality-ranking/analyze.mjs --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
       },
       "environment": [
         "Node.js from .node-version",
-        "TypeScript compiler API 5.8.3 installed without lifecycle scripts.",
-        "StrykerJS 10.0.0 is optional for the targeted hostile mutation probe."
+        "Git with full repository history for revision-bound blame/change exposure",
+        "TypeScript 5.8.3 installed for the analyzer"
       ],
       "success_criteria": [
-        "Only production callables enter the ranked population.",
+        "Only production callables under src/ enter the ranked population.",
         "Configured authority and recovery selectors resolve exactly once.",
-        "Internal call resolution and pairwise calibration are explicitly reported.",
-        "The ordering is deterministic at one revision and disagreements remain visible rather than hand-tuned away."
+        "The static graph is informative and unresolved internal calls are reported.",
+        "At least 80% of the initial pairwise calibration judgments agree.",
+        "Every surprising rank decomposes into quantitative vector components and graph evidence."
       ],
       "evidence": {
         "state": "pending",
         "artifacts": [
-          "GitHub Actions run 35464525878: exact-head callable ranking passed its 80% calibration threshold; targeted mutation evidence remains under evaluation in draft PR #111."
+          "Draft PR #111",
+          "GitHub Actions criticality ranking workflow"
         ]
       },
-      "interpretation": "Treat the result as evidence about callable-level criticality instrumentation, not as a final atomic ranking of every code expression.",
+      "interpretation": "Treat the ranking as a revision-bound experimental projection. The vector components are durable inputs; the weighting policy and callable-level unit boundary remain replaceable.",
       "non_claims": [
         "Callable boundaries are the final semantic unit.",
-        "Static reachability is production telemetry.",
-        "The current change-exposure proxy is sufficiently discriminative."
+        "Static test reachability is equivalent to hostile-case evidence.",
+        "Exported-entrypoint reachability is equivalent to production telemetry.",
+        "The current weighting equation is uniquely correct."
       ]
     },
     {
