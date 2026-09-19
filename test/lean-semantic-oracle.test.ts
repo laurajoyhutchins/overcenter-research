@@ -500,7 +500,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     mixedOrdered.obligations['n-1'].dependencies=[
       dependency(0,'semantic'),
     ];
-    for(const order of [forward,reverse]){
+    for(const order of [threeForward,threeReverse]){
       const observed=await oracle.compare(
         leanRequest(mixedOrdered,'n-2',order),
       );
@@ -527,7 +527,7 @@ test('current TypeScript effect ordering agrees with pinned Lean semantic oracle
     mixedUnordered.obligations['n-2'].dependencies=[
       dependency(1,'semantic'),
     ];
-    for(const order of [forward,reverse]){
+    for(const order of [threeForward,threeReverse]){
       const observed=await oracle.compare(
         leanRequest(mixedUnordered,'n-2',order),
       );
