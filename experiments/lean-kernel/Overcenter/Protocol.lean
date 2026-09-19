@@ -67,6 +67,8 @@ private def parseKubernetesPage (json : Json) : Except String KubernetesListPage
   let membersJson ← (← field json "members").getArr?
   let members ← membersJson.toList.mapM parseKubernetesMember
   pure {
+    authorityId := ← stringField json "authority_id"
+    requestNamespace := ← stringField json "request_namespace"
     requestContinue := ← optionalStringField json "request_continue"
     responseContinue := ← stringField json "response_continue"
     snapshotResourceVersion := ← stringField json "snapshot_resource_version"
