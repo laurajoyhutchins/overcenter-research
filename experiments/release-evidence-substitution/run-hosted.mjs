@@ -1,44 +1,46 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
-import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { Connection, Client } from '@temporalio/client';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import * as activities from './activities.mjs';
-import { canonicalDigest } from '../../src/digest.ts';
 import {
+  externalEffectIdentity,
   realizationObligationKey,
 } from '../../src/realization.ts';
+import {
+  verifyCertifiedKubernetesDeployment,
+} from '../../src/providers/kubernetes-deployment.ts';
+import {
+  currentClusterAuthority,
+  deploymentReader,
+} from './kubernetes-read.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url));
 const TASK_QUEUE='release-evidence-substitution';
 const IMAGE='registry.k8s.io/pause@sha256:7031c1b283388d2c2e09b57badb803c05ebed362dc88d84b480cc47f72a21097';
 const namespace='staging';
 const name='api';
+const containerName='pause';
+const authorityId=currentClusterAuthority();
+const readDeployment=deploymentReader(authorityId);
 
 function releaseContract(commit) {
   return {
     packet:{
       command:'deploy',
       provider:'kubernetes',
-      coordinate:{
-        cluster:'kind:release-proof',
-        namespace,
-        name,
-      },
+      coordinate:{authority_id:authorityId,namespace,name},
     },
     semantic_dependencies:[
       {selector:'source-commit',identity:`git:${commit}`},
       {selector:'image',identity:IMAGE},
     ],
     verifier_identity:'kubernetes-release-observation/v1',
-    material_configuration:{
-      cluster:'kind:release-proof',
-      namespace,
-      name,
-    },
+    material_configuration:{authority_id:authorityId,namespace,name,container_name:containerName},
     source_inputs:{commit,image:IMAGE},
     acceptance_predicate:{
       kind:'sha256-equals/v1',
@@ -49,12 +51,7 @@ function releaseContract(commit) {
 }
 
 function release(commit,runId,role,acceptedMarker) {
-  const obligationKey=realizationObligationKey(releaseContract(commit));
-  const effectIdentity=canonicalDigest({
-    schema:'overcenter-external-effect-identity/v1',
-    obligation_key:obligationKey,
-    run_id:runId,
-  });
+  const contract=releaseContract(commit);
   return {
     role,
     runId,
@@ -62,24 +59,24 @@ function release(commit,runId,role,acceptedMarker) {
     image:IMAGE,
     namespace,
     name,
-    obligationKey,
-    effectIdentity,
+    containerName,
+    authorityId,
+    obligationKey:realizationObligationKey(contract),
+    effectIdentity:externalEffectIdentity(contract,runId),
     acceptedMarker,
   };
 }
 
-function currentDeployment() {
-  return JSON.parse(execFileSync(
-    'kubectl',
-    ['get','deployment',name,'-n',namespace,'-o','json'],
-    {encoding:'utf8'},
-  ));
-}
-
-function exactEvidenceAccepts(expected,observed) {
-  const annotations=observed.metadata?.annotations??{};
-  return annotations['overcenter.dev/obligation-key']===expected.obligationKey
-    && annotations['overcenter.dev/effect-identity']===expected.effectIdentity;
+function expectation(release) {
+  return {
+    authority_id:release.authorityId,
+    namespace:release.namespace,
+    name:release.name,
+    container_name:release.containerName,
+    image:release.image,
+    obligation_key:release.obligationKey,
+    effect_identity:release.effectIdentity,
+  };
 }
 
 async function waitForFile(path,timeoutMs=60_000) {
@@ -137,8 +134,11 @@ try {
   assert.equal(resultA.mode,'conventional-recovery');
   assert.equal(resultA.attempt,2);
 
-  const observed=currentDeployment();
+  const read=readDeployment(namespace,name);
+  const observed=read.observation.outcome.value;
   const annotations=observed.metadata.annotations??{};
+  const exactA=verifyCertifiedKubernetesDeployment(expectation(releaseA),read);
+  const exactB=verifyCertifiedKubernetesDeployment(expectation(releaseB),read);
 
   assert.equal(
     resultA.observed.effectIdentity,
@@ -147,8 +147,9 @@ try {
   );
   assert.equal(annotations['overcenter.dev/effect-identity'],releaseB.effectIdentity);
   assert.equal(annotations['overcenter.dev/source-commit'],releaseB.commit);
-  assert.equal(exactEvidenceAccepts(releaseA,observed),false);
-  assert.equal(exactEvidenceAccepts(releaseB,observed),true);
+  assert.equal(exactA.state,'rejected');
+  assert.equal(exactA.reason,'KUBERNETES_DEPLOYMENT_REALIZATION_IDENTITY_MISMATCH');
+  assert.equal(exactB.state,'verified');
 
   console.log(JSON.stringify({
     outcome:'FALSE_ATTRIBUTION_REPRODUCED',
@@ -177,9 +178,10 @@ try {
       release_a_settled:true,
       evidence_actually_belongs_to:'release-b',
     },
-    exact_binding:{
-      release_a_settled:false,
-      release_b_settled:true,
+    overcenter_production_verifier:{
+      release_a:exactA.state,
+      release_a_reason:exactA.reason,
+      release_b:exactB.state,
     },
   },null,2));
 } finally {
