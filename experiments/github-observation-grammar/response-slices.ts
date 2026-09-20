@@ -1,69 +1,24 @@
+import { githubResponseSlice } from '../../src/providers/github-semantics.ts';
 import type { ResponseFieldSpec } from '../provider-observation/response-slice.ts';
 
+function extend(
+  operationId:string,
+  ...extensions:readonly ResponseFieldSpec[]
+):readonly ResponseFieldSpec[] {
+  return [...githubResponseSlice(operationId),...extensions];
+}
+
 export const RESPONSE_SLICES = {
-  'repos/get': [
-    { path: 'id' },
-    { path: 'node_id' },
-    { path: 'full_name' },
-    { path: 'name' },
-    { path: 'owner.login' },
-  ],
-  'git/get-ref': [
-    { path: 'ref' },
-    { path: 'object.type' },
-    { path: 'object.sha' },
-  ],
-  'git/get-commit': [
-    { path: 'sha' },
-    { path: 'tree.sha' },
-    { path: 'parents[].sha' },
-  ],
-  'pulls/get': [
-    { path: 'id' },
-    { path: 'node_id' },
-    { path: 'number' },
-    { path: 'state' },
-    { path: 'head.sha' },
-    { path: 'base.ref' },
-    { path: 'base.sha' },
-  ],
-  'issues/get': [
-    { path: 'id' },
-    { path: 'node_id' },
-    { path: 'number' },
-    { path: 'state' },
-    { path: 'title' },
-    { path: 'locked' },
-    { path: 'pull_request', required: false },
-  ],
-  'checks/list-for-ref': [
-    { path: 'total_count' },
-    { path: 'check_runs[].id' },
-    { path: 'check_runs[].name' },
-    { path: 'check_runs[].head_sha' },
-    { path: 'check_runs[].status' },
-    { path: 'check_runs[].conclusion' },
-  ],
-  'repos/list-commit-statuses-for-ref': [
-    { path: '[].id' },
-    { path: '[].node_id' },
-    { path: '[].state' },
-    { path: '[].context' },
-    { path: '[].target_url' },
-    { path: '[].created_at' },
-    { path: '[].updated_at' },
-  ],
-  'actions/list-workflow-runs-for-repo': [
-    { path: 'total_count' },
-    { path: 'workflow_runs[].id' },
-    { path: 'workflow_runs[].node_id' },
-    { path: 'workflow_runs[].workflow_id' },
-    { path: 'workflow_runs[].run_number' },
-    { path: 'workflow_runs[].run_attempt' },
-    { path: 'workflow_runs[].name' },
-    { path: 'workflow_runs[].event' },
-    { path: 'workflow_runs[].status' },
-    { path: 'workflow_runs[].conclusion' },
-    { path: 'workflow_runs[].head_sha' },
-  ],
-} as const satisfies Record<string, readonly ResponseFieldSpec[]>;
+  'repos/get': githubResponseSlice('repos/get'),
+  'git/get-ref': githubResponseSlice('git/get-ref'),
+  'git/get-commit': githubResponseSlice('git/get-commit'),
+  'pulls/get': githubResponseSlice('pulls/get'),
+  'issues/get': extend('issues/get',{path:'pull_request',required:false}),
+  'checks/list-for-ref': githubResponseSlice('checks/list-for-ref'),
+  'repos/list-commit-statuses-for-ref': githubResponseSlice('repos/list-commit-statuses-for-ref'),
+  'actions/list-workflow-runs-for-repo': extend(
+    'actions/list-workflow-runs-for-repo',
+    {path:'workflow_runs[].name'},
+    {path:'workflow_runs[].event'},
+  ),
+} as const satisfies Record<string,readonly ResponseFieldSpec[]>;
