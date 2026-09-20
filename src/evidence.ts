@@ -1,24 +1,8 @@
-import type {
-  AbsenceEvidenceCertificate,
-  Data,
-} from './model.ts';
+import type { AbsenceEvidenceCertificate } from './model.ts';
+import { hasExactKeys as exactKeys, isData } from './validation.ts';
 
 export const ABSENCE_EVIDENCE_SCHEMA='overcenter-absence-evidence-v1' as const;
 export const LOCAL_FILE_ENOENT_EVIDENCE='local-file-enoent/v1' as const;
-
-function isData(value:unknown):value is Data {
-  return !!value && typeof value==='object' && !Array.isArray(value);
-}
-
-function exactKeys(
-  value:Data,
-  required:readonly string[],
-  optional:readonly string[]=[],
-):boolean {
-  const allowed=new Set([...required,...optional]);
-  return Object.keys(value).every(key=>allowed.has(key))
-    && required.every(key=>Object.hasOwn(value,key));
-}
 
 export function validateAbsenceEvidenceEnvelope(
   value:unknown,
