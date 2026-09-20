@@ -400,6 +400,7 @@ test('production kernel enforces transaction admission at the effect boundary',(
       {...run,execution_capability:'wrong'},
     ]){
       assert.throws(()=>kernel.beginEffect(hostile),/STALE_EXECUTION_GENERATION/);
+      assert.throws(()=>kernel.resolve(hostile),/STALE_EXECUTION_GENERATION/);
     }
     kernel.beginEffect(run);
     const successor=kernel.acquireExecution(run.id);
