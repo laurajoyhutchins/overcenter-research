@@ -18,6 +18,10 @@ import {
   currentClusterAuthority,
   deploymentReader,
 } from './kubernetes-read.mjs';
+import {
+  conventionalSafeAccepts,
+  overcenterSafeAccepts,
+} from './safe-paths.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url));
 const TASK_QUEUE='release-evidence-substitution';
@@ -139,6 +143,8 @@ try {
   const annotations=observed.metadata.annotations??{};
   const exactA=verifyCertifiedKubernetesDeployment(expectation(releaseA),read);
   const exactB=verifyCertifiedKubernetesDeployment(expectation(releaseB),read);
+  const conventionalSafeA=conventionalSafeAccepts(expectation(releaseA),read);
+  const overcenterSafeA=overcenterSafeAccepts(expectation(releaseA),read);
 
   assert.equal(
     resultA.observed.effectIdentity,
@@ -150,6 +156,8 @@ try {
   assert.equal(exactA.state,'rejected');
   assert.equal(exactA.reason,'KUBERNETES_DEPLOYMENT_REALIZATION_IDENTITY_MISMATCH');
   assert.equal(exactB.state,'verified');
+  assert.equal(conventionalSafeA,false,'safe conventional path also closes the bug');
+  assert.equal(overcenterSafeA,false,'Overcenter production verifier closes the bug');
 
   console.log(JSON.stringify({
     outcome:'FALSE_ATTRIBUTION_REPRODUCED',
@@ -177,6 +185,10 @@ try {
     conventional:{
       release_a_settled:true,
       evidence_actually_belongs_to:'release-b',
+    },
+    safe_comparison:{
+      conventional_release_a_settled:conventionalSafeA,
+      overcenter_release_a_settled:overcenterSafeA,
     },
     overcenter_production_verifier:{
       release_a:exactA.state,
