@@ -11,6 +11,11 @@ import {
   validateObservationEnvelope,
   validatePostcondition,
 } from './observation.ts';
+import {
+  assertExactKeys as exactKeys,
+  assertNonEmptyString as nonEmptyString,
+  isData as data,
+} from './validation.ts';
 
 export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
@@ -112,31 +117,6 @@ export interface FactCommit {
 
 export function emptyState():State {
   return {obligations:{},definition_commits:{}};
-}
-
-function data(value:unknown):value is Data {
-  return !!value && typeof value==='object' && !Array.isArray(value);
-}
-
-function exactKeys(
-  value:Record<string,unknown>,
-  required:readonly string[],
-  optional:readonly string[]=[],
-  error='INVALID_FACT_SHAPE',
-):void {
-  const allowed=new Set([...required,...optional]);
-  for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) throw new Error(`${error}:UNKNOWN_FIELD:${key}`);
-  }
-  for (const key of required) {
-    if (!(key in value)) throw new Error(`${error}:MISSING_FIELD:${key}`);
-  }
-}
-
-function nonEmptyString(value:unknown,error:string):asserts value is string {
-  if (typeof value!=='string' || value.length===0 || value.includes('\0')) {
-    throw new Error(error);
-  }
 }
 
 function positiveSafeInteger(value:unknown,error:string):asserts value is number {
