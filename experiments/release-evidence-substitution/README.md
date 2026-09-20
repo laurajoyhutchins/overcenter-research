@@ -62,8 +62,9 @@ cluster before the experiment may claim a complexity win.
 
 ### Overcenter candidate
 
-The candidate uses the production `realizationObligationKey()` function to bind
-the semantic release intent and adds an experiment-local external-effect identity:
+The candidate now uses production `realizationObligationKey()`,
+`externalEffectIdentity()`, and the production certified Kubernetes Deployment
+verifier. The release application does not implement the identity joins itself:
 
 ```text
 obligation key
@@ -87,8 +88,10 @@ The observation must prove both the release obligation and the exact effect. A
 later healthy object belonging to another run is therefore valid Kubernetes
 evidence but invalid evidence for the proposition being settled.
 
-This experiment-local binding is **not production authority**. If it wins, the
-production boundary still needs an explicit design and proof before adoption.
+The Deployment evidence boundary is production code, but the hosted comparison
+still uses Temporal for orchestration. The experiment therefore does not yet
+establish that Overcenter replaces Temporal's durable coordination with fewer
+application-owned states.
 
 ## Pre-registered hostile schedule
 
@@ -138,12 +141,13 @@ The hosted comparison must report at least:
 
 | Metric | Conventional | Overcenter |
 | --- | ---: | ---: |
-| application-owned durable states | pending | pending |
-| application-owned recovery branches | pending | pending |
-| application-authored identity joins | pending | pending |
-| application LOC for release correctness | pending | pending |
-| reusable framework LOC touched | pending | pending |
-| false settlements under fault matrix | pending | pending |
+| application-owned durable states | no demonstrated excess | no demonstrated reduction |
+| application-owned recovery branches | 3 | 0 |
+| application-authored identity joins | 8 | 0 |
+| application LOC for release correctness | 51 | 3 |
+| reusable framework LOC introduced for this boundary | 0 | 199 |
+| false settlements under hostile schedule, unsafe baseline | 1 | 0 |
+| false settlements under hostile schedule, safe baseline | 0 | 0 |
 | surviving single-binding mutants | pending | pending |
 
 LOC is supporting evidence, not the conclusion. The primary simplification
@@ -204,9 +208,25 @@ The emitted result was `FALSE_ATTRIBUTION_REPRODUCED`. In the conventional
 path, release A settled true from evidence belonging to release B. Under exact
 binding, A did not settle and B did.
 
-This establishes the hosted false-attribution result. It still does not satisfy
-the full experiment success condition because the material-simplification metrics
-and production Overcenter Deployment binding remain pending.
+A later production-bound run, GitHub Actions run `35539531839` at
+`73698034866fc7f9dc3a93537ae8d92d51974a55`, replaced the experiment-local
+exact-binding predicate with `src/providers/kubernetes-deployment.ts`. The same
+live schedule passed again. The unsafe conventional recovery accepted B for A;
+a safe conventional implementation rejected it; and the production Overcenter
+verifier rejected A with
+`KUBERNETES_DEPLOYMENT_REALIZATION_IDENTITY_MISMATCH` while verifying B.
+
+The deterministic measurement in that run reported **51 vs 3** application
+correctness LOC, **8 vs 0** application-authored identity joins, and **3 vs 0**
+application-owned recovery branches for safe conventional versus Overcenter.
+The new reusable Overcenter Deployment verifier itself is **199 LOC**, so the
+experiment does not hide first-use framework cost.
+
+This is a strong positive result for moving release-specific correctness
+bookkeeping behind a reusable evidence boundary. It is **not yet the full
+pre-registered killer result**: the experiment has not demonstrated fewer
+application-owned durable coordination states, and the focused mutation proof is
+still required.
 
 ## Interpretation
 
