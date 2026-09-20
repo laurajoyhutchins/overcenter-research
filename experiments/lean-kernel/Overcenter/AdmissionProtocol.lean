@@ -98,6 +98,34 @@ Test-only comparison surface. It deliberately reuses the production parser but
 does not add another production command. The comparison executable built by the
 runtime experiment calls this function directly.
 -/
+private def mutationRunIdentity
+    (request : Json) (prefix : String) : Except String MutationRunIdentity := do
+  pure {
+    id := ← stringField request s!"{prefix}_id"
+    obligationId := ← stringField request s!"{prefix}_obligation_id"
+    claimedRevision := ← stringField request s!"{prefix}_claimed_revision"
+    claimCommit := ← stringField request s!"{prefix}_claim_commit"
+    obligationKey := ← stringField request s!"{prefix}_obligation_key"
+    executionGeneration := ← stringField request s!"{prefix}_execution_generation"
+    executionAuthorityCommit := ← stringField request s!"{prefix}_execution_authority_commit"
+    executionCapabilitySha256 := ← stringField request s!"{prefix}_execution_capability_sha256"
+  }
+
+private def mutationAuthorityComparison (request : Json) : Except String Json := do
+  let run ← mutationRunIdentity request "run"
+  let rawPermit ← mutationRunIdentity request "permit"
+  let permit : MutationPermitIdentity := {
+    toMutationRunIdentity := rawPermit
+    presentedCapabilitySha256 := ← stringField request "presented_capability_sha256"
+  }
+  let facts := projectMutationFacts run permit (← boolField request "unresolved_effect")
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-mutation-authority-comparison/v1"),
+    ("current_authority", facts.currentAuthority),
+    ("exact_revision", facts.exactRevision),
+    ("mutation_allowed", (step facts .mutate).isSome)
+  ]
+
 private def transactionKernelComparison (request : Json) : Except String Json := do
   let facts : TransactionFacts := {
     currentAuthority := ← boolField request "current_authority"
@@ -123,6 +151,8 @@ def handleComparisonJson (request : Json) : Except String Json := do
   let command ← stringField request "command"
   if command == "transaction-kernel" then
     transactionKernelComparison request
+  else if command == "mutation-authority" then
+    mutationAuthorityComparison request
   else
     if command != "claim-admission" then
       throw s!"unsupported command: {command}"
