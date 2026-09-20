@@ -1,36 +1,37 @@
-name: Overcenter agent ingress
+name: Overcenter agent mailbox
 
 on:
-  issue_comment:
-    types: [created]
+  workflow_run:
+    workflows: [Overcenter request signal]
+    types: [completed]
 
 permissions: {}
 
 concurrency:
-  group: overcenter-agent-ingress
+  group: overcenter-agent-mailbox
   cancel-in-progress: false
 
 jobs:
-  acquire:
-    name: Claim and publish one assignment
+  handle:
+    name: Handle silent agent request
     if: >-
-      github.event.issue.number == 150 &&
-      github.actor == github.repository_owner &&
-      github.event.comment.body == '/overcenter acquire'
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'overcenter/request/') &&
+      github.event.workflow_run.actor.login == github.repository_owner
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
-      issues: write
     env:
-      SOURCE_SHA: ${{ github.sha }}
-      REQUEST_COMMENT_ID: ${{ github.event.comment.id }}
+      REQUEST_REF: ${{ github.event.workflow_run.head_branch }}
+      REQUEST_EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
 
     steps:
-      - name: Checkout exact default-branch revision
+      - name: Checkout trusted default-branch adapter
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
 
       - name: Node 22.16
@@ -38,62 +39,106 @@ jobs:
         with:
           node-version-file: '.node-version'
 
+      - name: Read and validate exact request commit
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+          request_sha="${REQUEST_REF#overcenter/request/}"
+          [[ "$request_sha" =~ ^[0-9a-f]{40}$ ]]
+
+          git fetch --no-tags origin \
+            "refs/heads/$REQUEST_REF:refs/overcenter/request-input"
+          actual="$(git rev-parse refs/overcenter/request-input)"
+          test "$actual" = "$request_sha"
+          test "$actual" = "$REQUEST_EVENT_SHA"
+
+          source_sha="$(git rev-parse "$request_sha^")"
+          changed="$(git diff-tree --no-commit-id --name-only -r "$request_sha")"
+          test "$changed" = ".overcenter/request.json"
+          git show "$request_sha:.overcenter/request.json" > request.json
+
+          REQUEST_SHA="$request_sha" SOURCE_SHA="$source_sha" node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs=require('node:fs');
+          const request=JSON.parse(fs.readFileSync('request.json','utf8'));
+          const requestSha=process.env.REQUEST_SHA;
+          const sourceSha=process.env.SOURCE_SHA;
+          const exact=(keys)=>{
+            const actual=Object.keys(request).sort();
+            const expected=[...keys].sort();
+            if (JSON.stringify(actual)!==JSON.stringify(expected)) {
+              throw new Error('REQUEST_KEYS_INVALID');
+            }
+          };
+          if (request.schema!=='overcenter-github-agent-request/v1') {
+            throw new Error('REQUEST_SCHEMA_INVALID');
+          }
+          if (request.source_sha!==sourceSha) throw new Error('REQUEST_SOURCE_MISMATCH');
+          if (request.operation==='acquire') {
+            exact(['schema','operation','source_sha']);
+          } else if (request.operation==='submit') {
+            exact(['schema','operation','source_sha','target_request_sha','candidate_sha']);
+            if (!/^[0-9a-f]{40}$/.test(request.target_request_sha)) {
+              throw new Error('TARGET_REQUEST_SHA_INVALID');
+            }
+            if (!/^[0-9a-f]{40}$/.test(request.candidate_sha)) {
+              throw new Error('CANDIDATE_SHA_INVALID');
+            }
+            console.log(`target_request_sha=${request.target_request_sha}`);
+            console.log(`candidate_sha=${request.candidate_sha}`);
+          } else {
+            throw new Error('REQUEST_OPERATION_INVALID');
+          }
+          console.log(`request_sha=${requestSha}`);
+          console.log(`source_sha=${sourceSha}`);
+          console.log(`operation=${request.operation}`);
+          NODE
+
       - name: Verify reusable assignment contract
+        if: steps.request.outputs.operation == 'acquire'
         run: npm run test:assignment-capsule
 
       - name: Claim exact request and materialize assignment
-        id: acquire
-        run: |
-          set -euo pipefail
-          mkdir -p transport
-          node --experimental-strip-types bin/github-agent-ingress.ts \
-            --capsule-dir capsule \
-            --receipt receipt.json
-          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-            -cf transport/assignment.tar -C capsule .
-          capsule_sha256="$(sha256sum transport/assignment.tar | cut -d' ' -f1)"
-          printf '%s  assignment.tar\n' "$capsule_sha256" > transport/assignment.sha256
-          cp receipt.json transport/receipt.json
-          echo "capsule_sha256=$capsule_sha256" >> "$GITHUB_OUTPUT"
-
-      - name: Upload exact assignment
-        id: upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: ${{ steps.acquire.outputs.artifact_name }}
-          path: transport
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Publish connector-visible receipt
+        if: steps.request.outputs.operation == 'acquire'
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
-          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
-          CAPSULE_SHA256: ${{ steps.acquire.outputs.capsule_sha256 }}
+          REQUEST_ID: ${{ steps.request.outputs.request_sha }}
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
         run: |
           set -euo pipefail
-          node - <<'NODE' > comment.json
-          const fs=require('node:fs');
-          const receipt=JSON.parse(fs.readFileSync('receipt.json','utf8'));
-          receipt.workflow_run_id=process.env.GITHUB_RUN_ID;
-          receipt.workflow_run_attempt=process.env.GITHUB_RUN_ATTEMPT;
-          receipt.artifact_id=process.env.ARTIFACT_ID;
-          receipt.artifact_url=process.env.ARTIFACT_URL;
-          receipt.capsule_sha256=process.env.CAPSULE_SHA256;
-          const body=[
-            'OVERCENTER_ASSIGNMENT',
-            '',
-            '~~~json',
-            JSON.stringify(receipt,null,2),
-            '~~~',
-          ].join('\n');
-          process.stdout.write(JSON.stringify({body}));
-          NODE
-          curl --fail-with-body --silent --show-error \
-            -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/150/comments" \
-            --data-binary @comment.json
+          mkdir -p response/assignment
+          node --experimental-strip-types bin/github-agent-ingress.ts \
+            --capsule-dir response/assignment \
+            --receipt response/response.json
+
+      - name: Fetch exact untrusted candidate
+        if: steps.request.outputs.operation == 'submit'
+        env:
+          CANDIDATE_SHA: ${{ steps.request.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            "refs/heads/overcenter/candidate/$CANDIDATE_SHA:refs/overcenter/candidate-input"
+          test "$(git rev-parse refs/overcenter/candidate-input)" = "$CANDIDATE_SHA"
+          changed="$(git diff-tree --no-commit-id --name-only -r "$CANDIDATE_SHA")"
+          test "$changed" = ".overcenter/candidate.json"
+
+      - name: Validate candidate and settle through Overcenter
+        if: steps.request.outputs.operation == 'submit'
+        env:
+          REQUEST_ID: ${{ steps.request.outputs.request_sha }}
+          TARGET_REQUEST_SHA: ${{ steps.request.outputs.target_request_sha }}
+          CANDIDATE_SHA: ${{ steps.request.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p response
+          node --experimental-strip-types bin/github-agent-submit.ts \
+            --receipt response/response.json
+
+      - name: Publish immutable connector-visible response
+        env:
+          REQUEST_ID: ${{ steps.request.outputs.request_sha }}
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types bin/github-agent-publish-response.ts \
+            --response-dir response
