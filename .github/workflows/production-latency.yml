@@ -2,6 +2,9 @@ name: Production latency benchmark
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/production-latency
   pull_request:
     paths:
       - .github/workflows/production-latency.yml
