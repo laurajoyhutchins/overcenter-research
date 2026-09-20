@@ -18,7 +18,7 @@ import type {
   Postcondition,
 } from '../src/model.ts';
 import { effectSemantics } from '../src/semantics.ts';
-import { transactionAdmitted } from '../src/transaction-admission.ts';
+import { projectMutationAuthority, transactionAdmitted } from '../src/transaction-admission.ts';
 
 const oracleBin=process.env.LEAN_ORACLE_BIN;
 const oracleSha=process.env.LEAN_ORACLE_SHA;
@@ -39,6 +39,8 @@ type LeanComparison = {
   reference_dependencies_done?:boolean;
   optimized_effect_conflict?:boolean;
   reference_effect_conflict?:boolean;
+  current_authority?:boolean;
+  exact_revision?:boolean;
   mutation_allowed?:boolean;
   settlement_allowed?:boolean;
   replay_allowed?:boolean;
@@ -74,6 +76,7 @@ class LeanOracle {
             [
               'overcenter-lean-claim-admission-comparison/v1',
               'overcenter-lean-transaction-kernel-comparison/v1',
+              'overcenter-lean-mutation-authority-comparison/v1',
             ].includes(value.schema),
             'unexpected Lean oracle response schema',
           );
@@ -316,6 +319,64 @@ test('production transaction admission exhaustively agrees with proved Lean step
     await oracle.close();
   }
   console.log('LEAN_TRANSACTION_ORACLE '+JSON.stringify({states:1<<keys.length,oracle_sha:oracleSha}));
+});
+
+test('mutation authority projection exhaustively agrees with proved Lean projection',async()=>{
+  const oracle=new LeanOracle();
+  const run={
+    id:'run',obligation_id:'obligation',claimed_revision:'revision',
+    claim_commit:'claim',obligation_key:'key',execution_generation:7,
+    execution_authority_commit:'authority',execution_capability_sha256:'capability',
+  };
+  try{
+    for(let mask=0;mask<1<<10;mask+=1){
+      const bad=(bit:number)=>(mask&(1<<bit))!==0;
+      const permit={
+        ...run,
+        id:bad(0)?'other-run':run.id,
+        obligation_id:bad(1)?'other-obligation':run.obligation_id,
+        claimed_revision:bad(2)?'other-revision':run.claimed_revision,
+        claim_commit:bad(3)?'other-claim':run.claim_commit,
+        obligation_key:bad(4)?'other-key':run.obligation_key,
+        execution_generation:bad(5)?8:run.execution_generation,
+        execution_authority_commit:bad(6)?'other-authority':run.execution_authority_commit,
+        execution_capability_sha256:bad(7)?'other-capability':run.execution_capability_sha256,
+        execution_capability:'secret',
+      };
+      const presented=bad(8)?'other-presented-capability':run.execution_capability_sha256;
+      const unresolved=bad(9);
+      const projected=projectMutationAuthority(run,permit,presented,unresolved);
+      const observed=await oracle.compare({
+        command:'mutation-authority',
+        run_id:run.id,
+        run_obligation_id:run.obligation_id,
+        run_claimed_revision:run.claimed_revision,
+        run_claim_commit:run.claim_commit,
+        run_obligation_key:run.obligation_key,
+        run_execution_generation:String(run.execution_generation),
+        run_execution_authority_commit:run.execution_authority_commit,
+        run_execution_capability_sha256:run.execution_capability_sha256,
+        permit_id:permit.id,
+        permit_obligation_id:permit.obligation_id,
+        permit_claimed_revision:permit.claimed_revision,
+        permit_claim_commit:permit.claim_commit,
+        permit_obligation_key:permit.obligation_key,
+        permit_execution_generation:String(permit.execution_generation),
+        permit_execution_authority_commit:permit.execution_authority_commit,
+        permit_execution_capability_sha256:permit.execution_capability_sha256,
+        presented_capability_sha256:presented,
+        unresolved_effect:unresolved,
+      });
+      assert.equal(observed.current_authority,projected.current_authority,`authority mask=${mask}`);
+      assert.equal(observed.exact_revision,projected.exact_revision,`revision mask=${mask}`);
+      assert.equal(observed.mutation_allowed,transactionAdmitted({
+        command:'mutate',...projected,
+      }),`mutation projection mask=${mask}`);
+    }
+  }finally{
+    await oracle.close();
+  }
+  console.log('LEAN_MUTATION_AUTHORITY_ORACLE '+JSON.stringify({classes:1<<10,oracle_sha:oracleSha}));
 });
 
 test('production kernel enforces transaction admission at the effect boundary',()=>{
