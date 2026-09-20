@@ -238,16 +238,24 @@ export function analyze({root,config}){
       if(ts.isCallExpression(node)||ts.isNewExpression(node)){
         const caller=unitForNode(node.parent,nodeToUnit);
         if(caller){
-          const externalCallback=parameterBoundCall(node.expression);
-          const sig=externalCallback?null:checker.getResolvedSignature(node);
+          const parameterCallback=parameterBoundCall(node.expression);
+          const sig=parameterCallback?null:checker.getResolvedSignature(node);
           let decl=sig?.declaration??null;
           let callee=decl?unitForNode(decl,nodeToUnit):null;
           if(!callee && decl && ts.isVariableDeclaration(decl) && decl.initializer && isCallable(decl.initializer)) callee=nodeToUnit.get(decl.initializer)??null;
           const polymorphicTargets=!callee && decl ? concreteDispatchTargets(decl,units,checker) : [];
-          if(externalCallback){
-            externalCalls++;
-            bump(caller,'externalCalls');
-            bump(caller,'externalCallbackCalls');
+          if(parameterCallback){
+            unknownCalls++;
+            bump(caller,'unknownCalls');
+            const lc=sf.getLineAndCharacterOfPosition(node.getStart(sf));
+            unresolvedCallsites.push({
+              kind:'parameter-callback',
+              caller:caller.id,
+              file:rel(root,sf.fileName),
+              line:lc.line+1,
+              expression:node.expression?.getText(sf)??node.getText(sf).slice(0,120),
+              declaration_file:null,
+            });
           } else if(callee){
             edges.get(caller.id).add(callee.id);
             resolvedInternalCalls++;
