@@ -435,7 +435,14 @@ export const GITHUB_ISSUE_OPERATION:GithubObservationOperation={
             "format": "date-time"
           },
           "pull_request": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "nullable": false,
+                "format": "uri"
+              }
+            }
           }
         }
       }
@@ -1711,6 +1718,21 @@ export const GITHUB_PULL_REQUEST_REVIEWS_OPERATION:GithubObservationOperation={
             "commit_id": {
               "type": "string",
               "nullable": true
+            },
+            "user": {
+              "type": "object",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              }
+            },
+            "body": {
+              "type": "string"
+            },
+            "submitted_at": {
+              "type": "string",
+              "format": "date-time"
             }
           }
         }
@@ -1838,6 +1860,42 @@ export const GITHUB_PULL_REQUEST_REVIEW_COMMENTS_OPERATION:GithubObservationOper
             "commit_id": {
               "type": "string"
             },
+            "user": {
+              "type": "object",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              }
+            },
+            "body": {
+              "type": "string"
+            },
+            "line": {
+              "type": "integer"
+            },
+            "side": {
+              "type": "string",
+              "enum": [
+                "LEFT",
+                "RIGHT"
+              ]
+            },
+            "start_line": {
+              "type": "integer",
+              "nullable": true
+            },
+            "start_side": {
+              "type": "string",
+              "enum": [
+                "LEFT",
+                "RIGHT"
+              ],
+              "nullable": true
+            },
+            "in_reply_to_id": {
+              "type": "integer"
+            },
             "updated_at": {
               "type": "string",
               "format": "date-time"
@@ -1936,6 +1994,21 @@ export const GITHUB_ISSUE_COMMENTS_OPERATION:GithubObservationOperation={
             },
             "node_id": {
               "type": "string"
+            },
+            "user": {
+              "type": "object",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              }
+            },
+            "body": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
             },
             "updated_at": {
               "type": "string",
@@ -2225,6 +2298,16 @@ export const GITHUB_ISSUES_OPERATION:GithubObservationOperation={
             "title": {
               "type": "string"
             },
+            "pull_request": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "nullable": false,
+                  "format": "uri"
+                }
+              }
+            },
             "updated_at": {
               "type": "string",
               "format": "date-time"
@@ -2369,6 +2452,17 @@ export const GITHUB_PULL_REQUESTS_OPERATION:GithubObservationOperation={
             },
             "state": {
               "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "user": {
+              "type": "object",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              }
             },
             "head": {
               "type": "object",
