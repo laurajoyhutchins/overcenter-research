@@ -584,9 +584,11 @@
         "Provider I/O and local Overcenter work are reported separately."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "historical",
+        "evaluated_revision": "d4673429b490ebf4e50988dd34fdc9ee91cb2bf8",
         "artifacts": [
-          ".github/workflows/production-latency.yml"
+          "GitHub Actions run 35539821372: 25-sample deterministic baseline and 3-sample live GitHub latency decomposition passed.",
+          "experiments/production-latency/results/2026-09-20.md"
         ]
       },
       "interpretation": "Use the result as a single-operation latency decomposition. Compare provider and Overcenter-local cost; do not extrapolate it directly to concurrency or large-history throughput.",
