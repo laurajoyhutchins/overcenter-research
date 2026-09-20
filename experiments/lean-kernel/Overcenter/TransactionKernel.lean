@@ -121,7 +121,7 @@ theorem reservation_replay_sound
     reservation.executionGeneration = run.executionGeneration ∧
     reservation.executionAuthorityCommit = run.executionAuthorityCommit ∧
     unresolvedEffect = false := by
-  simpa [reservationReplayAllowed] using h
+  simpa [reservationReplayAllowed, and_assoc] using h
 
 def mutationAllowed (s : TransactionFacts) : Bool :=
   s.currentAuthority && s.exactRevision && !s.unresolvedEffect
@@ -226,7 +226,7 @@ theorem projected_mutation_sound
     currentMutationAuthority run permit = true ∧
     exactMutationRevision run permit = true ∧
     unresolvedEffect = false := by
-  simpa [mutationAllowed, projectMutationFacts] using h
+  simpa [mutationAllowed, projectMutationFacts, and_assoc] using h
 
 theorem step_refines
     {s s' : TransactionFacts}
