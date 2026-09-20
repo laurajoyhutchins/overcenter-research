@@ -138,7 +138,7 @@ export function externalEffectIdentity(
   if (contract.reuse_mode!=='external-effect') {
     throw new Error('EXTERNAL_EFFECT_IDENTITY_REQUIRES_EXTERNAL_EFFECT');
   }
-  if (!runId || runId.includes('\\0')) throw new Error('RUN_ID_INVALID');
+  if (!runId || runId.includes('\u0000')) throw new Error('RUN_ID_INVALID');
   return canonicalDigest({
     schema:EXTERNAL_EFFECT_IDENTITY_SCHEMA,
     obligation_key:realizationObligationKey(contract),
