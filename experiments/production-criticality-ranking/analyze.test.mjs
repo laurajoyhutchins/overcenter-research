@@ -113,3 +113,22 @@ test('fails closed when the static graph becomes blind at critical callables or 
     /graph resolution for production fell below floor/,
   );
 });
+
+
+test('does not treat unresolved external imports as production graph blindness',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-external-'));
+  write(root,'src/core.ts',`import {randomUUID} from 'node:crypto';\nexport function settle(){ return randomUUID().length; }\nexport function recover(){ return settle(); }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
+  const config={
+    requiredEvidenceTiers:[],
+    graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:true},
+    authorityClasses:[{id:'settlement',sink:{file:'src/core.ts',name:'settle'},recoveryClass:5}],
+    recoveryScenarios:[{id:'recover-settle',entry:{file:'src/core.ts',name:'recover'},terminal:{file:'src/core.ts',name:'settle'}}],
+    requiredCalibrationPairs:[],
+    diagnosticCalibrationPairs:[],
+  };
+  const r=analyze({root,config});
+  assert.equal(r.analyzer.byScope.production.unknownCalls,0);
+  assert.equal(r.analyzer.byScope.production.externalCalls,1);
+  assert.equal(r.analyzer.byScope.production.internalResolutionRate,1);
+});
