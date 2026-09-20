@@ -46,6 +46,7 @@ test('binds mutation claims to a successful artifact while reporting current sta
     source_run:{
       revision,
       workflow_run_id:123,
+      artifact_digest:'sha256:'+'b'.repeat(64),
       mutation_report_sha256:sha256(reportBytes),
     },
     probes:[{
@@ -64,6 +65,13 @@ test('binds mutation claims to a successful artifact while reporting current sta
   assert.deepEqual(
     verifyMutationEvidence({root,committed,report,reportBytes,resolved}),
     {workflowRunId:123,revision,probes:1,stale:[]},
+  );
+
+  const missingArtifactDigest=structuredClone(committed);
+  delete missingArtifactDigest.source_run.artifact_digest;
+  assert.throws(
+    ()=>verifyMutationEvidence({root,committed:missingArtifactDigest,report,reportBytes,resolved}),
+    /trusted-run provenance/,
   );
 
   const forged=structuredClone(committed);
