@@ -1,0 +1,12 @@
+{
+  "schema": "overcenter-git-effect-reservation-v2",
+  "run_id": "07d14b6b-5dcc-47bb-ae09-d8310238e89b",
+  "obligation_id": "provider-capability-confinement-35481237150-1",
+  "execution_generation": 2,
+  "execution_authority_commit": "2118e82818a339ae2a6e02e0f504598aab6c5bf2",
+  "effect_contract": "github-commit-status/set-from-postcondition/v1",
+  "adapter_contract_digest": "95c7beb518a1704854dd78ac12ae166fff51990ba32c18afb53ab4fbbe081c6b",
+  "effect_digest": "e362c126ca02b7b50743a813ad2e8e5640ec948b26b1736fb53137e7896d4c6a",
+  "realization_commit": "03d5d98f62ec28327b05bb7ec0ca9b9f016892ef",
+  "realization_digest": "bd3e834484e747d5f0c51d6b3b6c704a848261986ceb3e28ff34c7938f843322"
+}
