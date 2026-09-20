@@ -135,6 +135,16 @@ independent manifestations        3 -> 3
 
 The earlier 3-to-2 result is superseded, not additive evidence.
 
+## Current-contract drift correction
+
+A later exact-head run against current production caught one more stale structural
+assumption: production had removed the legacy `github-commit-status/v1` verifier
+while this experimental ontology still listed it. The experiment failed closed on
+the enum mismatch. Removing that obsolete permissible value restored exact
+agreement; run `35485610531` passed 6/6 at
+`fc99ed6e44f4b07f07a72d689b2d4caed5919be8` and retained the corrected **3 -> 3**
+maintenance result.
+
 ## Interpretation
 
 A positive result supports LinkML as a source for the tested JSON Schema
