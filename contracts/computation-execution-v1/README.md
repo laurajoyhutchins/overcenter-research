@@ -61,6 +61,8 @@ At execution time the workspace root is pinned as an open directory. The cwd is 
 
 The contract binds the exact executable **path string**, not the executable file contents. Replayable production workloads therefore bind a separate execution-context digest over the immutable image/source and containment profile before execution authority is granted. Production deployment must therefore provide executable/toolchain paths from task-immutable image or mount content. Binding toolchain bytes, if required for a workload class, belongs in the authority-side input identity rather than being inferred by Go.
 
+Authority-side production admission accepts only replay-safe test packets carrying that execution-context digest. Legacy unbound test packets fail before a durable claim is opened; recovery must match the same bound context before execution generation may rotate.
+
 ## Evidence
 
 `overcenter-computation-attempt-evidence-v1` is attempt evidence, not settlement authority. It reports exact execution identity, process outcome, exit/signal information, and bounded stdout/stderr captures plus full-stream digests.

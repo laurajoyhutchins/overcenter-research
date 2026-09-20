@@ -21,7 +21,7 @@ import {
   type ProcessSpecV1,
 } from '../src/computation-execution.ts';
 import {
-  TEST_COMPUTATION_PACKET_SCHEMA,
+  REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
   runReadyTestComputation,
   type ComputationExecutor,
 } from '../src/computation-runner.ts';
@@ -296,14 +296,16 @@ const regressionMarker=join(attestations,'regression.passed');
 const regressionContent=`passed:regression:${sourceSha}\n`;
 const experimentsMarker=join(attestations,'experiments.passed');
 const experimentsContent=`passed:experiments:${sourceSha}\n`;
+const selfApplicationExecutionContextSha256=executionContextSha256();
 
 const kernel=new OvercenterKernel(stateDatabase);
 kernel.initialize();
 kernel.define({
   id:'self-regression',
   packet:{
-    schema:TEST_COMPUTATION_PACKET_SCHEMA,
+    schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
     kind:'test',
+    execution_context_sha256:selfApplicationExecutionContextSha256,
     process_spec:processSpec('regression'),
   },
   postcondition:{
@@ -316,8 +318,9 @@ kernel.define({
   id:'self-experiments',
   dependencies:[{kind:'control',upstream:'self-regression'}],
   packet:{
-    schema:TEST_COMPUTATION_PACKET_SCHEMA,
+    schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
     kind:'test',
+    execution_context_sha256:selfApplicationExecutionContextSha256,
     process_spec:processSpec('experiments'),
   },
   postcondition:{
