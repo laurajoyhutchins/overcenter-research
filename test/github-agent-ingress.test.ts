@@ -19,8 +19,9 @@ test('duplicate GitHub request reconstructs the same exact claim',()=>{
   try {
     const remote=join(root,'remote.git');
     const work=join(root,'work');
-    execFileSync('git',['clone','--bare','.',remote],{stdio:'ignore'});
-    execFileSync('git',['clone',remote,work],{stdio:'ignore'});
+    execFileSync('git',['init','--bare',remote],{stdio:'ignore'});
+    execFileSync('git',['push',remote,'HEAD:refs/heads/main'],{stdio:'ignore'});
+    execFileSync('git',['clone','--branch','main',remote,work],{stdio:'ignore'});
     const sourceSha=execFileSync('git',['-C',work,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
     const env={
       REQUEST_COMMENT_ID:'424242',
