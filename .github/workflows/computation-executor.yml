@@ -37,4 +37,4 @@ jobs:
           rustup toolchain install "$channel" --profile minimal --no-self-update
           test "$(rustc --version | awk '{print $2}')" = "$channel"
       - name: Production slice proof
-        run: npm run proof:production
+        run: npm run proof:production-boundary
