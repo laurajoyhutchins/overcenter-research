@@ -23,17 +23,19 @@ import {
   KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
 } from '../src/providers/kubernetes-configmap.ts';
 
-const filePostcondition=(verifier:
-  | 'file-content-equals/v1'
-  | 'eventually-consistent-file-content-equals/v1'
-):Postcondition=>({
+type FilePostcondition=Extract<
+  Postcondition,
+  {verifier:'file-content-equals/v1'|'eventually-consistent-file-content-equals/v1'}
+>;
+
+const filePostcondition=(verifier:FilePostcondition['verifier']):FilePostcondition=>({
   verifier,
   path:'/tmp/target.txt',
   content:'expected-content',
 });
 
 const fileObservation=(
-  postcondition:Extract<Postcondition,{path:string;content:string}>,
+  postcondition:FilePostcondition,
   overrides:Partial<Observation>={},
 ):Observation=>({
   verifier:postcondition.verifier,
