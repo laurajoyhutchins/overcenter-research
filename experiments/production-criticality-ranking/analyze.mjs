@@ -117,18 +117,16 @@ function git(root,args,opts={}){
   return execFileSync('git',args,{cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe'],...opts}).trim();
 }
 function blameTimes(root,file){
-  try{
-    const text=git(root,['blame','--line-porcelain','--',file]);
-    const times=new Map();
-    let lineNo=null;
-    for(const line of text.split('\n')){
-      const h=line.match(/^[0-9a-f^]{40}\s+\d+\s+(\d+)(?:\s+\d+)?$/);
-      if(h){lineNo=Number(h[1]);continue;}
-      const t=line.match(/^author-time\s+(\d+)$/);
-      if(t && lineNo!==null) times.set(lineNo,Number(t[1]));
-    }
-    return times;
-  }catch{return new Map();}
+  const text=git(root,['blame','--line-porcelain','--',file]);
+  const times=new Map();
+  let lineNo=null;
+  for(const line of text.split('\n')){
+    const h=line.match(/^[0-9a-f^]{40}\\s+\\d+\\s+(\\d+)(?:\\s+\\d+)?$/);
+    if(h){lineNo=Number(h[1]);continue;}
+    const t=line.match(/^author-time\\s+(\\d+)$/);
+    if(t && lineNo!==null) times.set(lineNo,Number(t[1]));
+  }
+  return times;
 }
 function selectOne(units,selector,label){
   const matches=units.filter(u=>u.file===selector.file && (selector.qualifiedName?u.qualifiedName===selector.qualifiedName:u.name===selector.name));
@@ -237,11 +235,19 @@ export function analyze({root,config}){
   for(const [u,vs] of prodEdges) for(const v of vs) reverse.get(v).add(u);
 
   const mutationEvidenceByUnit=new Map();
-  const mutationEvidenceStatus={applied:[],stale:[]};
+  const mutationEvidenceStatus={applied:[],stale:[],missing:[]};
   if(config.mutationEvidenceFile){
     const evidencePath=path.join(root,config.mutationEvidenceFile);
     const snapshot=JSON.parse(fs.readFileSync(evidencePath,'utf8'));
     if(snapshot.schema!=='overcenter-criticality-mutation-evidence/v1') throw new Error(`unsupported mutation evidence schema: ${snapshot.schema}`);
+    const sourceRun=snapshot.source_run;
+    if(!sourceRun
+      || !/^[0-9a-f]{40}$/.test(sourceRun.revision??'')
+      || !Number.isInteger(sourceRun.workflow_run_id)
+      || sourceRun.workflow_run_id<=0
+      || !/^sha256:[0-9a-f]{64}$/.test(sourceRun.mutation_report_sha256??'')){
+      throw new Error('mutation evidence is missing trusted-run provenance fields');
+    }
     for(const probe of snapshot.probes??[]){
       const selected=(probe.selectors??[]).map(selector=>selectOne(production,selector,`mutation-evidence:${probe.id}`));
       const staleFiles=[];
@@ -264,6 +270,41 @@ export function analyze({root,config}){
 
   const authority=config.authorityClasses.map(a=>({...a,unit:selectOne(production,a.sink,`authority:${a.id}`)}));
   const recovery=config.recoveryScenarios.map(s=>({...s,entryUnit:selectOne(production,s.entry,`recovery:${s.id}:entry`),terminalUnit:selectOne(production,s.terminal,`recovery:${s.id}:terminal`)}));
+  const resolveCalibration=(pairs,kind)=>(pairs??[]).map(c=>({
+    ...c,
+    kind,
+    higherUnit:selectOne(production,c.higher,`calibration:${c.id}:higher`),
+    lowerUnit:selectOne(production,c.lower,`calibration:${c.id}:lower`),
+  }));
+  const requiredCalibration=resolveCalibration(config.requiredCalibrationPairs,'required');
+  const diagnosticCalibration=resolveCalibration(config.diagnosticCalibrationPairs,'diagnostic');
+  const allCalibration=[...requiredCalibration,...diagnosticCalibration];
+
+  const resolutionByScope=Object.fromEntries(Object.entries(callStats).map(([scope,stats])=>{
+    const denominator=stats.resolvedInternalCalls+stats.unresolvedInternalCalls+stats.unknownCalls;
+    return [scope,{...stats,internalResolutionRate:denominator?stats.resolvedInternalCalls/denominator:1}];
+  }));
+  for(const [scope,minimum] of Object.entries(config.graphQuality?.minimumResolution??{})){
+    const actual=resolutionByScope[scope]?.internalResolutionRate;
+    if(actual===undefined) throw new Error(`graph quality names unknown scope ${scope}`);
+    if(actual<minimum) throw new Error(`graph resolution for ${scope} fell below floor: ${actual.toFixed(4)} < ${Number(minimum).toFixed(4)}`);
+  }
+  const criticalUnits=new Set([
+    ...authority.map(a=>a.unit.id),
+    ...recovery.flatMap(s=>[s.entryUnit.id,s.terminalUnit.id]),
+    ...allCalibration.flatMap(c=>[c.higherUnit.id,c.lowerUnit.id]),
+  ]);
+  const criticalUnresolved=unresolvedCallsites.filter(c=>criticalUnits.has(c.caller));
+  if((config.graphQuality?.failOnCriticalUnresolved??true) && criticalUnresolved.length){
+    const first=criticalUnresolved[0];
+    throw new Error(`critical callable has unresolved callsite: ${first.caller} -> ${first.expression} at ${first.file}:${first.line}`);
+  }
+  const requiredMutationUnits=new Set([
+    ...authority.map(a=>a.unit.id),
+    ...recovery.map(s=>s.terminalUnit.id),
+    ...allCalibration.flatMap(c=>[c.higherUnit.id,c.lowerUnit.id]),
+  ]);
+
   const scenarioDominators=new Map();
   for(const s of recovery){
     const d=dominators(s.entryUnit.id,prodEdges);
@@ -307,8 +348,17 @@ export function analyze({root,config}){
     if(requiredEvidenceTiers.includes('test') && testEntrypoints.some(t=>allReach(t.id).has(u.id))) tiers.push('test');
     if(requiredEvidenceTiers.includes('experiment') && experimentEntrypoints.some(t=>allReach(t.id).has(u.id))) tiers.push('experiment');
     const reachabilityGap=requiredEvidenceTiers.length?1-(tiers.length/requiredEvidenceTiers.length):0;
+    const mutationRequired=requiredMutationUnits.has(u.id);
     const mutationEvidence=mutationEvidenceByUnit.get(u.id)??null;
-    const mutationGap=mutationEvidence?1-mutationEvidence.mutationScore:0;
+    let mutationGap=0;
+    let mutationRecord=mutationEvidence;
+    if(mutationEvidence){
+      mutationGap=1-mutationEvidence.mutationScore;
+    } else if(mutationRequired){
+      mutationGap=1;
+      mutationRecord={probeId:null,mutationScore:0,status:'missing',sourceRun:null};
+      mutationEvidenceStatus.missing.push({unit:u.id});
+    }
     const E=Math.max(reachabilityGap,mutationGap);
     const entrypoints=prodEntrypoints.filter(e=>prodReach(e.id).has(u.id));
     const X=prodEntrypoints.length?entrypoints.length/prodEntrypoints.length:0;
@@ -325,7 +375,7 @@ export function analyze({root,config}){
       authorityInfluence,
       dominatedRecoveryScenarios:dominated,
       evidenceTiers:tiers,
-      evidence:{reachabilityGap,mutation:mutationEvidence},
+      evidence:{reachabilityGap,mutation:mutationRecord,mutationRequired},
       productionEntrypoints:entrypoints.map(e=>e.id),
       raw:{directDependents:direct,transitiveDependents:dependents.length},
       vector:{A,B,I,F,R,E,X,C},
@@ -362,11 +412,14 @@ export function analyze({root,config}){
   [...metrics].sort((a,b)=>b.attentionScore-a.attentionScore||a.id.localeCompare(b.id))
     .forEach((m,i)=>m.attentionRank=i+1);
 
-  const calibrations=(config.calibrationPairs??[]).map(c=>{
-    const higher=selectOne(metrics,c.higher,`calibration:${c.id}:higher`);
-    const lower=selectOne(metrics,c.lower,`calibration:${c.id}:lower`);
-    return {id:c.id,higher:higher.id,lower:lower.id,higherScore:higher.consequenceScore,lowerScore:lower.consequenceScore,pass:higher.consequenceScore>lower.consequenceScore,rationale:c.rationale??null};
-  });
+  const metricById=new Map(metrics.map(m=>[m.id,m]));
+  const evaluateCalibration=c=>{
+    const higher=metricById.get(c.higherUnit.id);
+    const lower=metricById.get(c.lowerUnit.id);
+    return {id:c.id,kind:c.kind,higher:higher.id,lower:lower.id,higherScore:higher.consequenceScore,lowerScore:lower.consequenceScore,pass:higher.consequenceScore>lower.consequenceScore,rationale:c.rationale??null};
+  };
+  const requiredCalibrations=requiredCalibration.map(evaluateCalibration);
+  const diagnosticCalibrations=diagnosticCalibration.map(evaluateCalibration);
   return {
     schema:'overcenter-production-callable-criticality-experiment/v1',
     revision:git(root,['rev-parse','HEAD']),
@@ -378,10 +431,7 @@ export function analyze({root,config}){
       unresolvedInternalCalls,
       externalCalls,
       unknownCalls,
-      byScope:Object.fromEntries(Object.entries(callStats).map(([scope,stats])=>{
-        const denominator=stats.resolvedInternalCalls+stats.unresolvedInternalCalls+stats.unknownCalls;
-        return [scope,{...stats,internalResolutionRate:denominator?stats.resolvedInternalCalls/denominator:1}];
-      })),
+      byScope:resolutionByScope,
       mutationEvidence:mutationEvidenceStatus,
       unresolvedCallsites:unresolvedCallsites
         .sort((a,b)=>{
@@ -396,7 +446,20 @@ export function analyze({root,config}){
         : 1,
     },
     population:{productionCallables:production.length,testCallables:testEntrypoints.length,experimentCallables:experimentEntrypoints.length,productionEntrypoints:prodEntrypoints.length},
-    calibration:{passed:calibrations.filter(x=>x.pass).length,total:calibrations.length,agreement:calibrations.length?calibrations.filter(x=>x.pass).length/calibrations.length:1,pairs:calibrations},
+    calibration:{
+      required:{
+        passed:requiredCalibrations.filter(x=>x.pass).length,
+        failed:requiredCalibrations.filter(x=>!x.pass).length,
+        total:requiredCalibrations.length,
+        pairs:requiredCalibrations,
+      },
+      diagnostic:{
+        passed:diagnosticCalibrations.filter(x=>x.pass).length,
+        failed:diagnosticCalibrations.filter(x=>!x.pass).length,
+        total:diagnosticCalibrations.length,
+        pairs:diagnosticCalibrations,
+      },
+    },
     ranking:metrics.map(({node,...m})=>({
       ...m,
       vector:Object.fromEntries(Object.entries(m.vector).map(([k,v])=>[k,round(v)])),
@@ -412,7 +475,7 @@ export function markdown(report,top=30){
     '',
     `Revision: \`${report.revision}\``,
     '',
-    `Population: ${report.population.productionCallables} production callables. Calibration: ${report.calibration.passed}/${report.calibration.total} (${(100*report.calibration.agreement).toFixed(1)}%). Production call resolution: ${(100*report.analyzer.byScope.production.internalResolutionRate).toFixed(1)}%; evidence-call resolution: test ${(100*report.analyzer.byScope.test.internalResolutionRate).toFixed(1)}%, experiment ${(100*report.analyzer.byScope.experiment.internalResolutionRate).toFixed(1)}%.`,
+    `Population: ${report.population.productionCallables} production callables. Required calibration: ${report.calibration.required.passed}/${report.calibration.required.total}; diagnostic calibration: ${report.calibration.diagnostic.passed}/${report.calibration.diagnostic.total}. Production call resolution: ${(100*report.analyzer.byScope.production.internalResolutionRate).toFixed(1)}%; evidence-call resolution: test ${(100*report.analyzer.byScope.test.internalResolutionRate).toFixed(1)}%, experiment ${(100*report.analyzer.byScope.experiment.internalResolutionRate).toFixed(1)}%.`,
     '',
     '| Consequence rank | Attention rank | Production callable | Consequence | Attention | A | B | I | F | R | E | X | C |',
     '| ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
@@ -426,9 +489,13 @@ export function markdown(report,top=30){
     lines.push(`Applied probes: ${report.analyzer.mutationEvidence.applied.length}; stale probes: ${report.analyzer.mutationEvidence.stale.length}.`);
     for(const p of report.analyzer.mutationEvidence.stale) lines.push(`- stale ${p.id}: ${p.staleFiles.map(f=>f.file).join(', ')}`);
   }
-  const failed=report.calibration.pairs.filter(x=>!x.pass);
-  lines.push('','## Calibration', '', failed.length?`Failed ${failed.length} pair(s):`:'All calibration pairs passed.');
-  for(const p of failed) lines.push(`- ${p.id}: expected ${p.higher} (${p.higherScore.toFixed(2)}) > ${p.lower} (${p.lowerScore.toFixed(2)})`);
+  const requiredFailed=report.calibration.required.pairs.filter(x=>!x.pass);
+  const diagnosticFailed=report.calibration.diagnostic.pairs.filter(x=>!x.pass);
+  lines.push('','## Calibration','',
+    requiredFailed.length?`Required regressions failed: ${requiredFailed.length}.`:'All required calibration regressions passed.',
+    diagnosticFailed.length?`Diagnostic disagreements: ${diagnosticFailed.length}.`:'All diagnostic calibration pairs currently agree.');
+  for(const p of requiredFailed) lines.push(`- required ${p.id}: expected ${p.higher} (${p.higherScore.toFixed(2)}) > ${p.lower} (${p.lowerScore.toFixed(2)})`);
+  for(const p of diagnosticFailed) lines.push(`- diagnostic ${p.id}: expected ${p.higher} (${p.higherScore.toFixed(2)}) > ${p.lower} (${p.lowerScore.toFixed(2)})`);
   if(report.analyzer.unresolvedCallsites?.length){
     lines.push('','## Unresolved internal / unknown callsites','');
     for(const c of report.analyzer.unresolvedCallsites.slice(0,30)){
@@ -439,7 +506,7 @@ export function markdown(report,top=30){
 }
 
 function parseArgs(argv){
-  const out={root:process.cwd(),config:null,json:null,markdown:null,top:30,minCalibration:null};
+  const out={root:process.cwd(),config:null,json:null,markdown:null,top:30};
   for(let i=2;i<argv.length;i++){
     const a=argv[i];
     if(a==='--root') out.root=path.resolve(argv[++i]);
@@ -447,7 +514,6 @@ function parseArgs(argv){
     else if(a==='--json') out.json=path.resolve(argv[++i]);
     else if(a==='--markdown') out.markdown=path.resolve(argv[++i]);
     else if(a==='--top') out.top=Number(argv[++i]);
-    else if(a==='--min-calibration') out.minCalibration=Number(argv[++i]);
     else throw new Error(`unknown argument: ${a}`);
   }
   if(!out.config) throw new Error('--config is required');
@@ -462,5 +528,5 @@ if(import.meta.url===pathToFileURL(process.argv[1]).href){
   if(args.json) fs.writeFileSync(args.json,JSON.stringify(report,null,2)+'\n');
   if(args.markdown) fs.writeFileSync(args.markdown,md);
   process.stdout.write(md);
-  if(args.minCalibration!==null && report.calibration.agreement<args.minCalibration) process.exitCode=1;
+  if(report.calibration.required.failed>0) process.exitCode=1;
 }
