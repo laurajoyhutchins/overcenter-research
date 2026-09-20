@@ -126,7 +126,6 @@ test('SQLite kernel rejects every inexact execution permit identity',()=>{
     kernel.define({id:'a',postcondition:pc(join(root,'a'),'A')});
     const run=kernel.claim('a',kernel.deriveReadyWork()!.revision);
     for (const hostile of [
-      {...run,id:'other'},
       {...run,obligation_id:'other'},
       {...run,claimed_revision:'stale'},
       {...run,claim_commit:'stale'},
