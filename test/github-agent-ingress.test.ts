@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
-import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
+import {execFileSync,spawnSync} from 'node:child_process';
+import {mkdirSync,mkdtempSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
@@ -19,10 +19,20 @@ test('duplicate GitHub request reconstructs the same exact claim',()=>{
   try {
     const remote=join(root,'remote.git');
     const work=join(root,'work');
+    mkdirSync(work);
+    const archive=execFileSync('git',['archive','--format=tar','HEAD'],{maxBuffer:64*1024*1024});
+    const extracted=spawnSync('tar',['-xf','-','-C',work],{input:archive});
+    assert.equal(extracted.status,0,extracted.stderr?.toString('utf8'));
+
+    execFileSync('git',['-C',work,'init','--initial-branch=main'],{stdio:'ignore'});
+    execFileSync('git',['-C',work,'config','user.name','Overcenter Test'],{stdio:'ignore'});
+    execFileSync('git',['-C',work,'config','user.email','overcenter-test@local'],{stdio:'ignore'});
+    execFileSync('git',['-C',work,'add','.'],{stdio:'ignore'});
+    execFileSync('git',['-C',work,'commit','-m','seed ingress test repository'],{stdio:'ignore'});
+
     execFileSync('git',['init','--bare',remote],{stdio:'ignore'});
-    execFileSync('git',['-C',remote,'fetch',process.cwd(),'HEAD:refs/heads/main'],{stdio:'ignore'});
-    execFileSync('git',['-C',remote,'symbolic-ref','HEAD','refs/heads/main'],{stdio:'ignore'});
-    execFileSync('git',['clone','--branch','main',remote,work],{stdio:'ignore'});
+    execFileSync('git',['-C',work,'remote','add','origin',remote],{stdio:'ignore'});
+    execFileSync('git',['-C',work,'push','-u','origin','main'],{stdio:'ignore'});
     const sourceSha=execFileSync('git',['-C',work,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
     const env={
       REQUEST_COMMENT_ID:'424242',
