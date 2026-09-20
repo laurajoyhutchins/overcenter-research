@@ -37,3 +37,20 @@ The hosted workflow runs on Ubuntu with the exact repository Node version and a 
 - It does not establish a portable throughput constant.
 - It does not prove fairness after any scheduler repair.
 - It does not justify sharding, replication, or consensus without a measured bottleneck.
+
+## Hosted result
+
+Exact evaluated revision: `f789fd6cbae0324756aac509482f9c1d6f6e9b5f`
+
+GitHub Actions run: `35540486815` on Ubuntu 24.04 / Node 22.16.0.
+
+The fairness counterexample reproduced exactly: eight consecutive scheduling decisions selected `a` while continuously READY `b` was never selected.
+
+| Workers | Tasks/s | Speedup | Parallel efficiency | Contention retries |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 7.927 | 1.000x | 1.000 | 0 |
+| 2 | 8.064 | 1.017x | 0.509 | 34 |
+| 4 | 4.126 | 0.520x | 0.130 | 105 |
+| 8 | 2.254 | 0.284x | 0.036 | 245 |
+
+The current transaction path therefore does not demonstrate N-way scheduler scaling on this workload. Two workers provide essentially no throughput gain; additional workers invert scaling while authority contention rises sharply. This identifies the serialized authority/projection path as a real optimization target before distributed/HA machinery is justified.
