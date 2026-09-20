@@ -597,7 +597,7 @@ provenance    provider contract + structural page certificates
 
 A partial LIST, broken continuation chain, or broken WATCH continuity cannot mint that certificate.
 
-Durable receipt semantics are versioned at this boundary. Receipt v4 requires certificate-backed negative evidence. Existing v3 receipts remain replayable under their historical interpretation rather than silently changing meaning.
+Durable receipts use the current receipt-v5 observation vocabulary at this boundary. A negative observation can settle back to READY only when it carries verifier-accepted authoritative absence evidence.
 
 ## 9. Observation
 

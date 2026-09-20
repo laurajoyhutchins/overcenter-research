@@ -28,7 +28,6 @@
       "overcenter-git-claim-v3",
       "overcenter-git-execution-authority-v1",
       "overcenter-git-effect-reservation-v1",
-      "overcenter-git-receipt-v4",
       "overcenter-git-receipt-v5"
     ],
     "validationExtensions": [
@@ -37,13 +36,6 @@
   },
   "compatibility": {
     "outerFactUnknownFields": "reject",
-    "receipt": {
-      "read": [
-        "overcenter-git-receipt-v4",
-        "overcenter-git-receipt-v5"
-      ],
-      "write": "overcenter-git-receipt-v5"
-    },
     "changeRule": "Incompatible outer-envelope or semantic-role changes require a new persisted discriminator. Existing discriminators are immutable historical contracts."
   },
   "governance": {
@@ -88,7 +80,7 @@
       "role": "observation-evidence",
       "authoritative": true,
       "identityImpact": "does not alter the claimed obligation identity; participates in settlement",
-      "closure": "receipt-v5 owned by ../observation-evidence-v1; receipt-v4 remains legacy-permissive",
+      "closure": "owned by ../observation-evidence-v1",
       "contractRef": "../observation-evidence-v1/schema.json#/$defs/SettlementObservation"
     },
     {
