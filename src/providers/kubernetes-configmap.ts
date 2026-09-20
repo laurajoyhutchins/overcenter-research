@@ -381,12 +381,6 @@ export function observeCertifiedKubernetesConfigMap(
       }
 
       const structural=certified.structural_validation;
-      const continueCertified=structural.validated_paths.includes('metadata.continue')
-        || structural.optional_absent_paths.includes('metadata.continue');
-      if (!continueCertified) {
-        throw new Error('KUBERNETES_LIST_CONTINUE_NOT_CERTIFIED');
-      }
-
       if (snapshotResourceVersion===null) {
         snapshotResourceVersion=metadata.resourceVersion;
       } else if (snapshotResourceVersion!==metadata.resourceVersion) {

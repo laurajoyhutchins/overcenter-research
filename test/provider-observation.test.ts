@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  structurallyCertifiedFor,
+  structurallyValidatedFor,
   validateObservationSlice,
   validateResponseSlice,
   type SchemaResolver,
@@ -113,6 +115,58 @@ test('production structural validator binds certificate to operation and schema 
   assert.deepEqual(recertified.structural_validation.validated_paths,['id']);
 });
 
+
+test('full response-slice certification distinguishes validated from optional absence',()=>{
+  const operation:StructuralOperation={
+    operation_id:'test/get',
+    outcomes:[{
+      status:'200',
+      schema:{
+        type:'object',
+        required:['id'],
+        properties:{
+          id:{type:'integer'},
+          note:{type:'string'},
+        },
+      },
+    }],
+  };
+  const observation={
+    contract:{
+      provider:'test',
+      api_version:'v1',
+      operation_id:'test/get',
+      schema_sha256:'a'.repeat(64),
+    },
+    observer:{kind:'test',id:'provider-observation'},
+    observed_at:'2026-09-20T19:00:00.000Z',
+    request:{},
+    response:{},
+    outcome:{
+      status:200,
+      visibility:'observed' as const,
+      value:{id:42},
+    },
+  };
+  const fields=[{path:'id'},{path:'note',required:false}] as const;
+  const certified=validateObservationSlice(operation,observation,fields);
+
+  assert.equal(structurallyCertifiedFor(certified,'test/get',fields),true);
+  assert.equal(structurallyValidatedFor(certified,'test/get',['id','note']),false);
+
+  const missingOptional=structuredClone(certified);
+  missingOptional.structural_validation.optional_absent_paths=[];
+  assert.equal(structurallyCertifiedFor(missingOptional,'test/get',fields),false);
+
+  const requiredAsAbsent=structuredClone(certified);
+  requiredAsAbsent.structural_validation.validated_paths=[];
+  requiredAsAbsent.structural_validation.optional_absent_paths=['id','note'];
+  assert.equal(structurallyCertifiedFor(requiredAsAbsent,'test/get',fields),false);
+
+  const contradictory=structuredClone(certified);
+  contradictory.structural_validation.optional_absent_paths=['id','note'];
+  assert.equal(structurallyCertifiedFor(contradictory,'test/get',fields),false);
+});
 
 test('provider observation envelope rejects undeclared outer fields',()=>{
   const observation={

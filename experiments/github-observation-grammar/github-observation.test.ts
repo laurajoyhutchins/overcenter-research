@@ -581,6 +581,33 @@ test('pull request is a mutable snapshot rather than an internal state machine',
   }).state, 'UNSATISFIED');
 });
 
+test('issue projection requires certified optional pull-request absence',async()=>{
+  const repository=projectRepositoryIdentity(await repositoryObservation())!;
+  const issue=await observe(operation(paths.issue),{
+    owner:'acme',repo:'widget',issue_number:18,
+  },response(200,{
+    id:9901,
+    node_id:'NODE_ISSUE_18',
+    number:18,
+    state:'open',
+    title:'Plain issue',
+    locked:false,
+    updated_at:'2026-09-20T19:00:00Z',
+  }));
+  const certified=validateObservationSlice(
+    operation(paths.issue),
+    issue,
+    RESPONSE_SLICES['issues/get'],
+  );
+  assert.equal(projectIssueSnapshot(certified,repository)?.is_pull_request,false);
+
+  const missingAbsenceProof=structuredClone(certified);
+  missingAbsenceProof.structural_validation.optional_absent_paths=
+    missingAbsenceProof.structural_validation.optional_absent_paths
+      .filter(path=>path!=='pull_request');
+  assert.equal(projectIssueSnapshot(missingAbsenceProof,repository),null);
+});
+
 test('Pulls and Issues surfaces preserve cross-surface node identity without conflating numeric ids', async () => {
   const repository = projectRepositoryIdentity(await repositoryObservation())!;
   const pull = await observe(operation(paths.pull), {

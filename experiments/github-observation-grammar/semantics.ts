@@ -1,5 +1,5 @@
 import type { RawObservation } from './openapi.ts';
-import { structurallyValidatedFor } from '../provider-observation/response-slice.ts';
+import { structurallyCertifiedFor } from '../provider-observation/response-slice.ts';
 import { RESPONSE_SLICES } from './response-slices.ts';
 import {
   evaluateMutableEntity,
@@ -220,14 +220,6 @@ const sha = /^[0-9a-f]{40,64}$/i;
 const canonicalRef = (ref: string) => ref.startsWith('refs/') ? ref : `refs/${ref}`;
 const lower = (value: string) => value.toLowerCase();
 
-function requiredResponsePaths(
-  operationId:keyof typeof RESPONSE_SLICES,
-):string[] {
-  return RESPONSE_SLICES[operationId]
-    .filter(field=>field.required!==false)
-    .map(field=>field.path);
-}
-
 function evidence(observation: RawObservation): FactEvidence {
   return {
     api_version: observation.contract.api_version,
@@ -263,8 +255,7 @@ function numberedEntityBase<Kind extends string>(
     kind,
   }: { operationId: 'pulls/get' | 'issues/get'; parameter: string; kind: Kind },
 ): { subject: NumberedEntitySubject<Kind>; body: Record<string, unknown> } | null {
-  const requiredPaths = requiredResponsePaths(operationId);
-  if (!structurallyValidatedFor(observation, operationId, requiredPaths)) return null;
+  if (!structurallyCertifiedFor(observation, operationId, RESPONSE_SLICES[operationId])) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
 
   const requested = observation.request.parameters[parameter];
@@ -302,8 +293,7 @@ function collectionBase(
   pagination: NonNullable<ReturnType<typeof paginationShape>>;
   evidence: FactEvidence;
 } | null {
-  const requiredPaths = requiredResponsePaths(operationId);
-  if (!structurallyValidatedFor(observation, operationId, requiredPaths)) return null;
+  if (!structurallyCertifiedFor(observation, operationId, RESPONSE_SLICES[operationId])) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
   const page = Number(observation.request.parameters.page ?? 1);
   const perPage = Number(observation.request.parameters.per_page ?? 30);
@@ -334,8 +324,7 @@ function refCollectionBase(
 }
 
 export function projectRepositoryIdentity(observation: RawObservation): RepositoryIdentityFact | null {
-  const requiredPaths = requiredResponsePaths('repos/get');
-  if (!structurallyValidatedFor(observation, 'repos/get', requiredPaths)) return null;
+  if (!structurallyCertifiedFor(observation, 'repos/get', RESPONSE_SLICES['repos/get'])) return null;
 
   const coordinate = requestCoordinate(observation);
   if (!coordinate) return null;
@@ -372,8 +361,7 @@ export function projectGitRefTarget(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): GitRefTargetFact | null {
-  const requiredPaths = requiredResponsePaths('git/get-ref');
-  if (!structurallyValidatedFor(observation, 'git/get-ref', requiredPaths)) return null;
+  if (!structurallyCertifiedFor(observation, 'git/get-ref', RESPONSE_SLICES['git/get-ref'])) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
 
   const body = observation.outcome.value as {
@@ -408,8 +396,7 @@ export function projectGitCommit(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): GitCommitFact | null {
-  const requiredPaths = requiredResponsePaths('git/get-commit');
-  if (!structurallyValidatedFor(observation, 'git/get-commit', requiredPaths)) return null;
+  if (!structurallyCertifiedFor(observation, 'git/get-commit', RESPONSE_SLICES['git/get-commit'])) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
 
   const requestedSha = observation.request.parameters.commit_sha;
