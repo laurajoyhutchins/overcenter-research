@@ -329,7 +329,15 @@ export function observeCertifiedKubernetesConfigMap(
     limit?:number;
   },
 ):KubernetesConfigMapVerification {
-  const pages:Record<string,unknown>[]=[];
+  const pages:KubernetesListPageEvidence[]=[];
+  const indeterminate=(
+    reason:string,
+    terminalStatus?:number,
+  ):KubernetesConfigMapVerification=>({
+    state:'indeterminate',
+    reason,
+    provider_evidence:providerEvidence(postcondition,pages,terminalStatus),
+  });
   let continueToken:string|null=null;
   let snapshotResourceVersion:string|null=null;
 
@@ -359,18 +367,12 @@ export function observeCertifiedKubernetesConfigMap(
         observation.outcome.status!==200
         || observation.outcome.visibility!=='observed'
       ) {
-        return {
-          state:'indeterminate',
-          reason:observation.outcome.status===410
+        return indeterminate(
+          observation.outcome.status===410
             ? 'KUBERNETES_CONTINUATION_EXPIRED'
             : 'KUBERNETES_LIST_NOT_AUTHORITATIVE',
-          provider_evidence:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            pages,
-            terminal_status:observation.outcome.status,
-          },
-        };
+          observation.outcome.status,
+        );
       }
 
       const certified=validateObservationSlice(
@@ -446,51 +448,17 @@ export function observeCertifiedKubernetesConfigMap(
             uid:itemMetadata.uid,
             resource_version:itemMetadata.resourceVersion,
             snapshot_resource_version:metadata.resourceVersion,
-            provider_evidence:{
-              provider:'kubernetes',
-              authority_id:postcondition.authority_id,
-              pages,
-            },
+            provider_evidence:providerEvidence(postcondition,pages),
           };
         }
       }
 
       if (nextContinue==='') {
-        const pageChainDigest=sha256Digest(pages);
-        const absenceEvidence:AbsenceEvidenceCertificate={
-          schema:ABSENCE_EVIDENCE_SCHEMA,
-          kind:KUBERNETES_COMPLETE_LIST_ABSENCE,
-          subject:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            api_group:'',
-            resource:'configmaps',
-            namespace:postcondition.namespace,
-            name:postcondition.name,
-          },
-          scope:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            api_group:'',
-            resource:'configmaps',
-            namespace:postcondition.namespace,
-          },
-          snapshot:{
-            resource_version:snapshotResourceVersion!,
-          },
-          completeness:{
-            kind:'complete-list',
-            page_count:pages.length,
-            terminal_continue:'',
-            page_chain_digest:pageChainDigest,
-          },
-          provenance:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            operation_id:KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
-            pages,
-          },
-        };
+        const absenceEvidence=completeListAbsenceEvidence(
+          postcondition,
+          pages,
+          snapshotResourceVersion!,
+        );
         if (!kubernetesConfigMapAbsenceEvidenceMatches(absenceEvidence,postcondition)) {
           throw new Error('KUBERNETES_ABSENCE_CERTIFICATE_SELF_CHECK_FAILED');
         }
@@ -499,11 +467,7 @@ export function observeCertifiedKubernetesConfigMap(
           reason:'AUTHORITATIVE_COMPLETE_LIST_ABSENCE',
           snapshot_resource_version:snapshotResourceVersion!,
           absence_evidence:absenceEvidence,
-          provider_evidence:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            pages,
-          },
+          provider_evidence:providerEvidence(postcondition,pages),
         };
       }
 
@@ -513,24 +477,8 @@ export function observeCertifiedKubernetesConfigMap(
       continueToken=nextContinue;
     }
   } catch (error:unknown) {
-    return {
-      state:'indeterminate',
-      reason:error instanceof Error?error.message:String(error),
-      provider_evidence:{
-        provider:'kubernetes',
-        authority_id:postcondition.authority_id,
-        pages,
-      },
-    };
+    return indeterminate(error instanceof Error?error.message:String(error));
   }
 
-  return {
-    state:'indeterminate',
-    reason:'KUBERNETES_LIST_PAGINATION_EXHAUSTED',
-    provider_evidence:{
-      provider:'kubernetes',
-      authority_id:postcondition.authority_id,
-      pages,
-    },
-  };
+  return indeterminate('KUBERNETES_LIST_PAGINATION_EXHAUSTED');
 }
