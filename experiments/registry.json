@@ -349,9 +349,9 @@
       ],
       "evidence": {
         "state": "current",
-        "evaluated_revision": "cd0d2deb96b83d82ad321d67af065ea89bcabf8c",
+        "evaluated_revision": "fc99ed6e44f4b07f07a72d689b2d4caed5919be8",
         "artifacts": [
-          "GitHub Actions run 35481664991: 6/6 corrected exact-head tests passed; LinkML preserved the tested JSON Schema semantics, stock TypeScript widened enum-valued fields to string, and the faithful stock-LinkML manifestation count remained 3 -> 3."
+          "GitHub Actions run 35485610531: 6/6 exact-head tests passed against current production; the experiment caught and removed stale github-commit-status/v1 vocabulary, preserved JSON Schema semantics, demonstrated stock TypeScript enum widening, and retained the faithful 3 -> 3 manifestation result."
         ]
       },
       "interpretation": "A positive result supports LinkML as the structural source for the tested JSON Schema slice, not as the source of Overcenter's narrow TypeScript domain types.",
