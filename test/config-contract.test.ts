@@ -171,6 +171,10 @@ test('PR CI critical paths fail closed within three minutes',()=>{
       path:'.github/workflows/assignment-capsule-proof.yml',
       jobs:['assign','execute','settle'],
     },
+    {
+      path:'.github/workflows/production-criticality-ranking.yml',
+      jobs:['rank'],
+    },
   ] as const;
 
   for (const {path,jobs} of workflows) {
@@ -189,6 +193,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
     ['.github/workflows/assignment-capsule-proof.yml','assign',1],
     ['.github/workflows/assignment-capsule-proof.yml','execute',1],
     ['.github/workflows/assignment-capsule-proof.yml','settle',1],
+    ['.github/workflows/production-criticality-ranking.yml','rank',3],
   ] as const;
 
   for (const [path,job,maxMinutes] of budgets) {
