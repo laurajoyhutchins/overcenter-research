@@ -42,6 +42,18 @@ function executableConfigFiles():string[] {
   );
 }
 
+test('active surfaces use self-application terminology consistently',()=>{
+  const legacyTerm=['dog','food'].join('');
+  const paths=[...executableConfigFiles(),'README.md','executor/README.md'];
+  for (const path of paths) {
+    assert.equal(
+      read(path).toLowerCase().includes(legacyTerm),
+      false,
+      `${path} contains legacy self-use terminology`,
+    );
+  }
+});
+
 test('runtime toolchains and executor images have exact checked-in identities',()=>{
   const nodeVersion=read('.node-version').trim();
   const goVersion=read('.go-version').trim();
@@ -52,7 +64,7 @@ test('runtime toolchains and executor images have exact checked-in identities',(
     schema:string;
     go_build:string;
     node_runtime:string;
-    node_dogfood:string;
+    node_self_application:string;
   };
   assert.equal(images.schema,'overcenter-runtime-images-v1');
   assert.match(
@@ -64,14 +76,14 @@ test('runtime toolchains and executor images have exact checked-in identities',(
     /^node:\d+\.\d+\.\d+-bookworm-slim@sha256:[0-9a-f]{64}$/,
   );
   assert.match(
-    images.node_dogfood,
+    images.node_self_application,
     /^node:\d+\.\d+\.\d+-bookworm@sha256:[0-9a-f]{64}$/,
   );
   assert.ok(images.go_build.startsWith(`golang:${goVersion}-bookworm@sha256:`));
   assert.ok(images.node_runtime.startsWith(`node:${nodeVersion}-bookworm-slim@sha256:`));
-  assert.ok(images.node_dogfood.startsWith(`node:${nodeVersion}-bookworm@sha256:`));
+  assert.ok(images.node_self_application.startsWith(`node:${nodeVersion}-bookworm@sha256:`));
 
-  for (const path of ['executor/containment/Dockerfile','executor/dogfood/Dockerfile']) {
+  for (const path of ['executor/containment/Dockerfile','executor/self-application/Dockerfile']) {
     const dockerfile=read(path);
     assert.match(dockerfile,/^ARG GO_IMAGE$/m);
     assert.match(dockerfile,/^ARG NODE_IMAGE$/m);
@@ -83,9 +95,9 @@ test('runtime toolchains and executor images have exact checked-in identities',(
     assert.match(dockerfile,/node --version/);
     assert.doesNotMatch(dockerfile,/FROM (?:golang|node):[^$]/);
   }
-  const dogfoodDockerfile=read('executor/dogfood/Dockerfile');
-  assert.doesNotMatch(dogfoodDockerfile,/apt-get/);
-  assert.match(dogfoodDockerfile,/git --version/);
+  const selfApplicationDockerfile=read('executor/self-application/Dockerfile');
+  assert.doesNotMatch(selfApplicationDockerfile,/apt-get/);
+  assert.match(selfApplicationDockerfile,/git --version/);
 
   const workflow=read('.github/workflows/computation-executor.yml');
   assert.match(workflow,/go-version-file: '\.go-version'/);
@@ -125,15 +137,22 @@ test('repository-wide test suites do not inherit host parallelism',()=>{
   assert.match(pkg.scripts['test:experiments'],/--test-concurrency=1/);
 });
 
-test('self-dogfood receives exact source bytes without checkout credentials',()=>{
-  const workflow=read('.github/workflows/dogfood.yml');
+test('self-application receives exact source bytes without checkout credentials',()=>{
+  const workflow=read('.github/workflows/self-application.yml');
   assert.match(workflow,/persist-credentials:\s*false/);
+  assert.match(
+    workflow,
+    /--image "overcenter-self-application:\$\{\{ github\.run_id \}\}"/,
+  );
+  assert.doesNotMatch(workflow,/OVERCENTER_SELF_APPLICATION_IMAGE/);
 
-  const dogfood=read('bin/dogfood-evidence.ts');
-  assert.match(dogfood,/git',[\s\S]*?'archive','--format=tar',sourceSha/);
-  assert.match(dogfood,/sourceRoot\}:/);
-  assert.doesNotMatch(dogfood,/repoRoot\}:[^\n]*workspace\/source/);
-  assert.match(dogfood,/DOGFOOD_SOURCE_SNAPSHOT_CONTAINS_GIT_METADATA/);
+  const selfApplication=read('bin/self-application-evidence.ts');
+  assert.match(selfApplication,/const image=option\('--image'\)/);
+  assert.doesNotMatch(selfApplication,/process\.env\.OVERCENTER_SELF_APPLICATION_IMAGE/);
+  assert.match(selfApplication,/git',[\s\S]*?'archive','--format=tar',sourceSha/);
+  assert.match(selfApplication,/sourceRoot\}:/);
+  assert.doesNotMatch(selfApplication,/repoRoot\}:[^\n]*workspace\/source/);
+  assert.match(selfApplication,/SELF_APPLICATION_SOURCE_SNAPSHOT_CONTAINS_GIT_METADATA/);
 });
 
 test('live provider proofs cancel superseded heads before consuming provider quota',()=>{
@@ -158,11 +177,11 @@ test('live provider proofs cancel superseded heads before consuming provider quo
   }
 });
 
-test('production self-dogfood does not size itself around Git reference stress',()=>{
-  const dogfood=read('bin/dogfood-evidence.ts');
-  assert.match(dogfood,/npmCli,'run','test:experiments'/);
-  assert.match(dogfood,/self-experiments/);
-  assert.doesNotMatch(dogfood,/proof:local/);
+test('production self-application does not size itself around Git reference stress',()=>{
+  const selfApplication=read('bin/self-application-evidence.ts');
+  assert.match(selfApplication,/npmCli,'run','test:experiments'/);
+  assert.match(selfApplication,/self-experiments/);
+  assert.doesNotMatch(selfApplication,/proof:local/);
   const pkg=JSON.parse(read('package.json')) as {scripts:Record<string,string>};
   assert.match(pkg.scripts['proof:local'],/test:stress/);
 });
@@ -171,6 +190,16 @@ test('ambient credential configuration has one GitHub token spelling',()=>{
   for (const path of executableConfigFiles()) {
     const source=read(path);
     assert.doesNotMatch(source,/\bGH_TOKEN\b/,path);
+  }
+});
+
+test('operator configuration does not grow ambient authority or transport aliases',()=>{
+  const forbidden=['OVERCENTER_DB','DATABASE_URL','OVERCENTER_SOCKET'];
+  for (const path of executableConfigFiles()) {
+    const source=read(path);
+    for (const name of forbidden) {
+      assert.equal(source.includes(name),false,`${path} contains forbidden ambient config ${name}`);
+    }
   }
 });
 
@@ -218,7 +247,7 @@ test('production launchers do not restate containment policy literals',()=>{
     '--task-gid=65532',
   ];
   for (const path of [
-    'bin/dogfood-evidence.ts',
+    'bin/self-application-evidence.ts',
     'test/computation-container.test.ts',
     'scripts/proof-production.sh',
   ]) {

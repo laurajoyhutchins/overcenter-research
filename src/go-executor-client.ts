@@ -98,6 +98,7 @@ export class GoExecutorClient {
     });
 
     const lines=createInterface({input:this.#socket,crlfDelay:Infinity});
+    lines.on('error',error=>this.#fail(error));
     lines.on('line',line=>{
       try {
         const parsed:unknown=JSON.parse(line);
