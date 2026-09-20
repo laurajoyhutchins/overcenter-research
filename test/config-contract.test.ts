@@ -197,7 +197,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
       new RegExp(`(?:^|\\n)  ${job}:\\n([\\s\\S]*?)(?=\\n  [A-Za-z0-9_-]+:\\n|$)`),
     );
     assert.ok(block,`${path} is missing budgeted job ${job}`);
-    const timeout=block[1].match(/(?:^|\\n)    timeout-minutes:\\s*(\\d+)\\s*(?:\\n|$)/);
+    const timeout=block[1].match(/(?:^|\n)    timeout-minutes:\s*(\d+)\s*(?:\n|$)/);
     assert.ok(timeout,`${path} job ${job} must declare an explicit timeout`);
     assert.ok(
       Number(timeout[1])<=maxMinutes,
@@ -206,11 +206,11 @@ test('PR CI critical paths fail closed within three minutes',()=>{
   }
 
   const mergeGate=read('.github/workflows/merge-gate.yml');
-  assert.match(mergeGate,/gate:[\\s\\S]*?needs:\n      - evidence\n      - production-computation\n      - self-application/);
+  assert.match(mergeGate,/gate:[\s\S]*?needs:\n      - evidence\n      - production-computation\n      - self-application/);
 
   const assignment=read('.github/workflows/assignment-capsule-proof.yml');
-  assert.match(assignment,/execute:[\\s\\S]*?needs: assign/);
-  assert.match(assignment,/settle:[\\s\\S]*?needs: \[assign, execute\]/);
+  assert.match(assignment,/execute:[\s\S]*?needs: assign/);
+  assert.match(assignment,/settle:[\s\S]*?needs: \[assign, execute\]/);
 });
 
 test('self-application receives exact source bytes without checkout credentials',()=>{
