@@ -95,7 +95,7 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
       ['verify-publish','BLOCKED'],
     ]);
 
-    const recovery=f.kernel.recoverInterrupted(run,{
+    const recovery=f.kernel.recordExecutionTerminated(run,{
       source:'projection-erasure-proof',
     });
     assert.equal(recovery.disposition,'RECOVERY_REQUIRED');

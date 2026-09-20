@@ -176,7 +176,7 @@ test('complete Kubernetes LIST absence drives generic settlement to READY and la
     f.kernel.define({id:'ensure-configmap',postcondition:pc()});
     const first=f.kernel.claim(
       'ensure-configmap',
-      f.kernel.deriveReadyWork()!.revision,
+      f.kernel.nextReadyWork()!.revision,
     );
     const absent=f.kernel.resolve(first);
 
@@ -196,7 +196,7 @@ test('complete Kubernetes LIST absence drives generic settlement to READY and la
     present=true;
     const second=f.kernel.claim(
       'ensure-configmap',
-      f.kernel.deriveReadyWork()!.revision,
+      f.kernel.nextReadyWork()!.revision,
     );
     const done=f.kernel.resolve(second);
     assert.equal(done.disposition,'DONE');

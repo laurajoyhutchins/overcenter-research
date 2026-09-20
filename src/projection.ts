@@ -82,7 +82,7 @@ export function projectReceipt(
   };
 }
 
-export function replayProjection(commits:FactCommit[]):Projection {
+export function reconstructProjection(commits:FactCommit[]):Projection {
   const state=emptyState();
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();

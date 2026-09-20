@@ -45,7 +45,7 @@ import {
 import { deriveCurrentRealizationJudgments } from './realization-admissibility.ts';
 import {
   projectReceipt,
-  replayProjection,
+  reconstructProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
 
@@ -163,7 +163,7 @@ export class KernelCore {
     return structuredClone(work);
   }
 
-  deriveReadyWork():Work|null {
+  nextReadyWork():Work|null {
     const head=this.#requireHead();
     return this.#currentProjection(head).project.readyWork;
   }
@@ -370,7 +370,7 @@ export class KernelCore {
     throw new Error('DEFER_CONTENTION_EXHAUSTED');
   }
 
-  recoverInterrupted(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
+  recordExecutionTerminated(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
@@ -429,7 +429,7 @@ export class KernelCore {
   }
 
   #historicalProjection(head:string):Projection {
-    return replayProjection(this.#store.history(head));
+    return reconstructProjection(this.#store.history(head));
   }
 
   #currentProjection(head:string):Projection {
@@ -508,7 +508,7 @@ export async function runCoreLoop(
 ):Promise<LoopResult> {
   kernel.inspect();
   for (let i=0;i<maxAdvances;i+=1) {
-    const work=kernel.deriveReadyWork();
+    const work=kernel.nextReadyWork();
     if (!work) {
       const blocked=kernel.inspect().find(candidate=>candidate.status==='BLOCKED');
       if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
@@ -558,7 +558,7 @@ export async function runCoreLoop(
     // downgrade the attempt to a non-effectful WAITING state. Its outcome must
     // be reconciled as a potentially mutating interrupted execution.
     if (outcome.kind==='judgment-required') {
-      kernel.recoverInterrupted(run,{
+      kernel.recordExecutionTerminated(run,{
         outcome,
         protocol_error:'JUDGMENT_AFTER_EFFECT_RESERVATION',
       });

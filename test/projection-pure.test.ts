@@ -8,7 +8,7 @@ import {
 } from '../src/facts.ts';
 import type { FactCommit, ObligationFact, ReceiptFact } from '../src/facts.ts';
 import { obligationKey } from '../src/semantic-identity.ts';
-import { projectReceipt, replayProjection } from '../src/projection.ts';
+import { projectReceipt, reconstructProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
 import { localFileEnoentEvidence } from '../src/evidence.ts';
 
@@ -32,7 +32,7 @@ const defined:ObligationFact={
 };
 
 function claimCommit(parent:string):FactCommit {
-  const base=replayProjection([
+  const base=reconstructProjection([
     {commit:parent,parent:null,obligation:defined},
   ]);
   const key=obligationKey(
@@ -62,11 +62,11 @@ test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
     parent:null,
     obligation:defined,
   };
-  const ready=replayProjection([defineRecord]);
+  const ready=reconstructProjection([defineRecord]);
   assert.equal(ready.project.lifecycles.get('a')?.status,'UNREALIZED');
 
   const claimRecord=claimCommit('define-1');
-  const executing=replayProjection([defineRecord,claimRecord]);
+  const executing=reconstructProjection([defineRecord,claimRecord]);
   assert.equal(executing.project.lifecycles.get('a')?.status,'EXECUTING');
 
   const receipt:ReceiptFact={
@@ -87,7 +87,7 @@ test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
     },
     settled_at:'2026-09-18T00:00:00.000Z',
   };
-  const done=replayProjection([
+  const done=reconstructProjection([
     defineRecord,
     claimRecord,
     {commit:'receipt-1',parent:'claim-1',receipt},
@@ -108,7 +108,7 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
   claimRecord.parent='different-head';
 
   assert.throws(
-    ()=>replayProjection([defineRecord,claimRecord]),
+    ()=>reconstructProjection([defineRecord,claimRecord]),
     /CLAIM_REVISION_MISMATCH/,
   );
 });
@@ -270,7 +270,7 @@ test('legacy v3 static-conflict history remains replayable but fail-closed',()=>
   });
   const alpha=status('alpha','success');
   const beta=status('beta','failure');
-  const projection=replayProjection([
+  const projection=reconstructProjection([
     {
       commit:'define-alpha',
       parent:null,
