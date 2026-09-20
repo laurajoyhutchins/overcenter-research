@@ -11,7 +11,6 @@ import {
   localFileEnoentEvidenceMatches,
   validateAbsenceEvidenceEnvelope,
 } from './evidence.ts';
-import { isData as data } from './validation.ts';
 import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
@@ -38,6 +37,10 @@ export interface ObservationContext {
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 const errorMessage=(e:unknown)=>e instanceof Error ? e.message : String(e);
+
+function data(value:unknown):value is Record<string,unknown> {
+  return !!value && typeof value==='object' && !Array.isArray(value);
+}
 
 export function validateObservationEnvelope(
   value:unknown,
