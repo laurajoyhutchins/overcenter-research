@@ -57,7 +57,7 @@ const settlementReceipt=(upstream:string):Dependency=>({
 const receipt=(
   upstreamRun:Run,
   disposition:Receipt['disposition']='DONE',
-  settlementCommit:string|undefined='settlement-commit',
+  settlementCommit:string|null='settlement-commit',
 ):Receipt=>({
   schema:RECEIPT_SCHEMA,
   run_id:upstreamRun.id,
@@ -71,7 +71,7 @@ const receipt=(
   settled_at:'2026-09-20T00:00:00.000Z',
   disposition,
   verified:disposition==='DONE',
-  ...(settlementCommit===undefined?{}:{settlement_commit:settlementCommit}),
+  ...(settlementCommit===null?{}:{settlement_commit:settlementCommit}),
 });
 
 function fixture(
@@ -249,7 +249,7 @@ test('settlement-receipt dependency requires DONE disposition and a settlement c
     );
   }
 
-  const noCommit=receipt(upstreamRun,'DONE',undefined);
+  const noCommit=receipt(upstreamRun,'DONE',null);
   const withoutCommit=fixture(
     upstream,
     downstream,
