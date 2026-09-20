@@ -11,6 +11,7 @@ on:
       - experiments/disposable-agent/agent-b.ts
       - src/**
       - test/git-kernel.test.ts
+      - test/github-status-effect.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
       - ARCHITECTURE.md
@@ -28,6 +29,7 @@ on:
       - experiments/disposable-agent/agent-b.ts
       - src/**
       - test/git-kernel.test.ts
+      - test/github-status-effect.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
       - ARCHITECTURE.md
@@ -68,6 +70,7 @@ jobs:
         run: |
           node --experimental-strip-types --test \
             test/git-kernel.test.ts \
+            test/github-status-effect.test.ts \
             experiments/disposable-agent/disposable-agent.test.ts
 
       - name: Define immutable obligation and claim exact snapshot

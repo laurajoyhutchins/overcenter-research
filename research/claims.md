@@ -152,6 +152,8 @@ Identical desired states are explicitly modeled as commuting. Incompatible desir
 
 The prior hosted proof established that an authority-untrusted executor can corrupt local Git configuration, refs, kernel source, and cache without redefining the centrally committed obligation or the trusted verifier's provider coordinate.
 
+The current hosted broker is intentionally thin: provider-coordinate derivation, certified repository identity, reservation-before-POST, and the status write itself are now carried by `src/providers/github-status-effect.ts`, with SQLite crash/reopen recovery covered by `test/github-status-effect.test.ts`. This promotes only the explicit GitHub commit-status path, not provider mutation in general.
+
 A prior hosted workflow established the credential boundary: the worker job had `contents: read` but no `statuses: write`, while a separate trusted broker owned provider write authority and execution-generation authority. Live workflow run `35389453056` at exact source revision `f8a883d6214d76b0b609eb05e3798d6238d108cc` showed the worker's authority-ref rewrite and provider status-write attempts both returning HTTP 403; the broker performed the mutation in execution generation 2; fresh recovery rotated to generation 3 and settled `DONE` from canonical GitHub readback. The current proof removes the worker-declared effect-intent echo entirely: immutable project authority carries only a versioned effect contract, and the trusted broker derives repository, commit, context, and desired state from the authoritative postcondition.
 
 **Claim:**

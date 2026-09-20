@@ -19,4 +19,4 @@ gh workflow run disposable-agent-proof.yml
 At `1f6ad04704b3ed594c58ad5a5759be5048c3843d`, hosted run `35463403293` passed.
 
 ## Interpretation and non-claims
-Recovery identity is durable authority, not worker process state. This does not prove every substrate isolates provider credentials or guarantees liveness.
+Recovery identity is durable authority, not worker process state. The hosted effect-broker job invokes the same production GitHub status-effect implementation in `src/providers/github-status-effect.ts`; the experiment no longer carries a second mutation implementation. This does not prove every substrate isolates provider credentials, make GitHub's repository-scoped `statuses: write` coordinate-scoped, or guarantee liveness.

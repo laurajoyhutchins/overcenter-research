@@ -37,6 +37,7 @@ The supported runtime boundary is intentionally smaller than the research surfac
 | Concern | Current owner | Status |
 | --- | --- | --- |
 | durable authority, graph semantics, claim/recovery fencing, observation, settlement | TypeScript + SQLite | production reference path |
+| GitHub commit-status mutation | TypeScript provider effect + kernel reservation | admitted only for exact `github-commit-status/v2` postconditions with the explicit status-effect grant |
 | isolated replay-safe pure computation and attempt evidence | Go | admitted for the `test` workload |
 | worker filesystem/process confinement | Rust | admitted native confinement substrate on supported Linux x86-64 |
 | Lean, Datalog, F*, bounded model checks | proof/differential oracles | no runtime authority |
@@ -73,7 +74,7 @@ Run the same supported-slice proof used by CI:
 npm run proof:production
 ```
 
-Provider mutation is deliberately outside this supported production slice. The hosted GitHub trust-boundary proof demonstrates physical credential separation and a brokered mutation path, but it does not promote provider mutation into the supported profile. Provider mutation remains a separate evidence surface until its authority binding and exclusive mutation path are themselves carried by production code and proof.
+Provider mutation is admitted only for one narrow path: `src/providers/github-status-effect.ts` derives a GitHub commit-status write from the exact claimed postcondition, requires the explicit status-effect grant, certifies repository identity, and crosses the provider boundary only through the kernel's durable effect reservation. The hosted trust-boundary proof invokes that production implementation under a separate `statuses: write` credential and then forces fresh-generation recovery. Other provider mutations remain outside the supported slice.
 
 ## What is Overcenter?
 
@@ -114,7 +115,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
-- **The hosted trust-boundary proof demonstrates physical credential separation for one GitHub mutation path.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub and it emits no provider authority. A separate trusted broker requires an explicit immutable effect contract, derives the exact provider coordinates from authoritative state, reserves the effect, and performs the mutation before authoritative readback settles the result. This is evidence for the broker architecture, not promotion of provider mutation into the supported production slice.
+- **One GitHub commit-status mutation path is production-carried and live-proved.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub and it emits no provider authority. The trusted broker invokes the production status-effect implementation, which requires the explicit immutable grant, derives coordinates from the exact claimed postcondition, certifies repository identity, reserves the effect, and performs the mutation before authoritative readback settles the result.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
 
 The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
@@ -130,7 +131,7 @@ The repository deliberately does **not** establish that:
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
-- the hosted provider-mutation experiments constitute a supported production mutation profile;
+- provider mutations other than the admitted GitHub commit-status path are supported production mutation profiles;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
 - direct low-level callers outside `runCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
@@ -172,6 +173,7 @@ Important entry points:
 - [`src/realization-admissibility.ts`](./src/realization-admissibility.ts) - fresh-authority classification for historical realization reuse.
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
+- [`src/providers/github-status-effect.ts`](./src/providers/github-status-effect.ts) - narrow production GitHub commit-status mutation path: authority-derived coordinates, certified repository identity, reservation-before-POST.
 - [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
 - [`src/computation-runner.ts`](./src/computation-runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
 - [`src/go-executor-client.ts`](./src/go-executor-client.ts) - Unix-socket client for an isolated physical executor.
@@ -194,7 +196,7 @@ The command name states what kind of evidence a green check supports:
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
-| `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression. |
+| `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression, including the production GitHub status-effect contract with a fake provider. |
 | Lean semantic-oracle CI | Bounded exhaustive agreement between selected production TypeScript semantics and the exact pinned Lean reference. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 

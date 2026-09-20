@@ -2,25 +2,15 @@ import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import {
+  GITHUB_COMMIT_STATUS_EFFECT,
+  performGithubCommitStatusEffect,
+} from '../../src/providers/github-status-effect.ts';
 
 function required(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`missing ${name}`);
   return value;
-}
-
-async function github(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = required('GITHUB_TOKEN');
-  return fetch(`https://api.github.com${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  });
 }
 
 const workflowRunId = required('GITHUB_RUN_ID');
@@ -40,12 +30,8 @@ const candidates = kernel.inspect().filter(work => {
 assert.equal(candidates.length, 1, `expected one exact unresolved execution, found ${candidates.length}`);
 const work = candidates[0];
 assert.ok(work.run_id);
-assert.equal(
-  work.packet.effect_contract,
-  'github-commit-status/set-from-postcondition/v1',
-);
+assert.equal(work.packet.effect_contract,GITHUB_COMMIT_STATUS_EFFECT);
 assert.equal(Object.hasOwn(work.packet, 'effect'), false);
-
 assert.equal(work.postcondition.verifier, 'github-commit-status/v2');
 if (work.postcondition.verifier !== 'github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha, sourceSha);
@@ -53,54 +39,35 @@ assert.equal(work.postcondition.commit_sha, sourceSha);
 const permit = kernel.acquireExecution(work.run_id);
 assert.equal(permit.execution_generation, 2);
 
-await kernel.performEffect(permit, async () => {
-  const repositoryIdentity = await github(`/repositories/${work.postcondition.repository_id}`);
-  if (!repositoryIdentity.ok) {
-    throw new Error(`repository identity read failed: ${repositoryIdentity.status}`);
-  }
-  const repository = await repositoryIdentity.json() as { id: number; full_name: string };
-  assert.equal(repository.id, work.postcondition.repository_id);
-  assert.equal(
-    repository.full_name.toLowerCase(),
-    work.postcondition.repository_full_name.toLowerCase(),
-  );
-
-  const status = await github(
-    `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        state: work.postcondition.expected_state,
-        context: work.postcondition.context,
-        description: 'Overcenter trusted effect broker',
-      }),
-    },
-  );
-  if (status.status !== 201) {
-    throw new Error(`status creation failed ${status.status}: ${await status.text()}`);
-  }
+const effect=await performGithubCommitStatusEffect(kernel,permit,{
+  token:required('GITHUB_TOKEN'),
 });
+assert.equal(effect.commit_sha,sourceSha);
+assert.equal(effect.context,work.postcondition.context);
+assert.equal(effect.state,work.postcondition.expected_state);
 
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
   appendFileSync(summary, [
     '## Trusted effect broker',
     '',
-    `- Required explicit effect contract from immutable authority for obligation \`${work.id}\`.`,
+    `- Used production provider effect \`src/providers/github-status-effect.ts\` for obligation \`${work.id}\`.`,
     '- Consumed no worker-declared provider coordinates or effect intent.',
     `- Acquired execution generation \`${permit.execution_generation}\`.`,
-    '- Durably reserved the effect before the provider mutation.',
-    `- Wrote exactly the declared status context \`${work.postcondition.context}\`.`,
+    '- Certified repository identity before reserving mutation authority.',
+    '- Durably reserved the effect immediately before the provider mutation.',
+    `- Wrote exactly the declared status context \`${effect.context}\`.`,
     '- Broker now terminates before settlement to force fresh-generation recovery.',
     '',
   ].join('\n'));
 }
 
 console.log(JSON.stringify({
-  obligation_id: work.id,
-  run_id: work.run_id,
-  execution_generation: permit.execution_generation,
-  effect_contract: work.packet.effect_contract,
+  obligation_id:work.id,
+  run_id:work.run_id,
+  execution_generation:permit.execution_generation,
+  effect_contract:GITHUB_COMMIT_STATUS_EFFECT,
+  effect,
 }));
 
 process.exit(86);

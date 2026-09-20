@@ -438,6 +438,8 @@ The strongest trust-boundary experiment deliberately lets an executor corrupt it
 
 The stronger reference boundary does not give the disposable worker provider-mutation authority at all. In GitHub Actions, the worker job has repository read permission only. A separate trusted effect-broker job owns provider write permission and the execution permit.
 
+The first production-carried provider mutation is intentionally narrower than that general architecture: `src/providers/github-status-effect.ts` supports only the explicit GitHub commit-status grant. It reconstructs the exact claimed obligation, derives the status coordinate from its `github-commit-status/v2` postcondition, certifies repository identity, and uses the kernel reservation boundary immediately before POST. The live broker job calls this implementation rather than maintaining experiment-local mutation logic.
+
 ### Worker contract
 
 Conceptually:
