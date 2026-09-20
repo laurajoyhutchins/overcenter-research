@@ -145,7 +145,7 @@ test('a Rust runtime cannot appear without an exact toolchain pin',()=>{
 
 test('repository-wide test suites do not inherit host parallelism',()=>{
   const pkg=JSON.parse(read('package.json')) as {scripts:Record<string,string>};
-  assert.match(pkg.scripts['test:unit'],/--test-concurrency=1/);
+  assert.match(pkg.scripts['test:unit'],/--test-concurrency=2/);
   assert.match(pkg.scripts['test:experiments'],/--test-concurrency=1/);
 });
 
