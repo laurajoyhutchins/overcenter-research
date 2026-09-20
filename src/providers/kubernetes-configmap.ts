@@ -71,7 +71,7 @@ export interface KubernetesWatchContinuity {
   target_events:Array<'ADDED'|'MODIFIED'|'DELETED'>;
 }
 
-const LIST_RESPONSE_SLICE=[
+export const KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE=[
   {path:'apiVersion'},
   {path:'kind'},
   {path:'metadata.resourceVersion'},
@@ -94,7 +94,83 @@ function matchesSha256(value:unknown):value is string {
   return typeof value==='string' && /^sha256:[0-9a-f]{64}$/.test(value);
 }
 
-function certificateBaseMatches(
+function absenceCoordinates(
+  postcondition:KubernetesConfigMapExistsPostcondition,
+) {
+  const scope={
+    provider:'kubernetes',
+    authority_id:postcondition.authority_id,
+    api_group:'',
+    resource:'configmaps',
+    namespace:postcondition.namespace,
+  };
+  return {scope,subject:{...scope,name:postcondition.name}};
+}
+
+function listPageEvidenceMatches(
+  value:unknown,
+  index:number,
+  snapshotResourceVersion:string,
+  previousResponseContinue:string|null,
+  terminal:boolean,
+):boolean {
+  const page=data(value);
+  if (!page || !exactKeys(page,[
+    'page','request_continue','response_continue','snapshot_resource_version',
+    'schema_sha256','validated_paths','optional_absent_paths',
+  ])) return false;
+  if (
+    page.page!==index+1
+    || page.request_continue!==(index===0?null:previousResponseContinue)
+    || typeof page.response_continue!=='string'
+    || page.snapshot_resource_version!==snapshotResourceVersion
+    || typeof page.schema_sha256!=='string'
+    || !/^[0-9a-f]{64}$/.test(page.schema_sha256)
+    || !stringArray(page.validated_paths)
+    || !stringArray(page.optional_absent_paths)
+  ) return false;
+  return terminal?page.response_continue==='':page.response_continue.length>0;
+}
+
+function providerEvidence(
+  postcondition:KubernetesConfigMapExistsPostcondition,
+  pages:Record<string,unknown>[],
+  terminalStatus?:number,
+):Record<string,unknown> {
+  return {
+    provider:'kubernetes',
+    authority_id:postcondition.authority_id,
+    pages,
+    ...(terminalStatus===undefined?{}:{terminal_status:terminalStatus}),
+  };
+}
+
+function completeListAbsenceEvidence(
+  postcondition:KubernetesConfigMapExistsPostcondition,
+  pages:Record<string,unknown>[],
+  snapshotResourceVersion:string,
+):AbsenceEvidenceCertificate {
+  return {
+    schema:ABSENCE_EVIDENCE_SCHEMA,
+    kind:KUBERNETES_COMPLETE_LIST_ABSENCE,
+    ...absenceCoordinates(postcondition),
+    snapshot:{resource_version:snapshotResourceVersion},
+    completeness:{
+      kind:'complete-list',
+      page_count:pages.length,
+      terminal_continue:'',
+      page_chain_digest:sha256Digest(pages),
+    },
+    provenance:{
+      provider:'kubernetes',
+      authority_id:postcondition.authority_id,
+      operation_id:KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
+      pages,
+    },
+  };
+}
+
+export function kubernetesConfigMapAbsenceEvidenceMatches(
   value:unknown,
   postcondition:KubernetesConfigMapExistsPostcondition,
 ):value is AbsenceEvidenceCertificate {
@@ -104,36 +180,40 @@ function certificateBaseMatches(
     return false;
   }
   if (value.kind!==KUBERNETES_COMPLETE_LIST_ABSENCE) return false;
+  const coordinates=absenceCoordinates(postcondition);
+  if (
+    canonicalDigest(value.subject)!==canonicalDigest(coordinates.subject)
+    || canonicalDigest(value.scope)!==canonicalDigest(coordinates.scope)
+  ) return false;
 
-  const subject=value.subject;
-  const scope=value.scope;
-  const snapshot=value.snapshot;
+  const snapshot=data(value.snapshot);
   const completeness=value.completeness;
   const provenance=value.provenance;
-
-  if (!exactKeys(subject,[
-    'provider','authority_id','api_group','resource','namespace','name',
-  ])) return false;
-  if (!exactKeys(scope,[
-    'provider','authority_id','api_group','resource','namespace',
-  ])) return false;
-  if (!snapshot || !exactKeys(snapshot,['resource_version'])) return false;
-  if (!exactKeys(provenance,[
-    'provider','authority_id','operation_id','pages',
-  ])) return false;
+  if (
+    !snapshot
+    || !exactKeys(snapshot,['resource_version'])
+    || typeof snapshot.resource_version!=='string'
+    || snapshot.resource_version.length===0
+    || !exactKeys(provenance,['provider','authority_id','operation_id','pages'])
+    || provenance.provider!=='kubernetes'
+    || provenance.authority_id!==postcondition.authority_id
+    || provenance.operation_id!==KUBERNETES_CONFIGMAP_LIST_OPERATION_ID
+    || !Array.isArray(provenance.pages)
+    || provenance.pages.length===0
+  ) return false;
 
   if (completeness.kind==='complete-list') {
     if (!exactKeys(completeness,[
       'kind','page_count','terminal_continue','page_chain_digest',
     ])) return false;
   } else if (completeness.kind==='complete-list-plus-watch') {
-    if (!exactKeys(completeness,[
-      'kind','page_count','terminal_continue','page_chain_digest',
-      'watch_start_resource_version','watch_last_resource_version',
-      'watch_continuity','watch_termination','watch_events_digest',
-    ])) return false;
     if (
-      completeness.watch_continuity!=='maintained'
+      !exactKeys(completeness,[
+        'kind','page_count','terminal_continue','page_chain_digest',
+        'watch_start_resource_version','watch_last_resource_version',
+        'watch_continuity','watch_termination','watch_events_digest',
+      ])
+      || completeness.watch_continuity!=='maintained'
       || !['client-stop','eof','timeout'].includes(String(completeness.watch_termination))
       || !matchesSha256(completeness.watch_events_digest)
     ) return false;
@@ -141,42 +221,15 @@ function certificateBaseMatches(
     return false;
   }
 
-  if (
-    subject.provider!=='kubernetes'
-    || subject.authority_id!==postcondition.authority_id
-    || subject.api_group!==''
-    || subject.resource!=='configmaps'
-    || subject.namespace!==postcondition.namespace
-    || subject.name!==postcondition.name
-  ) return false;
-
-  if (
-    scope.provider!=='kubernetes'
-    || scope.authority_id!==postcondition.authority_id
-    || scope.api_group!==''
-    || scope.resource!=='configmaps'
-    || scope.namespace!==postcondition.namespace
-  ) return false;
-
-  if (
-    !snapshot
-    || typeof snapshot.resource_version!=='string'
-    || snapshot.resource_version.length===0
-  ) return false;
-
-  if (
-    provenance.provider!=='kubernetes'
-    || provenance.authority_id!==postcondition.authority_id
-    || provenance.operation_id!==KUBERNETES_CONFIGMAP_LIST_OPERATION_ID
-    || !Array.isArray(provenance.pages)
-    || provenance.pages.length===0
-  ) return false;
-
   const pageCount=completeness.page_count;
-  if (!Number.isSafeInteger(pageCount) || (pageCount as number)<=0) return false;
-  if (provenance.pages.length!==pageCount) return false;
-  if (!matchesSha256(completeness.page_chain_digest)) return false;
-  if (completeness.page_chain_digest!==sha256Digest(provenance.pages)) return false;
+  if (
+    completeness.terminal_continue!==''
+    || !Number.isSafeInteger(pageCount)
+    || (pageCount as number)<=0
+    || provenance.pages.length!==pageCount
+    || !matchesSha256(completeness.page_chain_digest)
+    || completeness.page_chain_digest!==sha256Digest(provenance.pages)
+  ) return false;
 
   const pageSnapshotResourceVersion=completeness.kind==='complete-list-plus-watch'
     ? completeness.watch_start_resource_version
@@ -184,61 +237,25 @@ function certificateBaseMatches(
   if (typeof pageSnapshotResourceVersion!=='string') return false;
 
   for (let index=0;index<provenance.pages.length;index+=1) {
-    const page=data(provenance.pages[index]);
-    if (!page) return false;
-    if (!exactKeys(page,[
-      'page','request_continue','response_continue','snapshot_resource_version',
-      'schema_sha256','validated_paths','optional_absent_paths',
-    ])) return false;
-    if (page.page!==index+1) return false;
-    if (page.request_continue!==null && typeof page.request_continue!=='string') return false;
-    if (typeof page.response_continue!=='string') return false;
+    const previous=index===0
+      ? null
+      : data(provenance.pages[index-1])?.response_continue;
     if (
-      typeof page.schema_sha256!=='string'
-      || !/^[0-9a-f]{64}$/.test(page.schema_sha256)
-      || !stringArray(page.validated_paths)
-      || !stringArray(page.optional_absent_paths)
-    ) return false;
-    if (page.snapshot_resource_version!==pageSnapshotResourceVersion) return false;
-    if (index===0 && page.request_continue!==null) return false;
-    if (
-      index>0
-      && page.request_continue!==data(provenance.pages[index-1])?.response_continue
-    ) return false;
-    if (
-      index<provenance.pages.length-1
-      && (
-        typeof page.response_continue!=='string'
-        || page.response_continue.length===0
+      (previous!==null && typeof previous!=='string')
+      || !listPageEvidenceMatches(
+        provenance.pages[index],
+        index,
+        pageSnapshotResourceVersion,
+        previous,
+        index===provenance.pages.length-1,
       )
     ) return false;
   }
-  if (data(provenance.pages.at(-1))?.response_continue!=='') return false;
 
-  return true;
-}
-
-export function kubernetesConfigMapAbsenceEvidenceMatches(
-  value:unknown,
-  postcondition:KubernetesConfigMapExistsPostcondition,
-):value is AbsenceEvidenceCertificate {
-  if (!certificateBaseMatches(value,postcondition)) return false;
-  const completeness=value.completeness;
-
-  if (completeness.kind==='complete-list') {
-    return completeness.terminal_continue==='';
-  }
-
-  if (completeness.kind==='complete-list-plus-watch') {
-    return completeness.terminal_continue===''
-      && completeness.watch_continuity==='maintained'
-      && typeof completeness.watch_start_resource_version==='string'
-      && typeof completeness.watch_last_resource_version==='string'
-      && completeness.watch_last_resource_version===value.snapshot?.resource_version
-      && matchesSha256(completeness.watch_events_digest);
-  }
-
-  return false;
+  if (completeness.kind==='complete-list') return true;
+  return typeof completeness.watch_start_resource_version==='string'
+    && typeof completeness.watch_last_resource_version==='string'
+    && completeness.watch_last_resource_version===snapshot.resource_version;
 }
 
 export function carryKubernetesAbsenceThroughWatch(
@@ -290,6 +307,14 @@ export function observeCertifiedKubernetesConfigMap(
   },
 ):KubernetesConfigMapVerification {
   const pages:Record<string,unknown>[]=[];
+  const indeterminate=(
+    reason:string,
+    terminalStatus?:number,
+  ):KubernetesConfigMapVerification=>({
+    state:'indeterminate',
+    reason,
+    provider_evidence:providerEvidence(postcondition,pages,terminalStatus),
+  });
   let continueToken:string|null=null;
   let snapshotResourceVersion:string|null=null;
 
@@ -319,24 +344,18 @@ export function observeCertifiedKubernetesConfigMap(
         observation.outcome.status!==200
         || observation.outcome.visibility!=='observed'
       ) {
-        return {
-          state:'indeterminate',
-          reason:observation.outcome.status===410
+        return indeterminate(
+          observation.outcome.status===410
             ? 'KUBERNETES_CONTINUATION_EXPIRED'
             : 'KUBERNETES_LIST_NOT_AUTHORITATIVE',
-          provider_evidence:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            pages,
-            terminal_status:observation.outcome.status,
-          },
-        };
+          observation.outcome.status,
+        );
       }
 
       const certified=validateObservationSlice(
         operation,
         observation,
-        LIST_RESPONSE_SLICE,
+        KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE,
         resolveRef,
         {
           requiredTopLevelExtensions:{
@@ -406,51 +425,17 @@ export function observeCertifiedKubernetesConfigMap(
             uid:itemMetadata.uid,
             resource_version:itemMetadata.resourceVersion,
             snapshot_resource_version:metadata.resourceVersion,
-            provider_evidence:{
-              provider:'kubernetes',
-              authority_id:postcondition.authority_id,
-              pages,
-            },
+            provider_evidence:providerEvidence(postcondition,pages),
           };
         }
       }
 
       if (nextContinue==='') {
-        const pageChainDigest=sha256Digest(pages);
-        const absenceEvidence:AbsenceEvidenceCertificate={
-          schema:ABSENCE_EVIDENCE_SCHEMA,
-          kind:KUBERNETES_COMPLETE_LIST_ABSENCE,
-          subject:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            api_group:'',
-            resource:'configmaps',
-            namespace:postcondition.namespace,
-            name:postcondition.name,
-          },
-          scope:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            api_group:'',
-            resource:'configmaps',
-            namespace:postcondition.namespace,
-          },
-          snapshot:{
-            resource_version:snapshotResourceVersion!,
-          },
-          completeness:{
-            kind:'complete-list',
-            page_count:pages.length,
-            terminal_continue:'',
-            page_chain_digest:pageChainDigest,
-          },
-          provenance:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            operation_id:KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
-            pages,
-          },
-        };
+        const absenceEvidence=completeListAbsenceEvidence(
+          postcondition,
+          pages,
+          snapshotResourceVersion!,
+        );
         if (!kubernetesConfigMapAbsenceEvidenceMatches(absenceEvidence,postcondition)) {
           throw new Error('KUBERNETES_ABSENCE_CERTIFICATE_SELF_CHECK_FAILED');
         }
@@ -459,11 +444,7 @@ export function observeCertifiedKubernetesConfigMap(
           reason:'AUTHORITATIVE_COMPLETE_LIST_ABSENCE',
           snapshot_resource_version:snapshotResourceVersion!,
           absence_evidence:absenceEvidence,
-          provider_evidence:{
-            provider:'kubernetes',
-            authority_id:postcondition.authority_id,
-            pages,
-          },
+          provider_evidence:providerEvidence(postcondition,pages),
         };
       }
 
@@ -473,24 +454,8 @@ export function observeCertifiedKubernetesConfigMap(
       continueToken=nextContinue;
     }
   } catch (error:unknown) {
-    return {
-      state:'indeterminate',
-      reason:error instanceof Error?error.message:String(error),
-      provider_evidence:{
-        provider:'kubernetes',
-        authority_id:postcondition.authority_id,
-        pages,
-      },
-    };
+    return indeterminate(error instanceof Error?error.message:String(error));
   }
 
-  return {
-    state:'indeterminate',
-    reason:'KUBERNETES_LIST_PAGINATION_EXHAUSTED',
-    provider_evidence:{
-      provider:'kubernetes',
-      authority_id:postcondition.authority_id,
-      pages,
-    },
-  };
+  return indeterminate('KUBERNETES_LIST_PAGINATION_EXHAUSTED');
 }
