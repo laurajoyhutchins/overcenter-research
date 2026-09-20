@@ -177,10 +177,14 @@ test('live provider proofs cancel superseded heads before consuming provider quo
   }
 });
 
-test('production self-application does not size itself around Git reference stress',()=>{
+test('production self-application proves mechanism without duplicating exhaustive evidence',()=>{
   const selfApplication=read('bin/self-application-evidence.ts');
-  assert.match(selfApplication,/npmCli,'run','test:experiments'/);
-  assert.match(selfApplication,/self-experiments/);
+  assert.match(selfApplication,/test\/digest-pure\.test\.ts/);
+  assert.match(selfApplication,/npmCli,'run','test:bounded-graph'/);
+  assert.match(selfApplication,/workload_scope:'representative-self-application-witness'/);
+  assert.match(selfApplication,/exhaustive_repository_evidence:false/);
+  assert.doesNotMatch(selfApplication,/npmCli,'test'/);
+  assert.doesNotMatch(selfApplication,/test:experiments/);
   assert.doesNotMatch(selfApplication,/proof:local/);
   const pkg=JSON.parse(read('package.json')) as {scripts:Record<string,string>};
   assert.match(pkg.scripts['proof:local'],/test:stress/);

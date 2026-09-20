@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+mode="${1:-}"
+if [[ "$#" -gt 1 || ( -n "$mode" && "$mode" != "--boundary-only" ) ]]; then
+  echo "usage: $0 [--boundary-only]" >&2
+  exit 2
+fi
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
@@ -34,4 +40,6 @@ node --experimental-strip-types bin/prove-computation-containment.ts \
 
 npm run proof:rust-exec
 
-npm test
+if [[ "$mode" != "--boundary-only" ]]; then
+  npm test
+fi
