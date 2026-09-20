@@ -371,25 +371,24 @@ export function authoritativeAbsenceEvidence(
   assertObservationCoordinate(postcondition,observed);
   if (observed.mutation_certainty!=='absent') return null;
 
-  if (postcondition.verifier==='file-content-equals/v1') {
-    return localFileEnoentEvidenceMatches(
-      observed.absence_evidence,
-      postcondition.path,
-    )
-      ? observed.absence_evidence
-      : null;
+  switch (postcondition.verifier) {
+    case 'file-content-equals/v1':
+      return localFileEnoentEvidenceMatches(
+        observed.absence_evidence,
+        postcondition.path,
+      )
+        ? observed.absence_evidence
+        : null;
+    case 'kubernetes-configmap-exists/v1':
+      return kubernetesConfigMapAbsenceEvidenceMatches(
+        observed.absence_evidence,
+        postcondition,
+      )
+        ? observed.absence_evidence
+        : null;
+    default:
+      return null;
   }
-
-  if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
-    return kubernetesConfigMapAbsenceEvidenceMatches(
-      observed.absence_evidence,
-      postcondition,
-    )
-      ? observed.absence_evidence
-      : null;
-  }
-
-  return null;
 }
 
 export function observationAuthoritativelyAbsent(
