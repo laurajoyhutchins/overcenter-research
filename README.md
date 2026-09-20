@@ -38,7 +38,7 @@ The supported runtime boundary is intentionally smaller than the research surfac
 | --- | --- | --- |
 | durable authority, graph semantics, claim/recovery fencing, observation, settlement | TypeScript + SQLite | production reference path |
 | isolated replay-safe pure computation and attempt evidence | Go | admitted for the `test` workload |
-| worker filesystem/process confinement | Rust | experiment only |
+| worker filesystem/process confinement | Rust | admitted native confinement substrate on supported Linux x86-64 |
 | Lean, Datalog, F*, bounded model checks | proof/differential oracles | no runtime authority |
 
 The production computation profile is fail-closed:
@@ -64,6 +64,8 @@ SQLite authority
 ```
 
 The executor container runs without network access, with a read-only root/source snapshot, `no-new-privileges`, an explicit minimal capability set, PID/memory/CPU/open-file/per-file-size ceilings, and a fresh writable workspace. Aggregate workspace exhaustion belongs to the disposable outer worker-host quota rather than being delegated to the task container.
+
+Rust is admitted only as a narrow native confinement primitive. `overcenter-exec` binds an exact manifest to a pinned workspace identity, applies Landlock/seccomp confinement, clears ambient environment and inherited file descriptors, then replaces itself with the worker. The current Go pure-computation runner remains the end-to-end computation path; Rust does not own graph eligibility, claims, provider interpretation, settlement, or project truth, and integration between the two execution mechanisms requires its own evidence rather than being assumed.
 
 Run the same supported-slice proof used by CI:
 
@@ -140,6 +142,7 @@ The safety claim is narrower: an uncertain or even locally hostile worker does n
 src/          reusable reference mechanism and trusted executor client
 contracts/    versioned machine-readable data contracts
 executor/     Go physical computation executor
+runtime/      narrow native execution/confinement substrates
 test/         focused invariants of that mechanism
 experiments/  executable empirical and adversarial proofs
 formal/       machine-checked safety model and negative controls
@@ -170,6 +173,9 @@ Important entry points:
 - [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
 - [`src/computation-runner.ts`](./src/computation-runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
 - [`src/go-executor-client.ts`](./src/go-executor-client.ts) - Unix-socket client for an isolated physical executor.
+- [`src/execution-manifest.ts`](./src/execution-manifest.ts) - canonical exact-byte manifest for the Rust confinement launcher.
+- [`src/confined-executor.ts`](./src/confined-executor.ts) - trusted TypeScript transport that sends exactly the hashed manifest bytes to the native launcher.
+- [`runtime/overcenter-exec/`](./runtime/overcenter-exec/README.md) - Rust Landlock/seccomp worker-confinement substrate; physical confinement only, with no project-state authority.
 - [`contracts/computation-execution-v1/`](./contracts/computation-execution-v1/) - shared versioned wire contract and conformance corpus.
 - [`executor/`](./executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
@@ -186,7 +192,7 @@ The command name states what kind of evidence a green check supports:
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
-| `npm run proof:production` | Supported SQLite + Go computation slice, containment, recovery, and deterministic regression. |
+| `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression. |
 | Lean semantic-oracle CI | Bounded exhaustive agreement between selected production TypeScript semantics and the exact pinned Lean reference. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
@@ -198,6 +204,7 @@ Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
 - Go at the exact runtime version declared in [`.go-version`](./.go-version) for the physical computation executor (`executor/go.mod` remains the Go language/module compatibility declaration);
+- Rust at the exact version declared in [`rust-toolchain.toml`](./rust-toolchain.toml) for the native worker-confinement substrate;
 - Docker for the catastrophic executor-death containment proof; executor base images are pinned by immutable digest in [`executor/runtime-images.json`](./executor/runtime-images.json);
 - Git;
 - Java 21 for the TLA+ model;

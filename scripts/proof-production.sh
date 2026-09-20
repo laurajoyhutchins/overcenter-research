@@ -32,4 +32,6 @@ OVERCENTER_EXECUTOR_IMAGE="$image" \
 node --experimental-strip-types bin/prove-computation-containment.ts \
   --image "$image"
 
+npm run proof:rust-exec
+
 npm test
