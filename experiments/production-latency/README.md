@@ -74,7 +74,7 @@ No fixed latency threshold is part of the correctness proof. Absolute timing is 
 
 ## Result
 
-A live result is recorded only after the experiment-only instrumentation passes at its exact source revision.
+See [`results/2026-09-20.md`](./results/2026-09-20.md). The cleaned exact-head run measured a 1.453 s median successful transaction, of which 7.429 ms was Overcenter-local.
 
 ## Interpretation
 
