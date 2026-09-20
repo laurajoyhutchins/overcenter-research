@@ -552,8 +552,9 @@ export function markdown(report,top=30){
   }
   if(report.analyzer.mutationEvidence){
     lines.push('','## Mutation evidence','');
-    lines.push(`Applied probes: ${report.analyzer.mutationEvidence.applied.length}; stale probes: ${report.analyzer.mutationEvidence.stale.length}.`);
+    lines.push(`Applied probes: ${report.analyzer.mutationEvidence.applied.length}; stale probes: ${report.analyzer.mutationEvidence.stale.length}; missing required units: ${report.analyzer.mutationEvidence.missing.length}.`);
     for(const p of report.analyzer.mutationEvidence.stale) lines.push(`- stale ${p.id}: ${p.staleFiles.map(f=>f.file).join(', ')}`);
+    for(const p of report.analyzer.mutationEvidence.missing) lines.push(`- missing hostile-case evidence: ${p.unit}`);
   }
   const requiredFailed=report.calibration.required.pairs.filter(x=>!x.pass);
   const diagnosticFailed=report.calibration.diagnostic.pairs.filter(x=>!x.pass);
