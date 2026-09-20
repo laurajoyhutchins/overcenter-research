@@ -6,6 +6,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 
 ## Experiment index
 
+- `assignment-capsule/` - exact Overcenter claim plus self-contained task-byte delivery to a no-checkout worker and trusted settlement.
 - `sqlite-baseline/` - original SQLite-backed baseline.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
 - `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.

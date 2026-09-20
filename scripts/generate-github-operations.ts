@@ -161,7 +161,7 @@ const generated=[
   "import type { GithubObservationOperation } from './github-openapi.ts';",
   '',
   ...operations.flatMap(([,name,operation])=>[
-    `export const ${name}:GithubObservationOperation=${JSON.stringify(operation)};`,
+    `export const ${name}:GithubObservationOperation=${JSON.stringify(operation,null,2)};`,
     '',
   ]),
   'export const GITHUB_OBSERVATION_OPERATIONS={',

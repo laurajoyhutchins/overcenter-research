@@ -3,89 +3,4724 @@
 // SHA-256: 9d0534e66064a95f0637d542b463a868fc60a53a8cac37eddc85d72a465b8810
 import type { GithubObservationOperation } from './github-openapi.ts';
 
-export const GITHUB_REPOSITORY_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}","operation_id":"repos/get","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"full_name":{"type":"string"},"name":{"type":"string"},"owner":{"type":"object","properties":{"login":{"type":"string"}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"repos","subcategory":"repos"}};
+export const GITHUB_REPOSITORY_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}",
+  "operation_id": "repos/get",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "object",
+            "properties": {
+              "login": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "repos",
+    "subcategory": "repos"
+  }
+};
 
-export const GITHUB_REF_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/git/ref/{ref}","operation_id":"git/get-ref","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"ref","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"ref":{"type":"string"},"object":{"type":"object","properties":{"type":{"type":"string"},"sha":{"type":"string","minLength":40,"maxLength":40}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"git","subcategory":"refs"}};
+export const GITHUB_REF_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/git/ref/{ref}",
+  "operation_id": "git/get-ref",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "ref",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "object": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "sha": {
+                "type": "string",
+                "minLength": 40,
+                "maxLength": 40
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "git",
+    "subcategory": "refs"
+  }
+};
 
-export const GITHUB_GIT_COMMIT_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/git/commits/{commit_sha}","operation_id":"git/get-commit","parameters":[{"name":"commit_sha","in":"path","required":true,"schema":{"type":"string"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"sha":{"type":"string"},"node_id":{"type":"string"},"tree":{"type":"object","properties":{"sha":{"type":"string"}}},"parents":{"type":"array","items":{"type":"object","properties":{"sha":{"type":"string"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"git","subcategory":"commits"}};
+export const GITHUB_GIT_COMMIT_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/git/commits/{commit_sha}",
+  "operation_id": "git/get-commit",
+  "parameters": [
+    {
+      "name": "commit_sha",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "sha": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "tree": {
+            "type": "object",
+            "properties": {
+              "sha": {
+                "type": "string"
+              }
+            }
+          },
+          "parents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sha": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "git",
+    "subcategory": "commits"
+  }
+};
 
-export const GITHUB_BRANCH_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/branches/{branch}","operation_id":"repos/get-branch","parameters":[{"name":"branch","in":"path","required":true,"schema":{"type":"string"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"name":{"type":"string"},"commit":{"type":"object","properties":{"sha":{"type":"string"}}},"protected":{"type":"boolean"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"branches","subcategory":"branches"}};
+export const GITHUB_BRANCH_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/branches/{branch}",
+  "operation_id": "repos/get-branch",
+  "parameters": [
+    {
+      "name": "branch",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "object",
+            "properties": {
+              "sha": {
+                "type": "string"
+              }
+            }
+          },
+          "protected": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "branches",
+    "subcategory": "branches"
+  }
+};
 
-export const GITHUB_PULL_REQUEST_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/pulls/{pull_number}","operation_id":"pulls/get","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"pull_number","in":"path","required":true,"schema":{"type":"integer"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Pass the appropriate [media type](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types) to fetch diff and patch formats.","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"number":{"type":"integer"},"state":{"type":"string","enum":["open","closed"]},"head":{"type":"object","properties":{"sha":{"type":"string"}}},"base":{"type":"object","properties":{"ref":{"type":"string"},"sha":{"type":"string"}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"pulls","subcategory":"pulls"}};
+export const GITHUB_PULL_REQUEST_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/pulls/{pull_number}",
+  "operation_id": "pulls/get",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "pull_number",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Pass the appropriate [media type](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#media-types) to fetch diff and patch formats.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ]
+          },
+          "head": {
+            "type": "object",
+            "properties": {
+              "sha": {
+                "type": "string"
+              }
+            }
+          },
+          "base": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "sha": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "pulls",
+    "subcategory": "pulls"
+  }
+};
 
-export const GITHUB_ISSUE_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/issues/{issue_number}","operation_id":"issues/get","parameters":[{"name":"issue_number","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"number":{"type":"integer"},"state":{"type":"string"},"state_reason":{"type":"string","enum":["completed","reopened","not_planned","duplicate"],"nullable":true},"title":{"type":"string"},"locked":{"type":"boolean"},"updated_at":{"type":"string","format":"date-time"},"pull_request":{"type":"object","properties":{"url":{"type":"string","nullable":false,"format":"uri"}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"issues","subcategory":"issues"}};
+export const GITHUB_ISSUE_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/issues/{issue_number}",
+  "operation_id": "issues/get",
+  "parameters": [
+    {
+      "name": "issue_number",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "state_reason": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "reopened",
+              "not_planned",
+              "duplicate"
+            ],
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pull_request": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "nullable": false,
+                "format": "uri"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "issues",
+    "subcategory": "issues"
+  }
+};
 
-export const GITHUB_CHECK_RUN_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/check-runs/{check_run_id}","operation_id":"checks/get","parameters":[{"name":"check_run_id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"head_sha":{"type":"string"},"name":{"type":"string"},"status":{"type":"string","enum":["queued","in_progress","completed","waiting","requested","pending"]},"conclusion":{"type":"string","enum":["success","failure","neutral","cancelled","skipped","timed_out","action_required"],"nullable":true},"started_at":{"type":"string","nullable":true,"format":"date-time"},"completed_at":{"type":"string","nullable":true,"format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"checks","subcategory":"runs"}};
+export const GITHUB_CHECK_RUN_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/check-runs/{check_run_id}",
+  "operation_id": "checks/get",
+  "parameters": [
+    {
+      "name": "check_run_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer",
+        "format": "int64"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "in_progress",
+              "completed",
+              "waiting",
+              "requested",
+              "pending"
+            ]
+          },
+          "conclusion": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure",
+              "neutral",
+              "cancelled",
+              "skipped",
+              "timed_out",
+              "action_required"
+            ],
+            "nullable": true
+          },
+          "started_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "checks",
+    "subcategory": "runs"
+  }
+};
 
-export const GITHUB_CHECK_SUITE_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/check-suites/{check_suite_id}","operation_id":"checks/get-suite","parameters":[{"name":"check_suite_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"head_sha":{"type":"string"},"head_branch":{"type":"string","nullable":true},"status":{"type":"string","enum":["queued","in_progress","completed","waiting","requested","pending"],"nullable":true},"conclusion":{"type":"string","enum":["success","failure","neutral","cancelled","skipped","timed_out","action_required","startup_failure","stale",null],"nullable":true},"created_at":{"type":"string","nullable":true,"format":"date-time"},"updated_at":{"type":"string","nullable":true,"format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"checks","subcategory":"suites"}};
+export const GITHUB_CHECK_SUITE_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/check-suites/{check_suite_id}",
+  "operation_id": "checks/get-suite",
+  "parameters": [
+    {
+      "name": "check_suite_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "head_branch": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "in_progress",
+              "completed",
+              "waiting",
+              "requested",
+              "pending"
+            ],
+            "nullable": true
+          },
+          "conclusion": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure",
+              "neutral",
+              "cancelled",
+              "skipped",
+              "timed_out",
+              "action_required",
+              "startup_failure",
+              "stale",
+              null
+            ],
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "checks",
+    "subcategory": "suites"
+  }
+};
 
-export const GITHUB_COMMIT_STATUSES_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/commits/{ref}/statuses","operation_id":"repos/list-commit-statuses-for-ref","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"ref","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"state":{"type":"string"},"context":{"type":"string"},"target_url":{"type":"string","nullable":true},"created_at":{"type":"string"},"updated_at":{"type":"string"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"commits","subcategory":"statuses"}};
+export const GITHUB_COMMIT_STATUSES_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/commits/{ref}/statuses",
+  "operation_id": "repos/list-commit-statuses-for-ref",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "ref",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string"
+            },
+            "target_url": {
+              "type": "string",
+              "nullable": true
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "commits",
+    "subcategory": "statuses"
+  }
+};
 
-export const GITHUB_COMBINED_COMMIT_STATUS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/commits/{ref}/status","operation_id":"repos/get-combined-status-for-ref","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"ref","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"state":{"type":"string"},"sha":{"type":"string"},"total_count":{"type":"integer"},"statuses":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"state":{"type":"string"},"context":{"type":"string"},"target_url":{"type":"string","nullable":true,"format":"uri"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"commits","subcategory":"statuses"}};
+export const GITHUB_COMBINED_COMMIT_STATUS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/commits/{ref}/status",
+  "operation_id": "repos/get-combined-status-for-ref",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "ref",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "sha": {
+            "type": "string"
+          },
+          "total_count": {
+            "type": "integer"
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "context": {
+                  "type": "string"
+                },
+                "target_url": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "uri"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "commits",
+    "subcategory": "statuses"
+  }
+};
 
-export const GITHUB_WORKFLOW_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/actions/workflows/{workflow_id}","operation_id":"actions/get-workflow","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"workflow_id","in":"path","required":true,"schema":{"oneOf":[{"type":"integer"},{"type":"string"}]}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"name":{"type":"string"},"path":{"type":"string"},"state":{"type":"string","enum":["active","deleted","disabled_fork","disabled_inactivity","disabled_manually"]},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"actions","subcategory":"workflows"}};
+export const GITHUB_WORKFLOW_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/actions/workflows/{workflow_id}",
+  "operation_id": "actions/get-workflow",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "workflow_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "deleted",
+              "disabled_fork",
+              "disabled_inactivity",
+              "disabled_manually"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "actions",
+    "subcategory": "workflows"
+  }
+};
 
-export const GITHUB_WORKFLOW_RUN_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/actions/runs/{run_id}","operation_id":"actions/get-workflow-run","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"run_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"exclude_pull_requests","in":"query","required":false,"schema":{"type":"boolean","default":false}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"workflow_id":{"type":"integer"},"run_number":{"type":"integer"},"run_attempt":{"type":"integer"},"name":{"type":"string","nullable":true},"event":{"type":"string"},"status":{"type":"string","nullable":true},"conclusion":{"type":"string","nullable":true},"head_sha":{"type":"string"},"head_branch":{"type":"string","nullable":true},"path":{"type":"string"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"actions","subcategory":"workflow-runs"}};
+export const GITHUB_WORKFLOW_RUN_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/actions/runs/{run_id}",
+  "operation_id": "actions/get-workflow-run",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "run_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "exclude_pull_requests",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "boolean",
+        "default": false
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "workflow_id": {
+            "type": "integer"
+          },
+          "run_number": {
+            "type": "integer"
+          },
+          "run_attempt": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "event": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "conclusion": {
+            "type": "string",
+            "nullable": true
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "head_branch": {
+            "type": "string",
+            "nullable": true
+          },
+          "path": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "actions",
+    "subcategory": "workflow-runs"
+  }
+};
 
-export const GITHUB_WORKFLOW_JOB_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/actions/jobs/{job_id}","operation_id":"actions/get-job-for-workflow-run","parameters":[{"name":"job_id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"run_id":{"type":"integer","format":"int64"},"run_attempt":{"type":"integer"},"node_id":{"type":"string"},"head_sha":{"type":"string"},"name":{"type":"string"},"status":{"type":"string","enum":["queued","in_progress","completed","waiting","requested","pending"]},"conclusion":{"type":"string","enum":["success","failure","neutral","cancelled","skipped","timed_out","action_required"],"nullable":true},"started_at":{"type":"string","format":"date-time"},"completed_at":{"type":"string","nullable":true,"format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"actions","subcategory":"workflow-jobs"}};
+export const GITHUB_WORKFLOW_JOB_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/actions/jobs/{job_id}",
+  "operation_id": "actions/get-job-for-workflow-run",
+  "parameters": [
+    {
+      "name": "job_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer",
+        "format": "int64"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "run_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "run_attempt": {
+            "type": "integer"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "in_progress",
+              "completed",
+              "waiting",
+              "requested",
+              "pending"
+            ]
+          },
+          "conclusion": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure",
+              "neutral",
+              "cancelled",
+              "skipped",
+              "timed_out",
+              "action_required"
+            ],
+            "nullable": true
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "actions",
+    "subcategory": "workflow-jobs"
+  }
+};
 
-export const GITHUB_RELEASE_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/releases/{release_id}","operation_id":"repos/get-release","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"release_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"**Note:** This returns an `upload_url` key corresponding to the endpoint for uploading release assets. This key is a hypermedia resource. For more information, see \"[Getting started with the REST API](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#hypermedia).\"","schema":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"tag_name":{"type":"string"},"target_commitish":{"type":"string"},"name":{"type":"string","nullable":true},"draft":{"type":"boolean"},"prerelease":{"type":"boolean"},"immutable":{"type":"boolean"},"published_at":{"type":"string","nullable":true,"format":"date-time"},"updated_at":{"type":"string","nullable":true,"format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"releases","subcategory":"releases"}};
+export const GITHUB_RELEASE_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/releases/{release_id}",
+  "operation_id": "repos/get-release",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "release_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "**Note:** This returns an `upload_url` key corresponding to the endpoint for uploading release assets. This key is a hypermedia resource. For more information, see \"[Getting started with the REST API](https://docs.github.com/rest/using-the-rest-api/getting-started-with-the-rest-api#hypermedia).\"",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "tag_name": {
+            "type": "string"
+          },
+          "target_commitish": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "prerelease": {
+            "type": "boolean"
+          },
+          "immutable": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "releases",
+    "subcategory": "releases"
+  }
+};
 
-export const GITHUB_RELEASE_ASSET_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/releases/assets/{asset_id}","operation_id":"repos/get-release-asset","parameters":[{"name":"asset_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"name":{"type":"string"},"state":{"type":"string","enum":["uploaded","open"]},"content_type":{"type":"string"},"size":{"type":"integer"},"digest":{"type":"string","nullable":true},"download_count":{"type":"integer"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"releases","subcategory":"assets"}};
+export const GITHUB_RELEASE_ASSET_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/releases/assets/{asset_id}",
+  "operation_id": "repos/get-release-asset",
+  "parameters": [
+    {
+      "name": "asset_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "uploaded",
+              "open"
+            ]
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "digest": {
+            "type": "string",
+            "nullable": true
+          },
+          "download_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "releases",
+    "subcategory": "assets"
+  }
+};
 
-export const GITHUB_DEPLOYMENT_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/deployments/{deployment_id}","operation_id":"repos/get-deployment","parameters":[{"name":"deployment_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"sha":{"type":"string"},"ref":{"type":"string"},"task":{"type":"string"},"environment":{"type":"string"},"description":{"type":"string","nullable":true},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"deployments","subcategory":"deployments"}};
+export const GITHUB_DEPLOYMENT_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/deployments/{deployment_id}",
+  "operation_id": "repos/get-deployment",
+  "parameters": [
+    {
+      "name": "deployment_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "sha": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "deployments",
+    "subcategory": "deployments"
+  }
+};
 
-export const GITHUB_DEPLOYMENT_STATUS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/deployments/{deployment_id}/statuses/{status_id}","operation_id":"repos/get-deployment-status","parameters":[{"name":"deployment_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"status_id","in":"path","required":true,"schema":{"type":"integer"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"state":{"type":"string","enum":["error","failure","inactive","pending","success","queued","in_progress"]},"environment":{"type":"string"},"description":{"type":"string","maxLength":140},"target_url":{"type":"string","format":"uri"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"deployments","subcategory":"statuses"}};
+export const GITHUB_DEPLOYMENT_STATUS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/deployments/{deployment_id}/statuses/{status_id}",
+  "operation_id": "repos/get-deployment-status",
+  "parameters": [
+    {
+      "name": "deployment_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "status_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "error",
+              "failure",
+              "inactive",
+              "pending",
+              "success",
+              "queued",
+              "in_progress"
+            ]
+          },
+          "environment": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 140
+          },
+          "target_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "deployments",
+    "subcategory": "statuses"
+  }
+};
 
-export const GITHUB_PULL_REQUEST_FILES_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/pulls/{pull_number}/files","operation_id":"pulls/list-files","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"pull_number","in":"path","required":true,"schema":{"type":"integer"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"sha":{"type":"string","nullable":true},"filename":{"type":"string"},"status":{"type":"string","enum":["added","removed","modified","renamed","copied","changed","unchanged"]},"additions":{"type":"integer"},"deletions":{"type":"integer"},"changes":{"type":"integer"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"pulls","subcategory":"pulls"}};
+export const GITHUB_PULL_REQUEST_FILES_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/pulls/{pull_number}/files",
+  "operation_id": "pulls/list-files",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "pull_number",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sha": {
+              "type": "string",
+              "nullable": true
+            },
+            "filename": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "added",
+                "removed",
+                "modified",
+                "renamed",
+                "copied",
+                "changed",
+                "unchanged"
+              ]
+            },
+            "additions": {
+              "type": "integer"
+            },
+            "deletions": {
+              "type": "integer"
+            },
+            "changes": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "pulls",
+    "subcategory": "pulls"
+  }
+};
 
-export const GITHUB_PULL_REQUEST_REVIEWS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/pulls/{pull_number}/reviews","operation_id":"pulls/list-reviews","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"pull_number","in":"path","required":true,"schema":{"type":"integer"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"The list of reviews returns in chronological order.","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"state":{"type":"string"},"commit_id":{"type":"string","nullable":true},"user":{"type":"object","properties":{"login":{"type":"string"}}},"body":{"type":"string"},"submitted_at":{"type":"string","format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"pulls","subcategory":"reviews"}};
+export const GITHUB_PULL_REQUEST_REVIEWS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/pulls/{pull_number}/reviews",
+  "operation_id": "pulls/list-reviews",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "pull_number",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "The list of reviews returns in chronological order.",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "commit_id": {
+              "type": "string",
+              "nullable": true
+            },
+            "user": {
+              "type": "object",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              }
+            },
+            "body": {
+              "type": "string"
+            },
+            "submitted_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "pulls",
+    "subcategory": "reviews"
+  }
+};
 
-export const GITHUB_PULL_REQUEST_REVIEW_COMMENTS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/pulls/{pull_number}/comments","operation_id":"pulls/list-review-comments","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"pull_number","in":"path","required":true,"schema":{"type":"integer"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"direction","in":"query","required":false,"schema":{"type":"string","enum":["asc","desc"]}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"since","in":"query","required":false,"schema":{"type":"string","format":"date-time"}},{"name":"sort","in":"query","required":false,"schema":{"type":"string","enum":["created","updated"],"default":"created"}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"path":{"type":"string"},"commit_id":{"type":"string"},"user":{"type":"object","properties":{"login":{"type":"string"}}},"body":{"type":"string"},"line":{"type":"integer"},"side":{"type":"string","enum":["LEFT","RIGHT"]},"start_line":{"type":"integer","nullable":true},"start_side":{"type":"string","enum":["LEFT","RIGHT"],"nullable":true},"in_reply_to_id":{"type":"integer"},"updated_at":{"type":"string","format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"pulls","subcategory":"comments"}};
+export const GITHUB_PULL_REQUEST_REVIEW_COMMENTS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/pulls/{pull_number}/comments",
+  "operation_id": "pulls/list-review-comments",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "pull_number",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "direction",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
+        ]
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "since",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    {
+      "name": "sort",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "created",
+          "updated"
+        ],
+        "default": "created"
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "commit_id": {
+              "type": "string"
+            },
+            "user": {
+              "type": "object",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              }
+            },
+            "body": {
+              "type": "string"
+            },
+            "line": {
+              "type": "integer"
+            },
+            "side": {
+              "type": "string",
+              "enum": [
+                "LEFT",
+                "RIGHT"
+              ]
+            },
+            "start_line": {
+              "type": "integer",
+              "nullable": true
+            },
+            "start_side": {
+              "type": "string",
+              "enum": [
+                "LEFT",
+                "RIGHT"
+              ],
+              "nullable": true
+            },
+            "in_reply_to_id": {
+              "type": "integer"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "pulls",
+    "subcategory": "comments"
+  }
+};
 
-export const GITHUB_ISSUE_COMMENTS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/issues/{issue_number}/comments","operation_id":"issues/list-comments","parameters":[{"name":"issue_number","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"since","in":"query","required":false,"schema":{"type":"string","format":"date-time"}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"user":{"type":"object","properties":{"login":{"type":"string"}}},"body":{"type":"string"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"issues","subcategory":"comments"}};
+export const GITHUB_ISSUE_COMMENTS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/issues/{issue_number}/comments",
+  "operation_id": "issues/list-comments",
+  "parameters": [
+    {
+      "name": "issue_number",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "since",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "format": "date-time"
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "user": {
+              "type": "object",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              }
+            },
+            "body": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "issues",
+    "subcategory": "comments"
+  }
+};
 
-export const GITHUB_ISSUE_EVENTS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/issues/{issue_number}/events","operation_id":"issues/list-events","parameters":[{"name":"issue_number","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"event":{"type":"string"},"created_at":{"type":"string"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"issues","subcategory":"events"}};
+export const GITHUB_ISSUE_EVENTS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/issues/{issue_number}/events",
+  "operation_id": "issues/list-events",
+  "parameters": [
+    {
+      "name": "issue_number",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "event": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "issues",
+    "subcategory": "events"
+  }
+};
 
-export const GITHUB_ISSUES_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/issues","operation_id":"issues/list-for-repo","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"assignee","in":"query","required":false,"schema":{"type":"string"}},{"name":"creator","in":"query","required":false,"schema":{"type":"string"}},{"name":"direction","in":"query","required":false,"schema":{"type":"string","enum":["asc","desc"],"default":"desc"}},{"name":"issue_field_values","in":"query","required":false,"schema":{"type":"string"}},{"name":"labels","in":"query","required":false,"schema":{"type":"string"}},{"name":"mentioned","in":"query","required":false,"schema":{"type":"string"}},{"name":"milestone","in":"query","required":false,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"since","in":"query","required":false,"schema":{"type":"string","format":"date-time"}},{"name":"sort","in":"query","required":false,"schema":{"type":"string","enum":["created","updated","comments"],"default":"created"}},{"name":"state","in":"query","required":false,"schema":{"type":"string","enum":["open","closed","all"],"default":"open"}},{"name":"type","in":"query","required":false,"schema":{"type":"string"}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"number":{"type":"integer"},"state":{"type":"string"},"title":{"type":"string"},"pull_request":{"type":"object","properties":{"url":{"type":"string","nullable":false,"format":"uri"}}},"updated_at":{"type":"string","format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"issues","subcategory":"issues"}};
+export const GITHUB_ISSUES_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/issues",
+  "operation_id": "issues/list-for-repo",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "assignee",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "creator",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "direction",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
+        ],
+        "default": "desc"
+      }
+    },
+    {
+      "name": "issue_field_values",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "labels",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "mentioned",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "milestone",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "since",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    {
+      "name": "sort",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "created",
+          "updated",
+          "comments"
+        ],
+        "default": "created"
+      }
+    },
+    {
+      "name": "state",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "open",
+          "closed",
+          "all"
+        ],
+        "default": "open"
+      }
+    },
+    {
+      "name": "type",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "number": {
+              "type": "integer"
+            },
+            "state": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "pull_request": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "nullable": false,
+                  "format": "uri"
+                }
+              }
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "issues",
+    "subcategory": "issues"
+  }
+};
 
-export const GITHUB_PULL_REQUESTS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/pulls","operation_id":"pulls/list","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"base","in":"query","required":false,"schema":{"type":"string"}},{"name":"direction","in":"query","required":false,"schema":{"type":"string","enum":["asc","desc"]}},{"name":"head","in":"query","required":false,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"sort","in":"query","required":false,"schema":{"type":"string","enum":["created","updated","popularity","long-running"],"default":"created"}},{"name":"state","in":"query","required":false,"schema":{"type":"string","enum":["open","closed","all"],"default":"open"}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"number":{"type":"integer"},"state":{"type":"string"},"title":{"type":"string"},"user":{"type":"object","properties":{"login":{"type":"string"}}},"head":{"type":"object","properties":{"sha":{"type":"string"}}},"base":{"type":"object","properties":{"ref":{"type":"string"},"sha":{"type":"string"}}},"updated_at":{"type":"string","format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"pulls","subcategory":"pulls"}};
+export const GITHUB_PULL_REQUESTS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/pulls",
+  "operation_id": "pulls/list",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "base",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "direction",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
+        ]
+      }
+    },
+    {
+      "name": "head",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "sort",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "created",
+          "updated",
+          "popularity",
+          "long-running"
+        ],
+        "default": "created"
+      }
+    },
+    {
+      "name": "state",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "open",
+          "closed",
+          "all"
+        ],
+        "default": "open"
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "number": {
+              "type": "integer"
+            },
+            "state": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "user": {
+              "type": "object",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              }
+            },
+            "head": {
+              "type": "object",
+              "properties": {
+                "sha": {
+                  "type": "string"
+                }
+              }
+            },
+            "base": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "string"
+                },
+                "sha": {
+                  "type": "string"
+                }
+              }
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "pulls",
+    "subcategory": "pulls"
+  }
+};
 
-export const GITHUB_COMMITS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/commits","operation_id":"repos/list-commits","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"author","in":"query","required":false,"schema":{"type":"string"}},{"name":"committer","in":"query","required":false,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"path","in":"query","required":false,"schema":{"type":"string"}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"sha","in":"query","required":false,"schema":{"type":"string"}},{"name":"since","in":"query","required":false,"schema":{"type":"string","format":"date-time"}},{"name":"until","in":"query","required":false,"schema":{"type":"string","format":"date-time"}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"sha":{"type":"string"},"node_id":{"type":"string"},"commit":{"type":"object","properties":{"tree":{"type":"object","properties":{"sha":{"type":"string"}}}}},"parents":{"type":"array","items":{"type":"object","properties":{"sha":{"type":"string"}}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"commits","subcategory":"commits"}};
+export const GITHUB_COMMITS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/commits",
+  "operation_id": "repos/list-commits",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "author",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "committer",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "path",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "sha",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "since",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    {
+      "name": "until",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "format": "date-time"
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sha": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "object",
+              "properties": {
+                "tree": {
+                  "type": "object",
+                  "properties": {
+                    "sha": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "parents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "sha": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "commits",
+    "subcategory": "commits"
+  }
+};
 
-export const GITHUB_COMMIT_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/commits/{ref}","operation_id":"repos/get-commit","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"ref","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"sha":{"type":"string"},"node_id":{"type":"string"},"commit":{"type":"object","properties":{"tree":{"type":"object","properties":{"sha":{"type":"string"}}}}},"parents":{"type":"array","items":{"type":"object","properties":{"sha":{"type":"string"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"commits","subcategory":"commits"}};
+export const GITHUB_COMMIT_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/commits/{ref}",
+  "operation_id": "repos/get-commit",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "ref",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "sha": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "object",
+            "properties": {
+              "tree": {
+                "type": "object",
+                "properties": {
+                  "sha": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "parents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sha": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "commits",
+    "subcategory": "commits"
+  }
+};
 
-export const GITHUB_GIT_TREE_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/git/trees/{tree_sha}","operation_id":"git/get-tree","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"tree_sha","in":"path","required":true,"schema":{"type":"string"}},{"name":"recursive","in":"query","required":false,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"sha":{"type":"string"},"truncated":{"type":"boolean"},"tree":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"mode":{"type":"string"},"type":{"type":"string"},"sha":{"type":"string"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"git","subcategory":"trees"}};
+export const GITHUB_GIT_TREE_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/git/trees/{tree_sha}",
+  "operation_id": "git/get-tree",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "tree_sha",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "recursive",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "sha": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "tree": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "mode": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "sha": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "git",
+    "subcategory": "trees"
+  }
+};
 
-export const GITHUB_GIT_BLOB_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/git/blobs/{file_sha}","operation_id":"git/get-blob","parameters":[{"name":"file_sha","in":"path","required":true,"schema":{"type":"string"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"sha":{"type":"string"},"node_id":{"type":"string"},"size":{"type":"integer","nullable":true},"encoding":{"type":"string"},"content":{"type":"string"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"git","subcategory":"blobs"}};
+export const GITHUB_GIT_BLOB_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/git/blobs/{file_sha}",
+  "operation_id": "git/get-blob",
+  "parameters": [
+    {
+      "name": "file_sha",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "sha": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "nullable": true
+          },
+          "encoding": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "git",
+    "subcategory": "blobs"
+  }
+};
 
-export const GITHUB_WORKFLOW_RUNS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/actions/runs","operation_id":"actions/list-workflow-runs-for-repo","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"actor","in":"query","required":false,"schema":{"type":"string"}},{"name":"branch","in":"query","required":false,"schema":{"type":"string"}},{"name":"check_suite_id","in":"query","required":false,"schema":{"type":"integer","format":"int64"}},{"name":"created","in":"query","required":false,"schema":{"type":"string","format":"date-time"}},{"name":"event","in":"query","required":false,"schema":{"type":"string"}},{"name":"exclude_pull_requests","in":"query","required":false,"schema":{"type":"boolean","default":false}},{"name":"head_sha","in":"query","required":false,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"status","in":"query","required":false,"schema":{"type":"string","enum":["completed","action_required","cancelled","failure","neutral","skipped","stale","success","timed_out","in_progress","queued","requested","waiting","pending"]}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"total_count":{"type":"integer"},"workflow_runs":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"workflow_id":{"type":"integer"},"run_number":{"type":"integer"},"run_attempt":{"type":"integer"},"status":{"type":"string","nullable":true},"conclusion":{"type":"string","nullable":true},"head_sha":{"type":"string"},"head_branch":{"type":"string","nullable":true},"updated_at":{"type":"string","format":"date-time"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"actions","subcategory":"workflow-runs"}};
+export const GITHUB_WORKFLOW_RUNS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/actions/runs",
+  "operation_id": "actions/list-workflow-runs-for-repo",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "actor",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "branch",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "check_suite_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "format": "int64"
+      }
+    },
+    {
+      "name": "created",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    {
+      "name": "event",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "exclude_pull_requests",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    {
+      "name": "head_sha",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "completed",
+          "action_required",
+          "cancelled",
+          "failure",
+          "neutral",
+          "skipped",
+          "stale",
+          "success",
+          "timed_out",
+          "in_progress",
+          "queued",
+          "requested",
+          "waiting",
+          "pending"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "workflow_runs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "workflow_id": {
+                  "type": "integer"
+                },
+                "run_number": {
+                  "type": "integer"
+                },
+                "run_attempt": {
+                  "type": "integer"
+                },
+                "status": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "conclusion": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "head_sha": {
+                  "type": "string"
+                },
+                "head_branch": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "actions",
+    "subcategory": "workflow-runs"
+  }
+};
 
-export const GITHUB_WORKFLOW_JOBS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/actions/runs/{run_id}/jobs","operation_id":"actions/list-jobs-for-workflow-run","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"run_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"filter","in":"query","required":false,"schema":{"type":"string","enum":["latest","all"],"default":"latest"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"total_count":{"type":"integer"},"jobs":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"run_id":{"type":"integer","format":"int64"},"run_attempt":{"type":"integer"},"node_id":{"type":"string"},"head_sha":{"type":"string"},"name":{"type":"string"},"status":{"type":"string","enum":["queued","in_progress","completed","waiting","requested","pending"]},"conclusion":{"type":"string","enum":["success","failure","neutral","cancelled","skipped","timed_out","action_required"],"nullable":true},"started_at":{"type":"string","format":"date-time"},"completed_at":{"type":"string","nullable":true,"format":"date-time"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"actions","subcategory":"workflow-jobs"}};
+export const GITHUB_WORKFLOW_JOBS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+  "operation_id": "actions/list-jobs-for-workflow-run",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "run_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "filter",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "latest",
+          "all"
+        ],
+        "default": "latest"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "jobs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "run_id": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "run_attempt": {
+                  "type": "integer"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "head_sha": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "in_progress",
+                    "completed",
+                    "waiting",
+                    "requested",
+                    "pending"
+                  ]
+                },
+                "conclusion": {
+                  "type": "string",
+                  "enum": [
+                    "success",
+                    "failure",
+                    "neutral",
+                    "cancelled",
+                    "skipped",
+                    "timed_out",
+                    "action_required"
+                  ],
+                  "nullable": true
+                },
+                "started_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "completed_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "actions",
+    "subcategory": "workflow-jobs"
+  }
+};
 
-export const GITHUB_WORKFLOW_RUN_ARTIFACTS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/actions/runs/{run_id}/artifacts","operation_id":"actions/list-workflow-run-artifacts","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"run_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"direction","in":"query","required":false,"schema":{"type":"string","enum":["asc","desc"],"default":"desc"}},{"name":"name","in":"query","required":false,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"total_count":{"type":"integer"},"artifacts":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"name":{"type":"string"},"size_in_bytes":{"type":"integer"},"expired":{"type":"boolean"},"created_at":{"type":"string","nullable":true,"format":"date-time"},"expires_at":{"type":"string","nullable":true,"format":"date-time"},"updated_at":{"type":"string","nullable":true,"format":"date-time"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"actions","subcategory":"artifacts"}};
+export const GITHUB_WORKFLOW_RUN_ARTIFACTS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
+  "operation_id": "actions/list-workflow-run-artifacts",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "run_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "direction",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
+        ],
+        "default": "desc"
+      }
+    },
+    {
+      "name": "name",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "size_in_bytes": {
+                  "type": "integer"
+                },
+                "expired": {
+                  "type": "boolean"
+                },
+                "created_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                },
+                "expires_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "actions",
+    "subcategory": "artifacts"
+  }
+};
 
-export const GITHUB_ARTIFACT_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/actions/artifacts/{artifact_id}","operation_id":"actions/get-artifact","parameters":[{"name":"artifact_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}}],"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"name":{"type":"string"},"size_in_bytes":{"type":"integer"},"expired":{"type":"boolean"},"created_at":{"type":"string","nullable":true,"format":"date-time"},"expires_at":{"type":"string","nullable":true,"format":"date-time"},"updated_at":{"type":"string","nullable":true,"format":"date-time"}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"actions","subcategory":"artifacts"}};
+export const GITHUB_ARTIFACT_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/actions/artifacts/{artifact_id}",
+  "operation_id": "actions/get-artifact",
+  "parameters": [
+    {
+      "name": "artifact_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "node_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "size_in_bytes": {
+            "type": "integer"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "actions",
+    "subcategory": "artifacts"
+  }
+};
 
-export const GITHUB_WORKFLOWS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/actions/workflows","operation_id":"actions/list-repo-workflows","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"total_count":{"type":"integer"},"workflows":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"name":{"type":"string"},"path":{"type":"string"},"state":{"type":"string","enum":["active","deleted","disabled_fork","disabled_inactivity","disabled_manually"]},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"actions","subcategory":"workflows"}};
+export const GITHUB_WORKFLOWS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/actions/workflows",
+  "operation_id": "actions/list-repo-workflows",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "workflows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "deleted",
+                    "disabled_fork",
+                    "disabled_inactivity",
+                    "disabled_manually"
+                  ]
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "actions",
+    "subcategory": "workflows"
+  }
+};
 
-export const GITHUB_CHECK_RUNS_FOR_REF_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/commits/{ref}/check-runs","operation_id":"checks/list-for-ref","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"ref","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"app_id","in":"query","required":false,"schema":{"type":"integer"}},{"name":"check_name","in":"query","required":false,"schema":{"type":"string"}},{"name":"filter","in":"query","required":false,"schema":{"type":"string","enum":["latest","all"],"default":"latest"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"status","in":"query","required":false,"schema":{"type":"string","enum":["queued","in_progress","completed"]}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"total_count":{"type":"integer"},"check_runs":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"head_sha":{"type":"string"},"name":{"type":"string"},"status":{"type":"string","enum":["queued","in_progress","completed","waiting","requested","pending"]},"conclusion":{"type":"string","enum":["success","failure","neutral","cancelled","skipped","timed_out","action_required"],"nullable":true},"started_at":{"type":"string","nullable":true,"format":"date-time"},"completed_at":{"type":"string","nullable":true,"format":"date-time"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"checks","subcategory":"runs"}};
+export const GITHUB_CHECK_RUNS_FOR_REF_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/commits/{ref}/check-runs",
+  "operation_id": "checks/list-for-ref",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "ref",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "app_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "check_name",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "filter",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "latest",
+          "all"
+        ],
+        "default": "latest"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "in_progress",
+          "completed"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "check_runs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "head_sha": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "in_progress",
+                    "completed",
+                    "waiting",
+                    "requested",
+                    "pending"
+                  ]
+                },
+                "conclusion": {
+                  "type": "string",
+                  "enum": [
+                    "success",
+                    "failure",
+                    "neutral",
+                    "cancelled",
+                    "skipped",
+                    "timed_out",
+                    "action_required"
+                  ],
+                  "nullable": true
+                },
+                "started_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                },
+                "completed_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "checks",
+    "subcategory": "runs"
+  }
+};
 
-export const GITHUB_CHECK_SUITES_FOR_REF_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/commits/{ref}/check-suites","operation_id":"checks/list-suites-for-ref","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"ref","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"app_id","in":"query","required":false,"schema":{"type":"integer"}},{"name":"check_name","in":"query","required":false,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"total_count":{"type":"integer"},"check_suites":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"head_sha":{"type":"string"},"head_branch":{"type":"string","nullable":true},"status":{"type":"string","enum":["queued","in_progress","completed","waiting","requested","pending"],"nullable":true},"conclusion":{"type":"string","enum":["success","failure","neutral","cancelled","skipped","timed_out","action_required","startup_failure","stale",null],"nullable":true},"created_at":{"type":"string","nullable":true,"format":"date-time"},"updated_at":{"type":"string","nullable":true,"format":"date-time"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"checks","subcategory":"suites"}};
+export const GITHUB_CHECK_SUITES_FOR_REF_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/commits/{ref}/check-suites",
+  "operation_id": "checks/list-suites-for-ref",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "ref",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "app_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "check_name",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "check_suites": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "head_sha": {
+                  "type": "string"
+                },
+                "head_branch": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "in_progress",
+                    "completed",
+                    "waiting",
+                    "requested",
+                    "pending"
+                  ],
+                  "nullable": true
+                },
+                "conclusion": {
+                  "type": "string",
+                  "enum": [
+                    "success",
+                    "failure",
+                    "neutral",
+                    "cancelled",
+                    "skipped",
+                    "timed_out",
+                    "action_required",
+                    "startup_failure",
+                    "stale",
+                    null
+                  ],
+                  "nullable": true
+                },
+                "created_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "checks",
+    "subcategory": "suites"
+  }
+};
 
-export const GITHUB_BRANCHES_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/branches","operation_id":"repos/list-branches","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"protected","in":"query","required":false,"schema":{"type":"boolean"}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"commit":{"type":"object","properties":{"sha":{"type":"string"}}},"protected":{"type":"boolean"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"branches","subcategory":"branches"}};
+export const GITHUB_BRANCHES_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/branches",
+  "operation_id": "repos/list-branches",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "protected",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "boolean"
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "object",
+              "properties": {
+                "sha": {
+                  "type": "string"
+                }
+              }
+            },
+            "protected": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "branches",
+    "subcategory": "branches"
+  }
+};
 
-export const GITHUB_TAGS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/tags","operation_id":"repos/list-tags","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"commit":{"type":"object","properties":{"sha":{"type":"string"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"repos","subcategory":"repos"}};
+export const GITHUB_TAGS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/tags",
+  "operation_id": "repos/list-tags",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "object",
+              "properties": {
+                "sha": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "repos",
+    "subcategory": "repos"
+  }
+};
 
-export const GITHUB_RELEASES_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/releases","operation_id":"repos/list-releases","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer"},"node_id":{"type":"string"},"tag_name":{"type":"string"},"target_commitish":{"type":"string"},"draft":{"type":"boolean"},"prerelease":{"type":"boolean"},"immutable":{"type":"boolean"},"published_at":{"type":"string","nullable":true,"format":"date-time"},"updated_at":{"type":"string","nullable":true,"format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"releases","subcategory":"releases"}};
+export const GITHUB_RELEASES_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/releases",
+  "operation_id": "repos/list-releases",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "tag_name": {
+              "type": "string"
+            },
+            "target_commitish": {
+              "type": "string"
+            },
+            "draft": {
+              "type": "boolean"
+            },
+            "prerelease": {
+              "type": "boolean"
+            },
+            "immutable": {
+              "type": "boolean"
+            },
+            "published_at": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "releases",
+    "subcategory": "releases"
+  }
+};
 
-export const GITHUB_DEPLOYMENTS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/deployments","operation_id":"repos/list-deployments","parameters":[{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"environment","in":"query","required":false,"schema":{"type":"string","default":"none","nullable":true}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"ref","in":"query","required":false,"schema":{"type":"string","default":"none"}},{"name":"sha","in":"query","required":false,"schema":{"type":"string","default":"none"}},{"name":"task","in":"query","required":false,"schema":{"type":"string","default":"none"}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"sha":{"type":"string"},"ref":{"type":"string"},"task":{"type":"string"},"environment":{"type":"string"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"deployments","subcategory":"deployments"}};
+export const GITHUB_DEPLOYMENTS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/deployments",
+  "operation_id": "repos/list-deployments",
+  "parameters": [
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "environment",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "default": "none",
+        "nullable": true
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "ref",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "default": "none"
+      }
+    },
+    {
+      "name": "sha",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "default": "none"
+      }
+    },
+    {
+      "name": "task",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "default": "none"
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "sha": {
+              "type": "string"
+            },
+            "ref": {
+              "type": "string"
+            },
+            "task": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "deployments",
+    "subcategory": "deployments"
+  }
+};
 
-export const GITHUB_DEPLOYMENT_STATUSES_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/deployments/{deployment_id}/statuses","operation_id":"repos/list-deployment-statuses","parameters":[{"name":"deployment_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"state":{"type":"string","enum":["error","failure","inactive","pending","success","queued","in_progress"]},"environment":{"type":"string"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"deployments","subcategory":"statuses"}};
+export const GITHUB_DEPLOYMENT_STATUSES_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/deployments/{deployment_id}/statuses",
+  "operation_id": "repos/list-deployment-statuses",
+  "parameters": [
+    {
+      "name": "deployment_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "error",
+                "failure",
+                "inactive",
+                "pending",
+                "success",
+                "queued",
+                "in_progress"
+              ]
+            },
+            "environment": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "deployments",
+    "subcategory": "statuses"
+  }
+};
 
-export const GITHUB_COMMIT_PULL_REQUESTS_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/commits/{commit_sha}/pulls","operation_id":"repos/list-pull-requests-associated-with-commit","parameters":[{"name":"commit_sha","in":"path","required":true,"schema":{"type":"string"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"number":{"type":"integer"},"state":{"type":"string"},"head":{"type":"object","properties":{"sha":{"type":"string"}}},"base":{"type":"object","properties":{"ref":{"type":"string"},"sha":{"type":"string"}}},"updated_at":{"type":"string","format":"date-time"}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"commits","subcategory":"commits"}};
+export const GITHUB_COMMIT_PULL_REQUESTS_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/commits/{commit_sha}/pulls",
+  "operation_id": "repos/list-pull-requests-associated-with-commit",
+  "parameters": [
+    {
+      "name": "commit_sha",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "number": {
+              "type": "integer"
+            },
+            "state": {
+              "type": "string"
+            },
+            "head": {
+              "type": "object",
+              "properties": {
+                "sha": {
+                  "type": "string"
+                }
+              }
+            },
+            "base": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "string"
+                },
+                "sha": {
+                  "type": "string"
+                }
+              }
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "commits",
+    "subcategory": "commits"
+  }
+};
 
-export const GITHUB_CHECK_RUNS_FOR_SUITE_OPERATION:GithubObservationOperation={"provider":"github","api_version":"2026-03-10","method":"GET","path_template":"/repos/{owner}/{repo}/check-suites/{check_suite_id}/check-runs","operation_id":"checks/list-for-suite","parameters":[{"name":"check_suite_id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"owner","in":"path","required":true,"schema":{"type":"string"}},{"name":"repo","in":"path","required":true,"schema":{"type":"string"}},{"name":"check_name","in":"query","required":false,"schema":{"type":"string"}},{"name":"filter","in":"query","required":false,"schema":{"type":"string","enum":["latest","all"],"default":"latest"}},{"name":"page","in":"query","required":false,"schema":{"type":"integer","default":1}},{"name":"per_page","in":"query","required":false,"schema":{"type":"integer","default":30}},{"name":"status","in":"query","required":false,"schema":{"type":"string","enum":["queued","in_progress","completed"]}}],"pagination":{"kind":"page-number","page_parameter":"page","page_size_parameter":"per_page","first_page":1,"default_page_size":30},"outcomes":[{"status":"200","description":"Response","schema":{"type":"object","properties":{"total_count":{"type":"integer"},"check_runs":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","format":"int64"},"node_id":{"type":"string"},"head_sha":{"type":"string"},"name":{"type":"string"},"status":{"type":"string","enum":["queued","in_progress","completed","waiting","requested","pending"]},"conclusion":{"type":"string","enum":["success","failure","neutral","cancelled","skipped","timed_out","action_required"],"nullable":true},"started_at":{"type":"string","nullable":true,"format":"date-time"},"completed_at":{"type":"string","nullable":true,"format":"date-time"}}}}}}}],"github_extensions":{"githubCloudOnly":false,"enabledForGitHubApps":true,"category":"checks","subcategory":"runs"}};
+export const GITHUB_CHECK_RUNS_FOR_SUITE_OPERATION:GithubObservationOperation={
+  "provider": "github",
+  "api_version": "2026-03-10",
+  "method": "GET",
+  "path_template": "/repos/{owner}/{repo}/check-suites/{check_suite_id}/check-runs",
+  "operation_id": "checks/list-for-suite",
+  "parameters": [
+    {
+      "name": "check_suite_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "name": "owner",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "repo",
+      "in": "path",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "check_name",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "filter",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "latest",
+          "all"
+        ],
+        "default": "latest"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 1
+      }
+    },
+    {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "integer",
+        "default": 30
+      }
+    },
+    {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "in_progress",
+          "completed"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "kind": "page-number",
+    "page_parameter": "page",
+    "page_size_parameter": "per_page",
+    "first_page": 1,
+    "default_page_size": 30
+  },
+  "outcomes": [
+    {
+      "status": "200",
+      "description": "Response",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "check_runs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "head_sha": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "in_progress",
+                    "completed",
+                    "waiting",
+                    "requested",
+                    "pending"
+                  ]
+                },
+                "conclusion": {
+                  "type": "string",
+                  "enum": [
+                    "success",
+                    "failure",
+                    "neutral",
+                    "cancelled",
+                    "skipped",
+                    "timed_out",
+                    "action_required"
+                  ],
+                  "nullable": true
+                },
+                "started_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                },
+                "completed_at": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "github_extensions": {
+    "githubCloudOnly": false,
+    "enabledForGitHubApps": true,
+    "category": "checks",
+    "subcategory": "runs"
+  }
+};
 
 export const GITHUB_OBSERVATION_OPERATIONS={
   repository:GITHUB_REPOSITORY_OPERATION,

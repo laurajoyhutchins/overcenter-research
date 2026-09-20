@@ -3,6 +3,45 @@
   "standard": "Maintained experiments must be explainable and reproducible from repository state alone.",
   "entries": [
     {
+      "id": "assignment-capsule",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/assignment-capsule",
+      "readme": "experiments/assignment-capsule/README.md",
+      "question": "Can Overcenter claim real work and deliver a self-contained byte-complete assignment to an empty disposable worker?",
+      "claim": "For the bounded proof workload, the claimed Work snapshot plus exact task bytes is sufficient for a no-checkout, no-network worker to produce candidate output that trusted authority can independently settle.",
+      "contrast": "Assign exact identity but require the worker to obtain source/input bytes through an ambient checkout or mount.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:assignment-capsule"
+      },
+      "environment": [
+        "Node.js from .node-version for the deterministic contract.",
+        "GitHub Actions ubuntu-24.04 for the no-checkout worker and isolated network namespace."
+      ],
+      "success_criteria": [
+        "A production SQLite kernel derives READY work and claims it at an exact revision.",
+        "The worker receives the claimed Work snapshot and all task-specific bytes in one immutable capsule.",
+        "The worker executes with no checkout, repository permission, execution capability, or outbound network namespace.",
+        "Missing or altered required bytes fail closed before execution.",
+        "Candidate bytes bind to the exact assignment digest, obligation, run, and claimed revision.",
+        "Trusted reconstruction and independent observation settle the same run DONE."
+      ],
+      "evidence": {
+        "state": "hosted",
+        "artifacts": [
+          ".github/workflows/assignment-capsule-proof.yml"
+        ]
+      },
+      "interpretation": "A positive result proves byte-complete assignment plumbing for the bounded workload; it does not make the worker authoritative for success or imply arbitrary toolchain portability.",
+      "non_claims": [
+        "The Node runtime or Linux kernel are embedded in the assignment.",
+        "This is a general artifact distribution or confidential payload service.",
+        "Arbitrary provider mutation is authorized by the worker capsule.",
+        "Every future obligation already fits this proof packet."
+      ]
+    },
+    {
       "id": "bounded-graph-exhaustion",
       "kind": "experiment",
       "status": "maintained",
