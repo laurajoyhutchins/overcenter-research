@@ -152,3 +152,22 @@ test('expands interface dispatch to every assignable production implementation',
   assert.equal(r.ranking.find(x=>x.qualifiedName==='StoreA.append').vector.A,1);
   assert.equal(r.ranking.find(x=>x.qualifiedName==='StoreB.append').vector.A,1);
 });
+
+
+test('does not treat parameter-bound callbacks as missing production edges',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-callback-'));
+  write(root,'src/core.ts',`export function settle(callback:()=>number){ return callback(); }\nexport function recover(){ return settle(()=>1); }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
+  const config={
+    requiredEvidenceTiers:[],
+    graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:true},
+    authorityClasses:[{id:'settlement',sink:{file:'src/core.ts',name:'settle'},recoveryClass:5}],
+    recoveryScenarios:[{id:'recover-settle',entry:{file:'src/core.ts',name:'recover'},terminal:{file:'src/core.ts',name:'settle'}}],
+    requiredCalibrationPairs:[],
+    diagnosticCalibrationPairs:[],
+  };
+  const r=analyze({root,config});
+  assert.equal(r.analyzer.byScope.production.externalCallbackCalls,1);
+  assert.equal(r.analyzer.byScope.production.unknownCalls,0);
+  assert.equal(r.analyzer.byScope.production.internalResolutionRate,1);
+});
