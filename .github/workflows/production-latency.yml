@@ -4,7 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - experiment/production-latency
+      - main
+    paths:
+      - .github/workflows/production-latency.yml
+      - experiments/production-latency/**
+      - src/providers/github-status-effect.ts
+      - package.json
+      - experiments/registry.json
   pull_request:
     paths:
       - .github/workflows/production-latency.yml
