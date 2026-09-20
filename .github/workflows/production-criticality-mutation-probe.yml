@@ -166,7 +166,8 @@ jobs:
           const evidence=JSON.parse(fs.readFileSync('experiments/production-criticality-ranking/mutation-evidence.json','utf8'));
           const runId=evidence.source_run?.workflow_run_id;
           const revision=evidence.source_run?.revision;
-          if(!Number.isInteger(runId)||runId<=0||!/^[0-9a-f]{40}$/.test(revision??'')) throw new Error('invalid mutation evidence source-run identity');
+          const artifactDigest=evidence.source_run?.artifact_digest;
+          if(!Number.isInteger(runId)||runId<=0||!/^[0-9a-f]{40}$/.test(revision??'')||!/^sha256:[0-9a-f]{64}$/.test(artifactDigest??'')) throw new Error('invalid mutation evidence source-run identity');
           const headers={
             Accept:'application/vnd.github+json',
             Authorization:`Bearer ${process.env.GITHUB_TOKEN}`,
@@ -187,8 +188,9 @@ jobs:
           const artifacts=await get(`${base}/actions/runs/${runId}/artifacts?per_page=100`);
           const artifact=artifacts.artifacts?.find(item=>item.name==='production-criticality-mutation-probe'&&!item.expired);
           if(!artifact) throw new Error('authoritative mutation artifact is missing or expired');
-          if(evidence.source_run?.artifact_digest && artifact.digest && evidence.source_run.artifact_digest!==artifact.digest){
-            throw new Error(`mutation artifact digest mismatch: ${artifact.digest} != ${evidence.source_run.artifact_digest}`);
+          if(!/^sha256:[0-9a-f]{64}$/.test(artifact.digest??'')) throw new Error('authoritative mutation artifact has no digest');
+          if(artifactDigest!==artifact.digest){
+            throw new Error(`mutation artifact digest mismatch: ${artifact.digest} != ${artifactDigest}`);
           }
           fs.appendFileSync(process.env.GITHUB_OUTPUT,`run_id=${runId}\n`);
           NODE
