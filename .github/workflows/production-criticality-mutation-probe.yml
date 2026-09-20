@@ -8,6 +8,8 @@ on:
       - 'src/projector.ts'
       - 'src/kernel-core.ts'
       - 'src/observation.ts'
+      - 'test/hostile.test.ts'
+      - 'test/*-hostile.test.ts'
       - 'experiments/production-criticality-ranking/mutation-probes.json'
       - 'experiments/production-criticality-ranking/resolve-mutation-probes.mjs'
       - 'experiments/production-criticality-ranking/stryker.config.mjs'
@@ -33,6 +35,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       run_probe: ${{ steps.changed.outputs.run_probe }}
+      mutation_probe: ${{ steps.changed.outputs.mutation_probe }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -60,47 +63,50 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha || '' }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-          EVIDENCE_CURRENT: ${{ steps.evidence.outputs.current }}
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "run_probe=true" >> "$GITHUB_OUTPUT"
+            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [[ -z "$BASE" || -z "$HEAD" ]]; then
             echo "mutation probe cannot establish the full pull-request revision range" >&2
             exit 1
           fi
-          if git diff --name-only "$BASE" "$HEAD" -- \
-            experiments/production-criticality-ranking/mutation-probes.json \
-            experiments/production-criticality-ranking/resolve-mutation-probes.mjs \
-            experiments/production-criticality-ranking/stryker.config.mjs \
-            experiments/production-criticality-ranking/summarize-mutation.mjs \
-            experiments/production-criticality-ranking/summarize-mutation.test.mjs \
-            experiments/production-criticality-ranking/emit-mutation-evidence.mjs | grep -q .; then
-            echo "run_probe=true" >> "$GITHUB_OUTPUT"
+
+          changed="$(git diff --name-only "$BASE" "$HEAD")"
+          relevant="$(printf '%s\n' "$changed" | grep -E '^(src/(digest|semantic-identity|projector|kernel-core|observation)\.ts|test/(hostile|.*-hostile)\.test\.ts|experiments/production-criticality-ranking/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs)|\.github/workflows/production-criticality-mutation-probe\.yml)$' || true)"
+          if [[ -z "$relevant" ]]; then
+            echo "run_probe=false" >> "$GITHUB_OUTPUT"
+            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if git diff --name-only "$BASE" "$HEAD" -- \
-            src/digest.ts \
-            src/semantic-identity.ts \
-            src/projector.ts \
-            src/kernel-core.ts \
-            src/observation.ts | grep -q .; then
-            if [[ "$EVIDENCE_CURRENT" == "true" ]]; then
-              echo "run_probe=false" >> "$GITHUB_OUTPUT"
-            else
-              echo "run_probe=true" >> "$GITHUB_OUTPUT"
-            fi
-            exit 0
+
+          probes=()
+          if printf '%s\n' "$changed" | grep -Eq '^(src/semantic-identity\.ts|test/semantic-identity-hostile\.test\.ts)$'; then
+            probes+=("semantic-identity")
           fi
-          echo "run_probe=false" >> "$GITHUB_OUTPUT"
+          if printf '%s\n' "$changed" | grep -Eq '^(src/observation\.ts|test/observation-hostile\.test\.ts)$'; then
+            probes+=("verification-and-absence")
+          fi
+
+          broad="$(printf '%s\n' "$changed" | grep -E '^(src/(digest|projector|kernel-core)\.ts|experiments/production-criticality-ranking/(mutation-probes\.json|resolve-mutation-probes\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs))$' || true)"
+          echo "run_probe=true" >> "$GITHUB_OUTPUT"
+          if [[ -n "$broad" || ${#probes[@]} -eq 0 ]]; then
+            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
+          else
+            IFS=,
+            echo "mutation_probe=${probes[*]}" >> "$GITHUB_OUTPUT"
+          fi
 
   mutate:
     needs: detect
     if: needs.detect.outputs.run_probe == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      MUTATION_PROBE: ${{ needs.detect.outputs.mutation_probe }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
