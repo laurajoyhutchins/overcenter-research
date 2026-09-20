@@ -1,0 +1,363 @@
+name: Codex closed-loop proof
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: codex-closed-loop
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: ${{ github.sha }}
+
+jobs:
+  prepare:
+    name: Trusted authority — claim witness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      assignment_sha256: ${{ steps.prepare.outputs.assignment_sha256 }}
+      run_id: ${{ steps.claim.outputs.run_id }}
+      claimed_revision: ${{ steps.claim.outputs.claimed_revision }}
+      target_path: ${{ steps.claim.outputs.target_path }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify deterministic experiment contract
+        run: npm run test:codex-closed-loop
+      - name: Claim exact witness obligation
+        id: claim
+        run: |
+          set -euo pipefail
+          mkdir -p authority transport
+          node --experimental-strip-types experiments/codex-closed-loop/prepare.ts             authority/overcenter.sqlite transport/assignment.json
+      - name: Bind assignment bytes
+        id: prepare
+        run: |
+          set -euo pipefail
+          assignment_sha256="$(sha256sum transport/assignment.json | cut -d' ' -f1)"
+          printf '%s  assignment.json\n' "$assignment_sha256" > transport/assignment.sha256
+          echo "assignment_sha256=$assignment_sha256" >> "$GITHUB_OUTPUT"
+      - name: Upload immutable assignment
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codex-closed-loop-assignment
+          path: transport
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload trusted authority
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codex-closed-loop-authority
+          path: authority/overcenter.sqlite
+          if-no-files-found: error
+          retention-days: 1
+
+  worker:
+    name: Untrusted Codex worker
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Download exact assignment
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: codex-closed-loop-assignment
+          path: ${{ runner.temp }}/codex-assignment
+      - name: Verify assignment and prepare untrusted account
+        env:
+          EXPECTED_ASSIGNMENT_SHA256: ${{ needs.prepare.outputs.assignment_sha256 }}
+          ASSIGNMENT_PATH: ${{ runner.temp }}/codex-assignment/assignment.json
+        run: |
+          set -euo pipefail
+          actual="$(sha256sum "$ASSIGNMENT_PATH" | cut -d' ' -f1)"
+          test "$actual" = "$EXPECTED_ASSIGNMENT_SHA256"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const assignment=JSON.parse(fs.readFileSync(process.env.ASSIGNMENT_PATH,'utf8'));
+          const prompt=[
+            'You are an untrusted implementation worker inside an Overcenter experiment.',
+            'Implement exactly this claimed assignment:',
+            '',
+            String(assignment.instruction),
+            '',
+            'Constraints:',
+            '- change no file except '+assignment.target_path,
+            '- do not commit, push, open a pull request, or contact GitHub',
+            '- do not change tests, workflows, package scripts, or verification machinery',
+            '- you may inspect the repository and run local commands',
+            '- finish after the workspace contains the requested change',
+          ].join('\n');
+          fs.writeFileSync('.codex-closed-loop-prompt.md',prompt+'\n');
+          NODE
+          sudo useradd --create-home --shell /bin/bash overcenter-codex
+          sudo chown -R overcenter-codex:overcenter-codex "$GITHUB_WORKSPACE"
+          sudo chown -R root:root "$GITHUB_WORKSPACE/.git"
+          sudo chmod -R a-w "$GITHUB_WORKSPACE/.git"
+      - name: Run disposable Codex implementation worker
+        id: codex
+        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12 / v1 on 2026-09-20
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .codex-closed-loop-prompt.md
+          permission-profile: ":workspace"
+          safety-strategy: unprivileged-user
+          codex-user: overcenter-codex
+          allow-users: ${{ github.repository_owner }}
+      - name: Materialize candidate bytes without publication authority
+        env:
+          ASSIGNMENT_PATH: ${{ runner.temp }}/codex-assignment/assignment.json
+          EXPECTED_ASSIGNMENT_SHA256: ${{ needs.prepare.outputs.assignment_sha256 }}
+          TARGET_PATH: experiments/codex-closed-loop/witness.txt
+        run: |
+          set -euo pipefail
+          sudo chown -R "$USER":"$USER" "$GITHUB_WORKSPACE"
+          chmod -R u+w "$GITHUB_WORKSPACE/.git"
+          rm -f .codex-closed-loop-prompt.md
+
+          mapfile -t untracked < <(git ls-files --others --exclude-standard)
+          test "${#untracked[@]}" -eq 0
+
+          mapfile -t changed < <(git diff --name-only HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$TARGET_PATH"
+
+          mkdir -p "$RUNNER_TEMP/codex-candidate"
+          git diff --binary --full-index --no-ext-diff HEAD -- "$TARGET_PATH"             > "$RUNNER_TEMP/codex-candidate/candidate.patch"
+          test -s "$RUNNER_TEMP/codex-candidate/candidate.patch"
+
+          patch_sha256="$(sha256sum "$RUNNER_TEMP/codex-candidate/candidate.patch" | cut -d' ' -f1)"
+          PATCH_SHA256="$patch_sha256" node - <<'NODE' > "$RUNNER_TEMP/codex-candidate/candidate.json"
+          const fs=require('node:fs');
+          const crypto=require('node:crypto');
+          const assignmentBytes=fs.readFileSync(process.env.ASSIGNMENT_PATH);
+          const assignment=JSON.parse(assignmentBytes);
+          const candidate={
+            schema:'overcenter-codex-closed-loop-candidate/v1',
+            assignment_sha256:crypto.createHash('sha256').update(assignmentBytes).digest('hex'),
+            source_sha:assignment.source_sha,
+            target_path:assignment.target_path,
+            run_id:assignment.work.run_id,
+            claimed_revision:assignment.work.claimed_revision,
+            patch_sha256:process.env.PATCH_SHA256,
+          };
+          process.stdout.write(JSON.stringify(candidate,null,2)+'\n');
+          NODE
+
+          candidate_assignment_sha256="$(node -p "JSON.parse(require('fs').readFileSync('$RUNNER_TEMP/codex-candidate/candidate.json','utf8')).assignment_sha256")"
+          test "$candidate_assignment_sha256" = "$EXPECTED_ASSIGNMENT_SHA256"
+      - name: Upload untrusted candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codex-closed-loop-candidate
+          path: ${{ runner.temp }}/codex-candidate
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    name: Trusted authority — verify and settle
+    needs: [prepare, worker]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      patch_sha256: ${{ steps.settle.outputs.patch_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: codex-closed-loop-assignment
+          path: ${{ runner.temp }}/codex-assignment
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: codex-closed-loop-authority
+          path: ${{ runner.temp }}/codex-authority
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: codex-closed-loop-candidate
+          path: ${{ runner.temp }}/codex-candidate
+      - name: Verify exact candidate and settle original run
+        id: settle
+        env:
+          EXPECTED_ASSIGNMENT_SHA256: ${{ needs.prepare.outputs.assignment_sha256 }}
+          TARGET_PATH: experiments/codex-closed-loop/witness.txt
+        run: |
+          set -euo pipefail
+          assignment="$RUNNER_TEMP/codex-assignment/assignment.json"
+          candidate="$RUNNER_TEMP/codex-candidate/candidate.json"
+          patch="$RUNNER_TEMP/codex-candidate/candidate.patch"
+
+          test "$(sha256sum "$assignment" | cut -d' ' -f1)" = "$EXPECTED_ASSIGNMENT_SHA256"
+          patch_sha256="$(sha256sum "$patch" | cut -d' ' -f1)"
+          candidate_patch_sha256="$(node -p "JSON.parse(require('fs').readFileSync('$candidate','utf8')).patch_sha256")"
+          test "$patch_sha256" = "$candidate_patch_sha256"
+
+          git apply --check "$patch"
+          git apply "$patch"
+
+          mapfile -t changed < <(git diff --name-only HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$TARGET_PATH"
+          mapfile -t untracked < <(git ls-files --others --exclude-standard)
+          test "${#untracked[@]}" -eq 0
+          test -f "$TARGET_PATH"
+          test ! -L "$TARGET_PATH"
+          test -z "$(git diff --summary HEAD -- "$TARGET_PATH")"
+
+          report="$(node --experimental-strip-types experiments/codex-closed-loop/settle.ts             "$RUNNER_TEMP/codex-authority/overcenter.sqlite"             "$assignment" "$candidate" "$patch" "$GITHUB_WORKSPACE")"
+          echo "$report"
+          echo "patch_sha256=$patch_sha256" >> "$GITHUB_OUTPUT"
+          {
+            echo '### Codex closed-loop proof'
+            echo
+            echo '- exact Overcenter claim before worker: passed'
+            echo '- Codex repository mutation permission: none'
+            echo '- candidate path confinement: passed'
+            echo '- assignment/candidate digest binding: passed'
+            echo '- independent postcondition verification: passed'
+            echo '- Overcenter settlement: DONE'
+            echo
+            echo "`$report`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Trusted publisher — emit verified GitHub effect
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pr_number: ${{ steps.pr.outputs.pr_number }}
+      pr_url: ${{ steps.pr.outputs.pr_url }}
+      head_sha: ${{ steps.commit.outputs.head_sha }}
+      branch: ${{ steps.commit.outputs.branch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: codex-closed-loop-candidate
+          path: ${{ runner.temp }}/codex-candidate
+      - name: Commit and push the exact verified patch
+        id: commit
+        env:
+          VERIFIED_PATCH_SHA256: ${{ needs.verify.outputs.patch_sha256 }}
+        run: |
+          set -euo pipefail
+          patch="$RUNNER_TEMP/codex-candidate/candidate.patch"
+          test "$(sha256sum "$patch" | cut -d' ' -f1)" = "$VERIFIED_PATCH_SHA256"
+
+          branch="experiment/codex-closed-loop-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git switch -c "$branch"
+          git apply --index "$patch"
+          git config user.name "overcenter-trusted-publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "Experiment: Codex closed-loop witness"
+          git push origin "HEAD:refs/heads/$branch"
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Open draft PR from trusted publication
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.commit.outputs.branch }}
+          HEAD_SHA: ${{ steps.commit.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          node - <<'NODE' > "$RUNNER_TEMP/pr.json"
+          const body={
+            title:'Experiment: Codex closed-loop witness',
+            head:process.env.BRANCH,
+            base:'main',
+            draft:true,
+            body:[
+              'Hosted Overcenter closed-loop mechanism witness.',
+              '',
+              'The patch was produced by an untrusted Codex worker, independently verified and settled by Overcenter, then published by a separate trusted job.',
+              '',
+              'Verified candidate commit: `'+process.env.HEAD_SHA+'`',
+              '',
+              'This PR is evidence, not a merge recommendation.',
+            ].join('\n'),
+          };
+          process.stdout.write(JSON.stringify(body));
+          NODE
+          curl --fail-with-body --silent --show-error             -X POST             -H "Authorization: Bearer $GITHUB_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls"             --data-binary @"$RUNNER_TEMP/pr.json" > "$RUNNER_TEMP/pr-response.json"
+          node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs=require('node:fs');
+          const pr=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/pr-response.json','utf8'));
+          console.log('pr_number='+pr.number);
+          console.log('pr_url='+pr.html_url);
+          NODE
+
+  observe:
+    name: Trusted observer — read back GitHub reality
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Verify exact PR readback
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.publish.outputs.pr_number }}
+          EXPECTED_HEAD_SHA: ${{ needs.publish.outputs.head_sha }}
+          EXPECTED_BRANCH: ${{ needs.publish.outputs.branch }}
+          EXPECTED_BASE_SHA: ${{ env.SOURCE_SHA }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error             -H "Authorization: Bearer $GITHUB_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER"             > "$RUNNER_TEMP/pr-readback.json"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const pr=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/pr-readback.json','utf8'));
+          if (pr.state!=='open') throw new Error('CODEX_CLOSED_LOOP_PR_NOT_OPEN');
+          if (pr.draft!==true) throw new Error('CODEX_CLOSED_LOOP_PR_NOT_DRAFT');
+          if (pr.head.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('CODEX_CLOSED_LOOP_HEAD_SHA_MISMATCH');
+          if (pr.head.ref!==process.env.EXPECTED_BRANCH) throw new Error('CODEX_CLOSED_LOOP_HEAD_BRANCH_MISMATCH');
+          if (pr.base.sha!==process.env.EXPECTED_BASE_SHA) throw new Error('CODEX_CLOSED_LOOP_BASE_SHA_MISMATCH');
+          console.log(JSON.stringify({
+            pr_number:pr.number,
+            pr_url:pr.html_url,
+            base_sha:pr.base.sha,
+            head_sha:pr.head.sha,
+            draft:pr.draft,
+            state:pr.state,
+          }));
+          NODE
+          {
+            echo '### GitHub reality readback'
+            echo
+            echo "- draft PR: ${{ needs.publish.outputs.pr_url }}"
+            echo "- exact base SHA: $EXPECTED_BASE_SHA"
+            echo "- exact head SHA: $EXPECTED_HEAD_SHA"
+            echo '- external readback: passed'
+          } >> "$GITHUB_STEP_SUMMARY"
