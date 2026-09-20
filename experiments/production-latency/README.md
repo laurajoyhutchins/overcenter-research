@@ -72,6 +72,10 @@ The benchmark is valid when every sample:
 
 No fixed latency threshold is part of the correctness proof. Absolute timing is host-, network-, and provider-dependent.
 
+## Result
+
+See [`results/2026-09-20.md`](./results/2026-09-20.md). The first live run measured a 1.774 s median successful transaction, of which 9.481 ms was Overcenter-local and 1.765 s was provider I/O.
+
 ## Interpretation
 
 This answers the bounded question, "What does one successful transaction cost?" It can show whether Overcenter local bookkeeping is material relative to provider I/O.
