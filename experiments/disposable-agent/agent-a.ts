@@ -5,6 +5,7 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { bindTaskSession } from '../../src/effect-broker.ts';
 import { workerResult } from '../../src/realization.ts';
 
 function required(name: string): string {
@@ -44,6 +45,7 @@ const candidates = kernel.inspect().filter(work => {
 });
 assert.equal(candidates.length, 1);
 const snapshot = structuredClone(candidates[0]);
+const session=bindTaskSession(snapshot);
 assert.equal(snapshot.execution_generation,1);
 assert.equal(snapshot.postcondition.verifier, 'github-commit-status/v1');
 if (snapshot.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
@@ -88,7 +90,7 @@ const attemptedStatus = await github(
 );
 assert.equal(attemptedStatus.status,403);
 
-const result=workerResult({
+const result=workerResult(session,{
   kind:'github-actions-trust-boundary-result/v1',
   source_sha:sourceSha,
   authority_rewrite_status:attemptedAuthorityRewrite.status,
