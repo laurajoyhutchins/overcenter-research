@@ -1,15 +1,16 @@
 name: Overcenter request signal
 
 on:
-  push:
-    branches:
-      - 'overcenter/request/**'
+  create:
 
 permissions: {}
 
 jobs:
   signal:
     name: Unprivileged request signal
+    if: >-
+      github.event.ref_type == 'branch' &&
+      startsWith(github.event.ref, 'overcenter/request/')
     runs-on: ubuntu-slim
     timeout-minutes: 1
     steps:
