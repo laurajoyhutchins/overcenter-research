@@ -18,6 +18,7 @@ import type {
   Postcondition,
 } from '../src/model.ts';
 import { effectSemantics } from '../src/semantics.ts';
+import { transactionAdmitted } from '../src/transaction-admission.ts';
 
 const oracleBin=process.env.LEAN_ORACLE_BIN;
 const oracleSha=process.env.LEAN_ORACLE_SHA;
@@ -265,6 +266,55 @@ const transactionRequest=(overrides:Record<string,boolean>={})=>({
   verified_exact_revision:false,settlement_completed:false,
   settlement_was_authorized:false,settlement_evidence_matches:false,
   evidence_valid:false,...overrides,
+});
+
+test('production transaction admission exhaustively agrees with proved Lean step',async()=>{
+  const oracle=new LeanOracle();
+  const keys=[
+    'current_authority','exact_revision','unresolved_effect',
+    'verified_present','verified_absent','verified_exact_revision',
+    'settlement_completed','settlement_was_authorized',
+    'settlement_evidence_matches','evidence_valid',
+  ] as const;
+  try{
+    for(let mask=0;mask<1<<keys.length;mask+=1){
+      const s=Object.fromEntries(
+        keys.map((key,bit)=>[key,(mask&(1<<bit))!==0]),
+      ) as Record<(typeof keys)[number],boolean>;
+      const observed=await oracle.compare(transactionRequest(s));
+      assert.equal(observed.mutation_allowed,transactionAdmitted({
+        command:'mutate',
+        current_authority:s.current_authority,
+        exact_revision:s.exact_revision,
+        unresolved_effect:s.unresolved_effect,
+      }),`mutation mask=${mask}`);
+      assert.equal(observed.settlement_allowed,transactionAdmitted({
+        command:'settle',
+        current_authority:s.current_authority,
+        exact_revision:s.exact_revision,
+        verified_present:s.verified_present,
+        verified_exact_revision:s.verified_exact_revision,
+      }),`settlement mask=${mask}`);
+      assert.equal(observed.replay_allowed,transactionAdmitted({
+        command:'replay',
+        current_authority:s.current_authority,
+        exact_revision:s.exact_revision,
+        verified_absent:s.verified_absent,
+        verified_exact_revision:s.verified_exact_revision,
+      }),`replay mask=${mask}`);
+      assert.equal(observed.done,transactionAdmitted({
+        command:'done',
+        settlement_completed:s.settlement_completed,
+        settlement_was_authorized:s.settlement_was_authorized,
+        settlement_evidence_matches:s.settlement_evidence_matches,
+        verified_present:s.verified_present,
+        verified_exact_revision:s.verified_exact_revision,
+        evidence_valid:s.evidence_valid,
+      }),`done mask=${mask}`);
+    }
+  }finally{
+    await oracle.close();
+  }
 });
 
 test('production transaction guards agree with the TLA kernel oracle',async()=>{
