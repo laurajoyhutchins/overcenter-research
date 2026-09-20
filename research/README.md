@@ -25,6 +25,7 @@ Then use the detailed notes for the specific invariant they contribute:
 | [TLA+ formal kernel](./tla-formal-kernel.md) | What is the smallest state machine that captures authority, uncertainty, replay, verification, and settlement safety? |
 | [Transition attestations](./transition-attestations.md) | What evidence should survive after execution machinery is discarded? |
 | [Absence evidence certificates](./absence-evidence-certificates.md) | How should provider-specific negative evidence carry subject, scope, snapshot, completeness, and provenance without collapsing to a boolean? |
+| [Archived experiment findings](./archived-experiment-findings.md) | Which useful results survive after their old implementation branches stop being maintained? |
 
 The synthesis is deliberately selective:
 
