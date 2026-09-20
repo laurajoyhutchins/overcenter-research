@@ -123,6 +123,23 @@ test('semantic identity requires a DONE lifecycle with an exact run',()=>{
   );
   const upstreamRun=run('upstream');
 
+  const noLifecycle=fixture(
+    upstream,
+    downstream,
+    undefined,
+    undefined,
+  );
+  assert.equal(
+    obligationKey(
+      noLifecycle.state,
+      downstream,
+      noLifecycle.lifecycles,
+      noLifecycle.receipts,
+    ),
+    null,
+    'known upstream without a lifecycle is unresolved',
+  );
+
   for(const status of [
     'UNREALIZED',
     'EXECUTING',
