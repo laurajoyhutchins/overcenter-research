@@ -8,7 +8,7 @@ export default {
   mutate: mutatePatterns(resolved),
   testRunner: 'command',
   commandRunner: {
-    command: 'node --experimental-strip-types --test test/digest-pure.test.ts test/semantic-dependency.test.ts test/projector-pure.test.ts test/projector-boundary.test.ts test/realization-admissibility.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts test/git-kernel.test.ts test/provider-observation.test.ts',
+    command: 'node --experimental-strip-types --test test/digest-pure.test.ts test/semantic-dependency.test.ts test/observation-hostile.test.ts test/projector-pure.test.ts test/projector-boundary.test.ts test/realization-admissibility.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts test/git-kernel.test.ts test/provider-observation.test.ts',
   },
   coverageAnalysis: 'off',
   concurrency: 4,
