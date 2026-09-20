@@ -8,36 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  regression:
-    name: Fast deterministic regression
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version-file: '.node-version'
-      - run: npm test
-
-  local-proof:
-    name: Adversarial local proofs
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version-file: '.node-version'
-      - run: npm run proof:local
-
-  formal-proof:
-    name: TLA+ safety proof
+  evidence:
+    name: Core deterministic and adversarial evidence
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -52,4 +24,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - run: npm run proof:formal
+      - name: Verify experiment contracts
+        run: npm run test:experiment-contract
+      - name: Run deterministic regression
+        run: npm run test:unit
+      - name: Run adversarial experiment proofs
+        run: npm run test:experiments
+      - name: Run Git stress proof
+        run: npm run test:stress
+      - name: Run TLA+ safety proof
+        run: npm run proof:formal
