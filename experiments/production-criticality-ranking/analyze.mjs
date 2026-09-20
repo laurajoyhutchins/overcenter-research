@@ -327,6 +327,7 @@ export function analyze({root,config}){
       || !/^[0-9a-f]{40}$/.test(sourceRun.revision??'')
       || !Number.isInteger(sourceRun.workflow_run_id)
       || sourceRun.workflow_run_id<=0
+      || !/^sha256:[0-9a-f]{64}$/.test(sourceRun.artifact_digest??'')
       || !/^sha256:[0-9a-f]{64}$/.test(sourceRun.mutation_report_sha256??'')){
       throw new Error('mutation evidence is missing trusted-run provenance fields');
     }
