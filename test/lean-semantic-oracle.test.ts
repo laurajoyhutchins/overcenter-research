@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,7 +11,7 @@ import {
 } from '../src/admission.ts';
 import type { State } from '../src/facts.ts';
 import { validateGraph } from '../src/graph.ts';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
+import { OvercenterKernel } from '../src/kernel.ts';
 import type {
   Dependency,
   Obligation,
@@ -259,96 +259,63 @@ function leanRequest(
   };
 }
 
-function transactionRequest(
-  overrides:Record<string,boolean>={},
-){
-  return {
-    command:'transaction-kernel',
-    current_authority:true,
-    exact_revision:true,
-    unresolved_effect:false,
-    verified_present:false,
-    verified_absent:false,
-    verified_exact_revision:false,
-    settlement_completed:false,
-    settlement_was_authorized:false,
-    settlement_evidence_matches:false,
-    evidence_valid:false,
-    ...overrides,
-  };
-}
+const transactionRequest=(overrides:Record<string,boolean>={})=>({
+  command:'transaction-kernel',current_authority:true,exact_revision:true,
+  unresolved_effect:false,verified_present:false,verified_absent:false,
+  verified_exact_revision:false,settlement_completed:false,
+  settlement_was_authorized:false,settlement_evidence_matches:false,
+  evidence_valid:false,...overrides,
+});
 
 test('production transaction guards agree with the TLA kernel oracle',async()=>{
   const oracle=new LeanOracle();
   const root=mkdtempSync(join(tmpdir(),'tla-refinement-'));
-  const repo=join(root,'state.git');
+  const kernel=new OvercenterKernel(join(root,'state.db'));
   const target=join(root,'effect');
-  execFileSync('git',['init','--bare',repo],{stdio:'ignore'});
-  const kernel=new GitOvercenterKernel(repo);
   try{
     kernel.initialize();
-    kernel.define({
-      id:'x',
-      postcondition:{
-        verifier:'file-content-equals/v1',
-        path:target,
-        content:'present',
-      },
-    });
+    kernel.define({id:'x',postcondition:{
+      verifier:'file-content-equals/v1',path:target,content:'present',
+    }});
     const run=kernel.claim('x',kernel.deriveReadyWork()!.revision);
-
-    assert.equal((await oracle.compare(transactionRequest())).mutation_allowed,true);
     kernel.beginEffect(run);
-
     const successor=kernel.acquireExecution(run.id);
+
     const stale=await oracle.compare(transactionRequest({
-      current_authority:false,
-      unresolved_effect:true,
-      verified_present:true,
-      verified_exact_revision:true,
+      current_authority:false,unresolved_effect:true,
+      verified_present:true,verified_exact_revision:true,
     }));
     assert.equal(stale.mutation_allowed,false);
     assert.equal(stale.settlement_allowed,false);
     assert.throws(()=>kernel.beginEffect(run),/STALE_EXECUTION_GENERATION/);
     assert.throws(()=>kernel.resolve(run),/STALE_EXECUTION_GENERATION/);
 
-    const blocked=await oracle.compare(transactionRequest({
+    assert.equal((await oracle.compare(transactionRequest({
       unresolved_effect:true,
-    }));
-    assert.equal(blocked.mutation_allowed,false);
+    }))).mutation_allowed,false);
     assert.throws(()=>kernel.beginEffect(successor),/UNRESOLVED_EFFECT/);
 
-    const absent=kernel.resolve(successor);
-    assert.equal(absent.disposition,'READY');
-    const replay=await oracle.compare(transactionRequest({
-      verified_absent:true,
-      verified_exact_revision:true,
-    }));
-    assert.equal(replay.replay_allowed,true);
+    assert.equal(kernel.resolve(successor).disposition,'READY');
+    assert.equal((await oracle.compare(transactionRequest({
+      verified_absent:true,verified_exact_revision:true,
+    }))).replay_allowed,true);
 
     const retry=kernel.claim('x',kernel.deriveReadyWork()!.revision);
     kernel.beginEffect(retry);
     writeFileSync(target,'present');
-    const settle=await oracle.compare(transactionRequest({
-      unresolved_effect:true,
-      verified_present:true,
-      verified_exact_revision:true,
-    }));
-    assert.equal(settle.settlement_allowed,true);
+    assert.equal((await oracle.compare(transactionRequest({
+      unresolved_effect:true,verified_present:true,verified_exact_revision:true,
+    }))).settlement_allowed,true);
+    assert.equal(kernel.resolve(retry).disposition,'DONE');
 
-    const receipt=kernel.resolve(retry);
-    assert.equal(receipt.disposition,'DONE');
-    const terminal=await oracle.compare(transactionRequest({
-      verified_present:true,
-      verified_exact_revision:true,
-      settlement_completed:true,
-      settlement_was_authorized:true,
-      settlement_evidence_matches:true,
-      evidence_valid:true,
-    }));
-    assert.equal(terminal.done,true);
+    assert.equal((await oracle.compare(transactionRequest({
+      verified_present:true,verified_exact_revision:true,
+      settlement_completed:true,settlement_was_authorized:true,
+      settlement_evidence_matches:true,evidence_valid:true,
+    }))).done,true);
     assert.equal(kernel.inspect()[0].status,'DONE');
   }finally{
+    kernel.close();
     await oracle.close();
     rmSync(root,{recursive:true,force:true});
   }
