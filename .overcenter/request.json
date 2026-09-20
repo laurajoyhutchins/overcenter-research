@@ -1,0 +1,5 @@
+{
+  "schema": "overcenter-github-agent-request/v1",
+  "operation": "acquire",
+  "source_sha": "980b2566a584e0da7b5035d3a61c1373a06a5525"
+}
