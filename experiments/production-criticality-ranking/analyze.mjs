@@ -89,6 +89,18 @@ function importedExternalModule(expression,checker){
   }
   return null;
 }
+function parameterBoundCall(expression,checker){
+  const symbol=checker.getSymbolAtLocation(expression);
+  for(const declaration of symbol?.declarations??[]){
+    let p=declaration;
+    while(p){
+      if(ts.isParameter(p)) return true;
+      if(ts.isFunctionLike(p)) break;
+      p=p.parent;
+    }
+  }
+  return false;
+}
 function concreteDispatchTargets(declaration,units,checker){
   if(!ts.isMethodSignature(declaration) || !ts.isInterfaceDeclaration(declaration.parent)) return [];
   const methodName=propName(declaration.name);
@@ -202,7 +214,7 @@ export function analyze({root,config}){
   const edges=new Map(units.map(u=>[u.id,new Set()]));
   const unresolvedCallsites=[];
   const scopes=['production','test','experiment','other'];
-  const callStats=Object.fromEntries(scopes.map(scope=>[scope,{resolvedInternalCalls:0,resolvedPolymorphicCalls:0,unresolvedInternalCalls:0,externalCalls:0,unknownCalls:0}]));
+  const callStats=Object.fromEntries(scopes.map(scope=>[scope,{resolvedInternalCalls:0,resolvedPolymorphicCalls:0,unresolvedInternalCalls:0,externalCalls:0,externalCallbackCalls:0,unknownCalls:0}]));
   let resolvedInternalCalls=0,unresolvedInternalCalls=0,externalCalls=0,unknownCalls=0;
   const bump=(caller,key)=>{ callStats[caller.scope][key]+=1; };
   for(const sf of program.getSourceFiles()){
@@ -245,9 +257,11 @@ export function analyze({root,config}){
             }
           } else {
             const externalModule=importedExternalModule(node.expression,checker);
-            if(externalModule){
+            const externalCallback=parameterBoundCall(node.expression,checker);
+            if(externalModule || externalCallback){
               externalCalls++;
               bump(caller,'externalCalls');
+              if(externalCallback) bump(caller,'externalCallbackCalls');
             } else {
               unknownCalls++;
               bump(caller,'unknownCalls');
