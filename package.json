@@ -46,6 +46,7 @@
     "test:data-contracts": "node --experimental-strip-types --test test/data-contracts.test.ts",
     "test:execution-manifest": "node --experimental-strip-types --test test/execution-manifest.test.ts",
     "proof:rust-exec": "bash runtime/overcenter-exec/proof.sh",
-    "test:linkml-ontology": "node --test experiments/linkml-ontology/linkml-ontology.test.mjs"
+    "test:linkml-ontology": "node --test experiments/linkml-ontology/linkml-ontology.test.mjs",
+    "test:linkml-contract-refactor": "node --experimental-strip-types --test experiments/linkml-contract-refactor/comparison.test.mjs"
   }
 }

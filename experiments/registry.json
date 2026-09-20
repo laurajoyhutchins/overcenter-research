@@ -323,6 +323,47 @@
       ]
     },
     {
+      "id": "linkml-contract-refactor",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/linkml-contract-refactor",
+      "readme": "experiments/linkml-contract-refactor/README.md",
+      "question": "Can stock LinkML generation replace real SettlementObservation structural manifestations without weakening them?",
+      "claim": "With explicit built-in type imports and non-null JSON generation, LinkML faithfully preserves the tested SettlementObservation JSON Schema slice, but stock TypeScript generation widens enum-valued fields to string; without a custom TS generator the independent authored manifestation count remains three.",
+      "contrast": "Hand-maintain JSON Schema, narrow TypeScript Observation types, and runtime validator rules independently.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:linkml-contract-refactor"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "LinkML 1.11.1",
+        "Current production observation-evidence-v1 schema, src/model.ts, and src/observation.ts."
+      ],
+      "success_criteria": [
+        "Current production field vocabulary and requiredness agree before mutation.",
+        "Generated JSON Schema preserves tested enum sets, scalar types, and repository-id bounds.",
+        "Stock LinkML TypeScript enum widening is demonstrated explicitly rather than treated as faithful.",
+        "The hostile field addition propagates through generated field vocabulary while the runtime validator remains independently fail-closed.",
+        "The faithful stock-LinkML architecture is measured as 3 independently maintained authored manifestations, not 2."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "fc99ed6e44f4b07f07a72d689b2d4caed5919be8",
+        "artifacts": [
+          "GitHub Actions run 35485610531: 6/6 exact-head tests passed against current production; the experiment caught and removed stale github-commit-status/v1 vocabulary, preserved JSON Schema semantics, demonstrated stock TypeScript enum widening, and retained the faithful 3 -> 3 manifestation result."
+        ]
+      },
+      "interpretation": "A positive result supports LinkML as the structural source for the tested JSON Schema slice, not as the source of Overcenter's narrow TypeScript domain types.",
+      "non_claims": [
+        "LinkML represents provider-owned open payload semantics.",
+        "LinkML should generate the production runtime validator.",
+        "Stock LinkML TypeScript preserves Overcenter enum narrowing.",
+        "A custom LinkML TypeScript template would be simpler than handwritten TypeScript.",
+        "LinkML owns verifier semantics, settlement authority, or evidence meaning."
+      ]
+    },
+    {
       "id": "linkml-ontology",
       "kind": "experiment",
       "status": "maintained",

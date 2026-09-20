@@ -1,0 +1,86 @@
+id: https://overcenter.dev/schema/settlement-observation-scalar-slice
+name: settlement_observation_scalar_slice
+title: SettlementObservation scalar structural slice
+description: >-
+  A production-derived structural slice of SettlementObservation used only to
+  measure maintenance and drift under LinkML generation. Provider-owned open
+  payloads and absence-evidence semantics are intentionally outside this model.
+license: Apache-2.0
+prefixes:
+  oc: https://overcenter.dev/ontology/
+  linkml: https://w3id.org/linkml/
+default_prefix: oc
+default_range: string
+imports:
+  - linkml:types
+
+enums:
+  VerifierKind:
+    permissible_values:
+      file-content-equals/v1:
+      eventually-consistent-file-content-equals/v1:
+      github-commit-status/v2:
+      kubernetes-configmap-exists/v1:
+  MutationCertainty:
+    permissible_values:
+      present:
+      absent:
+      uncertain:
+  ProviderKind:
+    permissible_values:
+      github:
+      kubernetes:
+
+classes:
+  SettlementObservationScalarSlice:
+    tree_root: true
+    description: >-
+      Scalar and enum fields currently shared by the production JSON Schema,
+      Observation TypeScript interface, and runtime envelope validator.
+    attributes:
+      verifier:
+        range: VerifierKind
+        required: true
+      mutation_certainty:
+        range: MutationCertainty
+        required: true
+      path:
+        range: string
+      expected_sha256:
+        range: string
+      actual_sha256:
+        range: string
+      provider:
+        range: ProviderKind
+      authority_id:
+        range: string
+      api_group:
+        range: string
+      resource:
+        range: string
+      namespace:
+        range: string
+      name:
+        range: string
+      observed_uid:
+        range: string
+      observed_resource_version:
+        range: string
+      snapshot_resource_version:
+        range: string
+      repository_id:
+        range: integer
+        minimum_value: 1
+        maximum_value: 9007199254740991
+      repository_full_name:
+        range: string
+      commit_sha:
+        range: string
+      context:
+        range: string
+      expected_state:
+        range: string
+      actual_state:
+        range: string
+      observation_error:
+        range: string
