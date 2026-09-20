@@ -1,0 +1,66 @@
+# ADR-0008: Admit Rust only for native worker confinement
+
+**Status:** Accepted
+
+## Decision
+
+Rust is admitted to the supported Overcenter slice only for a small native worker-confinement substrate.
+
+The admitted boundary is `runtime/overcenter-exec`. Trusted TypeScript renders one strict execution manifest, computes the SHA-256 of those exact bytes, and pipes those same bytes to the launcher on stdin. The launcher may own only mechanically enforceable process-boundary work: workspace identity pinning, filesystem confinement, environment removal, inherited-file-descriptor closure, socket/bypass denial, and replacement of the launcher with the untrusted worker.
+
+Rust does not own graph eligibility, project projection, claims, recovery policy, provider interpretation, provider mutation, verification, settlement, or project truth.
+
+The existing Go executor remains the supported pure-computation mechanism. This ADR does not claim that the Go executor and Rust launcher are one combined execution path. Any such integration must earn its own exact-identity and recovery evidence.
+
+## Evidence
+
+PR #72 established the differential justification rather than treating Rust as a preference:
+
+- a plausible Node `realpath + O_NOFOLLOW` baseline lost a parent-directory check/open race and read outside the authorized root;
+- a Rust `openat2` path bound to an already-open directory refused the escaped coordinate;
+- a Rust Landlock launcher confined an ordinary Node worker and its descendants, denying outside reads/writes and descendant escape attempts.
+
+The hosted proof for PR #72 passed at exact head `b9970e7ce99e6464e6bf25ad4fa4c9a574e0bb9c` in workflow run 35425228115.
+
+PR #84 converted that result into a reusable launcher rather than the experimental per-task generated capsule. Its pre-rebase hosted proof passed at exact head `f3176c6e520419d08646859757ceb0462ace3678` in workflow run 35462407651. The rebased implementation is part of `npm run proof:production`, so promotion remains gated by the repository's exact-head Merge gate.
+
+## Why this boundary
+
+The native launcher buys properties that are awkward or unavailable through the ordinary Node process API:
+
+- Landlock filesystem policy inherited by descendants;
+- a workspace rule bound to an already-open directory identity;
+- seccomp denial of new socket/socketpair creation and selected bypass surfaces;
+- deterministic removal of ambient environment and inherited descriptors before `exec`.
+
+Those are execution-correctness mechanisms, not reasoning or authority semantics.
+
+## Rejected alternatives
+
+### Rewrite orchestration in Rust
+
+Rejected. The experiments demonstrated an advantage at the kernel/process boundary, not in graph semantics, provider meaning, projection, or settlement.
+
+### Keep Rust experimental forever
+
+Rejected. The confinement result is differential, adversarial, reproducible, and narrow enough to maintain as a supported mechanism.
+
+### Generate a bespoke Rust capsule for every task
+
+Rejected as the production design. Code generation is cheap, but multiplying trusted implementations is not. One generic launcher plus an exact data-bound manifest gives a smaller trusted surface.
+
+### Treat the launcher as the provider-authorization boundary
+
+Rejected. Filesystem/process confinement does not grant or interpret provider authority. Provider credentials and provider mutation remain separately controlled trusted effects.
+
+## Consequences
+
+- Supported hosts for this launcher are deliberately Linux x86-64 and must provide the required Landlock ABI and seccomp behavior.
+- Runtime files needed by a worker are explicit execution-closure inputs, not blanket access to `/usr` or `/etc`.
+- A missing required kernel primitive fails closed.
+- The Rust toolchain is pinned and its hostile proof is part of the production proof command.
+- The launcher remains disposable physical machinery. Durable execution truth stays in TypeScript + SQLite.
+
+## Revisit when
+
+Revisit this decision if a portable mechanism demonstrates equivalent descendant-inherited confinement with a smaller trusted surface, if kernel behavior invalidates the hostile proof, or if an end-to-end execution design can remove this substrate without weakening the demonstrated boundary.
