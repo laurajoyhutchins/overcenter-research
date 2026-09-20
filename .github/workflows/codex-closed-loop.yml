@@ -2,6 +2,8 @@ name: Codex closed-loop proof
 
 on:
   workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 permissions: {}
 
@@ -15,6 +17,12 @@ env:
 jobs:
   prepare:
     name: Trusted authority — claim witness
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.number == 150 &&
+       github.actor == github.repository_owner &&
+       github.event.comment.body == '/overcenter codex-witness')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
