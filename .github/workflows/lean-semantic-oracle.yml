@@ -7,7 +7,6 @@ on:
       - src/**
       - test/lean-semantic-oracle.test.ts
       - .github/workflows/lean-semantic-oracle.yml
-      - package.json
       - .node-version
       - formal/lean-semantic-oracle-revision.txt
       - docs/adr/0006-lean-semantic-reference-and-proof-oracle.md
@@ -21,7 +20,6 @@ on:
       - src/**
       - test/lean-semantic-oracle.test.ts
       - .github/workflows/lean-semantic-oracle.yml
-      - package.json
       - .node-version
       - formal/lean-semantic-oracle-revision.txt
 
@@ -91,4 +89,4 @@ jobs:
       - name: Compare production semantics with Lean oracle
         env:
           LEAN_ORACLE_SHA: ${{ steps.oracle-revision.outputs.sha }}
-        run: npm run test:lean-oracle
+        run: node --experimental-strip-types --test test/lean-semantic-oracle.test.ts
