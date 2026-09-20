@@ -8,6 +8,7 @@ import type {
   KubernetesConfigMapExistsPostcondition,
 } from '../model.ts';
 import type { ProviderObservation } from '../provider-observation/observation.ts';
+import { asData as data, hasExactKeys as exactKeys } from '../validation.ts';
 import {
   validateObservationSlice,
   type ResponseFieldSpec,
@@ -80,22 +81,6 @@ const LIST_RESPONSE_SLICE=[
   {path:'items[].metadata.uid'},
   {path:'items[].metadata.resourceVersion'},
 ] as const satisfies readonly ResponseFieldSpec[];
-
-function data(value:unknown):Record<string,unknown>|null {
-  return value && typeof value==='object' && !Array.isArray(value)
-    ? value as Record<string,unknown>
-    : null;
-}
-
-function exactKeys(
-  value:Record<string,unknown>,
-  required:readonly string[],
-  optional:readonly string[]=[],
-):boolean {
-  const allowed=new Set([...required,...optional]);
-  return Object.keys(value).every(key=>allowed.has(key))
-    && required.every(key=>Object.hasOwn(value,key));
-}
 
 function stringArray(value:unknown):value is string[] {
   return Array.isArray(value) && value.every(member=>typeof member==='string');
