@@ -2,19 +2,6 @@
   "schema": "overcenter-criticality-mutation-probes/v1",
   "probes": [
     {
-      "id": "digest-foundation",
-      "selectors": [
-        {
-          "file": "src/digest.ts",
-          "name": "sha256"
-        },
-        {
-          "file": "src/digest.ts",
-          "name": "canonicalDigest"
-        }
-      ]
-    },
-    {
       "id": "semantic-identity",
       "selectors": [
         {
@@ -24,59 +11,6 @@
         {
           "file": "src/semantic-identity.ts",
           "name": "obligationKey"
-        }
-      ]
-    },
-    {
-      "id": "done-candidate-reuse",
-      "selectors": [
-        {
-          "file": "src/projector.ts",
-          "name": "deriveRealizationRelations"
-        }
-      ]
-    },
-    {
-      "id": "effect-reservation",
-      "selectors": [
-        {
-          "file": "src/kernel-core.ts",
-          "qualifiedName": "KernelCore.beginEffect"
-        }
-      ]
-    },
-    {
-      "id": "settlement",
-      "selectors": [
-        {
-          "file": "src/kernel-core.ts",
-          "qualifiedName": "KernelCore.resolve"
-        }
-      ]
-    },
-    {
-      "id": "execution-fence",
-      "selectors": [
-        {
-          "file": "src/kernel-core.ts",
-          "qualifiedName": "KernelCore.#requireExecutionPermit"
-        }
-      ]
-    },
-    {
-      "id": "verification-and-absence",
-      "selectors": [
-        {
-          "file": "src/observation.ts",
-          "name": "authoritativeAbsenceEvidence"
-        },
-        {
-          "file": "src/observation.ts",
-          "name": "observationAuthoritativelyAbsent"
-        },
-        {
-          "file": "src/observation.ts",
-          "name": "observationVerified"
         }
       ]
     }
