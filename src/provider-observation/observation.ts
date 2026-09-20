@@ -1,10 +1,10 @@
-// Provider-neutral evidence envelope only. Provider-specific identity, freshness,
 import {
   assertExactKeys as exactKeys,
   assertNonEmptyString as nonEmptyString,
   isData as data,
 } from '../validation.ts';
 
+// Provider-neutral evidence envelope only. Provider-specific identity, freshness,
 // completeness, and negative-evidence semantics belong outside this module.
 export type ObservationVisibility = 'observed' | 'not-observed' | 'indeterminate';
 
