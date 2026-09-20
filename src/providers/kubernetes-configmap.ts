@@ -82,6 +82,16 @@ const LIST_RESPONSE_SLICE=[
   {path:'items[].metadata.resourceVersion'},
 ] as const satisfies readonly ResponseFieldSpec[];
 
+interface KubernetesListPageEvidence {
+  page:number;
+  request_continue:string|null;
+  response_continue:string;
+  snapshot_resource_version:string;
+  schema_sha256:string;
+  validated_paths:string[];
+  optional_absent_paths:string[];
+}
+
 function stringArray(value:unknown):value is string[] {
   return Array.isArray(value) && value.every(member=>typeof member==='string');
 }
@@ -94,7 +104,99 @@ function matchesSha256(value:unknown):value is string {
   return typeof value==='string' && /^sha256:[0-9a-f]{64}$/.test(value);
 }
 
-function certificateBaseMatches(
+function absenceScope(
+  postcondition:KubernetesConfigMapExistsPostcondition,
+):Record<string,string> {
+  return {
+    provider:'kubernetes',
+    authority_id:postcondition.authority_id,
+    api_group:'',
+    resource:'configmaps',
+    namespace:postcondition.namespace,
+  };
+}
+
+function absenceSubject(
+  postcondition:KubernetesConfigMapExistsPostcondition,
+):Record<string,string> {
+  return {...absenceScope(postcondition),name:postcondition.name};
+}
+
+function exactPrimitiveRecord(
+  value:unknown,
+  expected:Record<string,string>,
+):boolean {
+  const actual=data(value);
+  return !!actual
+    && exactKeys(actual,Object.keys(expected))
+    && Object.entries(expected).every(([key,expectedValue])=>actual[key]===expectedValue);
+}
+
+function listPageEvidenceMatches(
+  value:unknown,
+  index:number,
+  snapshotResourceVersion:string,
+  previousResponseContinue:string|null,
+  terminal:boolean,
+):boolean {
+  const page=data(value);
+  if (!page || !exactKeys(page,[
+    'page','request_continue','response_continue','snapshot_resource_version',
+    'schema_sha256','validated_paths','optional_absent_paths',
+  ])) return false;
+  if (
+    page.page!==index+1
+    || page.request_continue!==(index===0?null:previousResponseContinue)
+    || typeof page.response_continue!=='string'
+    || page.snapshot_resource_version!==snapshotResourceVersion
+    || typeof page.schema_sha256!=='string'
+    || !/^[0-9a-f]{64}$/.test(page.schema_sha256)
+    || !stringArray(page.validated_paths)
+    || !stringArray(page.optional_absent_paths)
+  ) return false;
+  return terminal?page.response_continue==='':page.response_continue.length>0;
+}
+
+function providerEvidence(
+  postcondition:KubernetesConfigMapExistsPostcondition,
+  pages:KubernetesListPageEvidence[],
+  terminalStatus?:number,
+):Record<string,unknown> {
+  return {
+    provider:'kubernetes',
+    authority_id:postcondition.authority_id,
+    pages,
+    ...(terminalStatus===undefined?{}:{terminal_status:terminalStatus}),
+  };
+}
+
+function completeListAbsenceEvidence(
+  postcondition:KubernetesConfigMapExistsPostcondition,
+  pages:KubernetesListPageEvidence[],
+  snapshotResourceVersion:string,
+):AbsenceEvidenceCertificate {
+  return {
+    schema:ABSENCE_EVIDENCE_SCHEMA,
+    kind:KUBERNETES_COMPLETE_LIST_ABSENCE,
+    subject:absenceSubject(postcondition),
+    scope:absenceScope(postcondition),
+    snapshot:{resource_version:snapshotResourceVersion},
+    completeness:{
+      kind:'complete-list',
+      page_count:pages.length,
+      terminal_continue:'',
+      page_chain_digest:sha256Digest(pages),
+    },
+    provenance:{
+      provider:'kubernetes',
+      authority_id:postcondition.authority_id,
+      operation_id:KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
+      pages,
+    },
+  };
+}
+
+export function kubernetesConfigMapAbsenceEvidenceMatches(
   value:unknown,
   postcondition:KubernetesConfigMapExistsPostcondition,
 ):value is AbsenceEvidenceCertificate {
@@ -104,36 +206,37 @@ function certificateBaseMatches(
     return false;
   }
   if (value.kind!==KUBERNETES_COMPLETE_LIST_ABSENCE) return false;
+  if (!exactPrimitiveRecord(value.subject,absenceSubject(postcondition))) return false;
+  if (!exactPrimitiveRecord(value.scope,absenceScope(postcondition))) return false;
 
-  const subject=value.subject;
-  const scope=value.scope;
-  const snapshot=value.snapshot;
+  const snapshot=data(value.snapshot);
   const completeness=value.completeness;
   const provenance=value.provenance;
-
-  if (!exactKeys(subject,[
-    'provider','authority_id','api_group','resource','namespace','name',
-  ])) return false;
-  if (!exactKeys(scope,[
-    'provider','authority_id','api_group','resource','namespace',
-  ])) return false;
-  if (!snapshot || !exactKeys(snapshot,['resource_version'])) return false;
-  if (!exactKeys(provenance,[
-    'provider','authority_id','operation_id','pages',
-  ])) return false;
+  if (
+    !snapshot
+    || !exactKeys(snapshot,['resource_version'])
+    || typeof snapshot.resource_version!=='string'
+    || snapshot.resource_version.length===0
+    || !exactKeys(provenance,['provider','authority_id','operation_id','pages'])
+    || provenance.provider!=='kubernetes'
+    || provenance.authority_id!==postcondition.authority_id
+    || provenance.operation_id!==KUBERNETES_CONFIGMAP_LIST_OPERATION_ID
+    || !Array.isArray(provenance.pages)
+    || provenance.pages.length===0
+  ) return false;
 
   if (completeness.kind==='complete-list') {
     if (!exactKeys(completeness,[
       'kind','page_count','terminal_continue','page_chain_digest',
     ])) return false;
   } else if (completeness.kind==='complete-list-plus-watch') {
-    if (!exactKeys(completeness,[
-      'kind','page_count','terminal_continue','page_chain_digest',
-      'watch_start_resource_version','watch_last_resource_version',
-      'watch_continuity','watch_termination','watch_events_digest',
-    ])) return false;
     if (
-      completeness.watch_continuity!=='maintained'
+      !exactKeys(completeness,[
+        'kind','page_count','terminal_continue','page_chain_digest',
+        'watch_start_resource_version','watch_last_resource_version',
+        'watch_continuity','watch_termination','watch_events_digest',
+      ])
+      || completeness.watch_continuity!=='maintained'
       || !['client-stop','eof','timeout'].includes(String(completeness.watch_termination))
       || !matchesSha256(completeness.watch_events_digest)
     ) return false;
@@ -141,42 +244,15 @@ function certificateBaseMatches(
     return false;
   }
 
-  if (
-    subject.provider!=='kubernetes'
-    || subject.authority_id!==postcondition.authority_id
-    || subject.api_group!==''
-    || subject.resource!=='configmaps'
-    || subject.namespace!==postcondition.namespace
-    || subject.name!==postcondition.name
-  ) return false;
-
-  if (
-    scope.provider!=='kubernetes'
-    || scope.authority_id!==postcondition.authority_id
-    || scope.api_group!==''
-    || scope.resource!=='configmaps'
-    || scope.namespace!==postcondition.namespace
-  ) return false;
-
-  if (
-    !snapshot
-    || typeof snapshot.resource_version!=='string'
-    || snapshot.resource_version.length===0
-  ) return false;
-
-  if (
-    provenance.provider!=='kubernetes'
-    || provenance.authority_id!==postcondition.authority_id
-    || provenance.operation_id!==KUBERNETES_CONFIGMAP_LIST_OPERATION_ID
-    || !Array.isArray(provenance.pages)
-    || provenance.pages.length===0
-  ) return false;
-
   const pageCount=completeness.page_count;
-  if (!Number.isSafeInteger(pageCount) || (pageCount as number)<=0) return false;
-  if (provenance.pages.length!==pageCount) return false;
-  if (!matchesSha256(completeness.page_chain_digest)) return false;
-  if (completeness.page_chain_digest!==sha256Digest(provenance.pages)) return false;
+  if (
+    completeness.terminal_continue!==''
+    || !Number.isSafeInteger(pageCount)
+    || (pageCount as number)<=0
+    || provenance.pages.length!==pageCount
+    || !matchesSha256(completeness.page_chain_digest)
+    || completeness.page_chain_digest!==sha256Digest(provenance.pages)
+  ) return false;
 
   const pageSnapshotResourceVersion=completeness.kind==='complete-list-plus-watch'
     ? completeness.watch_start_resource_version
@@ -184,61 +260,25 @@ function certificateBaseMatches(
   if (typeof pageSnapshotResourceVersion!=='string') return false;
 
   for (let index=0;index<provenance.pages.length;index+=1) {
-    const page=data(provenance.pages[index]);
-    if (!page) return false;
-    if (!exactKeys(page,[
-      'page','request_continue','response_continue','snapshot_resource_version',
-      'schema_sha256','validated_paths','optional_absent_paths',
-    ])) return false;
-    if (page.page!==index+1) return false;
-    if (page.request_continue!==null && typeof page.request_continue!=='string') return false;
-    if (typeof page.response_continue!=='string') return false;
+    const previous=index===0
+      ? null
+      : data(provenance.pages[index-1])?.response_continue;
     if (
-      typeof page.schema_sha256!=='string'
-      || !/^[0-9a-f]{64}$/.test(page.schema_sha256)
-      || !stringArray(page.validated_paths)
-      || !stringArray(page.optional_absent_paths)
-    ) return false;
-    if (page.snapshot_resource_version!==pageSnapshotResourceVersion) return false;
-    if (index===0 && page.request_continue!==null) return false;
-    if (
-      index>0
-      && page.request_continue!==data(provenance.pages[index-1])?.response_continue
-    ) return false;
-    if (
-      index<provenance.pages.length-1
-      && (
-        typeof page.response_continue!=='string'
-        || page.response_continue.length===0
+      (previous!==null && typeof previous!=='string')
+      || !listPageEvidenceMatches(
+        provenance.pages[index],
+        index,
+        pageSnapshotResourceVersion,
+        previous,
+        index===provenance.pages.length-1,
       )
     ) return false;
   }
-  if (data(provenance.pages.at(-1))?.response_continue!=='') return false;
 
-  return true;
-}
-
-export function kubernetesConfigMapAbsenceEvidenceMatches(
-  value:unknown,
-  postcondition:KubernetesConfigMapExistsPostcondition,
-):value is AbsenceEvidenceCertificate {
-  if (!certificateBaseMatches(value,postcondition)) return false;
-  const completeness=value.completeness;
-
-  if (completeness.kind==='complete-list') {
-    return completeness.terminal_continue==='';
-  }
-
-  if (completeness.kind==='complete-list-plus-watch') {
-    return completeness.terminal_continue===''
-      && completeness.watch_continuity==='maintained'
-      && typeof completeness.watch_start_resource_version==='string'
-      && typeof completeness.watch_last_resource_version==='string'
-      && completeness.watch_last_resource_version===value.snapshot?.resource_version
-      && matchesSha256(completeness.watch_events_digest);
-  }
-
-  return false;
+  if (completeness.kind==='complete-list') return true;
+  return typeof completeness.watch_start_resource_version==='string'
+    && typeof completeness.watch_last_resource_version==='string'
+    && completeness.watch_last_resource_version===snapshot.resource_version;
 }
 
 export function carryKubernetesAbsenceThroughWatch(
