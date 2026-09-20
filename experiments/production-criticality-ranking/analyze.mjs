@@ -70,6 +70,25 @@ function unitForNode(node,nodeToUnit){
   }
   return null;
 }
+function importedExternalModule(expression,checker){
+  const candidates=[expression];
+  if(ts.isPropertyAccessExpression(expression)) candidates.push(expression.expression,expression.name);
+  for(const candidate of candidates){
+    const symbol=checker.getSymbolAtLocation(candidate);
+    for(const declaration of symbol?.declarations??[]){
+      let p=declaration;
+      while(p){
+        if(ts.isImportDeclaration(p) && ts.isStringLiteral(p.moduleSpecifier)){
+          const specifier=p.moduleSpecifier.text;
+          if(!specifier.startsWith('.') && !path.isAbsolute(specifier)) return specifier;
+          break;
+        }
+        p=p.parent;
+      }
+    }
+  }
+  return null;
+}
 function graphReach(start,adj){
   const seen=new Set([start]);
   const stack=[start];
@@ -208,17 +227,23 @@ export function analyze({root,config}){
               bump(caller,'externalCalls');
             }
           } else {
-            unknownCalls++;
-            bump(caller,'unknownCalls');
-            const lc=sf.getLineAndCharacterOfPosition(node.getStart(sf));
-            unresolvedCallsites.push({
-              kind:'unknown',
-              caller:caller.id,
-              file:rel(root,sf.fileName),
-              line:lc.line+1,
-              expression:node.expression?.getText(sf)??node.getText(sf).slice(0,120),
-              declaration_file:null,
-            });
+            const externalModule=importedExternalModule(node.expression,checker);
+            if(externalModule){
+              externalCalls++;
+              bump(caller,'externalCalls');
+            } else {
+              unknownCalls++;
+              bump(caller,'unknownCalls');
+              const lc=sf.getLineAndCharacterOfPosition(node.getStart(sf));
+              unresolvedCallsites.push({
+                kind:'unknown',
+                caller:caller.id,
+                file:rel(root,sf.fileName),
+                line:lc.line+1,
+                expression:node.expression?.getText(sf)??node.getText(sf).slice(0,120),
+                declaration_file:null,
+              });
+            }
           }
         }
       }
