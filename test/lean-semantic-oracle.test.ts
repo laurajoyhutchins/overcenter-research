@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -8,6 +11,7 @@ import {
 } from '../src/admission.ts';
 import type { State } from '../src/facts.ts';
 import { validateGraph } from '../src/graph.ts';
+import { OvercenterKernel } from '../src/kernel.ts';
 import type {
   Dependency,
   Obligation,
@@ -29,11 +33,15 @@ if (!oracleSha || !/^[0-9a-f]{40}$/.test(oracleSha)) {
 
 type LeanComparison = {
   schema:string;
-  graph_acyclic:boolean;
-  optimized_dependencies_done:boolean;
-  reference_dependencies_done:boolean;
-  optimized_effect_conflict:boolean;
-  reference_effect_conflict:boolean;
+  graph_acyclic?:boolean;
+  optimized_dependencies_done?:boolean;
+  reference_dependencies_done?:boolean;
+  optimized_effect_conflict?:boolean;
+  reference_effect_conflict?:boolean;
+  mutation_allowed?:boolean;
+  settlement_allowed?:boolean;
+  replay_allowed?:boolean;
+  done?:boolean;
 };
 
 class LeanOracle {
@@ -61,9 +69,11 @@ class LeanOracle {
         if(!next)continue;
         try{
           const value=JSON.parse(line) as LeanComparison;
-          assert.equal(
-            value.schema,
-            'overcenter-lean-claim-admission-comparison/v1',
+          assert.ok(
+            [
+              'overcenter-lean-claim-admission-comparison/v1',
+              'overcenter-lean-transaction-kernel-comparison/v1',
+            ].includes(value.schema),
             'unexpected Lean oracle response schema',
           );
           next.resolve(value);
@@ -248,6 +258,68 @@ function leanRequest(
     })),
   };
 }
+
+const transactionRequest=(overrides:Record<string,boolean>={})=>({
+  command:'transaction-kernel',current_authority:true,exact_revision:true,
+  unresolved_effect:false,verified_present:false,verified_absent:false,
+  verified_exact_revision:false,settlement_completed:false,
+  settlement_was_authorized:false,settlement_evidence_matches:false,
+  evidence_valid:false,...overrides,
+});
+
+test('production transaction guards agree with the TLA kernel oracle',async()=>{
+  const oracle=new LeanOracle();
+  const root=mkdtempSync(join(tmpdir(),'tla-refinement-'));
+  const kernel=new OvercenterKernel(join(root,'state.db'));
+  const target=join(root,'effect');
+  try{
+    kernel.initialize();
+    kernel.define({id:'x',postcondition:{
+      verifier:'file-content-equals/v1',path:target,content:'present',
+    }});
+    const run=kernel.claim('x',kernel.deriveReadyWork()!.revision);
+    kernel.beginEffect(run);
+    const successor=kernel.acquireExecution(run.id);
+
+    const stale=await oracle.compare(transactionRequest({
+      current_authority:false,unresolved_effect:true,
+      verified_present:true,verified_exact_revision:true,
+    }));
+    assert.equal(stale.mutation_allowed,false);
+    assert.equal(stale.settlement_allowed,false);
+    assert.throws(()=>kernel.beginEffect(run),/STALE_EXECUTION_GENERATION/);
+    assert.throws(()=>kernel.resolve(run),/STALE_EXECUTION_GENERATION/);
+
+    assert.equal((await oracle.compare(transactionRequest({
+      unresolved_effect:true,
+    }))).mutation_allowed,false);
+    assert.throws(()=>kernel.beginEffect(successor),/UNRESOLVED_EFFECT/);
+
+    assert.equal(kernel.resolve(successor).disposition,'READY');
+    assert.equal((await oracle.compare(transactionRequest({
+      verified_absent:true,verified_exact_revision:true,
+    }))).replay_allowed,true);
+
+    const retry=kernel.claim('x',kernel.deriveReadyWork()!.revision);
+    kernel.beginEffect(retry);
+    writeFileSync(target,'present');
+    assert.equal((await oracle.compare(transactionRequest({
+      unresolved_effect:true,verified_present:true,verified_exact_revision:true,
+    }))).settlement_allowed,true);
+    assert.equal(kernel.resolve(retry).disposition,'DONE');
+
+    assert.equal((await oracle.compare(transactionRequest({
+      verified_present:true,verified_exact_revision:true,
+      settlement_completed:true,settlement_was_authorized:true,
+      settlement_evidence_matches:true,evidence_valid:true,
+    }))).done,true);
+    assert.equal(kernel.inspect()[0].status,'DONE');
+  }finally{
+    kernel.close();
+    await oracle.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
 
 function allDirectedGraphSlots(nodeCount:number):Array<[number,number]>{
   const slots:Array<[number,number]>=[];
