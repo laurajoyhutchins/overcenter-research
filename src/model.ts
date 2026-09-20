@@ -81,6 +81,7 @@ export type ResultAcceptance = CanonicalResultAcceptance;
 
 export interface WorkerResultEnvelope extends Data {
   schema: 'overcenter-worker-result-v1';
+  session: TaskSession;
   result: Data;
 }
 
