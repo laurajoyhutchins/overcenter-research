@@ -15,7 +15,7 @@ jobs:
   handle:
     name: Handle silent agent request
     if: >-
-      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.event == 'create' &&
       github.event.workflow_run.conclusion == 'success' &&
       startsWith(github.event.workflow_run.head_branch, 'overcenter/request/') &&
       github.event.workflow_run.actor.login == github.repository_owner
