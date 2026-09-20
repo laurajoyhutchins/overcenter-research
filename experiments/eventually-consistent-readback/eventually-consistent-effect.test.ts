@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
-import { LEGACY_EFFECT_RESERVATION_SCHEMA } from '../../src/facts.ts';
+import {
+  LEGACY_EFFECT_RESERVATION_SCHEMA,
+  LEGACY_OBLIGATION_SCHEMA,
+} from '../../src/facts.ts';
 
 function git(repo:string,args:string[],input?:string):string {
   return execFileSync('git',['-C',repo,...args],{
@@ -19,6 +22,23 @@ function git(repo:string,args:string[],input?:string):string {
       GIT_COMMITTER_EMAIL:'test@local',
     },
   }).trim();
+}
+
+function appendLegacyObligation(
+  repo:string,
+  parent:string,
+  obligation:Record<string,unknown>,
+):string {
+  const json=JSON.stringify({
+    schema:LEGACY_OBLIGATION_SCHEMA,
+    kind:'defined',
+    obligation,
+  },null,2)+'\n';
+  const blob=git(repo,['hash-object','-w','--stdin'],json);
+  const tree=git(repo,['mktree'],`100644 blob ${blob}\tobligation.json\n`);
+  const commit=git(repo,['commit-tree',tree,'-p',parent],'legacy obligation fixture\n');
+  git(repo,['update-ref','refs/overcenter/state',commit,parent]);
+  return commit;
 }
 
 function appendLegacyReservation(
@@ -43,9 +63,10 @@ test('eventually consistent negative readback cannot authorize replay after an u
   try {
     execFileSync('git',['init','--bare',authority],{stdio:'ignore'});
     const kernel=new GitOvercenterKernel(authority);
-    kernel.initialize();
-    kernel.define({
+    const initialized=kernel.initialize();
+    appendLegacyObligation(authority,initialized,{
       id:'hostile-effect',
+      dependencies:[],
       packet:{effect:'create-resource',key:'resource-42',value:'created'},
       postcondition:{
         verifier:'eventually-consistent-file-content-equals/v1',
