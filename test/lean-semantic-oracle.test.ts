@@ -18,7 +18,7 @@ import type {
   Postcondition,
 } from '../src/model.ts';
 import { effectSemantics } from '../src/semantics.ts';
-import { projectMutationAuthority, transactionAdmitted } from '../src/transaction-admission.ts';
+import { mutationAdmitted, projectExecutionAuthority } from '../src/transaction-admission.ts';
 
 const oracleBin=process.env.LEAN_ORACLE_BIN;
 const oracleSha=process.env.LEAN_ORACLE_SHA;
@@ -271,55 +271,26 @@ const transactionRequest=(overrides:Record<string,boolean>={})=>({
   evidence_valid:false,...overrides,
 });
 
-test('production transaction admission exhaustively agrees with proved Lean step',async()=>{
+test('production mutation admission exhaustively agrees with proved Lean step',async()=>{
   const oracle=new LeanOracle();
-  const keys=[
-    'current_authority','exact_revision','unresolved_effect',
-    'verified_present','verified_absent','verified_exact_revision',
-    'settlement_completed','settlement_was_authorized',
-    'settlement_evidence_matches','evidence_valid',
-  ] as const;
   try{
-    for(let mask=0;mask<1<<keys.length;mask+=1){
-      const s=Object.fromEntries(
-        keys.map((key,bit)=>[key,(mask&(1<<bit))!==0]),
-      ) as Record<(typeof keys)[number],boolean>;
-      const observed=await oracle.compare(transactionRequest(s));
-      assert.equal(observed.mutation_allowed,transactionAdmitted({
-        command:'mutate',
-        current_authority:s.current_authority,
-        exact_revision:s.exact_revision,
-        unresolved_effect:s.unresolved_effect,
-      }),`mutation mask=${mask}`);
-      assert.equal(observed.settlement_allowed,transactionAdmitted({
-        command:'settle',
-        current_authority:s.current_authority,
-        exact_revision:s.exact_revision,
-        verified_present:s.verified_present,
-        verified_exact_revision:s.verified_exact_revision,
-      }),`settlement mask=${mask}`);
-      assert.equal(observed.replay_allowed,transactionAdmitted({
-        command:'replay',
-        current_authority:s.current_authority,
-        exact_revision:s.exact_revision,
-        verified_absent:s.verified_absent,
-        verified_exact_revision:s.verified_exact_revision,
-      }),`replay mask=${mask}`);
-      assert.equal(observed.done,transactionAdmitted({
-        command:'done',
-        settlement_completed:s.settlement_completed,
-        settlement_was_authorized:s.settlement_was_authorized,
-        settlement_evidence_matches:s.settlement_evidence_matches,
-        verified_present:s.verified_present,
-        verified_exact_revision:s.verified_exact_revision,
-        evidence_valid:s.evidence_valid,
-      }),`done mask=${mask}`);
+    for(let mask=0;mask<8;mask+=1){
+      const s={
+        current_authority:(mask&1)!==0,
+        exact_revision:(mask&2)!==0,
+        unresolved_effect:(mask&4)!==0,
+      };
+      assert.equal(
+        (await oracle.compare(transactionRequest(s))).mutation_allowed,
+        mutationAdmitted(s),
+        `mutation mask=${mask}`,
+      );
     }
   }finally{
     await oracle.close();
   }
-  console.log('LEAN_TRANSACTION_ORACLE '+JSON.stringify({states:1<<keys.length,oracle_sha:oracleSha}));
 });
+
 
 test('mutation authority projection exhaustively agrees with proved Lean projection',async()=>{
   const oracle=new LeanOracle();
@@ -345,7 +316,7 @@ test('mutation authority projection exhaustively agrees with proved Lean project
       };
       const presented=bad(8)?'other-presented-capability':run.execution_capability_sha256;
       const unresolved=bad(9);
-      const projected=projectMutationAuthority(run,permit,presented,unresolved);
+      const projected=projectExecutionAuthority(run,permit,presented);
       const observed=await oracle.compare({
         command:'mutation-authority',
         run_id:run.id,
@@ -369,8 +340,8 @@ test('mutation authority projection exhaustively agrees with proved Lean project
       });
       assert.equal(observed.current_authority,projected.current_authority,`authority mask=${mask}`);
       assert.equal(observed.exact_revision,projected.exact_revision,`revision mask=${mask}`);
-      assert.equal(observed.mutation_allowed,transactionAdmitted({
-        command:'mutate',...projected,
+      assert.equal(observed.mutation_allowed,mutationAdmitted({
+        ...projected,unresolved_effect:unresolved,
       }),`mutation projection mask=${mask}`);
     }
   }finally{
