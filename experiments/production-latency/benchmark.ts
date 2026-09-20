@@ -185,7 +185,6 @@ async function runSample(
 
     phase='effect';
     const effectStarted=performance.now();
-    const identityStarted=performance.now();
     let identityMs=0;
     const identityGet:GithubJsonGet=(providerToken,path)=>{
       const started=performance.now();
@@ -200,7 +199,6 @@ async function runSample(
       get:identityGet,
       ...(post?{post}:{}),
     });
-    void identityStarted;
     const effectTotalMs=performance.now()-effectStarted;
 
     phase='settlement';
