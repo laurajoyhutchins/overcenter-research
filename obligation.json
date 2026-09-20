@@ -2,7 +2,7 @@
   "schema": "overcenter-git-obligation-v3",
   "kind": "defined",
   "obligation": {
-    "id": "concurrency-35531282928-1-alpha",
+    "id": "concurrency-35531282928-1-beta",
     "dependencies": [],
     "packet": {
       "kind": "github-actions-two-effect-proof/v1",
@@ -11,7 +11,7 @@
         "repository_id": 1354872053,
         "workflow_run_id": "35531282928",
         "workflow_run_attempt": "1",
-        "slot": "alpha"
+        "slot": "beta"
       },
       "exact_input": {
         "kind": "git-commit/v1",
@@ -26,7 +26,7 @@
       "repository_id": 1354872053,
       "repository_full_name": "laurajoyhutchins/overcenter-research",
       "commit_sha": "08aa052acb589ba5e1aa8a22901c79c36eb1f3c2",
-      "context": "overcenter/concurrency/35531282928/1/alpha",
+      "context": "overcenter/concurrency/35531282928/1/beta",
       "expected_state": "success"
     }
   }
