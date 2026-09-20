@@ -11,6 +11,8 @@ prefixes:
   linkml: https://w3id.org/linkml/
 default_prefix: oc
 default_range: string
+imports:
+  - linkml:types
 
 classes:
   OntologySlice:
