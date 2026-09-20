@@ -1,0 +1,63 @@
+name: TypeBox production contract projection
+
+on:
+  pull_request:
+    paths:
+      - 'contracts/observation-evidence-v1/settlement-observation.typebox.ts'
+      - 'contracts/observation-evidence-v1/schema.json'
+      - 'contracts/observation-evidence-v1/contract.json'
+      - 'contracts/observation-evidence-v1/README.md'
+      - 'src/generated/settlement-observation-schema.ts'
+      - 'src/structural-schema.ts'
+      - 'src/model.ts'
+      - 'src/observation.ts'
+      - 'scripts/generate-settlement-observation.mjs'
+      - 'test/typebox-production-contract.test.ts'
+      - 'test/typebox-production-contract.static.ts'
+      - 'test/typebox-production-projection.test.mjs'
+      - 'package.json'
+      - '.github/workflows/typebox-production-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROOF_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  projection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.PROOF_SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact production revision
+        run: test "$(git rev-parse HEAD)" = "$PROOF_SOURCE_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Prove normal production path before installing schema tooling
+        run: |
+          npm run test:typebox-production-runtime
+          npm run test:data-contracts
+          npm run proof:production-boundary
+      - name: Install exact build-only schema toolchain
+        run: npm install --no-save --ignore-scripts --package-lock=false typebox@1.3.34 typescript@7.0.2
+      - name: Verify generated production projections
+        run: npm run check:settlement-observation
+      - name: Prove source-only mutations fail closed
+        run: npm run test:typebox-production-projection
+      - name: Prove static TypeScript contract
+        run: >-
+          ./node_modules/.bin/tsc
+          --noEmit
+          --strict
+          --target ES2024
+          --module NodeNext
+          --moduleResolution NodeNext
+          --allowImportingTsExtensions
+          --skipLibCheck
+          test/typebox-production-contract.static.ts
