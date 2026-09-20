@@ -73,7 +73,7 @@ for (const context of directContexts) {
   assert.equal(response.status,403);
 }
 
-const valid=workerResult({
+const valid=workerResult(session,{
   kind:'provider-capability-confinement-result/v1',
   source_sha:sourceSha,
   authorized_write_status:directStatuses[0],
@@ -82,7 +82,7 @@ const valid=workerResult({
 
 const variants:Record<string,unknown>={
   valid,
-  'forged-result':workerResult({
+  'forged-result':workerResult(session,{
     kind:'provider-capability-confinement-result/v1',
     source_sha:sourceSha,
     authorized_write_status:201,
@@ -102,7 +102,7 @@ const variants:Record<string,unknown>={
       state:'failure',
     },
   },
-  'extra-result-field':workerResult({
+  'extra-result-field':workerResult(session,{
     ...(valid.result as Record<string,unknown>),
     smuggled_provider_argument:'surprise',
   }),
