@@ -1,0 +1,27 @@
+name: Release evidence substitution experiment
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'experiments/release-evidence-substitution/**'
+      - 'experiments/registry.json'
+      - 'package.json'
+      - 'src/digest.ts'
+      - 'src/realization.ts'
+      - '.github/workflows/release-evidence-substitution.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-witness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: npm run test:experiment-contract
+      - run: npm run test:release-evidence-substitution
