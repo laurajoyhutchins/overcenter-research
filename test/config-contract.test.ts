@@ -62,15 +62,15 @@ test('runtime toolchains and executor images have exact checked-in identities',(
 
   const images=JSON.parse(read('executor/runtime-images.json')) as {
     schema:string;
-    go_build:string;
     node_runtime:string;
     node_self_application:string;
   };
-  assert.equal(images.schema,'overcenter-runtime-images-v1');
-  assert.match(
-    images.go_build,
-    /^golang:\d+\.\d+\.\d+-bookworm@sha256:[0-9a-f]{64}$/,
-  );
+  assert.equal(images.schema,'overcenter-runtime-images-v2');
+  assert.deepEqual(Object.keys(images).sort(),[
+    'node_runtime',
+    'node_self_application',
+    'schema',
+  ]);
   assert.match(
     images.node_runtime,
     /^node:\d+\.\d+\.\d+-bookworm-slim@sha256:[0-9a-f]{64}$/,
@@ -79,29 +79,41 @@ test('runtime toolchains and executor images have exact checked-in identities',(
     images.node_self_application,
     /^node:\d+\.\d+\.\d+-bookworm@sha256:[0-9a-f]{64}$/,
   );
-  assert.ok(images.go_build.startsWith(`golang:${goVersion}-bookworm@sha256:`));
   assert.ok(images.node_runtime.startsWith(`node:${nodeVersion}-bookworm-slim@sha256:`));
   assert.ok(images.node_self_application.startsWith(`node:${nodeVersion}-bookworm@sha256:`));
 
   for (const path of ['executor/containment/Dockerfile','executor/self-application/Dockerfile']) {
     const dockerfile=read(path);
-    assert.match(dockerfile,/^ARG GO_IMAGE$/m);
     assert.match(dockerfile,/^ARG NODE_IMAGE$/m);
-    assert.match(dockerfile,/^ARG GO_VERSION$/m);
     assert.match(dockerfile,/^ARG NODE_VERSION$/m);
-    assert.match(dockerfile,/^FROM \$\{GO_IMAGE\} AS build$/m);
     assert.match(dockerfile,/^FROM \$\{NODE_IMAGE\}$/m);
-    assert.match(dockerfile,/go env GOVERSION/);
+    assert.match(dockerfile,/COPY \.overcenter-build\/overcenter-executor \/usr\/local\/bin\/overcenter-executor/);
     assert.match(dockerfile,/node --version/);
+    assert.doesNotMatch(dockerfile,/GO_IMAGE|GO_VERSION|golang:/);
+    assert.doesNotMatch(dockerfile,/go build|go env GOVERSION/);
     assert.doesNotMatch(dockerfile,/FROM (?:golang|node):[^$]/);
   }
   const selfApplicationDockerfile=read('executor/self-application/Dockerfile');
   assert.doesNotMatch(selfApplicationDockerfile,/apt-get/);
   assert.match(selfApplicationDockerfile,/git --version/);
 
-  const workflow=read('.github/workflows/computation-executor.yml');
-  assert.match(workflow,/go-version-file: '\.go-version'/);
-  assert.doesNotMatch(workflow,/go-version-file: executor\/go\.mod/);
+  for (const path of [
+    '.github/workflows/computation-executor.yml',
+    '.github/workflows/self-application.yml',
+  ]) {
+    const workflow=read(path);
+    assert.match(workflow,/go-version-file: '\.go-version'/);
+    assert.doesNotMatch(workflow,/go-version-file: executor\/go\.mod/);
+  }
+
+  const productionProof=read('scripts/proof-production.sh');
+  assert.match(productionProof,/go env GOVERSION/);
+  assert.match(productionProof,/CGO_ENABLED=0 go build -trimpath -buildvcs=false/);
+  assert.match(productionProof,/build_dir="\.overcenter-build"/);
+  assert.match(productionProof,/\.\.\/\$build_dir\/overcenter-executor/);
+  const selfApplication=read('.github/workflows/self-application.yml');
+  assert.match(selfApplication,/CGO_ENABLED=0 go build -trimpath -buildvcs=false/);
+  assert.match(selfApplication,/\.overcenter-build\/overcenter-executor/);
 });
 
 test('CI execution substrate and third-party actions are immutable',()=>{
