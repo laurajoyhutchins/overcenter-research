@@ -32,7 +32,22 @@
     "validationExtensions": [
       "x-overcenter-providerOwned",
       "x-overcenter-kindOwned"
-    ]
+    ],
+    "generatedDefinitions": {
+      "SettlementObservation": {
+        "source": "./settlement-observation.linkml.yaml",
+        "generator": "../../scripts/generate-settlement-observation-schema.mjs",
+        "toolchain": "linkml==1.11.1",
+        "output": "./schema.json#/$defs/SettlementObservation",
+        "overlays": [
+          "provider_evidence.x-overcenter-providerOwned"
+        ],
+        "externalReferences": [
+          "absence_evidence -> #/$defs/AbsenceEvidenceEnvelope"
+        ],
+        "toolchainClosure": "LinkML 1.11.1 root wheel SHA-256 is pinned; Python transitive dependencies are resolved by pip and are not yet hermetically locked."
+      }
+    }
   },
   "compatibility": {
     "unknownProviderObservationFields": "reject unless explicitly declared as a provider extension",
@@ -46,7 +61,8 @@
     "settlementEnvelopeValidator": "../../src/observation.ts",
     "absenceEnvelopeValidator": "../../src/evidence.ts",
     "conflictPolicy": "machine-readable-structure-wins",
-    "generatedOutputIsNotVerifiedOutput": true
+    "generatedOutputIsNotVerifiedOutput": true,
+    "settlementObservationStructureSource": "./settlement-observation.linkml.yaml"
   },
   "semanticRoles": {
     "providerObservation": {
