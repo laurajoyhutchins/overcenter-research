@@ -83,6 +83,10 @@ reports which generated projections preserve that distinction. JSON Schema and
 SHACL are required to preserve it. TypeScript is measured rather than presumed
 to encode runtime cardinality.
 
+`linkml:types` is imported explicitly. The experiment also asserts concrete
+scalar fidelity (`string` and `boolean`) in generated JSON Schema and TypeScript;
+field-name agreement alone is not accepted as structural fidelity.
+
 ## Plausible contrast
 
 The current alternative is to hand-maintain vocabulary and structural
@@ -147,6 +151,15 @@ structural validator
 
 It does **not** thereby become Overcenter's semantic oracle or project-truth
 authority.
+
+### Earlier evidence correction
+
+A later production-adoption attempt exposed a hole in the original experiment:
+without an explicit `linkml:types` import, built-in-looking ranges such as
+`string` could project to unconstrained JSON Schema objects. The original tests
+checked names, cardinality, and change propagation but did not assert scalar
+fidelity. This experiment has been strengthened accordingly; evidence from the
+pre-correction revision is superseded.
 
 ### Observed serializer caveat
 
