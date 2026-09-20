@@ -1,0 +1,19 @@
+{
+  "schema": "overcenter-git-receipt-v5",
+  "run_id": "b0a1b71c-79fe-4779-b891-06f5d0953112",
+  "obligation_id": "concurrency-35488852452-1-beta",
+  "claimed_revision": "ea2790aba658b191a82745ef7e9eb2ce2cf167ac",
+  "claim_commit": "0728fbe5fc91f0453d512cef622ccf2644649e9e",
+  "execution_generation": 2,
+  "execution_authority_commit": "4e879da3f0f2961c5c46a8c790e4e7d4071a2e7d",
+  "kind": "execution-terminated",
+  "observed": null,
+  "diagnostic": {
+    "source": "github-actions-job-supervisor",
+    "workflow_run_id": "35488852452",
+    "workflow_run_attempt": "1",
+    "slot": "beta",
+    "outcome": "failure"
+  },
+  "settled_at": "2026-09-20T04:21:40.749Z"
+}
