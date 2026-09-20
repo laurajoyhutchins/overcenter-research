@@ -58,6 +58,7 @@
     "test:typebox-production-projection": "node --test test/typebox-production-projection.test.mjs",
     "test:realization-reuse": "node --experimental-strip-types --test test/realization-pure.test.ts",
     "test:release-evidence-substitution": "node --experimental-strip-types --test experiments/release-evidence-substitution/release-evidence-substitution.test.ts",
-    "test:kubernetes-deployment": "node --experimental-strip-types --test test/kubernetes-deployment-verifier.test.ts"
+    "test:kubernetes-deployment": "node --experimental-strip-types --test test/kubernetes-deployment-verifier.test.ts",
+    "measure:release-evidence-substitution": "node experiments/release-evidence-substitution/measure.mjs"
   }
 }
