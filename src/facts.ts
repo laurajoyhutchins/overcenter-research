@@ -136,6 +136,7 @@ export interface Receipt extends ReceiptFact {
 export interface HistoricalRun extends Run {
   obligation:Obligation;
   definition_commit:string;
+  definition_schema:ObligationSchema;
 }
 
 export interface FactCommit {
