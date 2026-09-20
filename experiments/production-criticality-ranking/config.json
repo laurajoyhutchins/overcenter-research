@@ -235,14 +235,14 @@
     {
       "id": "execution-fence-over-reservation",
       "higher": {
-        "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.#requireExecutionPermit"
+        "file": "src/transaction-admission.ts",
+        "name": "projectExecutionAuthority"
       },
       "lower": {
         "file": "src/kernel-core.ts",
         "qualifiedName": "KernelCore.beginEffect"
       },
-      "rationale": "Prior human ranking put execution fencing above durable reservation; the fencing unit is the exact execution-permit guard, not permit acquisition."
+      "rationale": "Execution fencing should outrank durable reservation; the fencing unit is now the pure exact run/permit authority projection used by every execution-permit guard."
     },
     {
       "id": "projection-over-explanation",
