@@ -1,0 +1,46 @@
+name: Production latency benchmark
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/production-latency.yml
+      - experiments/production-latency/**
+      - src/providers/github-status-effect.ts
+      - package.json
+      - experiments/registry.json
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  github-status-latency:
+    name: SQLite to GitHub status latency
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: write
+
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+
+      - name: Node from repository
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Deterministic local baseline
+        run: npm run bench:production-latency
+
+      - name: Live SQLite to GitHub benchmark
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY_ID: ${{ github.repository_id }}
+        run: npm run bench:production-latency:live
