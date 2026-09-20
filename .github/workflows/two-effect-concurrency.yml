@@ -52,12 +52,12 @@ jobs:
         run: node --experimental-strip-types experiments/two-effect-concurrency/authority.ts
 
   agent-alpha:
-    name: Disposable Agent alpha
+    name: Trusted effect broker alpha
     needs: project-authority
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
-      contents: read
+      contents: write
       statuses: write
     outputs:
       outcome: ${{ steps.agent.outcome }}
@@ -68,26 +68,26 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
-      - name: Execute alpha and die
+      - name: Reserve, execute alpha, and terminate
         id: agent
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: alpha
         run: node --experimental-strip-types experiments/two-effect-concurrency/agent.ts
-      - name: Supervisor confirms alpha terminated
+      - name: Supervisor confirms alpha broker terminated
         if: always()
         env:
           OUTCOME: ${{ steps.agent.outcome }}
         run: test "$OUTCOME" = "failure"
 
   agent-beta:
-    name: Disposable Agent beta
+    name: Trusted effect broker beta
     needs: project-authority
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
-      contents: read
+      contents: write
       statuses: write
     outputs:
       outcome: ${{ steps.agent.outcome }}
@@ -98,14 +98,14 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
-      - name: Execute beta and die
+      - name: Reserve, execute beta, and terminate
         id: agent
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SLOT: beta
         run: node --experimental-strip-types experiments/two-effect-concurrency/agent.ts
-      - name: Supervisor confirms beta terminated
+      - name: Supervisor confirms beta broker terminated
         if: always()
         env:
           OUTCOME: ${{ steps.agent.outcome }}

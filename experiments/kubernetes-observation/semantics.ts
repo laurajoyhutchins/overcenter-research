@@ -1,5 +1,10 @@
 import type { RawObservation } from './observation.ts';
-import { structurallyValidatedFor, type CertifiedObservation } from '../provider-observation/response-slice.ts';
+import { KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE } from '../../src/providers/kubernetes-configmap.ts';
+import {
+  structurallyValidatedFor,
+  type CertifiedObservation,
+  type ResponseFieldSpec,
+} from '../provider-observation/response-slice.ts';
 
 type StructurallyValidatedObservation = CertifiedObservation<RawObservation>;
 
@@ -64,26 +69,19 @@ export interface WatchSegment {
   last_resource_version: string;
 }
 
-const CONFIGMAP_PATHS = [
-  'apiVersion',
-  'kind',
-  'metadata.name',
-  'metadata.namespace',
-  'metadata.uid',
-  'metadata.resourceVersion',
-  'data',
-] as const;
+export const CONFIGMAP_RESPONSE_SLICE=[
+  'apiVersion','kind','metadata.name','metadata.namespace',
+  'metadata.uid','metadata.resourceVersion','data',
+].map(path=>({path})) satisfies readonly ResponseFieldSpec[];
 
-const CONFIGMAP_LIST_REQUIRED_PATHS = [
-  'apiVersion',
-  'kind',
-  'metadata.resourceVersion',
-  'items[].metadata.name',
-  'items[].metadata.namespace',
-  'items[].metadata.uid',
-  'items[].metadata.resourceVersion',
-  'items[].data',
-] as const;
+export const CONFIGMAP_LIST_RESPONSE_SLICE=[
+  ...KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE,
+  {path:'items[].data'},
+] satisfies readonly ResponseFieldSpec[];
+
+const requiredPaths=(fields:readonly ResponseFieldSpec[])=>fields
+  .filter(field=>field.required!==false)
+  .map(field=>field.path);
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -140,7 +138,7 @@ function listItemFact(value: unknown, observedAt: string, evidence: Structurally
 }
 
 function projectConfigMapFor(observation: RawObservation, operationId: string): ConfigMapFact | null {
-  if (!structurallyValidatedFor(observation, operationId, CONFIGMAP_PATHS)) return null;
+  if (!structurallyValidatedFor(observation,operationId,requiredPaths(CONFIGMAP_RESPONSE_SLICE))) return null;
   return objectFact(observation.outcome.value, observation.observed_at, observation);
 }
 
@@ -149,7 +147,7 @@ export function projectConfigMap(observation: RawObservation): ConfigMapFact | n
 }
 
 export function projectConfigMapListPage(observation: RawObservation, namespace: string): ConfigMapListPageFact | null {
-  if (!structurallyValidatedFor(observation, 'core/v1/configmaps/list', CONFIGMAP_LIST_REQUIRED_PATHS)) return null;
+  if (!structurallyValidatedFor(observation,'core/v1/configmaps/list',requiredPaths(CONFIGMAP_LIST_RESPONSE_SLICE))) return null;
   const structural = (observation as StructurallyValidatedObservation).structural_validation;
   const continueCertified = structural.validated_paths.includes('metadata.continue')
     || structural.optional_absent_paths.includes('metadata.continue');

@@ -8,12 +8,17 @@ on:
       - 'src/projector.ts'
       - 'src/kernel-core.ts'
       - 'src/observation.ts'
+      - 'test/hostile.test.ts'
+      - 'test/*-hostile.test.ts'
       - 'experiments/production-criticality-ranking/mutation-probes.json'
       - 'experiments/production-criticality-ranking/resolve-mutation-probes.mjs'
       - 'experiments/production-criticality-ranking/stryker.config.mjs'
       - 'experiments/production-criticality-ranking/summarize-mutation.mjs'
       - 'experiments/production-criticality-ranking/summarize-mutation.test.mjs'
       - 'experiments/production-criticality-ranking/emit-mutation-evidence.mjs'
+      - 'experiments/production-criticality-ranking/verify-mutation-evidence.mjs'
+      - 'experiments/production-criticality-ranking/verify-mutation-evidence.test.mjs'
+      - 'experiments/production-criticality-ranking/mutation-evidence.json'
       - '.github/workflows/production-criticality-mutation-probe.yml'
   workflow_dispatch:
 
@@ -22,6 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -29,40 +35,69 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       run_probe: ${{ steps.changed.outputs.run_probe }}
+      mutation_probe: ${{ steps.changed.outputs.mutation_probe }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - id: evidence
+        name: Check current mutation evidence blobs
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          const snapshot=JSON.parse(fs.readFileSync('experiments/production-criticality-ranking/mutation-evidence.json','utf8'));
+          let current=true;
+          for(const probe of snapshot.probes??[]){
+            for(const [file,expected] of Object.entries(probe.source_blobs??{})){
+              const actual=execFileSync('git',['hash-object',file],{encoding:'utf8'}).trim();
+              if(actual!==expected) current=false;
+            }
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`current=${current}\n`);
+          NODE
       - id: changed
         name: Detect mutation-relevant change
         env:
           EVENT_NAME: ${{ github.event_name }}
-          ACTION: ${{ github.event.action }}
-          BEFORE: ${{ github.event.before }}
-          AFTER: ${{ github.event.after || github.event.pull_request.head.sha || github.sha }}
+          BASE: ${{ github.event.pull_request.base.sha || '' }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          if [[ "$EVENT_NAME" == "workflow_dispatch" || "$ACTION" != "synchronize" || -z "$BEFORE" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "run_probe=true" >> "$GITHUB_OUTPUT"
+            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if git diff --name-only "$BEFORE" "$AFTER" -- \
-            src/digest.ts \
-            src/semantic-identity.ts \
-            src/projector.ts \
-            src/kernel-core.ts \
-            src/observation.ts \
-            experiments/production-criticality-ranking/mutation-probes.json \
-            experiments/production-criticality-ranking/resolve-mutation-probes.mjs \
-            experiments/production-criticality-ranking/stryker.config.mjs \
-            experiments/production-criticality-ranking/summarize-mutation.mjs \
-            experiments/production-criticality-ranking/summarize-mutation.test.mjs \
-            experiments/production-criticality-ranking/emit-mutation-evidence.mjs \
-            .github/workflows/production-criticality-mutation-probe.yml | grep -q .; then
-            echo "run_probe=true" >> "$GITHUB_OUTPUT"
-          else
+          if [[ -z "$BASE" || -z "$HEAD" ]]; then
+            echo "mutation probe cannot establish the full pull-request revision range" >&2
+            exit 1
+          fi
+
+          changed="$(git diff --name-only "$BASE" "$HEAD")"
+          relevant="$(printf '%s\n' "$changed" | grep -E '^(src/(digest|semantic-identity|projector|kernel-core|observation)\.ts|test/(hostile|.*-hostile)\.test\.ts|experiments/production-criticality-ranking/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs)|\.github/workflows/production-criticality-mutation-probe\.yml)$' || true)"
+          if [[ -z "$relevant" ]]; then
             echo "run_probe=false" >> "$GITHUB_OUTPUT"
+            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          probes=()
+          if printf '%s\n' "$changed" | grep -Eq '^(src/semantic-identity\.ts|test/semantic-identity-hostile\.test\.ts)$'; then
+            probes+=("semantic-identity")
+          fi
+          if printf '%s\n' "$changed" | grep -Eq '^(src/observation\.ts|test/observation-hostile\.test\.ts)$'; then
+            probes+=("verification-and-absence")
+          fi
+
+          broad="$(printf '%s\n' "$changed" | grep -E '^(src/(digest|projector|kernel-core)\.ts|experiments/production-criticality-ranking/(mutation-probes\.json|resolve-mutation-probes\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs))$' || true)"
+          echo "run_probe=true" >> "$GITHUB_OUTPUT"
+          if [[ -n "$broad" || ${#probes[@]} -eq 0 ]]; then
+            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
+          else
+            IFS=,
+            echo "mutation_probe=${probes[*]}" >> "$GITHUB_OUTPUT"
           fi
 
   mutate:
@@ -70,6 +105,8 @@ jobs:
     if: needs.detect.outputs.run_probe == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      MUTATION_PROBE: ${{ needs.detect.outputs.mutation_probe }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -115,3 +152,60 @@ jobs:
             mutation-summary.md
             mutation-evidence-generated.json
           if-no-files-found: ignore
+
+  verify-evidence:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Prove evidence verifier
+        run: node --test experiments/production-criticality-ranking/verify-mutation-evidence.test.mjs
+      - id: source
+        name: Verify cited workflow authority
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const evidence=JSON.parse(fs.readFileSync('experiments/production-criticality-ranking/mutation-evidence.json','utf8'));
+          const runId=evidence.source_run?.workflow_run_id;
+          const revision=evidence.source_run?.revision;
+          const artifactDigest=evidence.source_run?.artifact_digest;
+          if(!Number.isInteger(runId)||runId<=0||!/^[0-9a-f]{40}$/.test(revision??'')||!/^sha256:[0-9a-f]{64}$/.test(artifactDigest??'')) throw new Error('invalid mutation evidence source-run identity');
+          const headers={
+            Accept:'application/vnd.github+json',
+            Authorization:`Bearer ${process.env.GITHUB_TOKEN}`,
+            'X-GitHub-Api-Version':'2022-11-28',
+          };
+          const get=async url=>{
+            const response=await fetch(url,{headers});
+            if(!response.ok) throw new Error(`GitHub API ${response.status} for ${url}`);
+            return response.json();
+          };
+          const base=`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}`;
+          const run=await get(`${base}/actions/runs/${runId}`);
+          if(run.path!=='.github/workflows/production-criticality-mutation-probe.yml') throw new Error(`unexpected evidence workflow: ${run.path}`);
+          if(run.head_sha!==revision) throw new Error(`evidence revision mismatch: ${run.head_sha} != ${revision}`);
+          const jobs=await get(`${base}/actions/runs/${runId}/jobs?per_page=100`);
+          const mutate=jobs.jobs?.find(job=>job.name==='mutate');
+          if(mutate?.conclusion!=='success') throw new Error(`authoritative mutate job did not succeed: ${mutate?.conclusion??'missing'}`);
+          const artifacts=await get(`${base}/actions/runs/${runId}/artifacts?per_page=100`);
+          const artifact=artifacts.artifacts?.find(item=>item.name==='production-criticality-mutation-probe'&&!item.expired);
+          if(!artifact) throw new Error('authoritative mutation artifact is missing or expired');
+          if(!/^sha256:[0-9a-f]{64}$/.test(artifact.digest??'')) throw new Error('authoritative mutation artifact has no digest');
+          if(artifactDigest!==artifact.digest){
+            throw new Error(`mutation artifact digest mismatch: ${artifact.digest} != ${artifactDigest}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`run_id=${runId}\n`);
+          NODE
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: production-criticality-mutation-probe
+          path: authoritative-mutation-evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run_id }}
+      - name: Bind checked-in evidence to authoritative artifact
+        run: node experiments/production-criticality-ranking/verify-mutation-evidence.mjs
+

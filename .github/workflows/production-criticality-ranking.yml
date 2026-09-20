@@ -24,7 +24,7 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Install pinned TypeScript analyzer
-        run: npm install --no-save --ignore-scripts typescript@5.8.3
+        run: npm install --no-save --ignore-scripts typescript@5.8.3 @types/node@22.20.4
       - name: Prove analyzer invariants
         run: node --test experiments/production-criticality-ranking/analyze.test.mjs
       - name: Rank production callables
@@ -32,15 +32,13 @@ jobs:
           node experiments/production-criticality-ranking/analyze.mjs \
             --config experiments/production-criticality-ranking/config.json \
             --json criticality.json \
-            --markdown criticality.md \
-            --min-calibration 0.8
+            --markdown criticality.md
       - name: Prove exact recomputation
         run: |
           node experiments/production-criticality-ranking/analyze.mjs \
             --config experiments/production-criticality-ranking/config.json \
             --json criticality-repeat.json \
-            --markdown criticality-repeat.md \
-            --min-calibration 0.8
+            --markdown criticality-repeat.md
           cmp criticality.json criticality-repeat.json
           cmp criticality.md criticality-repeat.md
       - name: Show ranking

@@ -220,6 +220,14 @@ const sha = /^[0-9a-f]{40,64}$/i;
 const canonicalRef = (ref: string) => ref.startsWith('refs/') ? ref : `refs/${ref}`;
 const lower = (value: string) => value.toLowerCase();
 
+function requiredResponsePaths(
+  operationId:keyof typeof RESPONSE_SLICES,
+):string[] {
+  return RESPONSE_SLICES[operationId]
+    .filter(field=>field.required!==false)
+    .map(field=>field.path);
+}
+
 function evidence(observation: RawObservation): FactEvidence {
   return {
     api_version: observation.contract.api_version,
@@ -255,7 +263,7 @@ function numberedEntityBase<Kind extends string>(
     kind,
   }: { operationId: 'pulls/get' | 'issues/get'; parameter: string; kind: Kind },
 ): { subject: NumberedEntitySubject<Kind>; body: Record<string, unknown> } | null {
-  const requiredPaths = RESPONSE_SLICES[operationId].map(field => field.path);
+  const requiredPaths = requiredResponsePaths(operationId);
   if (!structurallyValidatedFor(observation, operationId, requiredPaths)) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
 
@@ -294,7 +302,7 @@ function collectionBase(
   pagination: NonNullable<ReturnType<typeof paginationShape>>;
   evidence: FactEvidence;
 } | null {
-  const requiredPaths = RESPONSE_SLICES[operationId].map(field => field.path);
+  const requiredPaths = requiredResponsePaths(operationId);
   if (!structurallyValidatedFor(observation, operationId, requiredPaths)) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
   const page = Number(observation.request.parameters.page ?? 1);
@@ -326,7 +334,7 @@ function refCollectionBase(
 }
 
 export function projectRepositoryIdentity(observation: RawObservation): RepositoryIdentityFact | null {
-  const requiredPaths = RESPONSE_SLICES['repos/get'].map(field => field.path);
+  const requiredPaths = requiredResponsePaths('repos/get');
   if (!structurallyValidatedFor(observation, 'repos/get', requiredPaths)) return null;
 
   const coordinate = requestCoordinate(observation);
@@ -364,7 +372,7 @@ export function projectGitRefTarget(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): GitRefTargetFact | null {
-  const requiredPaths = RESPONSE_SLICES['git/get-ref'].map(field => field.path);
+  const requiredPaths = requiredResponsePaths('git/get-ref');
   if (!structurallyValidatedFor(observation, 'git/get-ref', requiredPaths)) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
 
@@ -400,7 +408,7 @@ export function projectGitCommit(
   observation: RawObservation,
   repository: RepositoryIdentityFact,
 ): GitCommitFact | null {
-  const requiredPaths = RESPONSE_SLICES['git/get-commit'].map(field => field.path);
+  const requiredPaths = requiredResponsePaths('git/get-commit');
   if (!structurallyValidatedFor(observation, 'git/get-commit', requiredPaths)) return null;
   if (!sameRepositoryCoordinate(observation, repository)) return null;
 

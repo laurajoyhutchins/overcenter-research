@@ -52,31 +52,7 @@ export type Postcondition =
   | GitHubCommitStatusPostcondition
   | KubernetesConfigMapExistsPostcondition;
 
-export interface Observation {
-  verifier: Postcondition['verifier'];
-  mutation_certainty: MutationCertainty;
-  absence_evidence?: AbsenceEvidenceCertificate;
-  path?: string;
-  expected_sha256?: string;
-  actual_sha256?: string;
-  provider?: 'github' | 'kubernetes';
-  authority_id?: string;
-  api_group?: string;
-  resource?: string;
-  namespace?: string;
-  name?: string;
-  observed_uid?: string;
-  observed_resource_version?: string;
-  snapshot_resource_version?: string;
-  repository_id?: number;
-  repository_full_name?: string;
-  commit_sha?: string;
-  context?: string;
-  expected_state?: string;
-  actual_state?: string;
-  observation_error?: string;
-  provider_evidence?: Data;
-}
+export type {Observation} from '../contracts/observation-evidence-v1/settlement-observation.typebox.ts';
 
 export type Dependency =
   | { kind: 'control'; upstream: string }

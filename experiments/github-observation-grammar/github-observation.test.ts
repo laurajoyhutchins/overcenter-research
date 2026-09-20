@@ -148,9 +148,10 @@ const openapi: OpenApiDocument = {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['sha', 'tree', 'parents'],
+                  required: ['sha', 'node_id', 'tree', 'parents'],
                   properties: {
                     sha: { type: 'string', minLength: 40, maxLength: 64 },
+                    node_id: { type: 'string', minLength: 1 },
                     tree: {
                       type: 'object',
                       required: ['sha'],
@@ -237,7 +238,7 @@ const openapi: OpenApiDocument = {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['id', 'node_id', 'number', 'state', 'title', 'locked'],
+                  required: ['id', 'node_id', 'number', 'state', 'title', 'locked', 'updated_at'],
                   properties: {
                     id: { type: 'integer' },
                     node_id: { type: 'string', minLength: 1 },
@@ -245,7 +246,12 @@ const openapi: OpenApiDocument = {
                     state: { type: 'string' },
                     title: { type: 'string' },
                     locked: { type: 'boolean' },
-                    pull_request: { type: 'object' },
+                    state_reason: { type: 'string', nullable: true },
+                    updated_at: { type: 'string' },
+                    pull_request: {
+                      type: 'object',
+                      properties: { url: { type: 'string' } },
+                    },
                   },
                 },
               },
@@ -282,13 +288,16 @@ const openapi: OpenApiDocument = {
                       type: 'array',
                       items: {
                         type: 'object',
-                        required: ['id', 'name', 'head_sha', 'status', 'conclusion'],
+                        required: ['id', 'node_id', 'name', 'head_sha', 'status', 'conclusion', 'started_at', 'completed_at'],
                         properties: {
                           id: { type: 'integer' },
+                          node_id: { type: 'string', minLength: 1 },
                           name: { type: 'string' },
                           head_sha: { type: 'string', minLength: 40, maxLength: 64 },
                           status: { type: 'string' },
                           conclusion: { type: 'string', nullable: true },
+                          started_at: { type: 'string' },
+                          completed_at: { type: 'string', nullable: true },
                         },
                       },
                     },
@@ -362,7 +371,7 @@ const openapi: OpenApiDocument = {
                       type: 'array',
                       items: {
                         type: 'object',
-                        required: ['id', 'node_id', 'workflow_id', 'run_number', 'run_attempt', 'name', 'event', 'status', 'conclusion', 'head_sha'],
+                        required: ['id', 'node_id', 'workflow_id', 'run_number', 'run_attempt', 'name', 'event', 'status', 'conclusion', 'head_sha', 'head_branch', 'updated_at'],
                         properties: {
                           id: { type: 'integer' },
                           node_id: { type: 'string', minLength: 1 },
@@ -374,6 +383,8 @@ const openapi: OpenApiDocument = {
                           status: { type: 'string' },
                           conclusion: { type: 'string', nullable: true },
                           head_sha: { type: 'string', minLength: 40, maxLength: 64 },
+                          head_branch: { type: 'string' },
+                          updated_at: { type: 'string' },
                         },
                       },
                     },
@@ -515,6 +526,7 @@ test('immutable commit projection requires structural certification and exact re
     owner: 'acme', repo: 'widget', commit_sha: SHA_A,
   }, response(200, {
     sha: SHA_A,
+    node_id: 'COMMIT_A',
     tree: { sha: SHA_B },
     parents: [{ sha: SHA_C }],
   }));
@@ -533,7 +545,7 @@ test('immutable commit projection requires structural certification and exact re
 
   const mismatched = await observe(commitOperation, {
     owner: 'acme', repo: 'widget', commit_sha: SHA_A,
-  }, response(200, { sha: SHA_B, tree: { sha: SHA_C }, parents: [] }));
+  }, response(200, { sha: SHA_B, node_id: 'COMMIT_B', tree: { sha: SHA_C }, parents: [] }));
   const validatedMismatch = validateObservationSlice(
     commitOperation,
     mismatched,
@@ -590,6 +602,7 @@ test('Pulls and Issues surfaces preserve cross-surface node identity without con
     state: 'open',
     title: 'Same logical PR through Issues surface',
     locked: false,
+    updated_at: '2026-09-18T16:00:00Z',
     pull_request: { url: 'https://api.github.com/repos/acme/widget/pulls/17' },
   }));
 
@@ -631,7 +644,7 @@ test('paginated collection proves positive membership but not absence, even on a
     owner: 'acme', repo: 'widget', ref: SHA_A, page: 1, per_page: 1,
   }, response(200, {
     total_count: 2,
-    check_runs: [{ id: 10, name: 'build', head_sha: SHA_A, status: 'completed', conclusion: 'success' }],
+    check_runs: [{ id: 10, node_id: 'CHECK_10', name: 'build', head_sha: SHA_A, status: 'completed', conclusion: 'success', started_at: '2026-09-18T16:00:00Z', completed_at: '2026-09-18T16:01:00Z' }],
   }, { ...RESPONSE, link: '<https://api.github.com/x?page=2>; rel="next", <https://api.github.com/x?page=2>; rel="last"' }));
   assert.equal(projectCheckRunsPage(first, repository), null);
   const firstPage = projectCheckRunsPage(validateObservationSlice(
@@ -652,7 +665,7 @@ test('paginated collection proves positive membership but not absence, even on a
     owner: 'acme', repo: 'widget', ref: SHA_A, page: 2, per_page: 1,
   }, response(200, {
     total_count: 2,
-    check_runs: [{ id: 11, name: 'lint', head_sha: SHA_A, status: 'completed', conclusion: 'success' }],
+    check_runs: [{ id: 11, node_id: 'CHECK_11', name: 'lint', head_sha: SHA_A, status: 'completed', conclusion: 'success', started_at: '2026-09-18T16:00:00Z', completed_at: '2026-09-18T16:01:00Z' }],
   }, { ...RESPONSE, link: '<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first"' }));
   const terminalPage = projectCheckRunsPage(validateObservationSlice(
     operation(paths.checks),
@@ -741,6 +754,8 @@ test('workflow runs reuse collection membership semantics with a repository-scop
       status: 'completed',
       conclusion: 'success',
       head_sha: SHA_A,
+      head_branch: 'main',
+      updated_at: '2026-09-18T16:01:00Z',
     }],
   }, { ...RESPONSE, link: '<https://api.github.com/x?page=2>; rel="next"' }));
 
@@ -821,7 +836,7 @@ test('reconstruction reuses immutable facts but requires fresh authority for mut
   const commitOperation = operation(paths.commit);
   const commitObservation = await observe(commitOperation, {
     owner: 'acme', repo: 'widget', commit_sha: SHA_A,
-  }, response(200, { sha: SHA_A, tree: { sha: SHA_B }, parents: [] }));
+  }, response(200, { sha: SHA_A, node_id: 'COMMIT_RECONSTRUCT', tree: { sha: SHA_B }, parents: [] }));
   const commit = projectGitCommit(validateObservationSlice(
     commitOperation,
     commitObservation,

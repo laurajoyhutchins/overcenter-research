@@ -4,6 +4,8 @@ import type { ObservationOperation, RawObservation } from './observation.ts';
 import { validateObservationSlice } from '../provider-observation/response-slice.ts';
 import {
   assembleCompleteList,
+  CONFIGMAP_LIST_RESPONSE_SLICE,
+  CONFIGMAP_RESPONSE_SLICE,
   evaluateSnapshotMembership,
   projectConfigMap,
   projectConfigMapListPage,
@@ -43,18 +45,13 @@ function cm(uid: string, rv: string, data = { value: rv }) {
   return { apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 'proof', namespace: 'default', uid, resourceVersion: rv }, data };
 }
 function certifyGet(value: unknown) {
-  return validateObservationSlice(getOp, raw(getOp, value), [
-    { path: 'apiVersion' }, { path: 'kind' }, { path: 'metadata.name' }, { path: 'metadata.namespace' }, { path: 'metadata.uid' }, { path: 'metadata.resourceVersion' }, { path: 'data' },
-  ]);
+  return validateObservationSlice(getOp,raw(getOp,value),CONFIGMAP_RESPONSE_SLICE);
 }
 function listItem(uid: string, rv: string, data = { value: rv }) {
   return { metadata: { name: 'proof', namespace: 'default', uid, resourceVersion: rv }, data };
 }
 function certifyList(value: unknown, query: Record<string, string> = {}) {
-  return validateObservationSlice(listOp, raw(listOp, value, query), [
-    { path: 'apiVersion' }, { path: 'kind' }, { path: 'metadata.resourceVersion' }, { path: 'metadata.continue', required: false },
-    { path: 'items[].metadata.name' }, { path: 'items[].metadata.namespace' }, { path: 'items[].metadata.uid' }, { path: 'items[].metadata.resourceVersion' }, { path: 'items[].data' },
-  ]);
+  return validateObservationSlice(listOp,raw(listOp,value,query),CONFIGMAP_LIST_RESPONSE_SLICE);
 }
 
 const coordinate: KubernetesCoordinate = { api_group: '', resource: 'configmaps', namespace: 'default', name: 'proof' };

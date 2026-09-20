@@ -5,9 +5,11 @@
 Can stock LinkML generation replace real `SettlementObservation` structural
 manifestations without weakening them?
 
-This experiment uses the current
-`contracts/observation-evidence-v1` `SettlementObservation` envelope as the
-control. It does not modify the production contract.
+This experiment preserves the production `SettlementObservation` state it
+evaluated at revision `fc99ed6e44f4b07f07a72d689b2d4caed5919be8` as local
+baseline fixtures. It no longer reads the live production implementation,
+because later contract migrations must not retroactively change an experiment's
+result.
 
 ## Production manifestations under test
 
@@ -19,8 +21,10 @@ src/model.ts :: Observation
 src/observation.ts :: validateObservationEnvelope()
 ```
 
-The experiment reads those live repository files. The intentionally open
-`absence_evidence` and `provider_evidence` fields are outside the comparison.
+Those three manifestations are frozen as `baseline-schema.json`,
+`baseline-model.ts.txt`, and `baseline-validator.ts.txt`. The intentionally
+open `absence_evidence` and `provider_evidence` fields remain outside the
+comparison.
 
 ## Correction to the earlier result
 
@@ -111,7 +115,7 @@ npm run test:linkml-contract-refactor
 
 A green result requires:
 
-- current production field vocabulary and requiredness agree;
+- the evaluated production baseline field vocabulary and requiredness agree;
 - generated JSON Schema preserves the tested enums, scalar types, and numeric
   bounds;
 - stock generated TypeScript is explicitly demonstrated to widen enum-valued
@@ -165,3 +169,10 @@ This experiment does not prove that:
 - a custom LinkML template would be simpler than the handwritten TypeScript;
 - LinkML owns verifier semantics, settlement authority, or evidence meaning.
 
+
+## Reproducibility note
+
+The experiment is intentionally historical. Its result is about the production
+architecture that existed at the evaluated revision, not whatever implementation
+happens to be on `main` today. Updating current production therefore does not
+require rewriting this experiment's baseline or conclusion.
