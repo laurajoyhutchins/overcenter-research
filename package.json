@@ -37,6 +37,7 @@
     "test:storage": "node --experimental-strip-types --test test/fact-store-contract.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts",
     "demo:sqlite": "node --experimental-strip-types examples/sqlite-demo.ts",
     "proof:production": "bash scripts/proof-production.sh",
+    "proof:production-boundary": "bash scripts/proof-production.sh --boundary-only",
     "test:experiment-contract": "node scripts/experiments.mjs verify",
     "experiments:list": "node scripts/experiments.mjs list",
     "experiment": "node scripts/experiments.mjs run",
