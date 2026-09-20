@@ -607,7 +607,7 @@
       "directory": "experiments/release-evidence-substitution",
       "readme": "experiments/release-evidence-substitution/README.md",
       "question": "Can exact release/effect evidence binding reject a plausible Kubernetes realization-substitution failure that careful desired-state recovery can accept?",
-      "claim": "A live Temporal TypeScript worker and kind cluster reproduce a plausible false attribution: after A's accepted mutation loses its response and B delete/recreates the same Deployment with the same immutable image digest, A's careful desired-state recovery accepts B's healthy object; exact obligation/effect binding rejects it. The overall architecture claim remains pending until material-simplification metrics and production Deployment binding exist.",
+      "claim": "Live Temporal + kind evidence demonstrates the false-attribution failure and a production Overcenter Deployment verifier removes the release-specific identity joins from application code. Safe conventional code also closes the bug. The experiment remains pending because fewer durable coordination states and the focused mutation proof are not yet demonstrated.",
       "contrast": "A careful Temporal/Kubernetes-style recovery predicate that checks exact coordinate, immutable image digest, observed generation, and readiness but does not bind current evidence to the exact authorized effect.",
       "reproduce": {
         "tier": "hosted",
@@ -628,10 +628,11 @@
         "artifacts": [
           "experiments/release-evidence-substitution/release-evidence-substitution.test.ts",
           ".github/workflows/release-evidence-substitution.yml",
-          "GitHub Actions run 35538971299 at c41e341fbf17a819718f7e68c34626bbf97be804: live Temporal + kind run emitted FALSE_ATTRIBUTION_REPRODUCED; conventional recovery settled A from B's recreated healthy Deployment while exact obligation/effect binding rejected A."
+          "GitHub Actions run 35539531839 at 73698034866fc7f9dc3a93537ae8d92d51974a55: deterministic production-verifier tests and measurement passed; live Temporal + kind run reproduced false attribution, safe conventional rejected it, and production Overcenter verifier rejected A while verifying B.",
+          "Measured safe application correctness path: conventional 51 LOC / 8 identity joins / 3 recovery branches; Overcenter 3 LOC / 0 joins / 0 recovery branches; new reusable Deployment verifier 199 LOC."
         ]
       },
-      "interpretation": "The live provider/orchestrator phase now demonstrates the false-attribution hazard and the distinguishing power of exact effect binding. Keep the experiment pending: it does not establish that Overcenter is materially simpler until application-owned correctness machinery is measured against a production-capable Overcenter Deployment path.",
+      "interpretation": "The evidence supports a reusable exact-effect evidence boundary as a substantial application-level simplification and catches a plausible false attribution. Do not call this the full killer example yet: durable coordination-state reduction has not been demonstrated, and mutation evidence remains pending.",
       "non_claims": [
         "Temporal or Kubernetes are unsafe.",
         "The deterministic baseline is equivalent to a production Temporal application.",
