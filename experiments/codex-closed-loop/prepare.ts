@@ -48,7 +48,7 @@ try {
     },
   });
 
-  const ready=kernel.deriveReadyWork();
+  const ready=kernel.nextReadyWork();
   if (!ready || ready.id!==obligationId) throw new Error('CODEX_CLOSED_LOOP_READY_WORK_MISSING');
   kernel.claim(ready.id,ready.revision);
   const work=kernel.inspect().find(candidate=>candidate.id===obligationId);
