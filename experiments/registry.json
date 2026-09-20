@@ -607,15 +607,15 @@
       "directory": "experiments/release-evidence-substitution",
       "readme": "experiments/release-evidence-substitution/README.md",
       "question": "Can exact release/effect evidence binding reject a plausible Kubernetes realization-substitution failure that careful desired-state recovery can accept?",
-      "claim": "Pending: the deterministic witness demonstrates the false-attribution schedule and a candidate exact-binding invariant; no Temporal/Kubernetes complexity win is claimed until the hosted phase is complete.",
+      "claim": "A live Temporal TypeScript worker and kind cluster reproduce a plausible false attribution: after A's accepted mutation loses its response and B delete/recreates the same Deployment with the same immutable image digest, A's careful desired-state recovery accepts B's healthy object; exact obligation/effect binding rejects it. The overall architecture claim remains pending until material-simplification metrics and production Deployment binding exist.",
       "contrast": "A careful Temporal/Kubernetes-style recovery predicate that checks exact coordinate, immutable image digest, observed generation, and readiness but does not bind current evidence to the exact authorized effect.",
       "reproduce": {
-        "tier": "deterministic",
+        "tier": "hosted",
         "local": "npm run test:release-evidence-substitution"
       },
       "environment": [
         "Node.js from .node-version for the deterministic witness.",
-        "Hosted Temporal + kind comparison is pre-registered in the README and remains required before any final architecture claim."
+        "Hosted proof: GitHub Actions ubuntu-24.04, Temporal CLI 1.7.3, Temporal TypeScript SDK 1.24.0, kind 0.31.0, Kubernetes 1.35.0."
       ],
       "success_criteria": [
         "The deterministic witness reproduces false attribution from a later healthy realization with the same immutable image digest.",
@@ -627,10 +627,11 @@
         "state": "pending",
         "artifacts": [
           "experiments/release-evidence-substitution/release-evidence-substitution.test.ts",
-          ".github/workflows/release-evidence-substitution.yml"
+          ".github/workflows/release-evidence-substitution.yml",
+          "GitHub Actions run 35538971299 at c41e341fbf17a819718f7e68c34626bbf97be804: live Temporal + kind run emitted FALSE_ATTRIBUTION_REPRODUCED; conventional recovery settled A from B's recreated healthy Deployment while exact obligation/effect binding rejected A."
         ]
       },
-      "interpretation": "Treat the deterministic result only as a falsifier and protocol setup until the hosted Temporal/kind comparison and complexity measurements exist.",
+      "interpretation": "The live provider/orchestrator phase now demonstrates the false-attribution hazard and the distinguishing power of exact effect binding. Keep the experiment pending: it does not establish that Overcenter is materially simpler until application-owned correctness machinery is measured against a production-capable Overcenter Deployment path.",
       "non_claims": [
         "Temporal or Kubernetes are unsafe.",
         "The deterministic baseline is equivalent to a production Temporal application.",
