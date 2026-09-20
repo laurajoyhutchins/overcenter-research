@@ -328,6 +328,18 @@ test('production kernel enforces transaction admission at the effect boundary',(
       verifier:'file-content-equals/v1',path:target,content:'present',
     }});
     const run=kernel.claim('x',kernel.deriveReadyWork()!.revision);
+    for(const hostile of [
+      {...run,obligation_id:'other'},
+      {...run,claimed_revision:'stale'},
+      {...run,claim_commit:'stale'},
+      {...run,obligation_key:'stale'},
+      {...run,execution_generation:run.execution_generation+1},
+      {...run,execution_authority_commit:'stale'},
+      {...run,execution_capability_sha256:'0'.repeat(64)},
+      {...run,execution_capability:'wrong'},
+    ]){
+      assert.throws(()=>kernel.beginEffect(hostile),/STALE_EXECUTION_GENERATION/);
+    }
     kernel.beginEffect(run);
     const successor=kernel.acquireExecution(run.id);
     assert.throws(()=>kernel.beginEffect(run),/STALE_EXECUTION_GENERATION/);
