@@ -48,6 +48,11 @@ assert.ok(snapshot.run_id);
 assert.equal(snapshot.postcondition.verifier, 'github-commit-status/v2');
 if (snapshot.postcondition.verifier !== 'github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 assert.equal(snapshot.postcondition.commit_sha, sourceSha);
+assert.equal(
+  snapshot.packet.effect_contract,
+  'github-commit-status/set-from-postcondition/v1',
+);
+assert.equal(Object.hasOwn(snapshot.packet, 'effect'), false);
 
 const attacker = join(tmpdir(), `overcenter-attacker-${workflowRunId}.git`);
 execFileSync('git', ['init', '--bare', attacker], { stdio: 'ignore' });
@@ -96,16 +101,6 @@ assert.equal(
   `worker unexpectedly crossed provider mutation boundary: HTTP ${attemptedStatus.status}`,
 );
 
-const declaredEffect = snapshot.packet.effect;
-assert.ok(declaredEffect && typeof declaredEffect === 'object');
-writeFileSync('effect-intent.json', `${JSON.stringify({
-  schema: 'overcenter-effect-intent-v1',
-  obligation_id: snapshot.id,
-  run_id: snapshot.run_id,
-  claimed_revision: snapshot.claimed_revision,
-  effect: declaredEffect,
-}, null, 2)}\n`);
-
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
   appendFileSync(summary, [
@@ -116,7 +111,7 @@ if (summary) {
     '- Local state ref, kernel source, and fake SQLite cache were modified.',
     `- Attempt to rewrite canonical project authority returned HTTP \`${attemptedAuthorityRewrite.status}\`.`,
     `- Attempt to write the declared GitHub status returned HTTP \`${attemptedStatus.status}\`.`,
-    '- Emitted a candidate EffectIntent artifact for trusted validation.',
+    '- Did not emit provider coordinates or an effect intent; mutation authority stayed in trusted project state.',
     '- Agent A has no `statuses: write` permission.',
     '',
   ].join('\n'));
@@ -128,7 +123,6 @@ console.log(JSON.stringify({
   immutable_revision: snapshot.revision,
   authority_rewrite_status: attemptedAuthorityRewrite.status,
   provider_write_status: attemptedStatus.status,
-  effect_intent: 'effect-intent.json',
 }));
 
 process.exit(86);

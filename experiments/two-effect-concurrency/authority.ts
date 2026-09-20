@@ -52,13 +52,7 @@ for (const slot of ['alpha','beta']) {
         repository_id:info.id,
         commit_sha:sourceSha,
       },
-      effect:{
-        kind:'github-commit-status/v1',
-        repository_id:info.id,
-        commit_sha:sourceSha,
-        context,
-        state:'success',
-      },
+      effect_contract:'github-commit-status/set-from-postcondition/v1',
     },
     postcondition:{
       verifier:'github-commit-status/v2',
