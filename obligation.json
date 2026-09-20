@@ -1,0 +1,39 @@
+{
+  "schema": "overcenter-git-obligation-v3",
+  "kind": "defined",
+  "obligation": {
+    "id": "concurrency-35488484870-1-alpha",
+    "dependencies": [],
+    "packet": {
+      "kind": "github-actions-two-effect-proof/v1",
+      "executor": {
+        "provider": "github-actions/v1",
+        "repository_id": 1354872053,
+        "workflow_run_id": "35488484870",
+        "workflow_run_attempt": "1",
+        "slot": "alpha"
+      },
+      "exact_input": {
+        "kind": "git-commit/v1",
+        "repository_id": 1354872053,
+        "commit_sha": "7387bc3f343fdcf215fbdedb907189fe365420fb"
+      },
+      "effect": {
+        "kind": "github-commit-status/v1",
+        "repository_id": 1354872053,
+        "commit_sha": "7387bc3f343fdcf215fbdedb907189fe365420fb",
+        "context": "overcenter/concurrency/35488484870/1/alpha",
+        "state": "success"
+      }
+    },
+    "postcondition": {
+      "verifier": "github-commit-status/v2",
+      "provider": "github",
+      "repository_id": 1354872053,
+      "repository_full_name": "laurajoyhutchins/overcenter-research",
+      "commit_sha": "7387bc3f343fdcf215fbdedb907189fe365420fb",
+      "context": "overcenter/concurrency/35488484870/1/alpha",
+      "expected_state": "success"
+    }
+  }
+}
