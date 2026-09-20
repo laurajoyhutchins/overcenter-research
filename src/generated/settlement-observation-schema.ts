@@ -2,7 +2,6 @@
 // Do not edit by hand.
 export const SettlementObservationSchema={
   "type": "object",
-  "additionalProperties": false,
   "required": [
     "verifier",
     "mutation_certainty"
@@ -93,5 +92,6 @@ export const SettlementObservationSchema={
       "additionalProperties": true,
       "x-overcenter-providerOwned": true
     }
-  }
+  },
+  "additionalProperties": false
 } as const;
