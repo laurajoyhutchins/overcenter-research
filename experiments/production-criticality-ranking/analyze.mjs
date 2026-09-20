@@ -89,6 +89,17 @@ function importedExternalModule(expression,checker){
   }
   return null;
 }
+function concreteDispatchTargets(declaration,units,checker){
+  if(!ts.isMethodSignature(declaration) || !ts.isInterfaceDeclaration(declaration.parent)) return [];
+  const methodName=propName(declaration.name);
+  const contractType=checker.getTypeAtLocation(declaration.parent);
+  return units.filter(unit=>{
+    if(!ts.isMethodDeclaration(unit.node) || propName(unit.node.name)!==methodName) return false;
+    const owner=unit.node.parent;
+    if(!ts.isClassDeclaration(owner) && !ts.isClassExpression(owner)) return false;
+    return checker.isTypeAssignableTo(checker.getTypeAtLocation(owner),contractType);
+  });
+}
 function graphReach(start,adj){
   const seen=new Set([start]);
   const stack=[start];
@@ -191,7 +202,7 @@ export function analyze({root,config}){
   const edges=new Map(units.map(u=>[u.id,new Set()]));
   const unresolvedCallsites=[];
   const scopes=['production','test','experiment','other'];
-  const callStats=Object.fromEntries(scopes.map(scope=>[scope,{resolvedInternalCalls:0,unresolvedInternalCalls:0,externalCalls:0,unknownCalls:0}]));
+  const callStats=Object.fromEntries(scopes.map(scope=>[scope,{resolvedInternalCalls:0,resolvedPolymorphicCalls:0,unresolvedInternalCalls:0,externalCalls:0,unknownCalls:0}]));
   let resolvedInternalCalls=0,unresolvedInternalCalls=0,externalCalls=0,unknownCalls=0;
   const bump=(caller,key)=>{ callStats[caller.scope][key]+=1; };
   for(const sf of program.getSourceFiles()){
@@ -204,10 +215,16 @@ export function analyze({root,config}){
           let decl=sig?.declaration??null;
           let callee=decl?unitForNode(decl,nodeToUnit):null;
           if(!callee && decl && ts.isVariableDeclaration(decl) && decl.initializer && isCallable(decl.initializer)) callee=nodeToUnit.get(decl.initializer)??null;
+          const polymorphicTargets=!callee && decl ? concreteDispatchTargets(decl,units,checker) : [];
           if(callee){
             edges.get(caller.id).add(callee.id);
             resolvedInternalCalls++;
             bump(caller,'resolvedInternalCalls');
+          } else if(polymorphicTargets.length){
+            for(const target of polymorphicTargets) edges.get(caller.id).add(target.id);
+            resolvedInternalCalls++;
+            bump(caller,'resolvedInternalCalls');
+            bump(caller,'resolvedPolymorphicCalls');
           } else if(decl){
             const declarationFile=decl.getSourceFile()?.fileName;
             if(declarationFile && files.includes(declarationFile)){
