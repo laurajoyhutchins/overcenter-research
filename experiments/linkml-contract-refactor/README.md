@@ -155,4 +155,3 @@ This experiment does not prove that:
 - a custom LinkML template would be simpler than the handwritten TypeScript;
 - LinkML owns verifier semantics, settlement authority, or evidence meaning.
 
-<!-- exact-head-proof-trigger -->
