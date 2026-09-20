@@ -237,6 +237,10 @@ export function analyze({root,config}){
             resolvedInternalCalls++;
             bump(caller,'resolvedInternalCalls');
             bump(caller,'resolvedPolymorphicCalls');
+          } else if(parameterBoundCall(node.expression,checker)){
+            externalCalls++;
+            bump(caller,'externalCalls');
+            bump(caller,'externalCallbackCalls');
           } else if(decl){
             const declarationFile=decl.getSourceFile()?.fileName;
             if(declarationFile && files.includes(declarationFile)){
