@@ -14,23 +14,23 @@ const valid:CandidateObservation={
   repository_id:1,
 };
 
-// @ts-expect-error verifier vocabulary must remain narrow.
 const invalidVerifier:CandidateObservation={
+  // @ts-expect-error verifier vocabulary must remain narrow.
   verifier:'github-commit-status/v1',
   mutation_certainty:'present',
 };
 
-// @ts-expect-error provider vocabulary must remain narrow.
 const invalidProvider:CandidateObservation={
   verifier:'github-commit-status/v2',
   mutation_certainty:'present',
+  // @ts-expect-error provider vocabulary must remain narrow.
   provider:'gitlab',
 };
 
-// @ts-expect-error closed object vocabulary must reject unknown fields.
 const invalidExtra:CandidateObservation={
   verifier:'file-content-equals/v1',
   mutation_certainty:'present',
+  // @ts-expect-error closed object vocabulary must reject unknown fields.
   observer_generation:1,
 };
 
