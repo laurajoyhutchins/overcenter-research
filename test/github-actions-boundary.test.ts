@@ -36,3 +36,19 @@ test('hosted proof does not transport worker-declared provider authority', () =>
   assert.doesNotMatch(broker, /effect[- ]intent/i);
   assert.doesNotMatch(broker, /download-artifact/);
 });
+
+test('active hosted proof contains no legacy commit-status effect intent', () => {
+  const paths = [
+    '../experiments/disposable-agent/authority.ts',
+    '../experiments/disposable-agent/agent-a.ts',
+    '../experiments/disposable-agent/effect-broker.ts',
+    '../experiments/two-effect-concurrency/authority.ts',
+    '../experiments/two-effect-concurrency/agent.ts',
+  ];
+
+  for (const path of paths) {
+    const source = readFileSync(new URL(path, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /github-commit-status\/v1/);
+    assert.doesNotMatch(source, /overcenter-effect-intent-v1/);
+  }
+});
