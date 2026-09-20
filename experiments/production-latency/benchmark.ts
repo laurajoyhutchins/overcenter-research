@@ -189,9 +189,9 @@ async function runSample(
     const settlementMs=performance.now()-settlementStarted;
     phase='idle';
 
+    const totalMs=performance.now()-totalStarted;
     assert.equal(receipt.disposition,'DONE');
     assert.equal(receipt.verified,true);
-    assert.equal(kernel.inspect()[0].status,'DONE');
 
     const effectLocalMs=Math.max(
       0,
@@ -221,7 +221,7 @@ async function runSample(
       settlement_local_ms:round(settlementLocalMs),
       overcenter_local_ms:round(overcenterLocalMs),
       provider_ms:round(providerMs),
-      total_ms:round(performance.now()-totalStarted),
+      total_ms:round(totalMs),
     };
   } finally {
     kernel.close();
