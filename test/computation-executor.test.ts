@@ -25,7 +25,6 @@ import {
 } from '../src/computation-execution.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
-  TEST_COMPUTATION_PACKET_SCHEMA,
   resumeTestComputation,
   runReadyTestComputation,
 } from '../src/computation-runner.ts';
@@ -514,8 +513,9 @@ test('test workload crosses Go but settles only by independent observation',asyn
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
       kind:'test',
+      execution_context_sha256:testExecutionContext,
       process_spec:processSpec,
     },
     postcondition:{
@@ -558,8 +558,9 @@ test('failed process evidence cannot turn a forged marker into DONE',async()=>{
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
       kind:'test',
+      execution_context_sha256:testExecutionContext,
       process_spec:{
         schema:PROCESS_SPEC_SCHEMA,
         executable:process.execPath,
@@ -605,8 +606,9 @@ test('successful process evidence is not project truth',async()=>{
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
       kind:'test',
+      execution_context_sha256:testExecutionContext,
       process_spec:{
         schema:PROCESS_SPEC_SCHEMA,
         executable:'/bin/true',
@@ -729,17 +731,15 @@ test('executor death reconstructs test work with a fresh generation and workspac
   }
 });
 
-test('legacy computation cannot replay without a bound execution context',async()=>{
+test('legacy computation packet is rejected before durable claim',async()=>{
   const state=kernelFixture();
-  const workdir=join(scratch,`legacy-replay-${executorSequence++}`);
-  mkdirSync(workdir,{recursive:true});
-  const output=join(workdir,'result.txt');
+  const output=join(scratch,`legacy-admission-${executorSequence++}.txt`);
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:'overcenter-test-computation-v1',
       kind:'test',
-      process_spec:spec('delayed-write-file','passed',{
+      process_spec:spec('write-file','passed',{
         pidFile:output,
         timeoutMs:5000,
       }),
@@ -751,23 +751,23 @@ test('legacy computation cannot replay without a bound execution context',async(
     },
   });
 
-  const first=await startExecutor(1,workdir);
-  await first.client.ready();
-  const pending=runReadyTestComputation(state.kernel,first.client);
-  await new Promise(resolve=>setTimeout(resolve,100));
-  await first.abort();
-  const interrupted=await pending;
-  assert.ok(interrupted);
-  assert.equal(interrupted.state,'RECOVERY_REQUIRED');
-
+  let executed=false;
   await assert.rejects(
-    resumeTestComputation(state.kernel,{
+    runReadyTestComputation(state.kernel,{
       executionContextSha256:testExecutionContext,
-      execute:async()=>{ throw new Error('must not execute'); },
-    },interrupted.run_id),
-    /TEST_COMPUTATION_REPLAY_IDENTITY_UNPROVEN/,
+      execute:async()=>{
+        executed=true;
+        throw new Error('executor must not be reached');
+      },
+    }),
+    /TEST_COMPUTATION_REPLAY_SAFE_PACKET_REQUIRED/,
   );
-  assert.equal(state.kernel.inspect()[0]?.execution_generation,1);
+  assert.equal(executed,false);
+  const projected=state.kernel.inspect()[0]!;
+  assert.equal(projected.status,'READY');
+  assert.equal(projected.run_id,undefined);
+  assert.equal(projected.execution_generation,undefined);
+  assert.deepEqual(state.kernel.receipts(),[]);
 });
 
 test('replay-safe computation rejects a changed execution context before rotating generation',async()=>{
@@ -865,8 +865,9 @@ test('invalid test computation packet fails before durable claim',async()=>{
   state.kernel.define({
     id:'test',
     packet:{
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
       kind:'test',
+      execution_context_sha256:testExecutionContext,
       process_spec:{
         schema:PROCESS_SPEC_SCHEMA,
         executable:'relative-executable',
