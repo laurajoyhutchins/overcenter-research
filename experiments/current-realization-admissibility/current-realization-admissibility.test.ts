@@ -111,7 +111,7 @@ test('indeterminate current evidence blocks replay and reconstructs identically'
       stale.explanation.reason.reason,
       'NON_MATCHING_READ_NOT_AUTHORITATIVE',
     );
-    assert.equal(f.kernel.deriveReadyWork(),null);
+    assert.equal(f.kernel.nextReadyWork(),null);
     assert.throws(
       ()=>f.kernel.claim('eventual',stale.work.revision),
       /CURRENT_REALIZATION_ADMISSIBILITY_INDETERMINATE/,

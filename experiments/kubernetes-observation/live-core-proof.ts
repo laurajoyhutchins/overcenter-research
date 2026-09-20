@@ -184,7 +184,7 @@ try {
 
     const first=kernel.claim(
       'ensure-configmap',
-      kernel.deriveReadyWork()!.revision,
+      kernel.nextReadyWork()!.revision,
     );
     const absent=kernel.resolve(first);
 
@@ -200,7 +200,7 @@ try {
 
     const second=kernel.claim(
       'ensure-configmap',
-      kernel.deriveReadyWork()!.revision,
+      kernel.nextReadyWork()!.revision,
     );
     await kernel.performEffect(second,()=>{
       kubectl(

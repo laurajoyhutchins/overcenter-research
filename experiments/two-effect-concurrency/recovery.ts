@@ -37,7 +37,7 @@ assert.ok(work,`missing unresolved run for ${slot}`);
 assert.ok(work.run_id);
 
 const permit=kernel.acquireExecution(work.run_id);
-const recovery=kernel.recoverInterrupted(permit,{
+const recovery=kernel.recordExecutionTerminated(permit,{
   source:'github-actions-job-supervisor',
   workflow_run_id:workflowRunId,
   workflow_run_attempt:attempt,

@@ -54,7 +54,7 @@ try {
     },
   });
 
-  const ready=kernel.deriveReadyWork();
+  const ready=kernel.nextReadyWork();
   if (!ready || ready.id!==obligationId) throw new Error('ASSIGNMENT_READY_WORK_MISSING');
   const permit=kernel.claim(ready.id,ready.revision);
   const assigned=kernel.inspect().find(work=>work.id===obligationId);

@@ -129,7 +129,7 @@ test('SQLite kernel rejects a claim fenced to a stale authority revision',()=>{
       id:'a',
       postcondition:pc(join(root,'a'),'A'),
     });
-    const stale=first.deriveReadyWork();
+    const stale=first.nextReadyWork();
     assert.ok(stale);
 
     second.define({
