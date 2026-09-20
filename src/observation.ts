@@ -11,6 +11,11 @@ import {
   localFileEnoentEvidenceMatches,
   validateAbsenceEvidenceEnvelope,
 } from './evidence.ts';
+import {SettlementObservationSchema} from './generated/settlement-observation-schema.ts';
+import {
+  assertSupportedStructuralSchema,
+  structurallyMatches,
+} from './structural-schema.ts';
 import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
@@ -42,60 +47,31 @@ function data(value:unknown):value is Record<string,unknown> {
   return !!value && typeof value==='object' && !Array.isArray(value);
 }
 
+assertSupportedStructuralSchema(SettlementObservationSchema);
+
+const observationExternalRef=(ref:string,value:unknown):boolean=>{
+  if (ref!=='#/$defs/AbsenceEvidenceEnvelope') return false;
+  validateAbsenceEvidenceEnvelope(value);
+  return true;
+};
+
 export function validateObservationEnvelope(
   value:unknown,
 ):asserts value is Observation {
-  if (!data(value)) throw new Error('OBSERVATION_INVALID');
-  const required=['verifier','mutation_certainty'];
-  const optional=[
-    'absence_evidence','path','expected_sha256','actual_sha256','provider',
-    'authority_id','api_group','resource','namespace','name','observed_uid',
-    'observed_resource_version','snapshot_resource_version','repository_id',
-    'repository_full_name','commit_sha','context','expected_state','actual_state',
-    'observation_error','provider_evidence',
-  ];
-  const allowed=new Set([...required,...optional]);
-  for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) throw new Error(`OBSERVATION_UNKNOWN_FIELD:${key}`);
-  }
-  for (const key of required) {
-    if (!(key in value)) throw new Error(`OBSERVATION_MISSING_FIELD:${key}`);
-  }
-  if (![
-    'file-content-equals/v1',
-    'eventually-consistent-file-content-equals/v1',
-    'github-commit-status/v2',
-    'kubernetes-configmap-exists/v1',
-  ].includes(String(value.verifier))) throw new Error('OBSERVATION_VERIFIER_INVALID');
-  if (!['present','absent','uncertain'].includes(String(value.mutation_certainty))) {
-    throw new Error('OBSERVATION_MUTATION_CERTAINTY_INVALID');
-  }
-  const strings=[
-    'path','expected_sha256','actual_sha256','authority_id','api_group','resource',
-    'namespace','name','observed_uid','observed_resource_version',
-    'snapshot_resource_version','repository_full_name','commit_sha','context',
-    'expected_state','actual_state','observation_error',
-  ];
-  for (const field of strings) {
-    const member=value[field];
-    if (member!==undefined && typeof member!=='string') {
-      throw new Error(`OBSERVATION_${field.toUpperCase()}_INVALID`);
-    }
-  }
   if (
-    value.repository_id!==undefined
-    && (!Number.isSafeInteger(value.repository_id) || value.repository_id<=0)
-  ) throw new Error('OBSERVATION_REPOSITORY_ID_INVALID');
-  if (
-    value.provider!==undefined
-    && !['github','kubernetes'].includes(String(value.provider))
-  ) throw new Error('OBSERVATION_PROVIDER_INVALID');
-  if (value.absence_evidence!==undefined) {
-    validateAbsenceEvidenceEnvelope(value.absence_evidence);
-  }
-  if (value.provider_evidence!==undefined && !data(value.provider_evidence)) {
-    throw new Error('OBSERVATION_PROVIDER_EVIDENCE_INVALID');
-  }
+    data(value)
+    && Object.hasOwn(value,'verifier')
+    && !structurallyMatches(
+      SettlementObservationSchema.properties.verifier,
+      value.verifier,
+    )
+  ) throw new Error('OBSERVATION_VERIFIER_INVALID');
+
+  if (!structurallyMatches(
+    SettlementObservationSchema,
+    value,
+    observationExternalRef,
+  )) throw new Error('OBSERVATION_INVALID');
 }
 
 function readLocalFile(path:string,context:ObservationContext):string {

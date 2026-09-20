@@ -18,21 +18,20 @@ Provider-specific request and response semantics remain provider-owned. Any fiel
 
 Current receipt-v5 observations have a closed outer vocabulary. Verifier-specific coordinate checks still decide whether the observation applies to a particular postcondition.
 
-The structural definition of `SettlementObservation` is projected from
-[`settlement-observation.linkml.yaml`](./settlement-observation.linkml.yaml).
-LinkML is authoritative only for this closed structural slice. The checked-in
-JSON Schema remains the production wire artifact, and CI requires it to match
-the generated projection exactly. The runtime validator remains independent.
+The structural definition of `SettlementObservation` is authored once in
+[`settlement-observation.typebox.ts`](./settlement-observation.typebox.ts).
+That TypeBox value supplies the narrow TypeScript type and projects to both the
+checked-in JSON Schema wire definition and the generated runtime schema object.
+CI rejects drift between the source and either projection.
+
+TypeBox is build-time tooling only. Normal Overcenter execution does not install
+or import it. Runtime structural admission is owned by the deterministic
+`src/structural-schema.ts` checker over the generated schema object.
 
 `absence_evidence` continues to reference the separately owned absence-evidence
-contract, while `provider_evidence` remains an explicit Overcenter overlay.
-Provider payload meaning, evidence authority, verifier semantics, and settlement
-truth are not delegated to LinkML.
-
-CI verifies the LinkML 1.11.1 root wheel by SHA-256. Python transitive
-dependencies are not yet hermetically locked, so generation is not claimed to
-be a fully closed toolchain. Exact comparison against the checked-in wire
-artifact makes dependency-induced projection drift fail closed.
+contract, while `provider_evidence` remains explicitly provider-owned.
+Provider payload meaning, evidence authority, verifier semantics, coordinate
+binding, settlement truth, and project truth remain outside TypeBox.
 
 ## Absence evidence
 
