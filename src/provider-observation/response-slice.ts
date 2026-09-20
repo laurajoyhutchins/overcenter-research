@@ -326,15 +326,42 @@ export function validateObservationSlice<T extends StructuralObservation>(
   };
 }
 
-export function structurallyValidatedFor<T extends StructuralObservation>(
-  observation: T,
-  operationId: string,
-  requiredPaths: readonly string[],
-): observation is CertifiedObservation<T> {
-  const structural = (observation as Partial<CertifiedObservation<T>>).structural_validation;
+function structuralValidationFor<T extends StructuralObservation>(
+  observation:T,
+  operationId:string,
+):ProviderStructuralValidation|null {
+  const structural=(observation as Partial<CertifiedObservation<T>>).structural_validation;
+  if (!structural) return null;
+  if (structural.operation_id!==operationId || structural.status!=='200') return null;
+  if (structural.schema_sha256!==observation.contract.schema_sha256) return null;
+  return structural;
+}
+
+export function structurallyCertifiedFor<T extends StructuralObservation>(
+  observation:T,
+  operationId:string,
+  fields:readonly ResponseFieldSpec[],
+):observation is CertifiedObservation<T> {
+  const structural=structuralValidationFor(observation,operationId);
   if (!structural) return false;
-  if (structural.operation_id !== operationId || structural.status !== '200') return false;
-  if (structural.schema_sha256 !== observation.contract.schema_sha256) return false;
-  const validated = new Set(structural.validated_paths);
-  return requiredPaths.every(path => validated.has(path));
+  const validated=new Set(structural.validated_paths);
+  const optionalAbsent=new Set(structural.optional_absent_paths);
+  return fields.every(field=>{
+    const present=validated.has(field.path);
+    const absent=optionalAbsent.has(field.path);
+    if (present===absent) return false;
+    return present || field.required===false;
+  });
+}
+
+export function structurallyValidatedFor<T extends StructuralObservation>(
+  observation:T,
+  operationId:string,
+  requiredPaths:readonly string[],
+):observation is CertifiedObservation<T> {
+  return structurallyCertifiedFor(
+    observation,
+    operationId,
+    requiredPaths.map(path=>({path})),
+  );
 }
