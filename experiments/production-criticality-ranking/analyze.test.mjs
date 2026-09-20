@@ -115,9 +115,9 @@ test('fails closed when the static graph becomes blind at critical callables or 
 });
 
 
-test('does not treat unresolved external imports as production graph blindness',()=>{
+test('does not treat direct or chained external imports as production graph blindness',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-external-'));
-  write(root,'src/core.ts',`import {randomUUID} from 'node:crypto';\nexport function settle(){ return randomUUID().length; }\nexport function recover(){ return settle(); }\n`);
+  write(root,'src/core.ts',`import {createHash} from 'node:crypto';\nexport function settle(){ return createHash('sha256').update('x').digest('hex').length; }\nexport function recover(){ return settle(); }\n`);
   git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
   const config={
     requiredEvidenceTiers:[],
@@ -129,7 +129,7 @@ test('does not treat unresolved external imports as production graph blindness',
   };
   const r=analyze({root,config});
   assert.equal(r.analyzer.byScope.production.unknownCalls,0);
-  assert.equal(r.analyzer.byScope.production.externalCalls,1);
+  assert.equal(r.analyzer.byScope.production.externalCalls,3);
   assert.equal(r.analyzer.byScope.production.internalResolutionRate,1);
 });
 
