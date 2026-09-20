@@ -17,16 +17,9 @@ import {
   type Receipt,
 } from './kernel-core.ts';
 
-export const TEST_COMPUTATION_PACKET_SCHEMA='overcenter-test-computation-v1' as const;
 export const REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA='overcenter-replay-safe-test-computation-v1' as const;
 export const COMPUTATION_ATTEMPT_SUMMARY_SCHEMA='overcenter-computation-attempt-summary-v1' as const;
 export const COMPUTATION_TRANSPORT_FAILURE_SCHEMA='overcenter-computation-transport-failure-v1' as const;
-
-export interface TestComputationPacketV1 {
-  schema:typeof TEST_COMPUTATION_PACKET_SCHEMA;
-  kind:'test';
-  process_spec:ProcessSpecV1;
-}
 
 export interface ReplaySafeTestComputationPacketV1 {
   schema:typeof REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA;
@@ -35,9 +28,7 @@ export interface ReplaySafeTestComputationPacketV1 {
   process_spec:ProcessSpecV1;
 }
 
-export type TestComputationPacket =
-  | TestComputationPacketV1
-  | ReplaySafeTestComputationPacketV1;
+export type TestComputationPacket=ReplaySafeTestComputationPacketV1;
 
 export interface ComputationExecutor {
   readonly executionContextSha256?:string;
@@ -77,47 +68,30 @@ export function validateTestComputationPacket(
 ):TestComputationPacket {
   if (!isRecord(value)) throw new Error('TEST_COMPUTATION_PACKET_INVALID');
   if (value.kind!=='test') throw new Error('TEST_COMPUTATION_PACKET_SCHEMA_MISMATCH');
-
-  if (value.schema===TEST_COMPUTATION_PACKET_SCHEMA) {
-    const keys=Object.keys(value).sort();
-    const expected=['kind','process_spec','schema'];
-    if (
-      keys.length!==expected.length
-      || keys.some((key,index)=>key!==expected[index])
-    ) {
-      throw new Error('TEST_COMPUTATION_PACKET_SHAPE_INVALID');
-    }
-    return {
-      schema:TEST_COMPUTATION_PACKET_SCHEMA,
-      kind:'test',
-      process_spec:validateProcessSpec(value.process_spec),
-    };
+  if (value.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) {
+    throw new Error('TEST_COMPUTATION_REPLAY_SAFE_PACKET_REQUIRED');
   }
 
-  if (value.schema===REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) {
-    const keys=Object.keys(value).sort();
-    const expected=['execution_context_sha256','kind','process_spec','schema'];
-    if (
-      keys.length!==expected.length
-      || keys.some((key,index)=>key!==expected[index])
-    ) {
-      throw new Error('TEST_COMPUTATION_PACKET_SHAPE_INVALID');
-    }
-    if (
-      typeof value.execution_context_sha256!=='string'
-      || !/^sha256:[0-9a-f]{64}$/.test(value.execution_context_sha256)
-    ) {
-      throw new Error('TEST_COMPUTATION_EXECUTION_CONTEXT_INVALID');
-    }
-    return {
-      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
-      kind:'test',
-      execution_context_sha256:value.execution_context_sha256,
-      process_spec:validateProcessSpec(value.process_spec),
-    };
+  const keys=Object.keys(value).sort();
+  const expected=['execution_context_sha256','kind','process_spec','schema'];
+  if (
+    keys.length!==expected.length
+    || keys.some((key,index)=>key!==expected[index])
+  ) {
+    throw new Error('TEST_COMPUTATION_PACKET_SHAPE_INVALID');
   }
-
-  throw new Error('TEST_COMPUTATION_PACKET_SCHEMA_MISMATCH');
+  if (
+    typeof value.execution_context_sha256!=='string'
+    || !/^sha256:[0-9a-f]{64}$/.test(value.execution_context_sha256)
+  ) {
+    throw new Error('TEST_COMPUTATION_EXECUTION_CONTEXT_INVALID');
+  }
+  return {
+    schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+    kind:'test',
+    execution_context_sha256:value.execution_context_sha256,
+    process_spec:validateProcessSpec(value.process_spec),
+  };
 }
 
 function attemptSummary(
@@ -160,15 +134,7 @@ function readyTestWork(kernel:KernelCore):{
 }|null {
   for (const work of kernel.inspect()) {
     if (work.status!=='READY') continue;
-    if (
-      !isRecord(work.packet)
-      || (
-        work.packet.schema!==TEST_COMPUTATION_PACKET_SCHEMA
-        && work.packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA
-      )
-    ) {
-      continue;
-    }
+    if (!isRecord(work.packet) || work.packet.kind!=='test') continue;
     return {
       work,
       packet:validateTestComputationPacket(work.packet),
@@ -200,7 +166,6 @@ async function assertExecutionContext(
   executor:ComputationExecutor,
 ):Promise<void> {
   await executor.ready?.();
-  if (packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) return;
   if (executor.executionContextSha256!==packet.execution_context_sha256) {
     throw new Error('TEST_COMPUTATION_EXECUTION_CONTEXT_MISMATCH');
   }
@@ -295,9 +260,6 @@ export async function resumeTestComputation(
   const {work,packet}=recoveringTestWork(kernel,runId);
   if (kernel.hasUnresolvedEffect(runId)) {
     throw new Error('TEST_COMPUTATION_EFFECT_RESERVATION_PRESENT');
-  }
-  if (packet.schema!==REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA) {
-    throw new Error('TEST_COMPUTATION_REPLAY_IDENTITY_UNPROVEN');
   }
   await assertExecutionContext(packet,executor);
 
