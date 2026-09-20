@@ -18,10 +18,6 @@ export function githubStatusContextKey(context:string):string {
   return context.toLowerCase();
 }
 
-export function githubRepositoryFullNameKey(fullName:string):string {
-  return fullName.toLowerCase();
-}
-
 export function githubGet(token:string,path:string):unknown {
   const config=[
     `header = "Authorization: Bearer ${token}"`,
