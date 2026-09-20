@@ -1,0 +1,153 @@
+{
+  "schema": "overcenter-criticality-mutation-evidence/v1",
+  "source_run": {
+    "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+    "workflow_run_id": 35471986995,
+    "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+    "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+  },
+  "probes": [
+    {
+      "id": "digest-foundation",
+      "source_blobs": {
+        "src/digest.ts": "7fceb3b722cc31fe318cbd8886159ced5e976f9d"
+      },
+      "selectors": [
+        {
+          "file": "src/digest.ts",
+          "name": "sha256"
+        },
+        {
+          "file": "src/digest.ts",
+          "name": "canonicalDigest"
+        }
+      ],
+      "total": 18,
+      "killed": 18,
+      "survived": 0,
+      "no_coverage": 0,
+      "timeout_or_error": 0,
+      "mutation_score": 1
+    },
+    {
+      "id": "semantic-identity",
+      "source_blobs": {
+        "src/semantic-identity.ts": "e86c460c34d292105b4160d23744d806a04337c6"
+      },
+      "selectors": [
+        {
+          "file": "src/semantic-identity.ts",
+          "name": "semanticDependencyIdentity"
+        },
+        {
+          "file": "src/semantic-identity.ts",
+          "name": "obligationKey"
+        }
+      ],
+      "total": 46,
+      "killed": 5,
+      "survived": 41,
+      "no_coverage": 0,
+      "timeout_or_error": 0,
+      "mutation_score": 0.10869565217391304
+    },
+    {
+      "id": "done-candidate-reuse",
+      "source_blobs": {
+        "src/projector.ts": "a599877015777e1dab018730ed1bc07b2984e7ec"
+      },
+      "selectors": [
+        {
+          "file": "src/projector.ts",
+          "name": "deriveRealizationRelations"
+        }
+      ],
+      "total": 111,
+      "killed": 77,
+      "survived": 29,
+      "no_coverage": 0,
+      "timeout_or_error": 5,
+      "mutation_score": 0.6936936936936937
+    },
+    {
+      "id": "effect-reservation",
+      "source_blobs": {
+        "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
+      },
+      "selectors": [
+        {
+          "file": "src/kernel-core.ts",
+          "qualifiedName": "KernelCore.beginEffect"
+        }
+      ],
+      "total": 28,
+      "killed": 15,
+      "survived": 10,
+      "no_coverage": 0,
+      "timeout_or_error": 3,
+      "mutation_score": 0.5357142857142857
+    },
+    {
+      "id": "settlement",
+      "source_blobs": {
+        "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
+      },
+      "selectors": [
+        {
+          "file": "src/kernel-core.ts",
+          "qualifiedName": "KernelCore.resolve"
+        }
+      ],
+      "total": 47,
+      "killed": 22,
+      "survived": 25,
+      "no_coverage": 0,
+      "timeout_or_error": 0,
+      "mutation_score": 0.46808510638297873
+    },
+    {
+      "id": "execution-fence",
+      "source_blobs": {
+        "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
+      },
+      "selectors": [
+        {
+          "file": "src/kernel-core.ts",
+          "qualifiedName": "KernelCore.#requireExecutionPermit"
+        }
+      ],
+      "total": 22,
+      "killed": 11,
+      "survived": 11,
+      "no_coverage": 0,
+      "timeout_or_error": 0,
+      "mutation_score": 0.5
+    },
+    {
+      "id": "verification-and-absence",
+      "source_blobs": {
+        "src/observation.ts": "6431cb69c0335f7b5ef89648f1339703fa1830b3"
+      },
+      "selectors": [
+        {
+          "file": "src/observation.ts",
+          "name": "authoritativeAbsenceEvidence"
+        },
+        {
+          "file": "src/observation.ts",
+          "name": "observationAuthoritativelyAbsent"
+        },
+        {
+          "file": "src/observation.ts",
+          "name": "observationVerified"
+        }
+      ],
+      "total": 67,
+      "killed": 23,
+      "survived": 44,
+      "no_coverage": 0,
+      "timeout_or_error": 0,
+      "mutation_score": 0.34328358208955223
+    }
+  ]
+}

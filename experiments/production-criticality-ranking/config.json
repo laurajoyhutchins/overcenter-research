@@ -1,0 +1,236 @@
+{
+  "schema": "overcenter-production-callable-criticality-config/v1",
+  "maxRecoveryClass": 6,
+  "changeHalfLifeDays": 30,
+  "requiredEvidenceTiers": [
+    "test",
+    "experiment"
+  ],
+  "authorityClasses": [
+    {
+      "id": "realization-reuse",
+      "sink": {
+        "file": "src/realization-admissibility.ts",
+        "name": "deriveCurrentRealizationJudgments"
+      },
+      "recoveryClass": 3
+    },
+    {
+      "id": "semantic-identity",
+      "sink": {
+        "file": "src/semantic-identity.ts",
+        "name": "obligationKey"
+      },
+      "recoveryClass": 4
+    },
+    {
+      "id": "project-truth-projection",
+      "sink": {
+        "file": "src/projector.ts",
+        "name": "deriveProjectProjection"
+      },
+      "recoveryClass": 4
+    },
+    {
+      "id": "observation-verification",
+      "sink": {
+        "file": "src/observation.ts",
+        "name": "observationVerified"
+      },
+      "recoveryClass": 4
+    },
+    {
+      "id": "authoritative-absence",
+      "sink": {
+        "file": "src/observation.ts",
+        "name": "observationAuthoritativelyAbsent"
+      },
+      "recoveryClass": 4
+    },
+    {
+      "id": "claim-authority",
+      "sink": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.claim"
+      },
+      "recoveryClass": 3
+    },
+    {
+      "id": "execution-authority",
+      "sink": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.acquireExecution"
+      },
+      "recoveryClass": 4
+    },
+    {
+      "id": "effect-reservation",
+      "sink": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.beginEffect"
+      },
+      "recoveryClass": 5
+    },
+    {
+      "id": "settlement",
+      "sink": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.resolve"
+      },
+      "recoveryClass": 5
+    },
+    {
+      "id": "interrupted-execution-recovery",
+      "sink": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.recoverInterrupted"
+      },
+      "recoveryClass": 5
+    }
+  ],
+  "recoveryScenarios": [
+    {
+      "id": "effect-error-recovery",
+      "entry": {
+        "file": "src/kernel-core.ts",
+        "name": "runCoreLoop"
+      },
+      "terminal": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.recoverInterrupted"
+      }
+    },
+    {
+      "id": "ordinary-resolution",
+      "entry": {
+        "file": "src/kernel-core.ts",
+        "name": "runCoreLoop"
+      },
+      "terminal": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.resolve"
+      }
+    },
+    {
+      "id": "explicit-reconciliation",
+      "entry": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.reconcile"
+      },
+      "terminal": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.resolve"
+      }
+    }
+  ],
+  "rankingPolicy": {
+    "version": "criticality-ranking/v3",
+    "consequence": {
+      "weights": {
+        "A": 4,
+        "B": 2.5,
+        "I": 3,
+        "F": 1.5,
+        "R": 2.5,
+        "X": 1
+      },
+      "interactions": {
+        "AI": 2.5
+      }
+    },
+    "attention": {
+      "multipliers": {
+        "E": 1,
+        "C": 0.1,
+        "BE": 0.5
+      }
+    }
+  },
+  "calibrationPairs": [
+    {
+      "id": "reuse-over-identity",
+      "higher": {
+        "file": "src/projector.ts",
+        "name": "deriveRealizationRelations"
+      },
+      "lower": {
+        "file": "src/semantic-identity.ts",
+        "name": "obligationKey"
+      },
+      "rationale": "Prior human ranking put DONE-candidate reuse above semantic identity; the callable-level proxy is the projection function containing DONE-candidate selection."
+    },
+    {
+      "id": "identity-over-settlement",
+      "higher": {
+        "file": "src/semantic-identity.ts",
+        "name": "obligationKey"
+      },
+      "lower": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.resolve"
+      },
+      "rationale": "Prior human ranking put obligation/verifier identity above settlement."
+    },
+    {
+      "id": "settlement-over-absence",
+      "higher": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.resolve"
+      },
+      "lower": {
+        "file": "src/observation.ts",
+        "name": "observationAuthoritativelyAbsent"
+      },
+      "rationale": "Prior human ranking put settlement above authoritative absence."
+    },
+    {
+      "id": "verification-over-absence",
+      "higher": {
+        "file": "src/observation.ts",
+        "name": "observationVerified"
+      },
+      "lower": {
+        "file": "src/observation.ts",
+        "name": "observationAuthoritativelyAbsent"
+      },
+      "rationale": "Prior human ranking put the verified predicate above authoritative absence."
+    },
+    {
+      "id": "execution-fence-over-reservation",
+      "higher": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.#requireExecutionPermit"
+      },
+      "lower": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.beginEffect"
+      },
+      "rationale": "Prior human ranking put execution fencing above durable reservation; the fencing unit is the exact execution-permit guard, not permit acquisition."
+    },
+    {
+      "id": "projection-over-explanation",
+      "higher": {
+        "file": "src/projector.ts",
+        "name": "deriveProjectProjection"
+      },
+      "lower": {
+        "file": "src/projector.ts",
+        "name": "explainProjectWork"
+      },
+      "rationale": "Project truth should outrank explanatory rendering."
+    },
+    {
+      "id": "settlement-over-formatting",
+      "higher": {
+        "file": "src/kernel-core.ts",
+        "qualifiedName": "KernelCore.resolve"
+      },
+      "lower": {
+        "file": "src/kernel-core.ts",
+        "name": "errorMessage"
+      },
+      "rationale": "Proof-bearing settlement should outrank error-string plumbing."
+    }
+  ],
+  "mutationEvidenceFile": "experiments/production-criticality-ranking/mutation-evidence.json"
+}

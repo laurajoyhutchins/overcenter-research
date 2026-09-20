@@ -21,6 +21,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
 - `projection-comparison/` - mutable lifecycle versus TypeScript, status-free SQL, and Datalog over one normalized projection contract.
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
+- `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
 
 ## Experiment contract
 
