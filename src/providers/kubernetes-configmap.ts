@@ -71,7 +71,7 @@ export interface KubernetesWatchContinuity {
   target_events:Array<'ADDED'|'MODIFIED'|'DELETED'>;
 }
 
-const LIST_RESPONSE_SLICE=[
+export const KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE=[
   {path:'apiVersion'},
   {path:'kind'},
   {path:'metadata.resourceVersion'},
@@ -355,7 +355,7 @@ export function observeCertifiedKubernetesConfigMap(
       const certified=validateObservationSlice(
         operation,
         observation,
-        LIST_RESPONSE_SLICE,
+        KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE,
         resolveRef,
         {
           requiredTopLevelExtensions:{
