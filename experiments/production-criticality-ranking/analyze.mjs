@@ -70,12 +70,16 @@ function unitForNode(node,nodeToUnit){
   }
   return null;
 }
-function importedExternalModule(expression,checker){
-  const candidates=[expression];
-  if(ts.isPropertyAccessExpression(expression)) candidates.push(expression.expression,expression.name);
-  for(const candidate of candidates){
-    const symbol=checker.getSymbolAtLocation(candidate);
+function externalCallBoundary(expression,checker,projectFiles){
+  const project=new Set(projectFiles);
+  const seen=new Set();
+  const visit=node=>{
+    if(!node || seen.has(node)) return null;
+    seen.add(node);
+    const symbol=checker.getSymbolAtLocation(node);
     for(const declaration of symbol?.declarations??[]){
+      const source=declaration.getSourceFile()?.fileName;
+      if(source && !project.has(source)) return source;
       let p=declaration;
       while(p){
         if(ts.isImportDeclaration(p) && ts.isStringLiteral(p.moduleSpecifier)){
@@ -86,8 +90,12 @@ function importedExternalModule(expression,checker){
         p=p.parent;
       }
     }
-  }
-  return null;
+    if(ts.isPropertyAccessExpression(node)) return visit(node.expression)??visit(node.name);
+    if(ts.isElementAccessExpression(node)) return visit(node.expression)??visit(node.argumentExpression);
+    if(ts.isCallExpression(node)||ts.isNewExpression(node)) return visit(node.expression);
+    return null;
+  };
+  return visit(expression);
 }
 function bindingContainsIdentifier(name,target){
   if(ts.isIdentifier(name)) return name.text===target;
@@ -268,8 +276,8 @@ export function analyze({root,config}){
               bump(caller,'externalCalls');
             }
           } else {
-            const externalModule=importedExternalModule(node.expression,checker);
-            if(externalModule){
+            const externalBoundary=externalCallBoundary(node.expression,checker,files);
+            if(externalBoundary){
               externalCalls++;
               bump(caller,'externalCalls');
             } else {
