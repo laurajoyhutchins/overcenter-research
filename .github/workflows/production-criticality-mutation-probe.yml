@@ -14,6 +14,7 @@ on:
       - 'experiments/production-criticality-ranking/summarize-mutation.mjs'
       - 'experiments/production-criticality-ranking/summarize-mutation.test.mjs'
       - 'experiments/production-criticality-ranking/emit-mutation-evidence.mjs'
+      - 'experiments/production-criticality-ranking/mutation-evidence.json'
       - '.github/workflows/production-criticality-mutation-probe.yml'
   workflow_dispatch:
 
@@ -59,6 +60,7 @@ jobs:
             experiments/production-criticality-ranking/summarize-mutation.mjs \
             experiments/production-criticality-ranking/summarize-mutation.test.mjs \
             experiments/production-criticality-ranking/emit-mutation-evidence.mjs \
+            experiments/production-criticality-ranking/mutation-evidence.json \
             .github/workflows/production-criticality-mutation-probe.yml | grep -q .; then
             echo "run_probe=true" >> "$GITHUB_OUTPUT"
           else
@@ -102,6 +104,11 @@ jobs:
               --output mutation-evidence-generated.json \
               --workflow-run-id "$GITHUB_RUN_ID"
           fi
+      - name: Verify checked-in mutation evidence against fresh probe
+        if: always()
+        run: |
+          test -f mutation-evidence-generated.json
+          node --input-type=module -e "import fs from 'node:fs'; const committed=JSON.parse(fs.readFileSync('experiments/production-criticality-ranking/mutation-evidence.json','utf8')); const generated=JSON.parse(fs.readFileSync('mutation-evidence-generated.json','utf8')); const semantic=x=>JSON.stringify({schema:x.schema,probes:x.probes}); if(semantic(committed)!==semantic(generated)){ console.error('checked-in mutation evidence does not match the fresh authoritative probe'); process.exit(1); }"
       - name: Show mutation summary
         if: always()
         run: cat mutation-summary.md || true
