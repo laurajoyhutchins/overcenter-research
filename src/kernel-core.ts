@@ -48,7 +48,7 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
-import { projectMutationAuthority, transactionAdmitted } from './transaction-admission.ts';
+import { projectExecutionAuthority, projectMutationAuthority, transactionAdmitted } from './transaction-admission.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -479,12 +479,12 @@ export class KernelCore {
   ):HistoricalRun {
     const run=history.runs.get(permit.id);
     if (!run) throw new Error('UNKNOWN_RUN');
-    if (
-      permit.execution_generation!==run.execution_generation
-      || permit.execution_authority_commit!==run.execution_authority_commit
-      || permit.execution_capability_sha256!==run.execution_capability_sha256
-      || this.#capabilityDigest(permit.execution_capability)!==run.execution_capability_sha256
-    ) {
+    const authority=projectExecutionAuthority(
+      run,
+      permit,
+      this.#capabilityDigest(permit.execution_capability),
+    );
+    if (!authority.current_authority || !authority.exact_revision) {
       throw new Error('STALE_EXECUTION_GENERATION');
     }
     return run;
