@@ -19,9 +19,11 @@ test('ranks only production callables and derives structural authority/evidence 
     maxRecoveryClass:6,
     changeHalfLifeDays:30,
     requiredEvidenceTiers:['test','experiment'],
+    graphQuality:{minimumResolution:{production:0,test:0,experiment:0},failOnCriticalUnresolved:true},
     authorityClasses:[{id:'settlement',sink:{file:'src/core.ts',name:'settle'},recoveryClass:5}],
     recoveryScenarios:[{id:'recover-settle',entry:{file:'src/core.ts',name:'recover'},terminal:{file:'src/core.ts',name:'settle'}}],
-    calibrationPairs:[{id:'settle-over-low',higher:{file:'src/core.ts',name:'settle'},lower:{file:'src/core.ts',name:'low'}}],
+    requiredCalibrationPairs:[{id:'settle-over-low',higher:{file:'src/core.ts',name:'settle'},lower:{file:'src/core.ts',name:'low'}}],
+    diagnosticCalibrationPairs:[{id:'known-callable-gap',higher:{file:'src/core.ts',name:'low'},lower:{file:'src/core.ts',name:'settle'}}],
   };
   const r=analyze({root,config});
   assert.equal(r.population.productionCallables,5);
@@ -32,10 +34,13 @@ test('ranks only production callables and derives structural authority/evidence 
   const low=r.ranking.find(x=>x.name==='low');
   const inert=r.ranking.find(x=>x.name==='inert');
   assert.equal(settle.vector.A,1);
+  assert.ok(settle.vector.C>0,'git blame recency must be parsed rather than silently collapsing to zero');
   assert.equal(helper.vector.A,1,'helper should inherit authority from the settlement path');
-  assert.equal(settle.vector.E,0,'test + experiment support closes the two-tier proxy gap');
+  assert.equal(settle.vector.E,1,'missing hostile-case evidence is itself an evidence obligation');
+  assert.equal(settle.evidence.mutation.status,'missing');
   assert.equal(low.vector.E,1);
-  assert.equal(r.calibration.agreement,1);
+  assert.equal(r.calibration.required.failed,0);
+  assert.equal(r.calibration.diagnostic.failed,1,'known model disagreement remains diagnostic rather than consuming a percentage budget');
   assert.ok(settle.consequenceScore>low.consequenceScore);
   assert.ok(Number.isFinite(settle.attentionScore));
   assert.ok(settle.consequenceRank<low.consequenceRank);
@@ -45,7 +50,7 @@ test('ranks only production callables and derives structural authority/evidence 
   const sourceBlob=git(root,['hash-object','src/core.ts']);
   write(root,'mutation-evidence.json',JSON.stringify({
     schema:'overcenter-criticality-mutation-evidence/v1',
-    source_run:{revision:git(root,['rev-parse','HEAD'])},
+    source_run:{revision:git(root,['rev-parse','HEAD']),workflow_run_id:123,mutation_report_sha256:'sha256:'+'a'.repeat(64)},
     probes:[{
       id:'settlement-hostile-cases',
       source_blobs:{'src/core.ts':sourceBlob},
@@ -57,10 +62,23 @@ test('ranks only production callables and derives structural authority/evidence 
   const evidencedSettle=evidenced.ranking.find(x=>x.name==='settle');
   assert.equal(evidencedSettle.vector.E,.75,'surviving mutants increase the evidence gap beyond reachability');
   assert.equal(evidencedSettle.evidence.mutation.status,'applied');
+  assert.equal(evidencedSettle.consequenceScore,settle.consequenceScore,'evidence quality cannot change consequence criticality');
+  assert.ok(evidencedSettle.attentionScore<settle.attentionScore,'better evidence can reduce attention priority');
 
   write(root,'mutation-evidence.json',JSON.stringify({
     schema:'overcenter-criticality-mutation-evidence/v1',
     source_run:{revision:git(root,['rev-parse','HEAD'])},
+    probes:[],
+  }));
+  assert.throws(
+    ()=>analyze({root,config:{...config,mutationEvidenceFile:'mutation-evidence.json'}}),
+    /trusted-run provenance/,
+    'checked-in mutation evidence without run provenance must not be accepted',
+  );
+
+  write(root,'mutation-evidence.json',JSON.stringify({
+    schema:'overcenter-criticality-mutation-evidence/v1',
+    source_run:{revision:git(root,['rev-parse','HEAD']),workflow_run_id:123,mutation_report_sha256:'sha256:'+'a'.repeat(64)},
     probes:[{
       id:'settlement-hostile-cases',
       source_blobs:{'src/core.ts':'0000000000000000000000000000000000000000'},
@@ -72,4 +90,84 @@ test('ranks only production callables and derives structural authority/evidence 
   const staleSettle=stale.ranking.find(x=>x.name==='settle');
   assert.equal(staleSettle.vector.E,1,'stale mutation evidence fails closed');
   assert.equal(staleSettle.evidence.mutation.status,'stale');
+});
+
+
+test('fails closed when the static graph becomes blind at critical callables or below configured floors',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-graph-'));
+  write(root,'src/core.ts',`export function settle(){ const runtime:any={invoke:()=>1}; return runtime.invoke(); }\nexport function recover(){ return settle(); }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
+  const base={
+    requiredEvidenceTiers:[],
+    authorityClasses:[{id:'settlement',sink:{file:'src/core.ts',name:'settle'},recoveryClass:5}],
+    recoveryScenarios:[{id:'recover-settle',entry:{file:'src/core.ts',name:'recover'},terminal:{file:'src/core.ts',name:'settle'}}],
+    requiredCalibrationPairs:[],
+    diagnosticCalibrationPairs:[],
+  };
+  assert.throws(
+    ()=>analyze({root,config:{...base,graphQuality:{minimumResolution:{production:0},failOnCriticalUnresolved:true}}}),
+    /critical callable has unresolved callsite/,
+  );
+  assert.throws(
+    ()=>analyze({root,config:{...base,graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:false}}}),
+    /graph resolution for production fell below floor/,
+  );
+});
+
+
+test('does not treat unresolved external imports as production graph blindness',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-external-'));
+  write(root,'src/core.ts',`import {randomUUID} from 'node:crypto';\nexport function settle(){ return randomUUID().length; }\nexport function recover(){ return settle(); }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
+  const config={
+    requiredEvidenceTiers:[],
+    graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:true},
+    authorityClasses:[{id:'settlement',sink:{file:'src/core.ts',name:'settle'},recoveryClass:5}],
+    recoveryScenarios:[{id:'recover-settle',entry:{file:'src/core.ts',name:'recover'},terminal:{file:'src/core.ts',name:'settle'}}],
+    requiredCalibrationPairs:[],
+    diagnosticCalibrationPairs:[],
+  };
+  const r=analyze({root,config});
+  assert.equal(r.analyzer.byScope.production.unknownCalls,0);
+  assert.equal(r.analyzer.byScope.production.externalCalls,1);
+  assert.equal(r.analyzer.byScope.production.internalResolutionRate,1);
+});
+
+
+test('expands interface dispatch to every assignable production implementation',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-polymorphic-'));
+  write(root,'src/core.ts',`interface Store { append():number; }\nclass StoreA implements Store { append(){ return 1; } }\nclass StoreB implements Store { append(){ return 2; } }\nexport class Kernel { constructor(readonly store:Store){} claim(){ return this.store.append(); } recover(){ return this.claim(); } }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
+  const config={
+    requiredEvidenceTiers:[],
+    graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:true},
+    authorityClasses:[{id:'claim',sink:{file:'src/core.ts',qualifiedName:'Kernel.claim'},recoveryClass:4}],
+    recoveryScenarios:[{id:'recover-claim',entry:{file:'src/core.ts',qualifiedName:'Kernel.recover'},terminal:{file:'src/core.ts',qualifiedName:'Kernel.claim'}}],
+    requiredCalibrationPairs:[],
+    diagnosticCalibrationPairs:[],
+  };
+  const r=analyze({root,config});
+  assert.equal(r.analyzer.byScope.production.resolvedPolymorphicCalls,1);
+  assert.equal(r.analyzer.byScope.production.unresolvedInternalCalls,0);
+  assert.equal(r.ranking.find(x=>x.qualifiedName==='StoreA.append').vector.A,1);
+  assert.equal(r.ranking.find(x=>x.qualifiedName==='StoreB.append').vector.A,1);
+});
+
+
+test('does not treat parameter-bound callbacks as missing production edges',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-callback-'));
+  write(root,'src/core.ts',`export function settle(callback:()=>number){ return callback(); }\nexport function recover(){ return settle(()=>1); }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
+  const config={
+    requiredEvidenceTiers:[],
+    graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:true},
+    authorityClasses:[{id:'settlement',sink:{file:'src/core.ts',name:'settle'},recoveryClass:5}],
+    recoveryScenarios:[{id:'recover-settle',entry:{file:'src/core.ts',name:'recover'},terminal:{file:'src/core.ts',name:'settle'}}],
+    requiredCalibrationPairs:[],
+    diagnosticCalibrationPairs:[],
+  };
+  const r=analyze({root,config});
+  assert.equal(r.analyzer.byScope.production.externalCallbackCalls,1);
+  assert.equal(r.analyzer.byScope.production.unknownCalls,0);
+  assert.equal(r.analyzer.byScope.production.internalResolutionRate,1);
 });

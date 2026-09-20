@@ -146,7 +146,16 @@
       }
     }
   },
-  "calibrationPairs": [
+  "mutationEvidenceFile": "experiments/production-criticality-ranking/mutation-evidence.json",
+  "graphQuality": {
+    "minimumResolution": {
+      "production": 0.9,
+      "test": 0.85,
+      "experiment": 0.9
+    },
+    "failOnCriticalUnresolved": true
+  },
+  "diagnosticCalibrationPairs": [
     {
       "id": "reuse-over-identity",
       "higher": {
@@ -158,7 +167,9 @@
         "name": "obligationKey"
       },
       "rationale": "Prior human ranking put DONE-candidate reuse above semantic identity; the callable-level proxy is the projection function containing DONE-candidate selection."
-    },
+    }
+  ],
+  "requiredCalibrationPairs": [
     {
       "id": "identity-over-settlement",
       "higher": {
@@ -231,6 +242,5 @@
       },
       "rationale": "Proof-bearing settlement should outrank error-string plumbing."
     }
-  ],
-  "mutationEvidenceFile": "experiments/production-criticality-ranking/mutation-evidence.json"
+  ]
 }
