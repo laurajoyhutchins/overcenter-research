@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { bindTaskSession } from '../../src/effect-broker.ts';
 import { workerResult } from '../../src/realization.ts';
 import { githubProofStateRef } from '../proof-environment.ts';
 
@@ -40,6 +41,7 @@ const candidates=kernel.inspect().filter(work=>{
 });
 assert.equal(candidates.length,1);
 const work=candidates[0];
+const session=bindTaskSession(work);
 assert.equal(work.execution_generation,1);
 assert.equal(work.postcondition.verifier,'github-commit-status/v1');
 if (work.postcondition.verifier!=='github-commit-status/v1') throw new Error('WRONG_VERIFIER');
