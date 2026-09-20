@@ -97,19 +97,42 @@ Test-only comparison surface. It deliberately reuses the production parser but
 does not add another production command. The comparison executable built by the
 runtime experiment calls this function directly.
 -/
+private def transactionKernelComparison (request : Json) : Except String Json := do
+  let currentAuthority ← boolField request "current_authority"
+  let exactRevision ← boolField request "exact_revision"
+  let unresolvedEffect ← boolField request "unresolved_effect"
+  let verifiedPresent ← boolField request "verified_present"
+  let verifiedAbsent ← boolField request "verified_absent"
+  let verifiedExactRevision ← boolField request "verified_exact_revision"
+  let settlementCompleted ← boolField request "settlement_completed"
+  let settlementWasAuthorized ← boolField request "settlement_was_authorized"
+  let settlementEvidenceMatches ← boolField request "settlement_evidence_matches"
+  let evidenceValid ← boolField request "evidence_valid"
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-transaction-kernel-comparison/v1"),
+    ("mutation_allowed", currentAuthority && exactRevision && !unresolvedEffect),
+    ("settlement_allowed", currentAuthority && exactRevision && verifiedPresent && verifiedExactRevision),
+    ("replay_allowed", currentAuthority && exactRevision && verifiedAbsent && verifiedExactRevision),
+    ("done", settlementCompleted && settlementWasAuthorized && settlementEvidenceMatches &&
+      verifiedPresent && verifiedExactRevision && evidenceValid)
+  ]
+
 def handleComparisonJson (request : Json) : Except String Json := do
   let command ← stringField request "command"
-  if command != "claim-admission" then
-    throw s!"unsupported command: {command}"
-  let ctx ← parseContext request
-  pure <| Json.mkObj [
-    ("schema", "overcenter-lean-claim-admission-comparison/v1"),
-    ("graph_acyclic", claimGraphAcyclic ctx),
-    ("optimized_dependencies_done", claimDependenciesDone ctx),
-    ("reference_dependencies_done", claimDependenciesDoneReference ctx),
-    ("optimized_effect_conflict", claimUnorderedEffectConflict ctx),
-    ("reference_effect_conflict", claimUnorderedEffectConflictReference ctx)
-  ]
+  if command == "transaction-kernel" then
+    transactionKernelComparison request
+  else
+    if command != "claim-admission" then
+      throw s!"unsupported command: {command}"
+    let ctx ← parseContext request
+    pure <| Json.mkObj [
+      ("schema", "overcenter-lean-claim-admission-comparison/v1"),
+      ("graph_acyclic", claimGraphAcyclic ctx),
+      ("optimized_dependencies_done", claimDependenciesDone ctx),
+      ("reference_dependencies_done", claimDependenciesDoneReference ctx),
+      ("optimized_effect_conflict", claimUnorderedEffectConflict ctx),
+      ("reference_effect_conflict", claimUnorderedEffectConflictReference ctx)
+    ]
 
 def handleComparison (input : String) : Except String String := do
   let request ← Json.parse input
