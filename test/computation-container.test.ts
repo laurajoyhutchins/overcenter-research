@@ -67,12 +67,43 @@ function docker(args:string[],encoding:'utf8'='utf8'):string {
   return execFileSync('docker',args,{encoding});
 }
 
-function executionContextSha256():string {
+function sourceSnapshotSha256(root:string):string {
+  const hash=createHash('sha256');
+  const visit=(relative:string):void=>{
+    const directory=relative ? join(root,relative) : root;
+    const entries=readdirSync(directory,{withFileTypes:true})
+      .sort((left,right)=>left.name<right.name ? -1 : left.name>right.name ? 1 : 0);
+
+    for (const entry of entries) {
+      const child=relative ? `${relative}/${entry.name}` : entry.name;
+      const path=join(root,child);
+      const mode=(lstatSync(path).mode & 0o7777).toString(8);
+      if (entry.isDirectory()) {
+        hash.update(`directory\\0${child}\\0${mode}\\0`);
+        visit(child);
+      } else if (entry.isFile()) {
+        const content=readFileSync(path);
+        hash.update(`file\\0${child}\\0${mode}\\0${content.length}\\0`);
+        hash.update(content);
+        hash.update('\\0');
+      } else if (entry.isSymbolicLink()) {
+        hash.update(`symlink\\0${child}\\0${readlinkSync(path)}\\0`);
+      } else {
+        throw new Error(`SOURCE_SNAPSHOT_ENTRY_UNSUPPORTED:${child}`);
+      }
+    }
+  };
+  visit('');
+  return 'sha256:'+hash.digest('hex');
+}
+
+function executionContextSha256(mountedSourceRoot=sourceRoot):string {
   const imageId=docker(['image','inspect',image!,'--format','{{.Id}}']).trim();
   const bytes=JSON.stringify({
     schema:'overcenter-test-execution-context-v1',
     image_id:imageId,
     source_revision:sourceRevision,
+    source_snapshot_sha256:sourceSnapshotSha256(mountedSourceRoot),
     containment:containerProfile,
   });
   return 'sha256:'+createHash('sha256').update(bytes).digest('hex');
@@ -154,7 +185,6 @@ interface IsolatedExecutor {
 
 interface IsolatedExecutorOptions {
   sourceRoot?:string;
-  executionContextSha256?:string;
 }
 
 async function startIsolatedExecutor(
@@ -171,8 +201,8 @@ async function startIsolatedExecutor(
   const socketPath=join(control,'executor.sock');
   const container=`overcenter-test-workload-${process.pid}-${id}`;
   const containmentId=`overcenter-containment-${randomUUID()}`;
-  const contextSha256=options.executionContextSha256??executionContextSha256();
   const mountedSourceRoot=options.sourceRoot??sourceRoot;
+  const contextSha256=executionContextSha256(mountedSourceRoot);
   const gid=process.getgid?.();
   if (gid===undefined) throw new Error('host gid unavailable');
 
@@ -556,9 +586,7 @@ test('production recovery rejects substituted source bytes before generation rot
     },
   });
 
-  const first=await startIsolatedExecutor(workspace,{
-    executionContextSha256:originalContext,
-  });
+  const first=await startIsolatedExecutor(workspace);
   const pending=runReadyTestComputation(state.kernel,first.client);
   await new Promise(resolve=>setTimeout(resolve,100));
   await first.abort();
@@ -581,13 +609,10 @@ test('production recovery rejects substituted source bytes before generation rot
   writeFileSync(join(substitutedSourceRoot,'test/digest-pure.test.ts'),substitutedSource);
   assert.notEqual(substitutedSource,originalSource);
 
-  const substitutedContext='sha256:'+createHash('sha256')
-    .update('substituted-source-context')
-    .digest('hex');
   const second=await startIsolatedExecutor(workspace,{
     sourceRoot:substitutedSourceRoot,
-    executionContextSha256:substitutedContext,
   });
+  assert.notEqual(second.client.executionContextSha256,originalContext);
   try {
     await assert.rejects(
       resumeTestComputation(
