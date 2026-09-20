@@ -83,9 +83,11 @@ reports which generated projections preserve that distinction. JSON Schema and
 SHACL are required to preserve it. TypeScript is measured rather than presumed
 to encode runtime cardinality.
 
-`linkml:types` is imported explicitly. The experiment also asserts concrete
-scalar fidelity (`string` and `boolean`) in generated JSON Schema and TypeScript;
-field-name agreement alone is not accepted as structural fidelity.
+`linkml:types` is imported explicitly; built-in-looking range names are not
+accepted as evidence that the corresponding generator constraint exists. The
+experiment also asserts concrete scalar fidelity (`string` and `boolean`) in
+generated JSON Schema and TypeScript; field-name agreement alone is not accepted
+as structural fidelity.
 
 ## Plausible contrast
 
