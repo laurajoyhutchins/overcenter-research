@@ -601,6 +601,44 @@
       "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     },
     {
+      "id": "release-evidence-substitution",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/release-evidence-substitution",
+      "readme": "experiments/release-evidence-substitution/README.md",
+      "question": "Can exact release/effect evidence binding reject a plausible Kubernetes realization-substitution failure that careful desired-state recovery can accept?",
+      "claim": "Pending: the deterministic witness demonstrates the false-attribution schedule and a candidate exact-binding invariant; no Temporal/Kubernetes complexity win is claimed until the hosted phase is complete.",
+      "contrast": "A careful Temporal/Kubernetes-style recovery predicate that checks exact coordinate, immutable image digest, observed generation, and readiness but does not bind current evidence to the exact authorized effect.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:release-evidence-substitution"
+      },
+      "environment": [
+        "Node.js from .node-version for the deterministic witness.",
+        "Hosted Temporal + kind comparison is pre-registered in the README and remains required before any final architecture claim."
+      ],
+      "success_criteria": [
+        "The deterministic witness reproduces false attribution from a later healthy realization with the same immutable image digest.",
+        "Exact obligation/effect evidence binding rejects the substituted realization.",
+        "A single-binding mutant that removes effect identity survives the hostile schedule and is killed by the experiment.",
+        "Before a final positive conclusion, a real Temporal worker and kind cluster reproduce the fault schedule and the pre-registered complexity metrics show material application-level simplification."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          "experiments/release-evidence-substitution/release-evidence-substitution.test.ts",
+          ".github/workflows/release-evidence-substitution.yml"
+        ]
+      },
+      "interpretation": "Treat the deterministic result only as a falsifier and protocol setup until the hosted Temporal/kind comparison and complexity measurements exist.",
+      "non_claims": [
+        "Temporal or Kubernetes are unsafe.",
+        "The deterministic baseline is equivalent to a production Temporal application.",
+        "Overcenter already has production-ready Kubernetes Deployment realization binding.",
+        "Fewer application lines alone establish an architectural win."
+      ]
+    },
+    {
       "id": "sqlite-baseline",
       "kind": "experiment",
       "status": "historical",
