@@ -4,9 +4,6 @@ on:
   pull_request:
     paths:
       - 'experiments/linkml-contract-refactor/**'
-      - 'contracts/observation-evidence-v1/schema.json'
-      - 'src/model.ts'
-      - 'src/observation.ts'
       - 'experiments/registry.json'
       - 'experiments/README.md'
       - '.github/workflows/linkml-contract-refactor.yml'
