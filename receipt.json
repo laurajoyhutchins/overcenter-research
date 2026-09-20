@@ -6,12 +6,63 @@
   "claim_commit": "95db10af6e0fbc0fab690c3f05a7d6d830e7312e",
   "execution_generation": 2,
   "execution_authority_commit": "01da236a4aef75d993987b39e17b7605ca377604",
-  "kind": "execution-terminated",
-  "observed": null,
-  "diagnostic": {
-    "source": "github-actions-job-supervisor",
-    "slot": "alpha",
-    "outcome": "failure"
+  "kind": "observation",
+  "observed": {
+    "verifier": "github-commit-status/v2",
+    "provider": "github",
+    "repository_id": 1354872053,
+    "repository_full_name": "laurajoyhutchins/overcenter-research",
+    "commit_sha": "69dc40d45c04aef5cdef74bbb1596a28669f933c",
+    "context": "overcenter/conflict-guard/35540846864/1/ordered",
+    "expected_state": "success",
+    "actual_state": "success",
+    "mutation_certainty": "present",
+    "provider_evidence": {
+      "provider": "github",
+      "api_version": "2026-03-10",
+      "schema_sha256": "9d0534e66064a95f0637d542b463a868fc60a53a8cac37eddc85d72a465b8810",
+      "schema_source_commit": "d4278c869e367f5d6d4e0f46878119128abba77b",
+      "observer": {
+        "kind": "git-kernel",
+        "id": "github-commit-status/v2"
+      },
+      "repository_id": 1354872053,
+      "requested_repository_full_name": "laurajoyhutchins/overcenter-research",
+      "repository": {
+        "operation_id": "repos/get",
+        "observed_at": "2026-09-20T22:11:36.683Z",
+        "node_id": "R_kgDOUMG09Q",
+        "canonical_full_name": "laurajoyhutchins/overcenter-research",
+        "validated_paths": [
+          "id",
+          "node_id",
+          "full_name",
+          "name",
+          "owner.login"
+        ],
+        "optional_absent_paths": []
+      },
+      "commit_sha": "69dc40d45c04aef5cdef74bbb1596a28669f933c",
+      "status_operation_id": "repos/list-commit-statuses-for-ref",
+      "pages": [
+        {
+          "observed_at": "2026-09-20T22:11:36.925Z",
+          "validated_paths": [
+            "[].id",
+            "[].node_id",
+            "[].state",
+            "[].context",
+            "[].target_url",
+            "[].created_at",
+            "[].updated_at"
+          ],
+          "optional_absent_paths": [],
+          "page": 1,
+          "member_count": 1
+        }
+      ]
+    }
   },
-  "settled_at": "2026-09-20T22:11:34.582Z"
+  "diagnostic": {},
+  "settled_at": "2026-09-20T22:11:36.926Z"
 }
