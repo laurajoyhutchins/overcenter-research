@@ -46,6 +46,54 @@ def abstract (s : TransactionFacts) : AbstractTransaction := {
   evidenceValid := s.evidenceValid
 }
 
+structure MutationRunIdentity where
+  id : String
+  obligationId : String
+  claimedRevision : String
+  claimCommit : String
+  obligationKey : String
+  executionGeneration : String
+  executionAuthorityCommit : String
+  executionCapabilitySha256 : String
+  deriving Repr, BEq
+
+structure MutationPermitIdentity extends MutationRunIdentity where
+  presentedCapabilitySha256 : String
+  deriving Repr, BEq
+
+def currentMutationAuthority
+    (run : MutationRunIdentity)
+    (permit : MutationPermitIdentity) : Bool :=
+  permit.id == run.id &&
+  permit.obligationId == run.obligationId &&
+  permit.executionGeneration == run.executionGeneration &&
+  permit.executionAuthorityCommit == run.executionAuthorityCommit &&
+  permit.executionCapabilitySha256 == run.executionCapabilitySha256 &&
+  permit.presentedCapabilitySha256 == run.executionCapabilitySha256
+
+def exactMutationRevision
+    (run : MutationRunIdentity)
+    (permit : MutationPermitIdentity) : Bool :=
+  permit.claimedRevision == run.claimedRevision &&
+  permit.claimCommit == run.claimCommit &&
+  permit.obligationKey == run.obligationKey
+
+def projectMutationFacts
+    (run : MutationRunIdentity)
+    (permit : MutationPermitIdentity)
+    (unresolvedEffect : Bool) : TransactionFacts := {
+  currentAuthority := currentMutationAuthority run permit
+  exactRevision := exactMutationRevision run permit
+  unresolvedEffect
+  verifiedPresent := false
+  verifiedAbsent := false
+  verifiedExactRevision := false
+  settlementCompleted := false
+  settlementWasAuthorized := false
+  settlementEvidenceMatches := false
+  evidenceValid := false
+}
+
 def mutationAllowed (s : TransactionFacts) : Bool :=
   s.currentAuthority && s.exactRevision && !s.unresolvedEffect
 
@@ -140,6 +188,16 @@ inductive AbstractNext : AbstractTransaction → AbstractTransaction → Prop wh
       AbstractNext s (abstractAfterReplay s)
   | persistEvidence (s) (h : s.settlementCompleted = true) :
       AbstractNext s (abstractAfterPersistEvidence s)
+
+theorem projected_mutation_sound
+    (run : MutationRunIdentity)
+    (permit : MutationPermitIdentity)
+    (unresolvedEffect : Bool)
+    (h : mutationAllowed (projectMutationFacts run permit unresolvedEffect) = true) :
+    currentMutationAuthority run permit = true ∧
+    exactMutationRevision run permit = true ∧
+    unresolvedEffect = false := by
+  simpa [mutationAllowed, projectMutationFacts] using h
 
 theorem step_refines
     {s s' : TransactionFacts}
