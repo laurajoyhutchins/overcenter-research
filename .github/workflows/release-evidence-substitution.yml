@@ -2,6 +2,16 @@ name: Release evidence substitution experiment
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/release-evidence-substitution
+    paths:
+      - 'experiments/release-evidence-substitution/**'
+      - 'experiments/registry.json'
+      - 'package.json'
+      - 'src/digest.ts'
+      - 'src/realization.ts'
+      - '.github/workflows/release-evidence-substitution.yml'
   pull_request:
     paths:
       - 'experiments/release-evidence-substitution/**'
@@ -19,9 +29,88 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .node-version
       - run: npm run test:experiment-contract
       - run: npm run test:release-evidence-substitution
+
+  hosted-temporal-kind:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Install pinned Temporal TypeScript SDK
+        run: |
+          npm install --no-save \
+            @temporalio/client@1.24.0 \
+            @temporalio/worker@1.24.0 \
+            @temporalio/workflow@1.24.0 \
+            @temporalio/activity@1.24.0
+
+      - name: Install pinned Temporal CLI
+        run: |
+          curl --fail --silent --show-error --location \
+            https://temporal.download/cli.sh \
+            --output "$RUNNER_TEMP/install-temporal.sh"
+          sh "$RUNNER_TEMP/install-temporal.sh" \
+            --version 1.7.3 \
+            --dir "$RUNNER_TEMP/temporal"
+          sudo install "$RUNNER_TEMP/temporal/bin/temporal" /usr/local/bin/temporal
+          temporal --version
+
+      - name: Install pinned kind and kubectl
+        run: |
+          curl --fail --location --retry 3 \
+            https://kind.sigs.k8s.io/dl/v0.31.0/kind-linux-amd64 \
+            --output "$RUNNER_TEMP/kind"
+          chmod +x "$RUNNER_TEMP/kind"
+          sudo mv "$RUNNER_TEMP/kind" /usr/local/bin/kind
+
+          curl --fail --location --retry 3 \
+            https://dl.k8s.io/release/v1.35.0/bin/linux/amd64/kubectl \
+            --output "$RUNNER_TEMP/kubectl"
+          chmod +x "$RUNNER_TEMP/kubectl"
+          sudo mv "$RUNNER_TEMP/kubectl" /usr/local/bin/kubectl
+
+      - name: Create pinned Kubernetes cluster
+        run: |
+          kind create cluster \
+            --name release-proof \
+            --image kindest/node:v1.35.0@sha256:452d707d4862f52530247495d180205e029056831160e22870e37e3f6c1ac31f \
+            --wait 120s
+          kubectl version
+
+      - name: Run live Temporal and Kubernetes fault schedule
+        run: |
+          set -euo pipefail
+          temporal server start-dev --ip 127.0.0.1 --port 7233 \
+            >"$RUNNER_TEMP/temporal.log" 2>&1 &
+          temporal_pid=$!
+          trap 'kill "$temporal_pid" 2>/dev/null || true' EXIT
+
+          ready=false
+          for _ in {1..60}; do
+            if temporal operator namespace list >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$ready" != true ]]; then
+            cat "$RUNNER_TEMP/temporal.log"
+            exit 1
+          fi
+
+          node --experimental-strip-types \
+            experiments/release-evidence-substitution/run-hosted.mjs
