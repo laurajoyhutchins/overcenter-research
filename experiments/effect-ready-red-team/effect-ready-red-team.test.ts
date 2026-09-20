@@ -90,11 +90,12 @@ function defineStatusObligation(
   const run=kernel.claim(id,ready.revision);
   const work=kernel.inspect().find(candidate=>candidate.id===id);
   assert.ok(work);
+  const session=bindTaskSession(work);
   return {
     run,
     work,
-    session:bindTaskSession(work),
-    result:workerResult(result),
+    session,
+    result:workerResult(session,result),
   };
 }
 
@@ -108,6 +109,14 @@ test('fixed: dispatch-bound session cannot inherit newer authority',()=>{
     assert.throws(
       ()=>f.kernel.acceptRealization(task.session,task.result),
       /TASK_SESSION_STALE/,
+    );
+
+    const current=f.kernel.inspect().find(candidate=>candidate.id===task.work.id);
+    assert.ok(current);
+    const lateBound=bindTaskSession(current);
+    assert.throws(
+      ()=>f.kernel.acceptRealization(lateBound,task.result),
+      /WORKER_RESULT_SESSION_MISMATCH/,
     );
   } finally {
     rmSync(f.root,{recursive:true,force:true});
