@@ -89,8 +89,27 @@ function importedExternalModule(expression,checker){
   }
   return null;
 }
+function bindingContainsIdentifier(name,target){
+  if(ts.isIdentifier(name)) return name.text===target;
+  if(ts.isObjectBindingPattern(name)||ts.isArrayBindingPattern(name)){
+    return name.elements.some(element=>ts.isBindingElement(element) && bindingContainsIdentifier(element.name,target));
+  }
+  return false;
+}
 function parameterBoundCall(expression,checker){
-  const symbol=checker.getSymbolAtLocation(expression);
+  const root=ts.isPropertyAccessExpression(expression)?expression.expression:expression;
+  const target=ts.isIdentifier(root)?root.text:null;
+  if(target){
+    let p=expression.parent;
+    while(p){
+      if(isCallable(p)){
+        if(p.parameters.some(parameter=>bindingContainsIdentifier(parameter.name,target))) return true;
+        break;
+      }
+      p=p.parent;
+    }
+  }
+  const symbol=checker.getSymbolAtLocation(root);
   for(const declaration of symbol?.declarations??[]){
     let p=declaration;
     while(p){
