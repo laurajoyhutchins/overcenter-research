@@ -19,8 +19,8 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `fstar-settlement-kernel/` - proof-bound settlement evidence and producer-independent realization reuse in F*.
 - `fstar-pulse-capability-concurrency/` - separation-logic proof that disjoint mutation authority may run concurrently while aliasing one exclusive capability fails.
 - `provider-capability-derivation/` - derives physical effect footprints and semantic compatibility from production provider semantics, then cross-checks graph admission.
-- `provider-capability-confinement/` - proves the worker has no provider mutation credential and can emit only a run-bound effect-ready signal; the trusted broker derives the effect from authority, fences stale sessions, executes once, and blocks replay.
-- `effect-ready-red-team/` - counterexamples showing late session binding lets stale worker signals inherit newer authority and postconditions currently mint mutation authority.
+- `provider-capability-confinement/` - proves trusted dispatch binds the task session before worker execution; worker results require deterministic acceptance; explicit effect authority and exact reservations gate the credentialed broker.
+- `effect-ready-red-team/` - regression guards for late session rebinding, observation-to-mutation authority collapse, unverified readiness, and the retired generic effect callback.
 - `settlement-equivalence-witness/` - binds unordered same-resource execution to exact observation/settlement equivalence evidence.
 - `github-settlement-equivalence/` - live provider proof that physically distinct same-state GitHub status writes derive the same settlement truth while mixed states remain order-sensitive.
 
@@ -90,22 +90,27 @@ trusted project authority
   define immutable obligation
   claim exact snapshot
             ↓
+trusted dispatch
+  bind exact TaskSession before worker starts
+            ↓
 authority-untrusted Agent A
   contents: read
   no statuses: write
   no ExecutionPermit
   corrupt local checkout/config/cache/source
   direct provider mutation attempt must fail
-  emit candidate EffectIntent
+  emit result data
   terminate
             ↓
 trusted effect broker
   contents: write
   statuses: write
-  validate intent against authoritative obligation
+  verify result against immutable acceptance contract
+  commit accepted realization
+  fence original TaskSession
   acquire fresh execution generation
-  reserve effect
-  perform exact provider mutation
+  reserve exact effect identity
+  perform explicitly authorized provider mutation
   terminate before settlement
             ↓
 trusted recovery

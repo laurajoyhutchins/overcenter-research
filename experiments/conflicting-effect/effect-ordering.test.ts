@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { githubCommitStatusEffectAuthority } from '../../src/provider-effect.ts';
 
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'overcenter-effect-order-'));
@@ -29,11 +30,19 @@ function statusPostcondition(state:'success'|'failure',context='overcenter/confl
 test('unordered incompatible canonical effects are rejected before definition commits', () => {
   const f=fixture();
   try {
-    f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
+    f.kernel.define({
+      id:'alpha',
+      effect_authority:githubCommitStatusEffectAuthority(),
+      postcondition:statusPostcondition('success'),
+    });
     const acceptedHead=f.kernel.head();
 
     assert.throws(
-      ()=>f.kernel.define({id:'beta',postcondition:statusPostcondition('failure')}),
+      ()=>f.kernel.define({
+        id:'beta',
+        effect_authority:githubCommitStatusEffectAuthority(),
+        postcondition:statusPostcondition('failure'),
+      }),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );
 
@@ -50,10 +59,15 @@ test('unordered incompatible canonical effects are rejected before definition co
 test('amendment cannot remove ordering and create a static effect conflict', () => {
   const f=fixture();
   try {
-    f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
+    f.kernel.define({
+      id:'alpha',
+      effect_authority:githubCommitStatusEffectAuthority(),
+      postcondition:statusPostcondition('success'),
+    });
     f.kernel.define({
       id:'beta',
       dependencies:[{kind:'control',upstream:'alpha'}],
+      effect_authority:githubCommitStatusEffectAuthority(),
       postcondition:statusPostcondition('failure'),
     });
     const acceptedHead=f.kernel.head()!;
@@ -62,6 +76,7 @@ test('amendment cannot remove ordering and create a static effect conflict', () 
       ()=>f.kernel.amend({
         id:'beta',
         dependencies:[],
+        effect_authority:githubCommitStatusEffectAuthority(),
         postcondition:statusPostcondition('failure'),
       },acceptedHead),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
@@ -80,7 +95,11 @@ test('amendment cannot remove ordering and create a static effect conflict', () 
 test('explicit graph order permits the canonical conflicting predecessor to be claimed', () => {
   const f=fixture();
   try {
-    f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
+    f.kernel.define({
+      id:'alpha',
+      effect_authority:githubCommitStatusEffectAuthority(),
+      postcondition:statusPostcondition('success'),
+    });
     f.kernel.define({
       id:'beta',
       dependencies:[{kind:'control',upstream:'alpha'}],
@@ -110,6 +129,7 @@ test('GitHub status contexts differing only by case conflict at admission', () =
   try {
     f.kernel.define({
       id:'alpha',
+      effect_authority:githubCommitStatusEffectAuthority(),
       postcondition:statusPostcondition('success','overcenter/Build'),
     });
     const acceptedHead=f.kernel.head();
@@ -117,6 +137,7 @@ test('GitHub status contexts differing only by case conflict at admission', () =
     assert.throws(
       ()=>f.kernel.define({
         id:'beta',
+        effect_authority:githubCommitStatusEffectAuthority(),
         postcondition:statusPostcondition('failure','overcenter/build'),
       }),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
@@ -132,8 +153,16 @@ test('github status adapter explicitly allows identical desired state to commute
   const f=fixture();
   try {
     const postcondition=statusPostcondition('success');
-    f.kernel.define({id:'alpha',postcondition});
-    f.kernel.define({id:'beta',postcondition});
+    f.kernel.define({
+      id:'alpha',
+      effect_authority:githubCommitStatusEffectAuthority(),
+      postcondition,
+    });
+    f.kernel.define({
+      id:'beta',
+      effect_authority:githubCommitStatusEffectAuthority(),
+      postcondition,
+    });
 
     const alpha=f.kernel.deriveReadyWork();
     assert.ok(alpha);

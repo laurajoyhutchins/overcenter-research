@@ -5,6 +5,90 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import {
+  LEGACY_EFFECT_RESERVATION_SCHEMA,
+  LEGACY_OBLIGATION_SCHEMA,
+} from '../../src/facts.ts';
+
+function git(repo:string,args:string[],input?:string):string {
+  return execFileSync('git',['-C',repo,...args],{
+    encoding:'utf8',
+    input,
+    env:{
+      ...process.env,
+      GIT_AUTHOR_NAME:'Overcenter Test',
+      GIT_AUTHOR_EMAIL:'test@local',
+      GIT_COMMITTER_NAME:'Overcenter Test',
+      GIT_COMMITTER_EMAIL:'test@local',
+    },
+  }).trim();
+}
+
+function appendLegacyObligation(
+  repo:string,
+  parent:string,
+  obligation:Record<string,unknown>,
+):string {
+  const json=JSON.stringify({
+    schema:LEGACY_OBLIGATION_SCHEMA,
+    kind:'defined',
+    obligation,
+  },null,2)+'\n';
+  const blob=git(repo,['hash-object','-w','--stdin'],json);
+  const tree=git(repo,['mktree'],`100644 blob ${blob}\tobligation.json\n`);
+  const commit=git(repo,['commit-tree',tree,'-p',parent],'legacy obligation fixture\n');
+  git(repo,['update-ref','refs/overcenter/state',commit,parent]);
+  return commit;
+}
+
+function appendLegacyReservation(
+  repo:string,
+  parent:string,
+  fact:Record<string,unknown>,
+):string {
+  const json=JSON.stringify(fact,null,2)+'\n';
+  const blob=git(repo,['hash-object','-w','--stdin'],json);
+  const tree=git(repo,['mktree'],`100644 blob ${blob}\teffect-reservation.json\n`);
+  const commit=git(repo,['commit-tree',tree,'-p',parent],'legacy reservation fixture\n');
+  git(repo,['update-ref','refs/overcenter/state',commit,parent]);
+  return commit;
+}
+
+test('modern obligation rejects a forged legacy v1 reservation', () => {
+  const root=mkdtempSync(join(tmpdir(),'overcenter-modern-legacy-reservation-'));
+  const authority=join(root,'authority.git');
+  const readModel=join(root,'read-model.txt');
+
+  try {
+    execFileSync('git',['init','--bare',authority],{stdio:'ignore'});
+    const kernel=new GitOvercenterKernel(authority);
+    kernel.initialize();
+    kernel.define({
+      id:'modern-observe-only',
+      postcondition:{
+        verifier:'eventually-consistent-file-content-equals/v1',
+        path:readModel,
+        content:'created',
+      },
+    });
+    const ready=kernel.deriveReadyWork()!;
+    const run=kernel.claim(ready.id,ready.revision);
+    appendLegacyReservation(authority,run.claim_commit,{
+      schema:LEGACY_EFFECT_RESERVATION_SCHEMA,
+      run_id:run.id,
+      obligation_id:run.obligation_id,
+      execution_generation:run.execution_generation,
+      execution_authority_commit:run.execution_authority_commit,
+    });
+
+    assert.throws(
+      ()=>kernel.inspect(),
+      /LEGACY_EFFECT_RESERVATION_FOR_MODERN_OBLIGATION/,
+    );
+  } finally {
+    rmSync(root,{recursive:true,force:true});
+  }
+});
 
 test('eventually consistent negative readback cannot authorize replay after an uncertain effect', () => {
   const root=mkdtempSync(join(tmpdir(),'overcenter-eventual-readback-'));
@@ -15,9 +99,10 @@ test('eventually consistent negative readback cannot authorize replay after an u
   try {
     execFileSync('git',['init','--bare',authority],{stdio:'ignore'});
     const kernel=new GitOvercenterKernel(authority);
-    kernel.initialize();
-    kernel.define({
+    const initialized=kernel.initialize();
+    appendLegacyObligation(authority,initialized,{
       id:'hostile-effect',
+      dependencies:[],
       packet:{effect:'create-resource',key:'resource-42',value:'created'},
       postcondition:{
         verifier:'eventually-consistent-file-content-equals/v1',
@@ -39,9 +124,15 @@ test('eventually consistent negative readback cannot authorize replay after an u
       }));
     };
 
-    // The trusted effect boundary reserves the coordinate before the provider
-    // accepts the mutation. The caller then loses the outcome.
-    kernel.beginEffect(run);
+    // Preserve the original experiment's historical v1 reservation semantics
+    // without reintroducing a production API for arbitrary effect callbacks.
+    appendLegacyReservation(authority,run.claim_commit,{
+      schema:LEGACY_EFFECT_RESERVATION_SCHEMA,
+      run_id:run.id,
+      obligation_id:run.obligation_id,
+      execution_generation:run.execution_generation,
+      execution_authority_commit:run.execution_authority_commit,
+    });
     performProviderEffect();
     kernel.recoverInterrupted(run,{source:'hostile-provider-timeout'});
 

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   CLAIM_SCHEMA,
+  LEGACY_OBLIGATION_SCHEMA,
   LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
@@ -291,7 +292,7 @@ test('legacy v3 static-conflict history remains replayable but fail-closed',()=>
       commit:'define-alpha',
       parent:null,
       obligation:{
-        schema:OBLIGATION_SCHEMA,
+        schema:LEGACY_OBLIGATION_SCHEMA,
         kind:'defined',
         obligation:alpha,
       },
@@ -300,7 +301,7 @@ test('legacy v3 static-conflict history remains replayable but fail-closed',()=>
       commit:'define-beta',
       parent:'define-alpha',
       obligation:{
-        schema:OBLIGATION_SCHEMA,
+        schema:LEGACY_OBLIGATION_SCHEMA,
         kind:'defined',
         obligation:beta,
       },

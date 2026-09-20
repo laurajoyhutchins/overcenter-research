@@ -145,9 +145,8 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
       ['verify-publish', 'BLOCKED'],
     ]);
 
-    // Reserve the provider coordinate before mutation. Both the reservation
-    // and the later lifecycle are reconstructed from durable facts.
-    f.owner.beginEffect(run);
+    // External truth changes, then the original execution disappears. The
+    // later lifecycle and settlement are reconstructed from durable facts.
     writeFileSync(f.world, 'present');
     f.assertReconstructs([
       ['publish', 'EXECUTING'],

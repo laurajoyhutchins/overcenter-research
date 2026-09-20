@@ -63,7 +63,6 @@ function settleFile(
   assert.ok(ready);
   assert.equal(ready.status, 'READY');
   const run = kernel.claim(id, ready.revision);
-  kernel.beginEffect(run);
   writeFileSync(path, content);
   const receipt = kernel.resolve(run);
   assert.equal(receipt.disposition, 'DONE');
@@ -317,7 +316,7 @@ test('semantic selector is part of durable edge meaning', () => {
     });
 
     const fact = obligationFact(f.repo, bDefinition);
-    assert.equal(fact.schema, 'overcenter-git-obligation-v3');
+    assert.equal(fact.schema, 'overcenter-git-obligation-v4');
     assert.equal('deps' in fact.obligation, false);
     const stored = fact.obligation as {
       dependencies?: Edge[];

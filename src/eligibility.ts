@@ -24,10 +24,6 @@ export function claimabilityError(
     return 'DEPENDENCIES_NOT_DONE';
   }
 
-  // New mutations should have been rejected at admission. Keep this check as
-  // a defensive projection for legacy or externally constructed histories so
-  // an older valid v3 history cannot become executable merely because policy
-  // moved earlier.
   return staticEffectConflictError(state,work.id);
 }
 
@@ -48,6 +44,7 @@ export function projectWork(
           run_id:lifecycle.run.id,
           claimed_revision:lifecycle.run.claimed_revision,
           execution_generation:lifecycle.run.execution_generation,
+          execution_authority_commit:lifecycle.run.execution_authority_commit,
         }
       : {}),
   } as Work;

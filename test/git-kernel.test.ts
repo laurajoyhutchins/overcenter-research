@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel, runGitCoreLoop } from '../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../src/git-kernel.ts';
 import { RECEIPT_SCHEMA } from '../src/facts.ts';
 
 function fixture() {
@@ -29,163 +29,32 @@ test('commit SHA is the authoritative revision and claim is its child', () => {
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('kernel-owned evidence drives dependency chain to DONE', async () => {
+test('kernel-owned evidence drives dependency chain to DONE', () => {
   const f = fixture();
   try {
     const a = f.path('a'), b = f.path('b');
-    f.kernel.define({ id: 'a', packet: { path: a, content: 'A' }, postcondition: pc(a, 'A') });
-    f.kernel.define({ id: 'b', dependencies: [{ kind: 'control', upstream: 'a' }], packet: { path: b, content: 'B' }, postcondition: pc(b, 'B') });
-    const result = await runGitCoreLoop(f.kernel, {
-      effect: async packet => {
-        writeFileSync(String(packet.path), String(packet.content));
-        return { kind: 'ok' };
-      },
+    f.kernel.define({ id: 'a', postcondition: pc(a, 'A') });
+    f.kernel.define({
+      id: 'b',
+      dependencies: [{ kind: 'control', upstream: 'a' }],
+      postcondition: pc(b, 'B'),
     });
-    assert.equal(result.state, 'IDLE');
-    assert.deepEqual(f.kernel.inspect().map(x => [x.id, x.status]), [['a', 'DONE'], ['b', 'DONE']]);
+
+    const first = f.kernel.claim('a', f.kernel.deriveReadyWork()!.revision);
+    writeFileSync(a, 'A');
+    assert.equal(f.kernel.resolve(first).disposition, 'DONE');
+
+    const second = f.kernel.claim('b', f.kernel.deriveReadyWork()!.revision);
+    writeFileSync(b, 'B');
+    assert.equal(f.kernel.resolve(second).disposition, 'DONE');
+
+    assert.deepEqual(
+      f.kernel.inspect().map(x => [x.id, x.status]),
+      [['a', 'DONE'], ['b', 'DONE']],
+    );
     assert.ok(f.kernel.receipts().every(x => x.verified));
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
-
-test('core loop commits an effect reservation before invoking effect handler', async () => {
-  const f = fixture();
-  try {
-    const path = f.path('reserved-core-loop');
-    f.kernel.define({
-      id: 'x',
-      packet: { path, content: 'present' },
-      postcondition: pc(path, 'present'),
-    });
-
-    let effectObservedReservation = false;
-    const result = await runGitCoreLoop(f.kernel, {
-      effect: async (...args) => {
-        assert.equal(args.length, 1, 'effect callback must not receive ExecutionPermit');
-        const [packet] = args;
-        const head = f.kernel.head()!;
-        const reservation = JSON.parse(
-          execFileSync(
-            'git',
-            ['-C', f.repo, 'show', `${head}:effect-reservation.json`],
-            { encoding: 'utf8' },
-          ),
-        ) as Record<string, unknown>;
-        const executing = f.kernel.inspect().find(work => work.id === 'x')!;
-        assert.equal(reservation.run_id, executing.run_id);
-        assert.equal(reservation.execution_generation, executing.execution_generation);
-        effectObservedReservation = true;
-        writeFileSync(String(packet.path), String(packet.content));
-        return { kind: 'ok' };
-      },
-    });
-
-    assert.equal(effectObservedReservation, true);
-    assert.equal(result.state, 'IDLE');
-    assert.equal(f.kernel.inspect()[0].status, 'DONE');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
-});
-
-test('core loop never invokes effect handler when effect reservation cannot commit', async () => {
-  const f = fixture();
-  try {
-    const path = f.path('reservation-failure');
-    const lock = join(f.repo, 'refs/overcenter/state.lock');
-    f.kernel.define({
-      id: 'x',
-      packet: { path, content: 'present' },
-      postcondition: pc(path, 'present'),
-    });
-
-    let executions = 0;
-    await assert.rejects(
-      runGitCoreLoop(f.kernel, {
-        preflight: async () => {
-          writeFileSync(lock, 'held');
-          return { kind: 'execute' };
-        },
-        effect: async packet => {
-          executions += 1;
-          writeFileSync(String(packet.path), String(packet.content));
-          return { kind: 'ok' };
-        },
-      }),
-      /EFFECT_RESERVATION_CONTENTION_EXHAUSTED/,
-    );
-
-    assert.equal(executions, 0);
-    assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
-});
-
-test('preflight judgment can WAIT without opening the effect boundary', async () => {
-  const f = fixture();
-  try {
-    const path = f.path('preflight-judgment');
-    f.kernel.define({
-      id: 'x',
-      packet: { path, content: 'present' },
-      postcondition: pc(path, 'present'),
-    });
-
-    let executions = 0;
-    const result = await runGitCoreLoop(f.kernel, {
-      preflight: async () => ({
-        kind: 'judgment-required',
-        question: 'human choice required',
-      }),
-      effect: async () => {
-        executions += 1;
-        return { kind: 'ok' };
-      },
-    });
-
-    assert.equal(result.state, 'WAITING');
-    assert.equal(executions, 0);
-    assert.equal(f.kernel.inspect()[0].status, 'WAITING');
-
-    const commits = execFileSync(
-      'git',
-      ['-C', f.repo, 'rev-list', 'refs/overcenter/state'],
-      { encoding: 'utf8' },
-    ).trim().split(/\n+/).filter(Boolean);
-    for (const commit of commits) {
-      assert.throws(
-        () => execFileSync(
-          'git',
-          ['-C', f.repo, 'cat-file', '-e', `${commit}:effect-reservation.json`],
-          { stdio: 'ignore' },
-        ),
-      );
-    }
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
-});
-
-test('post-reservation judgment is recovery uncertainty, not WAITING', async () => {
-  const f = fixture();
-  try {
-    const path = f.path('late-judgment');
-    f.kernel.define({
-      id: 'x',
-      packet: { path, content: 'present' },
-      postcondition: pc(path, 'present'),
-    });
-
-    const result = await runGitCoreLoop(f.kernel, {
-      effect: async () => ({
-        kind: 'judgment-required',
-        question: 'too late to assert no effect',
-      }),
-    });
-
-    assert.equal(result.state, 'RECOVERY_REQUIRED');
-    assert.equal(f.kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
-    assert.deepEqual(
-      f.kernel.receipts(result.run!).map(receipt => receipt.disposition),
-      ['RECOVERY_REQUIRED'],
-    );
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
-});
-
 test('wrong real effect cannot become DONE or READY', () => {
   const f = fixture();
   try {
@@ -266,10 +135,8 @@ test('execution generation fences a stale permit without changing the claimed re
       second.execution_capability_sha256,
     );
 
-    assert.throws(() => f.kernel.beginEffect(first), /STALE_EXECUTION_GENERATION/);
     assert.throws(() => f.kernel.resolve(first), /STALE_EXECUTION_GENERATION/);
 
-    f.kernel.beginEffect(second);
     const replayable = f.kernel.resolve(second);
     assert.equal(replayable.disposition, 'READY');
   } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -291,47 +158,6 @@ test('session-bound execution acquisition rejects a stale generation', () => {
 
     const third = f.kernel.acquireExecution(first.id, { expectedGeneration: 2 });
     assert.equal(third.execution_generation, 3);
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
-});
-
-test('unresolved effect reservation survives generation handoff until presence settles it', async () => {
-  const f = fixture();
-  try {
-    const path = f.path('reserved-present');
-    f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
-    const first = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
-
-    await f.kernel.performEffect(first, async () => {
-      writeFileSync(path, 'present');
-    });
-
-    const second = f.kernel.acquireExecution(first.id);
-    assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);
-    assert.throws(() => f.kernel.resolve(first), /STALE_EXECUTION_GENERATION/);
-
-    const settled = f.kernel.resolve(second);
-    assert.equal(settled.disposition, 'DONE');
-    assert.equal(f.kernel.inspect()[0].status, 'DONE');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
-});
-
-test('only authoritative absence releases an unresolved reservation for replay', () => {
-  const f = fixture();
-  try {
-    const path = f.path('reserved-absent');
-    f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
-    const first = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
-    f.kernel.beginEffect(first);
-
-    const second = f.kernel.acquireExecution(first.id);
-    assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);
-
-    const absent = f.kernel.resolve(second);
-    assert.equal(absent.disposition, 'READY');
-
-    const retry = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
-    assert.equal(retry.execution_generation, 1);
-    assert.doesNotThrow(() => f.kernel.beginEffect(retry));
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 

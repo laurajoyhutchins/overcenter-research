@@ -1,13 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type {
   Data,
-  ExecuteOutcome,
   ExecutionPermit,
-  LoopOptions,
-  LoopResult,
   Observation,
   Postcondition,
   Run,
+  TaskSession,
   Work,
 } from './model.ts';
 import { GitFactStore } from './git-store.ts';
@@ -19,11 +17,13 @@ import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
+  REALIZATION_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
   normalizeObligation,
 } from './facts.ts';
 import type {
+  AcceptedRealization,
   ClaimFact,
   EffectReservationFact,
   ExecutionAuthorityFact,
@@ -31,6 +31,7 @@ import type {
   HistoricalRun,
   ObligationFact,
   ObligationInput,
+  RealizationFact,
   Receipt,
   ReceiptFact,
   ReceiptKind,
@@ -50,11 +51,20 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
+import { verifyWorkerResult } from './realization.ts';
+import { deriveAuthorizedProviderEffect } from './provider-effect.ts';
 
 export type { Receipt } from './facts.ts';
 
+export interface EffectReservationIdentity {
+  effect_contract:string;
+  adapter_contract_digest:string;
+  effect_digest:string;
+  realization_commit:string|null;
+  realization_digest:string|null;
+}
+
 const STATE_REF='refs/overcenter/state';
-const errorMessage=(error:unknown)=>error instanceof Error ? error.message : String(error);
 
 export class GitOvercenterKernel {
   readonly repo:string;
@@ -208,9 +218,64 @@ export class GitOvercenterKernel {
     };
   }
 
+  acceptRealization(
+    session:TaskSession,
+    candidate:unknown,
+  ):AcceptedRealization {
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const head=this.#requireHead();
+      const {history}=this.#projection(head);
+      const run=this.#requireTaskSession(history,session);
+      const lifecycle=history.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
+        throw new Error('REALIZATION_WHILE_NOT_EXECUTING');
+      }
+      if (history.unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('REALIZATION_AFTER_EFFECT_RESERVATION');
+      }
+
+      const existing=history.acceptedRealizationsByRun.get(run.id);
+      if (existing) return existing;
+
+      const verified=verifyWorkerResult(run.obligation,session,candidate);
+      const fact:RealizationFact={
+        schema:REALIZATION_SCHEMA,
+        run_id:run.id,
+        obligation_id:run.obligation_id,
+        claimed_revision:run.claimed_revision,
+        execution_generation:run.execution_generation,
+        execution_authority_commit:run.execution_authority_commit,
+        verifier:verified.verifier,
+        result_digest:verified.result_digest,
+      };
+      const commit=this.#store.createCommit(
+        head,
+        `overcenter: accept realization ${run.obligation_id} ${run.id} g${run.execution_generation}`,
+        {'realization.json':fact},
+      );
+      if (this.#store.cas(commit,head)) {
+        return {...fact,realization_commit:commit};
+      }
+    }
+    throw new Error('REALIZATION_ACCEPTANCE_CONTENTION_EXHAUSTED');
+  }
+
+  acceptedRealization(session:TaskSession):AcceptedRealization|null {
+    const head=this.#requireHead();
+    const {history}=this.#projection(head);
+    const run=this.#requireTaskSession(history,session);
+    return history.acceptedRealizationsByRun.get(run.id)??null;
+  }
+
   acquireExecution(
     runId:string,
-    {expectedGeneration}:{expectedGeneration?:number}={},
+    {
+      expectedGeneration,
+      expectedAuthorityCommit,
+    }:{
+      expectedGeneration?:number;
+      expectedAuthorityCommit?:string;
+    }={},
   ):ExecutionPermit {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
@@ -218,8 +283,10 @@ export class GitOvercenterKernel {
       const run=history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       if (
-        expectedGeneration!==undefined
-        && run.execution_generation!==expectedGeneration
+        (expectedGeneration!==undefined
+          && run.execution_generation!==expectedGeneration)
+        || (expectedAuthorityCommit!==undefined
+          && run.execution_authority_commit!==expectedAuthorityCommit)
       ) {
         throw new Error('STALE_EXECUTION_SESSION');
       }
@@ -262,7 +329,10 @@ export class GitOvercenterKernel {
     throw new Error('EXECUTION_AUTHORITY_CONTENTION_EXHAUSTED');
   }
 
-  beginEffect(permit:ExecutionPermit):string {
+  beginEffect(
+    permit:ExecutionPermit,
+    identity:EffectReservationIdentity,
+  ):string {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
       const {history}=this.#projection(head);
@@ -275,29 +345,53 @@ export class GitOvercenterKernel {
         throw new Error('UNRESOLVED_EFFECT');
       }
 
+      const expectedEffect=deriveAuthorizedProviderEffect(run.obligation);
+      if (!expectedEffect) throw new Error('EFFECT_AUTHORITY_REQUIRED');
+      if (
+        identity.effect_contract!==expectedEffect.effect_contract
+        || identity.adapter_contract_digest!==expectedEffect.adapter_contract_digest
+        || identity.effect_digest!==expectedEffect.effect_digest
+      ) {
+        throw new Error('EFFECT_IDENTITY_MISMATCH');
+      }
+
+      const acceptance=run.obligation.result_acceptance;
+      const realization=history.acceptedRealizationsByRun.get(run.id);
+      if (acceptance) {
+        if (!realization) throw new Error('REALIZATION_REQUIRED');
+        if (
+          identity.realization_commit!==realization.realization_commit
+          || identity.realization_digest!==realization.result_digest
+        ) {
+          throw new Error('EFFECT_REALIZATION_MISMATCH');
+        }
+      } else if (
+        identity.realization_commit!==null
+        || identity.realization_digest!==null
+      ) {
+        throw new Error('UNEXPECTED_EFFECT_REALIZATION_BINDING');
+      }
+
       const fact:EffectReservationFact={
         schema:EFFECT_RESERVATION_SCHEMA,
         run_id:run.id,
         obligation_id:run.obligation_id,
         execution_generation:run.execution_generation,
         execution_authority_commit:run.execution_authority_commit,
+        effect_contract:identity.effect_contract,
+        adapter_contract_digest:identity.adapter_contract_digest,
+        effect_digest:identity.effect_digest,
+        realization_commit:identity.realization_commit,
+        realization_digest:identity.realization_digest,
       };
       const commit=this.#store.createCommit(
         head,
-        `overcenter: reserve effect ${run.obligation_id} ${run.id} g${run.execution_generation}`,
+        `overcenter: reserve effect ${run.obligation_id} ${run.id} g${run.execution_generation} ${identity.effect_digest}`,
         {'effect-reservation.json':fact},
       );
       if (this.#store.cas(commit,head)) return commit;
     }
     throw new Error('EFFECT_RESERVATION_CONTENTION_EXHAUSTED');
-  }
-
-  async performEffect<T>(
-    permit:ExecutionPermit,
-    effect:()=>Promise<T>|T,
-  ):Promise<T> {
-    this.beginEffect(permit);
-    return await effect();
   }
 
   resolve(permit:ExecutionPermit):Receipt {
@@ -427,6 +521,7 @@ export class GitOvercenterKernel {
       obligation:this.#store.readJson(commit,'obligation.json'),
       claim:this.#store.readJson(commit,'claim.json'),
       execution_authority:this.#store.readJson(commit,'execution-authority.json'),
+      realization:this.#store.readJson(commit,'realization.json'),
       effect_reservation:this.#store.readJson(commit,'effect-reservation.json'),
       receipt:this.#store.readJson(commit,'receipt.json'),
     }));
@@ -439,6 +534,30 @@ export class GitOvercenterKernel {
 
   #capabilityDigest(capability:string):string {
     return createHash('sha256').update(capability).digest('hex');
+  }
+
+  #requireTaskSession(
+    history:Projection['history'],
+    session:TaskSession,
+  ):HistoricalRun {
+    if (session.schema!=='overcenter-task-session-v2') {
+      throw new Error('INVALID_TASK_SESSION_SCHEMA');
+    }
+    const run=history.runs.get(session.run_id);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    if (
+      run.obligation_id!==session.obligation_id
+      || run.claimed_revision!==session.claimed_revision
+    ) {
+      throw new Error('TASK_SESSION_IDENTITY_MISMATCH');
+    }
+    if (
+      run.execution_generation!==session.execution_generation
+      || run.execution_authority_commit!==session.execution_authority_commit
+    ) {
+      throw new Error('TASK_SESSION_STALE');
+    }
+    return run;
   }
 
   #requireExecutionPermit(
@@ -481,82 +600,3 @@ export class GitOvercenterKernel {
   }
 }
 
-export async function runGitCoreLoop(
-  kernel:GitOvercenterKernel,
-  {preflight,effect,maxAdvances=100}:LoopOptions,
-):Promise<LoopResult> {
-  kernel.inspect();
-  for (let i=0;i<maxAdvances;i+=1) {
-    const work=kernel.deriveReadyWork();
-    if (!work) {
-      const blocked=kernel.inspect().find(candidate=>candidate.status==='BLOCKED');
-      if (blocked) return {state:'BLOCKED',work:blocked.id,advances:i};
-      return {state:'IDLE',advances:i};
-    }
-
-    let run:ExecutionPermit;
-    try {
-      run=kernel.claim(work.id,work.revision);
-    } catch (error:unknown) {
-      const message=errorMessage(error);
-      if (message==='STALE_REVISION' || message==='CLAIM_LOST') continue;
-      throw error;
-    }
-
-    if (preflight) {
-      const decision=await preflight(work.packet);
-      if (decision.kind==='judgment-required') {
-        kernel.deferForJudgment(run,{decision});
-        return {
-          state:'WAITING',
-          work:work.id,
-          run:run.id,
-          advances:i+1,
-        };
-      }
-      if (decision.kind!=='execute') throw new Error('INVALID_PREFLIGHT_OUTCOME');
-    }
-
-    // Crossing into the effectful executor is only legal after the kernel has
-    // validated the current execution permit and durably reserved the effect.
-    // A failed reservation therefore fails before provider code is invoked.
-    kernel.beginEffect(run);
-
-    let outcome:ExecuteOutcome;
-    try {
-      outcome=await effect(work.packet);
-    } catch (error:unknown) {
-      outcome={
-        kind:'execution-error',
-        error:errorMessage(error),
-        may_have_mutated:true,
-      };
-    }
-
-    // Once the effect boundary has been crossed, an effect handler can no longer
-    // downgrade the attempt to a non-effectful WAITING state. Its outcome must
-    // be reconciled as a potentially mutating interrupted execution.
-    if (outcome.kind==='judgment-required') {
-      kernel.recoverInterrupted(run,{
-        outcome,
-        protocol_error:'JUDGMENT_AFTER_EFFECT_RESERVATION',
-      });
-      return {
-        state:'RECOVERY_REQUIRED',
-        work:work.id,
-        run:run.id,
-        advances:i+1,
-      };
-    }
-
-    const receipt=kernel.resolve(run);
-    if (receipt.disposition==='DONE' || receipt.disposition==='READY') continue;
-    return {
-      state:'RECOVERY_REQUIRED',
-      work:work.id,
-      run:run.id,
-      advances:i+1,
-    };
-  }
-  return {state:'BUDGET_EXHAUSTED',advances:maxAdvances};
-}

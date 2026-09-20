@@ -65,28 +65,33 @@ export type Postcondition =
   | GitHubCommitStatusPostcondition
   | KubernetesConfigMapExistsPostcondition;
 
-export interface Observation extends Data {
-  verifier: Postcondition['verifier'];
-  mutation_certainty: MutationCertainty;
-  absence_evidence?: AbsenceEvidenceCertificate;
-  path?: string;
-  expected_sha256?: string;
-  actual_sha256?: string;
-  provider?: 'github' | 'kubernetes';
-  authority_id?: string;
-  api_group?: string;
-  resource?: string;
-  namespace?: string;
-  name?: string;
-  observed_uid?: string;
-  observed_resource_version?: string;
-  snapshot_resource_version?: string;
-  repository_id?: number;
-  repository_full_name?: string;
-  commit_sha?: string;
-  context?: string;
-  expected_state?: string;
-  actual_state?: string;
+export interface GitHubCommitStatusEffectAuthority {
+  contract: 'github-commit-status/set-from-postcondition/v1';
+  adapter_contract_digest: string;
+}
+
+export type EffectAuthority = GitHubCommitStatusEffectAuthority;
+
+export interface CanonicalResultAcceptance {
+  verifier: 'canonical-json-sha256/v1';
+  expected_sha256: string;
+}
+
+export type ResultAcceptance = CanonicalResultAcceptance;
+
+export interface WorkerResultEnvelope extends Data {
+  schema: 'overcenter-worker-result-v1';
+  session: TaskSession;
+  result: Data;
+}
+
+export interface TaskSession {
+  schema: 'overcenter-task-session-v2';
+  run_id: string;
+  obligation_id: string;
+  claimed_revision: string;
+  execution_generation: number;
+  execution_authority_commit: string;
 }
 
 export type Dependency =
@@ -104,6 +109,8 @@ export interface Obligation {
   dependencies: Dependency[];
   packet: Data;
   postcondition: Postcondition;
+  effect_authority?: EffectAuthority;
+  result_acceptance?: ResultAcceptance;
 }
 
 export interface Work extends Obligation {
@@ -112,6 +119,7 @@ export interface Work extends Obligation {
   run_id?: string;
   claimed_revision?: string;
   execution_generation?: number;
+  execution_authority_commit?: string;
   blocked_reason?: string;
 }
 
@@ -128,26 +136,4 @@ export interface Run {
 
 export interface ExecutionPermit extends Run {
   execution_capability: string;
-}
-
-export interface ExecuteOutcome extends Data {
-  kind?: string;
-  may_have_mutated?: boolean;
-}
-
-export interface PreflightOutcome extends Data {
-  kind: 'execute' | 'judgment-required';
-}
-
-export interface LoopOptions {
-  preflight?: (packet: Data) => Promise<PreflightOutcome>;
-  effect: (packet: Data) => Promise<ExecuteOutcome>;
-  maxAdvances?: number;
-}
-
-export interface LoopResult {
-  state: 'IDLE' | 'BLOCKED' | 'RECOVERY_REQUIRED' | 'WAITING' | 'BUDGET_EXHAUSTED';
-  advances: number;
-  work?: string;
-  run?: string;
 }

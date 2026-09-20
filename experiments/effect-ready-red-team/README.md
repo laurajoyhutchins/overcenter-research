@@ -1,180 +1,81 @@
-# Red team: effect-ready authority
+# Effect-authority red-team regression guards
 
-These counterexamples attack the production-boundary refactor in PR #81 at exact
-head `9ccb2d2734303ca51fa1e6708cc9056fe52d05e1`.
+PR #96 reproduced four authority failures in the first `effect-ready` design.
+This directory now keeps those attacks as regression tests for the repair.
 
-They are intentionally **passing counterexample tests**: green means the hostile
-behavior is reproducible.
-
-## Counterexample 1: late session rebinding
-
-The intended argument is:
+## Repaired boundary
 
 ```text
-worker generation 1
-      ↓
-TaskSession(g1)
-      ↓
-effect-ready
-      ↓
-expectedGeneration=1
-      ↓
-stale authority fails closed
+trusted dispatch
+   ├── immutable TaskSession(gN)
+   ├── explicit versioned effect authority
+   └── deterministic result-acceptance contract
+                 │
+                 ▼
+          untrusted worker
+                 │
+            result data
+                 ▼
+      deterministic acceptance
+                 │
+       durable realization fact
+                 ▼
+          trusted broker
+   ├── original TaskSession(gN)
+   ├── current-authority fence
+   ├── pinned adapter contract
+   ├── exact effect digest
+   ├── exact realization identity
+   └── durable reservation
+                 │
+                 ▼
+              provider
 ```
 
-The hosted implementation does not currently bind that session before the
-worker runs. The broker reconstructs it from current project state after
-receiving the worker artifact.
+## Regression 1: late session rebinding
 
-Therefore:
+The TaskSession is minted by trusted dispatch before the worker starts. The
+worker result envelope carries that exact session identity. If execution
+authority rotates before the result is accepted, the original session is stale;
+if a broker reconstructs a newer session, the old result fails with a session
+mismatch instead of inheriting the newer authority.
 
-```text
-worker emits effect-ready at g1
-      ↓
-trusted authority rotates to g2
-      ↓
-broker inspects current Work
-      ↓
-bindTaskSession(g2)
-      ↓
-old signal + new session
-      ↓
-acquire g3
-      ↓
-provider mutation
-```
+## Regression 2: observation is not mutation authority
 
-The signal contains no identity that lets the broker distinguish a g1 signal
-from a g2 signal. Generation fencing is correct, but it fences the newly bound
-session rather than the worker's original authority.
+A GitHub status postcondition with no `effect_authority` is observation-only.
+The provider adapter cannot derive or execute a mutation from it.
 
-## Counterexample 2: postcondition becomes capability
+The effect grant stores both a versioned effect contract and the exact adapter
+contract digest. An adapter-contract change therefore cannot silently reinterpret
+an existing obligation.
 
-PR #81 deliberately deleted the duplicate `packet.effect` and now derives the
-provider command from the postcondition:
+## Regression 3: worker readiness is not authoritative
 
-```text
-GitHub status postcondition
-      ↓
-deriveAuthorizedProviderEffect
-      ↓
-create commit status
-```
+`effect-ready` no longer exists in the production path. The worker emits a
+result envelope. The kernel verifies it against the obligation's deterministic
+acceptance contract and commits an accepted-realization fact.
 
-That removes duplication, but it also collapses **observation authority** and
-**mutation authority**.
+The broker fails with `REALIZATION_REQUIRED` if an obligation requires a
+realization and none has been accepted.
 
-The counterexample defines an obligation whose packet explicitly says:
+## Regression 4: no generic arbitrary effect callback
 
-```json
-{
-  "kind": "observe-only/v1",
-  "mutation_authorized": false
-}
-```
+`runGitCoreLoop(kernel,{effect})` is no longer exported. There is no generic
+production API that takes `work.packet` and calls an arbitrary effect callback.
 
-with a GitHub-status postcondition. A bare `effect-ready` signal still causes
-the broker to issue a create-status mutation.
+Provider effects pass through explicit effect authority, the trusted broker, a
+durable exact-effect reservation, and the provider adapter.
 
-The packet flag is deliberately not proposed as the fix. It merely demonstrates
-that no explicit effect authority exists in the current model.
+## Exact reservation identity
 
-## Counterexample 3: readiness is an unverified worker assertion
+A v2 effect reservation binds:
 
-The broker does not require a realization, result digest, verifier output, or
-accepted evidence before acting on `effect-ready`.
+- run and obligation;
+- execution generation and authority commit;
+- effect-contract identifier;
+- pinned adapter-contract digest;
+- canonical concrete-effect digest;
+- accepted-realization commit and result digest, when required.
 
-The counterexample defines a computation task that declares a required result
-digest and has no accepted realization. A bare legal signal still causes the
-provider mutation.
-
-That means `effect-ready` is currently not merely a transport notification.
-It is itself the fact that unlocks the external effect, even though it comes
-from the untrusted reasoning process.
-
-This violates the intended split:
-
-```text
-reasoning agent   -> uncertain result
-deterministic code -> verify / accept
-deterministic code -> derive transition readiness
-broker             -> execute
-```
-
-The worker should submit a result or evidence. Software should derive
-effect-readiness from accepted evidence whenever readiness is mechanically
-knowable.
-
-## Counterexample 4: the broker boundary is optional
-
-The repository still exports `runGitCoreLoop(kernel,{effect})`.
-
-That path:
-
-```text
-claim
-  ↓
-beginEffect / durable reservation
-  ↓
-arbitrary effect(work.packet)
-  ↓
-observation
-```
-
-does not use:
-
-- `TaskSession`;
-- the effect-ready grammar;
-- explicit provider-effect authority;
-- `deriveAuthorizedProviderEffect`;
-- a provider adapter.
-
-The counterexample proves the arbitrary callback is entered before later
-observation fails. Therefore PR #81 does not yet make the new broker the
-exclusive production mutation path.
-
-This is primarily a trusted-computing-base problem rather than an untrusted
-worker escape: code holding an ExecutionPermit can still bypass the new
-boundary. If the goal is one enforceable effect authority surface, the legacy
-generic executor must be removed, made non-effectful, or routed through the
-same broker/adapter contract.
-
-## Consequence
-
-PR #81 proves useful confinement mechanics, but these two stronger claims do not
-yet hold:
-
-1. a worker signal is bound to the authority generation under which the worker
-   actually ran;
-2. a postcondition is not itself sufficient authority to mutate the thing it
-   verifies;
-3. an untrusted worker assertion is not sufficient evidence that an effectful
-   transition is ready;
-4. the new broker is the exclusive supported effectful path rather than an
-   optional parallel API.
-
-The likely repair is:
-
-```text
-dispatch
-  ├── mint/bind immutable broker-side TaskSession(generation N)
-  └── launch worker on transport already attached to that session
-
-worker
-  └── submit result / evidence
-
-deterministic verifier
-  └── accept realization
-
-explicit effect authorization
-  └── trusted adapter may derive concrete provider command
-
-broker
-  ├── require original TaskSession
-  ├── require accepted realization / transition precondition
-  ├── reserve
-  └── execute
-```
-
-A bare worker `effect-ready` should not by itself be the fact that authorizes
-an external effect.
+Replay independently derives the pinned effect identity from the obligation and
+rejects histories whose reservation identity does not match.
