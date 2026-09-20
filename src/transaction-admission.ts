@@ -1,23 +1,11 @@
-export interface TransactionAdmission {
-  current_authority:boolean;
-  exact_revision:boolean;
-  unresolved_effect:boolean;
-  verified_present:boolean;
-  verified_absent:boolean;
-  verified_exact_revision:boolean;
-  settlement_completed:boolean;
-  settlement_was_authorized:boolean;
-  settlement_evidence_matches:boolean;
-  evidence_valid:boolean;
-}
+export type TransactionAdmission =
+  | {command:'mutate';current_authority:boolean;exact_revision:boolean;unresolved_effect:boolean}
+  | {command:'settle';current_authority:boolean;exact_revision:boolean;verified_present:boolean;verified_exact_revision:boolean}
+  | {command:'replay';current_authority:boolean;exact_revision:boolean;verified_absent:boolean;verified_exact_revision:boolean}
+  | {command:'done';settlement_completed:boolean;settlement_was_authorized:boolean;settlement_evidence_matches:boolean;verified_present:boolean;verified_exact_revision:boolean;evidence_valid:boolean};
 
-export type TransactionCommand='mutate'|'settle'|'replay'|'done';
-
-export function transactionAdmitted(
-  s:TransactionAdmission,
-  command:TransactionCommand,
-):boolean {
-  switch(command){
+export function transactionAdmitted(s:TransactionAdmission):boolean {
+  switch(s.command){
     case 'mutate':
       return s.current_authority && s.exact_revision && !s.unresolved_effect;
     case 'settle':
