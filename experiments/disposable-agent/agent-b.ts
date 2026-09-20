@@ -38,8 +38,8 @@ assert.equal(candidates.length, 1, `expected one exact unresolved execution, fou
 const work = candidates[0];
 assert.ok(work.run_id);
 assert.equal(work.execution_generation, 2);
-assert.equal(work.postcondition.verifier, 'github-commit-status/v1');
-if (work.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
+assert.equal(work.postcondition.verifier, 'github-commit-status/v2');
+if (work.postcondition.verifier !== 'github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha, sourceSha, 'settlement input identity drifted');
 
 const recoveryPermit = kernel.acquireExecution(work.run_id);
@@ -56,7 +56,7 @@ const recovery = kernel.recoverInterrupted(recoveryPermit, {
 const settled = kernel.reconcile(recoveryPermit);
 assert.equal(settled.disposition, 'DONE');
 assert.equal(settled.verified, true);
-assert.equal(settled.observed?.verifier, 'github-commit-status/v1');
+assert.equal(settled.observed?.verifier, 'github-commit-status/v2');
 assert.equal(settled.observed?.repository_id, work.postcondition.repository_id);
 assert.equal(settled.observed?.commit_sha, sourceSha);
 assert.equal(settled.observed?.context, work.postcondition.context);

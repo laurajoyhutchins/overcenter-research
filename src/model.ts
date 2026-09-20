@@ -26,16 +26,7 @@ export interface EventuallyConsistentFilePostcondition {
   content: string;
 }
 
-export interface GitHubCommitStatusPostconditionV1 {
-  verifier: 'github-commit-status/v1';
-  provider: 'github';
-  repository_id: number;
-  commit_sha: string;
-  context: string;
-  expected_state: 'error' | 'failure' | 'pending' | 'success';
-}
-
-export interface GitHubCommitStatusPostconditionV2 {
+export interface GitHubCommitStatusPostcondition {
   verifier: 'github-commit-status/v2';
   provider: 'github';
   repository_id: number;
@@ -44,10 +35,6 @@ export interface GitHubCommitStatusPostconditionV2 {
   context: string;
   expected_state: 'error' | 'failure' | 'pending' | 'success';
 }
-
-export type GitHubCommitStatusPostcondition =
-  | GitHubCommitStatusPostconditionV1
-  | GitHubCommitStatusPostconditionV2;
 
 export interface KubernetesConfigMapExistsPostcondition {
   verifier: 'kubernetes-configmap-exists/v1';
