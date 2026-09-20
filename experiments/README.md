@@ -110,13 +110,14 @@ authority-untrusted Agent A
   no ExecutionPermit
   corrupt local checkout/config/cache/source
   direct provider mutation attempt must fail
-  emit candidate EffectIntent
+  emit no provider authority
   terminate
             ↓
 trusted effect broker
   contents: write
   statuses: write
-  validate intent against authoritative obligation
+  require explicit immutable effect contract
+  derive provider coordinates from authoritative postcondition
   acquire fresh execution generation
   reserve effect
   perform exact provider mutation
