@@ -138,7 +138,7 @@ test('external effect identity binds semantic obligation and exact run',()=>{
     /EXTERNAL_EFFECT_IDENTITY_REQUIRES_EXTERNAL_EFFECT/,
   );
   assert.throws(
-    ()=>externalEffectIdentity(a,'run\\0a'),
+    ()=>externalEffectIdentity(a,'run\u0000a'),
     /RUN_ID_INVALID/,
   );
 });
