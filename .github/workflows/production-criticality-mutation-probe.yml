@@ -8,6 +8,8 @@ on:
       - 'src/projector.ts'
       - 'src/kernel-core.ts'
       - 'src/observation.ts'
+      - 'src/providers/kubernetes-deployment.ts'
+      - 'test/kubernetes-deployment-verifier.test.ts'
       - 'test/hostile.test.ts'
       - 'test/*-hostile.test.ts'
       - 'experiments/production-criticality-ranking/mutation-probes.json'
