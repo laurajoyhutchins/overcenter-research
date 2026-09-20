@@ -1,0 +1,17 @@
+name: Overcenter request signal
+
+on:
+  push:
+    branches:
+      - 'overcenter/request/**'
+
+permissions: {}
+
+jobs:
+  signal:
+    name: Unprivileged request signal
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    steps:
+      - name: Emit no authority
+        run: 'true'

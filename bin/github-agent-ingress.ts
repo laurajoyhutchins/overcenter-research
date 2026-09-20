@@ -49,12 +49,12 @@ if (!capsuleDir || !receiptPath) {
   throw new Error('usage: github-agent-ingress.ts --capsule-dir <dir> --receipt <path>');
 }
 
-const requestCommentId=required('REQUEST_COMMENT_ID');
-if (!/^[1-9][0-9]*$/.test(requestCommentId)) throw new Error('REQUEST_COMMENT_ID_INVALID');
+const requestId=required('REQUEST_ID').toLowerCase();
+if (!/^[0-9a-f]{40}$/.test(requestId)) throw new Error('REQUEST_ID_INVALID');
 const requestedSourceSha=required('SOURCE_SHA').toLowerCase();
 if (!/^[0-9a-f]{40,64}$/.test(requestedSourceSha)) throw new Error('SOURCE_SHA_INVALID');
 
-const obligationId=`github-agent-ingress-${requestCommentId}`;
+const obligationId=`github-agent-ingress-${requestId}`;
 const authorityRef=process.env.OVERCENTER_INGRESS_AUTHORITY_REF??DEFAULT_AUTHORITY_REF;
 const remote=process.env.OVERCENTER_INGRESS_REMOTE??'origin';
 const kernel=new GitOvercenterKernel(process.cwd(),{
@@ -118,10 +118,10 @@ mkdirSync(capsuleDir,{recursive:true});
 writeFileSync(join(capsuleDir,'assignment.json'),assignmentBytes);
 writeFileSync(join(capsuleDir,'assignment-capsule.mjs'),sourceBytes(sourceSha,RUNNER_PATH));
 
-const artifactName=`overcenter-assignment-${requestCommentId}`;
 const receipt={
-  schema:'overcenter-github-agent-ingress-receipt/v1',
-  request_comment_id:requestCommentId,
+  schema:'overcenter-github-agent-response/v1',
+  operation:'acquire',
+  request_sha:requestId,
   authority_ref:authorityRef,
   authority_head:kernel.head(),
   obligation_id:work.id,
@@ -130,7 +130,6 @@ const receipt={
   claimed_revision:work.claimed_revision,
   source_sha:sourceSha,
   assignment_sha256:assignmentSha256(assignmentBytes),
-  artifact_name:artifactName,
 };
 const serialized=`${JSON.stringify(receipt,null,2)}\n`;
 writeFileSync(receiptPath,serialized);
@@ -139,7 +138,6 @@ writeFileSync(join(capsuleDir,'receipt.json'),serialized);
 const githubOutput=process.env.GITHUB_OUTPUT;
 if (githubOutput) {
   for (const [key,value] of Object.entries({
-    artifact_name:artifactName,
     obligation_id:work.id,
     run_id:work.run_id,
     claimed_revision:work.claimed_revision,
