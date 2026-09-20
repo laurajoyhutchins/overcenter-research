@@ -15,7 +15,7 @@ jobs:
   self-evidence:
     name: Self-host deterministic evidence
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 2
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 

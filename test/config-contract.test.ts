@@ -149,6 +149,75 @@ test('repository-wide test suites do not inherit host parallelism',()=>{
   assert.match(pkg.scripts['test:experiments'],/--test-concurrency=1/);
 });
 
+test('PR CI critical paths fail closed within three minutes',()=>{
+  const workflows=[
+    {
+      path:'.github/workflows/tests.yml',
+      jobs:['regression','proofs'],
+    },
+    {
+      path:'.github/workflows/computation-executor.yml',
+      jobs:['executor'],
+    },
+    {
+      path:'.github/workflows/self-application.yml',
+      jobs:['self-evidence'],
+    },
+    {
+      path:'.github/workflows/merge-gate.yml',
+      jobs:['evidence','production-computation','self-application','gate'],
+    },
+    {
+      path:'.github/workflows/assignment-capsule-proof.yml',
+      jobs:['assign','execute','settle'],
+    },
+    {
+      path:'.github/workflows/production-criticality-ranking.yml',
+      jobs:['rank'],
+    },
+  ] as const;
+
+  for (const {path,jobs} of workflows) {
+    const workflow=read(path);
+    const jobsSource=workflow.slice(workflow.indexOf('\njobs:\n')+'\njobs:\n'.length);
+    const actual=[...jobsSource.matchAll(/^  ([A-Za-z0-9_-]+):\s*$/gm)].map(match=>match[1]);
+    assert.deepEqual(actual,[...jobs],`${path} changed CI topology without updating the budget model`);
+  }
+
+  const budgets=[
+    ['.github/workflows/tests.yml','regression',2],
+    ['.github/workflows/tests.yml','proofs',2],
+    ['.github/workflows/computation-executor.yml','executor',2],
+    ['.github/workflows/self-application.yml','self-evidence',2],
+    ['.github/workflows/merge-gate.yml','gate',1],
+    ['.github/workflows/assignment-capsule-proof.yml','assign',1],
+    ['.github/workflows/assignment-capsule-proof.yml','execute',1],
+    ['.github/workflows/assignment-capsule-proof.yml','settle',1],
+    ['.github/workflows/production-criticality-ranking.yml','rank',3],
+  ] as const;
+
+  for (const [path,job,maxMinutes] of budgets) {
+    const workflow=read(path);
+    const block=workflow.match(
+      new RegExp(`(?:^|\\n)  ${job}:\\n([\\s\\S]*?)(?=\\n  [A-Za-z0-9_-]+:\\n|$)`),
+    );
+    assert.ok(block,`${path} is missing budgeted job ${job}`);
+    const timeout=block[1].match(/(?:^|\n)    timeout-minutes:\s*(\d+)\s*(?:\n|$)/);
+    assert.ok(timeout,`${path} job ${job} must declare an explicit timeout`);
+    assert.ok(
+      Number(timeout[1])<=maxMinutes,
+      `${path} job ${job} exceeds its ${maxMinutes}-minute CI budget`,
+    );
+  }
+
+  const mergeGate=read('.github/workflows/merge-gate.yml');
+  assert.match(mergeGate,/gate:[\s\S]*?needs:\n      - evidence\n      - production-computation\n      - self-application/);
+
+  const assignment=read('.github/workflows/assignment-capsule-proof.yml');
+  assert.match(assignment,/execute:[\s\S]*?needs: assign/);
+  assert.match(assignment,/settle:[\s\S]*?needs: \[assign, execute\]/);
+});
+
 test('self-application receives exact source bytes without checkout credentials',()=>{
   const workflow=read('.github/workflows/self-application.yml');
   assert.match(workflow,/persist-credentials:\s*false/);
