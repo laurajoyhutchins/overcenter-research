@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {execFileSync,spawnSync} from 'node:child_process';
-import {createHash,randomUUID} from 'node:crypto';
+import {randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {
   chmodSync,
@@ -21,12 +21,16 @@ import {
   type ProcessSpecV1,
 } from '../src/computation-execution.ts';
 import {
-  TEST_COMPUTATION_PACKET_SCHEMA,
+  REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
   runReadyTestComputation,
   type ComputationExecutor,
 } from '../src/computation-runner.ts';
 import {OvercenterKernel} from '../src/kernel.ts';
 import {GoExecutorClient} from '../src/go-executor-client.ts';
+import {
+  executionContextSha256 as hashExecutionContext,
+  sourceTreeSha256,
+} from '../src/execution-context.ts';
 import {
   PRODUCTION_COMPUTATION_CONTAINMENT,
   productionDockerIsolationArgs,
@@ -104,13 +108,13 @@ function docker(args:string[]):string {
 
 function executionContextSha256():string {
   const imageId=docker(['image','inspect',image!,'--format','{{.Id}}']).trim();
-  const bytes=JSON.stringify({
+  return hashExecutionContext({
     schema:'overcenter-self-application-execution-context-v1',
     image_id:imageId,
     source_sha:sourceSha,
+    source_tree_sha256:sourceTreeSha256(sourceRoot),
     containment:PRODUCTION_COMPUTATION_CONTAINMENT,
   });
-  return 'sha256:'+createHash('sha256').update(bytes).digest('hex');
 }
 
 function processSpec(
@@ -296,14 +300,17 @@ const regressionMarker=join(attestations,'regression.passed');
 const regressionContent=`passed:regression:${sourceSha}\n`;
 const experimentsMarker=join(attestations,'experiments.passed');
 const experimentsContent=`passed:experiments:${sourceSha}\n`;
+const selfApplicationSourceTreeSha256=sourceTreeSha256(sourceRoot);
+const selfApplicationExecutionContextSha256=executionContextSha256();
 
 const kernel=new OvercenterKernel(stateDatabase);
 kernel.initialize();
 kernel.define({
   id:'self-regression',
   packet:{
-    schema:TEST_COMPUTATION_PACKET_SCHEMA,
+    schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
     kind:'test',
+    execution_context_sha256:selfApplicationExecutionContextSha256,
     process_spec:processSpec('regression'),
   },
   postcondition:{
@@ -316,8 +323,9 @@ kernel.define({
   id:'self-experiments',
   dependencies:[{kind:'control',upstream:'self-regression'}],
   packet:{
-    schema:TEST_COMPUTATION_PACKET_SCHEMA,
+    schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
     kind:'test',
+    execution_context_sha256:selfApplicationExecutionContextSha256,
     process_spec:processSpec('experiments'),
   },
   postcondition:{
@@ -442,6 +450,7 @@ try {
     reconstructed:true,
     source_mounted_read_only:true,
     source_snapshot_excludes_git_metadata:true,
+    source_tree_sha256:selfApplicationSourceTreeSha256,
     containment_profile:PRODUCTION_COMPUTATION_CONTAINMENT,
     authority_attestations_outside_task_workspace:true,
     external_effect_reservations:0,

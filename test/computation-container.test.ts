@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import {
@@ -29,12 +29,15 @@ import {
 } from '../src/computation-execution.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
-  TEST_COMPUTATION_PACKET_SCHEMA,
   resumeTestComputation,
   runReadyTestComputation,
 } from '../src/computation-runner.ts';
 import { OvercenterKernel } from '../src/kernel.ts';
 import { GoExecutorClient } from '../src/go-executor-client.ts';
+import {
+  executionContextSha256 as hashExecutionContext,
+  sourceTreeSha256,
+} from '../src/execution-context.ts';
 import {
   PRODUCTION_COMPUTATION_CONTAINMENT,
   productionDockerIsolationArgs,
@@ -68,15 +71,15 @@ function docker(args:string[],encoding:'utf8'='utf8'):string {
   return execFileSync('docker',args,{encoding});
 }
 
-function executionContextSha256():string {
+function executionContextSha256(mountedSourceRoot=sourceRoot):string {
   const imageId=docker(['image','inspect',image!,'--format','{{.Id}}']).trim();
-  const bytes=JSON.stringify({
+  return hashExecutionContext({
     schema:'overcenter-test-execution-context-v1',
     image_id:imageId,
     source_revision:sourceRevision,
+    source_tree_sha256:sourceTreeSha256(mountedSourceRoot),
     containment:containerProfile,
   });
-  return 'sha256:'+createHash('sha256').update(bytes).digest('hex');
 }
 
 after(()=>{
@@ -153,8 +156,13 @@ interface IsolatedExecutor {
   abort:()=>Promise<void>;
 }
 
+interface IsolatedExecutorOptions {
+  sourceRoot?:string;
+}
+
 async function startIsolatedExecutor(
   workspace:string,
+  options:IsolatedExecutorOptions={},
 ):Promise<IsolatedExecutor> {
   if (readdirSync(workspace).length!==0) {
     throw new Error('PRODUCTION_COMPUTATION_WORKSPACE_MUST_START_EMPTY');
@@ -166,7 +174,8 @@ async function startIsolatedExecutor(
   const socketPath=join(control,'executor.sock');
   const container=`overcenter-test-workload-${process.pid}-${id}`;
   const containmentId=`overcenter-containment-${randomUUID()}`;
-  const contextSha256=executionContextSha256();
+  const mountedSourceRoot=options.sourceRoot??sourceRoot;
+  const contextSha256=executionContextSha256(mountedSourceRoot);
   const gid=process.getgid?.();
   if (gid===undefined) throw new Error('host gid unavailable');
 
@@ -187,7 +196,7 @@ async function startIsolatedExecutor(
     '-v',
     `${workspace}:/workspace`,
     '-v',
-    `${sourceRoot}:/source:ro`,
+    `${mountedSourceRoot}:/source:ro`,
     image,
     ...productionExecutorArgs({
       socketPath:'/control/executor.sock',
@@ -373,8 +382,9 @@ test('production computation cannot emit a network effect',async()=>{
     state.kernel.define({
       id:'test',
       packet:{
-        schema:TEST_COMPUTATION_PACKET_SCHEMA,
+        schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
         kind:'test',
+        execution_context_sha256:executionContextSha256(),
         process_spec:{
           schema:PROCESS_SPEC_SCHEMA,
           executable:'/usr/local/bin/node',
@@ -522,6 +532,74 @@ test('isolated executor death recovers the real test from durable facts in gener
     assert.equal(stat.gid,65532);
     assert.equal(recoveredKernel.inspect()[0]?.status,'DONE');
     assertNoEffectReservations(state.db);
+  } finally {
+    await second.close();
+  }
+});
+
+
+test('production recovery rejects substituted source bytes before generation rotation',async()=>{
+  const workspace=freshWorkspace('substituted-source-recovery-workspace');
+  const state=kernelFixture(workspace);
+  const marker=join(workspace,'test-result.txt');
+  const originalContext=executionContextSha256();
+
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      execution_context_sha256:originalContext,
+      process_spec:realTestSpec('delayed-node-test'),
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:marker,
+      content:'passed',
+    },
+  });
+
+  const first=await startIsolatedExecutor(workspace);
+  const pending=runReadyTestComputation(state.kernel,first.client);
+  await new Promise(resolve=>setTimeout(resolve,100));
+  await first.abort();
+
+  const interrupted=await pending;
+  assert.ok(interrupted);
+  assert.equal(interrupted.state,'RECOVERY_REQUIRED');
+  assert.equal(interrupted.execution_generation,1);
+  assert.equal(existsSync(marker),false);
+
+  state.kernel.close();
+  const recoveredKernel=new OvercenterKernel(state.db,{observationContext:{localFileRoot:workspace}});
+  assert.equal(recoveredKernel.inspect()[0]?.execution_generation,1);
+
+  freshWorkspace('substituted-source-recovery-workspace');
+  const substitutedSourceRoot=join(scratch,`substituted-source-${sequence++}`);
+  mkdirSync(join(substitutedSourceRoot,'test'),{recursive:true});
+  const originalSource=readFileSync(join(sourceRoot,'test/digest-pure.test.ts'),'utf8');
+  const substitutedSource="throw new Error('substituted source must never execute');\n";
+  writeFileSync(join(substitutedSourceRoot,'test/digest-pure.test.ts'),substitutedSource);
+  assert.notEqual(substitutedSource,originalSource);
+
+  const substitutedContext=executionContextSha256(substitutedSourceRoot);
+  assert.notEqual(substitutedContext,originalContext);
+  const second=await startIsolatedExecutor(workspace,{
+    sourceRoot:substitutedSourceRoot,
+  });
+  try {
+    await assert.rejects(
+      resumeTestComputation(
+        recoveredKernel,
+        second.client,
+        interrupted.run_id,
+      ),
+      /TEST_COMPUTATION_EXECUTION_CONTEXT_MISMATCH/,
+    );
+    const projected=recoveredKernel.inspect()[0]!;
+    assert.equal(projected.status,'RECOVERY_REQUIRED');
+    assert.equal(projected.execution_generation,1);
+    assert.equal(existsSync(marker),false);
   } finally {
     await second.close();
   }

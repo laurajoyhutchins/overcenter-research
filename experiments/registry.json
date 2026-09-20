@@ -323,6 +323,46 @@
       ]
     },
     {
+      "id": "linkml-ontology",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/linkml-ontology",
+      "readme": "experiments/linkml-ontology/README.md",
+      "question": "Can LinkML own Overcenter's structural ontology vocabulary without owning semantic truth?",
+      "claim": "On the corrected representative slice, LinkML projects one structural model with explicit built-in type imports, preserving tested scalar types while semantic identity remains an external invariant.",
+      "contrast": "Hand-maintain vocabulary and structural constraints independently across TypeScript, data contracts, documentation, and graph representations.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:linkml-ontology"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "LinkML 1.11.1",
+        "Python >=3.10; hosted proof uses ubuntu-24.04 Python and records the resolved dependency set."
+      ],
+      "success_criteria": [
+        "Schema and valid fixture validate while missing evidence and undeclared vocabulary fail.",
+        "Repeated JSON Schema and TypeScript generation is byte-identical; repeated SHACL generation is RDF-isomorphic even if Turtle ordering differs.",
+        "Generated JSON Schema and TypeScript preserve the tested string and boolean scalar types.",
+        "Renaming a modeled relation changes all three tested projections at their meaningful representation level.",
+        "A semantic-key mismatch remains structurally valid in LinkML and is rejected by an independent Overcenter semantic check."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "0f7758293653e3d07a82e096d73b87186cf90d6b",
+        "artifacts": [
+          "GitHub Actions run 35484865636: corrected exact-head LinkML ontology experiment passed 5/5; scalar fidelity, projection behavior, and the semantic-boundary negative control all passed."
+        ]
+      },
+      "interpretation": "A positive result supports LinkML only as structural vocabulary/projection tooling; semantic authority remains in deterministic Overcenter mechanisms.",
+      "non_claims": [
+        "LinkML expresses Overcenter's temporal, transactional, evidentiary, or authority semantics.",
+        "LinkML belongs in the production runtime.",
+        "Generated TypeScript is a runtime validator.",
+        "Every generator preserves every source constraint."
+      ]
+    },
+    {
       "id": "lisp-semantics",
       "kind": "experiment",
       "status": "maintained",
