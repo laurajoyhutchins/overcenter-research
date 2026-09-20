@@ -237,7 +237,7 @@ export class GitOvercenterKernel {
       const existing=history.acceptedRealizationsByRun.get(run.id);
       if (existing) return existing;
 
-      const verified=verifyWorkerResult(run.obligation,candidate);
+      const verified=verifyWorkerResult(run.obligation,session,candidate);
       const fact:RealizationFact={
         schema:REALIZATION_SCHEMA,
         run_id:run.id,
