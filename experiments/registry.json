@@ -670,30 +670,40 @@
       "status": "maintained",
       "directory": "experiments/two-effect-concurrency",
       "readme": "experiments/two-effect-concurrency/README.md",
-      "question": "Does serialized project authority require globally serialized independent effects?",
-      "claim": "Independent effects may overlap and settle through one CAS authority while retaining exact claim identity.",
-      "contrast": "Global effect serialization.",
+      "question": "Can independent READY graph branches be claimed and executed concurrently while project-authority commits remain serialized?",
+      "claim": "Independent READY branches can be discovered and claimed by generic workers, remain EXECUTING simultaneously, settle through one serialized authority, and expose a control-join only after both complete.",
+      "contrast": "Globally serialize graph work merely because authority updates serialize.",
       "reproduce": {
         "tier": "deterministic",
         "local": "npm run test:concurrency"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "Production SQLite authority for the deterministic graph-frontier proof.",
+        "Git/GitHub Actions for the separate hosted two-effect proof."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Two fresh worker processes start from the same released frontier and independently derive and claim distinct branch obligations.",
+        "Both branch runs hold durable unresolved effect reservations while both obligations are EXECUTING.",
+        "The downstream control-join remains BLOCKED while either branch is in flight.",
+        "Both branch runs independently settle DONE through the serialized authority.",
+        "The join becomes READY only after both branches are DONE and can then settle DONE."
       ],
       "evidence": {
         "state": "current",
-        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "evaluated_revision": "1b1e7dc5b17aa6e69aad8e0958572dca1f228fac",
         "artifacts": [
-          "GitHub Actions run 35463403309"
+          "Merge gate run 35539239819: adversarial experiment proofs passed; named parallel-frontier subtest passed.",
+          "Historical GitHub Actions run 35463403309 established the narrower hosted two-effect concurrency claim."
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "A positive result proves bounded parallel graph consumption without introducing a scheduler or worker-pool authority: project-authority serialization does not require work serialization.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
+        "Fair scheduling or starvation freedom.",
+        "N-way throughput or scaling behavior.",
+        "Distributed or highly available SQLite authority.",
+        "Arbitrary provider effects commute or may safely overlap.",
+        "Workers never initially contend for the same READY obligation."
       ]
     }
   ]
