@@ -20,7 +20,8 @@ test('duplicate GitHub request reconstructs the same exact claim',()=>{
     const remote=join(root,'remote.git');
     const work=join(root,'work');
     execFileSync('git',['init','--bare',remote],{stdio:'ignore'});
-    execFileSync('git',['push',remote,'HEAD:refs/heads/main'],{stdio:'ignore'});
+    execFileSync('git',['-C',remote,'fetch',process.cwd(),'HEAD:refs/heads/main'],{stdio:'ignore'});
+    execFileSync('git',['-C',remote,'symbolic-ref','HEAD','refs/heads/main'],{stdio:'ignore'});
     execFileSync('git',['clone','--branch','main',remote,work],{stdio:'ignore'});
     const sourceSha=execFileSync('git',['-C',work,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
     const env={
