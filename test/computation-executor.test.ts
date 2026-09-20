@@ -770,6 +770,47 @@ test('legacy computation packet is rejected before durable claim',async()=>{
   assert.deepEqual(state.kernel.receipts(),[]);
 });
 
+test('replay-safe computation rejects a changed execution context before durable claim',async()=>{
+  const state=kernelFixture();
+  const output=join(scratch,`context-admission-${executorSequence++}.txt`);
+  state.kernel.define({
+    id:'test',
+    packet:{
+      schema:REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
+      kind:'test',
+      execution_context_sha256:testExecutionContext,
+      process_spec:spec('write-file','passed',{
+        pidFile:output,
+        timeoutMs:5000,
+      }),
+    },
+    postcondition:{
+      verifier:'file-content-equals/v1',
+      path:output,
+      content:'passed',
+    },
+  });
+
+  const wrong='sha256:'+sha256('different-admission-execution-context');
+  let executed=false;
+  await assert.rejects(
+    runReadyTestComputation(state.kernel,{
+      executionContextSha256:wrong,
+      execute:async()=>{
+        executed=true;
+        throw new Error('executor must not be reached');
+      },
+    }),
+    /TEST_COMPUTATION_EXECUTION_CONTEXT_MISMATCH/,
+  );
+  assert.equal(executed,false);
+  const projected=state.kernel.inspect()[0]!;
+  assert.equal(projected.status,'READY');
+  assert.equal(projected.run_id,undefined);
+  assert.equal(projected.execution_generation,undefined);
+  assert.deepEqual(state.kernel.receipts(),[]);
+});
+
 test('replay-safe computation rejects a changed execution context before rotating generation',async()=>{
   const state=kernelFixture();
   const workdir=join(scratch,`context-mismatch-${executorSequence++}`);
