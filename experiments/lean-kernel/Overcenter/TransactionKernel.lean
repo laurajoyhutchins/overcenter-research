@@ -94,6 +94,35 @@ def projectMutationFacts
   evidenceValid := false
 }
 
+structure EffectReservationIdentity where
+  runId : String
+  obligationId : String
+  executionGeneration : String
+  executionAuthorityCommit : String
+  deriving Repr, BEq
+
+def reservationReplayAllowed
+    (run : MutationRunIdentity)
+    (reservation : EffectReservationIdentity)
+    (unresolvedEffect : Bool) : Bool :=
+  reservation.runId == run.id &&
+  reservation.obligationId == run.obligationId &&
+  reservation.executionGeneration == run.executionGeneration &&
+  reservation.executionAuthorityCommit == run.executionAuthorityCommit &&
+  !unresolvedEffect
+
+theorem reservation_replay_sound
+    (run : MutationRunIdentity)
+    (reservation : EffectReservationIdentity)
+    (unresolvedEffect : Bool)
+    (h : reservationReplayAllowed run reservation unresolvedEffect = true) :
+    reservation.runId = run.id ∧
+    reservation.obligationId = run.obligationId ∧
+    reservation.executionGeneration = run.executionGeneration ∧
+    reservation.executionAuthorityCommit = run.executionAuthorityCommit ∧
+    unresolvedEffect = false := by
+  simpa [reservationReplayAllowed] using h
+
 def mutationAllowed (s : TransactionFacts) : Bool :=
   s.currentAuthority && s.exactRevision && !s.unresolvedEffect
 
