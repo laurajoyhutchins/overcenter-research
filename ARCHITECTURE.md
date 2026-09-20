@@ -444,7 +444,7 @@ Conceptually:
 
 ```text
 worker(snapshot)
-    -> candidate effect intent / candidate realization / execution evidence
+    -> candidate realization / execution evidence
 ```
 
 The worker does not need:
