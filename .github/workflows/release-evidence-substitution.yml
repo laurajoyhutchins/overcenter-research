@@ -37,6 +37,9 @@ jobs:
           node-version-file: .node-version
       - run: npm run test:experiment-contract
       - run: npm run test:release-evidence-substitution
+      - run: npm run test:kubernetes-deployment
+      - run: npm run test:realization-reuse
+      - run: npm run measure:release-evidence-substitution
 
   hosted-temporal-kind:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
