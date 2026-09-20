@@ -44,14 +44,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          request_sha="${REQUEST_REF#overcenter/request/}"
+          request_sha="$REQUEST_EVENT_SHA"
           [[ "$request_sha" =~ ^[0-9a-f]{40}$ ]]
 
           git fetch --no-tags origin \
             "refs/heads/$REQUEST_REF:refs/overcenter/request-input"
           actual="$(git rev-parse refs/overcenter/request-input)"
           test "$actual" = "$request_sha"
-          test "$actual" = "$REQUEST_EVENT_SHA"
 
           source_sha="$(git rev-parse "$request_sha^")"
           changed="$(git diff-tree --no-commit-id --name-only -r "$request_sha")"
