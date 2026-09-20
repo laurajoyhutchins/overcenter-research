@@ -317,8 +317,7 @@ test('production transaction admission exhaustively agrees with proved Lean step
   }
 });
 
-test('production transaction guards agree with the TLA kernel oracle',async()=>{
-  const oracle=new LeanOracle();
+test('production kernel enforces transaction admission at the effect boundary',()=>{
   const root=mkdtempSync(join(tmpdir(),'tla-refinement-'));
   const kernel=new OvercenterKernel(join(root,'state.db'));
   const target=join(root,'effect');
@@ -330,43 +329,18 @@ test('production transaction guards agree with the TLA kernel oracle',async()=>{
     const run=kernel.claim('x',kernel.deriveReadyWork()!.revision);
     kernel.beginEffect(run);
     const successor=kernel.acquireExecution(run.id);
-
-    const stale=await oracle.compare(transactionRequest({
-      current_authority:false,unresolved_effect:true,
-      verified_present:true,verified_exact_revision:true,
-    }));
-    assert.equal(stale.mutation_allowed,false);
-    assert.equal(stale.settlement_allowed,false);
     assert.throws(()=>kernel.beginEffect(run),/STALE_EXECUTION_GENERATION/);
     assert.throws(()=>kernel.resolve(run),/STALE_EXECUTION_GENERATION/);
-
-    assert.equal((await oracle.compare(transactionRequest({
-      unresolved_effect:true,
-    }))).mutation_allowed,false);
     assert.throws(()=>kernel.beginEffect(successor),/UNRESOLVED_EFFECT/);
-
     assert.equal(kernel.resolve(successor).disposition,'READY');
-    assert.equal((await oracle.compare(transactionRequest({
-      verified_absent:true,verified_exact_revision:true,
-    }))).replay_allowed,true);
 
     const retry=kernel.claim('x',kernel.deriveReadyWork()!.revision);
     kernel.beginEffect(retry);
     writeFileSync(target,'present');
-    assert.equal((await oracle.compare(transactionRequest({
-      unresolved_effect:true,verified_present:true,verified_exact_revision:true,
-    }))).settlement_allowed,true);
     assert.equal(kernel.resolve(retry).disposition,'DONE');
-
-    assert.equal((await oracle.compare(transactionRequest({
-      verified_present:true,verified_exact_revision:true,
-      settlement_completed:true,settlement_was_authorized:true,
-      settlement_evidence_matches:true,evidence_valid:true,
-    }))).done,true);
     assert.equal(kernel.inspect()[0].status,'DONE');
   }finally{
     kernel.close();
-    await oracle.close();
     rmSync(root,{recursive:true,force:true});
   }
 });
