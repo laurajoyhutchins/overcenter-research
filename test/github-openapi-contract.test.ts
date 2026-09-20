@@ -17,15 +17,22 @@ test('generated GitHub operation catalog is bound to semantic operation IDs',()=
   assert.equal(GITHUB_REF_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.ref.operation_id);
   assert.equal(GITHUB_PULL_REQUEST_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.pull_request.operation_id);
   assert.equal(GITHUB_COMMIT_STATUSES_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.commit_statuses.operation_id);
-  assert.equal(Object.keys(GITHUB_OPERATION_SEMANTICS).length,17);
+  assert.equal(Object.keys(GITHUB_OPERATION_SEMANTICS).length,42);
   assert.deepEqual(
     Object.keys(GITHUB_OBSERVATION_OPERATIONS).sort(),
     Object.keys(GITHUB_OPERATION_SEMANTICS).sort(),
   );
   for (const [name,semantic] of Object.entries(GITHUB_OPERATION_SEMANTICS)) {
+    const operation=GITHUB_OBSERVATION_OPERATIONS[name as keyof typeof GITHUB_OBSERVATION_OPERATIONS];
+    assert.equal(operation.operation_id,semantic.operation_id);
     assert.equal(
-      GITHUB_OBSERVATION_OPERATIONS[name as keyof typeof GITHUB_OBSERVATION_OPERATIONS].operation_id,
-      semantic.operation_id,
+      operation.github_extensions.enabledForGitHubApps,
+      true,
+      `registered observation is not callable by a GitHub App: ${semantic.operation_id}`,
+    );
+    assert.ok(
+      semantic.required_permissions.length>0,
+      `registered observation has no credential permission requirement: ${semantic.operation_id}`,
     );
   }
 });
@@ -169,4 +176,30 @@ test('certified status verifier contains no GitHub page-parameter convention',()
   assert.doesNotMatch(source,/default_page_size/);
   assert.equal(source.includes('page='),false);
   assert.equal(source.includes('for (let page'),false);
+});
+
+
+test('live observation workflow grants every permission required by registered semantic reads',()=>{
+  const workflow=readFileSync('.github/workflows/github-observation-grammar.yml','utf8');
+  const yamlName:Record<string,string>={
+    actions:'actions',
+    checks:'checks',
+    contents:'contents',
+    deployments:'deployments',
+    issues:'issues',
+    pull_requests:'pull-requests',
+    statuses:'statuses',
+  };
+  const required=new Set(
+    Object.values(GITHUB_OPERATION_SEMANTICS)
+      .flatMap(semantic=>semantic.required_permissions),
+  );
+  for(const permission of required){
+    const [name,level]=permission.split(':');
+    assert.match(
+      workflow,
+      new RegExp(`^  ${yamlName[name]}: ${level}$`,'m'),
+      `workflow credential profile does not grant ${permission}`,
+    );
+  }
 });

@@ -57,8 +57,10 @@ on:
 
 permissions:
   actions: read
-  contents: read
   checks: read
+  contents: read
+  deployments: read
+  issues: read
   pull-requests: read
   statuses: read
 

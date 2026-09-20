@@ -140,6 +140,9 @@ function constantName(name:string):string {
 
 const operations=Object.entries(GITHUB_OPERATION_SEMANTICS).map(([key,semantic])=>{
   const operation=deriveGithubObservationOperation(document,semantic.operation_id,GITHUB_API_VERSION);
+  if (operation.github_extensions.enabledForGitHubApps!==true) {
+    throw new Error(`GITHUB_OPERATION_NOT_GITHUB_APP_ENABLED:${semantic.operation_id}`);
+  }
   const success=operation.outcomes.find(outcome=>outcome.status==='200');
   if (!success?.schema) throw new Error(`GITHUB_OPENAPI_200_SCHEMA_MISSING:${semantic.operation_id}`);
   return [key,constantName(key),{
