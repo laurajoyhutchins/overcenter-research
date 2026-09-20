@@ -65,14 +65,13 @@ test('production GitHub status effect derives provider coordinates from authorit
     assert.equal(path,'/repos/acme/widget');
     return repository();
   };
-  const post:GithubStatusPost=async(_token,path,body)=>{
-    calls.push({kind:'post',path,body});
-    assert.equal(kernel.hasUnresolvedEffect(run.id),true);
-    return {status:201,body:'{}'};
-  };
-
   try {
     const run=define(kernel);
+    const post:GithubStatusPost=async(_token,path,body)=>{
+      calls.push({kind:'post',path,body});
+      assert.equal(kernel.hasUnresolvedEffect(run.id),true);
+      return {status:201,body:'{}'};
+    };
     const result=await performGithubCommitStatusEffect(kernel,run,{
       token:'token',
       get,
