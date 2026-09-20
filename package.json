@@ -56,6 +56,7 @@
     "check:settlement-observation": "node --experimental-strip-types scripts/generate-settlement-observation.mjs --check",
     "test:typebox-production-runtime": "node --experimental-strip-types --test test/typebox-production-contract.test.ts",
     "test:typebox-production-projection": "node --test test/typebox-production-projection.test.mjs",
-    "test:realization-reuse": "node --experimental-strip-types --test test/realization-pure.test.ts"
+    "test:realization-reuse": "node --experimental-strip-types --test test/realization-pure.test.ts",
+    "experiment:scheduler-scaling": "node --experimental-strip-types experiments/scheduler-scaling/experiment.mjs"
   }
 }
