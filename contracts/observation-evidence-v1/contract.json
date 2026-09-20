@@ -35,17 +35,17 @@
     ],
     "generatedDefinitions": {
       "SettlementObservation": {
-        "source": "./settlement-observation.linkml.yaml",
-        "generator": "../../scripts/generate-settlement-observation-schema.mjs",
-        "toolchain": "linkml==1.11.1",
-        "output": "./schema.json#/$defs/SettlementObservation",
-        "overlays": [
-          "provider_evidence.x-overcenter-providerOwned"
+        "source": "./settlement-observation.typebox.ts",
+        "generator": "../../scripts/generate-settlement-observation.mjs",
+        "toolchain": "typebox==1.3.34; typescript==7.0.2 for static proof",
+        "outputs": [
+          "./schema.json#/$defs/SettlementObservation",
+          "../../src/generated/settlement-observation-schema.ts"
         ],
         "externalReferences": [
           "absence_evidence -> #/$defs/AbsenceEvidenceEnvelope"
         ],
-        "toolchainClosure": "LinkML 1.11.1 root wheel SHA-256 is pinned; Python transitive dependencies are resolved by pip and are not yet hermetically locked."
+        "toolchainClosure": "TypeBox is installed only in the projection proof. Production runtime consumes checked-in generated structure through deterministic repository code and requires no npm install."
       }
     }
   },
@@ -62,7 +62,7 @@
     "absenceEnvelopeValidator": "../../src/evidence.ts",
     "conflictPolicy": "machine-readable-structure-wins",
     "generatedOutputIsNotVerifiedOutput": true,
-    "settlementObservationStructureSource": "./settlement-observation.linkml.yaml"
+    "settlementObservationStructureSource": "./settlement-observation.typebox.ts"
   },
   "semanticRoles": {
     "providerObservation": {
@@ -166,6 +166,10 @@
     {
       "type": "wire-schema",
       "path": "./schema.json"
+    },
+    {
+      "type": "settlement-observation-structural-source",
+      "path": "./settlement-observation.typebox.ts"
     },
     {
       "type": "provider-envelope-validator",
