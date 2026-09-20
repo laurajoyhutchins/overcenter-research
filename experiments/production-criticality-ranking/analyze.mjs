@@ -242,12 +242,17 @@ export function analyze({root,config}){
       if(ts.isCallExpression(node)||ts.isNewExpression(node)){
         const caller=unitForNode(node.parent,nodeToUnit);
         if(caller){
-          const sig=checker.getResolvedSignature(node);
+          const externalCallback=parameterBoundCall(node.expression,checker);
+          const sig=externalCallback?null:checker.getResolvedSignature(node);
           let decl=sig?.declaration??null;
           let callee=decl?unitForNode(decl,nodeToUnit):null;
           if(!callee && decl && ts.isVariableDeclaration(decl) && decl.initializer && isCallable(decl.initializer)) callee=nodeToUnit.get(decl.initializer)??null;
           const polymorphicTargets=!callee && decl ? concreteDispatchTargets(decl,units,checker) : [];
-          if(callee){
+          if(externalCallback){
+            externalCalls++;
+            bump(caller,'externalCalls');
+            bump(caller,'externalCallbackCalls');
+          } else if(callee){
             edges.get(caller.id).add(callee.id);
             resolvedInternalCalls++;
             bump(caller,'resolvedInternalCalls');
@@ -256,10 +261,6 @@ export function analyze({root,config}){
             resolvedInternalCalls++;
             bump(caller,'resolvedInternalCalls');
             bump(caller,'resolvedPolymorphicCalls');
-          } else if(parameterBoundCall(node.expression,checker)){
-            externalCalls++;
-            bump(caller,'externalCalls');
-            bump(caller,'externalCallbackCalls');
           } else if(decl){
             const declarationFile=decl.getSourceFile()?.fileName;
             if(declarationFile && files.includes(declarationFile)){
@@ -280,11 +281,9 @@ export function analyze({root,config}){
             }
           } else {
             const externalModule=importedExternalModule(node.expression,checker);
-            const externalCallback=parameterBoundCall(node.expression,checker);
-            if(externalModule || externalCallback){
+            if(externalModule){
               externalCalls++;
               bump(caller,'externalCalls');
-              if(externalCallback) bump(caller,'externalCallbackCalls');
             } else {
               unknownCalls++;
               bump(caller,'unknownCalls');
