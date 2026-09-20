@@ -19,7 +19,6 @@ enums:
     permissible_values:
       file-content-equals/v1:
       eventually-consistent-file-content-equals/v1:
-      github-commit-status/v1:
       github-commit-status/v2:
       kubernetes-configmap-exists/v1:
   MutationCertainty:
