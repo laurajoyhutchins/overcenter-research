@@ -48,6 +48,7 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
+import { transactionAdmitted } from './transaction-admission.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -268,9 +269,12 @@ export class KernelCore {
       if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
         throw new Error('RUN_NOT_EXECUTING');
       }
-      if (history.unresolvedReservationsByRun.has(run.id)) {
-        throw new Error('UNRESOLVED_EFFECT');
-      }
+      if (!transactionAdmitted({
+        command:'mutate',
+        current_authority:true,
+        exact_revision:true,
+        unresolved_effect:history.unresolvedReservationsByRun.has(run.id),
+      })) throw new Error('UNRESOLVED_EFFECT');
 
       const fact:EffectReservationFact={
         schema:EFFECT_RESERVATION_SCHEMA,
