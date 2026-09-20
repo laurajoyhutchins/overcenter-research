@@ -121,9 +121,9 @@ function blameTimes(root,file){
   const times=new Map();
   let lineNo=null;
   for(const line of text.split('\n')){
-    const h=line.match(/^[0-9a-f^]{40}\\s+\\d+\\s+(\\d+)(?:\\s+\\d+)?$/);
+    const h=line.match(/^[0-9a-f^]{40}\s+\d+\s+(\d+)(?:\s+\d+)?$/);
     if(h){lineNo=Number(h[1]);continue;}
-    const t=line.match(/^author-time\\s+(\\d+)$/);
+    const t=line.match(/^author-time\s+(\d+)$/);
     if(t && lineNo!==null) times.set(lineNo,Number(t[1]));
   }
   return times;
