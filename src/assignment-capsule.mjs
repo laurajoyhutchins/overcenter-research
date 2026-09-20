@@ -14,7 +14,7 @@ import {spawnSync} from 'node:child_process';
 
 export const ASSIGNMENT_SCHEMA='overcenter-agent-assignment/v1';
 export const CANDIDATE_SCHEMA='overcenter-agent-candidate/v1';
-export const PROOF_PACKET_SCHEMA='overcenter-assignment-capsule-proof/v1';
+export const AGENT_TASK_PACKET_SCHEMA='overcenter-agent-task/v1';
 
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 const fail=code=>{throw new Error(code);};
@@ -55,7 +55,7 @@ export function validateAssignment(value) {
   if (!Number.isSafeInteger(work.execution_generation) || work.execution_generation<1) {
     fail('ASSIGNMENT_EXECUTION_GENERATION_INVALID');
   }
-  if (!record(work.packet) || work.packet.schema!==PROOF_PACKET_SCHEMA) {
+  if (!record(work.packet) || work.packet.schema!==AGENT_TASK_PACKET_SCHEMA) {
     fail('ASSIGNMENT_PACKET_SCHEMA_MISMATCH');
   }
   exactKeys(work.packet,[

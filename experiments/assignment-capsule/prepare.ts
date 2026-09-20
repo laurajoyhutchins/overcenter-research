@@ -6,7 +6,7 @@ import {
   assignmentFile,
   buildAssignment,
   encodeAssignment,
-} from './contract.mjs';
+} from '../../src/assignment-capsule.mjs';
 
 function required(name:string):string {
   const value=process.env[name];
@@ -40,7 +40,7 @@ try {
   kernel.define({
     id:obligationId,
     packet:{
-      schema:'overcenter-assignment-capsule-proof/v1',
+      schema:'overcenter-agent-task/v1',
       kind:'pure-candidate',
       source_sha:sourceSha,
       command:['node','task.mjs','input.txt','result.txt'],
@@ -72,7 +72,7 @@ try {
   }
 
   writeFileSync(join(capsuleDir,'assignment.json'),encoded);
-  copyFileSync(new URL('./contract.mjs',import.meta.url),join(capsuleDir,'contract.mjs'));
+  copyFileSync(new URL('../../src/assignment-capsule.mjs',import.meta.url),join(capsuleDir,'assignment-capsule.mjs'));
 
   console.log(JSON.stringify({
     obligation_id:obligationId,

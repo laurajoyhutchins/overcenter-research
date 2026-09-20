@@ -100,12 +100,12 @@ jobs:
           fs.writeFileSync('transport/capsule/altered.json',JSON.stringify(altered));
           NODE
 
-          if node transport/capsule/contract.mjs run \
+          if node transport/capsule/assignment-capsule.mjs run \
             transport/capsule/missing.json "$RUNNER_TEMP/missing-work" "$RUNNER_TEMP/missing-candidate.json"; then
             echo '::error::missing assignment byte was accepted'
             exit 1
           fi
-          if node transport/capsule/contract.mjs run \
+          if node transport/capsule/assignment-capsule.mjs run \
             transport/capsule/altered.json "$RUNNER_TEMP/altered-work" "$RUNNER_TEMP/altered-candidate.json"; then
             echo '::error::altered assignment byte was accepted'
             exit 1
@@ -114,7 +114,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/empty-home"
           sudo /usr/bin/unshare --net --fork /usr/bin/env -i \
             PATH="$PATH" HOME="$RUNNER_TEMP/empty-home" \
-            node transport/capsule/contract.mjs run \
+            node transport/capsule/assignment-capsule.mjs run \
             transport/capsule/assignment.json "$RUNNER_TEMP/assignment-work" "$RUNNER_TEMP/candidate.json"
           mkdir candidate
           cp "$RUNNER_TEMP/candidate.json" candidate/candidate.json
