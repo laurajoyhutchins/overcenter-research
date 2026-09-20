@@ -11,6 +11,10 @@ on:
       - 'package.json'
       - 'src/digest.ts'
       - 'src/realization.ts'
+      - 'src/providers/kubernetes-deployment.ts'
+      - 'test/kubernetes-deployment-verifier.test.ts'
+      - 'experiments/production-criticality-ranking/mutation-probes.json'
+      - 'experiments/production-criticality-ranking/stryker.config.mjs'
       - '.github/workflows/release-evidence-substitution.yml'
   pull_request:
     paths:
@@ -19,6 +23,10 @@ on:
       - 'package.json'
       - 'src/digest.ts'
       - 'src/realization.ts'
+      - 'src/providers/kubernetes-deployment.ts'
+      - 'test/kubernetes-deployment-verifier.test.ts'
+      - 'experiments/production-criticality-ranking/mutation-probes.json'
+      - 'experiments/production-criticality-ranking/stryker.config.mjs'
       - '.github/workflows/release-evidence-substitution.yml'
 
 permissions:
@@ -117,3 +125,46 @@ jobs:
 
           node --experimental-strip-types \
             experiments/release-evidence-substitution/run-hosted.mjs
+
+
+  focused-mutation:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      MUTATION_PROBE: kubernetes-deployment-realization
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - id: mutation-tools
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: node_modules
+          key: mutation-tools-${{ runner.os }}-${{ hashFiles('.node-version', 'package.json') }}-stryker-10.0.0-typescript-5.8.3
+      - name: Install pinned mutation engine
+        if: steps.mutation-tools.outputs.cache-hit != 'true'
+        run: npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0 typescript@5.8.3
+      - name: Run focused production-verifier mutation probe
+        run: ./node_modules/.bin/stryker run experiments/production-criticality-ranking/stryker.config.mjs
+      - name: Require every selected mutant to be killed
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {summarize} from './experiments/production-criticality-ranking/summarize-mutation.mjs';
+          const report=JSON.parse(fs.readFileSync('mutation.json','utf8'));
+          const ranges=JSON.parse(fs.readFileSync('mutation-ranges.json','utf8'));
+          const rows=summarize(report,ranges);
+          if(rows.length!==1 || rows[0].id!=='kubernetes-deployment-realization'){
+            throw new Error('unexpected focused mutation selection');
+          }
+          const row=rows[0];
+          console.log(JSON.stringify(row,null,2));
+          if(row.total===0) throw new Error('mutation probe produced no mutants');
+          if(row.survived+row.noCoverage+row.timeout+row.runtimeError!==0){
+            throw new Error('Deployment realization mutation probe has surviving, uncovered, or errored mutants');
+          }
+          NODE
