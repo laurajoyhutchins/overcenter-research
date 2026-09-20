@@ -96,27 +96,16 @@ function bindingContainsIdentifier(name,target){
   }
   return false;
 }
-function parameterBoundCall(expression,checker){
+function parameterBoundCall(expression){
   const root=ts.isPropertyAccessExpression(expression)?expression.expression:expression;
   const target=ts.isIdentifier(root)?root.text:null;
-  if(target){
-    let p=expression.parent;
-    while(p){
-      if(isCallable(p)){
-        if(p.parameters.some(parameter=>bindingContainsIdentifier(parameter.name,target))) return true;
-        break;
-      }
-      p=p.parent;
+  if(!target) return false;
+  let p=expression.parent;
+  while(p){
+    if(isCallable(p)){
+      return p.parameters.some(parameter=>bindingContainsIdentifier(parameter.name,target));
     }
-  }
-  const symbol=checker.getSymbolAtLocation(root);
-  for(const declaration of symbol?.declarations??[]){
-    let p=declaration;
-    while(p){
-      if(ts.isParameter(p)) return true;
-      if(ts.isFunctionLike(p)) break;
-      p=p.parent;
-    }
+    p=p.parent;
   }
   return false;
 }
@@ -242,7 +231,7 @@ export function analyze({root,config}){
       if(ts.isCallExpression(node)||ts.isNewExpression(node)){
         const caller=unitForNode(node.parent,nodeToUnit);
         if(caller){
-          const externalCallback=parameterBoundCall(node.expression,checker);
+          const externalCallback=parameterBoundCall(node.expression);
           const sig=externalCallback?null:checker.getResolvedSignature(node);
           let decl=sig?.declaration??null;
           let callee=decl?unitForNode(decl,nodeToUnit):null;
