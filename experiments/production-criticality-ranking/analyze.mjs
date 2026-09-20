@@ -97,9 +97,8 @@ function bindingContainsIdentifier(name,target){
   return false;
 }
 function parameterBoundCall(expression){
-  const root=ts.isPropertyAccessExpression(expression)?expression.expression:expression;
-  const target=ts.isIdentifier(root)?root.text:null;
-  if(!target) return false;
+  if(!ts.isIdentifier(expression)) return false;
+  const target=expression.text;
   let p=expression.parent;
   while(p){
     if(isCallable(p)){
