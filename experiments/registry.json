@@ -329,7 +329,7 @@
       "directory": "experiments/linkml-ontology",
       "readme": "experiments/linkml-ontology/README.md",
       "question": "Can LinkML own Overcenter's structural ontology vocabulary without owning semantic truth?",
-      "claim": "On a representative slice, LinkML projects one structural model into byte-stable JSON Schema/TypeScript and semantically stable SHACL while semantic identity remains an external invariant.",
+      "claim": "On the corrected representative slice, LinkML projects one structural model with explicit built-in type imports, preserving tested scalar types while semantic identity remains an external invariant.",
       "contrast": "Hand-maintain vocabulary and structural constraints independently across TypeScript, data contracts, documentation, and graph representations.",
       "reproduce": {
         "tier": "toolchain",
@@ -343,14 +343,14 @@
       "success_criteria": [
         "Schema and valid fixture validate while missing evidence and undeclared vocabulary fail.",
         "Repeated JSON Schema and TypeScript generation is byte-identical; repeated SHACL generation is RDF-isomorphic even if Turtle ordering differs.",
+        "Generated JSON Schema and TypeScript preserve the tested string and boolean scalar types.",
         "Renaming a modeled relation changes all three tested projections at their meaningful representation level.",
         "A semantic-key mismatch remains structurally valid in LinkML and is rejected by an independent Overcenter semantic check."
       ],
       "evidence": {
-        "state": "current",
-        "evaluated_revision": "13c1c8f2b5c22037ae90334ea0c2c6013f2dace9",
+        "state": "pending",
         "artifacts": [
-          "GitHub Actions run 35475542035: 5/5 exact-head tests passed; JSON Schema and TypeScript were byte-stable, SHACL was RDF-isomorphic but not byte-stable, and cardinality propagated to JSON Schema/SHACL but not TypeScript."
+          "Earlier evidence superseded after discovering missing linkml:types import; pending corrected exact-head proof."
         ]
       },
       "interpretation": "A positive result supports LinkML only as structural vocabulary/projection tooling; semantic authority remains in deterministic Overcenter mechanisms.",
