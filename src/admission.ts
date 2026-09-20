@@ -73,18 +73,11 @@ export function staticEffectConflict(
   return null;
 }
 
-export function staticEffectConflictError(
-  state:State,
-  workId:string,
-):string|null {
-  return staticEffectConflict(state,workId)?.code??null;
-}
-
 function validateStaticEffectOrdering(state:State):void {
   for (const obligation of Object.values(state.obligations)
     .sort((a,b)=>a.id.localeCompare(b.id))) {
-    const error=staticEffectConflictError(state,obligation.id);
-    if (error) throw new Error(error);
+    const conflict=staticEffectConflict(state,obligation.id);
+    if (conflict) throw new Error(conflict.code);
   }
 }
 
