@@ -27,12 +27,12 @@ test('GitHub Actions keeps provider write authority out of the disposable worker
   assert.match(broker, /effect-broker\.ts/);
 });
 
-test('hosted proof transports candidate intent between worker and broker', () => {
+test('hosted proof does not transport worker-declared provider authority', () => {
   const worker = job('agent-a', 'effect-broker');
   const broker = job('effect-broker', 'agent-b');
 
-  assert.match(worker, /Upload candidate effect intent/);
-  assert.match(worker, /disposable-agent-effect-intent/);
-  assert.match(broker, /Download candidate effect intent/);
-  assert.match(broker, /disposable-agent-effect-intent/);
+  assert.doesNotMatch(worker, /effect[- ]intent/i);
+  assert.doesNotMatch(worker, /upload-artifact/);
+  assert.doesNotMatch(broker, /effect[- ]intent/i);
+  assert.doesNotMatch(broker, /download-artifact/);
 });
