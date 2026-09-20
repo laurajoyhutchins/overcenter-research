@@ -71,6 +71,7 @@ Run the same supported-slice proof used by CI:
 npm run proof:production
 ```
 
+Provider mutation is deliberately outside this supported production slice. The hosted GitHub trust-boundary proof demonstrates physical credential separation and a brokered mutation path, but it does not promote provider mutation into the supported profile. Provider mutation remains a separate evidence surface until its authority binding and exclusive mutation path are themselves carried by production code and proof.
 
 ## What is Overcenter?
 
@@ -111,7 +112,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
-- **The hosted trust-boundary proof separates worker authority from provider mutation authority.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, it emits a candidate effect intent, and a separate trusted broker validates, reserves, and performs the provider mutation before fresh-generation recovery settles from authoritative readback.
+- **The hosted trust-boundary proof demonstrates physical credential separation for one GitHub mutation path.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, and a separate trusted broker performs the mutation before authoritative readback settles the result. This is evidence for the broker architecture, not promotion of provider mutation into the supported production slice.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
 
 The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
@@ -127,6 +128,7 @@ The repository deliberately does **not** establish that:
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
+- the hosted provider-mutation experiments constitute a supported production mutation profile;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
 - direct low-level callers outside `runCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
