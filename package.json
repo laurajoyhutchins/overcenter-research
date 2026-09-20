@@ -50,6 +50,9 @@
     "test:linkml-ontology": "node --test experiments/linkml-ontology/linkml-ontology.test.mjs",
     "test:linkml-contract-refactor": "node --experimental-strip-types --test experiments/linkml-contract-refactor/comparison.test.mjs",
     "test:assignment-capsule": "node --test experiments/assignment-capsule/contract.test.mjs",
-    "test:github-agent-ingress": "node --experimental-strip-types --test test/github-agent-ingress.test.ts"
+    "test:github-agent-ingress": "node --experimental-strip-types --test test/github-agent-ingress.test.ts",
+    "generate:settlement-observation-schema": "node scripts/generate-settlement-observation-schema.mjs --write",
+    "check:settlement-observation-schema": "node scripts/generate-settlement-observation-schema.mjs --check",
+    "test:linkml-production-contract": "node --test test/linkml-production-contract.test.mjs"
   }
 }
