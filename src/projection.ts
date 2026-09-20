@@ -105,6 +105,7 @@ export function projectReceipt(
 
 export function replayProjection(commits:FactCommit[]):Projection {
   const state=emptyState();
+  const definitionSchemas=new Map<string,ObligationFact['schema']>();
   let lifecycles=new Map<string,Lifecycle>();
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();
@@ -138,6 +139,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
 
       state.obligations[id]=obligation;
       state.definition_commits[id]=record.commit;
+      definitionSchemas.set(id,fact.schema);
       if (fact.schema===LEGACY_OBLIGATION_SCHEMA) {
         state.legacy_effect_ids??={};
         if (
@@ -179,6 +181,9 @@ export function replayProjection(commits:FactCommit[]):Projection {
         throw new Error('INVALID_EXECUTION_CAPABILITY_DIGEST');
       }
 
+      const definitionSchema=definitionSchemas.get(claim.obligation_id);
+      if (!definitionSchema) throw new Error('CLAIM_DEFINITION_SCHEMA_MISSING');
+
       const run:HistoricalRun={
         id:claim.run_id,
         obligation_id:claim.obligation_id,
@@ -190,6 +195,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
         execution_capability_sha256:claim.execution_capability_sha256,
         obligation:structuredClone(obligation),
         definition_commit:state.definition_commits[claim.obligation_id],
+        definition_schema:definitionSchema,
       };
       runs.set(run.id,run);
       lifecycles=deriveLifecycles(state,runs,receiptsByRun);
@@ -306,6 +312,9 @@ export function replayProjection(commits:FactCommit[]):Projection {
         throw new Error('STALE_EFFECT_RESERVATION');
       }
       if (fact.schema===LEGACY_EFFECT_RESERVATION_SCHEMA) {
+        if (run.definition_schema!==LEGACY_OBLIGATION_SCHEMA) {
+          throw new Error('LEGACY_EFFECT_RESERVATION_FOR_MODERN_OBLIGATION');
+        }
         if (run.obligation.effect_authority) {
           throw new Error('LEGACY_EFFECT_RESERVATION_FOR_AUTHORIZED_EFFECT');
         }
