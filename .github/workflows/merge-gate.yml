@@ -35,7 +35,7 @@ jobs:
       - production-computation
       - self-application
     runs-on: ubuntu-slim
-    timeout-minutes: 2
+    timeout-minutes: 1
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       EVIDENCE_RESULT: ${{ needs.evidence.result }}
