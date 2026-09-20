@@ -5,19 +5,21 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-import { validateObservationEnvelope } from '../../src/observation.ts';
-
 const ROOT='experiments/linkml-contract-refactor';
 const ONTOLOGY=`${ROOT}/ontology.yaml`;
 const TARGET='SettlementObservationScalarSlice';
 const OPEN_FIELDS=new Set(['absence_evidence','provider_evidence']);
 const NEW_FIELD='observer_generation';
 
-const productionSchema=JSON.parse(
-  readFileSync('contracts/observation-evidence-v1/schema.json','utf8'),
-);
-const modelText=readFileSync('src/model.ts','utf8');
-const validatorText=readFileSync('src/observation.ts','utf8');
+const productionSchema={
+  $defs:{
+    SettlementObservation:JSON.parse(
+      readFileSync(`${ROOT}/baseline-schema.json`,'utf8'),
+    ),
+  },
+};
+const modelText=readFileSync(`${ROOT}/baseline-model.ts.txt`,'utf8');
+const validatorText=readFileSync(`${ROOT}/baseline-validator.ts.txt`,'utf8');
 
 function invoke(command,args) {
   const result=spawnSync(command,args,{encoding:'utf8'});
@@ -160,7 +162,7 @@ function allAgree(signatures) {
   return new Set(values).size===1;
 }
 
-test('current production field vocabulary and requiredness agree before mutation',()=>{
+test('evaluated production baseline field vocabulary and requiredness agree',()=>{
   const current=productionSignatures();
   assert.deepEqual(current.model,current.schema);
   assert.deepEqual(current.validator,current.schema);
@@ -246,21 +248,15 @@ test('one LinkML edit moves generated field vocabulary together but does not fix
   }
 });
 
-test('the real runtime validator remains an independent manifestation',()=>{
-  const current={
-    verifier:'github-commit-status/v2',
-    mutation_certainty:'uncertain',
-    provider:'github',
-    repository_id:1,
-    repository_full_name:'owner/repo',
-    commit_sha:'0123456789abcdef0123456789abcdef01234567',
-    context:'overcenter/example',
-    expected_state:'success',
-  };
-  assert.doesNotThrow(()=>validateObservationEnvelope(current));
-  assert.throws(
-    ()=>validateObservationEnvelope({...current,[NEW_FIELD]:1}),
-    /OBSERVATION_UNKNOWN_FIELD:observer_generation/,
+test('the evaluated runtime validator was an independent manifestation',()=>{
+  const validator=validatorSignature(validatorText);
+  assert.equal(validator.fields.includes(NEW_FIELD),false);
+  assert.deepEqual(
+    signature(
+      withoutOpen(new Set(validator.fields)),
+      withoutOpen(new Set(validator.required)),
+    ),
+    productionSignatures().schema,
   );
 });
 
