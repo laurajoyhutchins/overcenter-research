@@ -1,0 +1,99 @@
+name: Overcenter agent ingress
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+concurrency:
+  group: overcenter-agent-ingress
+  cancel-in-progress: false
+
+jobs:
+  acquire:
+    name: Claim and publish one assignment
+    if: >-
+      github.event.issue.number == 150 &&
+      github.actor == github.repository_owner &&
+      github.event.comment.body == '/overcenter acquire'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      REQUEST_COMMENT_ID: ${{ github.event.comment.id }}
+
+    steps:
+      - name: Checkout exact default-branch revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Node 22.16
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Verify reusable assignment contract
+        run: npm run test:assignment-capsule
+
+      - name: Claim exact request and materialize assignment
+        id: acquire
+        run: |
+          set -euo pipefail
+          mkdir -p transport
+          node --experimental-strip-types bin/github-agent-ingress.ts \
+            --capsule-dir capsule \
+            --receipt receipt.json
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -cf transport/assignment.tar -C capsule .
+          capsule_sha256="$(sha256sum transport/assignment.tar | cut -d' ' -f1)"
+          printf '%s  assignment.tar\n' "$capsule_sha256" > transport/assignment.sha256
+          cp receipt.json transport/receipt.json
+          echo "capsule_sha256=$capsule_sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload exact assignment
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.acquire.outputs.artifact_name }}
+          path: transport
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish connector-visible receipt
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          CAPSULE_SHA256: ${{ steps.acquire.outputs.capsule_sha256 }}
+        run: |
+          set -euo pipefail
+          node - <<'NODE' > comment.json
+          const fs=require('node:fs');
+          const receipt=JSON.parse(fs.readFileSync('receipt.json','utf8'));
+          receipt.workflow_run_id=process.env.GITHUB_RUN_ID;
+          receipt.workflow_run_attempt=process.env.GITHUB_RUN_ATTEMPT;
+          receipt.artifact_id=process.env.ARTIFACT_ID;
+          receipt.artifact_url=process.env.ARTIFACT_URL;
+          receipt.capsule_sha256=process.env.CAPSULE_SHA256;
+          const body=[
+            'OVERCENTER_ASSIGNMENT',
+            '',
+            '~~~json',
+            JSON.stringify(receipt,null,2),
+            '~~~',
+          ].join('\n');
+          process.stdout.write(JSON.stringify({body}));
+          NODE
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/150/comments" \
+            --data-binary @comment.json

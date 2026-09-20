@@ -11,14 +11,14 @@ import {
   materializeAssignment,
   validateAssignment,
   validateCandidate,
-} from './contract.mjs';
+} from '../../src/assignment-capsule.mjs';
 
 function work() {
   return {
     id:'proof',
     dependencies:[],
     packet:{
-      schema:'overcenter-assignment-capsule-proof/v1',
+      schema:'overcenter-agent-task/v1',
       kind:'pure-candidate',
       source_sha:'1'.repeat(40),
       command:['node','task.mjs','input.txt','result.txt'],
