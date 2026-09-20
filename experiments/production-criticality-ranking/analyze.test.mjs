@@ -132,3 +132,23 @@ test('does not treat unresolved external imports as production graph blindness',
   assert.equal(r.analyzer.byScope.production.externalCalls,1);
   assert.equal(r.analyzer.byScope.production.internalResolutionRate,1);
 });
+
+
+test('expands interface dispatch to every assignable production implementation',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-polymorphic-'));
+  write(root,'src/core.ts',`interface Store { append():number; }\nclass StoreA implements Store { append(){ return 1; } }\nclass StoreB implements Store { append(){ return 2; } }\nexport class Kernel { constructor(readonly store:Store){} claim(){ return this.store.append(); } recover(){ return this.claim(); } }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
+  const config={
+    requiredEvidenceTiers:[],
+    graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:true},
+    authorityClasses:[{id:'claim',sink:{file:'src/core.ts',qualifiedName:'Kernel.claim'},recoveryClass:4}],
+    recoveryScenarios:[{id:'recover-claim',entry:{file:'src/core.ts',qualifiedName:'Kernel.recover'},terminal:{file:'src/core.ts',qualifiedName:'Kernel.claim'}}],
+    requiredCalibrationPairs:[],
+    diagnosticCalibrationPairs:[],
+  };
+  const r=analyze({root,config});
+  assert.equal(r.analyzer.byScope.production.resolvedPolymorphicCalls,1);
+  assert.equal(r.analyzer.byScope.production.unresolvedInternalCalls,0);
+  assert.equal(r.ranking.find(x=>x.qualifiedName==='StoreA.append').vector.A,1);
+  assert.equal(r.ranking.find(x=>x.qualifiedName==='StoreB.append').vector.A,1);
+});
