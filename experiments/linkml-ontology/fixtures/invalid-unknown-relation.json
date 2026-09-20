@@ -1,0 +1,32 @@
+{
+  "obligation": {
+    "id": "obligation:compile",
+    "semantic_key": "sha256:k1",
+    "material_inputs": [
+      {
+        "id": "input:source",
+        "digest": "sha256:source"
+      }
+    ]
+  },
+  "attempt": {
+    "id": "attempt:1",
+    "obligation": "obligation:compile",
+    "execution_identity": "exec:1"
+  },
+  "settlement": {
+    "id": "settlement:1",
+    "obligation": "obligation:compile",
+    "semantic_key": "sha256:k1",
+    "evidence": [
+      {
+        "id": "evidence:1",
+        "attempt": "attempt:1",
+        "semantic_key": "sha256:k1",
+        "verifier_version": "verifier:v1",
+        "self_certified": true
+      }
+    ],
+    "establishes_project_truth": true
+  }
+}
