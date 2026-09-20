@@ -27,12 +27,26 @@ test('GitHub Actions keeps provider write authority out of the disposable worker
   assert.match(broker, /effect-broker\.ts/);
 });
 
-test('hosted proof transports candidate intent between worker and broker', () => {
+test('hosted proof does not transport worker-declared provider authority', () => {
   const worker = job('agent-a', 'effect-broker');
   const broker = job('effect-broker', 'agent-b');
 
-  assert.match(worker, /Upload candidate effect intent/);
-  assert.match(worker, /disposable-agent-effect-intent/);
-  assert.match(broker, /Download candidate effect intent/);
-  assert.match(broker, /disposable-agent-effect-intent/);
+  assert.doesNotMatch(worker, /effect[- ]intent|disposable-agent-effect-intent|effect-intent\.json/i);
+  assert.doesNotMatch(broker, /effect[- ]intent|disposable-agent-effect-intent|effect-intent\.json/i);
+});
+
+test('active hosted proof contains no legacy commit-status effect intent', () => {
+  const paths = [
+    '../experiments/disposable-agent/authority.ts',
+    '../experiments/disposable-agent/agent-a.ts',
+    '../experiments/disposable-agent/effect-broker.ts',
+    '../experiments/two-effect-concurrency/authority.ts',
+    '../experiments/two-effect-concurrency/agent.ts',
+  ];
+
+  for (const path of paths) {
+    const source = readFileSync(new URL(path, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /github-commit-status\/v1/);
+    assert.doesNotMatch(source, /overcenter-effect-intent-v1/);
+  }
 });

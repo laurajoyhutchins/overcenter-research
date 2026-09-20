@@ -44,6 +44,11 @@ assert.ok(work.run_id);
 assert.equal(work.postcondition.verifier,'github-commit-status/v2');
 if (work.postcondition.verifier!=='github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 assert.equal(work.postcondition.commit_sha,sourceSha);
+assert.equal(
+  work.packet.effect_contract,
+  'github-commit-status/set-from-postcondition/v1',
+);
+assert.equal(Object.hasOwn(work.packet,'effect'),false);
 
 const repositoryResponse=await github(`/repositories/${work.postcondition.repository_id}`);
 if (!repositoryResponse.ok) throw new Error(`repository lookup failed: ${repositoryResponse.status}`);
@@ -54,27 +59,31 @@ assert.equal(
   work.postcondition.repository_full_name.toLowerCase(),
 );
 
-const effect=await github(
-  `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
-  {
-    method:'POST',
-    body:JSON.stringify({
-      state:'success',
-      context:work.postcondition.context,
-      description:`Overcenter concurrent effect ${slot}`,
-    }),
-  },
-);
-if (effect.status!==201) throw new Error(`status creation failed ${effect.status}: ${await effect.text()}`);
+const permit=kernel.acquireExecution(work.run_id);
+await kernel.performEffect(permit,async()=>{
+  const effect=await github(
+    `/repos/${repository.full_name}/statuses/${work.postcondition.commit_sha}`,
+    {
+      method:'POST',
+      body:JSON.stringify({
+        state:work.postcondition.expected_state,
+        context:work.postcondition.context,
+        description:`Overcenter concurrent effect ${slot}`,
+      }),
+    },
+  );
+  if (effect.status!==201) throw new Error(`status creation failed ${effect.status}: ${await effect.text()}`);
+});
 
 const summary=process.env.GITHUB_STEP_SUMMARY;
 if (summary) appendFileSync(summary,[
-  `## Disposable agent ${slot}`,
+  `## Trusted effect broker ${slot}`,
   '',
   `- Reconstructed run: \`${work.run_id}\``,
+  `- Execution generation: \`${permit.execution_generation}\``,
   `- Provider context: \`${work.postcondition.context}\``,
-  '- External effect recorded.',
-  '- Agent terminates without settlement.',
+  '- Effect reserved before provider mutation.',
+  '- Broker terminates without settlement.',
   '',
 ].join('\n'));
 

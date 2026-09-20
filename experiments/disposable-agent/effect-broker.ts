@@ -1,6 +1,6 @@
 import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync } from 'node:fs';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
 
 function required(name: string): string {
@@ -28,15 +28,6 @@ const workflowRunAttempt = required('GITHUB_RUN_ATTEMPT');
 const sourceSha = required('SOURCE_SHA');
 const stateRef = githubProofStateRef('disposable-agent');
 
-const intent = JSON.parse(readFileSync('candidate/effect-intent.json', 'utf8')) as {
-  schema?: string;
-  obligation_id?: string;
-  run_id?: string;
-  claimed_revision?: string;
-  effect?: Record<string, unknown>;
-};
-assert.equal(intent.schema, 'overcenter-effect-intent-v1');
-
 const kernel = new GitOvercenterKernel(process.cwd(), { remote: 'origin', ref: stateRef });
 const candidates = kernel.inspect().filter(work => {
   if (work.status !== 'EXECUTING') return false;
@@ -49,23 +40,14 @@ const candidates = kernel.inspect().filter(work => {
 assert.equal(candidates.length, 1, `expected one exact unresolved execution, found ${candidates.length}`);
 const work = candidates[0];
 assert.ok(work.run_id);
-assert.equal(intent.obligation_id, work.id);
-assert.equal(intent.run_id, work.run_id);
-assert.equal(intent.claimed_revision, work.claimed_revision);
-
-const declaredEffect = work.packet.effect as Record<string, unknown> | undefined;
-assert.ok(declaredEffect);
-assert.deepEqual(intent.effect, declaredEffect, 'worker intent drifted from authoritative obligation');
+assert.equal(
+  work.packet.effect_contract,
+  'github-commit-status/set-from-postcondition/v1',
+);
+assert.equal(Object.hasOwn(work.packet, 'effect'), false);
 
 assert.equal(work.postcondition.verifier, 'github-commit-status/v2');
 if (work.postcondition.verifier !== 'github-commit-status/v2') throw new Error('WRONG_VERIFIER');
-assert.deepEqual(declaredEffect, {
-  kind: 'github-commit-status/v1',
-  repository_id: work.postcondition.repository_id,
-  commit_sha: work.postcondition.commit_sha,
-  context: work.postcondition.context,
-  state: work.postcondition.expected_state,
-});
 assert.equal(work.postcondition.commit_sha, sourceSha);
 
 const permit = kernel.acquireExecution(work.run_id);
@@ -104,7 +86,8 @@ if (summary) {
   appendFileSync(summary, [
     '## Trusted effect broker',
     '',
-    `- Validated EffectIntent for obligation \`${work.id}\`.`,
+    `- Required explicit effect contract from immutable authority for obligation \`${work.id}\`.`,
+    '- Consumed no worker-declared provider coordinates or effect intent.',
     `- Acquired execution generation \`${permit.execution_generation}\`.`,
     '- Durably reserved the effect before the provider mutation.',
     `- Wrote exactly the declared status context \`${work.postcondition.context}\`.`,
@@ -117,7 +100,7 @@ console.log(JSON.stringify({
   obligation_id: work.id,
   run_id: work.run_id,
   execution_generation: permit.execution_generation,
-  effect: declaredEffect,
+  effect_contract: work.packet.effect_contract,
 }));
 
 process.exit(86);
