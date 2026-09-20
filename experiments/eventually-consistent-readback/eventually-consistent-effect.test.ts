@@ -24,14 +24,14 @@ test('eventually consistent negative readback cannot authorize replay after an u
       value:'created',
       accepted:true,
     }));
-    f.kernel.recoverInterrupted(run,{source:'hostile-provider-timeout'});
+    f.kernel.recordExecutionTerminated(run,{source:'hostile-provider-timeout'});
 
     const missing=f.kernel.reconcile(run);
     assert.equal(missing.disposition,'RECOVERY_REQUIRED');
     assert.equal(missing.observed?.mutation_certainty,'uncertain');
     assert.equal(missing.observed?.absence_evidence,undefined);
     assert.equal(missing.observed?.observation_error,'NEGATIVE_READ_NOT_AUTHORITATIVE');
-    assert.equal(f.kernel.deriveReadyWork(),null);
+    assert.equal(f.kernel.nextReadyWork(),null);
 
     writeFileSync(f.path('hostile-effect'),'old-value');
     const stale=f.kernel.reconcile(run);
@@ -39,7 +39,7 @@ test('eventually consistent negative readback cannot authorize replay after an u
     assert.equal(stale.observed?.mutation_certainty,'uncertain');
     assert.equal(stale.observed?.absence_evidence,undefined);
     assert.equal(stale.observed?.observation_error,'NON_MATCHING_READ_NOT_AUTHORITATIVE');
-    assert.equal(f.kernel.deriveReadyWork(),null);
+    assert.equal(f.kernel.nextReadyWork(),null);
 
     writeFileSync(f.path('hostile-effect'),'created');
     const done=f.kernel.reconcile(run);

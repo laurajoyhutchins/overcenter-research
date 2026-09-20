@@ -49,7 +49,7 @@ test('ref lock cannot partially claim local authority', () => {
     const k = new GitOvercenterKernel(repo);
     k.initialize();
     k.define({ id: 'x', postcondition: pc(join(root, 'x'), 'yes') });
-    const w = k.deriveReadyWork()!;
+    const w = k.nextReadyWork()!;
     const lock = join(repo, 'refs/overcenter/state.lock');
     mkdirSync(dirname(lock), { recursive: true });
     writeFileSync(lock, 'held');
@@ -67,7 +67,7 @@ test('reachable state and receipts survive aggressive GC in SHA-256 repo', () =>
     const k = new GitOvercenterKernel(repo);
     k.initialize();
     k.define({ id: 'x', postcondition: pc(path, 'yes') });
-    const run = k.claim('x', k.deriveReadyWork()!.revision);
+    const run = k.claim('x', k.nextReadyWork()!.revision);
     k.beginEffect(run);
     writeFileSync(path, 'yes');
     k.resolve(run);
@@ -100,7 +100,7 @@ test('16 disposable clones CAS one central authority and exactly one claims', as
       execFileSync('git', ['-C', repo, 'remote', 'add', 'origin', authority], { stdio: 'ignore' });
       execFileSync('git', ['-C', repo, 'fetch', '--no-tags', 'origin', '+refs/overcenter/state:refs/overcenter/state'], { stdio: 'ignore' });
       const k = new GitOvercenterKernel(repo, { remote: 'origin' });
-      const w = k.deriveReadyWork();
+      const w = k.nextReadyWork();
       writeFileSync(ready, w.revision);
       while (!existsSync(go)) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
       try {
@@ -134,7 +134,7 @@ test('fresh clone can resolve a remote claim after claimant directory is destroy
     const a = join(root, 'a.git');
     cloneAgent(authority, a);
     const ka = new GitOvercenterKernel(a, { remote: 'origin' });
-    const run = ka.claim('x', ka.deriveReadyWork()!.revision);
+    const run = ka.claim('x', ka.nextReadyWork()!.revision);
     ka.beginEffect(run);
     writeFileSync(world, 'yes');
     rmSync(a, { recursive: true, force: true });
@@ -144,7 +144,7 @@ test('fresh clone can resolve a remote claim after claimant directory is destroy
     const kb = new GitOvercenterKernel(b, { remote: 'origin' });
     const recovery = kb.acquireExecution(run.id);
     assert.equal(recovery.execution_generation, 2);
-    kb.recoverInterrupted(recovery, { source: 'supervisor' });
+    kb.recordExecutionTerminated(recovery, { source: 'supervisor' });
     const done = kb.reconcile(recovery);
     assert.equal(done.disposition, 'DONE');
     assert.equal(owner.inspect()[0].status, 'DONE');

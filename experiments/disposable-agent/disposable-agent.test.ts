@@ -40,7 +40,7 @@ test('entire Agent A sandbox can disappear and fresh Agent B reconstructs and se
     const a = join(f.root, 'agent-a.git');
     cloneAgent(f.authority, a);
     const agentA = new GitOvercenterKernel(a, { remote: 'origin' });
-    const ready = agentA.deriveReadyWork()!;
+    const ready = agentA.nextReadyWork()!;
     assert.equal(ready.id, 'effect');
     const run = agentA.claim(ready.id, ready.revision);
 
@@ -66,7 +66,7 @@ test('entire Agent A sandbox can disappear and fresh Agent B reconstructs and se
     const termination = JSON.parse(readFileSync(f.supervisor, 'utf8'));
     const recovery = agentB.acquireExecution(termination.run_id);
     assert.equal(recovery.execution_generation, 2);
-    agentB.recoverInterrupted(recovery, { source: 'sandbox-supervisor' });
+    agentB.recordExecutionTerminated(recovery, { source: 'sandbox-supervisor' });
     const done = agentB.reconcile(recovery);
 
     assert.equal(done.disposition, 'DONE');
@@ -90,7 +90,7 @@ test('kernel-owned verifier cannot be replaced by the agent', () => {
     const a = join(f.root, 'a.git');
     cloneAgent(f.authority, a);
     const k = new GitOvercenterKernel(a, { remote: 'origin' });
-    const work = k.deriveReadyWork()!;
+    const work = k.nextReadyWork()!;
     const run = k.claim(work.id, work.revision);
     k.beginEffect(run);
     writeFileSync(f.world, 'wrong');
@@ -108,10 +108,10 @@ test('READY reconciliation is idempotent after lost acknowledgement', () => {
     const a = join(f.root, 'a.git');
     cloneAgent(f.authority, a);
     const k = new GitOvercenterKernel(a, { remote: 'origin' });
-    const work = k.deriveReadyWork()!;
+    const work = k.nextReadyWork()!;
     const run = k.claim(work.id, work.revision);
 
-    k.recoverInterrupted(run, { source: 'supervisor' });
+    k.recordExecutionTerminated(run, { source: 'supervisor' });
     const first = k.reconcile(run);
     assert.equal(first.disposition, 'READY');
 
@@ -130,9 +130,9 @@ test('missing remote authority never looks empty or idle', () => {
     git(f.authority, ['update-ref', '-d', 'refs/overcenter/state']);
 
     assert.throws(() => k.inspect(), /NOT_INITIALIZED/);
-    assert.throws(() => k.deriveReadyWork(), /NOT_INITIALIZED/);
+    assert.throws(() => k.nextReadyWork(), /NOT_INITIALIZED/);
     assert.throws(() => k.receipts(), /NOT_INITIALIZED/);
-    assert.throws(() => k.recoverInterrupted({id:'x'} as never), /NOT_INITIALIZED/);
+    assert.throws(() => k.recordExecutionTerminated({id:'x'} as never), /NOT_INITIALIZED/);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
@@ -146,8 +146,8 @@ test('two disposable clones CAS against central authority and exactly one claim 
 
     const ka = new GitOvercenterKernel(a, { remote: 'origin' });
     const kb = new GitOvercenterKernel(b, { remote: 'origin' });
-    const wa = ka.deriveReadyWork()!;
-    const wb = kb.deriveReadyWork()!;
+    const wa = ka.nextReadyWork()!;
+    const wb = kb.nextReadyWork()!;
     assert.equal(wa.revision, wb.revision);
 
     ka.claim(wa.id, wa.revision);

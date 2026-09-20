@@ -21,7 +21,7 @@ assert.ok(work);
 assert.ok(work.run_id);
 
 const permit=kernel.acquireExecution(work.run_id);
-kernel.recoverInterrupted(permit,{source:'github-actions-job-supervisor',slot,outcome});
+kernel.recordExecutionTerminated(permit,{source:'github-actions-job-supervisor',slot,outcome});
 const receipt=kernel.reconcile(permit);
 assert.equal(receipt.disposition,'DONE');
 assert.equal(receipt.verified,true);
