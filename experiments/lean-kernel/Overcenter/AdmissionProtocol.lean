@@ -102,16 +102,16 @@ does not add another production command. The comparison executable built by the
 runtime experiment calls this function directly.
 -/
 private def mutationRunIdentity
-    (request : Json) (prefix : String) : Except String MutationRunIdentity := do
+    (request : Json) (stem : String) : Except String MutationRunIdentity := do
   pure {
-    id := ← stringField request s!"{prefix}_id"
-    obligationId := ← stringField request s!"{prefix}_obligation_id"
-    claimedRevision := ← stringField request s!"{prefix}_claimed_revision"
-    claimCommit := ← stringField request s!"{prefix}_claim_commit"
-    obligationKey := ← stringField request s!"{prefix}_obligation_key"
-    executionGeneration := ← natField request s!"{prefix}_execution_generation"
-    executionAuthorityCommit := ← stringField request s!"{prefix}_execution_authority_commit"
-    executionCapabilitySha256 := ← stringField request s!"{prefix}_execution_capability_sha256"
+    id := ← stringField request s!"{stem}_id"
+    obligationId := ← stringField request s!"{stem}_obligation_id"
+    claimedRevision := ← stringField request s!"{stem}_claimed_revision"
+    claimCommit := ← stringField request s!"{stem}_claim_commit"
+    obligationKey := ← stringField request s!"{stem}_obligation_key"
+    executionGeneration := ← natField request s!"{stem}_execution_generation"
+    executionAuthorityCommit := ← stringField request s!"{stem}_execution_authority_commit"
+    executionCapabilitySha256 := ← stringField request s!"{stem}_execution_capability_sha256"
   }
 
 private def mutationAuthorityComparison (request : Json) : Except String Json := do
