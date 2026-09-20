@@ -34,6 +34,7 @@ test('ranks only production callables and derives structural authority/evidence 
   const low=r.ranking.find(x=>x.name==='low');
   const inert=r.ranking.find(x=>x.name==='inert');
   assert.equal(settle.vector.A,1);
+  assert.ok(settle.vector.C>0,'git blame recency must be parsed rather than silently collapsing to zero');
   assert.equal(helper.vector.A,1,'helper should inherit authority from the settlement path');
   assert.equal(settle.vector.E,1,'missing hostile-case evidence is itself an evidence obligation');
   assert.equal(settle.evidence.mutation.status,'missing');
