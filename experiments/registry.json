@@ -75,6 +75,48 @@
       ]
     },
     {
+      "id": "codex-closed-loop",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/codex-closed-loop",
+      "readme": "experiments/codex-closed-loop/README.md",
+      "question": "Can Overcenter delegate implementation judgment to a disposable Codex worker while retaining claim, verification, settlement, publication, and readback authority outside the worker?",
+      "claim": "For the bounded witness, an exact claimed obligation can pass through an untrusted Codex implementation step and become an independently verified, settled, exact-byte draft PR without granting the worker publication authority.",
+      "contrast": "Let the reasoning worker hold repository write credentials, publish its own patch, or declare its own success.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:codex-closed-loop"
+      },
+      "environment": [
+        "Node.js from .node-version for the deterministic contract and Overcenter authority steps.",
+        "GitHub Actions ubuntu-24.04 for the hosted transaction.",
+        "OPENAI_API_KEY GitHub Actions secret.",
+        "openai/codex-action pinned to 86365089eb2b84e0a8fb0717b304f8bdcb13b20e."
+      ],
+      "success_criteria": [
+        "Overcenter derives and claims the witness obligation before the reasoning worker runs.",
+        "The Codex job has repository read permission only, no persisted checkout credential, and cannot write Git metadata.",
+        "Candidate bytes are confined to the declared path and bound to the exact assignment digest and claimed run.",
+        "Trusted reconstruction independently verifies the postcondition and settles the original run DONE.",
+        "Only a separate trusted publisher receives repository and pull-request write authority.",
+        "GitHub readback reports the exact trusted-publisher commit on the expected base as an open draft PR."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          ".github/workflows/codex-closed-loop.yml"
+        ]
+      },
+      "interpretation": "A positive result establishes the bounded reasoning-worker transaction boundary. It supports using Codex as a disposable implementation worker, not as authority for project truth or provider mutation.",
+      "non_claims": [
+        "Arbitrary code changes are independently verifiable with this one-file witness policy.",
+        "Ambiguous GitHub mutation outcomes are recovered automatically.",
+        "The worker is trusted because the candidate passed.",
+        "GitHub itself is authoritative project state.",
+        "The witness pull request should be merged."
+      ]
+    },
+    {
       "id": "conflicting-effect",
       "kind": "experiment",
       "status": "maintained",
