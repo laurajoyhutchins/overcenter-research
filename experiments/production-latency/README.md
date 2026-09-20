@@ -32,14 +32,14 @@ The benchmark records:
 - **authority**: define, READY derivation, and exact claim;
 - **provider identity**: certified GitHub repository identity read;
 - **effect reservation**: durable kernel reservation before the mutation callback begins;
-- **provider mutation**: the status POST;
+- **mutation boundary**: the production effect callback, dominated by the status POST plus its immediate response handling;
 - **readback**: provider reads used by settlement;
 - **settlement local**: verification and durable receipt work after subtracting readback I/O;
 - **Overcenter local total**: authority + reservation + adapter-local + settlement-local time;
 - **provider total**: identity + mutation + readback;
 - **end to end**: the complete successful transaction.
 
-The adapter timing hook observes the existing production path; it does not create an alternate effect implementation.
+An experiment-only `TimedKernel` wraps the existing effect callback to timestamp reservation and the mutation boundary. Production code is unchanged and the production GitHub transport still runs normally.
 
 ## Reproduce
 
@@ -74,7 +74,7 @@ No fixed latency threshold is part of the correctness proof. Absolute timing is 
 
 ## Result
 
-See [`results/2026-09-20.md`](./results/2026-09-20.md). The first live run measured a 1.774 s median successful transaction, of which 9.481 ms was Overcenter-local and 1.765 s was provider I/O.
+A live result is recorded only after the experiment-only instrumentation passes at its exact source revision.
 
 ## Interpretation
 
