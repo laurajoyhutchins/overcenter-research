@@ -125,16 +125,28 @@ test('effect grant pins the adapter contract used for execution',()=>{
 
 test('worker result becomes readiness only after deterministic acceptance',()=>{
   const work=githubWork('task','run-task');
-  const valid=workerResult({kind:'test-result/v1',value:'accepted'});
-  const verified=verifyWorkerResult(work,valid);
+  const session=bindTaskSession(work);
+  const valid=workerResult(session,{kind:'test-result/v1',value:'accepted'});
+  const verified=verifyWorkerResult(work,session,valid);
   assert.equal(verified.result_digest,work.result_acceptance?.expected_sha256);
 
   assert.throws(
     ()=>verifyWorkerResult(
       work,
-      workerResult({kind:'test-result/v1',value:'forged'}),
+      session,
+      workerResult(session,{kind:'test-result/v1',value:'forged'}),
     ),
     /WORKER_RESULT_REJECTED/,
+  );
+
+  const rebound=bindTaskSession({
+    ...work,
+    execution_generation:2,
+    execution_authority_commit:'authority-2',
+  });
+  assert.throws(
+    ()=>verifyWorkerResult(work,rebound,valid),
+    /WORKER_RESULT_SESSION_MISMATCH/,
   );
 });
 
