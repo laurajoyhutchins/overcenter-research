@@ -82,16 +82,6 @@ const LIST_RESPONSE_SLICE=[
   {path:'items[].metadata.resourceVersion'},
 ] as const satisfies readonly ResponseFieldSpec[];
 
-interface KubernetesListPageEvidence {
-  page:number;
-  request_continue:string|null;
-  response_continue:string;
-  snapshot_resource_version:string;
-  schema_sha256:string;
-  validated_paths:string[];
-  optional_absent_paths:string[];
-}
-
 function stringArray(value:unknown):value is string[] {
   return Array.isArray(value) && value.every(member=>typeof member==='string');
 }
@@ -104,32 +94,17 @@ function matchesSha256(value:unknown):value is string {
   return typeof value==='string' && /^sha256:[0-9a-f]{64}$/.test(value);
 }
 
-function absenceScope(
+function absenceCoordinates(
   postcondition:KubernetesConfigMapExistsPostcondition,
-):Record<string,string> {
-  return {
+) {
+  const scope={
     provider:'kubernetes',
     authority_id:postcondition.authority_id,
     api_group:'',
     resource:'configmaps',
     namespace:postcondition.namespace,
   };
-}
-
-function absenceSubject(
-  postcondition:KubernetesConfigMapExistsPostcondition,
-):Record<string,string> {
-  return {...absenceScope(postcondition),name:postcondition.name};
-}
-
-function exactPrimitiveRecord(
-  value:unknown,
-  expected:Record<string,string>,
-):boolean {
-  const actual=data(value);
-  return !!actual
-    && exactKeys(actual,Object.keys(expected))
-    && Object.entries(expected).every(([key,expectedValue])=>actual[key]===expectedValue);
+  return {scope,subject:{...scope,name:postcondition.name}};
 }
 
 function listPageEvidenceMatches(
@@ -159,7 +134,7 @@ function listPageEvidenceMatches(
 
 function providerEvidence(
   postcondition:KubernetesConfigMapExistsPostcondition,
-  pages:KubernetesListPageEvidence[],
+  pages:Record<string,unknown>[],
   terminalStatus?:number,
 ):Record<string,unknown> {
   return {
@@ -172,14 +147,13 @@ function providerEvidence(
 
 function completeListAbsenceEvidence(
   postcondition:KubernetesConfigMapExistsPostcondition,
-  pages:KubernetesListPageEvidence[],
+  pages:Record<string,unknown>[],
   snapshotResourceVersion:string,
 ):AbsenceEvidenceCertificate {
   return {
     schema:ABSENCE_EVIDENCE_SCHEMA,
     kind:KUBERNETES_COMPLETE_LIST_ABSENCE,
-    subject:absenceSubject(postcondition),
-    scope:absenceScope(postcondition),
+    ...absenceCoordinates(postcondition),
     snapshot:{resource_version:snapshotResourceVersion},
     completeness:{
       kind:'complete-list',
@@ -206,8 +180,11 @@ export function kubernetesConfigMapAbsenceEvidenceMatches(
     return false;
   }
   if (value.kind!==KUBERNETES_COMPLETE_LIST_ABSENCE) return false;
-  if (!exactPrimitiveRecord(value.subject,absenceSubject(postcondition))) return false;
-  if (!exactPrimitiveRecord(value.scope,absenceScope(postcondition))) return false;
+  const coordinates=absenceCoordinates(postcondition);
+  if (
+    canonicalDigest(value.subject)!==canonicalDigest(coordinates.subject)
+    || canonicalDigest(value.scope)!==canonicalDigest(coordinates.scope)
+  ) return false;
 
   const snapshot=data(value.snapshot);
   const completeness=value.completeness;
@@ -329,7 +306,7 @@ export function observeCertifiedKubernetesConfigMap(
     limit?:number;
   },
 ):KubernetesConfigMapVerification {
-  const pages:KubernetesListPageEvidence[]=[];
+  const pages:Record<string,unknown>[]=[];
   const indeterminate=(
     reason:string,
     terminalStatus?:number,
