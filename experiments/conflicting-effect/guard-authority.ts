@@ -35,9 +35,10 @@ const kernel=new GitOvercenterKernel(process.cwd(),{remote:'origin',ref:STATE_RE
 kernel.initialize();
 
 const statusPc=(context:string,state:'success'|'failure')=>({
-  verifier:'github-commit-status/v1' as const,
+  verifier:'github-commit-status/v2' as const,
   provider:'github' as const,
   repository_id:info.id,
+  repository_full_name:repository,
   commit_sha:sha,
   context,
   expected_state:state,

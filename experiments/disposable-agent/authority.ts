@@ -61,9 +61,10 @@ kernel.define({
     },
   },
   postcondition: {
-    verifier: 'github-commit-status/v1',
+    verifier: 'github-commit-status/v2',
     provider: 'github',
     repository_id: repositoryInfo.id,
+    repository_full_name: repository,
     commit_sha: sourceSha,
     context,
     expected_state: 'success',

@@ -61,9 +61,10 @@ for (const slot of ['alpha','beta']) {
       },
     },
     postcondition:{
-      verifier:'github-commit-status/v1',
+      verifier:'github-commit-status/v2',
       provider:'github',
       repository_id:info.id,
+      repository_full_name:repository,
       commit_sha:sourceSha,
       context,
       expected_state:'success',

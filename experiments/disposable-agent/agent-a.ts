@@ -45,8 +45,8 @@ assert.equal(candidates.length, 1, `expected one immutable execution snapshot, f
 const work = candidates[0];
 const snapshot = structuredClone(work);
 assert.ok(snapshot.run_id);
-assert.equal(snapshot.postcondition.verifier, 'github-commit-status/v1');
-if (snapshot.postcondition.verifier !== 'github-commit-status/v1') throw new Error('WRONG_VERIFIER');
+assert.equal(snapshot.postcondition.verifier, 'github-commit-status/v2');
+if (snapshot.postcondition.verifier !== 'github-commit-status/v2') throw new Error('WRONG_VERIFIER');
 assert.equal(snapshot.postcondition.commit_sha, sourceSha);
 
 const attacker = join(tmpdir(), `overcenter-attacker-${workflowRunId}.git`);
@@ -60,6 +60,10 @@ const repositoryIdentity = await github(`/repositories/${snapshot.postcondition.
 if (!repositoryIdentity.ok) throw new Error(`repository identity read failed: ${repositoryIdentity.status}`);
 const repository = await repositoryIdentity.json() as { id: number; full_name: string };
 assert.equal(repository.id, snapshot.postcondition.repository_id);
+assert.equal(
+  repository.full_name.toLowerCase(),
+  snapshot.postcondition.repository_full_name.toLowerCase(),
+);
 
 const attemptedAuthorityRewrite = await github(
   `/repos/${repository.full_name}/git/refs/${stateRefApi}`,

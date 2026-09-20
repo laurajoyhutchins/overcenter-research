@@ -355,6 +355,49 @@
       ]
     },
     {
+      "id": "production-criticality-ranking",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/production-criticality-ranking",
+      "readme": "experiments/production-criticality-ranking/README.md",
+      "question": "Can Overcenter maintain a reproducible total ordering of production-code importance from quantitative facts?",
+      "claim": "A revision-bound callable graph plus explicit authority/recovery semantics can derive an inspectable production-code criticality vector and a calibrated total order without ranking tests or experiments themselves.",
+      "contrast": "Periodically repeat a human ranking exercise or rely on generic complexity/hotspot metrics alone.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --test experiments/production-criticality-ranking/analyze.test.mjs && node experiments/production-criticality-ranking/analyze.mjs --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Git with full repository history for revision-bound blame/change exposure",
+        "TypeScript 5.8.3 installed for the analyzer"
+      ],
+      "success_criteria": [
+        "Only production callables under src/ enter the ranked population.",
+        "Configured authority and recovery selectors resolve exactly once.",
+        "The static graph is informative and unresolved internal calls are reported.",
+        "At least 80% of the initial pairwise calibration judgments agree.",
+        "Every surprising rank decomposes into quantitative vector components and graph evidence."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "737736d4bc799ceaa23190da1d2ff818507d2852",
+        "artifacts": [
+          "PR #111",
+          "Production criticality ranking run 35480506420 at 737736d4bc799ceaa23190da1d2ff818507d2852",
+          "Criticality mutation probe run 35471986995 at 13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+          "experiments/production-criticality-ranking/mutation-evidence.json"
+        ]
+      },
+      "interpretation": "A production-only callable graph can derive a reproducible consequence order and a separate engineering-attention order from quantitative facts. At evaluated revision 737736d4bc799ceaa23190da1d2ff818507d2852 the production graph ranks 299 callables, resolves 84.5% of internal/unknown production calls, and agrees with 6/7 prior pairwise judgments. The lone reuse-over-identity disagreement remains evidence that callable granularity cannot represent every branch-level semantic claim. Exact-blob mutation evidence materially improves E, all 7 probes apply with 0 stale at the evaluated revision, and stale mutation evidence fails closed.",
+      "non_claims": [
+        "Callable boundaries are the final semantic unit.",
+        "Static test reachability is equivalent to hostile-case evidence.",
+        "Exported-entrypoint reachability is equivalent to production telemetry.",
+        "The current weighting equation is uniquely correct."
+      ]
+    },
+    {
       "id": "projection-comparison",
       "kind": "experiment",
       "status": "maintained",
@@ -385,6 +428,14 @@
       "non_claims": [
         "Anything outside the documented experiment boundary."
       ]
+    },
+    {
+      "id": "provider-observation",
+      "kind": "support",
+      "status": "maintained",
+      "directory": "experiments/provider-observation",
+      "readme": "experiments/provider-observation/README.md",
+      "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     },
     {
       "id": "sqlite-baseline",
@@ -481,14 +532,6 @@
       "non_claims": [
         "Anything outside the documented experiment boundary."
       ]
-    },
-    {
-      "id": "provider-observation",
-      "kind": "support",
-      "status": "maintained",
-      "directory": "experiments/provider-observation",
-      "readme": "experiments/provider-observation/README.md",
-      "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     }
   ]
 }

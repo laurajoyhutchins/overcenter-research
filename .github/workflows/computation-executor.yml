@@ -1,60 +1,14 @@
 name: Production computation executor
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/computation-executor.yml
-      - .go-version
-      - .node-version
-      - contracts/computation-execution-v1/**
-      - executor/**
-      - src/computation-execution.ts
-      - src/computation-runner.ts
-      - src/fact-store.ts
-      - src/kernel-core.ts
-      - src/kernel.ts
-      - src/sqlite-store.ts
-      - src/go-executor-client.ts
-      - src/production-containment.ts
-      - src/observation.ts
-      - test/computation-executor.test.ts
-      - test/computation-container.test.ts
-      - test/config-contract.test.ts
-      - test/fixtures/computation-child.mjs
-      - package.json
-      - scripts/proof-production.sh
-      - bin/prove-computation-containment.ts
-  pull_request:
-    paths:
-      - .github/workflows/computation-executor.yml
-      - .go-version
-      - .node-version
-      - contracts/computation-execution-v1/**
-      - executor/**
-      - src/computation-execution.ts
-      - src/computation-runner.ts
-      - src/fact-store.ts
-      - src/kernel-core.ts
-      - src/kernel.ts
-      - src/sqlite-store.ts
-      - src/go-executor-client.ts
-      - src/production-containment.ts
-      - test/computation-executor.test.ts
-      - test/computation-container.test.ts
-      - test/config-contract.test.ts
-      - test/fixtures/computation-child.mjs
-      - package.json
-      - scripts/proof-production.sh
-      - bin/prove-computation-containment.ts
 
 permissions:
   contents: read
 
 concurrency:
-  group: production-computation-executor-${{ github.ref }}
+  group: production-computation-executor-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -65,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
@@ -73,5 +28,13 @@ jobs:
         with:
           go-version-file: '.go-version'
           cache: false
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal --no-self-update
+          test "$(rustc --version | awk '{print $2}')" = "$channel"
       - name: Production slice proof
         run: npm run proof:production

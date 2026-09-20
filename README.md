@@ -38,7 +38,7 @@ The supported runtime boundary is intentionally smaller than the research surfac
 | --- | --- | --- |
 | durable authority, graph semantics, claim/recovery fencing, observation, settlement | TypeScript + SQLite | production reference path |
 | isolated replay-safe pure computation and attempt evidence | Go | admitted for the `test` workload |
-| worker filesystem/process confinement | Rust | experiment only |
+| worker filesystem/process confinement | Rust | admitted native confinement substrate on supported Linux x86-64 |
 | Lean, Datalog, F*, bounded model checks | proof/differential oracles | no runtime authority |
 
 The production computation profile is fail-closed:
@@ -65,12 +65,15 @@ SQLite authority
 
 The executor container runs without network access, with a read-only root/source snapshot, `no-new-privileges`, an explicit minimal capability set, PID/memory/CPU/open-file/per-file-size ceilings, and a fresh writable workspace. Aggregate workspace exhaustion belongs to the disposable outer worker-host quota rather than being delegated to the task container.
 
+Rust is admitted only as a narrow native confinement primitive. `overcenter-exec` binds an exact manifest to a pinned workspace identity, applies Landlock/seccomp confinement, clears ambient environment and inherited file descriptors, then replaces itself with the worker. The current Go pure-computation runner remains the end-to-end computation path; Rust does not own graph eligibility, claims, provider interpretation, settlement, or project truth, and integration between the two execution mechanisms requires its own evidence rather than being assumed.
+
 Run the same supported-slice proof used by CI:
 
 ```sh
 npm run proof:production
 ```
 
+Provider mutation is deliberately outside this supported production slice. The hosted GitHub trust-boundary proof demonstrates physical credential separation and a brokered mutation path, but it does not promote provider mutation into the supported profile. Provider mutation remains a separate evidence surface until its authority binding and exclusive mutation path are themselves carried by production code and proof.
 
 ## What is Overcenter?
 
@@ -111,7 +114,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
-- **The hosted trust-boundary proof separates worker authority from provider mutation authority.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, it emits a candidate effect intent, and a separate trusted broker validates, reserves, and performs the provider mutation before fresh-generation recovery settles from authoritative readback.
+- **The hosted trust-boundary proof demonstrates physical credential separation for one GitHub mutation path.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, and a separate trusted broker performs the mutation before authoritative readback settles the result. This is evidence for the broker architecture, not promotion of provider mutation into the supported production slice.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
 
 The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
@@ -127,6 +130,7 @@ The repository deliberately does **not** establish that:
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
+- the hosted provider-mutation experiments constitute a supported production mutation profile;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
 - direct low-level callers outside `runCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
@@ -140,6 +144,7 @@ The safety claim is narrower: an uncertain or even locally hostile worker does n
 src/          reusable reference mechanism and trusted executor client
 contracts/    versioned machine-readable data contracts
 executor/     Go physical computation executor
+runtime/      narrow native execution/confinement substrates
 test/         focused invariants of that mechanism
 experiments/  executable empirical and adversarial proofs
 formal/       machine-checked safety model and negative controls
@@ -170,6 +175,9 @@ Important entry points:
 - [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
 - [`src/computation-runner.ts`](./src/computation-runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
 - [`src/go-executor-client.ts`](./src/go-executor-client.ts) - Unix-socket client for an isolated physical executor.
+- [`src/execution-manifest.ts`](./src/execution-manifest.ts) - canonical exact-byte manifest for the Rust confinement launcher.
+- [`src/confined-executor.ts`](./src/confined-executor.ts) - trusted TypeScript transport that sends exactly the hashed manifest bytes to the native launcher.
+- [`runtime/overcenter-exec/`](./runtime/overcenter-exec/README.md) - Rust Landlock/seccomp worker-confinement substrate; physical confinement only, with no project-state authority.
 - [`contracts/computation-execution-v1/`](./contracts/computation-execution-v1/) - shared versioned wire contract and conformance corpus.
 - [`executor/`](./executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
@@ -186,7 +194,7 @@ The command name states what kind of evidence a green check supports:
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
 | `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
-| `npm run proof:production` | Supported SQLite + Go computation slice, containment, recovery, and deterministic regression. |
+| `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression. |
 | Lean semantic-oracle CI | Bounded exhaustive agreement between selected production TypeScript semantics and the exact pinned Lean reference. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
@@ -198,13 +206,14 @@ Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
 - Go at the exact runtime version declared in [`.go-version`](./.go-version) for the physical computation executor (`executor/go.mod` remains the Go language/module compatibility declaration);
+- Rust at the exact version declared in [`rust-toolchain.toml`](./rust-toolchain.toml) for the native worker-confinement substrate;
 - Docker for the catastrophic executor-death containment proof; executor base images are pinned by immutable digest in [`executor/runtime-images.json`](./executor/runtime-images.json);
 - Git;
 - Java 21 for the TLA+ model;
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
 - GitHub CLI authentication for `proof:live`.
 
-Runtime configuration is intentionally narrow. Overcenter does not define a general `.env` surface: authority database paths, socket locations, exact revisions, and execution identity are explicit arguments or protocol data. `GITHUB_TOKEN` is the credential spelling used by the GitHub authority CLI. `TLA2TOOLS_JAR` is a developer/formal-proof override only, and its bytes are still checked against the pinned SHA-256 before use. `OVERCENTER_*` variables used inside CI proof harnesses are internal process handoffs, not supported operator configuration.
+Runtime configuration is intentionally narrow. Overcenter does not define a general `.env` surface: authority database paths, socket locations, exact revisions, executor image selection, and execution identity are explicit arguments or protocol data. `GITHUB_TOKEN` is the credential spelling used by the GitHub authority CLI. `TLA2TOOLS_JAR` is a developer/formal-proof override only, and its bytes are still checked against the pinned SHA-256 before use. `OVERCENTER_EXECUTOR_IMAGE` is an internal handoff used only by the production containment proof between its build script and container test; it is not supported operator configuration. Task-scoped variables such as `OVERCENTER_SOURCE_SHA` are explicit `ProcessSpec` data delivered to the contained task, not ambient host configuration.
 
 The focused underlying commands remain available when debugging a particular claim:
 

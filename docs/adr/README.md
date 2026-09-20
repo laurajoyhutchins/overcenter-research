@@ -29,3 +29,5 @@ Use one ADR per decision. Do not accumulate unrelated decisions into a rolling a
 | [ADR-0004](./0004-certified-github-read-plumbing.md) | Accepted | Share mechanical GitHub observation/certification plumbing without sharing provider meaning. |
 | [ADR-0005](./0005-independent-oracles-remain-independent.md) | Accepted | Preserve independent experimental oracles and reference implementations when their independence is evidence. |
 | [ADR-0006](./0006-lean-semantic-reference-and-proof-oracle.md) | Accepted | Use Lean as an executable semantic reference and proof oracle, not a production runtime dependency. |
+| [ADR-0007](./0007-authoritative-merge-gate.md) | Accepted | Require one stable merge gate over the exact core evidence for a source revision. |
+| [ADR-0008](./0008-rust-native-worker-confinement.md) | Accepted | Admit Rust only for a narrow native worker-confinement substrate; keep authority semantics in TypeScript. |

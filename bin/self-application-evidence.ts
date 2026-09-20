@@ -34,8 +34,6 @@ import {
 } from '../src/production-containment.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
-const image=process.env.OVERCENTER_DOGFOOD_IMAGE;
-if (!image) throw new Error('OVERCENTER_DOGFOOD_IMAGE is required');
 
 function option(name:string):string|null {
   const index=process.argv.indexOf(name);
@@ -44,6 +42,9 @@ function option(name:string):string|null {
   if (!value || value.startsWith('--')) throw new Error(`${name} requires a value`);
   return value;
 }
+
+const image=option('--image');
+if (!image) throw new Error('--image is required');
 
 const sourceSha=option('--source-sha')?.toLowerCase();
 if (!sourceSha || !/^[0-9a-f]{40,64}$/.test(sourceSha)) {
@@ -58,11 +59,11 @@ const checkedOutSha=execFileSync(
 ).trim().toLowerCase();
 if (checkedOutSha!==sourceSha) {
   throw new Error(
-    `DOGFOOD_CHECKOUT_REVISION_MISMATCH:expected=${sourceSha}:actual=${checkedOutSha}`,
+    `SELF_APPLICATION_CHECKOUT_REVISION_MISMATCH:expected=${sourceSha}:actual=${checkedOutSha}`,
   );
 }
 
-const scratch=mkdtempSync(join(tmpdir(),'overcenter-self-dogfood-'));
+const scratch=mkdtempSync(join(tmpdir(),'overcenter-self-application-'));
 const workspace=join(scratch,'workspace');
 const attestations=join(scratch,'authority-attestations');
 const control=join(scratch,'control');
@@ -81,11 +82,11 @@ const sourceExtract=spawnSync(
 );
 if (sourceExtract.status!==0) {
   throw new Error(
-    `DOGFOOD_SOURCE_SNAPSHOT_EXTRACTION_FAILED:${sourceExtract.stderr?.toString('utf8')??''}`,
+    `SELF_APPLICATION_SOURCE_SNAPSHOT_EXTRACTION_FAILED:${sourceExtract.stderr?.toString('utf8')??''}`,
   );
 }
 if (existsSync(join(sourceRoot,'.git'))) {
-  throw new Error('DOGFOOD_SOURCE_SNAPSHOT_CONTAINS_GIT_METADATA');
+  throw new Error('SELF_APPLICATION_SOURCE_SNAPSHOT_CONTAINS_GIT_METADATA');
 }
 mkdirSync(workspace,{recursive:true});
 chmodSync(workspace,0o777);
@@ -94,7 +95,7 @@ mkdirSync(control,{recursive:true});
 chmodSync(control,0o750);
 
 let sequence=0;
-const label=`overcenter.self-dogfood=${process.pid}`;
+const label=`overcenter.self-application=${process.pid}`;
 const npmCli='/usr/local/lib/node_modules/npm/bin/npm-cli.js';
 
 function docker(args:string[]):string {
@@ -104,7 +105,7 @@ function docker(args:string[]):string {
 function executionContextSha256():string {
   const imageId=docker(['image','inspect',image!,'--format','{{.Id}}']).trim();
   const bytes=JSON.stringify({
-    schema:'overcenter-dogfood-execution-context-v1',
+    schema:'overcenter-self-application-execution-context-v1',
     image_id:imageId,
     source_sha:sourceSha,
     containment:PRODUCTION_COMPUTATION_CONTAINMENT,
@@ -144,8 +145,8 @@ interface ExecutorHarness {
 async function startExecutor():Promise<ExecutorHarness> {
   const id=sequence++;
   const socketPath=join(control,`executor-${id}.sock`);
-  const container=`overcenter-self-dogfood-${process.pid}-${id}`;
-  const containmentId=`overcenter-dogfood-${randomUUID()}`;
+  const container=`overcenter-self-application-${process.pid}-${id}`;
+  const containmentId=`overcenter-self-application-${randomUUID()}`;
   const contextSha256=executionContextSha256();
   const gid=process.getgid?.();
   if (gid===undefined) throw new Error('host gid unavailable');
@@ -180,11 +181,11 @@ async function startExecutor():Promise<ExecutorHarness> {
       container,
     ]).trim();
     if (running!=='true') {
-      throw new Error(`dogfood executor exited early: ${docker(['logs',container])}`);
+      throw new Error(`self-application executor exited early: ${docker(['logs',container])}`);
     }
     await new Promise(resolve=>setTimeout(resolve,25));
   }
-  if (!existsSync(socketPath)) throw new Error('dogfood executor socket never appeared');
+  if (!existsSync(socketPath)) throw new Error('self-application executor socket never appeared');
 
   const client=new GoExecutorClient({
     socketPath,
@@ -271,7 +272,7 @@ function assertNoEffectReservations():void {
     `).get() as {count:number|bigint};
     if (Number(row.count)!==0) {
       throw new Error(
-        `pure dogfood computation reserved ${String(row.count)} external effects`,
+        `pure self-application computation reserved ${String(row.count)} external effects`,
       );
     }
   } finally {
@@ -342,11 +343,11 @@ try {
         status:work.status,
         explanation:kernel.explain(work.id),
       }));
-      throw new Error(`self-dogfood stalled: ${JSON.stringify(details)}`);
+      throw new Error(`self-application stalled: ${JSON.stringify(details)}`);
     }
     if (attempted.has(ready.id)) {
       throw new Error(
-        `self-dogfood task remained READY after one exact attempt: ${JSON.stringify(kernel.explain(ready.id))}`,
+        `self-application task remained READY after one exact attempt: ${JSON.stringify(kernel.explain(ready.id))}`,
       );
     }
     attempted.add(ready.id);
@@ -355,18 +356,18 @@ try {
       ? [regressionMarker,regressionContent]
       : ready.id==='self-experiments'
         ? [experimentsMarker,experimentsContent]
-        : (()=>{throw new Error(`unexpected dogfood obligation: ${ready.id}`);})();
+        : (()=>{throw new Error(`unexpected self-application obligation: ${ready.id}`);})();
 
     const result=await runReadyTestComputation(
       kernel,
       attestingExecutor(executor.client,marker,content),
     );
     if (!result || result.work_id!==ready.id) {
-      throw new Error('self-dogfood scheduler/executor disagreement');
+      throw new Error('self-application scheduler/executor disagreement');
     }
 
     process.stdout.write(JSON.stringify({
-      event:'dogfood-attempt',
+      event:'self-application-attempt',
       source_sha:sourceSha,
       work_id:result.work_id,
       state:result.state,
@@ -391,7 +392,7 @@ try {
         failureLines.slice(Math.max(0,index-2),Math.min(failureLines.length,index+24)).join('\n'),
       );
       process.stderr.write(JSON.stringify({
-        event:'dogfood-attempt-diagnostics',
+        event:'self-application-attempt-diagnostics',
         work_id:result.work_id,
         outcome:result.evidence?.outcome??'transport-failure',
         failure_excerpts:failureExcerpts,
@@ -402,7 +403,7 @@ try {
         containment:executor.diagnostics(),
       })+'\n');
       throw new Error(
-        `self-dogfood evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
+        `self-application evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
       );
     }
   }
@@ -433,7 +434,7 @@ try {
   assert.ok(receipts.every(receipt=>receipt.disposition==='DONE' && receipt.verified));
 
   const report={
-    schema:'overcenter-self-dogfood-v1',
+    schema:'overcenter-self-application-v1',
     source_sha:sourceSha,
     authority_head:authorityHead,
     work:reconstructedWork,
