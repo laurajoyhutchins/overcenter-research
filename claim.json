@@ -1,0 +1,8 @@
+{
+  "schema": "overcenter-git-claim-v3",
+  "run_id": "5b4e9923-189a-4b3a-851f-716d0be75cd5",
+  "obligation_id": "github-agent-ingress-5748411978",
+  "claimed_revision": "766df0a5cb89045b98b8e1347e9040dda3fbbceb",
+  "obligation_key": "b05fd1a69049181c4d94e1ae472ac2a97fb48424945e50fb2dc5490f6321917d",
+  "execution_capability_sha256": "ce6401263692c7cd9cb23fb6ccaa7b8da540c4c14b775075d931469d1a8c5dd1"
+}
