@@ -5,7 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { OvercenterKernel } from '../../src/kernel.ts';
 
+const sqliteSourceUrl = new URL('../../src/kernel.ts', import.meta.url).href;
 const sourceUrl = new URL('../../src/git-kernel.ts', import.meta.url).href;
 const pc = (path: string, content: string) => ({
   verifier: 'file-content-equals/v1' as const,
@@ -50,28 +52,115 @@ async function wait(paths:string[]) {
   throw new Error('barrier timeout');
 }
 
-test('two independent obligations can remain EXECUTING simultaneously', () => {
-  const f=fixture();
+test('generic workers independently consume a parallel graph frontier', async () => {
+  const root=mkdtempSync(join(tmpdir(),'overcenter-parallel-frontier-'));
+  const barrier=mkdtempSync(join(tmpdir(),'overcenter-parallel-frontier-barrier-'));
+  const database=join(root,'authority.sqlite');
+  const kernel=new OvercenterKernel(database);
+  const path=(name:string)=>join(root,name);
+
   try {
-    f.kernel.define({id:'a',postcondition:pc(f.path('a'),'A')});
-    f.kernel.define({id:'b',postcondition:pc(f.path('b'),'B')});
+    kernel.initialize();
+    kernel.define({
+      id:'seed',
+      packet:{path:path('seed'),content:'seed'},
+      postcondition:pc(path('seed'),'seed'),
+    });
+    for (const id of ['left','right']) {
+      kernel.define({
+        id,
+        dependencies:[{kind:'control',upstream:'seed'}],
+        packet:{branch:id,path:path(id),content:id},
+        postcondition:pc(path(id),id),
+      });
+    }
+    kernel.define({
+      id:'join',
+      dependencies:[
+        {kind:'control',upstream:'left'},
+        {kind:'control',upstream:'right'},
+      ],
+      packet:{path:path('join'),content:'join'},
+      postcondition:pc(path('join'),'join'),
+    });
 
-    const first=f.kernel.deriveReadyWork()!;
-    assert.equal(first.id,'a');
-    const runA=f.kernel.claim('a',first.revision);
+    const seed=kernel.deriveReadyWork()!;
+    assert.equal(seed.id,'seed');
+    const seedRun=kernel.claim(seed.id,seed.revision);
+    writeFileSync(path('seed'),'seed');
+    assert.equal(kernel.resolve(seedRun).disposition,'DONE');
 
-    const second=f.kernel.deriveReadyWork()!;
-    assert.equal(second.id,'b');
-    const runB=f.kernel.claim('b',second.revision);
+    const start=join(barrier,'start');
+    const go=join(barrier,'go');
+    const armed=[join(barrier,'armed-1'),join(barrier,'armed-2')];
+    const ready=[join(barrier,'ready-1'),join(barrier,'ready-2')];
+    const code=`
+      import { existsSync, writeFileSync } from 'node:fs';
+      import { OvercenterKernel, runCoreLoop } from ${JSON.stringify(sqliteSourceUrl)};
+      const [database,armed,ready,start,go]=process.argv.slice(1);
+      const kernel=new OvercenterKernel(database);
+      try {
+        writeFileSync(armed,'armed');
+        while (!existsSync(start)) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);
+        const result=await runCoreLoop(kernel,{
+          maxAdvances:1,
+          effect:async packet=>{
+            writeFileSync(ready,JSON.stringify({branch:packet.branch,pid:process.pid}));
+            while (!existsSync(go)) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);
+            writeFileSync(String(packet.path),String(packet.content));
+            return {kind:'ok'};
+          },
+        });
+        process.stdout.write(JSON.stringify({ok:true,result}));
+      } catch (error) {
+        process.stdout.write(JSON.stringify({ok:false,error:error.message}));
+        process.exitCode=1;
+      } finally {
+        kernel.close();
+      }
+    `;
 
-    assert.deepEqual(
-      f.kernel.inspect().map(work=>[work.id,work.status]),
-      [['a','EXECUTING'],['b','EXECUTING']],
-    );
-    assert.notEqual(runA.id,runB.id);
-    assert.notEqual(runA.claim_commit,runB.claim_commit);
+    const workers=[
+      child(code,[database,armed[0],ready[0],start,go]),
+      child(code,[database,armed[1],ready[1],start,go]),
+    ];
+    await wait(armed);
+    writeFileSync(start,'start');
+    await wait(ready);
+
+    const active=ready.map(file=>JSON.parse(readFileSync(file,'utf8')));
+    assert.deepEqual(active.map(item=>item.branch).sort(),['left','right']);
+    assert.notEqual(active[0].pid,active[1].pid);
+
+    const mid=new Map(kernel.inspect().map(work=>[work.id,work]));
+    for (const id of ['left','right']) {
+      const work=mid.get(id)!;
+      assert.equal(work.status,'EXECUTING');
+      assert.ok(work.run_id);
+      assert.equal(kernel.hasUnresolvedEffect(work.run_id),true);
+    }
+    assert.equal(mid.get('join')?.status,'BLOCKED');
+
+    writeFileSync(go,'go');
+    const results=await Promise.all(workers);
+    assert.ok(results.every(result=>result.exitCode===0),JSON.stringify(results));
+    assert.ok(results.map(result=>JSON.parse(result.stdout))
+      .every(result=>result.ok && result.result.advances===1));
+
+    const after=new Map(kernel.inspect().map(work=>[work.id,work.status]));
+    assert.equal(after.get('left'),'DONE');
+    assert.equal(after.get('right'),'DONE');
+    assert.equal(after.get('join'),'READY');
+
+    const joinWork=kernel.deriveReadyWork()!;
+    assert.equal(joinWork.id,'join');
+    const joinRun=kernel.claim(joinWork.id,joinWork.revision);
+    writeFileSync(path('join'),'join');
+    assert.equal(kernel.resolve(joinRun).disposition,'DONE');
   } finally {
-    rmSync(f.root,{recursive:true,force:true});
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+    rmSync(barrier,{recursive:true,force:true});
   }
 });
 
