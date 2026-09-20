@@ -9,7 +9,9 @@ const original=readFileSync(source,'utf8');
 
 function rejected(name,mutate,needle){
   const path='contracts/observation-evidence-v1/.settlement-observation-'+name+'.typebox.ts';
-  writeFileSync(path,mutate(original));
+  const changed=mutate(original);
+  assert.notEqual(changed,original,name+' mutation did not modify the source fixture');
+  writeFileSync(path,changed);
   try {
     const result=spawnSync(
       process.execPath,
@@ -35,8 +37,8 @@ test('projection fails closed on source-only structural mutations',()=>{
   rejected(
     'enum',
     source=>source.replace(
-      "    'kubernetes-configmap-exists/v1',",
-      "    'kubernetes-configmap-exists/v1',\n    'hostile-verifier/v1',",
+      "  'kubernetes-configmap-exists/v1',",
+      "  'kubernetes-configmap-exists/v1',\n  'hostile-verifier/v1',",
     ),
     'hostile-verifier',
   );
