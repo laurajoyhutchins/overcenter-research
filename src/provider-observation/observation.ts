@@ -1,3 +1,9 @@
+import {
+  assertExactKeys as exactKeys,
+  assertNonEmptyString as nonEmptyString,
+  isData as data,
+} from '../validation.ts';
+
 // Provider-neutral evidence envelope only. Provider-specific identity, freshness,
 // completeness, and negative-evidence semantics belong outside this module.
 export type ObservationVisibility = 'observed' | 'not-observed' | 'indeterminate';
@@ -54,31 +60,6 @@ export interface ProviderObservationValidationOptions {
   outcomeExtensions?: readonly string[];
 }
 
-function data(value:unknown):value is Record<string,unknown> {
-  return !!value && typeof value==='object' && !Array.isArray(value);
-}
-
-function exactKeys(
-  value:Record<string,unknown>,
-  required:readonly string[],
-  optional:readonly string[]=[],
-  error='PROVIDER_OBSERVATION_SHAPE_INVALID',
-):void {
-  const allowed=new Set([...required,...optional]);
-  for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) throw new Error(`${error}:UNKNOWN_FIELD:${key}`);
-  }
-  for (const key of required) {
-    if (!(key in value)) throw new Error(`${error}:MISSING_FIELD:${key}`);
-  }
-}
-
-function nonEmptyString(value:unknown,error:string):asserts value is string {
-  if (typeof value!=='string' || value.length===0 || value.includes('\0')) {
-    throw new Error(error);
-  }
-}
-
 export function validateProviderObservationEnvelope(
   value:unknown,
   {
@@ -101,6 +82,7 @@ export function validateProviderObservationEnvelope(
       ...requiredExtensionNames,
     ],
     ['structural_validation','revalidated_from',...topLevelExtensions],
+    'PROVIDER_OBSERVATION_SHAPE_INVALID',
   );
   for (const [name,kind] of Object.entries(requiredTopLevelExtensions)) {
     if (kind==='non-empty-string') {
