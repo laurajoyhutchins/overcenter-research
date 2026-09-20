@@ -197,7 +197,7 @@ theorem projected_mutation_sound
     currentMutationAuthority run permit = true ∧
     exactMutationRevision run permit = true ∧
     unresolvedEffect = false := by
-  simpa [mutationAllowed, projectMutationFacts] using h
+  simpa [mutationAllowed, projectMutationFacts, and_assoc] using h
 
 theorem step_refines
     {s s' : TransactionFacts}
