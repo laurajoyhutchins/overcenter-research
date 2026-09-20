@@ -13,20 +13,24 @@ cd "$repo_root"
 image="overcenter-executor-production-proof:${GITHUB_SHA:-local}"
 go_version="$(tr -d '\r\n' < .go-version)"
 node_version="$(tr -d '\r\n' < .node-version)"
-go_image="$(node -e "const x=require('./executor/runtime-images.json'); process.stdout.write(x.go_build)")"
 node_image="$(node -e "const x=require('./executor/runtime-images.json'); process.stdout.write(x.node_runtime)")"
+build_dir=".overcenter-build"
+
+test "$(go env GOVERSION)" = "go${go_version}"
+rm -rf "$build_dir"
+mkdir -p "$build_dir"
+trap 'rm -rf "$build_dir"' EXIT
 
 (
   cd executor
   go test ./...
+  CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "../$build_dir/overcenter-executor" ./cmd/overcenter-executor
 )
 
 npm run test:computation-executor
 
 docker build \
-  --build-arg GO_IMAGE="$go_image" \
   --build-arg NODE_IMAGE="$node_image" \
-  --build-arg GO_VERSION="$go_version" \
   --build-arg NODE_VERSION="$node_version" \
   -f executor/containment/Dockerfile \
   -t "$image" \
