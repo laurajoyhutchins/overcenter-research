@@ -52,7 +52,7 @@ structure MutationRunIdentity where
   claimedRevision : String
   claimCommit : String
   obligationKey : String
-  executionGeneration : String
+  executionGeneration : Nat
   executionAuthorityCommit : String
   executionCapabilitySha256 : String
   deriving Repr, BEq
@@ -97,7 +97,7 @@ def projectMutationFacts
 structure EffectReservationIdentity where
   runId : String
   obligationId : String
-  executionGeneration : String
+  executionGeneration : Nat
   executionAuthorityCommit : String
   deriving Repr, BEq
 
@@ -128,7 +128,7 @@ structure ReceiptIdentity where
   obligationId : String
   claimedRevision : String
   claimCommit : String
-  executionGeneration : String
+  executionGeneration : Nat
   executionAuthorityCommit : String
   deriving Repr, BEq
 
@@ -153,6 +153,31 @@ theorem receipt_replay_sound
     receipt.executionGeneration = run.executionGeneration ∧
     receipt.executionAuthorityCommit = run.executionAuthorityCommit := by
   simpa [receiptReplayAllowed] using h
+
+structure ExecutionAuthorityIdentity where
+  runId : String
+  obligationId : String
+  generation : Nat
+  previousAuthorityCommit : String
+  deriving Repr, BEq
+
+def executionAuthorityAdvanceAllowed
+    (run : MutationRunIdentity)
+    (authority : ExecutionAuthorityIdentity) : Bool :=
+  authority.runId == run.id &&
+  authority.obligationId == run.obligationId &&
+  authority.generation == run.executionGeneration + 1 &&
+  authority.previousAuthorityCommit == run.executionAuthorityCommit
+
+theorem execution_authority_advance_sound
+    (run : MutationRunIdentity)
+    (authority : ExecutionAuthorityIdentity)
+    (h : executionAuthorityAdvanceAllowed run authority = true) :
+    authority.runId = run.id ∧
+    authority.obligationId = run.obligationId ∧
+    authority.generation = run.executionGeneration + 1 ∧
+    authority.previousAuthorityCommit = run.executionAuthorityCommit := by
+  simpa [executionAuthorityAdvanceAllowed] using h
 
 def mutationAllowed (s : TransactionFacts) : Bool :=
   s.currentAuthority && s.exactRevision && !s.unresolvedEffect
