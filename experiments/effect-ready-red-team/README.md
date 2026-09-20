@@ -34,9 +34,11 @@ trusted dispatch
 
 ## Regression 1: late session rebinding
 
-The TaskSession is minted by trusted dispatch before the worker starts. If
-execution authority rotates before the worker result is accepted, that original
-session is stale and the result cannot become an accepted realization.
+The TaskSession is minted by trusted dispatch before the worker starts. The
+worker result envelope carries that exact session identity. If execution
+authority rotates before the result is accepted, the original session is stale;
+if a broker reconstructs a newer session, the old result fails with a session
+mismatch instead of inheriting the newer authority.
 
 ## Regression 2: observation is not mutation authority
 
