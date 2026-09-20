@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   CLAIM_SCHEMA,
+  LEGACY_OBLIGATION_SCHEMA,
   LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
