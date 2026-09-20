@@ -1,11 +1,11 @@
 {
   "schema": "overcenter-git-receipt-v5",
-  "run_id": "02d8736e-cabb-450b-ade9-a30d2794aade",
-  "obligation_id": "concurrency-35497086440-1-beta",
-  "claimed_revision": "49a2bdd2f43eaf89ce27cd3620d9f3d1e4e2703c",
-  "claim_commit": "46cda58246072f8392e8c8f5fb3f22a9d29fb907",
+  "run_id": "ead1acab-24f2-4587-813b-6920c15873b7",
+  "obligation_id": "concurrency-35497086440-1-alpha",
+  "claimed_revision": "f1a9bc4ca8a0a5a6a994951260b27b5665dcde0d",
+  "claim_commit": "49a2bdd2f43eaf89ce27cd3620d9f3d1e4e2703c",
   "execution_generation": 2,
-  "execution_authority_commit": "6f94a8702877bbe9dfcc96932c0129a2ce75c0f3",
+  "execution_authority_commit": "d9609116004de78a8906053ac5e902c1ae69209f",
   "kind": "observation",
   "observed": {
     "verifier": "github-commit-status/v2",
@@ -13,7 +13,7 @@
     "repository_id": 1354872053,
     "repository_full_name": "laurajoyhutchins/overcenter-research",
     "commit_sha": "e8c14e9574c99ec25f7001faadafba8d0c3e93c8",
-    "context": "overcenter/concurrency/35497086440/1/beta",
+    "context": "overcenter/concurrency/35497086440/1/alpha",
     "expected_state": "success",
     "actual_state": "success",
     "mutation_certainty": "present",
@@ -30,7 +30,7 @@
       "requested_repository_full_name": "laurajoyhutchins/overcenter-research",
       "repository": {
         "operation_id": "repos/get",
-        "observed_at": "2026-09-20T07:33:37.911Z",
+        "observed_at": "2026-09-20T07:33:42.146Z",
         "node_id": "R_kgDOUMG09Q",
         "canonical_full_name": "laurajoyhutchins/overcenter-research",
         "validated_paths": [
@@ -46,7 +46,7 @@
       "status_operation_id": "repos/list-commit-statuses-for-ref",
       "pages": [
         {
-          "observed_at": "2026-09-20T07:33:38.236Z",
+          "observed_at": "2026-09-20T07:33:42.497Z",
           "validated_paths": [
             "[].id",
             "[].node_id",
@@ -64,5 +64,5 @@
     }
   },
   "diagnostic": {},
-  "settled_at": "2026-09-20T07:33:38.237Z"
+  "settled_at": "2026-09-20T07:33:42.497Z"
 }
