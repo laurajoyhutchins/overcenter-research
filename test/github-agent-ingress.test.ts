@@ -171,5 +171,7 @@ test('mailbox transport is silent and privileged handling starts at workflow_run
   assert.match(signal,/permissions:\s*\{\}/);
   assert.match(signal,/overcenter\/request\/\*\*/);
   assert.doesNotMatch(signal,/contents:\s*write/);
+  assert.equal(mailbox.includes('request_sha="$REQUEST_EVENT_SHA"'),true);
+  assert.equal(mailbox.includes('${REQUEST_REF#overcenter/request/}'),false);
 });
 
