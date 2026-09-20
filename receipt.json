@@ -1,0 +1,16 @@
+{
+  "schema": "overcenter-git-receipt-v5",
+  "run_id": "d99b2c8e-6914-495c-af10-8b8e1f539b26",
+  "obligation_id": "provider-capability-confinement-35481264388-1",
+  "claimed_revision": "ddb008ef35c01bee149a11268ac6ff7c1ace9a09",
+  "claim_commit": "ab6201fb3980c456f32588a2847a7b12afacbb2a",
+  "execution_generation": 4,
+  "execution_authority_commit": "35d96b369b7f3b3c2905643cfe7e5e9df31d9c6b",
+  "kind": "execution-terminated",
+  "observed": null,
+  "diagnostic": {
+    "source": "capability-confinement-broker-supervisor",
+    "outcome": "failure"
+  },
+  "settled_at": "2026-09-20T01:31:01.921Z"
+}
