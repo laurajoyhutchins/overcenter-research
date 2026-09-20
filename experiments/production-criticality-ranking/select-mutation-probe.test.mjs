@@ -45,6 +45,16 @@ test('observation changes select only verification and absence',()=>{
   });
 });
 
+test('Deployment realization changes select only the focused verifier probe',()=>{
+  assert.deepEqual(select([
+    'src/providers/kubernetes-deployment.ts',
+    'test/kubernetes-deployment-verifier.test.ts',
+  ]),{
+    runProbe:true,
+    mutationProbe:'kubernetes-deployment-realization',
+  });
+});
+
 test('independent targeted regions compose deterministically',()=>{
   assert.deepEqual(select([
     'src/observation.ts',
