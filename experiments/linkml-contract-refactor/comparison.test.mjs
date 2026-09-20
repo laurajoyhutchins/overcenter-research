@@ -123,8 +123,9 @@ function stringLiterals(source) {
 
 function validatorSignature(source) {
   const start=source.indexOf('export function validateObservationEnvelope');
-  const end=source.indexOf('\nfunction readLocalFile',start);
-  assert.ok(start>=0 && end>start,'observation validator body not found');
+  assert.ok(start>=0,'observation validator body not found');
+  const boundary=source.indexOf('\nfunction readLocalFile',start);
+  const end=boundary<0 ? source.length : boundary;
   const body=source.slice(start,end);
   const requiredMatch=body.match(/const required=\[([\s\S]*?)\];/);
   const optionalMatch=body.match(/const optional=\[([\s\S]*?)\];/);
