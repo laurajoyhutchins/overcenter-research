@@ -348,9 +348,10 @@
         "A semantic-key mismatch remains structurally valid in LinkML and is rejected by an independent Overcenter semantic check."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
+        "evaluated_revision": "0f7758293653e3d07a82e096d73b87186cf90d6b",
         "artifacts": [
-          "Earlier evidence superseded after discovering missing linkml:types import; corrected exact-head proof requested for the strengthened scalar-fidelity experiment."
+          "GitHub Actions run 35484865636: corrected exact-head LinkML ontology experiment passed 5/5; scalar fidelity, projection behavior, and the semantic-boundary negative control all passed."
         ]
       },
       "interpretation": "A positive result supports LinkML only as structural vocabulary/projection tooling; semantic authority remains in deterministic Overcenter mechanisms.",
