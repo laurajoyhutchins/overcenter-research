@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { canonicalDigest, sha256 } from '../src/digest.ts';
 import {
+  externalEffectIdentity,
   realizationObligationKey,
   reusableRealization,
   verifyRealizationCandidate,
@@ -120,4 +121,20 @@ test('external effects cannot become historical cache hits even with a hostile m
     reason:'CURRENT_OBSERVATION_REQUIRED',
     obligation_key:key,
   });
+});
+
+test('external effect identity binds semantic obligation and exact run',()=>{
+  const a=contract({reuse_mode:'external-effect'});
+  const b=contract({
+    reuse_mode:'external-effect',
+    source_inputs:{commit:'2222222222222222222222222222222222222222'},
+  });
+
+  assert.equal(externalEffectIdentity(a,'run-a'),externalEffectIdentity(a,'run-a'));
+  assert.notEqual(externalEffectIdentity(a,'run-a'),externalEffectIdentity(a,'run-b'));
+  assert.notEqual(externalEffectIdentity(a,'run-a'),externalEffectIdentity(b,'run-a'));
+  assert.throws(
+    ()=>externalEffectIdentity(contract(),'run-a'),
+    /EXTERNAL_EFFECT_IDENTITY_REQUIRES_EXTERNAL_EFFECT/,
+  );
 });
