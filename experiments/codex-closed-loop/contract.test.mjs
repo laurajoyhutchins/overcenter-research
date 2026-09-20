@@ -41,3 +41,12 @@ test('worker candidate is path-confined before settlement',()=>{
   assert.match(workflow,/git apply --check/);
   assert.match(workflow,/git diff --summary HEAD -- "\$TARGET_PATH"/);
 });
+
+test('connector invocation is an exact owner-gated mailbox command',()=>{
+  assert.match(workflow,/issue_comment:\n    types: \[created\]/);
+  const prepare=workflow.match(/\n  prepare:[\s\S]*?\n  worker:/)?.[0]??'';
+  assert.match(prepare,/github\.event_name == 'workflow_dispatch'/);
+  assert.match(prepare,/github\.event\.issue\.number == 150/);
+  assert.match(prepare,/github\.actor == github\.repository_owner/);
+  assert.match(prepare,/github\.event\.comment\.body == '\/overcenter codex-witness'/);
+});
