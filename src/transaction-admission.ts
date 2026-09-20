@@ -6,18 +6,20 @@ export type TransactionAdmission =
   | {command:'replay';current_authority:boolean;exact_revision:boolean;verified_absent:boolean;verified_exact_revision:boolean}
   | {command:'done';settlement_completed:boolean;settlement_was_authorized:boolean;settlement_evidence_matches:boolean;verified_present:boolean;verified_exact_revision:boolean;evidence_valid:boolean};
 
-export interface MutationAuthorityProjection {
+export interface ExecutionAuthorityProjection {
   current_authority:boolean;
   exact_revision:boolean;
+}
+
+export interface MutationAuthorityProjection extends ExecutionAuthorityProjection {
   unresolved_effect:boolean;
 }
 
-export function projectMutationAuthority(
+export function projectExecutionAuthority(
   run:Run|undefined,
   permit:ExecutionPermit,
   capabilitySha256:string,
-  unresolvedEffect:boolean,
-):MutationAuthorityProjection {
+):ExecutionAuthorityProjection {
   return {
     current_authority:run!==undefined
       && permit.id===run.id
@@ -30,6 +32,17 @@ export function projectMutationAuthority(
       && permit.claimed_revision===run.claimed_revision
       && permit.claim_commit===run.claim_commit
       && permit.obligation_key===run.obligation_key,
+  };
+}
+
+export function projectMutationAuthority(
+  run:Run|undefined,
+  permit:ExecutionPermit,
+  capabilitySha256:string,
+  unresolvedEffect:boolean,
+):MutationAuthorityProjection {
+  return {
+    ...projectExecutionAuthority(run,permit,capabilitySha256),
     unresolved_effect:unresolvedEffect,
   };
 }
