@@ -315,6 +315,7 @@ test('production transaction admission exhaustively agrees with proved Lean step
   }finally{
     await oracle.close();
   }
+  console.log('LEAN_TRANSACTION_ORACLE '+JSON.stringify({states:1<<keys.length,oracle_sha:oracleSha}));
 });
 
 test('production kernel enforces transaction admission at the effect boundary',()=>{
