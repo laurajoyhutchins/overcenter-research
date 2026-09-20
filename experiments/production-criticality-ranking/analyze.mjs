@@ -350,10 +350,17 @@ export function analyze({root,config}){
     const denominator=stats.resolvedInternalCalls+stats.unresolvedInternalCalls+stats.unknownCalls;
     return [scope,{...stats,internalResolutionRate:denominator?stats.resolvedInternalCalls/denominator:1}];
   }));
+  const scopeByUnitId=new Map(units.map(unit=>[unit.id,unit.scope]));
   for(const [scope,minimum] of Object.entries(config.graphQuality?.minimumResolution??{})){
     const actual=resolutionByScope[scope]?.internalResolutionRate;
     if(actual===undefined) throw new Error(`graph quality names unknown scope ${scope}`);
-    if(actual<minimum) throw new Error(`graph resolution for ${scope} fell below floor: ${actual.toFixed(4)} < ${Number(minimum).toFixed(4)}`);
+    if(actual<minimum){
+      const examples=unresolvedCallsites
+        .filter(callsite=>scopeByUnitId.get(callsite.caller)===scope)
+        .slice(0,8)
+        .map(callsite=>`${callsite.caller} -> ${callsite.expression} at ${callsite.file}:${callsite.line}`);
+      throw new Error(`graph resolution for ${scope} fell below floor: ${actual.toFixed(4)} < ${Number(minimum).toFixed(4)}${examples.length?`; unresolved examples: ${examples.join('; ')}`:''}`);
+    }
   }
   const criticalUnits=new Set([
     ...authority.map(a=>a.unit.id),
