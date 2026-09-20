@@ -38,8 +38,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
@@ -62,8 +60,6 @@ jobs:
       outcome: ${{ steps.agent.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
@@ -76,8 +72,8 @@ jobs:
           WRITE_CONTEXT_CASE: upper
         run: node --experimental-strip-types experiments/conflicting-effect/agent.ts
 
-  recover-alpha:
-    name: Settle ordered alpha
+  advance-beta:
+    name: Settle ordered alpha and claim ordered beta
     needs: alpha
     if: ${{ always() && needs.alpha.outputs.outcome == 'failure' }}
     runs-on: ubuntu-24.04
@@ -85,42 +81,25 @@ jobs:
     permissions:
       contents: write
       statuses: read
-    env:
-      SLOT: alpha
-      AGENT_OUTCOME: ${{ needs.alpha.outputs.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
-      - env:
+      - name: Settle ordered alpha
+        env:
           GITHUB_TOKEN: ${{ github.token }}
+          SLOT: alpha
+          AGENT_OUTCOME: ${{ needs.alpha.outputs.outcome }}
         run: node --experimental-strip-types experiments/conflicting-effect/recovery.ts
-
-  claim-beta:
-    name: Claim ordered beta after alpha
-    needs: recover-alpha
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      statuses: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version-file: '.node-version'
-      - env:
+      - name: Claim ordered beta after alpha
+        env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --experimental-strip-types experiments/conflicting-effect/guard-claim-beta.ts
 
   beta:
     name: Ordered beta writes failure
-    needs: claim-beta
+    needs: advance-beta
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -130,8 +109,6 @@ jobs:
       outcome: ${{ steps.agent.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
@@ -157,8 +134,6 @@ jobs:
       AGENT_OUTCOME: ${{ needs.beta.outputs.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
@@ -176,8 +151,6 @@ jobs:
       statuses: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'

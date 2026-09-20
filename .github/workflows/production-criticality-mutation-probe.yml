@@ -16,6 +16,8 @@ on:
       - 'experiments/production-criticality-ranking/summarize-mutation.mjs'
       - 'experiments/production-criticality-ranking/summarize-mutation.test.mjs'
       - 'experiments/production-criticality-ranking/emit-mutation-evidence.mjs'
+      - 'experiments/production-criticality-ranking/select-mutation-probe.mjs'
+      - 'experiments/production-criticality-ranking/select-mutation-probe.test.mjs'
       - 'experiments/production-criticality-ranking/verify-mutation-evidence.mjs'
       - 'experiments/production-criticality-ranking/verify-mutation-evidence.test.mjs'
       - 'experiments/production-criticality-ranking/mutation-evidence.json'
@@ -41,22 +43,8 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - id: evidence
-        name: Check current mutation evidence blobs
-        run: |
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import {execFileSync} from 'node:child_process';
-          const snapshot=JSON.parse(fs.readFileSync('experiments/production-criticality-ranking/mutation-evidence.json','utf8'));
-          let current=true;
-          for(const probe of snapshot.probes??[]){
-            for(const [file,expected] of Object.entries(probe.source_blobs??{})){
-              const actual=execFileSync('git',['hash-object',file],{encoding:'utf8'}).trim();
-              if(actual!==expected) current=false;
-            }
-          }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT,`current=${current}\n`);
-          NODE
+      - name: Prove mutation selector
+        run: node --test experiments/production-criticality-ranking/select-mutation-probe.test.mjs
       - id: changed
         name: Detect mutation-relevant change
         env:
@@ -66,39 +54,16 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo "run_probe=true" >> "$GITHUB_OUTPUT"
-            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
+            node experiments/production-criticality-ranking/select-mutation-probe.mjs "$EVENT_NAME" </dev/null >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [[ -z "$BASE" || -z "$HEAD" ]]; then
             echo "mutation probe cannot establish the full pull-request revision range" >&2
             exit 1
           fi
-
-          changed="$(git diff --name-only "$BASE" "$HEAD")"
-          relevant="$(printf '%s\n' "$changed" | grep -E '^(src/(digest|semantic-identity|projector|kernel-core|observation)\.ts|test/(hostile|.*-hostile)\.test\.ts|experiments/production-criticality-ranking/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs)|\.github/workflows/production-criticality-mutation-probe\.yml)$' || true)"
-          if [[ -z "$relevant" ]]; then
-            echo "run_probe=false" >> "$GITHUB_OUTPUT"
-            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          probes=()
-          if printf '%s\n' "$changed" | grep -Eq '^(src/semantic-identity\.ts|test/semantic-identity-hostile\.test\.ts)$'; then
-            probes+=("semantic-identity")
-          fi
-          if printf '%s\n' "$changed" | grep -Eq '^(src/observation\.ts|test/observation-hostile\.test\.ts)$'; then
-            probes+=("verification-and-absence")
-          fi
-
-          broad="$(printf '%s\n' "$changed" | grep -E '^(src/(digest|projector|kernel-core)\.ts|experiments/production-criticality-ranking/(mutation-probes\.json|resolve-mutation-probes\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs))$' || true)"
-          echo "run_probe=true" >> "$GITHUB_OUTPUT"
-          if [[ -n "$broad" || ${#probes[@]} -eq 0 ]]; then
-            echo "mutation_probe=" >> "$GITHUB_OUTPUT"
-          else
-            IFS=,
-            echo "mutation_probe=${probes[*]}" >> "$GITHUB_OUTPUT"
-          fi
+          git diff --name-only "$BASE" "$HEAD" \
+            | node experiments/production-criticality-ranking/select-mutation-probe.mjs "$EVENT_NAME" \
+            >> "$GITHUB_OUTPUT"
 
   mutate:
     needs: detect
@@ -110,19 +75,25 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .node-version
+      - id: mutation-tools
+        name: Restore pinned mutation tools
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: node_modules
+          key: mutation-tools-${{ runner.os }}-${{ hashFiles('.node-version', 'package.json') }}-stryker-10.0.0-typescript-5.8.3
       - name: Install pinned mutation engine
+        if: steps.mutation-tools.outputs.cache-hit != 'true'
         run: npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0 typescript@5.8.3
       - name: Resolve semantic mutation probes
         run: node experiments/production-criticality-ranking/resolve-mutation-probes.mjs mutation-ranges.json
       - name: Prove mutation summarizer
         run: node --test experiments/production-criticality-ranking/summarize-mutation.test.mjs
       - name: Probe hostile mutations
-        run: npx stryker run experiments/production-criticality-ranking/stryker.config.mjs
+        run: ./node_modules/.bin/stryker run experiments/production-criticality-ranking/stryker.config.mjs
       - name: Summarize semantic regions
         if: always()
         run: |
