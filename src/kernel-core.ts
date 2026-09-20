@@ -48,7 +48,7 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
-import { projectExecutionAuthority, projectMutationAuthority, transactionAdmitted } from './transaction-admission.ts';
+import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -266,11 +266,10 @@ export class KernelCore {
       const {history,project}=this.#historicalProjection(head);
       const run=history.runs.get(permit.id);
       if (!run) throw new Error('UNKNOWN_RUN');
-      const authority=projectMutationAuthority(
+      const authority=projectExecutionAuthority(
         run,
         permit,
         this.#capabilityDigest(permit.execution_capability),
-        history.unresolvedReservationsByRun.has(run.id),
       );
       if (!authority.current_authority || !authority.exact_revision) {
         throw new Error('STALE_EXECUTION_GENERATION');
@@ -279,9 +278,10 @@ export class KernelCore {
       if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
         throw new Error('RUN_NOT_EXECUTING');
       }
-      if (!transactionAdmitted({command:'mutate',...authority})) {
-        throw new Error('UNRESOLVED_EFFECT');
-      }
+      if (!mutationAdmitted({
+        ...authority,
+        unresolved_effect:history.unresolvedReservationsByRun.has(run.id),
+      })) throw new Error('UNRESOLVED_EFFECT');
 
       const fact:EffectReservationFact={
         schema:EFFECT_RESERVATION_SCHEMA,
