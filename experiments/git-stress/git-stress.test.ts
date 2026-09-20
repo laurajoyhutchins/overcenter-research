@@ -68,7 +68,6 @@ test('reachable state and receipts survive aggressive GC in SHA-256 repo', () =>
     k.initialize();
     k.define({ id: 'x', postcondition: pc(path, 'yes') });
     const run = k.claim('x', k.deriveReadyWork()!.revision);
-    k.beginEffect(run);
     writeFileSync(path, 'yes');
     k.resolve(run);
     const head = k.head();
@@ -135,7 +134,6 @@ test('fresh clone can resolve a remote claim after claimant directory is destroy
     cloneAgent(authority, a);
     const ka = new GitOvercenterKernel(a, { remote: 'origin' });
     const run = ka.claim('x', ka.deriveReadyWork()!.revision);
-    ka.beginEffect(run);
     writeFileSync(world, 'yes');
     rmSync(a, { recursive: true, force: true });
 
