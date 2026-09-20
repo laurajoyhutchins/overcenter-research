@@ -28,9 +28,10 @@
         "Trusted reconstruction and independent observation settle the same run DONE."
       ],
       "evidence": {
-        "state": "hosted",
+        "state": "pending",
         "artifacts": [
-          ".github/workflows/assignment-capsule-proof.yml"
+          ".github/workflows/assignment-capsule-proof.yml",
+          "Hosted runs 35488588703 and 35488740731 previously passed end to end; exact current-head proof reruns on every PR update."
         ]
       },
       "interpretation": "A positive result proves byte-complete assignment plumbing for the bounded workload; it does not make the worker authoritative for success or imply arbitrary toolchain portability.",
