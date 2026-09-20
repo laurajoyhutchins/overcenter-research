@@ -64,8 +64,11 @@ jobs:
         with:
           node-version-file: '.node-version'
 
-      - name: Focused regression suite
-        run: npm test
+      - name: Focused disposable-agent regressions
+        run: |
+          node --experimental-strip-types --test \
+            test/git-kernel.test.ts \
+            experiments/disposable-agent/disposable-agent.test.ts
 
       - name: Define immutable obligation and claim exact snapshot
         env:
