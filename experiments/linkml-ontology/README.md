@@ -189,4 +189,3 @@ This experiment does not show that:
 - LinkML should become authoritative before a production-facing differential
   experiment.
 
-<!-- exact-head-proof-trigger -->
