@@ -94,7 +94,7 @@ test('ranks only production callables and derives structural authority/evidence 
 
 test('fails closed when the static graph becomes blind at critical callables or below configured floors',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-graph-'));
-  write(root,'src/core.ts',`export function settle(fn:()=>number){ return fn(); }\nexport function recover(){ return settle(()=>1); }\n`);
+  write(root,'src/core.ts',`export function settle(){ const runtime:any={invoke:()=>1}; return runtime.invoke(); }\nexport function recover(){ return settle(); }\n`);
   git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
   const base={
     requiredEvidenceTiers:[],
