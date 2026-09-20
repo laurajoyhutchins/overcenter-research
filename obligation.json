@@ -1,0 +1,39 @@
+{
+  "schema": "overcenter-git-obligation-v4",
+  "kind": "defined",
+  "obligation": {
+    "id": "provider-capability-confinement-35481228930-1",
+    "dependencies": [],
+    "packet": {
+      "kind": "provider-capability-confinement/v1",
+      "executor": {
+        "provider": "github-actions/v1",
+        "repository_id": 1354872053,
+        "workflow_run_id": "35481228930",
+        "workflow_run_attempt": "1",
+        "job": "hostile-worker"
+      },
+      "exact_input": {
+        "kind": "git-commit/v1",
+        "repository_id": 1354872053,
+        "commit_sha": "183779854e6fee11c42d0ebc0f9ab3f70c8d8121"
+      }
+    },
+    "postcondition": {
+      "verifier": "github-commit-status/v1",
+      "provider": "github",
+      "repository_id": 1354872053,
+      "commit_sha": "183779854e6fee11c42d0ebc0f9ab3f70c8d8121",
+      "context": "overcenter/capability-confinement/35481228930/1",
+      "expected_state": "success"
+    },
+    "effect_authority": {
+      "contract": "github-commit-status/set-from-postcondition/v1",
+      "adapter_contract_digest": "95c7beb518a1704854dd78ac12ae166fff51990ba32c18afb53ab4fbbe081c6b"
+    },
+    "result_acceptance": {
+      "verifier": "canonical-json-sha256/v1",
+      "expected_sha256": "36ea6a6cbf29394fccfb8c464dd43f7ba5ef7d1b92134b2d6b649b1df9a7c36c"
+    }
+  }
+}
