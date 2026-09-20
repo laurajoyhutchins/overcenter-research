@@ -154,20 +154,25 @@ test('expands interface dispatch to every assignable production implementation',
 });
 
 
-test('does not treat parameter-bound callbacks as missing production edges',()=>{
+test('fails closed on unresolved parameter-bound callbacks in critical production callables',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-callback-'));
   write(root,'src/core.ts',`export function settle(callback:()=>number){ return callback(); }\nexport function recover(){ return settle(()=>1); }\n`);
   git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
-  const config={
+  const base={
     requiredEvidenceTiers:[],
-    graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:true},
     authorityClasses:[{id:'settlement',sink:{file:'src/core.ts',name:'settle'},recoveryClass:5}],
     recoveryScenarios:[{id:'recover-settle',entry:{file:'src/core.ts',name:'recover'},terminal:{file:'src/core.ts',name:'settle'}}],
     requiredCalibrationPairs:[],
     diagnosticCalibrationPairs:[],
   };
-  const r=analyze({root,config});
-  assert.equal(r.analyzer.byScope.production.externalCallbackCalls,1);
-  assert.equal(r.analyzer.byScope.production.unknownCalls,0);
-  assert.equal(r.analyzer.byScope.production.internalResolutionRate,1);
+  assert.throws(
+    ()=>analyze({root,config:{...base,graphQuality:{minimumResolution:{production:0},failOnCriticalUnresolved:true}}}),
+    /critical callable has unresolved callsite/,
+    'critical callback dispatch must not be inferred external merely because it is parameter-bound',
+  );
+  assert.throws(
+    ()=>analyze({root,config:{...base,graphQuality:{minimumResolution:{production:1},failOnCriticalUnresolved:false}}}),
+    /graph resolution for production fell below floor/,
+    'parameter callback dispatch must count against the production resolution floor',
+  );
 });
