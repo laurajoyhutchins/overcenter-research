@@ -1,0 +1,182 @@
+name: Overcenter assignment capsule proof
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  assign:
+    name: Trusted authority — claim and package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      capsule_sha256: ${{ steps.package.outputs.capsule_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Deterministic assignment contract
+        run: npm run test:assignment-capsule
+      - name: Claim one real obligation and package every task byte
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p authority transport
+          node --experimental-strip-types experiments/assignment-capsule/prepare.ts \
+            authority/overcenter.sqlite capsule
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -cf transport/assignment-capsule.tar -C capsule .
+          capsule_sha256="$(sha256sum transport/assignment-capsule.tar | cut -d' ' -f1)"
+          printf '%s  assignment-capsule.tar\n' "${capsule_sha256}" > transport/assignment-capsule.sha256
+          echo "capsule_sha256=${capsule_sha256}" >> "${GITHUB_OUTPUT}"
+      - name: Upload immutable assignment capsule
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-assignment-capsule
+          path: transport
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload trusted authority state
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-assignment-authority
+          path: authority/overcenter.sqlite
+          if-no-files-found: error
+          retention-days: 1
+
+  execute:
+    name: Empty worker — capsule only
+    needs: assign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: Download assignment capsule only
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: overcenter-assignment-capsule
+          path: transport
+      - name: Verify capsule, reject damaged assignments, execute offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .git
+          cd transport
+          sha256sum --check assignment-capsule.sha256
+          test "$(cut -d' ' -f1 assignment-capsule.sha256)" = "${{ needs.assign.outputs.capsule_sha256 }}"
+          mkdir capsule
+          tar -xf assignment-capsule.tar -C capsule
+          cd ..
+
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const source=JSON.parse(fs.readFileSync('transport/capsule/assignment.json','utf8'));
+          const missing=structuredClone(source);
+          missing.files=missing.files.filter(file=>file.path!=='input.txt');
+          fs.writeFileSync('transport/capsule/missing.json',JSON.stringify(missing));
+          const altered=structuredClone(source);
+          const target=altered.files.find(file=>file.path==='input.txt');
+          const bytes=Buffer.from(target.content_base64,'base64');
+          bytes[0]^=1;
+          target.content_base64=bytes.toString('base64');
+          fs.writeFileSync('transport/capsule/altered.json',JSON.stringify(altered));
+          NODE
+
+          if node transport/capsule/contract.mjs run \
+            transport/capsule/missing.json "$RUNNER_TEMP/missing-work" "$RUNNER_TEMP/missing-candidate.json"; then
+            echo '::error::missing assignment byte was accepted'
+            exit 1
+          fi
+          if node transport/capsule/contract.mjs run \
+            transport/capsule/altered.json "$RUNNER_TEMP/altered-work" "$RUNNER_TEMP/altered-candidate.json"; then
+            echo '::error::altered assignment byte was accepted'
+            exit 1
+          fi
+
+          mkdir -p "$RUNNER_TEMP/empty-home"
+          sudo /usr/bin/unshare --net --fork /usr/bin/env -i \
+            PATH="$PATH" HOME="$RUNNER_TEMP/empty-home" \
+            node transport/capsule/contract.mjs run \
+            transport/capsule/assignment.json "$RUNNER_TEMP/assignment-work" "$RUNNER_TEMP/candidate.json"
+          mkdir candidate
+          cp "$RUNNER_TEMP/candidate.json" candidate/candidate.json
+      - name: Upload untrusted candidate bytes
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-assignment-candidate
+          path: candidate/candidate.json
+          if-no-files-found: error
+          retention-days: 1
+
+  settle:
+    name: Trusted authority — observe and settle
+    needs: [assign, execute]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: overcenter-assignment-authority
+          path: authority
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: overcenter-assignment-capsule
+          path: transport
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: overcenter-assignment-candidate
+          path: candidate
+      - name: Reconstruct authority and settle from candidate bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd transport && sha256sum --check assignment-capsule.sha256)
+          test "$(cut -d' ' -f1 transport/assignment-capsule.sha256)" = "${{ needs.assign.outputs.capsule_sha256 }}"
+          mkdir capsule
+          tar -xf transport/assignment-capsule.tar -C capsule
+          report="$(node --experimental-strip-types experiments/assignment-capsule/settle.ts \
+            authority/overcenter.sqlite capsule/assignment.json candidate/candidate.json)"
+          echo "${report}"
+          {
+            echo '### Overcenter assignment capsule proof'
+            echo
+            echo '- real READY work selected and exact revision claimed: passed'
+            echo '- task-specific bytes delivered in one immutable capsule: passed'
+            echo '- worker checkout: none'
+            echo '- worker repository permissions: {}'
+            echo '- worker execution capability: none'
+            echo '- worker outbound network namespace: isolated'
+            echo '- missing-byte negative control: passed'
+            echo '- altered-byte negative control: passed'
+            echo '- exact candidate-to-assignment/run binding: passed'
+            echo '- trusted observation and settlement: DONE'
+            echo
+            echo "    ${report}"
+          } >> "$GITHUB_STEP_SUMMARY"
