@@ -16,6 +16,8 @@ test('Codex is isolated from publication authority',()=>{
   assert.match(workflow,/codex-user: overcenter-codex/);
   const worker=workflow.match(/\n  worker:[\s\S]*?\n  verify:/)?.[0]??'';
   assert.match(worker,/permissions:\n      contents: read/);
+  assert.match(worker,/persist-credentials: false/);
+  assert.match(worker,/chmod -R a-w "\$GITHUB_WORKSPACE\/\.git"/);
   assert.doesNotMatch(worker,/contents: write/);
   assert.doesNotMatch(worker,/pull-requests: write/);
 });
@@ -37,5 +39,5 @@ test('worker candidate is path-confined before settlement',()=>{
   assert.match(workflow,/git diff --name-only HEAD/);
   assert.match(workflow,/git ls-files --others --exclude-standard/);
   assert.match(workflow,/git apply --check/);
-  assert.match(workflow,/git ls-files -s "\$TARGET_PATH"/);
+  assert.match(workflow,/git diff --summary HEAD -- "\$TARGET_PATH"/);
 });
