@@ -567,7 +567,7 @@
       "directory": "experiments/production-latency",
       "readme": "experiments/production-latency/README.md",
       "question": "For one successful production GitHub status transaction, how much latency belongs to Overcenter local correctness machinery versus provider I/O?",
-      "claim": "The benchmark separates SQLite authority, reservation, provider identity, mutation, readback, and local settlement costs while exercising the production GitHub status effect.",
+      "claim": "The benchmark separates SQLite authority, reservation, provider identity, the mutation boundary, readback, and local settlement costs while exercising the unchanged production GitHub status effect.",
       "contrast": "Infer feasibility from whole GitHub Actions job duration or storage microbenchmarks without timing the production transaction boundary.",
       "reproduce": {
         "tier": "benchmark",
@@ -580,15 +580,13 @@
       ],
       "success_criteria": [
         "Every sample claims exact SQLite-backed work and settles DONE from authoritative readback.",
-        "The production status-effect path reports provider identity, effect reservation, and provider mutation timing without an alternate mutation implementation.",
-        "Provider I/O and local Overcenter work are reported separately."
+        "Experiment-only timing wraps the production effect boundary without changing production mutation code.",
+        "Provider-facing I/O and local Overcenter work are reported separately."
       ],
       "evidence": {
-        "state": "historical",
-        "evaluated_revision": "d4673429b490ebf4e50988dd34fdc9ee91cb2bf8",
+        "state": "pending",
         "artifacts": [
-          "GitHub Actions run 35539821372: 25-sample deterministic baseline and 3-sample live GitHub latency decomposition passed.",
-          "experiments/production-latency/results/2026-09-20.md"
+          ".github/workflows/production-latency.yml"
         ]
       },
       "interpretation": "Use the result as a single-operation latency decomposition. Compare provider and Overcenter-local cost; do not extrapolate it directly to concurrency or large-history throughput.",
