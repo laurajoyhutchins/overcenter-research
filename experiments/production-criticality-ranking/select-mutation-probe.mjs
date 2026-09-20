@@ -7,7 +7,7 @@ export const MUTATION_SELECTOR='experiments/production-criticality-ranking/selec
 export const MUTATION_SELECTOR_TEST='experiments/production-criticality-ranking/select-mutation-probe.test.mjs';
 
 const isRelevant=(file)=>
-  /^(src\/(digest|semantic-identity|projector|kernel-core|observation)\.ts|test\/(hostile|.*-hostile)\.test\.ts|experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs))$/.test(file)
+  /^(src\/(digest|semantic-identity|projector|kernel-core|observation)\.ts|src\/providers\/kubernetes-deployment\.ts|test\/(hostile|.*-hostile)\.test\.ts|test\/kubernetes-deployment-verifier\.test\.ts|experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs))$/.test(file)
   || [MUTATION_WORKFLOW,MUTATION_SELECTOR,MUTATION_SELECTOR_TEST].includes(file);
 
 const isBroad=(file)=>
@@ -46,6 +46,12 @@ export function selectMutationProbe({eventName,changed}) {
     || file==='test/observation-hostile.test.ts'
   )) {
     probes.push('verification-and-absence');
+  }
+  if (files.some(file=>
+    file==='src/providers/kubernetes-deployment.ts'
+    || file==='test/kubernetes-deployment-verifier.test.ts'
+  )) {
+    probes.push('kubernetes-deployment-realization');
   }
   if (probes.length>0) {
     return {runProbe:true,mutationProbe:probes.join(',')};
