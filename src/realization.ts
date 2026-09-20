@@ -1,6 +1,7 @@
 import type {
   Obligation,
   ResultAcceptance,
+  TaskSession,
   WorkerResultEnvelope,
 } from './model.ts';
 import { canonicalDigest } from './digest.ts';
@@ -24,15 +25,20 @@ export function validateResultAcceptance(
   }
 }
 
-export function workerResult(result:Record<string,unknown>):WorkerResultEnvelope {
+export function workerResult(
+  session:TaskSession,
+  result:Record<string,unknown>,
+):WorkerResultEnvelope {
   return {
     schema:WORKER_RESULT_SCHEMA,
+    session:structuredClone(session),
     result:structuredClone(result),
   };
 }
 
 export function verifyWorkerResult(
   obligation:Obligation,
+  session:TaskSession,
   candidate:unknown,
 ):VerifiedWorkerResult {
   const acceptance=obligation.result_acceptance;
@@ -45,15 +51,23 @@ export function verifyWorkerResult(
   const record=candidate as Record<string,unknown>;
   const keys=Object.keys(record).sort();
   if (
-    keys.length!==2
+    keys.length!==3
     || keys[0]!=='result'
     || keys[1]!=='schema'
+    || keys[2]!=='session'
     || record.schema!==WORKER_RESULT_SCHEMA
+    || !record.session
+    || typeof record.session!=='object'
+    || Array.isArray(record.session)
     || !record.result
     || typeof record.result!=='object'
     || Array.isArray(record.result)
   ) {
     throw new Error('WORKER_RESULT_INVALID');
+  }
+
+  if (canonicalDigest(record.session)!==canonicalDigest(session)) {
+    throw new Error('WORKER_RESULT_SESSION_MISMATCH');
   }
 
   const resultDigest=canonicalDigest(record.result);
