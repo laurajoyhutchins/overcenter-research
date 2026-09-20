@@ -1,11 +1,11 @@
 {
   "schema": "overcenter-git-receipt-v5",
-  "run_id": "bb590d4e-d72e-45cf-a799-2c876e8486e7",
-  "obligation_id": "concurrency-35485870758-1-beta",
-  "claimed_revision": "0f73a94dadb2d2154b65fbba9891163f6b711eba",
-  "claim_commit": "00463edb08454d54352db28cd5db242d4ca4189f",
+  "run_id": "8e135823-f95d-4077-be48-f3465def1c8c",
+  "obligation_id": "concurrency-35485870758-1-alpha",
+  "claimed_revision": "96c92f85995be6621904557399a926198186aacd",
+  "claim_commit": "0f73a94dadb2d2154b65fbba9891163f6b711eba",
   "execution_generation": 2,
-  "execution_authority_commit": "4c5ff9496a36e3277ea766c850fc59095bdbd4dc",
+  "execution_authority_commit": "a1763062169dfefb517e6e63485ea8fd9763e5da",
   "kind": "observation",
   "observed": {
     "verifier": "github-commit-status/v2",
@@ -13,7 +13,7 @@
     "repository_id": 1354872053,
     "repository_full_name": "laurajoyhutchins/overcenter-research",
     "commit_sha": "4b4582e5b282b3236ab5e4d5e52830aa50aa4fa5",
-    "context": "overcenter/concurrency/35485870758/1/beta",
+    "context": "overcenter/concurrency/35485870758/1/alpha",
     "expected_state": "success",
     "actual_state": "success",
     "mutation_certainty": "present",
@@ -30,7 +30,7 @@
       "requested_repository_full_name": "laurajoyhutchins/overcenter-research",
       "repository": {
         "operation_id": "repos/get",
-        "observed_at": "2026-09-20T03:12:28.169Z",
+        "observed_at": "2026-09-20T03:12:31.716Z",
         "node_id": "R_kgDOUMG09Q",
         "canonical_full_name": "laurajoyhutchins/overcenter-research",
         "validated_paths": [
@@ -46,7 +46,7 @@
       "status_operation_id": "repos/list-commit-statuses-for-ref",
       "pages": [
         {
-          "observed_at": "2026-09-20T03:12:28.463Z",
+          "observed_at": "2026-09-20T03:12:31.995Z",
           "validated_paths": [
             "[].id",
             "[].node_id",
@@ -64,5 +64,5 @@
     }
   },
   "diagnostic": {},
-  "settled_at": "2026-09-20T03:12:28.464Z"
+  "settled_at": "2026-09-20T03:12:31.996Z"
 }
