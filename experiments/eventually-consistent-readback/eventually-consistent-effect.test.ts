@@ -54,6 +54,42 @@ function appendLegacyReservation(
   return commit;
 }
 
+test('modern obligation rejects a forged legacy v1 reservation', () => {
+  const root=mkdtempSync(join(tmpdir(),'overcenter-modern-legacy-reservation-'));
+  const authority=join(root,'authority.git');
+  const readModel=join(root,'read-model.txt');
+
+  try {
+    execFileSync('git',['init','--bare',authority],{stdio:'ignore'});
+    const kernel=new GitOvercenterKernel(authority);
+    kernel.initialize();
+    kernel.define({
+      id:'modern-observe-only',
+      postcondition:{
+        verifier:'eventually-consistent-file-content-equals/v1',
+        path:readModel,
+        content:'created',
+      },
+    });
+    const ready=kernel.deriveReadyWork()!;
+    const run=kernel.claim(ready.id,ready.revision);
+    appendLegacyReservation(authority,run.claim_commit,{
+      schema:LEGACY_EFFECT_RESERVATION_SCHEMA,
+      run_id:run.id,
+      obligation_id:run.obligation_id,
+      execution_generation:run.execution_generation,
+      execution_authority_commit:run.execution_authority_commit,
+    });
+
+    assert.throws(
+      ()=>kernel.inspect(),
+      /LEGACY_EFFECT_RESERVATION_FOR_MODERN_OBLIGATION/,
+    );
+  } finally {
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
 test('eventually consistent negative readback cannot authorize replay after an uncertain effect', () => {
   const root=mkdtempSync(join(tmpdir(),'overcenter-eventual-readback-'));
   const authority=join(root,'authority.git');
