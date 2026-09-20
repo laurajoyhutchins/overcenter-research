@@ -350,7 +350,7 @@
       "evidence": {
         "state": "pending",
         "artifacts": [
-          "Earlier evidence superseded after discovering missing linkml:types import; pending corrected exact-head proof."
+          "Earlier evidence superseded after discovering missing linkml:types import; corrected exact-head proof requested for the strengthened scalar-fidelity experiment."
         ]
       },
       "interpretation": "A positive result supports LinkML only as structural vocabulary/projection tooling; semantic authority remains in deterministic Overcenter mechanisms.",
