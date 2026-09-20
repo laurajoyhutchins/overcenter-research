@@ -106,11 +106,10 @@ node --test experiments/production-criticality-ranking/analyze.test.mjs
 node experiments/production-criticality-ranking/analyze.mjs \
   --config experiments/production-criticality-ranking/config.json \
   --json /tmp/criticality.json \
-  --markdown /tmp/criticality.md \
-  --min-calibration 0.8
+  --markdown /tmp/criticality.md
 ```
 
-The GitHub workflow runs the exact pull-request head with full history (`fetch-depth: 0`) because both the ranking and change exposure are revision-bound evidence. It requires at least 80% pairwise calibration agreement but still reports every disagreement.
+The GitHub workflow runs the exact pull-request head with full history (`fetch-depth: 0`) because both the ranking and change exposure are revision-bound evidence. It requires every named **required** calibration regression to remain satisfied. The known callable-granularity mismatch is retained separately as a diagnostic pair, so one repaired diagnostic cannot mask a newly broken required judgment.
 
 ## Success criteria
 
@@ -118,12 +117,12 @@ The first experiment earns promotion only if:
 
 1. the ranked population contains production callables and nothing else;
 2. all configured authority and recovery selectors resolve exactly once;
-3. internal static call resolution is high enough that the graph is informative; external/library calls are excluded from that denominator and unresolved internal/unknown calls are reported;
-4. the calibration corpus substantially agrees with the previous human ranking;
+3. internal static call resolution is high enough that the graph is informative; external/library calls are excluded from that denominator and unresolved internal/unknown calls are reported. Parameter-bound callbacks inside authority, recovery, or calibration callables fail closed unless the exact caller and parameter are declared in `graphQuality.criticalCallbackBoundaries`; those declarations are selector- and parameter-validated so stale exemptions fail closed;
+4. every named required calibration regression remains satisfied, while known model mismatches remain explicit diagnostics;
 5. surprising ranks can be decomposed into vector components and graph evidence; and
 6. deleting every generated report and recomputing at the same revision produces the same result.
 
-A poor calibration result is evidence against the formula or the callable-level model, not a reason to hand-edit ranks.
+A required calibration regression is evidence against the formula or graph evidence and fails CI individually. A diagnostic disagreement is evidence about the callable-level model and remains visible without consuming a percentage budget. Neither is a reason to hand-edit ranks.
 
 ## First live-run lesson
 
@@ -183,6 +182,8 @@ mutation_gap     = 1 - mutation_score
 E = max(reachability_gap, mutation_gap)
 ```
 
-Mutation evidence is content-addressed by the exact Git blob identities of the production files it exercised. Matching bytes allow evidence reuse across later commits. If any bound blob changes, the affected probe becomes stale and contributes a full evidence gap (`E = 1`) until it is rerun.
+Mutation evidence is content-addressed by the exact Git blob identities of the production files it exercised. Matching bytes allow evidence reuse across later commits. If any bound blob changes, the affected probe becomes stale and contributes a full evidence gap (`E = 1`) until it is rerun. For authority sinks, recovery terminals, and calibration callables, **missing** hostile-case evidence is also a first-class evidence obligation and contributes `E = 1`; absence of evidence is never interpreted as a zero gap.
+
+The checked-in snapshot is a cache of probe evidence, not an authority by itself. CI binds it to the cited successful mutation workflow, artifact digest, mutation-report digest, resolved semantic ranges, and the exact historical Git blobs at that revision. Freshness is a separate question: if current source bytes differ, the analyzer reports the probe as stale and assigns the affected callable a full evidence gap (`E = 1`) instead of treating staleness as a repository-wide merge veto.
 
 This makes mutation output a durable evidence snapshot rather than a 27-minute dependency of every ranking run. The raw mutation score is intentionally conservative: diagnostic/equivalent mutants can overstate the gap, but surviving claim-bearing mutants show that the gap is real. A later experiment should distinguish claim-bearing mutants from diagnostic noise rather than pretending the raw percentage is exact.
