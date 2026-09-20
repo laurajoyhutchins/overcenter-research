@@ -8,6 +8,7 @@ on:
       - 'src/projector.ts'
       - 'src/kernel-core.ts'
       - 'src/observation.ts'
+      - 'test/observation-hostile.test.ts'
       - 'experiments/production-criticality-ranking/mutation-probes.json'
       - 'experiments/production-criticality-ranking/resolve-mutation-probes.mjs'
       - 'experiments/production-criticality-ranking/stryker.config.mjs'
@@ -53,6 +54,7 @@ jobs:
             src/projector.ts \
             src/kernel-core.ts \
             src/observation.ts \
+            test/observation-hostile.test.ts \
             experiments/production-criticality-ranking/mutation-probes.json \
             experiments/production-criticality-ranking/resolve-mutation-probes.mjs \
             experiments/production-criticality-ranking/stryker.config.mjs \
