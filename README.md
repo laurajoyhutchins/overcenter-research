@@ -69,7 +69,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
-- **The hosted trust-boundary proof separates worker authority from provider mutation authority.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, it emits a candidate effect intent, and a separate trusted broker validates, reserves, and performs the provider mutation before fresh-generation recovery settles from authoritative readback.
+- **The hosted trust-boundary proof separates worker authority from provider mutation authority.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub, it emits result data bound to the exact dispatch TaskSession, and a separate trusted broker accepts that realization, reserves the exact authorized effect, and performs the provider mutation before fresh-generation recovery settles from authoritative readback.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
 
 The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
@@ -85,7 +85,7 @@ The repository deliberately does **not** establish that:
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
-- direct low-level callers outside `runGitCoreLoop` cannot bypass the execution-permit/effect-reservation API;
+- trusted code that already holds provider-mutation credentials cannot directly import and call provider adapters outside the broker; TypeScript module visibility is not treated as a security boundary;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
 - every provider or execution substrate offers an equally strong physical credential boundary; the demonstrated hosted boundary is specifically GitHub Actions job permissions.
 
