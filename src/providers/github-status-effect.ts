@@ -1,3 +1,5 @@
+import { performance } from 'node:perf_hooks';
+
 import type { KernelCore } from '../kernel-core.ts';
 import type { ExecutionPermit } from '../model.ts';
 import { GITHUB_API_VERSION } from './github-contract.ts';
@@ -12,6 +14,11 @@ export interface GithubStatusMutationBody {
   context:string;
   description:string;
 }
+
+export type GithubStatusEffectTimingPhase=
+  | 'provider-identity'
+  | 'effect-reservation'
+  | 'provider-mutation';
 
 export type GithubStatusPost=(
   token:string,
@@ -45,11 +52,13 @@ export async function performGithubCommitStatusEffect(
     get=githubGet,
     post=githubPost,
     clock=()=>new Date().toISOString(),
+    onTiming,
   }:{
     token:string;
     get?:GithubJsonGet;
     post?:GithubStatusPost;
     clock?:()=>string;
+    onTiming?:(phase:GithubStatusEffectTimingPhase,durationMs:number)=>void;
   },
 ):Promise<{
   repository_id:number;
@@ -76,6 +85,7 @@ export async function performGithubCommitStatusEffect(
   }
 
   const p=work.postcondition;
+  const identityStarted=performance.now();
   const repository=observeCertifiedGithubRepository(token,{
     repositoryId:p.repository_id,
     repositoryFullName:p.repository_full_name,
@@ -83,6 +93,7 @@ export async function performGithubCommitStatusEffect(
     clock,
     observerId:'github-commit-status-effect/v1',
   });
+  onTiming?.('provider-identity',performance.now()-identityStarted);
   const {owner,repo,full_name}=repository.fact.object;
   const path=`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/statuses/${encodeURIComponent(p.commit_sha)}`;
   const body:GithubStatusMutationBody={
@@ -91,8 +102,16 @@ export async function performGithubCommitStatusEffect(
     description:'Overcenter trusted effect broker',
   };
 
+  const reservationStarted=performance.now();
   return kernel.performEffect(permit,async()=>{
-    const response=await post(token,path,body);
+    onTiming?.('effect-reservation',performance.now()-reservationStarted);
+    const mutationStarted=performance.now();
+    let response:{status:number;body:string};
+    try {
+      response=await post(token,path,body);
+    } finally {
+      onTiming?.('provider-mutation',performance.now()-mutationStarted);
+    }
     if (response.status!==201) {
       throw new Error(
         `GITHUB_STATUS_MUTATION_FAILED:${response.status}:${response.body}`,
