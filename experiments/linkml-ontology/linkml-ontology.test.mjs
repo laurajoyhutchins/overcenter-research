@@ -85,6 +85,28 @@ test('generated projections are stable at the representation level they promise'
   assert.match(first.typescript, /Settlement/);
   assert.match(first.shacl, /Settlement/);
 
+  const jsonSchema = JSON.parse(first.jsonSchema);
+  assert.equal(
+    jsonSchema.$defs.Settlement.properties.semantic_key.type,
+    'string',
+    'JSON Schema must preserve string scalar type',
+  );
+  assert.equal(
+    jsonSchema.$defs.Settlement.properties.establishes_project_truth.type,
+    'boolean',
+    'JSON Schema must preserve boolean scalar type',
+  );
+  assert.match(
+    first.typescript,
+    /semantic_key\s*:\s*string/,
+    'TypeScript must preserve string scalar type',
+  );
+  assert.match(
+    first.typescript,
+    /establishes_project_truth\s*:\s*boolean/,
+    'TypeScript must preserve boolean scalar type',
+  );
+
   console.log(
     'projection byte stability',
     JSON.stringify({
