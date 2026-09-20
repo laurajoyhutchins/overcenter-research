@@ -120,12 +120,16 @@ function executionContextSha256():string {
 function processSpec(
   tier:'regression'|'experiments',
 ):ProcessSpecV1 {
+  // Exhaustive repository coverage belongs to the independent Evidence
+  // producer. Self-application proves the execution/settlement mechanism with
+  // two small, real workloads from the exact mounted source revision instead
+  // of recertifying the same full suites a second time.
   return {
     schema:PROCESS_SPEC_SCHEMA,
     executable:'/usr/local/bin/node',
     argv:tier==='regression'
-      ? [npmCli,'test']
-      : [npmCli,'run','test:experiments'],
+      ? ['--experimental-strip-types','--test','test/digest-pure.test.ts']
+      : [npmCli,'run','test:bounded-graph'],
     cwd:'source',
     env:{
       HOME:'/tmp',
@@ -133,7 +137,7 @@ function processSpec(
       OVERCENTER_SOURCE_SHA:sourceSha,
       PATH:'/usr/local/bin:/usr/bin:/bin',
     },
-    timeout_ms:tier==='regression' ? 180_000 : 600_000,
+    timeout_ms:30_000,
     stdout_max_bytes:512*1024,
     stderr_max_bytes:512*1024,
   };
@@ -448,6 +452,8 @@ try {
     work:reconstructedWork,
     receipts,
     reconstructed:true,
+    workload_scope:'representative-self-application-witness',
+    exhaustive_repository_evidence:false,
     source_mounted_read_only:true,
     source_snapshot_excludes_git_metadata:true,
     source_tree_sha256:selfApplicationSourceTreeSha256,
