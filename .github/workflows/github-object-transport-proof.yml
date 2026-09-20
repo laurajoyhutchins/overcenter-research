@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/github-object-transport-proof.yml'
+      - 'experiments/github-object-transport/**'
   workflow_dispatch:
     inputs:
       request_path:

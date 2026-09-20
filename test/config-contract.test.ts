@@ -177,6 +177,38 @@ test('live provider proofs cancel superseded heads before consuming provider quo
   }
 });
 
+test('supplemental proofs trigger from evidence dependencies instead of package-script proxies',()=>{
+  for (const path of [
+    '.github/workflows/datalog-projection.yml',
+    '.github/workflows/projection-comparison.yml',
+    '.github/workflows/linkml-ontology.yml',
+    '.github/workflows/linkml-contract-refactor.yml',
+    '.github/workflows/lean-semantic-oracle.yml',
+    '.github/workflows/github-observation-grammar.yml',
+    '.github/workflows/conflicting-effect.yml',
+  ]) {
+    const source=read(path);
+    assert.doesNotMatch(source,/^\s*-\s*['\"]?package\.json['\"]?\s*$/m,path);
+  }
+});
+
+test('live supplemental proofs do not recertify the whole repository suite',()=>{
+  for (const path of [
+    '.github/workflows/github-observation-grammar.yml',
+    '.github/workflows/conflicting-effect.yml',
+    '.github/workflows/disposable-agent-proof.yml',
+  ]) {
+    assert.doesNotMatch(read(path),/^\s*run:\s*npm test\s*$/m,path);
+  }
+});
+
+test('GitHub object transport runs only when its mechanism or fixtures change',()=>{
+  const workflow=read('.github/workflows/github-object-transport-proof.yml');
+  assert.match(workflow,/pull_request:[\s\S]*?paths:[\s\S]*?github-object-transport-proof\.yml/);
+  assert.match(workflow,/pull_request:[\s\S]*?paths:[\s\S]*?experiments\/github-object-transport\/\*\*/);
+  assert.doesNotMatch(workflow,/pull_request:[\s\S]*?paths:[\s\S]*?package\.json/);
+});
+
 test('production self-application proves mechanism without duplicating exhaustive evidence',()=>{
   const selfApplication=read('bin/self-application-evidence.ts');
   assert.match(selfApplication,/test\/digest-pure\.test\.ts/);

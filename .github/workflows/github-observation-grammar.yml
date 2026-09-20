@@ -29,7 +29,6 @@ on:
       - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
-      - package.json
   pull_request:
     branches:
       - main
@@ -53,7 +52,6 @@ on:
       - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
-      - package.json
 
 permissions:
   actions: read
@@ -78,12 +76,19 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
-      - name: Fast deterministic regression
-        run: npm test
+      - name: Focused GitHub observation regressions
+        run: |
+          node --experimental-strip-types --test \
+            test/provider-observation.test.ts \
+            test/github-openapi-contract.test.ts \
+            test/github-certified-status.test.ts \
+            test/github-certified-ref.test.ts \
+            test/github-certified-pr.test.ts \
+            test/github-authority-command.test.ts
       - name: Shared observation certificate adversaries
-        run: npm run test:provider-observation
+        run: node --experimental-strip-types --test experiments/provider-observation/response-slice.test.ts
       - name: GitHub observation experiment
-        run: npm run test:github-observation
+        run: node --experimental-strip-types --test experiments/github-observation-grammar/github-observation.test.ts
 
   semantics:
     name: Pinned schema and live semantic shapes

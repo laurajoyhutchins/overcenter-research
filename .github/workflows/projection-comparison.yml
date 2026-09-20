@@ -6,7 +6,6 @@ on:
       - 'experiments/projection-comparison/**'
       - 'src/projector.ts'
       - 'src/semantic-identity.ts'
-      - 'package.json'
       - '.github/workflows/projection-comparison.yml'
   workflow_dispatch:
 
@@ -35,4 +34,4 @@ jobs:
           echo 'c7e9dd1349506bbb23c4dcf89e87396198006235f79b1cc516c0a2b67ac067bc  ./x86_64-ubuntu-2404-souffle-2.5-Linux.deb' | sha256sum -c -
           sudo apt-get install -y ./x86_64-ubuntu-2404-souffle-2.5-Linux.deb
           souffle --version
-      - run: npm run test:projection-comparison
+      - run: node --experimental-strip-types --test experiments/projection-comparison/comparison.test.ts

@@ -6,7 +6,6 @@ on:
       - 'experiments/linkml-ontology/**'
       - 'experiments/registry.json'
       - 'experiments/README.md'
-      - 'package.json'
       - '.github/workflows/linkml-ontology.yml'
   workflow_dispatch:
 
@@ -38,4 +37,4 @@ jobs:
           python3 -m pip install --disable-pip-version-check /tmp/linkml-wheel/linkml-1.11.1-py3-none-any.whl
           linkml-validate --version
           python3 -m pip freeze | sort
-      - run: npm run test:linkml-ontology
+      - run: node --test experiments/linkml-ontology/linkml-ontology.test.mjs
