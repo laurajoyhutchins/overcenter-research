@@ -149,6 +149,30 @@ test('repository-wide test suites do not inherit host parallelism',()=>{
   assert.match(pkg.scripts['test:experiments'],/--test-concurrency=1/);
 });
 
+test('merge-critical CI jobs fail closed within three minutes',()=>{
+  const jobs=[
+    ['.github/workflows/tests.yml','regression'],
+    ['.github/workflows/tests.yml','proofs'],
+    ['.github/workflows/computation-executor.yml','executor'],
+    ['.github/workflows/self-application.yml','self-evidence'],
+    ['.github/workflows/merge-gate.yml','gate'],
+  ] as const;
+
+  for (const [path,job] of jobs) {
+    const workflow=read(path);
+    const block=workflow.match(
+      new RegExp(`(?:^|\\n)  ${job}:\\n([\\s\\S]*?)(?=\\n  [A-Za-z0-9_-]+:\\n|$)`),
+    );
+    assert.ok(block,`${path} is missing merge-critical job ${job}`);
+    const timeout=block[1].match(/(?:^|\\n)    timeout-minutes:\\s*(\\d+)\\s*(?:\\n|$)/);
+    assert.ok(timeout,`${path} job ${job} must declare an explicit timeout`);
+    assert.ok(
+      Number(timeout[1])<=3,
+      `${path} job ${job} exceeds the three-minute CI execution budget`,
+    );
+  }
+});
+
 test('self-application receives exact source bytes without checkout credentials',()=>{
   const workflow=read('.github/workflows/self-application.yml');
   assert.match(workflow,/persist-credentials:\s*false/);
