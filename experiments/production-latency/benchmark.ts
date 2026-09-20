@@ -8,7 +8,6 @@ import { OvercenterKernel } from '../../src/kernel.ts';
 import {
   GITHUB_COMMIT_STATUS_EFFECT,
   performGithubCommitStatusEffect,
-  type GithubStatusEffectTimingPhase,
   type GithubStatusPost,
 } from '../../src/providers/github-status-effect.ts';
 import {
@@ -19,11 +18,29 @@ import {
 type Mode='mock'|'live';
 type Phase='idle'|'effect'|'settlement';
 
+class TimedKernel extends OvercenterKernel {
+  reservationMs=0;
+  effectBoundaryMs=0;
+
+  override async performEffect<T>(permit:Parameters<OvercenterKernel['performEffect']>[0],effect:()=>Promise<T>|T):Promise<T> {
+    const started=performance.now();
+    return super.performEffect(permit,async()=>{
+      this.reservationMs+=performance.now()-started;
+      const effectStarted=performance.now();
+      try {
+        return await effect();
+      } finally {
+        this.effectBoundaryMs+=performance.now()-effectStarted;
+      }
+    });
+  }
+}
+
 interface Sample {
   authority_ms:number;
   provider_identity_ms:number;
   effect_reservation_ms:number;
-  provider_mutation_ms:number;
+  mutation_boundary_ms:number;
   effect_local_ms:number;
   readback_ms:number;
   settlement_local_ms:number;
@@ -138,18 +155,13 @@ async function runSample(
       }
     : undefined;
 
-  const kernel=new OvercenterKernel(database,{
+  const kernel=new TimedKernel(database,{
     githubToken:token,
     observationContext:{githubGet:get},
   });
   kernel.initialize();
 
   try {
-    const timings:Record<GithubStatusEffectTimingPhase,number>={
-      'provider-identity':0,
-      'effect-reservation':0,
-      'provider-mutation':0,
-    };
     const totalStarted=performance.now();
     const authorityStarted=performance.now();
 
@@ -173,14 +185,22 @@ async function runSample(
 
     phase='effect';
     const effectStarted=performance.now();
+    const identityStarted=performance.now();
+    let identityMs=0;
+    const identityGet:GithubJsonGet=(providerToken,path)=>{
+      const started=performance.now();
+      try {
+        return get(providerToken,path);
+      } finally {
+        identityMs+=performance.now()-started;
+      }
+    };
     await performGithubCommitStatusEffect(kernel,permit,{
       token,
-      get,
+      get:identityGet,
       ...(post?{post}:{}),
-      onTiming:(timingPhase,durationMs)=>{
-        timings[timingPhase]+=durationMs;
-      },
     });
+    void identityStarted;
     const effectTotalMs=performance.now()-effectStarted;
 
     phase='settlement';
@@ -196,26 +216,26 @@ async function runSample(
     const effectLocalMs=Math.max(
       0,
       effectTotalMs
-        - timings['provider-identity']
-        - timings['effect-reservation']
-        - timings['provider-mutation'],
+        - identityMs
+        - kernel.reservationMs
+        - kernel.effectBoundaryMs,
     );
     const settlementLocalMs=Math.max(0,settlementMs-readbackMs);
     const overcenterLocalMs=
       authorityMs
-      + timings['effect-reservation']
+      + kernel.reservationMs
       + effectLocalMs
       + settlementLocalMs;
     const providerMs=
-      timings['provider-identity']
-      + timings['provider-mutation']
+      identityMs
+      + kernel.effectBoundaryMs
       + readbackMs;
 
     return {
       authority_ms:round(authorityMs),
-      provider_identity_ms:round(timings['provider-identity']),
-      effect_reservation_ms:round(timings['effect-reservation']),
-      provider_mutation_ms:round(timings['provider-mutation']),
+      provider_identity_ms:round(identityMs),
+      effect_reservation_ms:round(kernel.reservationMs),
+      mutation_boundary_ms:round(kernel.effectBoundaryMs),
       effect_local_ms:round(effectLocalMs),
       readback_ms:round(readbackMs),
       settlement_local_ms:round(settlementLocalMs),
@@ -272,7 +292,7 @@ if (stepSummary) {
     ['Authority',summary.authority_ms],
     ['Provider identity',summary.provider_identity_ms],
     ['Effect reservation',summary.effect_reservation_ms],
-    ['Provider mutation',summary.provider_mutation_ms],
+    ['Mutation boundary',summary.mutation_boundary_ms],
     ['Authoritative readback',summary.readback_ms],
     ['Settlement local',summary.settlement_local_ms],
     ['Overcenter local total',summary.overcenter_local_ms],
