@@ -1,8 +1,0 @@
-{
-  "schema": "overcenter-git-execution-authority-v1",
-  "run_id": "a6c0afab-00fc-4052-937c-ca7e7db83cf3",
-  "obligation_id": "guard-35539904334-1-ordered-alpha",
-  "generation": 2,
-  "previous_authority_commit": "6084becd01000278f1884f6d67ccbc230af96349",
-  "execution_capability_sha256": "7827166bf82f639e6aa89a8810710465124a4f7a69aee2b56cf39387c6782f52"
-}
