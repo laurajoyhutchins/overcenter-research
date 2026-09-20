@@ -625,12 +625,13 @@
         "Benchmark success is kept separate from any conclusion that scaling is linear or sufficient."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
+        "evaluated_revision": "f789fd6cbae0324756aac509482f9c1d6f6e9b5f",
         "artifacts": [
-          ".github/workflows/scheduler-scaling.yml"
+          "GitHub Actions run 35540486815"
         ]
       },
-      "interpretation": "Use the fairness witness as a concrete counterexample to the current scheduler policy and use the throughput curve to locate the next real bottleneck. Do not infer distributed-HA requirements without evidence that the single authority path is the limiting boundary.",
+      "interpretation": "The current first-ready scheduler has a concrete starvation counterexample. On the evaluated Ubuntu/Node host, 32-task claim-through-settlement throughput was 7.927/s at one worker, 8.064/s at two, 4.126/s at four, and 2.254/s at eight, while contention retries rose 0 -> 34 -> 105 -> 245. The current authority/projection path therefore fails the tested N-way scaling claim; measure and repair that local bottleneck before adding distributed/HA machinery.",
       "non_claims": [
         "SQLite is a distributed or highly available authority substrate.",
         "The measured throughput is portable across hosts.",
