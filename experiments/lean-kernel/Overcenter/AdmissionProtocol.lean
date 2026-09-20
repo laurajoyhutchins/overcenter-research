@@ -1,6 +1,7 @@
 import Lean.Data.Json.Parser
 import Lean.Data.Json.Printer
 import Overcenter.AdmissionProofs
+import Overcenter.TransactionKernel
 
 open Lean
 
@@ -98,23 +99,24 @@ does not add another production command. The comparison executable built by the
 runtime experiment calls this function directly.
 -/
 private def transactionKernelComparison (request : Json) : Except String Json := do
-  let currentAuthority ← boolField request "current_authority"
-  let exactRevision ← boolField request "exact_revision"
-  let unresolvedEffect ← boolField request "unresolved_effect"
-  let verifiedPresent ← boolField request "verified_present"
-  let verifiedAbsent ← boolField request "verified_absent"
-  let verifiedExactRevision ← boolField request "verified_exact_revision"
-  let settlementCompleted ← boolField request "settlement_completed"
-  let settlementWasAuthorized ← boolField request "settlement_was_authorized"
-  let settlementEvidenceMatches ← boolField request "settlement_evidence_matches"
-  let evidenceValid ← boolField request "evidence_valid"
+  let facts : TransactionFacts := {
+    currentAuthority := ← boolField request "current_authority"
+    exactRevision := ← boolField request "exact_revision"
+    unresolvedEffect := ← boolField request "unresolved_effect"
+    verifiedPresent := ← boolField request "verified_present"
+    verifiedAbsent := ← boolField request "verified_absent"
+    verifiedExactRevision := ← boolField request "verified_exact_revision"
+    settlementCompleted := ← boolField request "settlement_completed"
+    settlementWasAuthorized := ← boolField request "settlement_was_authorized"
+    settlementEvidenceMatches := ← boolField request "settlement_evidence_matches"
+    evidenceValid := ← boolField request "evidence_valid"
+  }
   pure <| Json.mkObj [
     ("schema", "overcenter-lean-transaction-kernel-comparison/v1"),
-    ("mutation_allowed", currentAuthority && exactRevision && !unresolvedEffect),
-    ("settlement_allowed", currentAuthority && exactRevision && verifiedPresent && verifiedExactRevision),
-    ("replay_allowed", currentAuthority && exactRevision && verifiedAbsent && verifiedExactRevision),
-    ("done", settlementCompleted && settlementWasAuthorized && settlementEvidenceMatches &&
-      verifiedPresent && verifiedExactRevision && evidenceValid)
+    ("mutation_allowed", (step facts .mutate).isSome),
+    ("settlement_allowed", (step facts .settle).isSome),
+    ("replay_allowed", (step facts .replay).isSome),
+    ("done", done facts)
   ]
 
 def handleComparisonJson (request : Json) : Except String Json := do
