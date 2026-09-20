@@ -169,7 +169,8 @@ test('mailbox transport is silent and privileged handling starts at workflow_run
   assert.doesNotMatch(mailbox,/issue_comment:/);
   assert.doesNotMatch(mailbox,/issues:\s*write/);
   assert.match(signal,/permissions:\s*\{\}/);
-  assert.match(signal,/overcenter\/request\/\*\*/);
+  assert.match(signal,/create:/);
+  assert.match(signal,/overcenter\/request\//);
   assert.doesNotMatch(signal,/contents:\s*write/);
 });
 
