@@ -106,22 +106,6 @@
       }
     },
     {
-      "name": "receipt-v4-read-compatible",
-      "valid": true,
-      "fact": {
-        "schema": "overcenter-git-receipt-v4",
-        "run_id": "run-legacy",
-        "obligation_id": "alpha",
-        "claimed_revision": "revision-legacy",
-        "claim_commit": "claim-legacy",
-        "execution_generation": 1,
-        "execution_authority_commit": "claim-legacy",
-        "kind": "execution-terminated",
-        "observed": null,
-        "settled_at": "2026-09-18T00:00:00.000Z"
-      }
-    },
-    {
       "name": "claim-unknown-field-invalid",
       "valid": false,
       "fact": {

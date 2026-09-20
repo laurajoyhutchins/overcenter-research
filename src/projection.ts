@@ -4,7 +4,6 @@ import {
   observationVerified,
 } from './observation.ts';
 import {
-  LEGACY_RECEIPT_SCHEMA,
   emptyState,
   validateClaimFact,
   validateEffectReservationFact,
@@ -58,29 +57,18 @@ export function projectReceipt(
 
   if (fact.kind==='observation') {
     if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
-    if (fact.schema===LEGACY_RECEIPT_SCHEMA) {
-      verified=fact.observed.mutation_certainty==='present'
-        ? observationVerified(work.postcondition,fact.observed)
-        : false;
-      disposition=verified
-        ? 'DONE'
-        : fact.observed.mutation_certainty==='absent'
-          ? 'READY'
-          : 'RECOVERY_REQUIRED';
-    } else {
-      verified=observationVerified(work.postcondition,fact.observed);
-      const policy=settlementSemantics(work.postcondition);
-      const absenceEvidence=authoritativeAbsenceEvidence(
-        work.postcondition,
-        fact.observed,
-      );
-      disposition=verified
-        ? 'DONE'
-        : absenceEvidence
-          && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind)
-          ? 'READY'
-          : 'RECOVERY_REQUIRED';
-    }
+    verified=observationVerified(work.postcondition,fact.observed);
+    const policy=settlementSemantics(work.postcondition);
+    const absenceEvidence=authoritativeAbsenceEvidence(
+      work.postcondition,
+      fact.observed,
+    );
+    disposition=verified
+      ? 'DONE'
+      : absenceEvidence
+        && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind)
+        ? 'READY'
+        : 'RECOVERY_REQUIRED';
   } else {
     if (fact.observed) throw new Error('NONOBSERVATION_RECEIPT_HAS_EVIDENCE');
     disposition=fact.kind==='judgment-required' ? 'WAITING' : 'RECOVERY_REQUIRED';

@@ -28,14 +28,14 @@ The outer fact envelopes reject unknown fields. Four nested payloads remain deli
 
 - `Obligation.packet`: application-defined and authoritative by value.
 - `Obligation.postcondition`: owned by verifier contracts.
-- `ReceiptFact.observed`: receipt-v5 is owned by the observation/evidence contract; receipt-v4 remains permissive historical read data.
+- `ReceiptFact.observed`: owned by the observation/evidence contract.
 - `ReceiptFact.diagnostic`: intentionally non-authoritative diagnostics.
 
 Open does not mean ungoverned. The first three can affect identity or settlement and therefore need their own referenced contracts. They are not extension buckets for arbitrary outer fact fields.
 
-## Receipt compatibility
+## Receipt schema
 
-Overcenter writes `overcenter-git-receipt-v5` and continues to read `v4` for historical replay. The v4/v5 distinction is semantically meaningful because absence evidence is treated differently during replay.
+Overcenter accepts and writes `overcenter-git-receipt-v5`. Observation evidence is validated against the current observation/evidence contract before replay.
 
 `disposition`, `verified`, and `settlement_commit` are projection results. They are not persisted receipt fields and must never be accepted as if a worker could write settlement truth directly.
 

@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   CLAIM_SCHEMA,
-  LEGACY_RECEIPT_SCHEMA,
   OBLIGATION_SCHEMA,
   RECEIPT_SCHEMA,
 } from '../src/facts.ts';
@@ -117,20 +116,19 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
 function absentReceipt(
   work:Obligation,
   {
-    schema=RECEIPT_SCHEMA,
     includeCertificate=false,
     certificatePath,
   }:{
-    schema?:ReceiptFact['schema'];
     includeCertificate?:boolean;
     certificatePath?:string;
   }={},
 ):ReceiptFact {
-  const observed=work.postcondition.verifier==='github-commit-status/v1'
+  const observed=work.postcondition.verifier==='github-commit-status/v2'
     ? {
         verifier:work.postcondition.verifier,
         provider:'github' as const,
         repository_id:work.postcondition.repository_id,
+        repository_full_name:work.postcondition.repository_full_name,
         commit_sha:work.postcondition.commit_sha,
         context:work.postcondition.context,
         mutation_certainty:'absent' as const,
@@ -148,7 +146,7 @@ function absentReceipt(
           : {}),
       };
   return {
-    schema,
+    schema:RECEIPT_SCHEMA,
     run_id:'run-absence',
     obligation_id:'absence',
     claimed_revision:'revision-absence',
@@ -240,9 +238,10 @@ test('receipt v5 requires a matching absence certificate before replay',()=>{
     dependencies:[],
     packet:{},
     postcondition:{
-      verifier:'github-commit-status/v1',
+      verifier:'github-commit-status/v2',
       provider:'github',
       repository_id:123,
+      repository_full_name:'owner/repo',
       commit_sha:'a'.repeat(40),
       context:'overcenter/absence',
       expected_state:'success',
@@ -254,30 +253,16 @@ test('receipt v5 requires a matching absence certificate before replay',()=>{
   );
 });
 
-test('legacy receipt v4 preserves its historical absence projection',()=>{
-  const local:Obligation={
-    id:'absence',
-    dependencies:[],
-    packet:{},
-    postcondition:{verifier:'file-content-equals/v1',path:'/provider/legacy',content:'A'},
-  };
-  const legacy=absentReceipt(local,{schema:LEGACY_RECEIPT_SCHEMA});
-  legacy.observed={
-    verifier:'file-content-equals/v1',
-    mutation_certainty:'absent',
-  };
-  assert.equal(projectReceipt(legacy,local).disposition,'READY');
-});
-
 test('legacy v3 static-conflict history remains replayable but fail-closed',()=>{
   const status=(id:string,state:'success'|'failure'):Obligation=>({
     id,
     dependencies:[],
     packet:{},
     postcondition:{
-      verifier:'github-commit-status/v1',
+      verifier:'github-commit-status/v2',
       provider:'github',
       repository_id:123,
+      repository_full_name:'owner/repo',
       commit_sha:'a'.repeat(40),
       context:'overcenter/legacy-conflict',
       expected_state:state,
