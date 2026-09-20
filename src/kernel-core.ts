@@ -144,6 +144,25 @@ export class KernelCore {
     return this.#currentProjection(head).project.work;
   }
 
+  claimedWork(runId:string):Work {
+    const head=this.#requireHead();
+    const current=this.#historicalProjection(head);
+    const run=current.history.runs.get(runId);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    const atClaim=this.#historicalProjection(run.claim_commit);
+    const work=atClaim.project.work.find(candidate=>candidate.id===run.obligation_id);
+    if (
+      !work
+      || work.status!=='EXECUTING'
+      || work.run_id!==runId
+      || work.claimed_revision!==run.claimed_revision
+      || work.revision!==run.claim_commit
+    ) {
+      throw new Error('CLAIMED_WORK_RECONSTRUCTION_FAILED');
+    }
+    return structuredClone(work);
+  }
+
   deriveReadyWork():Work|null {
     const head=this.#requireHead();
     return this.#currentProjection(head).project.readyWork;
