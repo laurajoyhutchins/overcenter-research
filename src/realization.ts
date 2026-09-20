@@ -2,7 +2,7 @@ import { canonicalDigest, sha256 } from './digest.ts';
 
 export const VERIFIED_REALIZATION_SCHEMA='overcenter-verified-realization-v1' as const;
 export const REALIZATION_KEY_SCHEMA='overcenter-realization-key-v1' as const;
-export const REALIZATION_ARTIFACT_PATH='realization.artifact' as const;
+export const REALIZATION_ARTIFACT_PATH='realization.artifact' as const;\nexport const EXTERNAL_EFFECT_IDENTITY_SCHEMA='overcenter-external-effect-identity/v1' as const;
 
 export type ReuseMode='content-addressed'|'external-effect';
 
@@ -127,6 +127,21 @@ export function realizationObligationKey(contract:RealizationContract):string {
     source_inputs:contract.source_inputs,
     acceptance_predicate:contract.acceptance_predicate,
     reuse_mode:contract.reuse_mode,
+  });
+}
+
+export function externalEffectIdentity(
+  contract:RealizationContract,
+  runId:string,
+):string {
+  if (contract.reuse_mode!=='external-effect') {
+    throw new Error('EXTERNAL_EFFECT_IDENTITY_REQUIRES_EXTERNAL_EFFECT');
+  }
+  if (!runId || runId.includes('\\0')) throw new Error('RUN_ID_INVALID');
+  return canonicalDigest({
+    schema:EXTERNAL_EFFECT_IDENTITY_SCHEMA,
+    obligation_key:realizationObligationKey(contract),
+    run_id:runId,
   });
 }
 
