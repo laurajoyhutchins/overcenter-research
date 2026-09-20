@@ -27,12 +27,25 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: '.go-version'
+          cache: false
       - name: Build isolated self-application executor
         run: |
+          set -euo pipefail
+          go_version="$(tr -d '\r\n' < .go-version)"
+          test "$(go env GOVERSION)" = "go${go_version}"
+          rm -rf .overcenter-build
+          mkdir -p .overcenter-build
+          (
+            cd executor
+            CGO_ENABLED=0 go build -trimpath -buildvcs=false \
+              -o ../.overcenter-build/overcenter-executor \
+              ./cmd/overcenter-executor
+          )
           docker build \
-            --build-arg GO_IMAGE="$(node -e "const x=require('./executor/runtime-images.json'); process.stdout.write(x.go_build)")" \
             --build-arg NODE_IMAGE="$(node -e "const x=require('./executor/runtime-images.json'); process.stdout.write(x.node_self_application)")" \
-            --build-arg GO_VERSION="$(cat .go-version)" \
             --build-arg NODE_VERSION="$(cat .node-version)" \
             -f executor/self-application/Dockerfile \
             -t "overcenter-self-application:${{ github.run_id }}" \
