@@ -1,8 +1,0 @@
-{
-  "schema": "overcenter-git-claim-v3",
-  "run_id": "9db29aaa-f8bd-49f4-887e-3b76f417281e",
-  "obligation_id": "actions-trust-proof-35480562219-1",
-  "claimed_revision": "5f421ccca9741088d63433bbc9393044adbe4dd5",
-  "obligation_key": "4e86f5d669fa6ebc4b56a9859d1cbf9a3ba6b304b44e2b4e5ca93739425b7fd8",
-  "execution_capability_sha256": "0208c4ed495ef421e07e0b5f2b000f4f54b3a32ae7b7fdcff453f34f3d80898b"
-}
