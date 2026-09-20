@@ -182,6 +182,32 @@ The next phase should use:
 The hosted run should be manually dispatchable while the experiment is unstable
 so it does not lengthen ordinary CI.
 
+## Observed hosted result
+
+GitHub Actions run `35538971299` passed the live Temporal + kind proof at
+revision `c41e341fbf17a819718f7e68c34626bbf97be804`.
+
+The run used Temporal CLI 1.7.3, Temporal TypeScript SDK 1.24.0, kind 0.31.0,
+and Kubernetes 1.35.0. The observed schedule was:
+
+- release A's first Activity attempt successfully created a healthy Deployment;
+- the Activity then failed after provider acceptance, simulating a lost response;
+- release B deleted and recreated the same Deployment coordinate using the same
+  immutable image digest;
+- release B became healthy with generation == observedGeneration;
+- Temporal retried A's Activity;
+- A's conventional recovery predicate accepted the current Deployment;
+- authoritative readback showed the object belonged to release B;
+- exact obligation/effect binding rejected that object as evidence for A.
+
+The emitted result was `FALSE_ATTRIBUTION_REPRODUCED`. In the conventional
+path, release A settled true from evidence belonging to release B. Under exact
+binding, A did not settle and B did.
+
+This establishes the hosted false-attribution result. It still does not satisfy
+the full experiment success condition because the material-simplification metrics
+and production Overcenter Deployment binding remain pending.
+
 ## Interpretation
 
 A positive final result would support the narrower claim that exact
