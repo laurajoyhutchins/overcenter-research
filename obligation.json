@@ -1,0 +1,39 @@
+{
+  "schema": "overcenter-git-obligation-v4",
+  "kind": "defined",
+  "obligation": {
+    "id": "actions-trust-proof-35481264435-1",
+    "dependencies": [],
+    "packet": {
+      "kind": "github-actions-trust-boundary-proof/v1",
+      "executor": {
+        "provider": "github-actions/v1",
+        "repository_id": 1354872053,
+        "workflow_run_id": "35481264435",
+        "workflow_run_attempt": "1",
+        "job": "agent-a"
+      },
+      "exact_input": {
+        "kind": "git-commit/v1",
+        "repository_id": 1354872053,
+        "commit_sha": "15793f8a8b07276634299f59d4182fe85f362a63"
+      }
+    },
+    "postcondition": {
+      "verifier": "github-commit-status/v1",
+      "provider": "github",
+      "repository_id": 1354872053,
+      "commit_sha": "15793f8a8b07276634299f59d4182fe85f362a63",
+      "context": "overcenter/trust-proof/35481264435/1",
+      "expected_state": "success"
+    },
+    "effect_authority": {
+      "contract": "github-commit-status/set-from-postcondition/v1",
+      "adapter_contract_digest": "95c7beb518a1704854dd78ac12ae166fff51990ba32c18afb53ab4fbbe081c6b"
+    },
+    "result_acceptance": {
+      "verifier": "canonical-json-sha256/v1",
+      "expected_sha256": "eea76e10338a12bed8f244f4a9a2831516595db28798b11611bfa371aed842a9"
+    }
+  }
+}
