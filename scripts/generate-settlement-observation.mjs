@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
-import {join,relative,resolve} from 'node:path';
+import {dirname,join,relative,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {contractPackage,repositoryRoot} from './contract-package.mjs';
 
 const observationContract=contractPackage('observation-evidence');
 const schemaPath=join(observationContract,'schema.json');
 const generatedPath=join(repositoryRoot,'src/generated/settlement-observation-schema.ts');
+const generatedTypePath=join(repositoryRoot,'src/generated/settlement-observation-type.ts');
 const defaultSource=join(observationContract,'settlement-observation.typebox.ts');
 const sourceLabel=relative(repositoryRoot,defaultSource).replaceAll('\\','/');
+const generatedTypeSource=relative(dirname(generatedTypePath),defaultSource).replaceAll('\\','/');
+const generatedTypeImport=generatedTypeSource.startsWith('.')?generatedTypeSource:`./${generatedTypeSource}`;
 
 let mode='--check';
 let sourcePath=defaultSource;
@@ -50,6 +53,10 @@ const generated=`// Generated from ${sourceLabel}.
 // Do not edit by hand.
 export const SettlementObservationSchema=${JSON.stringify(projected,null,2)} as const;
 `;
+const generatedType=`// Generated from ${sourceLabel}.
+// Do not edit by hand.
+export type {Observation} from '${generatedTypeImport}';
+`;
 
 const document=JSON.parse(readFileSync(schemaPath,'utf8'));
 assert.ok(document.$defs?.SettlementObservation,'production SettlementObservation missing');
@@ -58,6 +65,7 @@ if (mode==='--check') {
   try {
     assert.deepEqual(document.$defs.SettlementObservation,projected);
     assert.equal(readFileSync(generatedPath,'utf8'),generated);
+    assert.equal(readFileSync(generatedTypePath,'utf8'),generatedType);
   } catch {
     process.stderr.write(
       'SettlementObservation projections are stale for '+sourcePath+'\n'
@@ -72,4 +80,5 @@ if (mode==='--check') {
 document.$defs.SettlementObservation=projected;
 writeFileSync(schemaPath,JSON.stringify(document,null,2)+'\n');
 writeFileSync(generatedPath,generated);
+writeFileSync(generatedTypePath,generatedType);
 console.log('Updated SettlementObservation projections from '+sourcePath);
