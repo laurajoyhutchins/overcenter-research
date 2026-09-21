@@ -7,15 +7,19 @@ It does **not** decide what work is eligible, claim work, interpret provider sta
 ```text
 TypeScript authority
   open exact workspace -> FD 3
-  verify dev/inode
-  render manifest + supervisor limits
+  open delegated cgroup parent -> FD 4
+  verify workspace dev/inode
+  render manifest + resource/supervisor limits
   SHA-256(exact bytes)
             |
-            | stdin bytes + workspace FD 3
+            | stdin bytes + workspace FD 3 + cgroup FD 4
             v
       overcenter-exec
         parse before worker exists
         verify/reuse workspace FD
+        create exact resource cgroup
+        apply + verify memory/PID/CPU limits
+        migrate launcher before worker exists
         enumerate explicit runtime closure
         Landlock filesystem policy
         clear ambient environment
@@ -44,6 +48,10 @@ workspace_ino<TAB>decimal
 program<TAB>/absolute/program
 timeout_ms<TAB>positive-decimal
 max_output_bytes<TAB>positive-decimal
+memory_max_bytes<TAB>positive-decimal
+pids_max<TAB>positive-decimal
+cpu_quota_us<TAB>positive-decimal
+cpu_period_us<TAB>positive-decimal
 arg<TAB>...
 env<TAB>NAME<TAB>VALUE
 runtime_ro<TAB>/exact/path
@@ -52,7 +60,7 @@ runtime_exec<TAB>/exact/path
 
 Singleton records may appear once. Environment names and runtime paths may not repeat. Unknown records fail closed. Runtime paths are explicit rather than a hard-coded `/usr` or `/etc` allowance.
 
-The TypeScript emitter returns the exact bytes, their SHA-256, and the decoded supervisor limits from those same bytes. `runConfinedWorker` enforces those manifest-bound limits, pipes precisely the hashed bytes to stdin, and passes the verified workspace object on FD 3. Timeout and output policy therefore cannot change without changing the attempt identity.
+The TypeScript emitter returns the exact bytes, their SHA-256, and the decoded supervisor/resource limits from those same bytes. `runConfinedWorker` enforces the transport limits, pipes precisely the hashed bytes to stdin, passes the verified workspace object on FD 3, and passes an already-delegated cgroup-v2 parent on FD 4. Timeout, output, memory, PID, or CPU policy therefore cannot change without changing the attempt identity.
 
 ## Physical guarantees in v1
 
@@ -61,6 +69,7 @@ On Linux x86-64 with Landlock ABI >= 6, the launcher:
 - reads and parses a bounded, canonical manifest before creating the worker process;
 - refuses effective uid 0, switchable real/effective/saved UID or GID state, and any nonzero effective, permitted, or inheritable Linux capability set;
 - consumes the already-open workspace object from FD 3, verifies its directory type and device/inode identity, and binds Landlock directly to that object;
+- verifies FD 4 is cgroup v2, requires `cpu`, `memory`, and `pids` to already be enabled for children, creates one PID-named leaf, writes and reads back `memory.max`, `pids.max`, and `cpu.max`, disables swap, enables group OOM handling, and migrates itself before untrusted code exists;
 - keeps workspace file/dir mutation rights but withholds blanket execute authority plus character-device, block-device, Unix-socket-node, device-ioctl, and pathname-Unix-socket resolution authority;
 - allows kernel execution only through the selected program or explicitly declared executable runtime objects; a sibling executable merely present in the writable workspace is denied;
 - requires the selected program and runtime closure to resolve to regular files that are neither worker-owned nor writable under the worker's effective credentials, covering metadata operations that Landlock does not mediate;
@@ -71,7 +80,8 @@ On Linux x86-64 with Landlock ABI >= 6, the launcher:
 - denies process-group/session escape, same-UID scheduler/resource-control syscalls, creation of sockets/socketpairs, System V IPC and POSIX message queues, inherited kernel-keyring access, `io_uring_setup`, and `pidfd_getfd`; the x32 syscall-number namespace is killed before deny-list matching;
 - requires Landlock ABI >= 6, so TCP bind/connect restrictions plus signal and abstract-Unix-socket process scoping are mandatory rather than optional;
 - replaces the launcher process with the worker using `exec`, leaving no privileged helper process behind;
-- runs the launcher in a dedicated process group and bounds wall-clock time plus combined stdout/stderr bytes from manifest-bound policy; timeout or output overflow kills the whole group.
+- runs the launcher in a dedicated process group and bounds wall-clock time plus combined stdout/stderr bytes from manifest-bound policy; timeout or output overflow first uses `cgroup.kill` as the whole-tree kill handle and retains process-group kill as a fallback;
+- returns post-run cgroup evidence including memory/PID peaks, OOM/PID-limit events, CPU usage, and throttling counters before deleting the empty leaf.
 
 Stdin/stdout/stderr are the intentional process interface. The trusted caller closes stdin after sending the complete manifest, so the worker inherits an EOF'd input stream rather than an ambient capability.
 
@@ -79,7 +89,7 @@ The launcher is intentionally fail-closed when required kernel mechanisms are un
 
 ### Deliberate residual boundary
 
-This is authority confinement, not a complete VM boundary. Current Landlock does not hide all pathname metadata (for example `stat`/`access`) or mediate advisory locking such as `flock`; the launcher therefore does not claim metadata confidentiality or isolation from lock interactions on explicitly granted runtime objects. It also does not provide cgroup-style PID, memory, CPU, or disk quotas. The manifest-bound timeout/output limits cap the trusted transport, while aggregate resource quotas remain an outer disposable-worker-host responsibility.
+This is authority confinement, not a complete VM boundary. Current Landlock does not hide all pathname metadata (for example `stat`/`access`) or mediate advisory locking such as `flock`; the launcher therefore does not claim metadata confidentiality or isolation from lock interactions on explicitly granted runtime objects. CPU, memory, and PID containment are now part of the execution boundary. Device-specific I/O limits and workspace disk quotas remain outside this slice because they require an explicit storage/device authority contract rather than a portable scalar limit.
 
 ## Proof
 
@@ -94,3 +104,10 @@ The proof checks canonical manifest rejection, exact FD-based workspace pinning 
 The TypeScript regression additionally proves the launcher receives byte-for-byte the manifest whose SHA-256 it reports.
 
 This is a physical computation boundary only. Provider mutation credentials still belong in a separate trusted broker, not in this worker sandbox.
+
+
+## Host cgroup contract
+
+The host must prepare delegation; the launcher does not mutate the parent boundary. FD 4 must name a writable delegated cgroup-v2 parent whose `cgroup.subtree_control` already includes `cpu`, `memory`, and `pids`. The launcher must already be in a process domain from which its credentials are permitted to migrate into a child of that parent. Missing controllers, wrong filesystem type, failed migration, or kernel normalization of a requested limit all fail closed.
+
+The worker never receives usable cgroup authority: the launcher moves itself first, then Landlock and `close_range` remove the parent FD before `exec`.
