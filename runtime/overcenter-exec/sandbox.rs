@@ -1,4 +1,5 @@
 use crate::manifest::Manifest;
+use crate::resource;
 use std::collections::HashSet;
 use std::ffi::{c_char, c_int, c_long, CString};
 use std::fs::File;
@@ -458,6 +459,7 @@ fn close_inherited_fds() -> io::Result<()> {
 
 pub fn execute(manifest: Manifest) -> io::Result<()> {
     ensure_unprivileged_caller()?;
+    let resource_cgroup = resource::enter(&manifest)?;
     let workspace = pin_workspace(&manifest)?;
     let abi = landlock_abi()?;
     let handled_fs = handled_fs_rights(abi)?;
@@ -488,10 +490,14 @@ pub fn execute(manifest: Manifest) -> io::Result<()> {
     install_seccomp_policy()?;
 
     eprintln!(
-        "overcenter-exec: task_id={:?} landlock_abi={abi} timeout_ms={} max_output_bytes={}",
+        "overcenter-exec: task_id={:?} landlock_abi={abi} cgroup={resource_cgroup:?} timeout_ms={} max_output_bytes={} memory_max_bytes={} pids_max={} cpu_max={}/{}",
         manifest.task_id,
         manifest.timeout_ms,
         manifest.max_output_bytes,
+        manifest.memory_max_bytes,
+        manifest.pids_max,
+        manifest.cpu_quota_us,
+        manifest.cpu_period_us,
     );
     let mut command = Command::new(&manifest.program);
     command.args(&manifest.args).env_clear();
