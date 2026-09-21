@@ -2,6 +2,9 @@ name: Scheduler authority lane
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/scheduler-authority-lane
   pull_request:
     paths:
       - .github/workflows/scheduler-authority-lane.yml
