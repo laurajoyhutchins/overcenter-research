@@ -9,6 +9,9 @@ on:
       - .github/workflows/production-latency.yml
       - experiments/production-latency/**
       - src/providers/github-status-effect.ts
+      - src/providers/github-certified-status.ts
+      - src/providers/github-semantics.ts
+      - src/providers/github-operations.generated.ts
       - package.json
       - experiments/registry.json
   pull_request:
@@ -16,6 +19,9 @@ on:
       - .github/workflows/production-latency.yml
       - experiments/production-latency/**
       - src/providers/github-status-effect.ts
+      - src/providers/github-certified-status.ts
+      - src/providers/github-semantics.ts
+      - src/providers/github-operations.generated.ts
       - package.json
       - experiments/registry.json
 
