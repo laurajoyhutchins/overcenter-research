@@ -15,11 +15,6 @@ import (
 )
 
 const (
-	ComputationExecutionSchema = "overcenter-computation-execution-v1"
-	ProcessSpecSchema           = "overcenter-process-spec-v1"
-	ComputationEvidenceSchema   = "overcenter-computation-attempt-evidence-v1"
-	ExecutorCommandSchema       = "overcenter-executor-command-v1"
-
 	maxSpecBytes      = 1024 * 1024
 	maxArgCount       = 256
 	maxArgBytes       = 32 * 1024
