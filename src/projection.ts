@@ -28,7 +28,7 @@ import {
   validateGraph,
 } from './graph.ts';
 import { settlementSemantics } from './semantics.ts';
-import { effectReservationAuthorityError, receiptAuthorityError } from './transaction-admission.ts';
+import { effectReservationAuthorityError, executionAuthorityAdvanceError, receiptAuthorityError } from './transaction-admission.ts';
 import {
   deriveProjectProjection,
   hasInFlight,
@@ -167,9 +167,8 @@ export function replayProjection(commits:FactCommit[]):Projection {
       const fact=validateExecutionAuthorityFact(record.execution_authority);
       const run=runs.get(fact.run_id);
       if (!run) throw new Error('EXECUTION_AUTHORITY_WITHOUT_CLAIM');
-      if (run.obligation_id!==fact.obligation_id) {
-        throw new Error('EXECUTION_AUTHORITY_OBLIGATION_MISMATCH');
-      }
+      const authorityError=executionAuthorityAdvanceError(run,fact);
+      if (authorityError) throw new Error(authorityError);
       refresh(record.commit);
       const current=project.lifecycles.get(run.obligation_id);
       if (
@@ -177,12 +176,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
         || !['EXECUTING','WAITING','RECOVERY_REQUIRED'].includes(current.status)
       ) {
         throw new Error('EXECUTION_AUTHORITY_FOR_NONCURRENT_RUN');
-      }
-      if (fact.generation!==run.execution_generation+1) {
-        throw new Error('EXECUTION_GENERATION_NOT_SUCCESSOR');
-      }
-      if (fact.previous_authority_commit!==run.execution_authority_commit) {
-        throw new Error('EXECUTION_AUTHORITY_PREDECESSOR_MISMATCH');
       }
       runs.set(run.id,{
         ...run,
