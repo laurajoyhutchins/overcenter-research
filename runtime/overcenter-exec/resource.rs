@@ -4,7 +4,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-const CGROUP_PARENT_FD: c_int = 4;
+const CGROUP_LEAF_FD: c_int = 4;
 const CGROUP2_SUPER_MAGIC: c_long = 0x63677270;
 
 unsafe extern "C" {
@@ -15,16 +15,16 @@ fn fail(message: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::PermissionDenied, message.into())
 }
 
-fn parent_path() -> PathBuf {
-    PathBuf::from(format!("/proc/self/fd/{CGROUP_PARENT_FD}"))
+fn leaf_path() -> PathBuf {
+    PathBuf::from(format!("/proc/self/fd/{CGROUP_LEAF_FD}"))
 }
 
-fn verify_cgroup2_parent() -> io::Result<()> {
+fn verify_cgroup2_leaf() -> io::Result<()> {
     let mut buffer = [0u8; 256];
-    if unsafe { fstatfs(CGROUP_PARENT_FD, buffer.as_mut_ptr().cast()) } != 0 {
+    if unsafe { fstatfs(CGROUP_LEAF_FD, buffer.as_mut_ptr().cast()) } != 0 {
         return Err(io::Error::new(
             io::Error::last_os_error().kind(),
-            "missing delegated cgroup v2 parent on fd 4",
+            "missing exact cgroup v2 leaf on fd 4",
         ));
     }
     let filesystem_type = unsafe { std::ptr::read_unaligned(buffer.as_ptr().cast::<c_long>()) };
@@ -36,13 +36,27 @@ fn verify_cgroup2_parent() -> io::Result<()> {
     Ok(())
 }
 
-fn require_controllers(parent: &Path) -> io::Result<()> {
-    let enabled = fs::read_to_string(parent.join("cgroup.subtree_control"))?;
-    for required in ["cpu", "memory", "pids"] {
-        if !enabled.split_ascii_whitespace().any(|controller| controller == required) {
-            return Err(fail(format!(
-                "delegated cgroup parent is missing enabled {required} controller"
-            )));
+fn require_leaf_interfaces(leaf: &Path) -> io::Result<()> {
+    let cgroup_type = fs::read_to_string(leaf.join("cgroup.type"))?;
+    if cgroup_type.trim() != "domain" {
+        return Err(fail(format!(
+            "resource cgroup must be a domain leaf, observed {:?}",
+            cgroup_type.trim(),
+        )));
+    }
+
+    for interface in [
+        "cgroup.procs",
+        "cgroup.events",
+        "cgroup.kill",
+        "memory.max",
+        "memory.swap.max",
+        "memory.oom.group",
+        "pids.max",
+        "cpu.max",
+    ] {
+        if !leaf.join(interface).exists() {
+            return Err(fail(format!("resource cgroup is missing {interface}")));
         }
     }
     Ok(())
@@ -61,44 +75,32 @@ fn write_exact(path: &Path, value: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn configure(child: &Path, manifest: &Manifest) -> io::Result<()> {
-    write_exact(&child.join("memory.max"), &manifest.memory_max_bytes.to_string())?;
-    write_exact(&child.join("memory.swap.max"), "0")?;
-    write_exact(&child.join("memory.oom.group"), "1")?;
-    write_exact(&child.join("pids.max"), &manifest.pids_max.to_string())?;
+fn configure(leaf: &Path, manifest: &Manifest) -> io::Result<()> {
+    write_exact(&leaf.join("memory.max"), &manifest.memory_max_bytes.to_string())?;
+    write_exact(&leaf.join("memory.swap.max"), "0")?;
+    write_exact(&leaf.join("memory.oom.group"), "1")?;
+    write_exact(&leaf.join("pids.max"), &manifest.pids_max.to_string())?;
     write_exact(
-        &child.join("cpu.max"),
+        &leaf.join("cpu.max"),
         &format!("{} {}", manifest.cpu_quota_us, manifest.cpu_period_us),
     )?;
     Ok(())
 }
 
-fn migrate_self(child: &Path) -> io::Result<()> {
+fn migrate_self(leaf: &Path) -> io::Result<()> {
     let pid = std::process::id();
-    fs::write(child.join("cgroup.procs"), pid.to_string())?;
-    let members = fs::read_to_string(child.join("cgroup.procs"))?;
+    fs::write(leaf.join("cgroup.procs"), pid.to_string())?;
+    let members = fs::read_to_string(leaf.join("cgroup.procs"))?;
     if !members.lines().any(|member| member == pid.to_string()) {
-        return Err(fail(format!("launcher pid {pid} did not enter resource cgroup")));
+        return Err(fail(format!("launcher pid {pid} did not enter exact resource cgroup")));
     }
     Ok(())
 }
 
-pub fn enter(manifest: &Manifest) -> io::Result<String> {
-    verify_cgroup2_parent()?;
-    let parent = parent_path();
-    require_controllers(&parent)?;
-
-    let name = format!("overcenter-{}", std::process::id());
-    let child = parent.join(&name);
-    fs::create_dir(&child)?;
-
-    let result = (|| {
-        configure(&child, manifest)?;
-        migrate_self(&child)
-    })();
-    if let Err(error) = result {
-        let _ = fs::remove_dir(&child);
-        return Err(error);
-    }
-    Ok(name)
+pub fn enter(manifest: &Manifest) -> io::Result<()> {
+    verify_cgroup2_leaf()?;
+    let leaf = leaf_path();
+    require_leaf_interfaces(&leaf)?;
+    configure(&leaf, manifest)?;
+    migrate_self(&leaf)
 }
