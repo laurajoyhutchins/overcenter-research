@@ -78,7 +78,7 @@ export class GitKernelFixture {
     const permit=this.claim(id);
     this.kernel.beginEffect(permit);
     writeFileSync(work.postcondition.path,work.postcondition.content);
-    const receipt=this.kernel.resolve(permit);
+    const receipt=this.kernel.reconcile(permit);
     if (receipt.disposition!=='DONE') {
       throw new Error(`SETTLEMENT_FAILED:${id}:${receipt.disposition}`);
     }
