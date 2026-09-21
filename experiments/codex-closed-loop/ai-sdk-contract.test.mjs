@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import test from 'node:test';
 
 const workflow=readFileSync(new URL('../../.github/workflows/autonomy-sandbox-google-free.yml',import.meta.url),'utf8');
+const bootstrap=readFileSync(new URL('../../scripts/gcp/bootstrap-google-free-reasoning.sh',import.meta.url),'utf8');
 const candidate=readFileSync(new URL('./ai-sdk-candidate.ts',import.meta.url),'utf8');
 const resolver=readFileSync(new URL('../../src/reasoning-model.ts',import.meta.url),'utf8');
 const schema=JSON.parse(readFileSync(new URL('./local-model-candidate.schema.json',import.meta.url),'utf8'));
@@ -15,19 +16,53 @@ test('AI SDK routing keeps Gateway default and Google-free as the only direct es
   assert.doesNotMatch(resolver,/OPENAI_API_KEY|ANTHROPIC_API_KEY/);
 });
 
+test('reasoning identity reuses proven GCP coordinates without reusing production deployment authority',()=>{
+  assert.match(workflow,/GCP_IDENTITY_PROJECT_ID: project-6b810532-a302-48dc-b56/);
+  assert.match(workflow,/projects\/380435294892\/locations\/global\/workloadIdentityPools\/github-reasoning\/providers\/overcenter-research/);
+  assert.match(workflow,/overcenter-reasoning-key-reader@project-6b810532-a302-48dc-b56\.iam\.gserviceaccount\.com/);
+  assert.doesNotMatch(workflow,/overcenter-deployer@/);
+  assert.match(bootstrap,/POOL_ID="github-reasoning"/);
+  assert.match(bootstrap,/PROVIDER_ID="overcenter-research"/);
+  assert.match(bootstrap,/READER_SA_NAME="overcenter-reasoning-key-reader"/);
+  assert.match(bootstrap,/attribute\.repository_id=assertion\.repository_id/);
+  assert.match(bootstrap,/attribute\.repository_owner_id=assertion\.repository_owner_id/);
+});
+
+test('Google-free bootstrap discovers or accepts one unbilled Gemini project and creates one stable auth key',()=>{
+  assert.match(bootstrap,/gcloud beta billing projects describe/);
+  assert.match(bootstrap,/billingEnabled/);
+  assert.match(bootstrap,/generativelanguage\.googleapis\.com/);
+  assert.match(bootstrap,/GEMINI_KEY_ID="overcenter-google-free"/);
+  assert.match(bootstrap,/serviceAccountEmail/);
+  assert.match(bootstrap,/keyId=\$GEMINI_KEY_ID/);
+  assert.match(bootstrap,/apikeys\.keys\.getKeyString,resourcemanager\.projects\.get/);
+  assert.match(bootstrap,/gh variable set GEMINI_FREE_PROJECT_ID/);
+  assert.doesNotMatch(bootstrap,/keyString.*gh variable|gh secret set/);
+});
+
 test('Google-free credential is resolved from Google through GitHub OIDC, not stored in GitHub secrets',()=>{
   assert.match(workflow,/id-token: write/);
   assert.match(workflow,/google-github-actions\/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093/);
-  assert.match(workflow,/workload_identity_provider: \$\{\{ vars\.GCP_WORKLOAD_IDENTITY_PROVIDER \}\}/);
-  assert.match(workflow,/service_account: \$\{\{ vars\.GCP_API_KEY_READER_SERVICE_ACCOUNT \}\}/);
+  assert.match(workflow,/workload_identity_provider: \$\{\{ env\.GCP_WORKLOAD_IDENTITY_PROVIDER \}\}/);
+  assert.match(workflow,/service_account: \$\{\{ env\.GCP_API_KEY_READER_SERVICE_ACCOUNT \}\}/);
   assert.match(workflow,/token_format: access_token/);
   assert.match(workflow,/access_token_lifetime: 300s/);
   assert.match(workflow,/create_credentials_file: false/);
   assert.match(workflow,/apikeys\.googleapis\.com\/v2\/\$GEMINI_API_KEY_RESOURCE\/keyString/);
-  assert.match(workflow,/GEMINI_API_KEY_RESOURCE: \$\{\{ vars\.GEMINI_API_KEY_RESOURCE \}\}/);
+  assert.match(workflow,/GEMINI_FREE_PROJECT_ID: \$\{\{ vars\.GEMINI_FREE_PROJECT_ID \}\}/);
   assert.doesNotMatch(workflow,/\$\{\{\s*secrets\./);
   assert.match(candidate,/AI_SDK_GOOGLE_FREE_CREDENTIAL_SOURCE_INVALID/);
   assert.match(candidate,/credential_source:credentialSource/);
+});
+
+test('Google-free status is re-proved from Cloud Billing at the inference run',()=>{
+  assert.match(workflow,/cloudbilling\.googleapis\.com\/v1\/projects\/\$GEMINI_FREE_PROJECT_ID\/billingInfo/);
+  assert.match(workflow,/billing\.billingEnabled!==false/);
+  assert.match(workflow,/cloudresourcemanager\.googleapis\.com\/v1\/projects\/\$GEMINI_FREE_PROJECT_ID/);
+  assert.match(workflow,/OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE=google-cloud-billing-api/);
+  assert.match(workflow,/OVERCENTER_REASONING_BILLING_ENABLED=false/);
+  assert.match(candidate,/AI_SDK_GOOGLE_FREE_BILLING_PROOF_INVALID/);
+  assert.match(candidate,/billing_enabled:billingEnabled==='false'\?false:null/);
 });
 
 test('Google-free inference receives no repository or Overcenter authority',()=>{
@@ -64,6 +99,7 @@ test('Google-free candidate crosses a fresh-runner boundary before settlement',(
   assert.match(verify,/sandbox-runner\.ts/);
   assert.match(verify,/--launcher "\$RUNNER_TEMP\/overcenter-exec"/);
   assert.match(verify,/credential_source!=='gcp-api-keys-via-github-oidc'/);
+  assert.match(verify,/billing_enabled!==false/);
   assert.match(verify,/reasoning_process_confinement_proven!==false/);
   assert.match(verify,/reasoning_authority_confinement_proven!==true/);
   assert.match(verify,/promotion_evidence\.eligible!==false/);
