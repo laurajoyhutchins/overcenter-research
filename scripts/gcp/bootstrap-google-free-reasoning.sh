@@ -47,13 +47,34 @@ resolve_free_project() {
     candidates+=("$project")
   done < <(gcloud projects list --format='value(projectId)')
 
-  if [[ "${#candidates[@]}" -ne 1 ]]; then
-    printf 'Expected exactly one billing-disabled project with Generative Language API enabled; found %s:\n' "${#candidates[@]}" >&2
-    printf '  %s\n' "${candidates[@]:-none}" >&2
+  if [[ "${#candidates[@]}" -eq 1 ]]; then
+    printf '%s\n' "${candidates[0]}"
+    return
+  fi
+
+  if [[ "${#candidates[@]}" -gt 1 ]]; then
+    printf 'Found multiple billing-disabled projects with Generative Language API enabled:\n' >&2
+    printf '  %s\n' "${candidates[@]}" >&2
     echo "Set GEMINI_FREE_PROJECT_ID explicitly and rerun." >&2
     exit 2
   fi
-  printf '%s\n' "${candidates[0]}"
+
+  local project="oc-gemini-free-${REPOSITORY_ID}"
+  if ! gcloud projects describe "$project" >/dev/null 2>&1; then
+    echo "No existing free Gemini project found; creating $project" >&2
+    gcloud projects create "$project" \
+      --name="Overcenter Gemini Free" \
+      --set-as-default=false >/dev/null
+  fi
+
+  local billing_json
+  billing_json="$(gcloud beta billing projects describe "$project" --format=json)"
+  jq -e '.billingEnabled == false' <<<"$billing_json" >/dev/null || {
+    echo "Automatically created Gemini project unexpectedly has billing enabled: $project" >&2
+    exit 1
+  }
+
+  printf '%s\n' "$project"
 }
 
 GEMINI_PROJECT_ID="$(resolve_free_project)"
@@ -65,7 +86,12 @@ jq -e '.billingEnabled == false' <<<"$BILLING_JSON" >/dev/null || {
 GEMINI_PROJECT_NUMBER="$(gcloud projects describe "$GEMINI_PROJECT_ID" --format='value(projectNumber)')"
 [[ "$GEMINI_PROJECT_NUMBER" =~ ^[0-9]+$ ]] || { echo "Could not resolve Gemini project number" >&2; exit 2; }
 
-gcloud services enable iamcredentials.googleapis.com sts.googleapis.com --project="$IDENTITY_PROJECT_ID" >/dev/null
+gcloud services enable \
+  iamcredentials.googleapis.com \
+  sts.googleapis.com \
+  cloudbilling.googleapis.com \
+  cloudresourcemanager.googleapis.com \
+  --project="$IDENTITY_PROJECT_ID" >/dev/null
 
 if ! gcloud iam workload-identity-pools describe "$POOL_ID"     --project="$IDENTITY_PROJECT_ID" --location=global >/dev/null 2>&1; then
   gcloud iam workload-identity-pools create "$POOL_ID"     --project="$IDENTITY_PROJECT_ID"     --location=global     --display-name="GitHub reasoning workers"
