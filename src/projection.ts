@@ -118,6 +118,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
         if (fact.previous_definition_commit!==state.definition_commits[id]) {
           throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
         }
+        refresh(record.parent??'');
         if (hasInFlight(project)) throw new Error('AMEND_WHILE_IN_FLIGHT');
       } else {
         throw new Error('INVALID_OBLIGATION_KIND');
@@ -126,7 +127,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
       state.obligations[id]=obligation;
       state.definition_commits[id]=record.commit;
       validateGraph(state);
-      refresh(record.commit);
     }
 
     if (record.claim!=null) {
@@ -160,7 +160,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
         definition_commit:state.definition_commits[claim.obligation_id],
       };
       runs.set(run.id,run);
-      refresh(record.commit);
     }
 
     if (record.execution_authority!=null) {
@@ -183,7 +182,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
         execution_authority_commit:record.commit,
         execution_capability_sha256:fact.execution_capability_sha256,
       });
-      refresh(record.commit);
     }
 
     if (record.effect_reservation!=null) {
@@ -243,7 +241,6 @@ export function replayProjection(commits:FactCommit[]):Projection {
       unresolvedReservationsByRun.delete(run.id);
     }
     receipts.push(receipt);
-    refresh(record.commit);
   }
 
   const revision=commits.at(-1)?.commit??'';
