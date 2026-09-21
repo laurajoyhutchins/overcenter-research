@@ -21,11 +21,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  candidate-command:
+    name: Candidate command
+    if: ${{ github.event_name == 'pull_request' && github.event.action != 'ready_for_review' }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions: {}
+    env:
+      RUN_ATTEMPT: ${{ github.run_attempt }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Expose exact-head candidate command
+        run: |
+          set -euo pipefail
+          printf 'source_sha=%s\n' "$SOURCE_SHA"
+          printf 'run_attempt=%s\n' "$RUN_ATTEMPT"
+          if [ "$RUN_ATTEMPT" -le 1 ]; then
+            echo 'Rerun this Candidate command job to request candidate-only evidence for this exact workflow run.'
+          else
+            echo 'Candidate-only evidence requested for this exact workflow run.'
+          fi
+
   evidence:
     name: Evidence
+    needs: candidate-command
+    if: ${{ always() && (needs.candidate-command.result == 'success' || needs.candidate-command.result == 'skipped') }}
     uses: ./.github/workflows/tests.yml
     with:
-      expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
+      expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.run_attempt > 1 || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
 
   gate:
     name: Merge gate
@@ -36,9 +59,12 @@ jobs:
     env:
       EVENT_NAME: ${{ github.event_name }}
       EVENT_ACTION: ${{ github.event.action || '' }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       REQUESTED_SOURCE_SHA: ${{ inputs.source_sha || '' }}
       EVIDENCE_RESULT: ${{ needs.evidence.result }}
+      EVIDENCE_CANDIDATE: ${{ needs.evidence.outputs.candidate_evidence }}
+      EVIDENCE_SOURCE_SHA: ${{ needs.evidence.outputs.source_sha }}
     steps:
       - name: Require an exact-head candidate before merge
         run: |
@@ -46,8 +72,8 @@ jobs:
 
           case "$EVENT_NAME" in
             pull_request)
-              if [ "$EVENT_ACTION" != ready_for_review ]; then
-                echo "::error::Exact-head candidate evidence is required. Mark this PR draft, then Ready for review to certify the current head."
+              if [ "$EVENT_ACTION" != ready_for_review ] && [ "$RUN_ATTEMPT" -le 1 ]; then
+                echo "::error::Exact-head candidate evidence is required. Rerun the Candidate command job for this workflow run, or use the Ready for review transition."
                 exit 1
               fi
               ;;
@@ -68,7 +94,11 @@ jobs:
           set -euo pipefail
           printf 'source_sha=%s\n' "$SOURCE_SHA"
           printf 'evidence=%s\n' "$EVIDENCE_RESULT"
+          printf 'candidate_evidence=%s\n' "$EVIDENCE_CANDIDATE"
+          printf 'evidence_source_sha=%s\n' "$EVIDENCE_SOURCE_SHA"
           test "$EVIDENCE_RESULT" = success
+          test "$EVIDENCE_CANDIDATE" = true
+          test "$EVIDENCE_SOURCE_SHA" = "$SOURCE_SHA"
 
       - name: Publish merge-gate evidence summary
         if: ${{ always() }}
@@ -79,6 +109,9 @@ jobs:
             echo "- source SHA: $SOURCE_SHA"
             echo "- event: $EVENT_NAME"
             echo "- action: ${EVENT_ACTION:-none}"
+            echo "- run attempt: $RUN_ATTEMPT"
             echo "- requested source SHA: ${REQUESTED_SOURCE_SHA:-not supplied}"
             echo "- Evidence: $EVIDENCE_RESULT"
+            echo "- candidate evidence: ${EVIDENCE_CANDIDATE:-false}"
+            echo "- evidence source SHA: ${EVIDENCE_SOURCE_SHA:-not supplied}"
           } >> "$GITHUB_STEP_SUMMARY"
