@@ -27,6 +27,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
 - `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
+- `provider-roundtrips/` - paired GitHub provider latency comparison: current curl-heavy four-request path versus persistent fetch plus combined-status readback.
 
 ## Experiment contract
 
