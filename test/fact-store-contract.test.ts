@@ -19,6 +19,7 @@ function normalized(history:FactCommit[]) {
     commit:ids.get(record.commit),
     parent:record.parent===null ? null : ids.get(record.parent),
     obligation:record.obligation??null,
+    obligations:record.obligations??null,
     claim:record.claim??null,
     execution_authority:record.execution_authority??null,
     effect_reservation:record.effect_reservation??null,
