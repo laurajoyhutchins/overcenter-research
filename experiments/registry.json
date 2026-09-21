@@ -641,6 +641,46 @@
       "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     },
     {
+      "id": "scheduler-bottleneck",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/scheduler-bottleneck",
+      "readme": "experiments/scheduler-bottleneck/README.md",
+      "question": "Is the current scheduler scaling limit dominated by history/projection reconstruction or by SQLite's serialized authority transaction?",
+      "claim": "The experiment independently measures history scan, semantic replay, full READY-read latency, and bare multi-process SQLite authority-CAS throughput so the next optimization can target the measured bottleneck rather than inferred architecture.",
+      "contrast": "Treat poor N-way scheduler scaling as sufficient evidence for distributed authority without decomposing the local transaction path.",
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run experiment:scheduler-bottleneck"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Local filesystem supporting SQLite WAL",
+        "Hosted reference run uses GitHub Actions ubuntu-24.04"
+      ],
+      "success_criteria": [
+        "History scan timing is reported at 10, 100, 1,000, and 5,000 durable commits.",
+        "Production replayProjection timing is reported at 1, 8, 32, 64, and 128 valid obligation definitions.",
+        "Production deriveReadyWork timing is reported at 1, 8, 32, and 64 definitions.",
+        "Bare SQLite authority CAS completes exactly 4,096 appends at 1, 2, 4, and 8 writer processes and reports throughput plus retry pressure.",
+        "The interpretation distinguishes storage scan, semantic replay, combined scheduler read, and authority-write serialization."
+      ],
+      "evidence": {
+        "state": "current",
+        "evaluated_revision": "eee41cac304acffa453c6e37883153a6498fea24",
+        "artifacts": [
+          "GitHub Actions run 35540980827"
+        ]
+      },
+      "interpretation": "Bare SQLite authority CAS sustained a median 2,387.857 appends/s with one writer and 1,297.630/s with eight, versus the preceding end-to-end scheduler result of about 7.9/s and 2.25/s. History scanning was near-linear at ~5.2 microseconds/commit, while semantic replay and deriveReadyWork grew superlinearly over the tested flat definition sizes. The current dominant scaling limit is repeated reconstruction/projection above SQLite, not bare authority-write capacity. Optimize projection/reconstruction before introducing distributed authority.",
+      "non_claims": [
+        "Absolute benchmark timings are portable across hosts.",
+        "Synthetic flat obligation definitions represent every project graph.",
+        "SQLite provides distributed HA.",
+        "The experiment itself authorizes a production optimization."
+      ]
+    },
+    {
       "id": "sqlite-baseline",
       "kind": "experiment",
       "status": "historical",
