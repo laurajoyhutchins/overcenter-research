@@ -98,6 +98,30 @@ test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
   assert.equal(done.history.receipts.at(-1)?.settlement_commit,'receipt-1');
 });
 
+test('replay re-derives current lifecycle before amendment validation',()=>{
+  const defineRecord:FactCommit={
+    commit:'define-1',
+    parent:null,
+    obligation:defined,
+  };
+  const claimRecord=claimCommit('define-1');
+  const amended:ObligationFact={
+    schema:OBLIGATION_SCHEMA,
+    kind:'amended',
+    obligation:{...obligation,packet:{kind:'amended'}},
+    previous_definition_commit:'define-1',
+  };
+
+  assert.throws(
+    ()=>replayProjection([
+      defineRecord,
+      claimRecord,
+      {commit:'amend-1',parent:'claim-1',obligation:amended},
+    ]),
+    /AMEND_WHILE_IN_FLIGHT/,
+  );
+});
+
 test('pure replay rejects a claim whose parent is not its claimed revision',()=>{
   const defineRecord:FactCommit={
     commit:'define-1',
