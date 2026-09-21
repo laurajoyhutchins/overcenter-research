@@ -23,7 +23,7 @@ const obligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligati
 });
 
 test('static graph validation accepts an acyclic dependency chain',()=>{
-  let state:State={obligations:{},definition_commits:{}};
+  let state:State={obligations:{},definition_ids:{}};
   state=withObligation(state,obligation('a'),'a-def');
   state=withObligation(
     state,
@@ -47,7 +47,7 @@ test('static graph validation rejects unknown dependencies and cycles',()=>{
     obligations:{
       a:obligation('a',[{kind:'control',upstream:'missing'}]),
     },
-    definition_commits:{a:'a-def'},
+    definition_ids:{a:'a-def'},
   };
   assert.throws(()=>validateGraph(unknown),/UNKNOWN_DEPENDENCY:a:missing/);
 
@@ -56,7 +56,7 @@ test('static graph validation rejects unknown dependencies and cycles',()=>{
       a:obligation('a',[{kind:'control',upstream:'b'}]),
       b:obligation('b',[{kind:'control',upstream:'a'}]),
     },
-    definition_commits:{a:'a-def',b:'b-def'},
+    definition_ids:{a:'a-def',b:'b-def'},
   };
   assert.throws(()=>validateGraph(cycle),/DEPENDENCY_CYCLE/);
 });
@@ -65,7 +65,7 @@ test('static graph validation rejects unknown dependencies and cycles',()=>{
 test('graph index handles a 10,000-node dependency chain without recursion',()=>{
   const count=10_000;
   const obligations:State['obligations']={};
-  const definition_commits:State['definition_commits']={};
+  const definition_ids:State['definition_ids']={};
   for (let index=0;index<count;index+=1) {
     const id='deep-'+String(index).padStart(5,'0');
     obligations[id]=obligation(
@@ -77,10 +77,10 @@ test('graph index handles a 10,000-node dependency chain without recursion',()=>
             upstream:'deep-'+String(index-1).padStart(5,'0'),
           }],
     );
-    definition_commits[id]=id+'-def';
+    definition_ids[id]=id+'-def';
   }
 
-  const graph=buildGraphIndex({obligations,definition_commits});
+  const graph=buildGraphIndex({obligations,definition_ids});
   assert.equal(graph.topologicalOrder.length,count);
   assert.equal(graph.topologicalOrder[0],'deep-00000');
   assert.equal(graph.topologicalOrder.at(-1),'deep-09999');
