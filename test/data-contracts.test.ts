@@ -8,7 +8,7 @@ import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
-  OBLIGATION_SCHEMA,
+  GRAPH_PATCH_SCHEMA,
   RECEIPT_SCHEMA,
   validateAuthorityFact,
 } from '../src/facts.ts';
@@ -238,7 +238,7 @@ test('durable authority contract preserves backend-neutral logical facts',()=>{
   assert.equal(authorityContract.status,'active');
   assert.equal(authorityContract.storageIndependence.backendLocalCommitIdentity,true);
   assert.deepEqual(authorityContract.schema.wireDiscriminators,[
-    OBLIGATION_SCHEMA,
+    GRAPH_PATCH_SCHEMA,
     CLAIM_SCHEMA,
     EXECUTION_AUTHORITY_SCHEMA,
     EFFECT_RESERVATION_SCHEMA,
@@ -248,12 +248,8 @@ test('durable authority contract preserves backend-neutral logical facts',()=>{
   assert.equal('receipt' in authorityContract.compatibility,false);
 
   assert.equal(
-    authoritySchema.$defs.DefinedObligationFact.properties.schema.const,
-    OBLIGATION_SCHEMA,
-  );
-  assert.equal(
-    authoritySchema.$defs.AmendedObligationFact.properties.schema.const,
-    OBLIGATION_SCHEMA,
+    authoritySchema.$defs.GraphPatchFact.properties.schema.const,
+    GRAPH_PATCH_SCHEMA,
   );
   assert.equal(
     authoritySchema.$defs.ClaimFact.properties.schema.const,
@@ -342,8 +338,8 @@ test('every intentionally open authority payload is named in contract metadata',
     authorityContract.openBoundaries.map((entry:{path:string})=>entry.path),
   );
   assert.deepEqual(declared,new Set([
-    'Obligation.packet',
-    'Obligation.postcondition',
+    'GraphPatchFact.definitions[].definition.packet',
+    'GraphPatchFact.definitions[].definition.postcondition',
     'ReceiptFact.observed',
     'ReceiptFact.diagnostic',
   ]));
