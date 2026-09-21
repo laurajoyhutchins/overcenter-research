@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { State } from '../src/facts.ts';
-import { normalizeObligation } from '../src/facts.ts';
+import {
+  normalizeObligation,
+  obligationDefinition,
+  obligationDefinitionId,
+} from '../src/facts.ts';
 import { planGraphReconciliation } from '../src/graph-reconciliation.ts';
 
 const pc=(path:string,content:string)=>({
@@ -12,26 +16,25 @@ const pc=(path:string,content:string)=>({
 });
 
 test('graph reconciliation deterministically classifies add rebind and unchanged',()=>{
+  const unchanged=normalizeObligation({
+    id:'unchanged',
+    dependencies:[
+      {kind:'control',upstream:'root'},
+      {kind:'control',upstream:'other'},
+    ],
+    packet:{value:1},
+    postcondition:pc('/tmp/unchanged','A'),
+  });
+  const changed=normalizeObligation({
+    id:'changed',
+    packet:{value:1},
+    postcondition:pc('/tmp/changed','A'),
+  });
   const state:State={
-    obligations:{
-      unchanged:normalizeObligation({
-        id:'unchanged',
-        dependencies:[
-          {kind:'control',upstream:'root'},
-          {kind:'control',upstream:'other'},
-        ],
-        packet:{value:1},
-        postcondition:pc('/tmp/unchanged','A'),
-      }),
-      changed:normalizeObligation({
-        id:'changed',
-        packet:{value:1},
-        postcondition:pc('/tmp/changed','A'),
-      }),
-    },
+    obligations:{unchanged,changed},
     definition_ids:{
-      unchanged:'u-def',
-      changed:'c-def',
+      unchanged:obligationDefinitionId(obligationDefinition(unchanged)),
+      changed:obligationDefinitionId(obligationDefinition(changed)),
     },
   };
 
