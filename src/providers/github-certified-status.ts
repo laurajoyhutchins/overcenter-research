@@ -166,9 +166,17 @@ function observeCombinedPositive(
   },
 ):CertifiedGithubCommitStatusResult|null {
   const {owner,repo}=githubRepositoryCoordinate(repositoryFullName);
+  const pagination=GITHUB_COMBINED_COMMIT_STATUS_OPERATION.pagination;
+  if (!pagination) throw new Error('GITHUB_COMBINED_STATUS_PAGINATION_UNAVAILABLE');
   const request=materializeGithubOperationRequest(
     GITHUB_COMBINED_COMMIT_STATUS_OPERATION,
-    {owner,repo,ref:commitSha,page:1,per_page:100},
+    {
+      owner,
+      repo,
+      ref:commitSha,
+      [pagination.page_parameter]:pagination.first_page,
+      [pagination.page_size_parameter]:100,
+    },
   );
   const {observed_at:observedAt,certified}=observeCertifiedGithubRead200({
     token,
@@ -217,7 +225,7 @@ function observeCombinedPositive(
     optional_absent_paths:optionalAbsentPaths,
   };
   const pages:[CertifiedGithubStatusPageEvidence]=[{
-    page:1,
+    page:pagination.first_page,
     member_count:value.statuses.length,
     observed_at:observedAt,
     validated_paths:validatedPaths,
