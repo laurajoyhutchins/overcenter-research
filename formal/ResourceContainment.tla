@@ -32,7 +32,7 @@ Init ==
         evidenceFinal |-> FALSE,
         removedLeaf |-> NoLeaf,
         wrongLeafTouched |-> FALSE
-    ]
+        ]
 
 Start(l) ==
     /\ s.phase = "Idle"
@@ -46,7 +46,7 @@ Start(l) ==
         !.evidenceFinal = FALSE,
         !.removedLeaf = NoLeaf,
         !.wrongLeafTouched = FALSE
-    ]
+        ]
 
 ChildCloses ==
     /\ s.phase = "Running"
@@ -60,7 +60,7 @@ Kill(l) ==
         !.phase = "KillRequested",
         !.killedLeaf = l,
         !.wrongLeafTouched = s.wrongLeafTouched \/ l # s.activeLeaf
-    ]
+        ]
 
 ObserveEmpty ==
     /\ s.phase = "KillRequested"
@@ -68,7 +68,7 @@ ObserveEmpty ==
     /\ s' = [s EXCEPT
         !.phase = "Empty",
         !.populated = FALSE
-    ]
+        ]
 
 CaptureEvidence(l) ==
     /\ s.phase \in {"ChildClosed", "KillRequested", "Empty"}
@@ -83,7 +83,7 @@ CaptureEvidence(l) ==
             /\ ~s.populated
             /\ s.killedLeaf = s.activeLeaf,
         !.wrongLeafTouched = s.wrongLeafTouched \/ l # s.activeLeaf
-    ]
+        ]
 
 Remove(l) ==
     /\ s.phase = "Observed"
@@ -93,7 +93,7 @@ Remove(l) ==
         !.phase = "Removed",
         !.removedLeaf = l,
         !.wrongLeafTouched = s.wrongLeafTouched \/ l # s.activeLeaf
-    ]
+        ]
 
 Next ==
     \/ \E l \in Leaves : Start(l)
