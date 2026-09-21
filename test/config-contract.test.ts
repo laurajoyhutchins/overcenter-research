@@ -153,7 +153,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
   const workflows=[
     {
       path:'.github/workflows/tests.yml',
-      jobs:['evidence'],
+      jobs:['regression','experiments','production','evidence'],
     },
     {
       path:'.github/workflows/computation-executor.yml',
@@ -185,7 +185,10 @@ test('PR CI critical paths fail closed within three minutes',()=>{
   }
 
   const budgets=[
-    ['.github/workflows/tests.yml','evidence',3],
+    ['.github/workflows/tests.yml','regression',3],
+    ['.github/workflows/tests.yml','experiments',3],
+    ['.github/workflows/tests.yml','production',3],
+    ['.github/workflows/tests.yml','evidence',1],
     ['.github/workflows/computation-executor.yml','executor',2],
     ['.github/workflows/self-application.yml','self-evidence',2],
     ['.github/workflows/merge-gate.yml','gate',1],

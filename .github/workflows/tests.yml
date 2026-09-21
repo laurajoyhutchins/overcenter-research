@@ -20,8 +20,8 @@ permissions:
   contents: read
 
 jobs:
-  evidence:
-    name: Candidate evidence
+  regression:
+    name: Regression evidence
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     env:
@@ -41,17 +41,31 @@ jobs:
       - name: Run deterministic regression
         run: npm run test:unit
 
+  experiments:
+    name: Experiment and formal evidence
+    if: ${{ inputs.expensive }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact evidence revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
       - name: Install Java for candidate formal proof
-        if: ${{ inputs.expensive }}
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '21'
       - name: Run adversarial experiment proofs
-        if: ${{ inputs.expensive }}
         run: npm run test:experiments
       - name: Run independent stress and TLA+ proofs concurrently
-        if: ${{ inputs.expensive }}
         shell: bash
         run: |
           set +e
@@ -67,14 +81,29 @@ jobs:
           test "$stress_status" -eq 0
           test "$formal_status" -eq 0
 
+  production:
+    name: Production and self-application evidence
+    if: ${{ inputs.expensive }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact evidence revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
       - name: Install Go for candidate production evidence
-        if: ${{ inputs.expensive }}
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: '.go-version'
           cache: false
       - name: Install pinned Rust toolchain
-        if: ${{ inputs.expensive }}
         shell: bash
         run: |
           set -euo pipefail
@@ -83,13 +112,11 @@ jobs:
           rustup toolchain install "$channel" --profile minimal --no-self-update
           test "$(rustc --version | awk '{print $2}')" = "$channel"
       - name: Prove production computation boundary
-        if: ${{ inputs.expensive }}
         env:
           OVERCENTER_PREVERIFIED_COMPUTATION_EXECUTOR: '1'
           OVERCENTER_KEEP_BUILD: '1'
         run: npm run proof:production-boundary
       - name: Prove self-application on the same exact revision
-        if: ${{ inputs.expensive }}
         env:
           OVERCENTER_REUSE_EXECUTOR: '1'
         run: |
@@ -103,3 +130,27 @@ jobs:
             echo '### Report'
             sed 's/^/    /' "$report"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  evidence:
+    name: Candidate evidence
+    if: ${{ always() }}
+    needs: [regression, experiments, production]
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    env:
+      EXPENSIVE: ${{ inputs.expensive }}
+      REGRESSION_RESULT: ${{ needs.regression.result }}
+      EXPERIMENTS_RESULT: ${{ needs.experiments.result }}
+      PRODUCTION_RESULT: ${{ needs.production.result }}
+    steps:
+      - name: Require complete evidence
+        run: |
+          set -euo pipefail
+          test "$REGRESSION_RESULT" = success
+          if [ "$EXPENSIVE" = true ]; then
+            test "$EXPERIMENTS_RESULT" = success
+            test "$PRODUCTION_RESULT" = success
+          else
+            test "$EXPERIMENTS_RESULT" = skipped
+            test "$PRODUCTION_RESULT" = skipped
+          fi
