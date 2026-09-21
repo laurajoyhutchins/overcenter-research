@@ -8,6 +8,7 @@ import {
 import {join} from 'node:path';
 
 import {
+  AGENT_RESPONSE_SCHEMA,
   AGENT_TASK_PACKET_SCHEMA,
   assignmentFile,
   assignmentSha256,
@@ -119,7 +120,7 @@ writeFileSync(join(capsuleDir,'assignment.json'),assignmentBytes);
 writeFileSync(join(capsuleDir,'assignment-capsule.mjs'),sourceBytes(sourceSha,RUNNER_PATH));
 
 const receipt={
-  schema:'overcenter-github-agent-response/v1',
+  schema:AGENT_RESPONSE_SCHEMA,
   operation:'acquire',
   request_sha:requestId,
   authority_ref:authorityRef,
