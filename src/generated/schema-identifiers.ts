@@ -28,10 +28,10 @@ export const OBSERVATION_SCHEMAS={
 } as const;
 
 export const AGENT_SCHEMAS={
-  "assignment": "overcenter-agent-assignment-v1",
-  "candidate": "overcenter-agent-candidate-v1",
-  "task": "overcenter-agent-task-v1",
-  "response": "overcenter-github-agent-response-v1"
+  "assignment": "overcenter-agent-assignment/v1",
+  "candidate": "overcenter-agent-candidate/v1",
+  "task": "overcenter-agent-task/v1",
+  "response": "overcenter-github-agent-response/v1"
 } as const;
 
 export const SELF_APPLICATION_SCHEMAS={
