@@ -2,6 +2,9 @@ name: Scheduler provisioning comparison
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/scheduler-provisioning
   pull_request:
     paths:
       - .github/workflows/scheduler-provisioning.yml
