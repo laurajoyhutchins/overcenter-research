@@ -20,8 +20,7 @@ function normalized(history:FactCommit[]) {
   return history.map(record=>({
     commit:ids.get(record.commit),
     parent:record.parent===null ? null : ids.get(record.parent),
-    obligation:record.obligation??null,
-    obligations:record.obligations??null,
+    graph_patch:record.graph_patch??null,
     claim:record.claim??null,
     execution_authority:record.execution_authority??null,
     effect_reservation:record.effect_reservation??null,
@@ -36,7 +35,7 @@ function exercise(store:DurableFactStore) {
   const defined=store.append(
     initial,
     'define a',
-    {'obligation.json':{schema:'test-obligation',id:'a'}},
+    {'graph-patch.json':{schema:'test-graph-patch',node_id:'a'}},
   );
   assert.ok(defined);
 
