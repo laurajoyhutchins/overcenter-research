@@ -15,13 +15,27 @@ test('AI SDK routing keeps Gateway default and Google-free as the only direct es
   assert.doesNotMatch(resolver,/OPENAI_API_KEY|ANTHROPIC_API_KEY/);
 });
 
+test('Google-free credential is resolved from Google through GitHub OIDC, not stored in GitHub secrets',()=>{
+  assert.match(workflow,/id-token: write/);
+  assert.match(workflow,/google-github-actions\/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093/);
+  assert.match(workflow,/workload_identity_provider: \$\{\{ vars\.GCP_WORKLOAD_IDENTITY_PROVIDER \}\}/);
+  assert.match(workflow,/service_account: \$\{\{ vars\.GCP_API_KEY_READER_SERVICE_ACCOUNT \}\}/);
+  assert.match(workflow,/token_format: access_token/);
+  assert.match(workflow,/access_token_lifetime: 300s/);
+  assert.match(workflow,/create_credentials_file: false/);
+  assert.match(workflow,/apikeys\.googleapis\.com\/v2\/\$GEMINI_API_KEY_RESOURCE\/keyString/);
+  assert.match(workflow,/GEMINI_API_KEY_RESOURCE: \$\{\{ vars\.GEMINI_API_KEY_RESOURCE \}\}/);
+  assert.doesNotMatch(workflow,/\$\{\{\s*secrets\./);
+  assert.match(candidate,/AI_SDK_GOOGLE_FREE_CREDENTIAL_SOURCE_INVALID/);
+  assert.match(candidate,/credential_source:credentialSource/);
+});
+
 test('Google-free inference receives no repository or Overcenter authority',()=>{
-  assert.match(workflow,/permissions:\n  contents: read/);
   assert.doesNotMatch(workflow,/contents: write|pull-requests: write|statuses: write/);
   assert.match(workflow,/persist-credentials: false/g);
   assert.match(workflow,/rm -rf "\$GITHUB_WORKSPACE"/);
   assert.match(workflow,/\/usr\/bin\/setpriv[\s\S]*\/usr\/bin\/env -i/);
-  assert.match(workflow,/GOOGLE_GENERATIVE_AI_API_KEY/);
+  assert.match(workflow,/OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc/);
   assert.doesNotMatch(workflow,/^\s+GITHUB_TOKEN:\s/m);
   assert.match(candidate,/AI_SDK_GITHUB_TOKEN_FORBIDDEN/);
   assert.match(candidate,/AI_SDK_OVERCENTER_AUTHORITY_FORBIDDEN/);
@@ -49,6 +63,7 @@ test('Google-free candidate crosses a fresh-runner boundary before settlement',(
   assert.match(verify,/needs: model/);
   assert.match(verify,/sandbox-runner\.ts/);
   assert.match(verify,/--launcher "\$RUNNER_TEMP\/overcenter-exec"/);
+  assert.match(verify,/credential_source!=='gcp-api-keys-via-github-oidc'/);
   assert.match(verify,/reasoning_process_confinement_proven!==false/);
   assert.match(verify,/reasoning_authority_confinement_proven!==true/);
   assert.match(verify,/promotion_evidence\.eligible!==false/);
