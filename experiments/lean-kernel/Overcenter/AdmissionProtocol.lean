@@ -139,6 +139,21 @@ private def reservationReplayComparison (request : Json) : Except String Json :=
     ("admitted", reservationReplayAllowed run reservation (← boolField request "unresolved_effect"))
   ]
 
+private def receiptReplayComparison (request : Json) : Except String Json := do
+  let run ← mutationRunIdentity request "run"
+  let receipt : ReceiptIdentity := {
+    runId := ← stringField request "receipt_run_id"
+    obligationId := ← stringField request "receipt_obligation_id"
+    claimedRevision := ← stringField request "receipt_claimed_revision"
+    claimCommit := ← stringField request "receipt_claim_commit"
+    executionGeneration := ← stringField request "receipt_execution_generation"
+    executionAuthorityCommit := ← stringField request "receipt_execution_authority_commit"
+  }
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-receipt-replay-comparison/v1"),
+    ("admitted", receiptReplayAllowed run receipt)
+  ]
+
 private def transactionKernelComparison (request : Json) : Except String Json := do
   let facts : TransactionFacts := {
     currentAuthority := ← boolField request "current_authority"
@@ -168,6 +183,8 @@ def handleComparisonJson (request : Json) : Except String Json := do
     mutationAuthorityComparison request
   else if command == "reservation-replay" then
     reservationReplayComparison request
+  else if command == "receipt-replay" then
+    receiptReplayComparison request
   else
     if command != "claim-admission" then
       throw s!"unsupported command: {command}"
