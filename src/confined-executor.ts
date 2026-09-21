@@ -101,6 +101,8 @@ function requireFiniteParentEnvelope(parentFd:number):void {
   };
   finite('memory.max');
   finite('pids.max');
+  finite('cgroup.max.descendants');
+  if (read('cgroup.max.depth')!=='1') throw new Error('CGROUP_PARENT_DEPTH_NOT_ONE');
 
   if (read('cpu.max.burst')!=='0') throw new Error('CGROUP_PARENT_CPU_BURST_ENABLED');
 
