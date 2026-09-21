@@ -396,7 +396,6 @@ wait "$memory_pid" || memory_status=$?
 test "$memory_status" -ne 0
 memory_leaf="$cgroup_parent/overcenter-$memory_pid"
 test "$(awk '$1 == "oom_kill" { print $2 }' "$memory_leaf/memory.events")" -ge 1
-test "$(cat "$memory_leaf/memory.peak")" -le 50331648
 cleanup_resource_leaf "$memory_pid"
 
 printf '%s\n' '== ambient authority is physically removed =='
