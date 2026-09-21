@@ -110,9 +110,9 @@ This is a physical computation boundary only. Provider mutation credentials stil
 
 ## Host cgroup contract
 
-The host prepares a **finite aggregate cgroup-v2 pool**. The trusted supervisor opens that parent with no-follow semantics and fails closed unless it is a domain cgroup whose `cgroup.subtree_control` contains `cpu`, `memory`, and `pids`, and whose own `memory.max`, `pids.max`, and `cpu.max` are finite and whose `cpu.max.burst` is zero. These parent limits bound aggregate worker pressure; per-attempt manifest values are child ceilings, not capacity reservations.
+The host prepares a **finite aggregate cgroup-v2 pool**. The trusted supervisor opens that parent with no-follow semantics and fails closed unless it is a domain cgroup whose `cgroup.subtree_control` contains `cpu`, `memory`, and `pids`, and whose own `memory.max`, `pids.max`, and `cpu.max` are finite, whose `cpu.max.burst` is zero, whose `cgroup.max.descendants` is finite, and whose `cgroup.max.depth` is exactly 1. These parent limits bound aggregate worker pressure; per-attempt manifest values are child ceilings, not capacity reservations.
 
 For each launch, TypeScript creates a fresh random leaf beneath that parent, opens and pins the leaf, records its device/inode identity, and passes only that exact leaf on FD 4. Rust neither selects nor creates cgroups by PID or pathname. It configures and enters FD 4, then Landlock and `close_range` remove the leaf capability before worker `exec`.
 
-The supervisor keeps its own leaf FD and parent FD for termination, final evidence, identity verification, and removal. It does not infer cgroup ownership from a PID, and it does not sweep unrelated stale leaves. Recovery of an orphaned bounded leaf after supervisor death remains an authority-aware recovery operation outside this low-level launcher.
+The supervisor keeps its own leaf FD and parent FD for termination, final evidence, identity verification, and removal. It does not infer cgroup ownership from a PID, and it does not sweep unrelated stale leaves. Recovery of an orphaned bounded leaf after supervisor death remains an authority-aware recovery operation outside this low-level launcher. The finite descendant-count limit ensures such orphans can exhaust only a bounded leaf budget and then fail closed rather than grow the cgroup hierarchy without limit.
 
