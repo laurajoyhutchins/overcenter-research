@@ -380,23 +380,7 @@ cpu_pid=$!
 cpu_status=0
 wait "$cpu_pid" || cpu_status=$?
 test "$cpu_status" -eq 0
-grep -q '^CPU_BUSY
-exec 200<"$outside/secret.txt"
-GITHUB_TOKEN='AMBIENT-GITHUB-SECRET' \
-AWS_SECRET_ACCESS_KEY='AMBIENT-AWS-SECRET' \
-  "$launcher" 3<"$root" 4<"$cgroup_parent" < "$manifest" &
-ambient_pid=$!
-wait "$ambient_pid"
-cleanup_resource_leaf "$ambient_pid"
-exec 200<&-
-
-printf '%s\n' '== verify durable filesystem effects =='
-test "$(cat "$root/output.txt")" = 'TASK-WRITE'
-test "$(cat "$outside/secret.txt")" = 'SECRET'
-test "$(cat "$outside/write-target.txt")" = 'UNCHANGED'
-
-printf '\nPASS: production Rust worker confinement boundary\n'
- "$tmp/cpu.out"
+grep -q '^CPU_BUSY$' "$tmp/cpu.out"
 cpu_leaf="$cgroup_parent/overcenter-$cpu_pid"
 test "$(awk '$1 == "nr_throttled" { print $2 }' "$cpu_leaf/cpu.stat")" -ge 1
 cleanup_resource_leaf "$cpu_pid"
