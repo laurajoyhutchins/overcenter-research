@@ -72,7 +72,7 @@ jobs:
       - name: Commit reconciled evidence
         if: steps.artifact.outputs.found == 'true'
         env:
-          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.digest }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.digest }}\n          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}\n          SOURCE_REVISION: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
           evidence=experiments/production-criticality-ranking/mutation-evidence.json
