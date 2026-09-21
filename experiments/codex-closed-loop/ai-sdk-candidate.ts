@@ -37,8 +37,21 @@ function parseArgs(argv:string[]):Args {
 
 const args=parseArgs(process.argv.slice(2));
 const credentialSource=process.env.OVERCENTER_REASONING_CREDENTIAL_SOURCE??null;
+const billingProjectId=process.env.OVERCENTER_REASONING_BILLING_PROJECT_ID??null;
+const billingObservationSource=process.env.OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE??null;
+const billingEnabled=process.env.OVERCENTER_REASONING_BILLING_ENABLED;
 if (args.profile==='google-free' && credentialSource!=='gcp-api-keys-via-github-oidc') {
   throw new Error('AI_SDK_GOOGLE_FREE_CREDENTIAL_SOURCE_INVALID');
+}
+if (
+  args.profile==='google-free'
+  && (
+    !billingProjectId
+    || billingObservationSource!=='google-cloud-billing-api'
+    || billingEnabled!=='false'
+  )
+) {
+  throw new Error('AI_SDK_GOOGLE_FREE_BILLING_PROOF_INVALID');
 }
 if (process.env.GITHUB_TOKEN) throw new Error('AI_SDK_GITHUB_TOKEN_FORBIDDEN');
 if (process.env.OVERCENTER_DATABASE_URL || process.env.OVERCENTER_AUTHORITY_DATABASE) {
@@ -72,6 +85,9 @@ const provenance={
   model_id:selection.model_id,
   gateway_used:selection.gateway_used,
   credential_source:credentialSource,
+  billing_project_id:billingProjectId,
+  billing_observation_source:billingObservationSource,
+  billing_enabled:billingEnabled==='false'?false:null,
   repository_mutation_observed:false,
   prompt_sha256:sha256(promptBytes),
   candidate_sha256:sha256(candidateBytes),
