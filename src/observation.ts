@@ -1,3 +1,4 @@
+import {POSTCONDITION_VERIFIERS} from './generated/schema-identifiers.ts';
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -103,13 +104,13 @@ function readLocalFile(path:string,context:ObservationContext):string {
 }
 
 export function validatePostcondition(p: Postcondition): void {
-  if (p?.verifier==='file-content-equals/v1'
+  if (p?.verifier===POSTCONDITION_VERIFIERS.fileContentEquals
     && typeof p.path==='string'
     && typeof p.content==='string') return;
-  if (p?.verifier==='eventually-consistent-file-content-equals/v1'
+  if (p?.verifier===POSTCONDITION_VERIFIERS.eventuallyConsistentFileContentEquals
     && typeof p.path==='string'
     && typeof p.content==='string') return;
-  if (p?.verifier==='github-commit-status/v2'
+  if (p?.verifier===POSTCONDITION_VERIFIERS.githubCommitStatus
     && p.provider==='github'
     && Number.isSafeInteger(p.repository_id)
     && p.repository_id > 0
@@ -119,7 +120,7 @@ export function validatePostcondition(p: Postcondition): void {
     && typeof p.context==='string'
     && p.context.length > 0
     && ['error','failure','pending','success'].includes(p.expected_state)) return;
-  if (p?.verifier==='kubernetes-configmap-exists/v1'
+  if (p?.verifier===POSTCONDITION_VERIFIERS.kubernetesConfigMapExists
     && p.provider==='kubernetes'
     && typeof p.authority_id==='string'
     && p.authority_id.length > 0
@@ -138,7 +139,7 @@ export function observePostcondition(
 ): Observation {
   validatePostcondition(p);
 
-  if (p.verifier==='github-commit-status/v2') {
+  if (p.verifier===POSTCONDITION_VERIFIERS.githubCommitStatus) {
     const common={
       verifier:p.verifier,
       provider:'github' as const,
@@ -193,7 +194,7 @@ export function observePostcondition(
     }
   }
 
-  if (p.verifier==='kubernetes-configmap-exists/v1') {
+  if (p.verifier===POSTCONDITION_VERIFIERS.kubernetesConfigMapExists) {
     const common={
       verifier:p.verifier,
       provider:'kubernetes' as const,
@@ -243,7 +244,7 @@ export function observePostcondition(
     };
   }
 
-  if (p.verifier==='eventually-consistent-file-content-equals/v1') {
+  if (p.verifier===POSTCONDITION_VERIFIERS.eventuallyConsistentFileContentEquals) {
     const expected=sha256(p.content);
     try {
       const actual=readLocalFile(p.path,context);
@@ -328,8 +329,8 @@ function assertObservationCoordinate(
   }
 
   if (
-    postcondition.verifier==='file-content-equals/v1'
-    || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+    postcondition.verifier===POSTCONDITION_VERIFIERS.fileContentEquals
+    || postcondition.verifier===POSTCONDITION_VERIFIERS.eventuallyConsistentFileContentEquals
   ) {
     if (observed.path!==postcondition.path) {
       throw new Error('OBSERVATION_COORDINATE_MISMATCH');
@@ -337,7 +338,7 @@ function assertObservationCoordinate(
     return;
   }
 
-  if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
+  if (postcondition.verifier===POSTCONDITION_VERIFIERS.kubernetesConfigMapExists) {
     if (
       observed.provider!=='kubernetes'
       || observed.authority_id!==postcondition.authority_id
@@ -372,14 +373,14 @@ export function authoritativeAbsenceEvidence(
   if (observed.mutation_certainty!=='absent') return null;
 
   switch (postcondition.verifier) {
-    case 'file-content-equals/v1':
+    case POSTCONDITION_VERIFIERS.fileContentEquals:
       return localFileEnoentEvidenceMatches(
         observed.absence_evidence,
         postcondition.path,
       )
         ? observed.absence_evidence
         : null;
-    case 'kubernetes-configmap-exists/v1':
+    case POSTCONDITION_VERIFIERS.kubernetesConfigMapExists:
       return kubernetesConfigMapAbsenceEvidenceMatches(
         observed.absence_evidence,
         postcondition,
@@ -406,13 +407,13 @@ export function observationVerified(
   if (observed.mutation_certainty!=='present') return false;
 
   if (
-    postcondition.verifier==='file-content-equals/v1'
-    || postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+    postcondition.verifier===POSTCONDITION_VERIFIERS.fileContentEquals
+    || postcondition.verifier===POSTCONDITION_VERIFIERS.eventuallyConsistentFileContentEquals
   ) {
     return observed.actual_sha256===sha256(postcondition.content);
   }
 
-  if (postcondition.verifier==='kubernetes-configmap-exists/v1') {
+  if (postcondition.verifier===POSTCONDITION_VERIFIERS.kubernetesConfigMapExists) {
     return typeof observed.observed_uid==='string'
       && observed.observed_uid.length>0
       && typeof observed.observed_resource_version==='string'
