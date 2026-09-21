@@ -9,6 +9,11 @@ on:
       - .github/workflows/production-latency.yml
       - experiments/production-latency/**
       - src/providers/github-status-effect.ts
+      - src/kernel.ts
+      - src/kernel-core.ts
+      - src/projection.ts
+      - src/projector.ts
+      - src/sqlite-store.ts
       - package.json
       - experiments/registry.json
   pull_request:
@@ -16,6 +21,11 @@ on:
       - .github/workflows/production-latency.yml
       - experiments/production-latency/**
       - src/providers/github-status-effect.ts
+      - src/kernel.ts
+      - src/kernel-core.ts
+      - src/projection.ts
+      - src/projector.ts
+      - src/sqlite-store.ts
       - package.json
       - experiments/registry.json
 
