@@ -145,7 +145,35 @@ reasoningModel(profile)
 
 Both routes feed the same candidate schema and the same independent admission, confined execution, verification, settlement, and reconstruction machinery. The route changes how reasoning is funded and transported; it does not change what counts as project truth.
 
-The `google-free` profile requires `GOOGLE_GENERATIVE_AI_API_KEY`. The manual `Autonomy sandbox Google-free AI SDK proof` workflow copies only the trusted AI SDK client, model resolver, synthetic prompt, and candidate schema into a disposable runtime, removes the repository checkout, drops to an unprivileged UID, and performs one networked Gemini inference. The model worker has inference authority but no repository credential, Overcenter authority database, or project-provider mutation authority.
+The `google-free` profile uses a Gemini authorization key from a dedicated free-tier Google project, but the key is **not stored in GitHub** and is not duplicated into another secret store. The manual `Autonomy sandbox Google-free AI SDK proof` workflow uses this chain:
+
+```text
+GitHub Actions OIDC
+        |
+        v
+GCP Workload Identity Federation
+        |
+        v
+dedicated API-key reader service account
+        |
+        v
+Google API Keys getKeyString(existing Gemini auth key)
+        |
+        v
+disposable inference process only
+```
+
+The repository stores only non-secret GitHub Actions variables:
+
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`;
+- `GCP_API_KEY_READER_SERVICE_ACCOUNT`;
+- `GEMINI_API_KEY_RESOURCE` (the full `projects/.../locations/global/keys/...` resource name).
+
+The reader identity should have only Workload Identity User for the configured GitHub principal and `roles/serviceusage.apiKeysViewer` on the dedicated Gemini project. Keeping that project dedicated to free-tier inference bounds the predefined viewer role to that project's API keys.
+
+The workflow exchanges GitHub OIDC for a five-minute Google access token, resolves the Gemini key string directly from Google's API Keys API, masks it, passes it only into the unprivileged inference process, deletes the temporary key file immediately afterward, and never writes the key to a GitHub secret or retained artifact.
+
+The reasoning worker still receives no repository credential, readable checkout, Overcenter authority database, or project-provider mutation authority. Provenance binds the `google-free` run to `credential_source=gcp-api-keys-via-github-oidc`.
 
 Because direct Gemini inference requires networking, this route does **not** claim offline process confinement. Its retained evidence instead requires `reasoning_authority_confinement_proven=true`, while candidate execution remains independently confined by `overcenter-exec`.
 
