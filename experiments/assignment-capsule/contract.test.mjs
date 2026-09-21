@@ -5,6 +5,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
 import {
+  AGENT_TASK_PACKET_SCHEMA,
+  CANDIDATE_SCHEMA,
   assignmentFile,
   buildAssignment,
   encodeAssignment,
@@ -12,20 +14,21 @@ import {
   validateAssignment,
   validateCandidate,
 } from '../../src/assignment-capsule.mjs';
+import {POSTCONDITION_VERIFIERS} from '../../src/schema-identifiers.generated.mjs';
 
 function work() {
   return {
     id:'proof',
     dependencies:[],
     packet:{
-      schema:'overcenter-agent-task/v1',
+      schema:AGENT_TASK_PACKET_SCHEMA,
       kind:'pure-candidate',
       source_sha:'1'.repeat(40),
       command:['node','task.mjs','input.txt','result.txt'],
       required_paths:['task.mjs','input.txt'],
       output_path:'result.txt',
     },
-    postcondition:{verifier:'file-content-equals/v1',path:'/tmp/result.txt',content:'done\n'},
+    postcondition:{verifier:POSTCONDITION_VERIFIERS.fileContentEquals,path:'/tmp/result.txt',content:'done\n'},
     status:'EXECUTING',
     revision:'head-after-claim',
     run_id:'run-1',
@@ -75,7 +78,7 @@ test('candidate bytes are bound to the exact assignment and claimed run',()=>{
   const bytes=encodeAssignment(assignment);
   const output=Buffer.from('done\n');
   const candidate={
-    schema:'overcenter-agent-candidate/v1',
+    schema:CANDIDATE_SCHEMA,
     assignment_sha256:createHash('sha256').update(bytes).digest('hex'),
     obligation_id:'proof',
     run_id:'run-1',
