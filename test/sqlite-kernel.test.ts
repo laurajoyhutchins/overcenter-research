@@ -163,6 +163,100 @@ test('SQLite graph patch admits multiple nodes in one authority transition',()=>
   }
 });
 
+test('SQLite graph reconciliation derives add replace and no-op without extra writes',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-graph-reconcile-'));
+  const database=join(root,'overcenter.sqlite');
+  const kernel=new OvercenterKernel(database);
+  try {
+    const initial=kernel.initialize();
+    const first=kernel.reconcileGraph([
+      {id:'root',postcondition:pc(join(root,'root'),'R')},
+      {
+        id:'leaf',
+        dependencies:[{kind:'control',upstream:'root'}],
+        packet:{generation:1},
+        postcondition:pc(join(root,'leaf'),'L'),
+      },
+    ],initial);
+    assert.deepEqual(first.added,['leaf','root']);
+    assert.deepEqual(first.replaced,[]);
+    assert.deepEqual(first.unchanged,[]);
+
+    const unchanged=kernel.reconcileGraph([
+      {
+        id:'leaf',
+        dependencies:[{kind:'control',upstream:'root'}],
+        packet:{generation:1},
+        postcondition:pc(join(root,'leaf'),'L'),
+      },
+      {id:'root',postcondition:pc(join(root,'root'),'R')},
+    ],first.revision);
+    assert.equal(unchanged.revision,first.revision);
+    assert.deepEqual(unchanged.added,[]);
+    assert.deepEqual(unchanged.replaced,[]);
+    assert.deepEqual(unchanged.unchanged,['leaf','root']);
+
+    const changed=kernel.reconcileGraph([
+      {
+        id:'leaf',
+        dependencies:[{kind:'control',upstream:'root'}],
+        packet:{generation:2},
+        postcondition:pc(join(root,'leaf'),'L'),
+      },
+      {id:'extra',postcondition:pc(join(root,'extra'),'E')},
+    ],unchanged.revision);
+    assert.deepEqual(changed.added,['extra']);
+    assert.deepEqual(changed.replaced,['leaf']);
+    assert.deepEqual(changed.unchanged,[]);
+
+    const db=new DatabaseSync(database);
+    try {
+      const row=db.prepare('SELECT COUNT(*) AS count FROM fact_commits').get() as {count:number};
+      assert.equal(Number(row.count),3);
+    } finally {
+      db.close();
+    }
+  } finally {
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
+test('no-op graph reconciliation remains read-only while work is in flight',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-graph-reconcile-busy-noop-'));
+  const database=join(root,'overcenter.sqlite');
+  const kernel=new OvercenterKernel(database);
+  try {
+    const initial=kernel.initialize();
+    const defined=kernel.reconcileGraph([
+      {id:'a',packet:{value:1},postcondition:pc(join(root,'a'),'A')},
+    ],initial);
+    const run=kernel.claim('a',defined.revision);
+    const head=kernel.head();
+    assert.ok(head);
+
+    const result=kernel.reconcileGraph([
+      {id:'a',packet:{value:1},postcondition:pc(join(root,'a'),'A')},
+    ],head);
+    assert.equal(result.revision,head);
+    assert.deepEqual(result.added,[]);
+    assert.deepEqual(result.replaced,[]);
+    assert.deepEqual(result.unchanged,['a']);
+
+    assert.throws(
+      ()=>kernel.reconcileGraph([
+        {id:'a',packet:{value:2},postcondition:pc(join(root,'a'),'A')},
+      ],head),
+      /PROJECT_BUSY/,
+    );
+    assert.equal(kernel.head(),head);
+    kernel.recoverInterrupted(run);
+  } finally {
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
 test('invalid SQLite graph patch leaves authority unchanged',()=>{
   const root=mkdtempSync(join(tmpdir(),'sqlite-invalid-graph-patch-'));
   const database=join(root,'overcenter.sqlite');
