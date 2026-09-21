@@ -1,3 +1,4 @@
+import {COMPUTATION_RUNNER_SCHEMAS} from './generated/schema-identifiers.ts';
 import type {
   Data,
   ExecutionPermit,
@@ -17,9 +18,9 @@ import {
   type Receipt,
 } from './kernel-core.ts';
 
-export const REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA='overcenter-replay-safe-test-computation-v1' as const;
-export const COMPUTATION_ATTEMPT_SUMMARY_SCHEMA='overcenter-computation-attempt-summary-v1' as const;
-export const COMPUTATION_TRANSPORT_FAILURE_SCHEMA='overcenter-computation-transport-failure-v1' as const;
+export const REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA=COMPUTATION_RUNNER_SCHEMAS.replaySafeTestPacket;
+export const COMPUTATION_ATTEMPT_SUMMARY_SCHEMA=COMPUTATION_RUNNER_SCHEMAS.attemptSummary;
+export const COMPUTATION_TRANSPORT_FAILURE_SCHEMA=COMPUTATION_RUNNER_SCHEMAS.transportFailure;
 
 export interface ReplaySafeTestComputationPacketV1 {
   schema:typeof REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA;
