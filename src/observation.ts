@@ -20,7 +20,13 @@ import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
 } from './providers/github-certified-status.ts';
-import { githubGet, isGithubObjectId } from './providers/github-rest.ts';
+import {
+  githubGet,
+  githubGetAsync,
+  isGithubObjectId,
+  runGithubReadObserverAsync,
+  type GithubJsonGetAsync,
+} from './providers/github-rest.ts';
 import {
   kubernetesConfigMapAbsenceEvidenceMatches,
   observeCertifiedKubernetesConfigMap,
@@ -30,6 +36,7 @@ import {
 export interface ObservationContext {
   githubToken: string | null;
   githubGet?: GithubJsonGet;
+  githubGetAsync?: GithubJsonGetAsync;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
   // Optional trusted confinement root for local-file observations. In confined
@@ -132,6 +139,45 @@ export function validatePostcondition(p: Postcondition): void {
   throw new Error('UNSUPPORTED_POSTCONDITION');
 }
 
+const githubStatusCommon=(p:Extract<Postcondition,{verifier:'github-commit-status/v2'}>)=>({
+  verifier:p.verifier,
+  provider:'github' as const,
+  repository_id:p.repository_id,
+  repository_full_name:p.repository_full_name,
+  commit_sha:p.commit_sha,
+  context:p.context,
+  expected_state:p.expected_state,
+});
+
+function githubStatusObservation(
+  p:Extract<Postcondition,{verifier:'github-commit-status/v2'}>,
+  status:ReturnType<typeof observeCertifiedGithubCommitStatus>,
+):Observation {
+  const common=githubStatusCommon(p);
+  return status.state==='indeterminate'
+    ? {
+        ...common,
+        mutation_certainty:'uncertain',
+        observation_error:status.reason,
+        provider_evidence:status.evidence,
+      }
+    : {
+        ...common,
+        actual_state:status.actual_state,
+        mutation_certainty:'present',
+        provider_evidence:status.evidence,
+      };
+}
+
+const githubStatusError=(
+  p:Extract<Postcondition,{verifier:'github-commit-status/v2'}>,
+  error:string,
+):Observation=>({
+  ...githubStatusCommon(p),
+  mutation_certainty:'uncertain',
+  observation_error:error,
+});
+
 export function observePostcondition(
   p: Postcondition,
   context: ObservationContext,
@@ -139,57 +185,21 @@ export function observePostcondition(
   validatePostcondition(p);
 
   if (p.verifier==='github-commit-status/v2') {
-    const common={
-      verifier:p.verifier,
-      provider:'github' as const,
-      repository_id:p.repository_id,
-      repository_full_name:p.repository_full_name,
-      commit_sha:p.commit_sha,
-      context:p.context,
-      expected_state:p.expected_state,
-    };
-    if (!context.githubToken) {
-      return {
-        ...common,
-        mutation_certainty:'uncertain',
-        observation_error:'GITHUB_TOKEN_UNAVAILABLE',
-      };
-    }
-
-    const get=context.githubGet??githubGet;
+    if (!context.githubToken) return githubStatusError(p,'GITHUB_TOKEN_UNAVAILABLE');
     try {
-      const status=observeCertifiedGithubCommitStatus(
-        context.githubToken,
-        {
+      return githubStatusObservation(
+        p,
+        observeCertifiedGithubCommitStatus(context.githubToken,{
           repositoryId:p.repository_id,
           repositoryFullName:p.repository_full_name,
           commitSha:p.commit_sha,
           context:p.context,
-          get,
+          get:context.githubGet??githubGet,
           ...(context.clock?{clock:context.clock}:{}),
-        },
+        }),
       );
-
-      if (status.state==='indeterminate') {
-        return {
-          ...common,
-          mutation_certainty:'uncertain',
-          observation_error:status.reason,
-          provider_evidence:status.evidence,
-        };
-      }
-      return {
-        ...common,
-        actual_state:status.actual_state,
-        mutation_certainty:'present',
-        provider_evidence:status.evidence,
-      };
-    } catch (e: unknown) {
-      return {
-        ...common,
-        mutation_certainty:'uncertain',
-        observation_error:errorMessage(e),
-      };
+    } catch (e:unknown) {
+      return githubStatusError(p,errorMessage(e));
     }
   }
 
@@ -317,6 +327,40 @@ export function observePostcondition(
     };
   }
 }
+
+
+export async function observePostconditionAsync(
+  p:Postcondition,
+  context:ObservationContext,
+):Promise<Observation> {
+  validatePostcondition(p);
+  if (p.verifier!=='github-commit-status/v2') return observePostcondition(p,context);
+  if (!context.githubToken) return githubStatusError(p,'GITHUB_TOKEN_UNAVAILABLE');
+  const getAsync=context.githubGetAsync
+    ?? (context.githubGet
+      ? async(token:string,path:string)=>context.githubGet!(token,path)
+      : githubGetAsync);
+  try {
+    return githubStatusObservation(
+      p,
+      await runGithubReadObserverAsync(
+        context.githubToken,
+        get=>observeCertifiedGithubCommitStatus(context.githubToken!,{
+          repositoryId:p.repository_id,
+          repositoryFullName:p.repository_full_name,
+          commitSha:p.commit_sha,
+          context:p.context,
+          get,
+          ...(context.clock?{clock:context.clock}:{}),
+        }),
+        getAsync,
+      ),
+    );
+  } catch (e:unknown) {
+    return githubStatusError(p,errorMessage(e));
+  }
+}
+
 
 function assertObservationCoordinate(
   postcondition:Postcondition,

@@ -2,7 +2,11 @@ import type { KernelCore } from '../kernel-core.ts';
 import type { ExecutionPermit } from '../model.ts';
 import { GITHUB_API_VERSION } from './github-contract.ts';
 import { observeCertifiedGithubRepository } from './github-certified-repository.ts';
-import { githubGet, type GithubJsonGet } from './github-rest.ts';
+import {
+  githubGetAsync,
+  runGithubReadObserverAsync,
+  type GithubJsonGetAsync,
+} from './github-rest.ts';
 
 export const GITHUB_COMMIT_STATUS_EFFECT =
   'github-commit-status/set-from-postcondition/v1' as const;
@@ -42,12 +46,12 @@ export async function performGithubCommitStatusEffect(
   permit:ExecutionPermit,
   {
     token,
-    get=githubGet,
+    get=githubGetAsync,
     post=githubPost,
     clock=()=>new Date().toISOString(),
   }:{
     token:string;
-    get?:GithubJsonGet;
+    get?:GithubJsonGetAsync;
     post?:GithubStatusPost;
     clock?:()=>string;
   },
@@ -76,13 +80,17 @@ export async function performGithubCommitStatusEffect(
   }
 
   const p=work.postcondition;
-  const repository=observeCertifiedGithubRepository(token,{
-    repositoryId:p.repository_id,
-    repositoryFullName:p.repository_full_name,
+  const repository=await runGithubReadObserverAsync(
+    token,
+    syncGet=>observeCertifiedGithubRepository(token,{
+      repositoryId:p.repository_id,
+      repositoryFullName:p.repository_full_name,
+      get:syncGet,
+      clock,
+      observerId:'github-commit-status-effect/v1',
+    }),
     get,
-    clock,
-    observerId:'github-commit-status-effect/v1',
-  });
+  );
   const {owner,repo,full_name}=repository.fact.object;
   const path=`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/statuses/${encodeURIComponent(p.commit_sha)}`;
   const body:GithubStatusMutationBody={
