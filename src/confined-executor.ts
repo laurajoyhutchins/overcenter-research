@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -31,7 +32,16 @@ export interface ConfinedWorkerResult {
   signal:NodeJS.Signals|null;
   stdout:string;
   stderr:string;
-  resource_usage:ConfinedWorkerResourceUsage|null;
+  resource_usage:ConfinedWorkerResourceUsage;
+}
+
+interface CgroupLeaf {
+  name:string;
+  parent_fd:number;
+  leaf_fd:number;
+  entry_path:string;
+  dev:bigint;
+  ino:bigint;
 }
 
 function requireAbsoluteLauncher(value:string):string {
@@ -52,6 +62,51 @@ function keyedValue(content:string,key:string):string {
   return line.slice(key.length+1).trim();
 }
 
+function counter(content:string,name:string):string {
+  const value=content.trim();
+  if (!/^[0-9]+$/u.test(value)) throw new Error(`CGROUP_EVIDENCE_INVALID_${name}`);
+  return value;
+}
+
+function createCgroupLeaf(cgroupParent:string):CgroupLeaf {
+  const parentFd=fs.openSync(
+    cgroupParent,
+    fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW,
+  );
+  for (let attempt=0;attempt<8;attempt+=1) {
+    const name=`overcenter-${randomBytes(16).toString('hex')}`;
+    const entryPath=`/proc/self/fd/${parentFd}/${name}`;
+    try {
+      fs.mkdirSync(entryPath,{mode:0o700});
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code==='EEXIST') continue;
+      fs.closeSync(parentFd);
+      throw error;
+    }
+
+    try {
+      const leafFd=fs.openSync(
+        entryPath,
+        fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW,
+      );
+      const stat=fs.fstatSync(leafFd,{bigint:true});
+      return {name,parent_fd:parentFd,leaf_fd:leafFd,entry_path:entryPath,dev:stat.dev,ino:stat.ino};
+    } catch (error) {
+      try { fs.rmdirSync(entryPath); } catch {}
+      fs.closeSync(parentFd);
+      throw error;
+    }
+  }
+  fs.closeSync(parentFd);
+  throw new Error('CGROUP_LEAF_NAME_EXHAUSTED');
+}
+
+function removeUnstartedLeaf(leaf:CgroupLeaf):void {
+  try { fs.closeSync(leaf.leaf_fd); } catch {}
+  try { fs.rmdirSync(leaf.entry_path); } catch {}
+  try { fs.closeSync(leaf.parent_fd); } catch {}
+}
+
 export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<ConfinedWorkerResult> {
   const launcher=requireAbsoluteLauncher(input.launcher);
   const cgroupParent=requireAbsoluteCgroupParent(input.cgroup_parent);
@@ -63,67 +118,137 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
     input.manifest.workspace,
     fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW,
   );
-  const cgroupFd=fs.openSync(
-    cgroupParent,
-    fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW,
-  );
   const workspaceStat=fs.fstatSync(workspaceFd,{bigint:true});
   if (
     workspaceStat.dev.toString()!==input.manifest.workspace_dev
     || workspaceStat.ino.toString()!==input.manifest.workspace_ino
   ) {
     fs.closeSync(workspaceFd);
-    fs.closeSync(cgroupFd);
     throw new Error('WORKSPACE_IDENTITY_CHANGED');
+  }
+
+  let leaf:CgroupLeaf;
+  try {
+    leaf=createCgroupLeaf(cgroupParent);
+  } catch (error) {
+    fs.closeSync(workspaceFd);
+    throw error;
   }
 
   return await new Promise((resolve,reject)=>{
     let child;
     try {
       child=spawn(launcher,input.launcher_args ?? [],{
-        stdio:['pipe','pipe','pipe',workspaceFd,cgroupFd],
+        stdio:['pipe','pipe','pipe',workspaceFd,leaf.leaf_fd],
         env:{},
         windowsHide:true,
         detached:true,
       });
     } catch (error) {
-      fs.closeSync(cgroupFd);
+      removeUnstartedLeaf(leaf);
       throw error;
     } finally {
       fs.closeSync(workspaceFd);
     }
+
     const stdout:Buffer[]=[];
     const stderr:Buffer[]=[];
     let outputBytes=0;
     let terminalError:Error|undefined;
     let transportClosed=false;
-    const cgroupName=child.pid ? `overcenter-${child.pid}` : undefined;
-    const cgroupPath=cgroupName ? `/proc/self/fd/${cgroupFd}/${cgroupName}` : undefined;
+    const leafPath=`/proc/self/fd/${leaf.leaf_fd}`;
 
-    const killCgroup=():void=>{
-      if (!cgroupPath) return;
-      try { fs.writeFileSync(path.join(cgroupPath,'cgroup.kill'),'1'); } catch {}
+    const processGroupKill=():void=>{
+      if (child.pid) {
+        try { process.kill(-child.pid,'SIGKILL'); } catch {}
+      }
     };
 
-    const collectResourceUsage=():ConfinedWorkerResourceUsage|null=>{
-      if (!cgroupPath || !cgroupName || !fs.existsSync(cgroupPath)) return null;
-      const memoryEvents=fs.readFileSync(path.join(cgroupPath,'memory.events'),'utf8');
-      const pidsEvents=fs.readFileSync(path.join(cgroupPath,'pids.events'),'utf8');
-      const cpuStat=fs.readFileSync(path.join(cgroupPath,'cpu.stat'),'utf8');
+    const killCgroup=(strict:boolean):void=>{
+      try {
+        fs.writeFileSync(path.join(leafPath,'cgroup.kill'),'1');
+      } catch (error) {
+        if (strict) throw error;
+      }
+    };
+
+    const waitCgroupEmpty=async():Promise<void>=>{
+      for (let attempt=0;attempt<100;attempt+=1) {
+        const events=fs.readFileSync(path.join(leafPath,'cgroup.events'),'utf8');
+        if (keyedValue(events,'populated')==='0') return;
+        await sleep(10);
+      }
+      throw new Error('WORKER_CGROUP_STILL_POPULATED');
+    };
+
+    const exact=(file:string,expected:string):void=>{
+      const observed=fs.readFileSync(path.join(leafPath,file),'utf8').trim();
+      if (observed!==expected) {
+        throw new Error(`CGROUP_POLICY_MISMATCH_${file.toUpperCase().replaceAll('.','_')}`);
+      }
+    };
+
+    const collectResourceUsage=():ConfinedWorkerResourceUsage=>{
+      exact('memory.max',rendered.memory_max_bytes);
+      exact('memory.swap.max','0');
+      exact('memory.oom.group','1');
+      exact('pids.max',rendered.pids_max);
+      exact('cpu.max',`${rendered.cpu_quota_us} ${rendered.cpu_period_us}`);
+
+      const memoryEvents=fs.readFileSync(path.join(leafPath,'memory.events'),'utf8');
+      const pidsEvents=fs.readFileSync(path.join(leafPath,'pids.events'),'utf8');
+      const cpuStat=fs.readFileSync(path.join(leafPath,'cpu.stat'),'utf8');
+      const pidsPeak=counter(fs.readFileSync(path.join(leafPath,'pids.peak'),'utf8'),'PIDS_PEAK');
+      if (BigInt(pidsPeak)<1n) throw new Error('CGROUP_NEVER_POPULATED');
+
       return {
-        cgroup:cgroupName,
-        memory_peak_bytes:fs.readFileSync(path.join(cgroupPath,'memory.peak'),'utf8').trim(),
-        memory_oom_kills:keyedValue(memoryEvents,'oom_kill'),
-        pids_peak:fs.readFileSync(path.join(cgroupPath,'pids.peak'),'utf8').trim(),
-        pids_max_events:keyedValue(pidsEvents,'max'),
-        cpu_usage_usec:keyedValue(cpuStat,'usage_usec'),
-        cpu_nr_throttled:keyedValue(cpuStat,'nr_throttled'),
-        cpu_throttled_usec:keyedValue(cpuStat,'throttled_usec'),
+        cgroup:leaf.name,
+        memory_peak_bytes:counter(
+          fs.readFileSync(path.join(leafPath,'memory.peak'),'utf8'),
+          'MEMORY_PEAK',
+        ),
+        memory_oom_kills:counter(keyedValue(memoryEvents,'oom_kill'),'MEMORY_OOM_KILLS'),
+        pids_peak:pidsPeak,
+        pids_max_events:counter(keyedValue(pidsEvents,'max'),'PIDS_MAX_EVENTS'),
+        cpu_usage_usec:counter(keyedValue(cpuStat,'usage_usec'),'CPU_USAGE_USEC'),
+        cpu_nr_throttled:counter(keyedValue(cpuStat,'nr_throttled'),'CPU_NR_THROTTLED'),
+        cpu_throttled_usec:counter(keyedValue(cpuStat,'throttled_usec'),'CPU_THROTTLED_USEC'),
       };
     };
 
-    const cleanupCgroup=async():Promise<ConfinedWorkerResourceUsage|null>=>{
-      let usage:ConfinedWorkerResourceUsage|null=null;
+    const removeExactLeaf=async():Promise<void>=>{
+      const entryStat=fs.statSync(leaf.entry_path,{bigint:true});
+      if (entryStat.dev!==leaf.dev || entryStat.ino!==leaf.ino) {
+        throw new Error('WORKER_CGROUP_IDENTITY_CHANGED');
+      }
+      for (let attempt=0;attempt<50;attempt+=1) {
+        try {
+          fs.rmdirSync(leaf.entry_path);
+          return;
+        } catch (error) {
+          if (
+            !(error instanceof Error)
+            || !('code' in error)
+            || !['EBUSY','ENOTEMPTY'].includes(String(error.code))
+          ) throw error;
+          await sleep(10);
+        }
+      }
+      throw new Error('WORKER_CGROUP_CLEANUP');
+    };
+
+    const cleanupCgroup=async():Promise<ConfinedWorkerResourceUsage>=>{
+      let containmentError:unknown;
+      try {
+        killCgroup(true);
+        await waitCgroupEmpty();
+      } catch (error) {
+        containmentError=error;
+        processGroupKill();
+        try { await waitCgroupEmpty(); } catch {}
+      }
+
+      let usage:ConfinedWorkerResourceUsage|undefined;
       let evidenceError:unknown;
       try {
         usage=collectResourceUsage();
@@ -131,38 +256,30 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
         evidenceError=error;
       }
 
-      if (cgroupPath && fs.existsSync(cgroupPath)) {
-        killCgroup();
-        let removed=false;
-        for (let attempt=0;attempt<50;attempt+=1) {
-          try {
-            fs.rmdirSync(cgroupPath);
-            removed=true;
-            break;
-          } catch (error) {
-            if (
-              !(error instanceof Error)
-              || !('code' in error)
-              || !['EBUSY','ENOTEMPTY'].includes(String(error.code))
-            ) throw error;
-            await sleep(10);
-          }
-        }
-        if (!removed) throw new Error('WORKER_CGROUP_CLEANUP');
+      let cleanupError:unknown;
+      try {
+        await removeExactLeaf();
+      } catch (error) {
+        cleanupError=error;
+      } finally {
+        try { fs.closeSync(leaf.leaf_fd); } catch {}
+        try { fs.closeSync(leaf.parent_fd); } catch {}
       }
 
+      if (containmentError) throw containmentError;
+      if (cleanupError) throw cleanupError;
       if (evidenceError) throw evidenceError;
+      if (!usage) throw new Error('CGROUP_EVIDENCE_MISSING');
       return usage;
     };
 
     const killTree=(error:Error):void=>{
       if (terminalError) return;
       terminalError=error;
-      killCgroup();
-      if (child.pid) {
-        try { process.kill(-child.pid,'SIGKILL'); } catch {}
-      }
+      killCgroup(false);
+      processGroupKill();
     };
+
     const capture=(target:Buffer[])=>(chunk:Buffer):void=>{
       outputBytes+=chunk.length;
       if (outputBytes>maxOutputBytes) {
@@ -171,6 +288,7 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
       }
       target.push(Buffer.from(chunk));
     };
+
     const timeout=setTimeout(()=>killTree(new Error('WORKER_TIMEOUT')),timeoutMs);
     timeout.unref();
 
@@ -183,8 +301,10 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
       if (transportClosed) return;
       transportClosed=true;
       clearTimeout(timeout);
-      fs.closeSync(cgroupFd);
-      reject(error);
+      void (async()=>{
+        try { await cleanupCgroup(); } catch {}
+        reject(error);
+      })();
     });
     child.once('close',(exitCode,signal)=>{
       if (transportClosed) return;
@@ -193,7 +313,6 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
       void (async()=>{
         try {
           const resourceUsage=await cleanupCgroup();
-          fs.closeSync(cgroupFd);
           if (terminalError) {
             reject(terminalError);
             return;
@@ -207,15 +326,14 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
             resource_usage:resourceUsage,
           });
         } catch (error) {
-          try { fs.closeSync(cgroupFd); } catch {}
           reject(error);
         }
       })();
     });
 
     // These are the exact manifest bytes whose SHA-256 was returned above.
-    // FD 3 is the already-open workspace object. FD 4 is the trusted delegated
-    // cgroup parent. Rust consumes both before close_range removes them.
+    // FD 3 is the already-open workspace object. FD 4 is the exact host-created
+    // cgroup leaf. Rust consumes both before close_range removes them.
     child.stdin.end(rendered.bytes,'utf8');
   });
 }
