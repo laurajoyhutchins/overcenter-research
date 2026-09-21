@@ -10,8 +10,7 @@ original_cgroup=""
 proof_pid="$BASHPID"
 
 cleanup_resource_leaf() {
-  local pid="$1"
-  local leaf="$cgroup_parent/overcenter-$pid"
+  local leaf="$1"
   [[ -d "$leaf" ]] || return 0
   if [[ -w "$leaf/cgroup.kill" ]]; then
     printf '1' > "$leaf/cgroup.kill" 2>/dev/null || true
@@ -22,6 +21,10 @@ cleanup_resource_leaf() {
   done
   echo "failed to remove resource cgroup $leaf" >&2
   return 1
+}
+
+new_resource_leaf() {
+  mktemp -d "$cgroup_parent/overcenter-XXXXXX"
 }
 
 cleanup() {
@@ -122,11 +125,13 @@ manifest_limits() {
 run_launcher() {
   local task_manifest="$1"
   local task_workspace="$2"
+  local leaf
   local status=0
-  "$launcher" 3<"$task_workspace" 4<"$cgroup_parent" <"$task_manifest" &
+  leaf="$(new_resource_leaf)"
+  "$launcher" 3<"$task_workspace" 4<"$leaf" <"$task_manifest" &
   local pid=$!
   wait "$pid" || status=$?
-  cleanup_resource_leaf "$pid"
+  cleanup_resource_leaf "$leaf"
   return "$status"
 }
 
@@ -304,10 +309,11 @@ pinned_manifest="$tmp/pinned.manifest"
 exec 201<"$pinned_root"
 mv "$pinned_root" "$tmp/pinned-root-original"
 mkdir -p "$pinned_root"
-"$launcher" 3<&201 4<"$cgroup_parent" < "$pinned_manifest" &
+pinned_leaf="$(new_resource_leaf)"
+"$launcher" 3<&201 4<"$pinned_leaf" < "$pinned_manifest" &
 pinned_pid=$!
 wait "$pinned_pid"
-cleanup_resource_leaf "$pinned_pid"
+cleanup_resource_leaf "$pinned_leaf"
 exec 201<&-
 
 printf '%s\n' '== stale workspace identity fails before sandbox entry =='
@@ -362,50 +368,51 @@ fi
 printf '%s\n' '== pids.max stops fork growth for the whole worker cgroup =='
 pids_manifest="$tmp/pids.manifest"
 write_resource_manifest "$pids_manifest" resource-pids pids 134217728 6 100000 100000
-"$launcher" 3<"$root" 4<"$cgroup_parent" <"$pids_manifest" >"$tmp/pids.out" 2>"$tmp/pids.err" &
+pids_leaf="$(new_resource_leaf)"
+"$launcher" 3<"$root" 4<"$pids_leaf" <"$pids_manifest" >"$tmp/pids.out" 2>"$tmp/pids.err" &
 pids_pid=$!
 pids_status=0
 wait "$pids_pid" || pids_status=$?
 test "$pids_status" -eq 0
 grep -q '^PIDS_LIMIT ' "$tmp/pids.out"
-pids_leaf="$cgroup_parent/overcenter-$pids_pid"
 test "$(awk '$1 == "max" { print $2 }' "$pids_leaf/pids.events")" -ge 1
 test "$(cat "$pids_leaf/pids.peak")" -le 6
-cleanup_resource_leaf "$pids_pid"
+cleanup_resource_leaf "$pids_leaf"
 
 printf '%s\n' '== cpu.max produces observable throttling =='
 cpu_manifest="$tmp/cpu.manifest"
 write_resource_manifest "$cpu_manifest" resource-cpu cpu 134217728 16 10000 100000
-"$launcher" 3<"$root" 4<"$cgroup_parent" <"$cpu_manifest" >"$tmp/cpu.out" 2>"$tmp/cpu.err" &
+cpu_leaf="$(new_resource_leaf)"
+"$launcher" 3<"$root" 4<"$cpu_leaf" <"$cpu_manifest" >"$tmp/cpu.out" 2>"$tmp/cpu.err" &
 cpu_pid=$!
 cpu_status=0
 wait "$cpu_pid" || cpu_status=$?
 test "$cpu_status" -eq 0
 grep -q '^CPU_BUSY$' "$tmp/cpu.out"
-cpu_leaf="$cgroup_parent/overcenter-$cpu_pid"
 test "$(awk '$1 == "nr_throttled" { print $2 }' "$cpu_leaf/cpu.stat")" -ge 1
-cleanup_resource_leaf "$cpu_pid"
+cleanup_resource_leaf "$cpu_leaf"
 
 printf '%s\n' '== memory.max contains OOM to the worker cgroup =='
 memory_manifest="$tmp/memory.manifest"
 write_resource_manifest "$memory_manifest" resource-memory memory 33554432 16 100000 100000
-"$launcher" 3<"$root" 4<"$cgroup_parent" <"$memory_manifest" >"$tmp/memory.out" 2>"$tmp/memory.err" &
+memory_leaf="$(new_resource_leaf)"
+"$launcher" 3<"$root" 4<"$memory_leaf" <"$memory_manifest" >"$tmp/memory.out" 2>"$tmp/memory.err" &
 memory_pid=$!
 memory_status=0
 wait "$memory_pid" || memory_status=$?
 test "$memory_status" -ne 0
-memory_leaf="$cgroup_parent/overcenter-$memory_pid"
 test "$(awk '$1 == "oom_kill" { print $2 }' "$memory_leaf/memory.events")" -ge 1
-cleanup_resource_leaf "$memory_pid"
+cleanup_resource_leaf "$memory_leaf"
 
 printf '%s\n' '== ambient authority is physically removed =='
 exec 200<"$outside/secret.txt"
 GITHUB_TOKEN='AMBIENT-GITHUB-SECRET' \
 AWS_SECRET_ACCESS_KEY='AMBIENT-AWS-SECRET' \
-  "$launcher" 3<"$root" 4<"$cgroup_parent" < "$manifest" &
+  ambient_leaf="$(new_resource_leaf)"
+  "$launcher" 3<"$root" 4<"$ambient_leaf" < "$manifest" &
 ambient_pid=$!
 wait "$ambient_pid"
-cleanup_resource_leaf "$ambient_pid"
+cleanup_resource_leaf "$ambient_leaf"
 exec 200<&-
 
 printf '%s\n' '== verify durable filesystem effects =='
