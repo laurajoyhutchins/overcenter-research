@@ -12,7 +12,9 @@ import {
 } from '../../src/providers/github-status-effect.ts';
 import {
   githubGet,
+  githubGetAsync,
   type GithubJsonGet,
+  type GithubJsonGetAsync,
 } from '../../src/providers/github-rest.ts';
 
 type Mode='mock'|'live';
@@ -115,11 +117,28 @@ async function runSample(
   let providerState=false;
   let readbackMs=0;
 
-  const rawGet:GithubJsonGet=mode==='live'
-    ? githubGet
-    : (_token,path)=>{
+  const mockGet:GithubJsonGet=(_token,path)=>{
         if (path==='/repos/acme/widget') {
           return repository(repositoryId,repositoryFullName);
+        }
+        if (path.startsWith(`/repos/acme/widget/commits/${commitSha}/status?`)) {
+          return {
+            state:providerState?'success':'pending',
+            sha:commitSha,
+            total_count:providerState?1:0,
+            repository:repository(repositoryId,repositoryFullName),
+            statuses:providerState
+              ? [{
+                  id:index+1,
+                  node_id:`STATUS_${index+1}`,
+                  state:'success',
+                  context,
+                  target_url:null,
+                  created_at:'2026-09-20T21:00:00Z',
+                  updated_at:'2026-09-20T21:00:01Z',
+                }]
+              : [],
+          };
         }
         if (path.startsWith(`/repos/acme/widget/commits/${commitSha}/statuses?`)) {
           return providerState
@@ -137,10 +156,13 @@ async function runSample(
         throw new Error(`UNEXPECTED_GITHUB_GET:${path}`);
       };
 
-  const get:GithubJsonGet=(providerToken,path)=>{
+  const rawGetAsync:GithubJsonGetAsync=mode==='live'
+    ? githubGetAsync
+    : mockGet;
+  const getAsync:GithubJsonGetAsync=async(providerToken,path)=>{
     const started=performance.now();
     try {
-      return rawGet(providerToken,path);
+      return await rawGetAsync(providerToken,path);
     } finally {
       if (phase==='settlement') {
         readbackMs+=performance.now()-started;
@@ -157,7 +179,10 @@ async function runSample(
 
   const kernel=new TimedKernel(database,{
     githubToken:token,
-    observationContext:{githubGet:get},
+    observationContext:{
+      githubGet:mode==='live'?githubGet:mockGet,
+      githubGetAsync:getAsync,
+    },
   });
   kernel.initialize();
 
@@ -186,10 +211,10 @@ async function runSample(
     phase='effect';
     const effectStarted=performance.now();
     let identityMs=0;
-    const identityGet:GithubJsonGet=(providerToken,path)=>{
+    const identityGet:GithubJsonGetAsync=async(providerToken,path)=>{
       const started=performance.now();
       try {
-        return get(providerToken,path);
+        return await getAsync(providerToken,path);
       } finally {
         identityMs+=performance.now()-started;
       }
@@ -203,7 +228,7 @@ async function runSample(
 
     phase='settlement';
     const settlementStarted=performance.now();
-    const receipt=kernel.resolve(permit);
+    const receipt=await kernel.resolveAsync(permit);
     const settlementMs=performance.now()-settlementStarted;
     phase='idle';
 

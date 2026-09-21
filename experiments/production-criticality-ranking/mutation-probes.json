@@ -12,6 +12,9 @@
           "file": "src/digest.ts",
           "name": "canonicalDigest"
         }
+      ],
+      "tests": [
+        "test/digest-pure.test.ts"
       ]
     },
     {
@@ -25,6 +28,10 @@
           "file": "src/semantic-identity.ts",
           "name": "obligationKey"
         }
+      ],
+      "tests": [
+        "test/semantic-dependency.test.ts",
+        "test/semantic-identity-hostile.test.ts"
       ]
     },
     {
@@ -34,6 +41,9 @@
           "file": "src/projector.ts",
           "name": "deriveRealizationRelations"
         }
+      ],
+      "tests": [
+        "test/projector-pure.test.ts"
       ]
     },
     {
@@ -43,6 +53,11 @@
           "file": "src/kernel-core.ts",
           "qualifiedName": "KernelCore.beginEffect"
         }
+      ],
+      "tests": [
+        "test/kernel-backend-differential.test.ts",
+        "test/sqlite-kernel.test.ts",
+        "test/git-kernel.test.ts"
       ]
     },
     {
@@ -52,6 +67,11 @@
           "file": "src/kernel-core.ts",
           "qualifiedName": "KernelCore.resolve"
         }
+      ],
+      "tests": [
+        "test/kernel-backend-differential.test.ts",
+        "test/sqlite-kernel.test.ts",
+        "test/git-kernel.test.ts"
       ]
     },
     {
@@ -61,6 +81,9 @@
           "file": "src/transaction-admission.ts",
           "name": "projectExecutionAuthority"
         }
+      ],
+      "tests": [
+        "test/hostile.test.ts"
       ]
     },
     {
@@ -78,6 +101,9 @@
           "file": "src/observation.ts",
           "name": "observationVerified"
         }
+      ],
+      "tests": [
+        "test/observation-hostile.test.ts"
       ]
     }
   ]

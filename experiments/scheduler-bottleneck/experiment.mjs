@@ -15,6 +15,7 @@ const here=fileURLToPath(import.meta.url);
 const HISTORY_COUNTS=[10,100,1000,5000];
 const PROJECTION_COUNTS=[1,8,32,64,128];
 const KERNEL_COUNTS=[1,8,32,64];
+const GRAPH_BUILD_COUNTS=[8,32,64,128];
 const WORKERS=[1,2,4,8];
 const CAS_APPENDS=4096;
 
@@ -158,6 +159,78 @@ function kernelReadBenchmark() {
   return results;
 }
 
+function graphBuildBenchmark() {
+  const results=[];
+  for (const definitions of GRAPH_BUILD_COUNTS) {
+    const obligations=Array.from({length:definitions},(_,index)=>{
+      const id='task-'+String(index).padStart(5,'0');
+      return {
+        id,
+        ...(index===0
+          ? {}
+          : {dependencies:[{kind:'control',upstream:'task-'+String(index-1).padStart(5,'0')}]}),
+        packet:{kind:'graph-build-benchmark',id},
+        postcondition:{
+          verifier:'file-content-equals/v1',
+          path:'/tmp/overcenter-graph-build/'+id,
+          content:id,
+        },
+      };
+    });
+
+    const measure=mode=>{
+      const trials=[];
+      for (let trial=0;trial<3;trial+=1) {
+        const root=mkdtempSync(join(tmpdir(),'overcenter-graph-build-'));
+        const db=join(root,'authority.sqlite');
+        const kernel=new OvercenterKernel(db);
+        try {
+          const initial=kernel.initialize();
+          const started=performance.now();
+          if (mode==='sequential') {
+            for (const obligation of obligations) kernel.define(obligation);
+          } else {
+            kernel.applyGraphPatch({add:obligations},initial);
+          }
+          const elapsed_ms=performance.now()-started;
+          assert.equal(kernel.inspect().length,definitions);
+          const store=new SqliteFactStore(db);
+          try {
+            const head=store.head();
+            assert.ok(head);
+            trials.push({
+              elapsed_ms,
+              durable_commits:store.history(head).length,
+            });
+          } finally {
+            store.close();
+          }
+        } finally {
+          kernel.close();
+          rmSync(root,{recursive:true,force:true});
+        }
+      }
+      return {
+        median_ms:median(trials.map(item=>item.elapsed_ms)),
+        durable_commits:trials[0].durable_commits,
+      };
+    };
+
+    const sequential=measure('sequential');
+    const batch=measure('batch');
+    results.push({
+      definitions,
+      sequential_median_ms:Number(sequential.median_ms.toFixed(3)),
+      batch_median_ms:Number(batch.median_ms.toFixed(3)),
+      speedup:Number((sequential.median_ms/batch.median_ms).toFixed(3)),
+      sequential_durable_commits:sequential.durable_commits,
+      batch_durable_commits:batch.durable_commits,
+    });
+  }
+  console.log(JSON.stringify({kind:'graph-build',results}));
+  return results;
+}
+
 async function casWorker(db,count,workerId) {
   const store=new SqliteFactStore(db);
   let completed=0;
@@ -293,6 +366,7 @@ async function main() {
   const history=historyScanBenchmark();
   const replay=replayBenchmark();
   const kernel=kernelReadBenchmark();
+  const graphBuild=graphBuildBenchmark();
   const cas=await bareCasBenchmark();
 
   console.log(JSON.stringify({
@@ -300,6 +374,9 @@ async function main() {
     history_5000_ms:history.at(-1).median_ms,
     replay_128_ms:replay.at(-1).median_ms,
     kernel_ready_64_ms:kernel.at(-1).median_ms,
+    graph_build_128_sequential_ms:graphBuild.at(-1).sequential_median_ms,
+    graph_build_128_batch_ms:graphBuild.at(-1).batch_median_ms,
+    graph_build_128_speedup:graphBuild.at(-1).speedup,
     bare_cas_1_worker_per_second:cas[0].appends_per_second,
     bare_cas_8_workers_per_second:cas.at(-1).appends_per_second,
   }));

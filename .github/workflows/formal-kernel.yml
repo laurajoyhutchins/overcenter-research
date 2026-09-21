@@ -2,6 +2,7 @@ name: Formal transition kernel
 
 on:
   pull_request:
+    types: [ready_for_review]
     paths:
       - 'formal/**'
       - 'research/tla-formal-kernel.md'

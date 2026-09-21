@@ -1,14 +1,14 @@
 {
-  "schema": "overcenter-criticality-mutation-evidence/v1",
-  "source_run": {
-    "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
-    "workflow_run_id": 35471986995,
-    "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
-    "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
-  },
+  "schema": "overcenter-criticality-mutation-evidence",
   "probes": [
     {
       "id": "digest-foundation",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/digest.ts": "7fceb3b722cc31fe318cbd8886159ced5e976f9d"
       },
@@ -31,28 +31,40 @@
     },
     {
       "id": "semantic-identity",
+      "source_run": {
+        "revision": "3d186b50489a34e065de415a8bd7ad119af21ada",
+        "workflow_run_id": 35624735183,
+        "mutation_report_sha256": "sha256:b33b6823e2b6a6b7e9ae3fd30a483298459976765432cf42190e722b7a948c18",
+        "artifact_digest": "sha256:973b3cec21aca10effee50c1a20a5f4b10dbf3ba6bc7c82b833c9b112b9a4cab"
+      },
       "source_blobs": {
         "src/semantic-identity.ts": "e86c460c34d292105b4160d23744d806a04337c6"
       },
       "selectors": [
         {
           "file": "src/semantic-identity.ts",
-          "name": "semanticDependencyIdentity"
+          "qualifiedName": "semanticDependencyIdentity"
         },
         {
           "file": "src/semantic-identity.ts",
-          "name": "obligationKey"
+          "qualifiedName": "obligationKey"
         }
       ],
       "total": 46,
-      "killed": 5,
-      "survived": 41,
+      "killed": 46,
+      "survived": 0,
       "no_coverage": 0,
       "timeout_or_error": 0,
-      "mutation_score": 0.10869565217391304
+      "mutation_score": 1
     },
     {
       "id": "done-candidate-reuse",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/projector.ts": "a599877015777e1dab018730ed1bc07b2984e7ec"
       },
@@ -71,8 +83,14 @@
     },
     {
       "id": "effect-reservation",
+      "source_run": {
+        "revision": "bafe732173fada2ced2f1b300a07136dddcbf70e",
+        "workflow_run_id": 35648457545,
+        "mutation_report_sha256": "sha256:1b5e0b333d526613e1bfc5e5db604f2230a1601b07a972c36f98571315aef110",
+        "artifact_digest": "sha256:ce14f75900276c2b81e5d921648d7f20e54892e05a80ff304c5b161383c31ac6"
+      },
       "source_blobs": {
-        "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
+        "src/kernel-core.ts": "23f12209b5c8d5a9f8655488b9aeaf6364d9e20f"
       },
       "selectors": [
         {
@@ -80,17 +98,23 @@
           "qualifiedName": "KernelCore.beginEffect"
         }
       ],
-      "total": 28,
-      "killed": 15,
-      "survived": 10,
+      "total": 40,
+      "killed": 25,
+      "survived": 12,
       "no_coverage": 0,
       "timeout_or_error": 3,
-      "mutation_score": 0.5357142857142857
+      "mutation_score": 0.625
     },
     {
       "id": "settlement",
+      "source_run": {
+        "revision": "bafe732173fada2ced2f1b300a07136dddcbf70e",
+        "workflow_run_id": 35648457545,
+        "mutation_report_sha256": "sha256:1b5e0b333d526613e1bfc5e5db604f2230a1601b07a972c36f98571315aef110",
+        "artifact_digest": "sha256:ce14f75900276c2b81e5d921648d7f20e54892e05a80ff304c5b161383c31ac6"
+      },
       "source_blobs": {
-        "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
+        "src/kernel-core.ts": "23f12209b5c8d5a9f8655488b9aeaf6364d9e20f"
       },
       "selectors": [
         {
@@ -98,15 +122,21 @@
           "qualifiedName": "KernelCore.resolve"
         }
       ],
-      "total": 47,
-      "killed": 22,
-      "survived": 25,
+      "total": 12,
+      "killed": 8,
+      "survived": 4,
       "no_coverage": 0,
       "timeout_or_error": 0,
-      "mutation_score": 0.46808510638297873
+      "mutation_score": 0.6666666666666666
     },
     {
       "id": "execution-fence",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
       },
@@ -125,29 +155,35 @@
     },
     {
       "id": "verification-and-absence",
+      "source_run": {
+        "revision": "615cca65245ffd7ebe487edfdaac7e4f48a55ff3",
+        "workflow_run_id": 35645209331,
+        "mutation_report_sha256": "sha256:03574cbcefc0a4570dedf937680f7c34d47d4698e49d23ce9f17f004ce36465b",
+        "artifact_digest": "sha256:b1e9fe6459542050af374163997cc7c7074e62380045a1c17f3e47634a887935"
+      },
       "source_blobs": {
-        "src/observation.ts": "6431cb69c0335f7b5ef89648f1339703fa1830b3"
+        "src/observation.ts": "ac03de038befb6a4916277e80f4fc83aa56d8b7f"
       },
       "selectors": [
         {
           "file": "src/observation.ts",
-          "name": "authoritativeAbsenceEvidence"
+          "qualifiedName": "authoritativeAbsenceEvidence"
         },
         {
           "file": "src/observation.ts",
-          "name": "observationAuthoritativelyAbsent"
+          "qualifiedName": "observationAuthoritativelyAbsent"
         },
         {
           "file": "src/observation.ts",
-          "name": "observationVerified"
+          "qualifiedName": "observationVerified"
         }
       ],
-      "total": 67,
-      "killed": 23,
-      "survived": 44,
+      "total": 62,
+      "killed": 62,
+      "survived": 0,
       "no_coverage": 0,
       "timeout_or_error": 0,
-      "mutation_score": 0.34328358208955223
+      "mutation_score": 1
     }
   ]
 }

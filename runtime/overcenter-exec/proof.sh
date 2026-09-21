@@ -4,7 +4,76 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 here="$repo_root/runtime/overcenter-exec"
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+cgroup_root=""
+cgroup_parent=""
+original_cgroup=""
+proof_pid="$BASHPID"
+
+cleanup_resource_leaf() {
+  local leaf="$1"
+  [[ -d "$leaf" ]] || return 0
+  if [[ -w "$leaf/cgroup.kill" ]]; then
+    printf '1' > "$leaf/cgroup.kill" 2>/dev/null || true
+  fi
+  for _ in {1..50}; do
+    rmdir "$leaf" 2>/dev/null && return 0
+    sleep 0.01
+  done
+  echo "failed to remove resource cgroup $leaf" >&2
+  return 1
+}
+
+new_resource_leaf() {
+  mktemp -d "$cgroup_parent/overcenter-XXXXXX"
+}
+
+cleanup() {
+  set +e
+  if [[ -n "$cgroup_root" && -d "$cgroup_root" ]]; then
+    if [[ -n "$original_cgroup" ]]; then
+      printf '%s' "$proof_pid" | sudo tee "/sys/fs/cgroup${original_cgroup}/cgroup.procs" >/dev/null
+    fi
+    for leaf in "$cgroup_parent"/overcenter-*; do
+      [[ -d "$leaf" ]] || continue
+      printf '1' | sudo tee "$leaf/cgroup.kill" >/dev/null 2>&1 || true
+      sudo rmdir "$leaf" 2>/dev/null || true
+    done
+    sudo rmdir "$cgroup_root/host" "$cgroup_root/work" "$cgroup_root" 2>/dev/null || true
+  fi
+  rm -rf "$tmp"
+}
+trap cleanup EXIT
+
+setup_cgroup_delegation() {
+  test -f /sys/fs/cgroup/cgroup.controllers
+  command -v sudo >/dev/null
+  original_cgroup="$(awk -F: '$1 == "0" { print $3 }' /proc/self/cgroup)"
+  test -n "$original_cgroup"
+
+  for controller in cpu memory pids; do
+    grep -qw "$controller" /sys/fs/cgroup/cgroup.controllers
+  done
+
+  cgroup_root="/sys/fs/cgroup/overcenter-proof-$proof_pid"
+  cgroup_parent="$cgroup_root/work"
+  sudo mkdir "$cgroup_root"
+  printf '+cpu +memory +pids' | sudo tee "$cgroup_root/cgroup.subtree_control" >/dev/null
+  sudo mkdir "$cgroup_root/host" "$cgroup_parent"
+  printf '1073741824' | sudo tee "$cgroup_parent/memory.max" >/dev/null
+  printf '256' | sudo tee "$cgroup_parent/pids.max" >/dev/null
+  printf '64' | sudo tee "$cgroup_parent/cgroup.max.descendants" >/dev/null
+  printf '1' | sudo tee "$cgroup_parent/cgroup.max.depth" >/dev/null
+  printf '400000 100000' | sudo tee "$cgroup_parent/cpu.max" >/dev/null
+  printf '0' | sudo tee "$cgroup_parent/cpu.max.burst" >/dev/null
+  printf '+cpu +memory +pids' | sudo tee "$cgroup_parent/cgroup.subtree_control" >/dev/null
+
+  sudo chown "$UID:$(id -g)" \
+    "$cgroup_root" "$cgroup_root/cgroup.procs" "$cgroup_root/cgroup.subtree_control" \
+    "$cgroup_root/host" "$cgroup_root/host/cgroup.procs" \
+    "$cgroup_parent" "$cgroup_parent/cgroup.procs" "$cgroup_parent/cgroup.subtree_control"
+
+  printf '%s' "$proof_pid" | sudo tee "$cgroup_root/host/cgroup.procs" >/dev/null
+}
 
 launcher="$tmp/overcenter-exec"
 root="$tmp/task-root"
@@ -12,6 +81,7 @@ outside="$tmp/outside"
 manifest="$tmp/task.manifest"
 worker="$root/hostile-worker"
 x32_probe="$root/x32-probe"
+resource_probe="$root/resource-probe"
 
 mkdir -p "$root" "$outside"
 printf 'SAFE\n' > "$root/allowed.txt"
@@ -28,8 +98,19 @@ printf '%s\n' '== compile production launcher and hostile worker =='
 rustc --edition=2021 -D warnings "$here/main.rs" -o "$launcher"
 rustc --edition=2021 -D warnings "$here/hostile_worker.rs" -o "$worker"
 rustc --edition=2021 -D warnings "$here/x32_probe.rs" -o "$x32_probe"
+rustc --edition=2021 -D warnings "$here/resource_probe.rs" -o "$resource_probe"
 loader="$(ldd "$worker" 2>/dev/null | grep -oE '/[^[:space:]]*ld-linux[^[:space:]]*' | head -n 1)"
 test -n "$loader"
+
+printf '%s\n' '== delegated cgroup v2 parent =='
+setup_cgroup_delegation
+printf 'parent=%s controllers=%s\n' "$cgroup_parent" "$(cat "$cgroup_parent/cgroup.subtree_control")"
+
+printf '%s\n' '== trusted TypeScript supervisor uses exact cgroup leaves =='
+OVERCENTER_EXEC_LAUNCHER="$launcher" \
+OVERCENTER_CGROUP_PARENT="$cgroup_parent" \
+OVERCENTER_WORKSPACE="$root" \
+  node --experimental-strip-types "$here/supervisor_proof.ts"
 
 runtime_closure() {
   local binary="$1"
@@ -47,12 +128,50 @@ workspace_ino="$(stat -c %i "$root")"
 manifest_limits() {
   printf 'timeout_ms\t60000\n'
   printf 'max_output_bytes\t1048576\n'
+  printf 'memory_max_bytes\t268435456\n'
+  printf 'pids_max\t32\n'
+  printf 'cpu_quota_us\t100000\n'
+  printf 'cpu_period_us\t100000\n'
 }
 
 run_launcher() {
   local task_manifest="$1"
   local task_workspace="$2"
-  "$launcher" 3<"$task_workspace" <"$task_manifest"
+  local leaf
+  local status=0
+  leaf="$(new_resource_leaf)"
+  "$launcher" 3<"$task_workspace" 4<"$leaf" <"$task_manifest" &
+  local pid=$!
+  wait "$pid" || status=$?
+  cleanup_resource_leaf "$leaf"
+  return "$status"
+}
+
+write_resource_manifest() {
+  local target="$1"
+  local task="$2"
+  local mode="$3"
+  local memory="$4"
+  local pids="$5"
+  local quota="$6"
+  local period="$7"
+  {
+    printf 'OVERCENTER_EXEC_V1\n'
+    printf 'task_id\t%s\n' "$task"
+    printf 'workspace\t%s\n' "$root"
+    printf 'workspace_dev\t%s\n' "$workspace_dev"
+    printf 'workspace_ino\t%s\n' "$workspace_ino"
+    printf 'program\t%s\n' "$loader"
+    printf 'timeout_ms\t60000\n'
+    printf 'max_output_bytes\t1048576\n'
+    printf 'memory_max_bytes\t%s\n' "$memory"
+    printf 'pids_max\t%s\n' "$pids"
+    printf 'cpu_quota_us\t%s\n' "$quota"
+    printf 'cpu_period_us\t%s\n' "$period"
+    printf 'arg\t%s\n' "$resource_probe"
+    printf 'arg\t%s\n' "$mode"
+    runtime_closure "$resource_probe"
+  } > "$target"
 }
 
 {
@@ -202,8 +321,18 @@ pinned_manifest="$tmp/pinned.manifest"
 exec 201<"$pinned_root"
 mv "$pinned_root" "$tmp/pinned-root-original"
 mkdir -p "$pinned_root"
-"$launcher" 3<&201 < "$pinned_manifest"
+pinned_leaf="$(new_resource_leaf)"
+"$launcher" 3<&201 4<"$pinned_leaf" < "$pinned_manifest" &
+pinned_pid=$!
+wait "$pinned_pid"
+cleanup_resource_leaf "$pinned_leaf"
 exec 201<&-
+
+printf '%s\n' '== exact cgroup leaf ownership ignores unrelated stale leaves =='
+stale_leaf="$(new_resource_leaf)"
+run_launcher "$pinned_manifest" "$tmp/pinned-root-original"
+test -d "$stale_leaf"
+cleanup_resource_leaf "$stale_leaf"
 
 printf '%s\n' '== stale workspace identity fails before sandbox entry =='
 swap_root="$tmp/swap-root"
@@ -254,11 +383,54 @@ if [[ "$x32_status" -ne "$expected_x32_status" ]]; then
   exit 1
 fi
 
+printf '%s\n' '== pids.max stops fork growth for the whole worker cgroup =='
+pids_manifest="$tmp/pids.manifest"
+write_resource_manifest "$pids_manifest" resource-pids pids 134217728 6 100000 100000
+pids_leaf="$(new_resource_leaf)"
+"$launcher" 3<"$root" 4<"$pids_leaf" <"$pids_manifest" >"$tmp/pids.out" 2>"$tmp/pids.err" &
+pids_pid=$!
+pids_status=0
+wait "$pids_pid" || pids_status=$?
+test "$pids_status" -eq 0
+grep -q '^PIDS_LIMIT ' "$tmp/pids.out"
+test "$(awk '$1 == "max" { print $2 }' "$pids_leaf/pids.events")" -ge 1
+test "$(cat "$pids_leaf/pids.peak")" -le 6
+cleanup_resource_leaf "$pids_leaf"
+
+printf '%s\n' '== cpu.max produces observable throttling =='
+cpu_manifest="$tmp/cpu.manifest"
+write_resource_manifest "$cpu_manifest" resource-cpu cpu 134217728 16 10000 100000
+cpu_leaf="$(new_resource_leaf)"
+"$launcher" 3<"$root" 4<"$cpu_leaf" <"$cpu_manifest" >"$tmp/cpu.out" 2>"$tmp/cpu.err" &
+cpu_pid=$!
+cpu_status=0
+wait "$cpu_pid" || cpu_status=$?
+test "$cpu_status" -eq 0
+grep -q '^CPU_BUSY$' "$tmp/cpu.out"
+test "$(awk '$1 == "nr_throttled" { print $2 }' "$cpu_leaf/cpu.stat")" -ge 1
+cleanup_resource_leaf "$cpu_leaf"
+
+printf '%s\n' '== memory.max contains OOM to the worker cgroup =='
+memory_manifest="$tmp/memory.manifest"
+write_resource_manifest "$memory_manifest" resource-memory memory 33554432 16 100000 100000
+memory_leaf="$(new_resource_leaf)"
+"$launcher" 3<"$root" 4<"$memory_leaf" <"$memory_manifest" >"$tmp/memory.out" 2>"$tmp/memory.err" &
+memory_pid=$!
+memory_status=0
+wait "$memory_pid" || memory_status=$?
+test "$memory_status" -ne 0
+test "$(awk '$1 == "oom_kill" { print $2 }' "$memory_leaf/memory.events")" -ge 1
+cleanup_resource_leaf "$memory_leaf"
+
 printf '%s\n' '== ambient authority is physically removed =='
 exec 200<"$outside/secret.txt"
+ambient_leaf="$(new_resource_leaf)"
 GITHUB_TOKEN='AMBIENT-GITHUB-SECRET' \
 AWS_SECRET_ACCESS_KEY='AMBIENT-AWS-SECRET' \
-  "$launcher" 3<"$root" < "$manifest"
+  "$launcher" 3<"$root" 4<"$ambient_leaf" < "$manifest" &
+ambient_pid=$!
+wait "$ambient_pid"
+cleanup_resource_leaf "$ambient_leaf"
 exec 200<&-
 
 printf '%s\n' '== verify durable filesystem effects =='

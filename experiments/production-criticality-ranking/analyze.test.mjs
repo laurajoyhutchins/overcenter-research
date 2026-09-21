@@ -49,10 +49,10 @@ test('ranks only production callables and derives structural authority/evidence 
 
   const sourceBlob=git(root,['hash-object','src/core.ts']);
   write(root,'mutation-evidence.json',JSON.stringify({
-    schema:'overcenter-criticality-mutation-evidence/v1',
-    source_run:{revision:git(root,['rev-parse','HEAD']),workflow_run_id:123,artifact_digest:'sha256:'+'b'.repeat(64),mutation_report_sha256:'sha256:'+'a'.repeat(64)},
+    schema:'overcenter-criticality-mutation-evidence',
     probes:[{
       id:'settlement-hostile-cases',
+      source_run:{revision:git(root,['rev-parse','HEAD']),workflow_run_id:123,artifact_digest:'sha256:'+'b'.repeat(64),mutation_report_sha256:'sha256:'+'a'.repeat(64)},
       source_blobs:{'src/core.ts':sourceBlob},
       selectors:[{file:'src/core.ts',name:'settle'}],
       mutation_score:.25,
@@ -66,9 +66,11 @@ test('ranks only production callables and derives structural authority/evidence 
   assert.ok(evidencedSettle.attentionScore<settle.attentionScore,'better evidence can reduce attention priority');
 
   write(root,'mutation-evidence.json',JSON.stringify({
-    schema:'overcenter-criticality-mutation-evidence/v1',
-    source_run:{revision:git(root,['rev-parse','HEAD'])},
-    probes:[],
+    schema:'overcenter-criticality-mutation-evidence',
+    probes:[{
+      id:'invalid-provenance',
+      source_run:{revision:git(root,['rev-parse','HEAD'])},
+    }],
   }));
   assert.throws(
     ()=>analyze({root,config:{...config,mutationEvidenceFile:'mutation-evidence.json'}}),
@@ -77,10 +79,10 @@ test('ranks only production callables and derives structural authority/evidence 
   );
 
   write(root,'mutation-evidence.json',JSON.stringify({
-    schema:'overcenter-criticality-mutation-evidence/v1',
-    source_run:{revision:git(root,['rev-parse','HEAD']),workflow_run_id:123,artifact_digest:'sha256:'+'b'.repeat(64),mutation_report_sha256:'sha256:'+'a'.repeat(64)},
+    schema:'overcenter-criticality-mutation-evidence',
     probes:[{
       id:'settlement-hostile-cases',
+      source_run:{revision:git(root,['rev-parse','HEAD']),workflow_run_id:123,artifact_digest:'sha256:'+'b'.repeat(64),mutation_report_sha256:'sha256:'+'a'.repeat(64)},
       source_blobs:{'src/core.ts':'0000000000000000000000000000000000000000'},
       selectors:[{file:'src/core.ts',name:'settle'}],
       mutation_score:1,

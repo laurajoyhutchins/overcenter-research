@@ -17,16 +17,9 @@ if(requested.size!==0 && selected.probes.length!==requested.size){
 }
 fs.writeFileSync('mutation-ranges.json',JSON.stringify(selected,null,2)+'\n');
 
-const broadTestCommand='node --experimental-strip-types --test test/digest-pure.test.ts test/semantic-dependency.test.ts test/hostile.test.ts test/projector-pure.test.ts test/projector-boundary.test.ts test/realization-admissibility.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts test/git-kernel.test.ts test/provider-observation.test.ts';
-const semanticIdentityTestCommand='node --experimental-strip-types --test test/semantic-dependency.test.ts test/hostile.test.ts';
-const verificationAndAbsenceTestCommand='node --experimental-strip-types --test test/observation-hostile.test.ts';
-const focusedTestCommands=new Map([
-  ['semantic-identity',semanticIdentityTestCommand],
-  ['verification-and-absence',verificationAndAbsenceTestCommand],
-]);
-const testCommand=requested.size===1
-  ? focusedTestCommands.get([...requested][0])??broadTestCommand
-  : broadTestCommand;
+const testFiles=[...new Set(selected.probes.flatMap(probe=>probe.tests??[]))];
+if(testFiles.length===0) throw new Error('selected mutation probes have no tests');
+const testCommand=`node --experimental-strip-types --test ${testFiles.join(' ')}`;
 
 export default {
   mutate: mutatePatterns(selected),

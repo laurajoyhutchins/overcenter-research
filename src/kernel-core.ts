@@ -12,7 +12,7 @@ import type {
 } from './model.ts';
 import type { DurableFactStore } from './fact-store.ts';
 import {
-  observePostcondition,
+  observePostcondition, observePostconditionAsync,
   type ObservationContext,
 } from './observation.ts';
 import {
@@ -57,6 +57,11 @@ const errorMessage=(error:unknown)=>error instanceof Error ? error.message : Str
 export interface KernelOptions {
   githubToken?:string|null;
   observationContext?:Omit<ObservationContext,'githubToken'>;
+}
+
+export interface GraphPatchInput {
+  add?:ObligationInput[];
+  replace?:ObligationInput[];
 }
 
 export class KernelCore {
@@ -137,6 +142,71 @@ export class KernelCore {
       {'obligation.json':fact},
     );
     if (!commit) throw new Error('AMEND_LOST');
+    return commit;
+  }
+
+  applyGraphPatch(
+    {add=[],replace=[]}:GraphPatchInput,
+    expectedRevision:string,
+  ):string {
+    const head=this.#requireHead();
+    if (head!==expectedRevision) throw new Error('STALE_REVISION');
+    if (add.length===0 && replace.length===0) throw new Error('EMPTY_GRAPH_PATCH');
+
+    const projection=this.#historicalProjection(head);
+    const {state,project}=projection;
+    if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
+
+    const planned=[
+      ...add.map(input=>({
+        kind:'defined' as const,
+        obligation:normalizeObligation(input),
+      })),
+      ...replace.map(input=>({
+        kind:'amended' as const,
+        obligation:normalizeObligation(input),
+      })),
+    ].sort((a,b)=>a.obligation.id.localeCompare(b.obligation.id));
+
+    const seen=new Set<string>();
+    const next={
+      obligations:structuredClone(state.obligations),
+      definition_commits:{...state.definition_commits},
+    };
+    const facts:ObligationFact[]=[];
+    for (const operation of planned) {
+      const {id}=operation.obligation;
+      if (seen.has(id)) throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${id}`);
+      seen.add(id);
+
+      if (operation.kind==='defined') {
+        if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
+        facts.push({
+          schema:OBLIGATION_SCHEMA,
+          kind:'defined',
+          obligation:operation.obligation,
+        });
+      } else {
+        if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
+        facts.push({
+          schema:OBLIGATION_SCHEMA,
+          kind:'amended',
+          obligation:operation.obligation,
+          previous_definition_commit:state.definition_commits[id],
+        });
+      }
+
+      next.obligations[id]=structuredClone(operation.obligation);
+      next.definition_commits[id]=head;
+    }
+
+    validateAdmission(next);
+    const commit=this.#store.append(
+      head,
+      `overcenter: patch graph +${add.length} ~${replace.length}`,
+      {'obligations.json':facts},
+    );
+    if (!commit) throw new Error('GRAPH_PATCH_LOST');
     return commit;
   }
 
@@ -309,42 +379,32 @@ export class KernelCore {
   }
 
   resolve(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
-    const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
-      const head=this.#requireHead();
-      const {state,history,project}=this.#historicalProjection(head);
-      const known=history.runs.get(runId);
-      if (!known) throw new Error('UNKNOWN_RUN');
-      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-      const work=known.obligation;
-      const prior=history.receiptsByRun.get(runId);
-      if (prior && ['DONE','READY'].includes(prior.disposition)) return prior;
-      const run=this.#requireExecutionPermit(history,permit);
-      const lifecycle=project.lifecycles.get(run.obligation_id);
-      if (lifecycle?.run?.id!==runId) {
-        if (prior) return prior;
-        throw new Error('AUTHORITY_LOST');
-      }
-      if (!['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(lifecycle.status)) {
-        if (prior) return prior;
-        throw new Error('NOT_RESOLVABLE');
-      }
-
-      const observed=this.#observe(work.postcondition);
-      const fact=this.#receiptFact(
-        run,
-        work.id,
-        'observation',
-        observed,
+      const candidate=this.#resolutionCandidate(permit);
+      if ('receipt' in candidate) return candidate.receipt;
+      const settled=this.#commitObservation(
+        candidate,
+        this.#observe(candidate.work.postcondition),
         diagnostic,
       );
-      const receipt=projectReceipt(fact,work);
-      const commit=this.#store.append(
-        head,
-        `overcenter: observe ${work.id} ${run.id}`,
-        {'receipt.json':fact},
+      if (settled) return settled;
+    }
+    throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
+  }
+
+  async resolveAsync(
+    permit:ExecutionPermit,
+    diagnostic:Data={},
+  ):Promise<Receipt> {
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const candidate=this.#resolutionCandidate(permit);
+      if ('receipt' in candidate) return candidate.receipt;
+      const settled=this.#commitObservation(
+        candidate,
+        await this.#observeAsync(candidate.work.postcondition),
+        diagnostic,
       );
-      if (commit) return {...receipt,settlement_commit:commit};
+      if (settled) return settled;
     }
     throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
   }
@@ -433,6 +493,57 @@ export class KernelCore {
     return this.#historicalProjection(head).history.unresolvedReservationsByRun.has(runId);
   }
 
+  #resolutionCandidate(
+    permit:ExecutionPermit,
+  ):
+    | {receipt:Receipt}
+    | {head:string;run:HistoricalRun;work:HistoricalRun['obligation']} {
+    const runId=permit.id;
+    const head=this.#requireHead();
+    const {state,history,project}=this.#historicalProjection(head);
+    const known=history.runs.get(runId);
+    if (!known) throw new Error('UNKNOWN_RUN');
+    if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+    const work=known.obligation;
+    const prior=history.receiptsByRun.get(runId);
+    if (prior && ['DONE','READY'].includes(prior.disposition)) {
+      return {receipt:prior};
+    }
+    const run=this.#requireExecutionPermit(history,permit);
+    const lifecycle=project.lifecycles.get(run.obligation_id);
+    if (lifecycle?.run?.id!==runId) {
+      if (prior) return {receipt:prior};
+      throw new Error('AUTHORITY_LOST');
+    }
+    if (!['EXECUTING','RECOVERY_REQUIRED','WAITING'].includes(lifecycle.status)) {
+      if (prior) return {receipt:prior};
+      throw new Error('NOT_RESOLVABLE');
+    }
+    return {head,run,work};
+  }
+
+  #commitObservation(
+    candidate:{head:string;run:HistoricalRun;work:HistoricalRun['obligation']},
+    observed:Observation,
+    diagnostic:Data,
+  ):Receipt|null {
+    const {head,run,work}=candidate;
+    const fact=this.#receiptFact(
+      run,
+      work.id,
+      'observation',
+      observed,
+      diagnostic,
+    );
+    const receipt=projectReceipt(fact,work);
+    const commit=this.#store.append(
+      head,
+      `overcenter: observe ${work.id} ${run.id}`,
+      {'receipt.json':fact},
+    );
+    return commit ? {...receipt,settlement_commit:commit} : null;
+  }
+
   #requireHead():string {
     const head=this.head();
     if (!head) throw new Error('NOT_INITIALIZED');
@@ -467,6 +578,10 @@ export class KernelCore {
 
   #observe(postcondition:Postcondition):Observation {
     return observePostcondition(postcondition,this.observationContext);
+  }
+
+  async #observeAsync(postcondition:Postcondition):Promise<Observation> {
+    return await observePostconditionAsync(postcondition,this.observationContext);
   }
 
   #capabilityDigest(capability:string):string {
@@ -581,7 +696,7 @@ export async function runCoreLoop(
       };
     }
 
-    const receipt=kernel.resolve(run);
+    const receipt=await kernel.resolveAsync(run);
     if (receipt.disposition==='DONE' || receipt.disposition==='READY') continue;
     return {
       state:'RECOVERY_REQUIRED',

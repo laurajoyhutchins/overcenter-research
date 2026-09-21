@@ -98,6 +98,49 @@ test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
   assert.equal(done.history.receipts.at(-1)?.settlement_commit,'receipt-1');
 });
 
+test('pure replay validates a graph patch after applying its complete node set',()=>{
+  const first:Obligation={
+    ...obligation,
+    id:'first',
+  };
+  const second:Obligation={
+    ...obligation,
+    id:'second',
+    dependencies:[{kind:'control',upstream:'first'}],
+  };
+  const projection=replayProjection([{
+    commit:'patch-1',
+    parent:null,
+    obligations:[
+      {schema:OBLIGATION_SCHEMA,kind:'defined',obligation:second},
+      {schema:OBLIGATION_SCHEMA,kind:'defined',obligation:first},
+    ],
+  }]);
+
+  assert.deepEqual(
+    Object.keys(projection.state.obligations).sort(),
+    ['first','second'],
+  );
+  assert.equal(projection.state.definition_commits.first,'patch-1');
+  assert.equal(projection.state.definition_commits.second,'patch-1');
+  assert.equal(projection.project.lifecycles.get('first')?.status,'UNREALIZED');
+  assert.equal(projection.project.lifecycles.get('second')?.status,'UNREALIZED');
+});
+
+test('replay rejects duplicate graph patch identities',()=>{
+  assert.throws(
+    ()=>replayProjection([{
+      commit:'patch-duplicate',
+      parent:null,
+      obligations:[
+        {schema:OBLIGATION_SCHEMA,kind:'defined',obligation},
+        {schema:OBLIGATION_SCHEMA,kind:'defined',obligation},
+      ],
+    }]),
+    /DUPLICATE_GRAPH_PATCH_ID:a/,
+  );
+});
+
 test('replay re-derives current lifecycle before amendment validation',()=>{
   const defineRecord:FactCommit={
     commit:'define-1',

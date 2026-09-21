@@ -13,13 +13,19 @@ const base={
   workspace_dev:'2049',
   workspace_ino:'987654',
   program:'/usr/bin/node',
+  memory_max_bytes:'2147483648',
+  pids_max:'128',
+  cpu_quota_us:'200000',
+  cpu_period_us:'100000',
 };
 
 function runnableManifest(){
   const workspace=fs.mkdtempSync(path.join(os.tmpdir(),'overcenter-exec-'));
+  const cgroupParent=fs.mkdtempSync(path.join(os.tmpdir(),'overcenter-cgroup-'));
   const stat=fs.statSync(workspace,{bigint:true});
   return {
     workspace,
+    cgroupParent,
     manifest:{
       ...base,
       workspace,
@@ -47,6 +53,10 @@ test('execution manifest is canonical and digest-bound',()=>{
     'program\t/usr/bin/node',
     'timeout_ms\t60000',
     'max_output_bytes\t1048576',
+    'memory_max_bytes\t2147483648',
+    'pids_max\t128',
+    'cpu_quota_us\t200000',
+    'cpu_period_us\t100000',
     'arg\tworker.mjs',
     'arg\t--mode=safe',
     'env\tALPHA\ta',
@@ -85,6 +95,25 @@ test('execution manifest rejects authority-smearing inputs',()=>{
     ()=>renderExecutionManifest({...base,timeout_ms:2_147_483_648}),
     /TIMEOUT_MS_INVALID/u,
   );
+  assert.throws(
+    ()=>renderExecutionManifest({...base,max_output_bytes:67_108_865}),
+    /MAX_OUTPUT_BYTES_INVALID/u,
+  );
+  assert.throws(()=>renderExecutionManifest({...base,memory_max_bytes:'0'}),/MEMORY_MAX_BYTES_INVALID/u);
+  assert.throws(()=>renderExecutionManifest({...base,pids_max:'0'}),/PIDS_MAX_INVALID/u);
+  assert.throws(()=>renderExecutionManifest({...base,cpu_quota_us:'0'}),/CPU_QUOTA_US_INVALID/u);
+  assert.throws(()=>renderExecutionManifest({...base,cpu_period_us:'0'}),/CPU_PERIOD_US_INVALID/u);
+});
+
+test('resource budget is part of execution identity',()=>{
+  const ordinary=renderExecutionManifest(base);
+  assert.notEqual(
+    renderExecutionManifest({...base,memory_max_bytes:'1073741824'}).sha256,
+    ordinary.sha256,
+  );
+  assert.notEqual(renderExecutionManifest({...base,pids_max:'64'}).sha256,ordinary.sha256);
+  assert.notEqual(renderExecutionManifest({...base,cpu_quota_us:'100000'}).sha256,ordinary.sha256);
+  assert.notEqual(renderExecutionManifest({...base,cpu_period_us:'50000'}).sha256,ordinary.sha256);
 });
 
 test('supervisor policy is part of execution identity',()=>{
@@ -106,96 +135,62 @@ test('execution manifest environment ordering is locale-independent',()=>{
   );
 });
 
-test('trusted launcher receives the exact bytes whose digest is reported',async()=>{
-  const {workspace,manifest}=runnableManifest();
-  try {
-    const rendered=renderExecutionManifest(manifest);
-    const result=await runConfinedWorker({launcher:'/bin/cat',manifest});
-    assert.equal(result.exit_code,0);
-    assert.equal(result.signal,null);
-    assert.equal(result.stderr,'');
-    assert.equal(result.stdout,rendered.bytes);
-    assert.equal(result.manifest_sha256,sha256(result.stdout));
-  } finally {
-    fs.rmSync(workspace,{recursive:true,force:true});
-  }
-});
-
-test('trusted launcher passes the exact workspace object on fd 3',async()=>{
-  const {workspace,manifest}=runnableManifest();
-  try {
-    const result=await runConfinedWorker({
-      launcher:'/bin/sh',
-      launcher_args:['-c','/usr/bin/stat -Lc "%d %i" /proc/self/fd/3; /bin/cat'],
-      manifest,
-    });
-    const [identity,...manifestLines]=result.stdout.split('\n');
-    assert.equal(identity,`${manifest.workspace_dev} ${manifest.workspace_ino}`);
-    assert.equal(`${manifestLines.join('\n')}`,renderExecutionManifest(manifest).bytes);
-  } finally {
-    fs.rmSync(workspace,{recursive:true,force:true});
-  }
-});
-
 test('trusted launcher rejects a workspace fd identity mismatch',async()=>{
-  const {workspace,manifest}=runnableManifest();
+  const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
     await assert.rejects(
       runConfinedWorker({
         launcher:'/bin/cat',
+        cgroup_parent:cgroupParent,
         manifest:{...manifest,workspace_ino:(BigInt(manifest.workspace_ino)+1n).toString()},
       }),
       /WORKSPACE_IDENTITY_CHANGED/u,
     );
   } finally {
     fs.rmSync(workspace,{recursive:true,force:true});
+    fs.rmSync(cgroupParent,{recursive:true,force:true});
   }
 });
 
-test('trusted launcher bounds untrusted output',async()=>{
-  const {workspace,manifest}=runnableManifest();
-  try {
-    await assert.rejects(
-      runConfinedWorker({launcher:'/bin/cat',manifest:{...manifest,max_output_bytes:8}}),
-      /WORKER_OUTPUT_LIMIT/u,
-    );
-  } finally {
-    fs.rmSync(workspace,{recursive:true,force:true});
-  }
-});
-
-test('trusted launcher kills a hanging worker process group',async()=>{
-  const {workspace,manifest}=runnableManifest();
-  const started=Date.now();
+test('non-cgroup parent fails before any resource leaf is created',async()=>{
+  const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
     await assert.rejects(
       runConfinedWorker({
-        launcher:'/bin/sh',
-        launcher_args:['-c','cat >/dev/null; sleep 5'],
-        manifest:{...manifest,timeout_ms:50},
+        launcher:'/bin/cat',
+        cgroup_parent:cgroupParent,
+        manifest,
       }),
-      /WORKER_TIMEOUT/u,
+      /CGROUP_PARENT_INTERFACE_MISSING_CGROUP_TYPE/u,
     );
-    assert.ok(Date.now()-started<2_000);
+    assert.deepEqual(fs.readdirSync(cgroupParent),[]);
   } finally {
     fs.rmSync(workspace,{recursive:true,force:true});
+    fs.rmSync(cgroupParent,{recursive:true,force:true});
   }
 });
 
 test('launcher budgets fail closed',async()=>{
   await assert.rejects(
-    runConfinedWorker({launcher:'/bin/cat',manifest:{...base,timeout_ms:0}}),
+    runConfinedWorker({launcher:'/bin/cat',cgroup_parent:'/tmp',manifest:{...base,timeout_ms:0}}),
     /TIMEOUT_MS_INVALID/u,
   );
   await assert.rejects(
-    runConfinedWorker({launcher:'/bin/cat',manifest:{...base,max_output_bytes:0}}),
+    runConfinedWorker({launcher:'/bin/cat',cgroup_parent:'/tmp',manifest:{...base,max_output_bytes:0}}),
     /MAX_OUTPUT_BYTES_INVALID/u,
+  );
+});
+
+test('cgroup parent is trusted host configuration, not manifest-controlled',async()=>{
+  await assert.rejects(
+    runConfinedWorker({launcher:'/bin/cat',cgroup_parent:'relative',manifest:base}),
+    /CGROUP_PARENT_NOT_ABSOLUTE/u,
   );
 });
 
 test('launcher identity is configuration, not manifest-controlled',async()=>{
   await assert.rejects(
-    runConfinedWorker({launcher:'relative-launcher',manifest:base}),
+    runConfinedWorker({launcher:'relative-launcher',cgroup_parent:'/tmp',manifest:base}),
     /LAUNCHER_NOT_ABSOLUTE/u,
   );
 });

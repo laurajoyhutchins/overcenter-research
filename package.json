@@ -5,7 +5,7 @@
   "scripts": {
     "test": "npm run test:experiment-contract && npm run test:unit",
     "test:unit": "node --experimental-strip-types --test --test-concurrency=2 test/digest-pure.test.ts test/evidence-pure.test.ts test/graph-pure.test.ts test/semantic-dependency.test.ts test/hostile.test.ts test/admission-pure.test.ts test/projector-pure.test.ts test/projector-explanation.test.ts test/realization-admissibility.test.ts test/realization-pure.test.ts test/fact-store-contract.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts test/git-kernel.test.ts test/provider-observation.test.ts test/kubernetes-core-verifier.test.ts test/github-openapi-contract.test.ts test/github-certified-read.test.ts test/github-certified-status.test.ts test/github-status-effect.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts test/github-authority-command.test.ts test/projection-pure.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts test/proof-environment.test.ts test/github-actions-boundary.test.ts test/config-contract.test.ts test/data-contracts.test.ts test/execution-manifest.test.ts test/github-agent-ingress.test.ts",
-    "test:experiments": "node --test --test-concurrency=1 experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test --test-concurrency=1 experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/current-realization-admissibility/current-realization-admissibility.test.ts experiments/github-observation-grammar/github-observation.test.ts experiments/provider-observation/response-slice.test.ts experiments/kubernetes-observation/kubernetes-observation.test.ts experiments/lisp-semantics/lisp-semantics.test.ts experiments/bounded-graph-exhaustion/bounded-graph.test.ts && npm run test:github-object-transport && npm run test:codex-closed-loop",
+    "test:experiments": "node --test --test-concurrency=1 experiments/sqlite-baseline/kernel.test.js && node --experimental-strip-types --test --test-concurrency=1 experiments/disposable-agent/disposable-agent.test.ts experiments/two-effect-concurrency/two-effect-concurrency.test.ts experiments/conflicting-effect/effect-ordering.test.ts experiments/eventually-consistent-readback/eventually-consistent-effect.test.ts experiments/current-realization-admissibility/current-realization-admissibility.test.ts experiments/github-observation-grammar/github-observation.test.ts experiments/provider-observation/response-slice.test.ts experiments/kubernetes-observation/kubernetes-observation.test.ts experiments/lisp-semantics/lisp-semantics.test.ts experiments/frontier-prioritization/frontier-prioritization.test.mjs experiments/bounded-graph-exhaustion/bounded-graph.test.ts && npm run test:github-object-transport && npm run test:codex-closed-loop",
     "demo": "node --experimental-strip-types examples/sqlite-demo.ts",
     "test:git": "node --experimental-strip-types --test test/git-kernel.test.ts experiments/disposable-agent/disposable-agent.test.ts",
     "demo:git": "node --experimental-strip-types examples/git-demo.ts",
@@ -52,7 +52,6 @@
     "test:assignment-capsule": "node --test experiments/assignment-capsule/contract.test.mjs",
     "test:github-agent-ingress": "node --experimental-strip-types --test test/github-agent-ingress.test.ts",
     "test:codex-closed-loop": "node --test experiments/codex-closed-loop/contract.test.mjs experiments/codex-closed-loop/sandbox-contract.test.mjs experiments/codex-closed-loop/sandbox-stage.test.mjs experiments/codex-closed-loop/local-model-contract.test.mjs",
-    "experiment:autonomy-sandbox": "node --experimental-strip-types experiments/codex-closed-loop/sandbox-runner.ts --stage single-useful-obligation --seed reproducible-control",
     "generate:settlement-observation": "node --experimental-strip-types scripts/generate-settlement-observation.mjs --write",
     "check:settlement-observation": "node --experimental-strip-types scripts/generate-settlement-observation.mjs --check",
     "test:typebox-production-runtime": "node --experimental-strip-types --test test/typebox-production-contract.test.ts",
@@ -60,6 +59,8 @@
     "test:realization-reuse": "node --experimental-strip-types --test test/realization-pure.test.ts",
     "bench:production-latency": "node --experimental-strip-types experiments/production-latency/benchmark.ts --iterations 25",
     "bench:production-latency:live": "node --experimental-strip-types experiments/production-latency/benchmark.ts --live --iterations 3",
-    "experiment:scheduler-bottleneck": "node --experimental-strip-types experiments/scheduler-bottleneck/experiment.mjs"
+    "experiment:scheduler-bottleneck": "node --experimental-strip-types experiments/scheduler-bottleneck/experiment.mjs",
+    "bench:frontier-prioritization": "OVERCENTER_FRONTIER_STRESS=1 node --test --test-name-pattern='optional connected stress boundary' experiments/frontier-prioritization/frontier-prioritization.test.mjs",
+    "experiment:autonomy-sandbox": "node --experimental-strip-types experiments/codex-closed-loop/sandbox-runner.ts --stage single-useful-obligation --seed reproducible-control"
   }
 }

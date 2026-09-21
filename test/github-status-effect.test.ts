@@ -60,9 +60,10 @@ test('production GitHub status effect derives provider coordinates from authorit
   const root=mkdtempSync(join(tmpdir(),'github-status-effect-'));
   const kernel=new OvercenterKernel(join(root,'overcenter.sqlite'));
   const calls:Array<{kind:'get'|'post';path:string;body?:unknown}>=[];
-  const get:GithubJsonGet=(_token,path)=>{
+  const get=async(_token:string,path:string)=>{
     calls.push({kind:'get',path});
     assert.equal(path,'/repos/acme/widget');
+    await Promise.resolve();
     return repository();
   };
   try {
@@ -183,6 +184,16 @@ test('lost broker acknowledgement survives SQLite reopen and settles from author
 
     const get:GithubJsonGet=(_token,path)=>{
       if (path==='/repos/acme/widget') return repository();
+      if (path===`/repos/acme/widget/commits/${COMMIT}/status?page=1&per_page=100`) {
+        const statuses=providerState==='success'?[status()]:[];
+        return {
+          state:providerState==='success'?'success':'pending',
+          sha:COMMIT,
+          total_count:statuses.length,
+          repository:repository(),
+          statuses,
+        };
+      }
       assert.match(path,new RegExp(`^/repos/acme/widget/commits/${COMMIT}/statuses\\?page=1&per_page=30$`));
       return providerState==='success'?[status()]:[];
     };

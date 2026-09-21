@@ -75,7 +75,7 @@
       "id": "settlement",
       "sink": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.resolveAsync"
       },
       "recoveryClass": 5
     },
@@ -108,7 +108,7 @@
       },
       "terminal": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.resolveAsync"
       }
     },
     {
@@ -204,21 +204,21 @@
       },
       "lower": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.resolveAsync"
       },
-      "rationale": "Prior human ranking put obligation/verifier identity above settlement."
+      "rationale": "Prior human ranking put obligation/verifier identity above the normal production settlement boundary, now KernelCore.resolveAsync."
     },
     {
       "id": "settlement-over-absence",
       "higher": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.resolveAsync"
       },
       "lower": {
         "file": "src/observation.ts",
         "name": "observationAuthoritativelyAbsent"
       },
-      "rationale": "Prior human ranking put settlement above authoritative absence."
+      "rationale": "Prior human ranking put normal production settlement above authoritative absence."
     },
     {
       "id": "verification-over-absence",
@@ -260,13 +260,13 @@
       "id": "settlement-over-formatting",
       "higher": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.resolveAsync"
       },
       "lower": {
         "file": "src/kernel-core.ts",
         "name": "errorMessage"
       },
-      "rationale": "Proof-bearing settlement should outrank error-string plumbing."
+      "rationale": "Proof-bearing normal production settlement should outrank error-string plumbing."
     }
   ]
 }
