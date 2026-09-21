@@ -1,6 +1,14 @@
 name: Production criticality ranking
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'experiments/**'
+      - '.github/workflows/production-criticality-ranking.yml'
   pull_request:
     paths:
       - 'src/**'
