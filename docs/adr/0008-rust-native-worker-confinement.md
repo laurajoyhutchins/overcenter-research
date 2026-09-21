@@ -6,7 +6,7 @@
 
 Rust is admitted to the supported Overcenter slice only for a small native worker-confinement substrate.
 
-The admitted boundary is `runtime/overcenter-exec`. Trusted TypeScript opens and identity-checks the exact workspace object, passes it on FD 3, renders one strict execution manifest including supervisor limits, computes the SHA-256 of those exact bytes, and pipes the same bytes to the launcher on stdin. The launcher may own only mechanically enforceable process-boundary work: exact-object workspace pinning, filesystem/process confinement, ambient-authority removal, bounded transport supervision, and replacement of the launcher with the untrusted worker.
+The admitted boundary is `runtime/overcenter-exec`. Trusted TypeScript opens and identity-checks the exact workspace object, passes it on FD 3, opens an already-delegated cgroup-v2 parent on FD 4, renders one strict execution manifest including supervisor and resource limits, computes the SHA-256 of those exact bytes, and pipes the same bytes to the launcher on stdin. The launcher may own only mechanically enforceable process-boundary work: exact-object workspace pinning, filesystem/process confinement, ambient-authority removal, bounded transport supervision, and replacement of the launcher with the untrusted worker.
 
 Rust does not own graph eligibility, project projection, claims, recovery policy, provider interpretation, provider mutation, verification, settlement, or project truth.
 
@@ -35,7 +35,7 @@ The native launcher buys properties that are awkward or unavailable through the 
 - mandatory Landlock process scoping for signals and abstract Unix sockets;
 - fail-closed rejection of privileged or switchable caller credentials;
 - deterministic removal of ambient environment and inherited descriptors before `exec`;
-- manifest-bound wall-clock/output supervision with whole-process-group termination.
+- manifest-bound wall-clock/output supervision plus cgroup-v2 memory, PID, and CPU limits with whole-cgroup termination.
 
 Those are execution-correctness mechanisms, not reasoning or authority semantics.
 
@@ -64,7 +64,9 @@ Rejected. Filesystem/process confinement does not grant or interpret provider au
 - Program/runtime files are explicit immutable regular-file execution-closure inputs, not blanket access to `/usr` or `/etc`; aliases are de-duplicated by opened inode identity.
 - Writable workspace authority excludes blanket execute, special-device/socket-node creation, device ioctls, and pathname-Unix-socket resolution.
 - Landlock does not currently provide pathname-metadata confidentiality or advisory-lock isolation, and the launcher does not claim either.
-- PID/memory/CPU/disk quotas remain an outer host/cgroup responsibility; the trusted transport itself is bounded by manifest-declared timeout and output limits.
+- CPU, memory, and PID budgets are execution identity and are enforced in a delegated cgroup-v2 leaf before untrusted code runs.
+- The host owns cgroup delegation and parent-controller setup; the launcher fails closed rather than enabling or widening its parent authority.
+- Device-specific I/O and workspace disk quotas remain a separate storage-authority problem.
 - A missing required kernel primitive or privileged caller context fails closed.
 - The Rust toolchain is pinned and its hostile proof is part of the production proof command.
 - The launcher remains disposable physical machinery. Durable execution truth stays in TypeScript + SQLite.
