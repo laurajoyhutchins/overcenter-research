@@ -64,6 +64,9 @@ type Provenance={
   routing_profile?:string;
   gateway_used?:boolean;
   credential_source?:string;
+  billing_project_id?:string;
+  billing_observation_source?:string;
+  billing_enabled?:boolean;
   reasoning_api_credential_present?:boolean;
   overcenter_authority_present?:boolean;
   project_provider_mutation_authority_present?:boolean;
@@ -235,6 +238,15 @@ function loadProvenance(path:string,candidateBytes:Buffer):{provenance:Provenanc
     if (provenance.routing_profile==='google-free' && provenance.credential_source!=='gcp-api-keys-via-github-oidc') {
       throw new Error('SANDBOX_AI_SDK_GOOGLE_FREE_CREDENTIAL_SOURCE_INVALID');
     }
+    if (
+      provenance.routing_profile==='google-free'
+      && (
+        typeof provenance.billing_project_id!=='string'
+        || !provenance.billing_project_id
+        || provenance.billing_observation_source!=='google-cloud-billing-api'
+        || provenance.billing_enabled!==false
+      )
+    ) throw new Error('SANDBOX_AI_SDK_GOOGLE_FREE_BILLING_PROOF_INVALID');
     if (provenance.network_during_inference!==true) throw new Error('SANDBOX_AI_SDK_NETWORK_EXPECTED');
     if (provenance.reasoning_api_credential_present!==true) throw new Error('SANDBOX_AI_SDK_REASONING_CREDENTIAL_MISSING');
     if (provenance.repository_credentials_present!==false) throw new Error('SANDBOX_AI_SDK_REPOSITORY_CREDENTIAL_PRESENT');
@@ -544,7 +556,14 @@ try {
     && provenance.input_scope==='synthetic-prompt-and-schema-only'
     && provenance.worker_job_is_disposable===true;
   const reasoningAuthorityConfined=provenance?.transport==='ai-sdk'
-    && (provenance.routing_profile!=='google-free' || provenance.credential_source==='gcp-api-keys-via-github-oidc')
+    && (
+      provenance.routing_profile!=='google-free'
+      || (
+        provenance.credential_source==='gcp-api-keys-via-github-oidc'
+        && provenance.billing_observation_source==='google-cloud-billing-api'
+        && provenance.billing_enabled===false
+      )
+    )
     && provenance.reasoning_api_credential_present===true
     && provenance.repository_credentials_present===false
     && provenance.checkout_readable_during_inference===false
@@ -611,6 +630,9 @@ try {
       routing_profile:provenance?.routing_profile??null,
       gateway_used:provenance?.gateway_used??null,
       credential_source:provenance?.credential_source??null,
+      billing_project_id:provenance?.billing_project_id??null,
+      billing_observation_source:provenance?.billing_observation_source??null,
+      billing_enabled:provenance?.billing_enabled??null,
       reasoning_api_credential_present:provenance?.reasoning_api_credential_present??null,
       overcenter_authority_present:provenance?.overcenter_authority_present??null,
       project_provider_mutation_authority_present:provenance?.project_provider_mutation_authority_present??null,
