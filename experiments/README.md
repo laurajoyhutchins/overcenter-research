@@ -22,6 +22,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
 - `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
+- `scheduler-provisioning/` - compare worker-side claim herding with single-provisioner exact assignment on the same scheduler workload.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
 - `projection-comparison/` - mutable lifecycle versus TypeScript, status-free SQL, and Datalog over one normalized projection contract.
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
