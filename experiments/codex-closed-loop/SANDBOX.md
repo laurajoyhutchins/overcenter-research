@@ -169,7 +169,7 @@ The repository stores only non-secret GitHub Actions variables:
 - `GCP_API_KEY_READER_SERVICE_ACCOUNT`;
 - `GEMINI_API_KEY_RESOURCE` (the full `projects/.../locations/global/keys/...` resource name).
 
-The reader identity should have only Workload Identity User for the configured GitHub principal and `roles/serviceusage.apiKeysViewer` on the dedicated Gemini project. Keeping that project dedicated to free-tier inference bounds the predefined viewer role to that project's API keys.
+The GitHub principal should have only Workload Identity User on the reader service account. Prefer a project custom role containing only `apikeys.keys.getKeyString` on the dedicated Gemini project; Google documents that as the sole permission required by the `GetKeyString` method, and the permission is supported in custom roles. If a predefined role is used for a quick proof, `roles/serviceusage.apiKeysViewer` is broader because it can also get, list, and look up every API key in the project, which is why the inference project should remain dedicated.
 
 The workflow exchanges GitHub OIDC for a five-minute Google access token, resolves the Gemini key string directly from Google's API Keys API, masks it, passes it only into the unprivileged inference process, deletes the temporary key file immediately afterward, and never writes the key to a GitHub secret or retained artifact.
 
