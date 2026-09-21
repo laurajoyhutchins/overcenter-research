@@ -1,3 +1,4 @@
+import {STORAGE_SCHEMAS} from './generated/schema-identifiers.ts';
 import { DatabaseSync } from 'node:sqlite';
 
 import { canonicalDigest } from './digest.ts';
@@ -7,7 +8,7 @@ import {
 } from './fact-store.ts';
 import type { FactCommit } from './facts.ts';
 
-const COMMIT_SCHEMA='overcenter-sqlite-fact-commit-v1' as const;
+const COMMIT_SCHEMA=STORAGE_SCHEMAS.sqliteFactCommit;
 
 interface AuthorityRow {
   head:string|null;
