@@ -179,7 +179,6 @@ export class KernelCore {
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
 
     const projection=this.#historicalProjection(head);
-    if (hasInFlight(projection.project)) throw new Error('PROJECT_BUSY');
     const plan=planGraphReconciliation(projection.state,desired);
     if (plan.add.length===0 && plan.replace.length===0) {
       return {
