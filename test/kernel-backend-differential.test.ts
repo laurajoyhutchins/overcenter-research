@@ -51,7 +51,7 @@ async function exercise(
   const revision=kernel.head();
   assert.ok(revision);
   kernel.applyGraphPatch({
-    add:[
+    upsert:[
       {
         id:'second',
         dependencies:[{kind:'control',upstream:'first'}],
