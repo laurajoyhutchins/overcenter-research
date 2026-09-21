@@ -68,11 +68,48 @@ function counter(content:string,name:string):string {
   return value;
 }
 
+function requireFiniteParentEnvelope(parentFd:number):void {
+  const parentPath=`/proc/self/fd/${parentFd}`;
+  const cgroupType=fs.readFileSync(path.join(parentPath,'cgroup.type'),'utf8').trim();
+  if (cgroupType!=='domain') throw new Error('CGROUP_PARENT_NOT_DOMAIN');
+
+  const enabled=new Set(
+    fs.readFileSync(path.join(parentPath,'cgroup.subtree_control'),'utf8')
+      .trim()
+      .split(/\s+/u)
+      .filter(Boolean),
+  );
+  for (const controller of ['cpu','memory','pids']) {
+    if (!enabled.has(controller)) throw new Error(`CGROUP_PARENT_CONTROLLER_MISSING_${controller.toUpperCase()}`);
+  }
+
+  const finite=(file:string):string=>{
+    const value=fs.readFileSync(path.join(parentPath,file),'utf8').trim();
+    if (!/^[0-9]+$/u.test(value) || value==='0') {
+      throw new Error(`CGROUP_PARENT_UNBOUNDED_${file.toUpperCase().replaceAll('.','_')}`);
+    }
+    return value;
+  };
+  finite('memory.max');
+  finite('pids.max');
+
+  const [quota,period,...extra]=fs.readFileSync(path.join(parentPath,'cpu.max'),'utf8').trim().split(/\s+/u);
+  if (extra.length!==0 || !quota || !period || !/^[0-9]+$/u.test(quota) || !/^[0-9]+$/u.test(period)) {
+    throw new Error('CGROUP_PARENT_UNBOUNDED_CPU_MAX');
+  }
+}
+
 function createCgroupLeaf(cgroupParent:string):CgroupLeaf {
   const parentFd=fs.openSync(
     cgroupParent,
     fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW,
   );
+  try {
+    requireFiniteParentEnvelope(parentFd);
+  } catch (error) {
+    fs.closeSync(parentFd);
+    throw error;
+  }
   for (let attempt=0;attempt<8;attempt+=1) {
     const name=`overcenter-${randomBytes(16).toString('hex')}`;
     const entryPath=`/proc/self/fd/${parentFd}/${name}`;
