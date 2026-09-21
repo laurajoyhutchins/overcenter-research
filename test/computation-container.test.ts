@@ -347,7 +347,7 @@ test('confined observation rejects a task-controlled result symlink',async()=>{
   const work=state.kernel.deriveReadyWork();
   assert.ok(work);
   const permit=state.kernel.claim(work.id,work.revision);
-  const receipt=state.kernel.resolve(permit);
+  const receipt=state.kernel.reconcile(permit);
   assert.equal(receipt.disposition,'RECOVERY_REQUIRED');
   assert.equal(receipt.verified,false);
   assert.equal(state.kernel.inspect()[0]?.status,'RECOVERY_REQUIRED');
