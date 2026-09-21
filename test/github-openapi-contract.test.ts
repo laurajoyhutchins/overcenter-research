@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   GITHUB_COMMIT_STATUSES_OPERATION,
+  GITHUB_COMPARE_COMMITS_OPERATION,
   GITHUB_OBSERVATION_OPERATIONS,
   GITHUB_PULL_REQUEST_OPERATION,
   GITHUB_REF_OPERATION,
@@ -17,7 +18,8 @@ test('generated GitHub operation catalog is bound to semantic operation IDs',()=
   assert.equal(GITHUB_REF_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.ref.operation_id);
   assert.equal(GITHUB_PULL_REQUEST_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.pull_request.operation_id);
   assert.equal(GITHUB_COMMIT_STATUSES_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.commit_statuses.operation_id);
-  assert.equal(Object.keys(GITHUB_OPERATION_SEMANTICS).length,42);
+  assert.equal(GITHUB_COMPARE_COMMITS_OPERATION.operation_id,GITHUB_OPERATION_SEMANTICS.compare_commits.operation_id);
+  assert.equal(Object.keys(GITHUB_OPERATION_SEMANTICS).length,43);
   assert.deepEqual(
     Object.keys(GITHUB_OBSERVATION_OPERATIONS).sort(),
     Object.keys(GITHUB_OPERATION_SEMANTICS).sort(),
@@ -64,6 +66,15 @@ test('GitHub request materialization is operation-driven',()=>{
     page:2,
     per_page:100,
   });
+  const compare=materializeGithubOperationRequest(GITHUB_COMPARE_COMMITS_OPERATION,{
+    owner:'acme',
+    repo:'widget',
+    basehead:`${'a'.repeat(40)}...${'b'.repeat(40)}`,
+  });
+  assert.equal(
+    compare.path,
+    `/repos/acme/widget/compare/${'a'.repeat(40)}...${'b'.repeat(40)}`,
+  );
   assert.throws(
     ()=>materializeGithubOperationRequest(GITHUB_REF_OPERATION,{owner:'acme',repo:'widget'}),
     /GITHUB_OPERATION_PARAMETER_REQUIRED:ref/,
@@ -79,6 +90,7 @@ test('certified providers do not copy GitHub routes or response schemas',()=>{
     'src/providers/github-certified-repository.ts',
     'src/providers/github-certified-read.ts',
     'src/providers/github-certified-observation.ts',
+    'src/providers/github-certified-ancestry.ts',
     'src/providers/github-certified-ref.ts',
     'src/providers/github-certified-pr.ts',
     'src/providers/github-certified-status.ts',

@@ -9,6 +9,7 @@ export const VerifierKind=stringEnum([
   'file-content-equals/v1',
   'eventually-consistent-file-content-equals/v1',
   'github-commit-status/v2',
+  'github-pull-request-branch-updated/v1',
   'kubernetes-configmap-exists/v1',
 ] as const);
 
@@ -53,6 +54,15 @@ export const SettlementObservation=Type.Object({
       'x-overcenter-providerOwned':true,
     }),
   ),
+  pull_number:Type.Optional(Type.Integer({
+    minimum:1,
+    maximum:Number.MAX_SAFE_INTEGER,
+  })),
+  pull_node_id:Type.Optional(Type.String()),
+  expected_previous_head_sha:Type.Optional(Type.String()),
+  base_ref:Type.Optional(Type.String()),
+  expected_base_sha:Type.Optional(Type.String()),
+  actual_head_sha:Type.Optional(Type.String()),
 },{additionalProperties:false});
 
 export type Observation=Type.Static<typeof SettlementObservation>;
