@@ -57,7 +57,7 @@ setup_cgroup_delegation() {
   sudo mkdir "$cgroup_root/host" "$cgroup_parent"
   printf '+cpu +memory +pids' | sudo tee "$cgroup_parent/cgroup.subtree_control" >/dev/null
 
-  sudo chown "$UID:$GID" \
+  sudo chown "$UID:$(id -g)" \
     "$cgroup_root" "$cgroup_root/cgroup.procs" "$cgroup_root/cgroup.subtree_control" \
     "$cgroup_root/host" "$cgroup_root/host/cgroup.procs" \
     "$cgroup_parent" "$cgroup_parent/cgroup.procs" "$cgroup_parent/cgroup.subtree_control"
