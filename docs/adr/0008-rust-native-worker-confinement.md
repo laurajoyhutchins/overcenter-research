@@ -65,7 +65,7 @@ Rejected. Filesystem/process confinement does not grant or interpret provider au
 - Writable workspace authority excludes blanket execute, special-device/socket-node creation, device ioctls, and pathname-Unix-socket resolution.
 - Landlock does not currently provide pathname-metadata confidentiality or advisory-lock isolation, and the launcher does not claim either.
 - CPU, memory, and PID budgets are execution identity and are enforced in one host-created, FD-pinned cgroup-v2 leaf before untrusted code runs; `cpu.max.burst` is explicitly zeroed and verified.
-- The trusted supervisor requires the direct delegated parent to have finite aggregate CPU, memory, and PID limits with zero CPU burst; child values are ceilings, not capacity reservations.
+- The trusted supervisor requires the direct delegated parent to have finite aggregate CPU, memory, and PID limits with zero CPU burst, a finite descendant count, and maximum depth 1; child values are ceilings, not capacity reservations.
 - PID values and cgroup names are locators, not authority. Termination, evidence, and removal stay bound to the exact leaf object and its device/inode identity.
 - Resource evidence is sampled only after `cgroup.kill` and `cgroup.events populated=0`, so detached descendants cannot continue consuming resources after the reported sample.
 - The worker cannot request HugeTLB through `MAP_HUGETLB`, `MFD_HUGETLB`, or System V shared memory, avoiding a host-dependent gap in ordinary `memory.max` accounting.
