@@ -2,6 +2,7 @@ name: TypeBox production contract projection
 
 on:
   pull_request:
+    types: [ready_for_review]
     paths:
       - 'contracts/observation-evidence-v1/settlement-observation.typebox.ts'
       - 'contracts/observation-evidence-v1/schema.json'

@@ -24,6 +24,7 @@ on:
       - research/provider-observation-reuse.md
       - package.json
   pull_request:
+    types: [ready_for_review]
     branches:
       - main
     paths:

@@ -2,7 +2,19 @@ name: Evidence
 
 on:
   workflow_call:
+    inputs:
+      expensive:
+        description: Run adversarial, experimental, stress, and formal proof lanes
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      expensive:
+        description: Run adversarial, experimental, stress, and formal proof lanes
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,6 +39,7 @@ jobs:
 
   proofs:
     name: Adversarial, experimental, and formal proofs
+    if: ${{ inputs.expensive }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:

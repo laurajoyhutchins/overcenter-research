@@ -12,6 +12,7 @@ on:
       - package.json
       - experiments/registry.json
   pull_request:
+    types: [ready_for_review]
     paths:
       - .github/workflows/production-latency.yml
       - experiments/production-latency/**

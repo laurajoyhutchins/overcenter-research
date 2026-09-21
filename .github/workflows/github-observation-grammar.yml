@@ -30,6 +30,7 @@ on:
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
   pull_request:
+    types: [ready_for_review]
     branches:
       - main
     paths:

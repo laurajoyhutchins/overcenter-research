@@ -2,29 +2,39 @@ name: Merge gate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact source SHA expected at the selected ref
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: merge-gate-${{ github.event.pull_request.number || github.ref }}
+  group: merge-gate-${{ github.event.pull_request.number || inputs.source_sha || github.ref }}
   cancel-in-progress: true
 
 jobs:
   evidence:
     name: Evidence
     uses: ./.github/workflows/tests.yml
+    with:
+      expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
 
   production-computation:
     name: Production computation
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
     uses: ./.github/workflows/computation-executor.yml
 
   self-application:
     name: Self application
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
     uses: ./.github/workflows/self-application.yml
 
   gate:
@@ -37,12 +47,38 @@ jobs:
     runs-on: ubuntu-slim
     timeout-minutes: 1
     env:
+      EVENT_NAME: ${{ github.event_name }}
+      EVENT_ACTION: ${{ github.event.action || '' }}
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      REQUESTED_SOURCE_SHA: ${{ inputs.source_sha || '' }}
       EVIDENCE_RESULT: ${{ needs.evidence.result }}
       PRODUCTION_COMPUTATION_RESULT: ${{ needs.production-computation.result }}
       SELF_APPLICATION_RESULT: ${{ needs.self-application.result }}
     steps:
-      - name: Require all core evidence for one source revision
+      - name: Require an exact-head candidate before merge
+        run: |
+          set -euo pipefail
+
+          case "$EVENT_NAME" in
+            pull_request)
+              if [ "$EVENT_ACTION" != ready_for_review ]; then
+                echo "::error::Exact-head candidate evidence is required. Mark this PR draft, then Ready for review to certify the current head."
+                exit 1
+              fi
+              ;;
+            workflow_dispatch)
+              test -n "$REQUESTED_SOURCE_SHA"
+              test "$REQUESTED_SOURCE_SHA" = "$SOURCE_SHA"
+              ;;
+            push)
+              ;;
+            *)
+              echo "::error::Unsupported merge-gate event: $EVENT_NAME"
+              exit 1
+              ;;
+          esac
+
+      - name: Require all candidate evidence for one source revision
         run: |
           set -euo pipefail
           printf 'source_sha=%s\n' "$SOURCE_SHA"
@@ -61,6 +97,9 @@ jobs:
             echo '## Merge gate'
             echo
             echo "- source SHA: $SOURCE_SHA"
+            echo "- event: $EVENT_NAME"
+            echo "- action: ${EVENT_ACTION:-none}"
+            echo "- requested source SHA: ${REQUESTED_SOURCE_SHA:-not supplied}"
             echo "- Evidence: $EVIDENCE_RESULT"
             echo "- Production computation: $PRODUCTION_COMPUTATION_RESULT"
             echo "- Self application: $SELF_APPLICATION_RESULT"

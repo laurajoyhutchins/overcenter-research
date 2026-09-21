@@ -2,6 +2,7 @@ name: Datalog projection
 
 on:
   pull_request:
+    types: [ready_for_review]
     paths:
       - 'experiments/datalog-projection/**'
       - 'src/lifecycle.ts'
