@@ -45,6 +45,7 @@ const absolutePath=(name:string,value:string):string=>{
 const MAX_U64=(1n<<64n)-1n;
 const DEFAULT_TIMEOUT_MS=60_000;
 const DEFAULT_MAX_OUTPUT_BYTES=1_048_576;
+const MAX_OUTPUT_BYTES=67_108_864;
 const MAX_TIMEOUT_MS=2_147_483_647;
 
 const positiveSafeInteger=(name:string,value:number,max=Number.MAX_SAFE_INTEGER):number=>{
@@ -88,6 +89,7 @@ export function renderExecutionManifest(input:ExecutionManifestInput):RenderedEx
   const maxOutputBytes=positiveSafeInteger(
     'max_output_bytes',
     input.max_output_bytes ?? DEFAULT_MAX_OUTPUT_BYTES,
+    MAX_OUTPUT_BYTES,
   );
   const memoryMaxBytes=decimal('memory_max_bytes',input.memory_max_bytes);
   const pidsMax=decimal('pids_max',input.pids_max);
