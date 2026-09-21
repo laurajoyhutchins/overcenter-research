@@ -4,7 +4,8 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
-import {pathToFileURL} from 'node:url';\nimport {assertMutationEvidence} from './mutation-evidence.mjs';
+import {pathToFileURL} from 'node:url';
+import {assertMutationEvidence} from './mutation-evidence.mjs';
 
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
