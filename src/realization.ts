@@ -1,7 +1,8 @@
+import {ACCEPTANCE_PREDICATES,REALIZATION_SCHEMAS} from './generated/schema-identifiers.ts';
 import { canonicalDigest, sha256 } from './digest.ts';
 
-export const VERIFIED_REALIZATION_SCHEMA='overcenter-verified-realization-v1' as const;
-export const REALIZATION_KEY_SCHEMA='overcenter-realization-key-v1' as const;
+export const VERIFIED_REALIZATION_SCHEMA=REALIZATION_SCHEMAS.verified;
+export const REALIZATION_KEY_SCHEMA=REALIZATION_SCHEMAS.key;
 export const REALIZATION_ARTIFACT_PATH='realization.artifact' as const;
 
 export type ReuseMode='content-addressed'|'external-effect';
@@ -12,7 +13,7 @@ export interface SemanticDependencyIdentity {
 }
 
 export interface AcceptancePredicate {
-  kind:'sha256-equals/v1';
+  kind:ACCEPTANCE_PREDICATES.sha256Equals;
   expected_sha256:string;
   [key:string]:unknown;
 }
@@ -92,7 +93,7 @@ export function validateRealizationDeclaration(
     !predicate
     || typeof predicate!=='object'
     || Array.isArray(predicate)
-    || predicate.kind!=='sha256-equals/v1'
+    || predicate.kind!==ACCEPTANCE_PREDICATES.sha256Equals
     || typeof predicate.expected_sha256!=='string'
   ) {
     throw new Error('INVALID_ACCEPTANCE_PREDICATE');
@@ -137,7 +138,7 @@ export function verifyRealizationCandidate(
   if (contract.reuse_mode!=='content-addressed') {
     throw new Error('EXTERNAL_EFFECT_NOT_REUSABLE');
   }
-  if (contract.acceptance_predicate.kind!=='sha256-equals/v1') {
+  if (contract.acceptance_predicate.kind!==ACCEPTANCE_PREDICATES.sha256Equals) {
     throw new Error('UNSUPPORTED_ACCEPTANCE_PREDICATE');
   }
 
