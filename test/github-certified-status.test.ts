@@ -72,8 +72,9 @@ function provider(
     calls.push(path);
     if (path.includes(`/commits/${COMMIT}/status?`)) return combinedBody;
     if (path==='/repos/acme/widget') return repositoryBody;
-    const match=/\/statuses\?.*[?&]page=(\d+)/.exec(path);
-    if (!match) throw new Error(`unexpected provider path: ${path}`);
+    if (!path.includes('/statuses?')) throw new Error(`unexpected provider path: ${path}`);
+    const match=/[?&]page=(\d+)/.exec(path);
+    if (!match) throw new Error(`missing provider page: ${path}`);
     return pages[Number(match[1])-1]??[];
   };
   return {get,calls};
