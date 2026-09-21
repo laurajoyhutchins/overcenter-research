@@ -70,7 +70,10 @@ export async function githubGetAsync(token:string,path:string):Promise<unknown> 
 
 
 class GithubAsyncReadRequired {
-  constructor(readonly path:string) {}
+  readonly path:string;
+  constructor(path:string) {
+    this.path=path;
+  }
 }
 
 export async function runGithubReadObserverAsync<T>(
