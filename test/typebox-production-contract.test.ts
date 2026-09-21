@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
+import {join} from 'node:path';
+import {contractPackage} from '../scripts/contract-package.mjs';
 
 import {SettlementObservationSchema} from '../src/generated/settlement-observation-schema.ts';
 import {
@@ -11,7 +13,7 @@ import {localFileEnoentEvidence} from '../src/evidence.ts';
 import {validateObservationEnvelope} from '../src/observation.ts';
 
 const document=JSON.parse(
-  readFileSync('contracts/observation-evidence-v1/schema.json','utf8'),
+  readFileSync(join(contractPackage('observation-evidence'),'schema.json'),'utf8'),
 );
 
 test('generated runtime structure is the production wire definition',()=>{
