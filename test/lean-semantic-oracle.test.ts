@@ -18,7 +18,7 @@ import type {
   Postcondition,
 } from '../src/model.ts';
 import { effectSemantics } from '../src/semantics.ts';
-import { effectReservationAuthorityError, mutationAdmitted, projectExecutionAuthority, receiptAuthorityError } from '../src/transaction-admission.ts';
+import { effectReservationAuthorityError, executionAuthorityAdvanceError, mutationAdmitted, projectExecutionAuthority, receiptAuthorityError } from '../src/transaction-admission.ts';
 
 const oracleBin=process.env.LEAN_ORACLE_BIN;
 const oracleSha=process.env.LEAN_ORACLE_SHA;
@@ -80,6 +80,7 @@ class LeanOracle {
               'overcenter-lean-mutation-authority-comparison/v1',
               'overcenter-lean-reservation-replay-comparison/v1',
               'overcenter-lean-receipt-replay-comparison/v1',
+              'overcenter-lean-execution-authority-comparison/v1',
             ].includes(value.schema),
             'unexpected Lean oracle response schema',
           );
@@ -327,7 +328,7 @@ test('mutation authority projection exhaustively agrees with proved Lean project
         run_claimed_revision:run.claimed_revision,
         run_claim_commit:run.claim_commit,
         run_obligation_key:run.obligation_key,
-        run_execution_generation:String(run.execution_generation),
+        run_execution_generation:run.execution_generation,
         run_execution_authority_commit:run.execution_authority_commit,
         run_execution_capability_sha256:run.execution_capability_sha256,
         permit_id:permit.id,
@@ -335,7 +336,7 @@ test('mutation authority projection exhaustively agrees with proved Lean project
         permit_claimed_revision:permit.claimed_revision,
         permit_claim_commit:permit.claim_commit,
         permit_obligation_key:permit.obligation_key,
-        permit_execution_generation:String(permit.execution_generation),
+        permit_execution_generation:permit.execution_generation,
         permit_execution_authority_commit:permit.execution_authority_commit,
         permit_execution_capability_sha256:permit.execution_capability_sha256,
         presented_capability_sha256:presented,
@@ -378,12 +379,12 @@ test('durable reservation replay exhaustively agrees with proved Lean rule',asyn
         run_claimed_revision:run.claimed_revision,
         run_claim_commit:run.claim_commit,
         run_obligation_key:run.obligation_key,
-        run_execution_generation:String(run.execution_generation),
+        run_execution_generation:run.execution_generation,
         run_execution_authority_commit:run.execution_authority_commit,
         run_execution_capability_sha256:run.execution_capability_sha256,
         reservation_run_id:reservation.run_id,
         reservation_obligation_id:reservation.obligation_id,
-        reservation_execution_generation:String(reservation.execution_generation),
+        reservation_execution_generation:reservation.execution_generation,
         reservation_execution_authority_commit:reservation.execution_authority_commit,
         unresolved_effect:unresolved,
       });
@@ -429,14 +430,14 @@ test('durable receipt replay exhaustively agrees with proved Lean rule',async()=
         run_claimed_revision:run.claimed_revision,
         run_claim_commit:run.claim_commit,
         run_obligation_key:run.obligation_key,
-        run_execution_generation:String(run.execution_generation),
+        run_execution_generation:run.execution_generation,
         run_execution_authority_commit:run.execution_authority_commit,
         run_execution_capability_sha256:run.execution_capability_sha256,
         receipt_run_id:receipt.run_id,
         receipt_obligation_id:receipt.obligation_id,
         receipt_claimed_revision:receipt.claimed_revision,
         receipt_claim_commit:receipt.claim_commit,
-        receipt_execution_generation:String(receipt.execution_generation),
+        receipt_execution_generation:receipt.execution_generation,
         receipt_execution_authority_commit:receipt.execution_authority_commit,
       });
       assert.equal(
@@ -449,6 +450,61 @@ test('durable receipt replay exhaustively agrees with proved Lean rule',async()=
     await oracle.close();
   }
   console.log('LEAN_RECEIPT_REPLAY_ORACLE '+JSON.stringify({classes:1<<6,oracle_sha:oracleSha}));
+});
+
+test('execution authority rotation agrees with proved Lean successor rule',async()=>{
+  const oracle=new LeanOracle();
+  const generations=[1,2,7,2_147_483_647,Number.MAX_SAFE_INTEGER-1];
+  let comparisons=0;
+  try{
+    for(const generation of generations){
+      const run={
+        id:'run',obligation_id:'obligation',claimed_revision:'revision',
+        claim_commit:'claim',obligation_key:'key',execution_generation:generation,
+        execution_authority_commit:'authority',execution_capability_sha256:'capability',
+      };
+      for(let mask=0;mask<1<<4;mask+=1){
+        const bad=(bit:number)=>(mask&(1<<bit))!==0;
+        const authority={
+          schema:'overcenter-git-execution-authority-v1' as const,
+          run_id:bad(0)?'other-run':run.id,
+          obligation_id:bad(1)?'other-obligation':run.obligation_id,
+          generation:bad(2)?run.execution_generation:run.execution_generation+1,
+          previous_authority_commit:bad(3)?'other-authority':run.execution_authority_commit,
+          execution_capability_sha256:'next-capability',
+        };
+        const observed=await oracle.compare({
+          command:'execution-authority',
+          run_id:run.id,
+          run_obligation_id:run.obligation_id,
+          run_claimed_revision:run.claimed_revision,
+          run_claim_commit:run.claim_commit,
+          run_obligation_key:run.obligation_key,
+          run_execution_generation:run.execution_generation,
+          run_execution_authority_commit:run.execution_authority_commit,
+          run_execution_capability_sha256:run.execution_capability_sha256,
+          authority_run_id:authority.run_id,
+          authority_obligation_id:authority.obligation_id,
+          authority_generation:authority.generation,
+          authority_previous_commit:authority.previous_authority_commit,
+        });
+        assert.equal(
+          observed.admitted,
+          executionAuthorityAdvanceError(run,authority)===null,
+          `authority rotation generation=${generation} mask=${mask}`,
+        );
+        comparisons+=1;
+      }
+    }
+  }finally{
+    await oracle.close();
+  }
+  console.log('LEAN_EXECUTION_AUTHORITY_ORACLE '+JSON.stringify({
+    classes:1<<4,
+    generations:generations.length,
+    comparisons,
+    oracle_sha:oracleSha,
+  }));
 });
 
 test('production kernel enforces transaction admission at the effect boundary',()=>{
