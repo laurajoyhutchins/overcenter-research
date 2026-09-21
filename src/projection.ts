@@ -7,8 +7,9 @@ import {
   emptyState,
   validateClaimFact,
   validateEffectReservationFact,
+  materializeObligation,
   validateExecutionAuthorityFact,
-  validateObligationFact,
+  validateGraphPatchFact,
   validateReceiptFact,
 } from './facts.ts';
 import type {
@@ -18,7 +19,7 @@ import type {
   ExecutionAuthorityFact,
   FactCommit,
   HistoricalRun,
-  ObligationFact,
+  ObligationDefinition,
   Receipt,
   ReceiptFact,
   State,
@@ -44,6 +45,7 @@ export interface HistoryProjection {
 
 export interface Projection {
   state:State;
+  definitions:Record<string,ObligationDefinition>;
   project:WorkProjection;
   history:HistoryProjection;
 }
@@ -85,6 +87,7 @@ export function projectReceipt(
 
 export function replayProjection(commits:FactCommit[]):Projection {
   const state=emptyState();
+  const definitions:Record<string,ObligationDefinition>={};
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();
   const unresolvedReservationsByRun=new Map<string,EffectReservation>();
@@ -106,61 +109,38 @@ export function replayProjection(commits:FactCommit[]):Projection {
   };
 
   for (const record of commits) {
-    if (record.obligation!=null && record.obligations!=null) {
-      throw new Error('AMBIGUOUS_OBLIGATION_PAYLOAD');
-    }
-
-    if (record.obligations!=null) {
-      if (!Array.isArray(record.obligations) || record.obligations.length===0) {
-        throw new Error('INVALID_OBLIGATION_BATCH');
-      }
+    if (record.graph_patch!=null) {
       refresh(record.parent??'');
       if (hasInFlight(project)) throw new Error('GRAPH_PATCH_WHILE_IN_FLIGHT');
 
-      const facts=record.obligations.map(validateObligationFact);
-      const seen=new Set<string>();
-      for (const fact of facts) {
-        const id=fact.obligation.id;
-        if (seen.has(id)) throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${id}`);
-        seen.add(id);
-        if (fact.kind==='defined') {
-          if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
-          continue;
+      const patch=validateGraphPatchFact(record.graph_patch);
+      for (const introduced of patch.definitions) {
+        if (definitions[introduced.id]) {
+          throw new Error(`DUPLICATE_DEFINITION:${introduced.id}`);
         }
-        if (!state.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
-        if (fact.previous_definition_commit!==state.definition_commits[id]) {
-          throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
-        }
+        definitions[introduced.id]=structuredClone(introduced.definition);
       }
 
-      for (const fact of facts) {
-        const id=fact.obligation.id;
-        state.obligations[id]=fact.obligation;
-        state.definition_commits[id]=record.commit;
-      }
-      validateGraph(state);
-    }
-
-    if (record.obligation!=null) {
-      const fact=validateObligationFact(record.obligation);
-      const obligation=fact.obligation;
-      const id=obligation.id;
-
-      if (fact.kind==='defined') {
-        if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
-      } else if (fact.kind==='amended') {
-        if (!state.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
-        if (fact.previous_definition_commit!==state.definition_commits[id]) {
-          throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
+      for (const id of patch.retire) {
+        if (!state.obligations[id]) {
+          throw new Error(`RETIRE_UNKNOWN_OBLIGATION:${id}`);
         }
-        refresh(record.parent??'');
-        if (hasInFlight(project)) throw new Error('AMEND_WHILE_IN_FLIGHT');
-      } else {
-        throw new Error('INVALID_OBLIGATION_KIND');
+        delete state.obligations[id];
+        delete state.definition_ids[id];
       }
 
-      state.obligations[id]=obligation;
-      state.definition_commits[id]=record.commit;
+      for (const binding of patch.bindings) {
+        const definition=definitions[binding.definition_id];
+        if (!definition) {
+          throw new Error(`UNKNOWN_OBLIGATION_DEFINITION:${binding.definition_id}`);
+        }
+        state.obligations[binding.node_id]=materializeObligation(
+          binding.node_id,
+          definition,
+        );
+        state.definition_ids[binding.node_id]=binding.definition_id;
+      }
+
       validateGraph(state);
     }
 
@@ -192,7 +172,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
         execution_authority_commit:record.commit,
         execution_capability_sha256:claim.execution_capability_sha256,
         obligation:structuredClone(obligation),
-        definition_commit:state.definition_commits[claim.obligation_id],
+        definition_id:state.definition_ids[claim.obligation_id],
       };
       runs.set(run.id,run);
     }
@@ -282,6 +262,7 @@ export function replayProjection(commits:FactCommit[]):Projection {
   refresh(revision);
   return {
     state,
+    definitions,
     project,
     history:{
       runs,
