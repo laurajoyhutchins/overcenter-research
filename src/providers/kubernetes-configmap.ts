@@ -1,3 +1,4 @@
+import {ABSENCE_EVIDENCE_KINDS} from '../generated/schema-identifiers.ts';
 import { canonicalDigest } from '../digest.ts';
 import {
   ABSENCE_EVIDENCE_SCHEMA,
@@ -17,7 +18,7 @@ import {
 } from '../provider-observation/response-slice.ts';
 
 export const KUBERNETES_CONFIGMAP_LIST_OPERATION_ID='listCoreV1NamespacedConfigMap' as const;
-export const KUBERNETES_COMPLETE_LIST_ABSENCE='kubernetes-complete-list-absence/v1' as const;
+export const KUBERNETES_COMPLETE_LIST_ABSENCE=ABSENCE_EVIDENCE_KINDS.kubernetesCompleteListAbsence;
 
 export interface KubernetesConfigMapListRequest {
   authority_id:string;
