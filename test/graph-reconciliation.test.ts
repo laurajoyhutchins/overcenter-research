@@ -11,7 +11,7 @@ const pc=(path:string,content:string)=>({
   content,
 });
 
-test('graph reconciliation deterministically classifies add replace and unchanged',()=>{
+test('graph reconciliation deterministically classifies add rebind and unchanged',()=>{
   const state:State={
     obligations:{
       unchanged:normalizeObligation({
@@ -29,7 +29,7 @@ test('graph reconciliation deterministically classifies add replace and unchange
         postcondition:pc('/tmp/changed','A'),
       }),
     },
-    definition_commits:{
+    definition_ids:{
       unchanged:'u-def',
       changed:'c-def',
     },
@@ -56,13 +56,14 @@ test('graph reconciliation deterministically classifies add replace and unchange
     },
   ]);
 
-  assert.deepEqual(plan.add.map(({id})=>id),['new']);
-  assert.deepEqual(plan.replace.map(({id})=>id),['changed']);
+  assert.deepEqual(plan.upsert.map(({id})=>id),['changed','new']);
+  assert.deepEqual(plan.added,['new']);
+  assert.deepEqual(plan.rebound,['changed']);
   assert.deepEqual(plan.unchanged,['unchanged']);
 });
 
 test('graph reconciliation rejects duplicate desired identities',()=>{
-  const state:State={obligations:{},definition_commits:{}};
+  const state:State={obligations:{},definition_ids:{}};
   assert.throws(
     ()=>planGraphReconciliation(state,[
       {id:'a',postcondition:pc('/tmp/a','A')},
