@@ -85,10 +85,6 @@ printf '%s\n' '== toolchain =='
 rustc --version
 uname -srmo
 
-printf '%s\n' '== delegated cgroup v2 parent =='
-setup_cgroup_delegation
-printf 'parent=%s controllers=%s\n' "$cgroup_parent" "$(cat "$cgroup_parent/cgroup.subtree_control")"
-
 printf '%s\n' '== compile production launcher and hostile worker =='
 rustc --edition=2021 -D warnings "$here/main.rs" -o "$launcher"
 rustc --edition=2021 -D warnings "$here/hostile_worker.rs" -o "$worker"
@@ -96,6 +92,10 @@ rustc --edition=2021 -D warnings "$here/x32_probe.rs" -o "$x32_probe"
 rustc --edition=2021 -D warnings "$here/resource_probe.rs" -o "$resource_probe"
 loader="$(ldd "$worker" 2>/dev/null | grep -oE '/[^[:space:]]*ld-linux[^[:space:]]*' | head -n 1)"
 test -n "$loader"
+
+printf '%s\n' '== delegated cgroup v2 parent =='
+setup_cgroup_delegation
+printf 'parent=%s controllers=%s\n' "$cgroup_parent" "$(cat "$cgroup_parent/cgroup.subtree_control")"
 
 runtime_closure() {
   local binary="$1"
