@@ -75,7 +75,7 @@
       "id": "settlement",
       "sink": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.reconcile"
       },
       "recoveryClass": 5
     },
@@ -108,18 +108,7 @@
       },
       "terminal": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
-      }
-    },
-    {
-      "id": "explicit-reconciliation",
-      "entry": {
-        "file": "src/kernel-core.ts",
         "qualifiedName": "KernelCore.reconcile"
-      },
-      "terminal": {
-        "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
       }
     }
   ],
@@ -204,7 +193,7 @@
       },
       "lower": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.reconcile"
       },
       "rationale": "Prior human ranking put obligation/verifier identity above settlement."
     },
@@ -212,7 +201,7 @@
       "id": "settlement-over-absence",
       "higher": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.reconcile"
       },
       "lower": {
         "file": "src/observation.ts",
@@ -260,7 +249,7 @@
       "id": "settlement-over-formatting",
       "higher": {
         "file": "src/kernel-core.ts",
-        "qualifiedName": "KernelCore.resolve"
+        "qualifiedName": "KernelCore.reconcile"
       },
       "lower": {
         "file": "src/kernel-core.ts",
