@@ -164,7 +164,7 @@ projects/380435294892
     providers/overcenter-research
          |
          v
-overcenter-reasoning-key-reader
+oc-reasoning-key-reader
 ```
 
 The new provider is bound by immutable GitHub repository and owner numeric IDs. The reader service account gets only Workload Identity User from that federated repository identity.
@@ -207,7 +207,7 @@ GitHub Actions OIDC
 github-reasoning / overcenter-research
         |
         v
-overcenter-reasoning-key-reader
+oc-reasoning-key-reader
         |
         +---- Cloud Billing API: billingEnabled must be false
         |
