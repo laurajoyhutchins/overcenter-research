@@ -40,8 +40,8 @@ test('projection fails closed on source-only structural mutations',()=>{
   rejected(
     'enum',
     source=>source.replace(
-      "  'kubernetes-configmap-exists/v1',",
-      "  'kubernetes-configmap-exists/v1',\n  'hostile-verifier/v1',",
+      '  POSTCONDITION_VERIFIERS.kubernetesConfigMapExists,',
+      "  POSTCONDITION_VERIFIERS.kubernetesConfigMapExists,\n  'hostile-verifier/v1',",
     ),
     'hostile-verifier',
   );
