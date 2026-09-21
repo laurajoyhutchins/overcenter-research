@@ -1,0 +1,105 @@
+name: Promote criticality mutation evidence
+
+on:
+  workflow_run:
+    workflows:
+      - Criticality mutation probe
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  promote:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: main
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - id: artifact
+        name: Resolve authoritative mutation artifact
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const headers={
+            Accept:'application/vnd.github+json',
+            Authorization:`Bearer ${process.env.GITHUB_TOKEN}`,
+            'X-GitHub-Api-Version':'2022-11-28',
+          };
+          const url=`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.SOURCE_RUN_ID}/artifacts?per_page=100`;
+          const response=await fetch(url,{headers});
+          if(!response.ok) throw new Error(`GitHub API ${response.status} for ${url}`);
+          const body=await response.json();
+          const artifact=body.artifacts?.find(
+            item=>item.name==='production-criticality-mutation-probe'&&!item.expired,
+          );
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`found=${Boolean(artifact)}\n`);
+          if(artifact){
+            if(!/^sha256:[0-9a-f]{64}$/.test(artifact.digest??'')){
+              throw new Error('authoritative mutation artifact has no digest');
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,`digest=${artifact.digest}\n`);
+          }
+          NODE
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: steps.artifact.outputs.found == 'true'
+        with:
+          name: production-criticality-mutation-probe
+          path: authoritative-mutation-evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Reconcile fresh probe evidence
+        if: steps.artifact.outputs.found == 'true'
+        run: |
+          node experiments/production-criticality-ranking/mutation-evidence.mjs \
+            --current experiments/production-criticality-ranking/mutation-evidence.json \
+            --generated authoritative-mutation-evidence/mutation-evidence-generated.json \
+            --artifact-digest "${{ steps.artifact.outputs.digest }}" \
+            --output experiments/production-criticality-ranking/mutation-evidence.json
+      - name: Commit reconciled evidence
+        if: steps.artifact.outputs.found == 'true'
+        env:
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.digest }}
+        run: |
+          set -euo pipefail
+          evidence=experiments/production-criticality-ranking/mutation-evidence.json
+          if git diff --quiet -- "$evidence"; then
+            echo "No fresh mutation evidence to promote."
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$evidence"
+          git commit -m "Refresh criticality mutation evidence"
+          if git push origin HEAD:main; then
+            exit 0
+          fi
+
+          echo "main advanced; retrying reconciliation against the new head"
+          git fetch origin main
+          git reset --hard origin/main
+          node experiments/production-criticality-ranking/mutation-evidence.mjs \
+            --current "$evidence" \
+            --generated authoritative-mutation-evidence/mutation-evidence-generated.json \
+            --artifact-digest "$ARTIFACT_DIGEST" \
+            --output "$evidence"
+          if git diff --quiet -- "$evidence"; then
+            echo "A newer main revision made this evidence obsolete or already promoted."
+            exit 0
+          fi
+          git add "$evidence"
+          git commit -m "Refresh criticality mutation evidence"
+          git push origin HEAD:main
