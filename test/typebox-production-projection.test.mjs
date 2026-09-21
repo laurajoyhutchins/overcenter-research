@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict';
 import {readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import test from 'node:test';
+import {contractPackage} from '../scripts/contract-package.mjs';
 
-const source='contracts/observation-evidence-v1/settlement-observation.typebox.ts';
+const contractDir=contractPackage('observation-evidence');
+const source=join(contractDir,'settlement-observation.typebox.ts');
 const generator='scripts/generate-settlement-observation.mjs';
 const original=readFileSync(source,'utf8');
 
 function rejected(name,mutate,needle){
-  const path='contracts/observation-evidence-v1/.settlement-observation-'+name+'.typebox.ts';
+  const path=join(contractDir,'.settlement-observation-'+name+'.typebox.ts');
   const changed=mutate(original);
   assert.notEqual(changed,original,name+' mutation did not modify the source fixture');
   writeFileSync(path,changed);
