@@ -641,6 +641,43 @@
       "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     },
     {
+      "id": "provider-roundtrips",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/provider-roundtrips",
+      "readme": "experiments/provider-roundtrips/README.md",
+      "question": "Can GitHub provider latency be reduced by persistent reads and one combined settlement observation without weakening exact identity binding?",
+      "claim": "The experiment compares the current four-request GitHub status pattern against a three-request persistent-fetch candidate that binds repository ID/name, exact SHA, context, and state from the combined-status response.",
+      "contrast": "Optimize SQLite or local kernel work while retaining avoidable provider round trips and per-read curl processes.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:provider-roundtrips"
+      },
+      "environment": [
+        "Node.js from .node-version for deterministic contract tests.",
+        "GitHub Actions ubuntu-24.04 with statuses: write for the live paired benchmark."
+      ],
+      "success_criteria": [
+        "Combined-status mismatch cases fail closed for repository identity, SHA, context, and state.",
+        "The live benchmark alternates baseline and candidate order at one exact source revision.",
+        "Every candidate sample observes its newly written exact status.",
+        "The candidate materially reduces median provider-facing transaction time."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          ".github/workflows/provider-roundtrips.yml"
+        ]
+      },
+      "interpretation": "Use the paired live result to decide whether the transport/readback simplification earns productionization; do not infer caching, webhook, or absence semantics from this experiment.",
+      "non_claims": [
+        "One combined-status page proves authoritative absence.",
+        "Repository identity may be cached indefinitely.",
+        "Webhook delivery is complete.",
+        "Other GitHub operations or providers have the same latency profile."
+      ]
+    },
+    {
       "id": "scheduler-bottleneck",
       "kind": "experiment",
       "status": "maintained",
