@@ -1,42 +1,163 @@
 {
   "authority": {
-    "obligation": { "name": "overcenter-git-obligation", "version": 3 },
-    "claim": { "name": "overcenter-git-claim", "version": 3 },
-    "executionAuthority": { "name": "overcenter-git-execution-authority", "version": 1 },
-    "effectReservation": { "name": "overcenter-git-effect-reservation", "version": 1 },
-    "receipt": { "name": "overcenter-git-receipt", "version": 5 }
+    "obligation": {
+      "name": "overcenter-git-obligation",
+      "version": 3
+    },
+    "claim": {
+      "name": "overcenter-git-claim",
+      "version": 3
+    },
+    "executionAuthority": {
+      "name": "overcenter-git-execution-authority",
+      "version": 1
+    },
+    "effectReservation": {
+      "name": "overcenter-git-effect-reservation",
+      "version": 1
+    },
+    "receipt": {
+      "name": "overcenter-git-receipt",
+      "version": 5
+    }
   },
   "computation": {
-    "execution": { "name": "overcenter-computation-execution", "version": 1 },
-    "processSpec": { "name": "overcenter-process-spec", "version": 1 },
-    "attemptEvidence": { "name": "overcenter-computation-attempt-evidence", "version": 1 },
-    "executorCommand": { "name": "overcenter-executor-command", "version": 1 },
-    "executorHello": { "name": "overcenter-executor-hello", "version": 1 }
+    "execution": {
+      "name": "overcenter-computation-execution",
+      "version": 1
+    },
+    "processSpec": {
+      "name": "overcenter-process-spec",
+      "version": 1
+    },
+    "attemptEvidence": {
+      "name": "overcenter-computation-attempt-evidence",
+      "version": 1
+    },
+    "executorCommand": {
+      "name": "overcenter-executor-command",
+      "version": 1
+    },
+    "executorHello": {
+      "name": "overcenter-executor-hello",
+      "version": 1
+    }
+  },
+  "computationRunner": {
+    "replaySafeTestPacket": {
+      "name": "overcenter-replay-safe-test-computation",
+      "version": 1
+    },
+    "attemptSummary": {
+      "name": "overcenter-computation-attempt-summary",
+      "version": 1
+    },
+    "transportFailure": {
+      "name": "overcenter-computation-transport-failure",
+      "version": 1
+    }
   },
   "observation": {
-    "absenceEvidence": { "name": "overcenter-absence-evidence", "version": 1 }
+    "absenceEvidence": {
+      "name": "overcenter-absence-evidence",
+      "version": 1
+    }
   },
   "agent": {
-    "assignment": { "name": "overcenter-agent-assignment", "version": 1 },
-    "candidate": { "name": "overcenter-agent-candidate", "version": 1 },
-    "task": { "name": "overcenter-agent-task", "version": 1 },
-    "response": { "name": "overcenter-github-agent-response", "version": 1 }
+    "assignment": {
+      "name": "overcenter-agent-assignment",
+      "version": 1
+    },
+    "candidate": {
+      "name": "overcenter-agent-candidate",
+      "version": 1
+    },
+    "task": {
+      "name": "overcenter-agent-task",
+      "version": 1
+    },
+    "response": {
+      "name": "overcenter-github-agent-response",
+      "version": 1
+    }
   },
   "selfApplication": {
-    "executionContext": { "name": "overcenter-self-application-execution-context", "version": 1 },
-    "evidence": { "name": "overcenter-self-application", "version": 1 }
+    "executionContext": {
+      "name": "overcenter-self-application-execution-context",
+      "version": 1
+    },
+    "evidence": {
+      "name": "overcenter-self-application",
+      "version": 1
+    }
+  },
+  "githubAuthority": {
+    "command": {
+      "name": "github-authority",
+      "version": 1,
+      "separator": "/v"
+    }
+  },
+  "production": {
+    "containment": {
+      "name": "overcenter-production-containment",
+      "version": 1
+    }
+  },
+  "realization": {
+    "verified": {
+      "name": "overcenter-verified-realization",
+      "version": 1
+    },
+    "key": {
+      "name": "overcenter-realization-key",
+      "version": 1
+    }
+  },
+  "storage": {
+    "sqliteFactCommit": {
+      "name": "overcenter-sqlite-fact-commit",
+      "version": 1
+    }
   },
   "verifier": {
-    "fileContentEquals": { "name": "file-content-equals", "version": 1 },
-    "eventuallyConsistentFileContentEquals": { "name": "eventually-consistent-file-content-equals", "version": 1 },
-    "githubCommitStatus": { "name": "github-commit-status", "version": 2 },
-    "kubernetesConfigMapExists": { "name": "kubernetes-configmap-exists", "version": 1 }
+    "fileContentEquals": {
+      "name": "file-content-equals",
+      "version": 1
+    },
+    "eventuallyConsistentFileContentEquals": {
+      "name": "eventually-consistent-file-content-equals",
+      "version": 1
+    },
+    "githubCommitStatus": {
+      "name": "github-commit-status",
+      "version": 2
+    },
+    "kubernetesConfigMapExists": {
+      "name": "kubernetes-configmap-exists",
+      "version": 1
+    }
+  },
+  "acceptancePredicate": {
+    "sha256Equals": {
+      "name": "sha256-equals",
+      "version": 1
+    }
   },
   "evidenceKind": {
-    "localFileEnoent": { "name": "local-file-enoent", "version": 1 },
-    "kubernetesCompleteListAbsence": { "name": "kubernetes-complete-list-absence", "version": 1 }
+    "localFileEnoent": {
+      "name": "local-file-enoent",
+      "version": 1
+    },
+    "kubernetesCompleteListAbsence": {
+      "name": "kubernetes-complete-list-absence",
+      "version": 1
+    }
   },
   "effectContract": {
-    "githubCommitStatus": { "name": "github-commit-status/set-from-postcondition", "version": 1 }
+    "githubCommitStatus": {
+      "name": "github-commit-status/set-from-postcondition",
+      "version": 1
+    }
   }
 }
