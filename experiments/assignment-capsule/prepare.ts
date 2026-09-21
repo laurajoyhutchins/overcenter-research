@@ -2,7 +2,9 @@ import {copyFileSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs'
 import {dirname,join} from 'node:path';
 
 import {OvercenterKernel} from '../../src/kernel.ts';
+import {POSTCONDITION_VERIFIERS} from '../../src/generated/schema-identifiers.ts';
 import {
+  AGENT_TASK_PACKET_SCHEMA,
   assignmentFile,
   buildAssignment,
   encodeAssignment,
@@ -40,7 +42,7 @@ try {
   kernel.define({
     id:obligationId,
     packet:{
-      schema:'overcenter-agent-task/v1',
+      schema:AGENT_TASK_PACKET_SCHEMA,
       kind:'pure-candidate',
       source_sha:sourceSha,
       command:['node','task.mjs','input.txt','result.txt'],
@@ -48,7 +50,7 @@ try {
       output_path:'result.txt',
     },
     postcondition:{
-      verifier:'file-content-equals/v1',
+      verifier:POSTCONDITION_VERIFIERS.fileContentEquals,
       path:resultPath,
       content:expectedOutput,
     },
@@ -77,8 +79,8 @@ try {
     join(capsuleDir,'assignment-capsule.mjs'),
   );
   copyFileSync(
-    new URL('../../src/agent-schema-identifiers.generated.mjs',import.meta.url),
-    join(capsuleDir,'agent-schema-identifiers.generated.mjs'),
+    new URL('../../src/schema-identifiers.generated.mjs',import.meta.url),
+    join(capsuleDir,'schema-identifiers.generated.mjs'),
   );
 
   console.log(JSON.stringify({
