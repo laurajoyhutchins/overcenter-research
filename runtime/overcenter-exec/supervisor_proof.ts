@@ -16,7 +16,7 @@ const workspace=required('OVERCENTER_WORKSPACE');
 
 function runtimeClosure(binary:string):Pick<ExecutionManifestInput,'runtime_read_only'|'runtime_executable'> {
   const output=execFileSync('ldd',[binary],{encoding:'utf8'});
-  const dependencies=[...new Set(output.match(/\/[^^\s()]+/gu) ?? [])].sort();
+  const dependencies=[...new Set(output.match(/\/[^\s()]+/gu) ?? [])].sort();
   return {
     runtime_read_only:fs.existsSync('/etc/ld.so.cache') ? ['/etc/ld.so.cache'] : [],
     runtime_executable:dependencies,
