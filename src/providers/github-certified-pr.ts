@@ -12,6 +12,7 @@ import {
 } from './github-certified-repository.ts';
 import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
 import {
+  GithubAsyncReadRequired,
   githubGet,
   isGithubObjectId,
   sameGithubObjectId,
@@ -177,6 +178,7 @@ export function observeCertifiedGithubPullRequestIdentity(
       evidence,
     };
   } catch (error:unknown) {
+    if (error instanceof GithubAsyncReadRequired) throw error;
     return {
       state:'INDETERMINATE',
       reason:'OBSERVATION_FAILED',

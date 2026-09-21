@@ -20,10 +20,13 @@ import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
 } from './providers/github-certified-status.ts';
+import { observeCertifiedGithubPullRequestIdentity } from './providers/github-certified-pr.ts';
+import { observeCertifiedGithubCommitAncestry } from './providers/github-certified-ancestry.ts';
 import {
   githubGet,
   githubGetAsync,
   isGithubObjectId,
+  sameGithubObjectId,
   runGithubReadObserverAsync,
   type GithubJsonGetAsync,
 } from './providers/github-rest.ts';
@@ -126,6 +129,20 @@ export function validatePostcondition(p: Postcondition): void {
     && typeof p.context==='string'
     && p.context.length > 0
     && ['error','failure','pending','success'].includes(p.expected_state)) return;
+  if (p?.verifier==='github-pull-request-branch-updated/v1'
+    && p.provider==='github'
+    && Number.isSafeInteger(p.repository_id)
+    && p.repository_id > 0
+    && typeof p.repository_full_name==='string'
+    && /^[^/]+\/[^/]+$/.test(p.repository_full_name)
+    && Number.isSafeInteger(p.pull_number)
+    && p.pull_number > 0
+    && typeof p.pull_node_id==='string'
+    && p.pull_node_id.length > 0
+    && isGithubObjectId(p.expected_previous_head_sha)
+    && typeof p.base_ref==='string'
+    && p.base_ref.length > 0
+    && isGithubObjectId(p.expected_base_sha)) return;
   if (p?.verifier==='kubernetes-configmap-exists/v1'
     && p.provider==='kubernetes'
     && typeof p.authority_id==='string'
@@ -178,11 +195,206 @@ const githubStatusError=(
   observation_error:error,
 });
 
+type GithubPullRequestBranchUpdatedPostcondition=Extract<
+  Postcondition,
+  {verifier:'github-pull-request-branch-updated/v1'}
+>;
+
+const githubPullRequestBranchUpdatedCommon=(
+  p:GithubPullRequestBranchUpdatedPostcondition,
+)=>({
+  verifier:p.verifier,
+  provider:'github' as const,
+  repository_id:p.repository_id,
+  repository_full_name:p.repository_full_name,
+  pull_number:p.pull_number,
+  pull_node_id:p.pull_node_id,
+  expected_previous_head_sha:p.expected_previous_head_sha,
+  base_ref:p.base_ref,
+  expected_base_sha:p.expected_base_sha,
+});
+
+const githubPullRequestBranchUpdatedError=(
+  p:GithubPullRequestBranchUpdatedPostcondition,
+  error:string,
+):Observation=>({
+  ...githubPullRequestBranchUpdatedCommon(p),
+  mutation_certainty:'uncertain',
+  observation_error:error,
+});
+
+function observeGithubPullRequestBranchUpdated(
+  token:string,
+  p:GithubPullRequestBranchUpdatedPostcondition,
+  get:GithubJsonGet,
+  clock?:()=>string,
+):Observation {
+  const common=githubPullRequestBranchUpdatedCommon(p);
+  const result=observeCertifiedGithubPullRequestIdentity(token,{
+    repositoryId:p.repository_id,
+    repositoryFullName:p.repository_full_name,
+    pullNumber:p.pull_number,
+    expected:{
+      node_id:p.pull_node_id,
+      state:'open',
+      head_sha:p.expected_previous_head_sha,
+      base_ref:p.base_ref,
+      base_sha:p.expected_base_sha,
+    },
+    get,
+    ...(clock?{clock}:{}),
+  });
+  if (result.state==='INDETERMINATE') {
+    return {
+      ...common,
+      mutation_certainty:'uncertain',
+      observation_error:result.observation_error??result.reason,
+    };
+  }
+  if (!result.actual || !result.repository_full_name || !result.evidence) {
+    return githubPullRequestBranchUpdatedError(
+      p,
+      'GITHUB_PR_BRANCH_UPDATE_OBSERVATION_INCOMPLETE',
+    );
+  }
+  const actual=result.actual;
+  const stable=result.repository_full_name.toLowerCase()
+      ===p.repository_full_name.toLowerCase()
+    && actual.node_id===p.pull_node_id
+    && actual.base_ref===p.base_ref;
+  if (!stable) {
+    return {
+      ...common,
+      actual_head_sha:actual.head_sha,
+      mutation_certainty:'uncertain',
+      observation_error:'GITHUB_PR_BRANCH_UPDATE_COORDINATE_DRIFT',
+      provider_evidence:{pull_request:result.evidence},
+    };
+  }
+  if (sameGithubObjectId(actual.head_sha,p.expected_previous_head_sha)) {
+    return {
+      ...common,
+      actual_head_sha:actual.head_sha,
+      mutation_certainty:'absent',
+      provider_evidence:{pull_request:result.evidence},
+    };
+  }
+
+  const previousHeadAncestry=observeCertifiedGithubCommitAncestry(token,{
+    repositoryFullName:result.repository_full_name,
+    ancestorSha:p.expected_previous_head_sha,
+    descendantSha:actual.head_sha,
+    get,
+    ...(clock?{clock}:{}),
+  });
+  const baseAncestry=observeCertifiedGithubCommitAncestry(token,{
+    repositoryFullName:result.repository_full_name,
+    ancestorSha:p.expected_base_sha,
+    descendantSha:actual.head_sha,
+    get,
+    ...(clock?{clock}:{}),
+  });
+  const providerEvidence={
+    pull_request:result.evidence,
+    previous_head_ancestry:previousHeadAncestry.evidence,
+    base_ancestry:baseAncestry.evidence,
+  };
+  if (
+    previousHeadAncestry.state!=='ancestor'
+    || baseAncestry.state!=='ancestor'
+  ) {
+    return {
+      ...common,
+      actual_head_sha:actual.head_sha,
+      mutation_certainty:'uncertain',
+      observation_error:'GITHUB_PR_BRANCH_UPDATE_ANCESTRY_NOT_ESTABLISHED',
+      provider_evidence:providerEvidence,
+    };
+  }
+  return {
+    ...common,
+    actual_head_sha:actual.head_sha,
+    mutation_certainty:'present',
+    provider_evidence:providerEvidence,
+  };
+}
+
+function githubCommitAncestryEvidenceMatches(
+  value:unknown,
+  ancestorSha:string,
+  descendantSha:string,
+):boolean {
+  return data(value)
+    && value.operation_id==='repos/compare-commits'
+    && value.relation==='ancestor'
+    && typeof value.ancestor_sha==='string'
+    && typeof value.descendant_sha==='string'
+    && isGithubObjectId(value.ancestor_sha)
+    && isGithubObjectId(value.descendant_sha)
+    && sameGithubObjectId(value.ancestor_sha,ancestorSha)
+    && sameGithubObjectId(value.descendant_sha,descendantSha);
+}
+
+function githubPullRequestBranchUpdatedEvidenceMatches(
+  p:GithubPullRequestBranchUpdatedPostcondition,
+  observed:Observation,
+):boolean {
+  if (
+    typeof observed.actual_head_sha!=='string'
+    || !isGithubObjectId(observed.actual_head_sha)
+    || sameGithubObjectId(observed.actual_head_sha,p.expected_previous_head_sha)
+    || !data(observed.provider_evidence)
+  ) return false;
+  const pull=data(observed.provider_evidence.pull_request)
+    ? observed.provider_evidence.pull_request
+    : null;
+  if (
+    !pull
+    || pull.provider!=='github'
+    || pull.repository_id!==p.repository_id
+    || pull.pull_number!==p.pull_number
+    || pull.node_id!==p.pull_node_id
+    || typeof pull.requested_repository_full_name!=='string'
+    || pull.requested_repository_full_name.toLowerCase()
+      !==p.repository_full_name.toLowerCase()
+    || typeof pull.head_sha!=='string'
+    || !isGithubObjectId(pull.head_sha)
+    || !sameGithubObjectId(pull.head_sha,observed.actual_head_sha)
+    || pull.base_ref!==p.base_ref
+  ) return false;
+  return githubCommitAncestryEvidenceMatches(
+    observed.provider_evidence.previous_head_ancestry,
+    p.expected_previous_head_sha,
+    observed.actual_head_sha,
+  ) && githubCommitAncestryEvidenceMatches(
+    observed.provider_evidence.base_ancestry,
+    p.expected_base_sha,
+    observed.actual_head_sha,
+  );
+}
+
+
 export function observePostcondition(
   p: Postcondition,
   context: ObservationContext,
 ): Observation {
   validatePostcondition(p);
+
+  if (p.verifier==='github-pull-request-branch-updated/v1') {
+    if (!context.githubToken) {
+      return githubPullRequestBranchUpdatedError(p,'GITHUB_TOKEN_UNAVAILABLE');
+    }
+    try {
+      return observeGithubPullRequestBranchUpdated(
+        context.githubToken,
+        p,
+        context.githubGet??githubGet,
+        context.clock,
+      );
+    } catch (e:unknown) {
+      return githubPullRequestBranchUpdatedError(p,errorMessage(e));
+    }
+  }
 
   if (p.verifier==='github-commit-status/v2') {
     if (!context.githubToken) return githubStatusError(p,'GITHUB_TOKEN_UNAVAILABLE');
@@ -334,6 +546,29 @@ export async function observePostconditionAsync(
   context:ObservationContext,
 ):Promise<Observation> {
   validatePostcondition(p);
+  if (p.verifier==='github-pull-request-branch-updated/v1') {
+    if (!context.githubToken) {
+      return githubPullRequestBranchUpdatedError(p,'GITHUB_TOKEN_UNAVAILABLE');
+    }
+    const getAsync=context.githubGetAsync
+      ?? (context.githubGet
+        ? async(token:string,path:string)=>context.githubGet!(token,path)
+        : githubGetAsync);
+    try {
+      return await runGithubReadObserverAsync(
+        context.githubToken,
+        get=>observeGithubPullRequestBranchUpdated(
+          context.githubToken!,
+          p,
+          get,
+          context.clock,
+        ),
+        getAsync,
+      );
+    } catch (e:unknown) {
+      return githubPullRequestBranchUpdatedError(p,errorMessage(e));
+    }
+  }
   if (p.verifier!=='github-commit-status/v2') return observePostcondition(p,context);
   if (!context.githubToken) return githubStatusError(p,'GITHUB_TOKEN_UNAVAILABLE');
   const getAsync=context.githubGetAsync
@@ -392,6 +627,21 @@ function assertObservationCoordinate(
     ) {
       throw new Error('OBSERVATION_COORDINATE_MISMATCH');
     }
+    return;
+  }
+
+  if (postcondition.verifier==='github-pull-request-branch-updated/v1') {
+    if (
+      observed.provider!=='github'
+      || observed.repository_id!==postcondition.repository_id
+      || typeof observed.repository_full_name!=='string'
+      || observed.repository_full_name.toLowerCase()!==postcondition.repository_full_name.toLowerCase()
+      || observed.pull_number!==postcondition.pull_number
+      || observed.pull_node_id!==postcondition.pull_node_id
+      || observed.expected_previous_head_sha!==postcondition.expected_previous_head_sha
+      || observed.base_ref!==postcondition.base_ref
+      || observed.expected_base_sha!==postcondition.expected_base_sha
+    ) throw new Error('OBSERVATION_COORDINATE_MISMATCH');
     return;
   }
 
@@ -463,5 +713,8 @@ export function observationVerified(
       && observed.observed_resource_version.length>0;
   }
 
+  if (postcondition.verifier==='github-pull-request-branch-updated/v1') {
+    return githubPullRequestBranchUpdatedEvidenceMatches(postcondition,observed);
+  }
   return observed.actual_state===postcondition.expected_state;
 }

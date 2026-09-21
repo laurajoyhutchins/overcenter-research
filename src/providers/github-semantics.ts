@@ -84,6 +84,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   pull_requests:operation("pulls/list","pull_requests:read",fields("[].id","[].node_id","[].number","[].state","[].title",optional("[].user.login"),"[].head.sha","[].base.ref","[].base.sha","[].updated_at")),
   commits:operation("repos/list-commits","contents:read",nested("[]",COMMIT_FIELDS)),
   commit:operation("repos/get-commit","contents:read",COMMIT_FIELDS),
+  compare_commits:operation("repos/compare-commits","contents:read",fields("status","ahead_by","behind_by","base_commit.sha","merge_base_commit.sha")),
   git_tree:operation("git/get-tree","contents:read",fields("sha","truncated","tree[].path","tree[].mode","tree[].type","tree[].sha")),
   git_blob:operation("git/get-blob","contents:read",fields("sha","node_id","size","encoding","content")),
   workflow_runs:operation("actions/list-workflow-runs-for-repo","actions:read",fields("total_count","workflow_runs[].id","workflow_runs[].node_id","workflow_runs[].workflow_id","workflow_runs[].run_number","workflow_runs[].run_attempt","workflow_runs[].status","workflow_runs[].conclusion","workflow_runs[].head_sha","workflow_runs[].head_branch","workflow_runs[].updated_at")),
@@ -136,3 +137,4 @@ export const GITHUB_DEPLOYMENT_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.deploym
 export const GITHUB_DEPLOYMENT_STATUS_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.deployment_status.response_slice;
 // Preserve the established public name while the registry key remains plural.
 export const GITHUB_COMMIT_STATUS_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.commit_statuses.response_slice;
+export const GITHUB_COMPARE_COMMITS_RESPONSE_SLICE=GITHUB_OPERATION_SEMANTICS.compare_commits.response_slice;

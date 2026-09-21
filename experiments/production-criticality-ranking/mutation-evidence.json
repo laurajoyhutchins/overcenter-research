@@ -156,13 +156,13 @@
     {
       "id": "verification-and-absence",
       "source_run": {
-        "revision": "615cca65245ffd7ebe487edfdaac7e4f48a55ff3",
-        "workflow_run_id": 35645209331,
-        "mutation_report_sha256": "sha256:03574cbcefc0a4570dedf937680f7c34d47d4698e49d23ce9f17f004ce36465b",
-        "artifact_digest": "sha256:b1e9fe6459542050af374163997cc7c7074e62380045a1c17f3e47634a887935"
+        "revision": "8249edc2190fc23134c55636d0d7c7f48e37ff6f",
+        "workflow_run_id": 35667705981,
+        "mutation_report_sha256": "sha256:fe227a3358e05d2eedd5d3ebdf78d147bd59a118ebfece247c029784c3c09dde",
+        "artifact_digest": "sha256:d102b8aad62c7cec458232f72e6969923406d0bc51bc5763e3bfa6432b6c619d"
       },
       "source_blobs": {
-        "src/observation.ts": "ac03de038befb6a4916277e80f4fc83aa56d8b7f"
+        "src/observation.ts": "537410074f4f03c3da7ef8c45e179b80fb6056bf"
       },
       "selectors": [
         {
@@ -178,12 +178,12 @@
           "qualifiedName": "observationVerified"
         }
       ],
-      "total": 62,
-      "killed": 62,
-      "survived": 0,
+      "total": 67,
+      "killed": 64,
+      "survived": 3,
       "no_coverage": 0,
       "timeout_or_error": 0,
-      "mutation_score": 1
+      "mutation_score": 0.9552238805970149
     }
   ]
 }
