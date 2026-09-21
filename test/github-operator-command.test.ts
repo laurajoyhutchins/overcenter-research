@@ -57,7 +57,7 @@ test('cross-repository pull request heads fail closed',()=>{
   );
 });
 
-test('dispatch returns an attributable durable command receipt',async()=>{
+test('dispatch returns an attributable command receipt',async()=>{
   const calls:Array<{path:string;body:unknown}>=[];
   const receipt=await executeGithubOperatorCommand(
     'token',
@@ -106,5 +106,24 @@ test('ambiguous or failed dispatch never produces a receipt',async()=>{
       {post:async()=>({status:200,body:'{}'})},
     ),
     /GITHUB_OPERATOR_INTEGER_INVALID:workflow_run_id/,
+  );
+
+  await assert.rejects(
+    executeGithubOperatorCommand(
+      'token',
+      CANDIDATE_CERTIFY_COMMAND,
+      context(),
+      {
+        post:async()=>({
+          status:200,
+          body:JSON.stringify({
+            workflow_run_id:1234,
+            run_url:'https://api.github.com/repos/acme/widget/actions/runs/9999',
+            html_url:'https://github.com/acme/widget/actions/runs/1234',
+          }),
+        }),
+      },
+    ),
+    /GITHUB_OPERATOR_DISPATCH_RESPONSE_IDENTITY_MISMATCH/,
   );
 });
