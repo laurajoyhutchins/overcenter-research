@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
-import {resolve} from 'node:path';
+import {join,relative,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {contractPackage,repositoryRoot} from './contract-package.mjs';
 
-const schemaPath='contracts/observation-evidence-v1/schema.json';
-const generatedPath='src/generated/settlement-observation-schema.ts';
-const defaultSource='contracts/observation-evidence-v1/settlement-observation.typebox.ts';
+const observationContract=contractPackage('observation-evidence');
+const schemaPath=join(observationContract,'schema.json');
+const generatedPath=join(repositoryRoot,'src/generated/settlement-observation-schema.ts');
+const defaultSource=join(observationContract,'settlement-observation.typebox.ts');
+const sourceLabel=relative(repositoryRoot,defaultSource).replaceAll('\\','/');
 
 let mode='--check';
 let sourcePath=defaultSource;
@@ -43,7 +46,7 @@ assert.equal(
   'provider evidence ownership marker must remain explicit',
 );
 
-const generated=`// Generated from contracts/observation-evidence-v1/settlement-observation.typebox.ts.
+const generated=`// Generated from ${sourceLabel}.
 // Do not edit by hand.
 export const SettlementObservationSchema=${JSON.stringify(projected,null,2)} as const;
 `;
