@@ -1,3 +1,4 @@
+import {AUTHORITY_SCHEMAS} from './generated/schema-identifiers.ts';
 import type {
   Data,
   Dependency,
@@ -17,11 +18,11 @@ import {
   isData as data,
 } from './validation.ts';
 
-export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
-export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
-export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
-export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
-export const RECEIPT_SCHEMA='overcenter-git-receipt-v5' as const;
+export const OBLIGATION_SCHEMA=AUTHORITY_SCHEMAS.obligation;
+export const CLAIM_SCHEMA=AUTHORITY_SCHEMAS.claim;
+export const EXECUTION_AUTHORITY_SCHEMA=AUTHORITY_SCHEMAS.executionAuthority;
+export const EFFECT_RESERVATION_SCHEMA=AUTHORITY_SCHEMAS.effectReservation;
+export const RECEIPT_SCHEMA=AUTHORITY_SCHEMAS.receipt;
 
 export interface ObligationInput {
   id:string;
