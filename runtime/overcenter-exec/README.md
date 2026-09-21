@@ -7,7 +7,8 @@ It does **not** decide what work is eligible, claim work, interpret provider sta
 ```text
 TypeScript authority
   open exact workspace -> FD 3
-  open delegated cgroup parent -> FD 4
+  open finite delegated cgroup parent
+  create + pin unique exact cgroup leaf -> FD 4
   verify workspace dev/inode
   render manifest + resource/supervisor limits
   SHA-256(exact bytes)
@@ -17,7 +18,7 @@ TypeScript authority
       overcenter-exec
         parse before worker exists
         verify/reuse workspace FD
-        create exact resource cgroup
+        verify exact cgroup leaf FD
         apply + verify memory/PID/CPU limits
         migrate launcher before worker exists
         enumerate explicit runtime closure
@@ -60,7 +61,7 @@ runtime_exec<TAB>/exact/path
 
 Singleton records may appear once. Environment names and runtime paths may not repeat. Unknown records fail closed. Runtime paths are explicit rather than a hard-coded `/usr` or `/etc` allowance.
 
-The TypeScript emitter returns the exact bytes, their SHA-256, and the decoded supervisor/resource limits from those same bytes. `runConfinedWorker` enforces the transport limits, pipes precisely the hashed bytes to stdin, passes the verified workspace object on FD 3, and passes an already-delegated cgroup-v2 parent on FD 4. Timeout, output, memory, PID, or CPU policy therefore cannot change without changing the attempt identity.
+The TypeScript emitter returns the exact bytes, their SHA-256, and the decoded supervisor/resource limits from those same bytes. `runConfinedWorker` enforces the transport limits, pipes precisely the hashed bytes to stdin, passes the verified workspace object on FD 3, and passes one already-created exact cgroup-v2 leaf on FD 4. The trusted supervisor retains the finite delegated parent separately. Timeout, output, memory, PID, or CPU policy therefore cannot change without changing the attempt identity. Combined stdout/stderr buffering also has a fixed 64 MiB implementation ceiling, regardless of manifest input.
 
 ## Physical guarantees in v1
 
@@ -69,7 +70,7 @@ On Linux x86-64 with Landlock ABI >= 6, the launcher:
 - reads and parses a bounded, canonical manifest before creating the worker process;
 - refuses effective uid 0, switchable real/effective/saved UID or GID state, and any nonzero effective, permitted, or inheritable Linux capability set;
 - consumes the already-open workspace object from FD 3, verifies its directory type and device/inode identity, and binds Landlock directly to that object;
-- verifies FD 4 is cgroup v2, requires `cpu`, `memory`, and `pids` to already be enabled for children, creates one PID-named leaf, writes and reads back `memory.max`, `pids.max`, and `cpu.max`, disables swap, enables group OOM handling, and migrates itself before untrusted code exists;
+- verifies FD 4 is an exact cgroup-v2 domain leaf with the required kernel interfaces, writes and reads back `memory.max`, `pids.max`, and `cpu.max`, disables swap, enables group OOM handling, and migrates itself into that pinned object before untrusted code exists;
 - keeps workspace file/dir mutation rights but withholds blanket execute authority plus character-device, block-device, Unix-socket-node, device-ioctl, and pathname-Unix-socket resolution authority;
 - allows kernel execution only through the selected program or explicitly declared executable runtime objects; a sibling executable merely present in the writable workspace is denied;
 - requires the selected program and runtime closure to resolve to regular files that are neither worker-owned nor writable under the worker's effective credentials, covering metadata operations that Landlock does not mediate;
@@ -77,11 +78,12 @@ On Linux x86-64 with Landlock ABI >= 6, the launcher:
 - enters the pinned workspace with `fchdir`, so later pathname replacement cannot retarget the worker's current directory;
 - clears the worker environment and adds back only manifest-declared variables;
 - closes every inherited file descriptor above stderr with `close_range(3, ...)` after consuming the intentional workspace FD;
-- denies process-group/session escape, same-UID scheduler/resource-control syscalls, creation of sockets/socketpairs, System V IPC and POSIX message queues, inherited kernel-keyring access, `io_uring_setup`, and `pidfd_getfd`; the x32 syscall-number namespace is killed before deny-list matching;
+- denies process-group/session escape, same-UID scheduler/resource-control syscalls, creation of sockets/socketpairs, System V IPC and POSIX message queues, inherited kernel-keyring access, `io_uring_setup`, and `pidfd_getfd`; it also denies `MAP_HUGETLB` and `MFD_HUGETLB` allocation paths so HugeTLB cannot bypass the ordinary memory controller; the x32 syscall-number namespace is killed before deny-list matching;
 - requires Landlock ABI >= 6, so TCP bind/connect restrictions plus signal and abstract-Unix-socket process scoping are mandatory rather than optional;
 - replaces the launcher process with the worker using `exec`, leaving no privileged helper process behind;
-- runs the launcher in a dedicated process group and bounds wall-clock time plus combined stdout/stderr bytes from manifest-bound policy; timeout or output overflow first uses `cgroup.kill` as the whole-tree kill handle and retains process-group kill as a fallback;
-- returns post-run cgroup evidence including memory/PID peaks, OOM/PID-limit events, CPU usage, and throttling counters before deleting the empty leaf.
+- bounds wall-clock time plus combined stdout/stderr bytes from manifest-bound policy; timeout or output overflow uses the exact cgroup leaf as the descendant kill authority and only signals the direct child as a setup/terminal fallback;
+- after the child closes, kills the exact leaf, waits for `cgroup.events populated=0`, then captures final memory/PID peaks, OOM/PID-limit events, CPU usage, and throttling counters;
+- binds that evidence to the pinned cgroup device/inode, verifies the parent entry still names the same object, and only then removes the empty leaf.
 
 Stdin/stdout/stderr are the intentional process interface. The trusted caller closes stdin after sending the complete manifest, so the worker inherits an EOF'd input stream rather than an ambient capability.
 
@@ -99,15 +101,18 @@ Run:
 bash runtime/overcenter-exec/proof.sh
 ```
 
-The proof checks canonical manifest rejection, exact FD-based workspace pinning across pathname replacement, rejection of non-regular/worker-mutable/aliased execution closure objects, explicit-only workspace execution, outside read/write denial, ambient environment and kernel-keyring removal, inherited-FD closure, process-group escape denial, same-UID host-process control denial, System V/POSIX IPC denial, TCP/Unix-socket denial, x32 seccomp rejection, and preservation of authorized workspace effects. TypeScript regressions additionally prove exact FD 3 transport plus manifest-bound timeout and output enforcement.
+The proof checks canonical manifest rejection, exact FD-based workspace pinning across pathname replacement, rejection of non-regular/worker-mutable/aliased execution closure objects, explicit-only workspace execution, outside read/write denial, ambient environment and kernel-keyring removal, inherited-FD closure, process-group escape denial, same-UID host-process control denial, HugeTLB allocation denial, System V/POSIX IPC denial, TCP/Unix-socket denial, x32 seccomp rejection, and preservation of authorized workspace effects.
 
-The TypeScript regression additionally proves the launcher receives byte-for-byte the manifest whose SHA-256 it reports.
+The hosted proof additionally exercises the real TypeScript supervisor against cgroup v2: normal completion must produce exact resource evidence, timeout/output overflow must remove the exact leaf, unrelated stale leaves must remain untouched, and the hostile PID/CPU/memory probes must demonstrate actual kernel enforcement.
 
 This is a physical computation boundary only. Provider mutation credentials still belong in a separate trusted broker, not in this worker sandbox.
 
 
 ## Host cgroup contract
 
-The host must prepare delegation; the launcher does not mutate the parent boundary. FD 4 must name a writable delegated cgroup-v2 parent whose `cgroup.subtree_control` already includes `cpu`, `memory`, and `pids`. The launcher must already be in a process domain from which its credentials are permitted to migrate into a child of that parent. Missing controllers, wrong filesystem type, failed migration, or kernel normalization of a requested limit all fail closed.
+The host prepares a **finite aggregate cgroup-v2 pool**. The trusted supervisor opens that parent with no-follow semantics and fails closed unless it is a domain cgroup whose `cgroup.subtree_control` contains `cpu`, `memory`, and `pids`, and whose own `memory.max`, `pids.max`, and `cpu.max` are finite. These parent limits bound aggregate worker pressure; per-attempt manifest values are child ceilings, not capacity reservations.
 
-The worker never receives usable cgroup authority: the launcher moves itself first, then Landlock and `close_range` remove the parent FD before `exec`.
+For each launch, TypeScript creates a fresh random leaf beneath that parent, opens and pins the leaf, records its device/inode identity, and passes only that exact leaf on FD 4. Rust neither selects nor creates cgroups by PID or pathname. It configures and enters FD 4, then Landlock and `close_range` remove the leaf capability before worker `exec`.
+
+The supervisor keeps its own leaf FD and parent FD for termination, final evidence, identity verification, and removal. It does not infer cgroup ownership from a PID, and it does not sweep unrelated stale leaves. Recovery of an orphaned bounded leaf after supervisor death remains an authority-aware recovery operation outside this low-level launcher.
+
