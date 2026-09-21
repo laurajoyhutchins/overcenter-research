@@ -83,137 +83,181 @@ export function projectReceipt(
   };
 }
 
-export function replayProjection(commits:FactCommit[]):Projection {
+interface ProjectionAccumulator {
+  state:State;
+  project:WorkProjection;
+  runs:Map<string,HistoricalRun>;
+  receiptsByRun:Map<string,Receipt>;
+  unresolvedReservationsByRun:Map<string,EffectReservation>;
+  receipts:Receipt[];
+}
+
+function projectionAccumulator(previous:Projection|null):ProjectionAccumulator {
+  if (previous) {
+    return {
+      state:{
+        obligations:{...previous.state.obligations},
+        definition_commits:{...previous.state.definition_commits},
+      },
+      project:previous.project,
+      runs:new Map(previous.history.runs),
+      receiptsByRun:new Map(previous.history.receiptsByRun),
+      unresolvedReservationsByRun:new Map(previous.history.unresolvedReservationsByRun),
+      receipts:[...previous.history.receipts],
+    };
+  }
+
   const state=emptyState();
   const runs=new Map<string,HistoricalRun>();
   const receiptsByRun=new Map<string,Receipt>();
-  const unresolvedReservationsByRun=new Map<string,EffectReservation>();
-  const receipts:Receipt[]=[];
-  let project=deriveProjectProjection({
+  return {
     state,
-    runs,
-    receiptsByRun,
-    revision:'',
-  });
-
-  const refresh=(revision:string):void=>{
-    project=deriveProjectProjection({
+    project:deriveProjectProjection({
       state,
       runs,
       receiptsByRun,
-      revision,
-    });
+      revision:'',
+    }),
+    runs,
+    receiptsByRun,
+    unresolvedReservationsByRun:new Map<string,EffectReservation>(),
+    receipts:[],
   };
+}
 
-  for (const record of commits) {
-    if (record.obligation!=null) {
-      const fact=validateObligationFact(record.obligation);
-      const obligation=fact.obligation;
-      const id=obligation.id;
+function refreshProjection(
+  accumulator:ProjectionAccumulator,
+  revision:string,
+):void {
+  accumulator.project=deriveProjectProjection({
+    state:accumulator.state,
+    runs:accumulator.runs,
+    receiptsByRun:accumulator.receiptsByRun,
+    revision,
+  });
+}
 
-      if (fact.kind==='defined') {
-        if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
-      } else if (fact.kind==='amended') {
-        if (!state.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
-        if (fact.previous_definition_commit!==state.definition_commits[id]) {
-          throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
-        }
-        refresh(record.parent??'');
-        if (hasInFlight(project)) throw new Error('AMEND_WHILE_IN_FLIGHT');
-      } else {
-        throw new Error('INVALID_OBLIGATION_KIND');
+function applyProjectionCommit(
+  accumulator:ProjectionAccumulator,
+  record:FactCommit,
+  finalize:boolean,
+):void {
+  const {
+    state,
+    runs,
+    receiptsByRun,
+    unresolvedReservationsByRun,
+    receipts,
+  }=accumulator;
+
+  if (record.obligation!=null) {
+    const fact=validateObligationFact(record.obligation);
+    const obligation=fact.obligation;
+    const id=obligation.id;
+
+    if (fact.kind==='defined') {
+      if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
+    } else if (fact.kind==='amended') {
+      if (!state.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
+      if (fact.previous_definition_commit!==state.definition_commits[id]) {
+        throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
       }
-
-      state.obligations[id]=obligation;
-      state.definition_commits[id]=record.commit;
-      validateGraph(state);
+      refreshProjection(accumulator,record.parent??'');
+      if (hasInFlight(accumulator.project)) throw new Error('AMEND_WHILE_IN_FLIGHT');
+    } else {
+      throw new Error('INVALID_OBLIGATION_KIND');
     }
 
-    if (record.claim!=null) {
-      const claim=validateClaimFact(record.claim);
-      const obligation=state.obligations[claim.obligation_id];
-      if (!obligation) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
-      if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
-      if (record.parent!==claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
+    state.obligations[id]=obligation;
+    state.definition_commits[id]=record.commit;
+    validateGraph(state);
+  }
 
-      refresh(record.commit);
-      const current=project.lifecycles.get(claim.obligation_id);
-      if (current?.status!=='UNREALIZED') throw new Error('CLAIM_WHILE_NOT_READY');
-      const unsatisfied=dependencyUpstreams(obligation)
-        .filter(dependency=>project.lifecycles.get(dependency)?.status!=='DONE');
-      if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
+  if (record.claim!=null) {
+    const claim=validateClaimFact(record.claim);
+    const obligation=state.obligations[claim.obligation_id];
+    if (!obligation) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
+    if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
+    if (record.parent!==claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
 
-      const expectedKey=project.semanticKeys.get(claim.obligation_id);
-      if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
-      if (claim.obligation_key!==expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
+    refreshProjection(accumulator,record.commit);
+    const current=accumulator.project.lifecycles.get(claim.obligation_id);
+    if (current?.status!=='UNREALIZED') throw new Error('CLAIM_WHILE_NOT_READY');
+    const unsatisfied=dependencyUpstreams(obligation)
+      .filter(dependency=>accumulator.project.lifecycles.get(dependency)?.status!=='DONE');
+    if (unsatisfied.length>0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
 
-      const run:HistoricalRun={
-        id:claim.run_id,
-        obligation_id:claim.obligation_id,
-        claimed_revision:claim.claimed_revision,
-        claim_commit:record.commit,
-        obligation_key:claim.obligation_key,
-        execution_generation:1,
-        execution_authority_commit:record.commit,
-        execution_capability_sha256:claim.execution_capability_sha256,
-        obligation:structuredClone(obligation),
-        definition_commit:state.definition_commits[claim.obligation_id],
-      };
-      runs.set(run.id,run);
+    const expectedKey=accumulator.project.semanticKeys.get(claim.obligation_id);
+    if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
+    if (claim.obligation_key!==expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
+
+    const run:HistoricalRun={
+      id:claim.run_id,
+      obligation_id:claim.obligation_id,
+      claimed_revision:claim.claimed_revision,
+      claim_commit:record.commit,
+      obligation_key:claim.obligation_key,
+      execution_generation:1,
+      execution_authority_commit:record.commit,
+      execution_capability_sha256:claim.execution_capability_sha256,
+      obligation:structuredClone(obligation),
+      definition_commit:state.definition_commits[claim.obligation_id],
+    };
+    runs.set(run.id,run);
+  }
+
+  if (record.execution_authority!=null) {
+    const fact=validateExecutionAuthorityFact(record.execution_authority);
+    const run=runs.get(fact.run_id);
+    if (!run) throw new Error('EXECUTION_AUTHORITY_WITHOUT_CLAIM');
+    const authorityError=executionAuthorityAdvanceError(run,fact);
+    if (authorityError) throw new Error(authorityError);
+    refreshProjection(accumulator,record.commit);
+    const current=accumulator.project.lifecycles.get(run.obligation_id);
+    if (
+      current?.run?.id!==run.id
+      || !['EXECUTING','WAITING','RECOVERY_REQUIRED'].includes(current.status)
+    ) {
+      throw new Error('EXECUTION_AUTHORITY_FOR_NONCURRENT_RUN');
     }
+    runs.set(run.id,{
+      ...run,
+      execution_generation:fact.generation,
+      execution_authority_commit:record.commit,
+      execution_capability_sha256:fact.execution_capability_sha256,
+    });
+  }
 
-    if (record.execution_authority!=null) {
-      const fact=validateExecutionAuthorityFact(record.execution_authority);
-      const run=runs.get(fact.run_id);
-      if (!run) throw new Error('EXECUTION_AUTHORITY_WITHOUT_CLAIM');
-      const authorityError=executionAuthorityAdvanceError(run,fact);
-      if (authorityError) throw new Error(authorityError);
-      refresh(record.commit);
-      const current=project.lifecycles.get(run.obligation_id);
-      if (
-        current?.run?.id!==run.id
-        || !['EXECUTING','WAITING','RECOVERY_REQUIRED'].includes(current.status)
-      ) {
-        throw new Error('EXECUTION_AUTHORITY_FOR_NONCURRENT_RUN');
-      }
-      runs.set(run.id,{
-        ...run,
-        execution_generation:fact.generation,
-        execution_authority_commit:record.commit,
-        execution_capability_sha256:fact.execution_capability_sha256,
-      });
+  if (record.effect_reservation!=null) {
+    const fact=validateEffectReservationFact(record.effect_reservation);
+    const run=runs.get(fact.run_id);
+    if (!run) throw new Error('EFFECT_RESERVATION_WITHOUT_CLAIM');
+    const authorityError=effectReservationAuthorityError(
+      run,
+      fact,
+      unresolvedReservationsByRun.has(run.id),
+    );
+    if (authorityError) throw new Error(authorityError);
+    refreshProjection(accumulator,record.commit);
+    const current=accumulator.project.lifecycles.get(run.obligation_id);
+    if (current?.run?.id!==run.id || current.status!=='EXECUTING') {
+      throw new Error('EFFECT_RESERVATION_WHILE_NOT_EXECUTING');
     }
+    unresolvedReservationsByRun.set(run.id,{
+      ...fact,
+      reservation_commit:record.commit,
+    });
+  }
 
-    if (record.effect_reservation!=null) {
-      const fact=validateEffectReservationFact(record.effect_reservation);
-      const run=runs.get(fact.run_id);
-      if (!run) throw new Error('EFFECT_RESERVATION_WITHOUT_CLAIM');
-      const authorityError=effectReservationAuthorityError(
-        run,
-        fact,
-        unresolvedReservationsByRun.has(run.id),
-      );
-      if (authorityError) throw new Error(authorityError);
-      refresh(record.commit);
-      const current=project.lifecycles.get(run.obligation_id);
-      if (current?.run?.id!==run.id || current.status!=='EXECUTING') {
-        throw new Error('EFFECT_RESERVATION_WHILE_NOT_EXECUTING');
-      }
-      unresolvedReservationsByRun.set(run.id,{
-        ...fact,
-        reservation_commit:record.commit,
-      });
-    }
-
-    if (record.receipt==null) continue;
+  if (record.receipt!=null) {
     const fact=validateReceiptFact(record.receipt);
     const run=runs.get(fact.run_id);
     if (!run) throw new Error('RECEIPT_WITHOUT_CLAIM');
     const receiptError=receiptAuthorityError(run,fact);
     if (receiptError) throw new Error(receiptError);
 
-    refresh(record.commit);
-    const current=project.lifecycles.get(run.obligation_id);
+    refreshProjection(accumulator,record.commit);
+    const current=accumulator.project.lifecycles.get(run.obligation_id);
     if (current?.run?.id!==run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
     if (fact.kind==='judgment-required' && current.status!=='EXECUTING') {
       throw new Error('JUDGMENT_REQUIRED_WHILE_NOT_EXECUTING');
@@ -243,16 +287,36 @@ export function replayProjection(commits:FactCommit[]):Projection {
     receipts.push(receipt);
   }
 
-  const revision=commits.at(-1)?.commit??'';
-  refresh(revision);
+  if (finalize) refreshProjection(accumulator,record.commit);
+}
+
+function projectionFromAccumulator(
+  accumulator:ProjectionAccumulator,
+):Projection {
   return {
-    state,
-    project,
+    state:accumulator.state,
+    project:accumulator.project,
     history:{
-      runs,
-      receiptsByRun,
-      unresolvedReservationsByRun,
-      receipts,
+      runs:accumulator.runs,
+      receiptsByRun:accumulator.receiptsByRun,
+      unresolvedReservationsByRun:accumulator.unresolvedReservationsByRun,
+      receipts:accumulator.receipts,
     },
   };
+}
+
+export function advanceProjection(
+  previous:Projection,
+  record:FactCommit,
+):Projection {
+  const accumulator=projectionAccumulator(previous);
+  applyProjectionCommit(accumulator,record,true);
+  return projectionFromAccumulator(accumulator);
+}
+
+export function replayProjection(commits:FactCommit[]):Projection {
+  const accumulator=projectionAccumulator(null);
+  for (const record of commits) applyProjectionCommit(accumulator,record,false);
+  refreshProjection(accumulator,commits.at(-1)?.commit??'');
+  return projectionFromAccumulator(accumulator);
 }
