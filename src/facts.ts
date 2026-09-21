@@ -258,7 +258,7 @@ export function validateGraphPatchFact(value:unknown):GraphPatchFact {
   for (const item of value.definitions) {
     if (!data(item)) throw new Error('INVALID_GRAPH_PATCH_DEFINITION');
     exactKeys(item,['id','definition'],[],'INVALID_GRAPH_PATCH_DEFINITION');
-    nonEmptyString(item.id,'INVALID_DEFINITION_ID');
+    sha256Hex(item.id,'INVALID_DEFINITION_ID');
     const definition=validateStoredObligationDefinition(
       item.definition as ObligationDefinition,
     );
@@ -276,7 +276,7 @@ export function validateGraphPatchFact(value:unknown):GraphPatchFact {
     if (!data(item)) throw new Error('INVALID_GRAPH_PATCH_BINDING');
     exactKeys(item,['node_id','definition_id'],[],'INVALID_GRAPH_PATCH_BINDING');
     nonEmptyString(item.node_id,'INVALID_OBLIGATION_ID');
-    nonEmptyString(item.definition_id,'INVALID_DEFINITION_ID');
+    sha256Hex(item.definition_id,'INVALID_DEFINITION_ID');
     if (nodeIds.has(item.node_id)) throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${item.node_id}`);
     nodeIds.add(item.node_id);
     bindings.push({node_id:item.node_id,definition_id:item.definition_id});
