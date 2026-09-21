@@ -36,5 +36,8 @@ test('candidate crosses a fresh-runner boundary before trusted settlement',()=>{
   assert.doesNotMatch(model,/sandbox-runner\.ts/);
   assert.match(verify,/needs: model/);
   assert.match(verify,/sandbox-runner\.ts/);
+  assert.match(verify,/rustc --edition=2021 -D warnings runtime\/overcenter-exec\/main\.rs/);
+  assert.match(verify,/--launcher "\$RUNNER_TEMP\/overcenter-exec"/);
+  assert.match(verify,/execution_confinement_proven/);
   assert.match(verify,/Fresh trusted verification and settlement/);
 });
