@@ -122,6 +122,24 @@
       }
     },
     {
+      "name": "github-pr-branch-updated-settlement-observation-valid",
+      "kind": "settlement-observation",
+      "valid": true,
+      "value": {
+        "verifier": "github-pull-request-branch-updated/v1",
+        "provider": "github",
+        "repository_id": 42,
+        "repository_full_name": "acme/widget",
+        "pull_number": 37,
+        "pull_node_id": "PR_node_37",
+        "expected_previous_head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "base_ref": "main",
+        "expected_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "actual_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "mutation_certainty": "present"
+      }
+    },
+    {
       "name": "settlement-observation-unknown-field-invalid",
       "kind": "settlement-observation",
       "valid": false,

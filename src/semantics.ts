@@ -31,6 +31,7 @@ export function settlementSemantics(postcondition:Postcondition):SettlementSeman
   if (
     postcondition.verifier==='eventually-consistent-file-content-equals/v1'
     || postcondition.verifier==='github-commit-status/v2'
+    || postcondition.verifier==='github-pull-request-branch-updated/v1'
   ) {
     return {
       verifier:postcondition.verifier,
@@ -72,6 +73,17 @@ export function verifiedContentIdentity(postcondition:Postcondition):string|null
 }
 
 export function effectSemantics(postcondition:Postcondition):EffectSemantics|null {
+  if (postcondition.verifier==='github-pull-request-branch-updated/v1') {
+    return {
+      resource:`github-pr-branch:${postcondition.repository_id}:${postcondition.pull_number}`,
+      desired:canonicalDigest({
+        previous_head_sha:postcondition.expected_previous_head_sha,
+        base_ref:postcondition.base_ref,
+        base_sha:postcondition.expected_base_sha,
+      }),
+      sameDesiredCommutes:false,
+    };
+  }
   if (postcondition.verifier!=='github-commit-status/v2') return null;
   return {
     resource:`github-status:${postcondition.repository_id}:${postcondition.commit_sha}:${githubStatusContextKey(postcondition.context)}`,

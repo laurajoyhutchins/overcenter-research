@@ -69,7 +69,7 @@ export async function githubGetAsync(token:string,path:string):Promise<unknown> 
 }
 
 
-class GithubAsyncReadRequired {
+export class GithubAsyncReadRequired {
   readonly path:string;
   constructor(path:string) {
     this.path=path;

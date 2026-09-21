@@ -2,6 +2,7 @@
 // Do not edit by hand.
 export const SettlementObservationSchema={
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "verifier",
     "mutation_certainty"
@@ -12,6 +13,7 @@ export const SettlementObservationSchema={
         "file-content-equals/v1",
         "eventually-consistent-file-content-equals/v1",
         "github-commit-status/v2",
+        "github-pull-request-branch-updated/v1",
         "kubernetes-configmap-exists/v1"
       ]
     },
@@ -91,7 +93,26 @@ export const SettlementObservationSchema={
       "type": "object",
       "additionalProperties": true,
       "x-overcenter-providerOwned": true
+    },
+    "pull_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "pull_node_id": {
+      "type": "string"
+    },
+    "expected_previous_head_sha": {
+      "type": "string"
+    },
+    "base_ref": {
+      "type": "string"
+    },
+    "expected_base_sha": {
+      "type": "string"
+    },
+    "actual_head_sha": {
+      "type": "string"
     }
-  },
-  "additionalProperties": false
+  }
 } as const;
