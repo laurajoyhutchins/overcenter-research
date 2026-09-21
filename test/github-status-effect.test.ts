@@ -60,9 +60,10 @@ test('production GitHub status effect derives provider coordinates from authorit
   const root=mkdtempSync(join(tmpdir(),'github-status-effect-'));
   const kernel=new OvercenterKernel(join(root,'overcenter.sqlite'));
   const calls:Array<{kind:'get'|'post';path:string;body?:unknown}>=[];
-  const get:GithubJsonGet=(_token,path)=>{
+  const get=async(_token:string,path:string)=>{
     calls.push({kind:'get',path});
     assert.equal(path,'/repos/acme/widget');
+    await Promise.resolve();
     return repository();
   };
   try {

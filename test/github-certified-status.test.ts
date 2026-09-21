@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RECEIPT_SCHEMA, type ReceiptFact } from '../src/facts.ts';
 import type { GitHubCommitStatusPostcondition, Obligation } from '../src/model.ts';
-import { observePostcondition } from '../src/observation.ts';
+import { observePostcondition, observePostconditionAsync } from '../src/observation.ts';
 import {
   GITHUB_OPENAPI_SHA256,
   observeCertifiedGithubCommitStatus,
@@ -130,6 +130,29 @@ test('combined status preserves positive settlement evidence in one provider rea
   assert.equal(repositoryEvidence.canonical_full_name,'acme/widget');
   assert.equal((evidence.pages as Array<Record<string,unknown>>).length,1);
   assert.equal(receiptFor(observed).disposition,'DONE');
+  assert.deepEqual(p.calls,[
+    `/repos/acme/widget/commits/${COMMIT}/status?page=1&per_page=100`,
+  ]);
+});
+
+test('async transport preserves the same certified positive observation', async() => {
+  const p=provider([[status(1,'Overcenter/Proof')]]);
+  let awaited=false;
+  const observed=await observePostconditionAsync(postcondition(),{
+    githubToken:'token',
+    githubGetAsync:async(token,path)=>{
+      await Promise.resolve();
+      awaited=true;
+      return p.get(token,path);
+    },
+    clock:()=> '2026-09-18T16:02:30.000Z',
+  });
+
+  assert.equal(awaited,true);
+  assert.equal(observed.mutation_certainty,'present');
+  assert.equal(observed.actual_state,'success');
+  const evidence=observed.provider_evidence as Record<string,unknown>;
+  assert.equal(evidence.status_operation_id,'repos/get-combined-status-for-ref');
   assert.deepEqual(p.calls,[
     `/repos/acme/widget/commits/${COMMIT}/status?page=1&per_page=100`,
   ]);
