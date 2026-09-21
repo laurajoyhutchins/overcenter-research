@@ -63,32 +63,32 @@ test('binds mutation claims to a successful artifact while reporting current sta
   };
 
   assert.deepEqual(
-    verifyMutationEvidence({root,committed,report,reportBytes,resolved}),
+    verifyMutationEvidence({root,committed,report,reportBytes,resolved,workflowRunId:123}),
     {workflowRunId:123,revision,probes:1,stale:[]},
   );
 
   const missingArtifactDigest=structuredClone(committed);
-  delete missingArtifactDigest.source_run.artifact_digest;
+  delete missingArtifactDigest.probes[0].source_run.artifact_digest;
   assert.throws(
-    ()=>verifyMutationEvidence({root,committed:missingArtifactDigest,report,reportBytes,resolved}),
+    ()=>verifyMutationEvidence({root,committed:missingArtifactDigest,report,reportBytes,resolved,workflowRunId:123}),
     /trusted-run provenance/,
   );
 
   const forged=structuredClone(committed);
   forged.probes[0].mutation_score=0;
   assert.throws(
-    ()=>verifyMutationEvidence({root,committed:forged,report,reportBytes,resolved}),
+    ()=>verifyMutationEvidence({root,committed:forged,report,reportBytes,resolved,workflowRunId:123}),
     /mutation claim mismatch/,
   );
 
   const wrongBlob=structuredClone(committed);
   wrongBlob.probes[0].source_blobs['src/core.ts']='0'.repeat(40);
   assert.throws(
-    ()=>verifyMutationEvidence({root,committed:wrongBlob,report,reportBytes,resolved}),
+    ()=>verifyMutationEvidence({root,committed:wrongBlob,report,reportBytes,resolved,workflowRunId:123}),
     /historical source blob mismatch/,
   );
 
   fs.writeFileSync(path.join(root,'src/core.ts'),'export const value=2;\n');
-  const stale=verifyMutationEvidence({root,committed,report,reportBytes,resolved});
+  const stale=verifyMutationEvidence({root,committed,report,reportBytes,resolved,workflowRunId:123});
   assert.deepEqual(stale.stale.map(item=>[item.probe,item.file]),[['core','src/core.ts']]);
 });
