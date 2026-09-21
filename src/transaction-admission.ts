@@ -98,3 +98,4 @@ export function executionAuthorityAdvanceError(
 export const mutationAdmitted=(
   s:ExecutionAuthorityProjection&{unresolved_effect:boolean},
 )=>s.current_authority&&s.exact_revision&&!s.unresolved_effect;
+
