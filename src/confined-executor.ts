@@ -204,10 +204,8 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
     let transportClosed=false;
     const leafPath=`/proc/self/fd/${leaf.leaf_fd}`;
 
-    const processGroupKill=():void=>{
-      if (child.pid) {
-        try { process.kill(-child.pid,'SIGKILL'); } catch {}
-      }
+    const killChild=():void=>{
+      try { child.kill('SIGKILL'); } catch {}
     };
 
     const killCgroup=(strict:boolean):void=>{
@@ -297,7 +295,6 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
         await waitCgroupEmpty();
       } catch (error) {
         containmentError=error;
-        processGroupKill();
         try { await waitCgroupEmpty(); } catch {}
       }
 
@@ -330,7 +327,7 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
       if (terminalError) return;
       terminalError=error;
       killCgroup(false);
-      processGroupKill();
+      killChild();
     };
 
     const capture=(target:Buffer[])=>(chunk:Buffer):void=>{
