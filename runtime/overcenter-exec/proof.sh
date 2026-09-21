@@ -100,6 +100,12 @@ printf '%s\n' '== delegated cgroup v2 parent =='
 setup_cgroup_delegation
 printf 'parent=%s controllers=%s\n' "$cgroup_parent" "$(cat "$cgroup_parent/cgroup.subtree_control")"
 
+printf '%s\n' '== trusted TypeScript supervisor uses exact cgroup leaves =='
+OVERCENTER_EXEC_LAUNCHER="$launcher" \
+OVERCENTER_CGROUP_PARENT="$cgroup_parent" \
+OVERCENTER_WORKSPACE="$root" \
+  node --experimental-strip-types "$here/supervisor_proof.ts"
+
 runtime_closure() {
   local binary="$1"
   if [[ -f /etc/ld.so.cache ]]; then
