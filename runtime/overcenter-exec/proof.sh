@@ -61,6 +61,8 @@ setup_cgroup_delegation() {
   sudo mkdir "$cgroup_root/host" "$cgroup_parent"
   printf '1073741824' | sudo tee "$cgroup_parent/memory.max" >/dev/null
   printf '256' | sudo tee "$cgroup_parent/pids.max" >/dev/null
+  printf '64' | sudo tee "$cgroup_parent/cgroup.max.descendants" >/dev/null
+  printf '1' | sudo tee "$cgroup_parent/cgroup.max.depth" >/dev/null
   printf '400000 100000' | sudo tee "$cgroup_parent/cpu.max" >/dev/null
   printf '0' | sudo tee "$cgroup_parent/cpu.max.burst" >/dev/null
   printf '+cpu +memory +pids' | sudo tee "$cgroup_parent/cgroup.subtree_control" >/dev/null
