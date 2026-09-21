@@ -42,7 +42,7 @@ jobs:
       - name: Download pinned public inference bytes
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/local-model/runtime" "$RUNNER_TEMP/local-model/out"
+          mkdir -p "$RUNNER_TEMP/local-model/runtime" "$RUNNER_TEMP/local-model/out" "$RUNNER_TEMP/local-model/home"
           curl --fail --location --retry 3             "https://github.com/ggml-org/llama.cpp/releases/download/b10964/llama-b10964-bin-ubuntu-x64.tar.gz"             -o "$RUNNER_TEMP/local-model/llama.tar.gz"
           echo "$RUNTIME_SHA256  $RUNNER_TEMP/local-model/llama.tar.gz" | sha256sum --check -
           tar -xzf "$RUNNER_TEMP/local-model/llama.tar.gz" -C "$RUNNER_TEMP/local-model/runtime"
@@ -55,7 +55,7 @@ jobs:
           llama_cli="$(find "$RUNNER_TEMP/local-model/runtime" -type f -name llama-cli -perm -u+x | head -n 1)"
           test -n "$llama_cli"
           runtime_dir="$(dirname "$llama_cli")"
-          sudo env -i             PATH=/usr/bin:/bin             HOME="$RUNNER_TEMP/local-model/home"             LD_LIBRARY_PATH="$runtime_dir"             /usr/bin/unshare --net --fork --             "$llama_cli"               -m "$RUNNER_TEMP/local-model/model.gguf"               -f "$GITHUB_WORKSPACE/experiments/codex-closed-loop/local-model-prompt.txt"               --json-schema-file "$GITHUB_WORKSPACE/experiments/codex-closed-loop/local-model-candidate.schema.json"               --seed 20260921               --temp 0               --ctx-size 4096               -n 1400               --no-display-prompt               --no-show-timings               --single-turn             > "$RUNNER_TEMP/local-model/out/raw.txt"
+          sudo env -i             PATH=/usr/bin:/bin             HOME="$RUNNER_TEMP/local-model/home"             LD_LIBRARY_PATH="$runtime_dir"             /usr/bin/unshare --net --fork --             "$llama_cli"               -m "$RUNNER_TEMP/local-model/model.gguf"               -f "$GITHUB_WORKSPACE/experiments/codex-closed-loop/local-model-prompt.txt"               --json-schema-file "$GITHUB_WORKSPACE/experiments/codex-closed-loop/local-model-candidate.schema.json"               --seed 20260921               --temp 0               --ctx-size 4096               -n 1400               --no-display-prompt               --no-show-timings             > "$RUNNER_TEMP/local-model/out/raw.txt"
       - name: Materialize candidate and provenance
         run: |
           set -euo pipefail
