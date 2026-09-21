@@ -459,7 +459,7 @@ fn close_inherited_fds() -> io::Result<()> {
 
 pub fn execute(manifest: Manifest) -> io::Result<()> {
     ensure_unprivileged_caller()?;
-    let resource_cgroup = resource::enter(&manifest)?;
+    resource::enter(&manifest)?;
     let workspace = pin_workspace(&manifest)?;
     let abi = landlock_abi()?;
     let handled_fs = handled_fs_rights(abi)?;
@@ -490,9 +490,8 @@ pub fn execute(manifest: Manifest) -> io::Result<()> {
     install_seccomp_policy()?;
 
     eprintln!(
-        "overcenter-exec: task_id={:?} landlock_abi={abi} cgroup={resource_cgroup:?} timeout_ms={} max_output_bytes={} memory_max_bytes={} pids_max={} cpu_max={}/{}",
+        "overcenter-exec: task_id={:?} landlock_abi={abi} cgroup_fd=4 timeout_ms={} max_output_bytes={} memory_max_bytes={} pids_max={} cpu_max={}/{}",
         manifest.task_id,
-        resource_cgroup,
         manifest.timeout_ms,
         manifest.max_output_bytes,
         manifest.memory_max_bytes,
