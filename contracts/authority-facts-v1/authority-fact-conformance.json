@@ -2,10 +2,67 @@
   "schema": "overcenter-authority-fact-conformance-v1",
   "cases": [
     {
+      "name": "defined-obligation-v4-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-obligation-v4",
+        "kind": "defined",
+        "obligation": {
+          "id": "current-alpha",
+          "dependencies": [],
+          "packet": {
+            "kind": "example"
+          },
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/current",
+            "content": "A"
+          }
+        }
+      }
+    },
+    {
+      "name": "obsolete-obligation-v3-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-obligation-v3",
+        "kind": "defined",
+        "obligation": {
+          "id": "obsolete-alpha",
+          "dependencies": [],
+          "packet": {},
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/obsolete",
+            "content": "A"
+          }
+        }
+      }
+    },
+    {
+      "name": "obligation-v4-extra-postcondition-field-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-obligation-v4",
+        "kind": "defined",
+        "obligation": {
+          "id": "current-alpha",
+          "dependencies": [],
+          "packet": {},
+          "postcondition": {
+            "verifier": "file-content-equals/v1",
+            "path": "/provider/current",
+            "content": "A",
+            "surprise": true
+          }
+        }
+      }
+    },
+    {
       "name": "defined-obligation-valid",
       "valid": true,
       "fact": {
-        "schema": "overcenter-git-obligation-v3",
+        "schema": "overcenter-git-obligation-v4",
         "kind": "defined",
         "obligation": {
           "id": "alpha",
@@ -25,7 +82,7 @@
       "name": "amended-obligation-valid",
       "valid": true,
       "fact": {
-        "schema": "overcenter-git-obligation-v3",
+        "schema": "overcenter-git-obligation-v4",
         "kind": "amended",
         "obligation": {
           "id": "alpha",
@@ -134,7 +191,7 @@
       "name": "amend-missing-fence-invalid",
       "valid": false,
       "fact": {
-        "schema": "overcenter-git-obligation-v3",
+        "schema": "overcenter-git-obligation-v4",
         "kind": "amended",
         "obligation": {
           "id": "alpha",
@@ -152,7 +209,7 @@
       "name": "dependency-unknown-field-invalid",
       "valid": false,
       "fact": {
-        "schema": "overcenter-git-obligation-v3",
+        "schema": "overcenter-git-obligation-v4",
         "kind": "defined",
         "obligation": {
           "id": "alpha",
