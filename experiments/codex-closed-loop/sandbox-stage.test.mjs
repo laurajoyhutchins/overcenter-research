@@ -178,6 +178,9 @@ test('AI SDK direct Google evidence proves authority confinement without claimin
       model_id:'gemini-3.8-flash',
       gateway_used:false,
       credential_source:'gcp-api-keys-via-github-oidc',
+      billing_project_id:'free-gemini-test-project',
+      billing_observation_source:'google-cloud-billing-api',
+      billing_enabled:false,
       repository_mutation_observed:false,
       prompt_sha256:'1',
       candidate_sha256:hash(candidateBytes),
@@ -203,6 +206,9 @@ test('AI SDK direct Google evidence proves authority confinement without claimin
     assert.equal(evidence.worker.routing_profile,'google-free');
     assert.equal(evidence.worker.gateway_used,false);
     assert.equal(evidence.worker.credential_source,'gcp-api-keys-via-github-oidc');
+    assert.equal(evidence.worker.billing_project_id,'free-gemini-test-project');
+    assert.equal(evidence.worker.billing_observation_source,'google-cloud-billing-api');
+    assert.equal(evidence.worker.billing_enabled,false);
     assert.equal(evidence.worker.network_during_inference,true);
     assert.equal(evidence.worker.reasoning_process_confinement_proven,false);
     assert.equal(evidence.worker.reasoning_authority_confinement_proven,true);
