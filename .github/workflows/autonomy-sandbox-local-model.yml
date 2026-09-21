@@ -60,8 +60,10 @@ jobs:
           chmod 0600 "$RUNNER_TEMP/local-model/trusted/normalize.mjs"
           sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
           sudo chown overcenter-model:overcenter-model "$RUNNER_TEMP/local-model/home"
+          chmod 0700 "$RUNNER_TEMP/local-model/home"
           rm -rf "$GITHUB_WORKSPACE"
-          test ! -e "$GITHUB_WORKSPACE"
+          mkdir -m 0700 "$GITHUB_WORKSPACE"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
       - name: Run one byte-scoped inference with networking physically disabled
         run: |
           set -euo pipefail
@@ -72,6 +74,7 @@ jobs:
           model_uid="$(id -u overcenter-model)"
           model_gid="$(id -g overcenter-model)"
           sudo /usr/bin/unshare --net --fork --             /usr/bin/setpriv --reuid="$model_uid" --regid="$model_gid" --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$RUNNER_TEMP/local-model/home"               LD_LIBRARY_PATH="$runtime_dir"               LLAMA_CLI="$llama_cli"               MODEL="$RUNNER_TEMP/local-model/model.gguf"               PROMPT="$RUNNER_TEMP/local-model/input/prompt.txt"               SCHEMA="$RUNNER_TEMP/local-model/input/schema.json"               /bin/sh -ceu '
+                cd "$HOME"
                 test "$(id -u)" -ne 0
                 test "$(find /sys/class/net -mindepth 1 -maxdepth 1 -printf "%f\n" | grep -vc "^lo$")" -eq 0
                 exec "$LLAMA_CLI"                   -m "$MODEL"                   -f "$PROMPT"                   --json-schema-file "$SCHEMA"                   --seed 20260921                   --temp 0                   --ctx-size 4096                   -n 1400                   --no-display-prompt                   --no-show-timings
@@ -79,7 +82,7 @@ jobs:
       - name: Materialize candidate and provenance
         run: |
           set -euo pipefail
-          test ! -e "$GITHUB_WORKSPACE"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
           node "$RUNNER_TEMP/local-model/trusted/normalize.mjs"             "$RUNNER_TEMP/local-model/out/raw.txt"             "$RUNNER_TEMP/local-model/input/prompt.txt"             "$RUNNER_TEMP/local-model/out/candidate.json"             "$RUNNER_TEMP/local-model/out/provenance.json"
       - name: Upload untrusted candidate only
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
