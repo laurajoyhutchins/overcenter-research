@@ -21,9 +21,11 @@ const base={
 
 function runnableManifest(){
   const workspace=fs.mkdtempSync(path.join(os.tmpdir(),'overcenter-exec-'));
+  const cgroupParent=fs.mkdtempSync(path.join(os.tmpdir(),'overcenter-cgroup-'));
   const stat=fs.statSync(workspace,{bigint:true});
   return {
     workspace,
+    cgroupParent,
     manifest:{
       ...base,
       workspace,
@@ -130,25 +132,28 @@ test('execution manifest environment ordering is locale-independent',()=>{
 });
 
 test('trusted launcher receives the exact bytes whose digest is reported',async()=>{
-  const {workspace,manifest}=runnableManifest();
+  const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
     const rendered=renderExecutionManifest(manifest);
-    const result=await runConfinedWorker({launcher:'/bin/cat',manifest});
+    const result=await runConfinedWorker({launcher:'/bin/cat',cgroup_parent:cgroupParent,manifest});
     assert.equal(result.exit_code,0);
     assert.equal(result.signal,null);
     assert.equal(result.stderr,'');
     assert.equal(result.stdout,rendered.bytes);
     assert.equal(result.manifest_sha256,sha256(result.stdout));
+    assert.equal(result.resource_usage,null);
   } finally {
     fs.rmSync(workspace,{recursive:true,force:true});
+    fs.rmSync(cgroupParent,{recursive:true,force:true});
   }
 });
 
 test('trusted launcher passes the exact workspace object on fd 3',async()=>{
-  const {workspace,manifest}=runnableManifest();
+  const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
     const result=await runConfinedWorker({
       launcher:'/bin/sh',
+      cgroup_parent:cgroupParent,
       launcher_args:['-c','/usr/bin/stat -Lc "%d %i" /proc/self/fd/3; /bin/cat'],
       manifest,
     });
@@ -157,43 +162,48 @@ test('trusted launcher passes the exact workspace object on fd 3',async()=>{
     assert.equal(`${manifestLines.join('\n')}`,renderExecutionManifest(manifest).bytes);
   } finally {
     fs.rmSync(workspace,{recursive:true,force:true});
+    fs.rmSync(cgroupParent,{recursive:true,force:true});
   }
 });
 
 test('trusted launcher rejects a workspace fd identity mismatch',async()=>{
-  const {workspace,manifest}=runnableManifest();
+  const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
     await assert.rejects(
       runConfinedWorker({
         launcher:'/bin/cat',
+        cgroup_parent:cgroupParent,
         manifest:{...manifest,workspace_ino:(BigInt(manifest.workspace_ino)+1n).toString()},
       }),
       /WORKSPACE_IDENTITY_CHANGED/u,
     );
   } finally {
     fs.rmSync(workspace,{recursive:true,force:true});
+    fs.rmSync(cgroupParent,{recursive:true,force:true});
   }
 });
 
 test('trusted launcher bounds untrusted output',async()=>{
-  const {workspace,manifest}=runnableManifest();
+  const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
     await assert.rejects(
-      runConfinedWorker({launcher:'/bin/cat',manifest:{...manifest,max_output_bytes:8}}),
+      runConfinedWorker({launcher:'/bin/cat',cgroup_parent:cgroupParent,manifest:{...manifest,max_output_bytes:8}}),
       /WORKER_OUTPUT_LIMIT/u,
     );
   } finally {
     fs.rmSync(workspace,{recursive:true,force:true});
+    fs.rmSync(cgroupParent,{recursive:true,force:true});
   }
 });
 
 test('trusted launcher kills a hanging worker process group',async()=>{
-  const {workspace,manifest}=runnableManifest();
+  const {workspace,cgroupParent,manifest}=runnableManifest();
   const started=Date.now();
   try {
     await assert.rejects(
       runConfinedWorker({
         launcher:'/bin/sh',
+        cgroup_parent:cgroupParent,
         launcher_args:['-c','cat >/dev/null; sleep 5'],
         manifest:{...manifest,timeout_ms:50},
       }),
@@ -202,23 +212,31 @@ test('trusted launcher kills a hanging worker process group',async()=>{
     assert.ok(Date.now()-started<2_000);
   } finally {
     fs.rmSync(workspace,{recursive:true,force:true});
+    fs.rmSync(cgroupParent,{recursive:true,force:true});
   }
 });
 
 test('launcher budgets fail closed',async()=>{
   await assert.rejects(
-    runConfinedWorker({launcher:'/bin/cat',manifest:{...base,timeout_ms:0}}),
+    runConfinedWorker({launcher:'/bin/cat',cgroup_parent:'/tmp',manifest:{...base,timeout_ms:0}}),
     /TIMEOUT_MS_INVALID/u,
   );
   await assert.rejects(
-    runConfinedWorker({launcher:'/bin/cat',manifest:{...base,max_output_bytes:0}}),
+    runConfinedWorker({launcher:'/bin/cat',cgroup_parent:'/tmp',manifest:{...base,max_output_bytes:0}}),
     /MAX_OUTPUT_BYTES_INVALID/u,
+  );
+});
+
+test('cgroup parent is trusted host configuration, not manifest-controlled',async()=>{
+  await assert.rejects(
+    runConfinedWorker({launcher:'/bin/cat',cgroup_parent:'relative',manifest:base}),
+    /CGROUP_PARENT_NOT_ABSOLUTE/u,
   );
 });
 
 test('launcher identity is configuration, not manifest-controlled',async()=>{
   await assert.rejects(
-    runConfinedWorker({launcher:'relative-launcher',manifest:base}),
+    runConfinedWorker({launcher:'relative-launcher',cgroup_parent:'/tmp',manifest:base}),
     /LAUNCHER_NOT_ABSOLUTE/u,
   );
 });
