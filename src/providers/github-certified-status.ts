@@ -1,3 +1,4 @@
+import {POSTCONDITION_VERIFIERS} from '../generated/schema-identifiers.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
@@ -30,7 +31,7 @@ export interface CertifiedGithubStatusEvidence {
   api_version:string;
   schema_sha256:string;
   schema_source_commit:string;
-  observer:{kind:'git-kernel';id:'github-commit-status/v2'};
+  observer:{kind:'git-kernel';id:POSTCONDITION_VERIFIERS.githubCommitStatus};
   repository_id:number;
   requested_repository_full_name:string;
   repository:CertifiedGithubRepositoryEvidence;
@@ -75,7 +76,7 @@ function statusEvidence({
     api_version:GITHUB_API_VERSION,
     schema_sha256:GITHUB_OPENAPI_SHA256,
     schema_source_commit:GITHUB_OPENAPI_SOURCE_COMMIT,
-    observer:{kind:'git-kernel',id:'github-commit-status/v2'},
+    observer:{kind:'git-kernel',id:POSTCONDITION_VERIFIERS.githubCommitStatus},
     repository_id:repositoryId,
     requested_repository_full_name:repositoryFullName,
     repository,
@@ -131,7 +132,7 @@ export function observeCertifiedGithubCommitStatus(
     repositoryFullName,
     get,
     clock,
-    observerId:'github-commit-status/v2',
+    observerId:POSTCONDITION_VERIFIERS.githubCommitStatus,
   });
 
   const {owner,repo}=repository.fact.object;
@@ -148,7 +149,7 @@ export function observeCertifiedGithubCommitStatus(
         fields:GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
         get,
         clock,
-        observerId:'github-commit-status/v2',
+        observerId:POSTCONDITION_VERIFIERS.githubCommitStatus,
       });
       const members=certifiedMembers(certified);
       return {
