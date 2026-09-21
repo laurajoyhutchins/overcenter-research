@@ -36,6 +36,9 @@ const provenance={
   runtime_sha256:required('RUNTIME_SHA256'),
   network_during_inference:false,
   repository_credentials_present:false,
+  checkout_readable_during_inference:false,
+  worker_uid_isolated:true,
+  input_scope:'synthetic-prompt-and-schema-only',
   worker_job_is_disposable:true,
 };
 writeFileSync(provenancePath,JSON.stringify(provenance,null,2)+'\n',{flag:'wx'});
