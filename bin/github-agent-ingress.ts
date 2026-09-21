@@ -15,6 +15,7 @@ import {
   buildAssignment,
   encodeAssignment,
 } from '../src/assignment-capsule.mjs';
+import {POSTCONDITION_VERIFIERS} from '../src/generated/schema-identifiers.ts';
 import {GitOvercenterKernel} from '../src/git-kernel.ts';
 
 const DEFAULT_AUTHORITY_REF='refs/overcenter/agent-ingress';
@@ -79,7 +80,7 @@ if (!work) {
       output_path:'result.txt',
     },
     postcondition:{
-      verifier:'file-content-equals/v1',
+      verifier:POSTCONDITION_VERIFIERS.fileContentEquals,
       path:`/tmp/${obligationId}/result.txt`,
       content:expectedOutput,
     },
