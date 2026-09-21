@@ -12,8 +12,11 @@ import {
   obligationDefinition,
   obligationDefinitionId,
 } from '../../src/facts.ts';
+import { validateAdmission } from '../../src/admission.ts';
+import { dependsOn, validateGraph } from '../../src/graph.ts';
 import { OvercenterKernel } from '../../src/kernel.ts';
 import { replayProjection } from '../../src/projection.ts';
+import { effectSemantics, settlementSemantics } from '../../src/semantics.ts';
 import { SqliteFactStore } from '../../src/sqlite-store.ts';
 
 const here=fileURLToPath(import.meta.url);
@@ -21,6 +24,8 @@ const HISTORY_COUNTS=[10,100,1000,5000];
 const PROJECTION_COUNTS=[1,8,32,64,128];
 const KERNEL_COUNTS=[1,8,32,64];
 const GRAPH_BUILD_COUNTS=[8,32,64,128];
+const EFFECT_ADMISSION_COUNTS=[32,64,128,256];
+const EFFECT_ADMISSION_STRESS_COUNT=10_000;
 const WORKERS=[1,2,4,8];
 const CAS_APPENDS=4096;
 
@@ -239,6 +244,117 @@ function graphBuildBenchmark() {
   return results;
 }
 
+function referenceEffectAdmission(state) {
+  validateGraph(state);
+  for (const obligation of Object.values(state.obligations)) {
+    settlementSemantics(obligation.postcondition);
+  }
+
+  const obligations=Object.values(state.obligations)
+    .sort((a,b)=>a.id.localeCompare(b.id));
+  for (const work of obligations) {
+    const semantics=effectSemantics(work.postcondition);
+    if (!semantics) continue;
+    for (const other of obligations) {
+      if (other.id===work.id) continue;
+      const otherSemantics=effectSemantics(other.postcondition);
+      if (!otherSemantics || otherSemantics.resource!==semantics.resource) continue;
+      if (
+        otherSemantics.desired===semantics.desired
+        && semantics.sameDesiredCommutes
+        && otherSemantics.sameDesiredCommutes
+      ) continue;
+      if (
+        !dependsOn(state,work.id,other.id)
+        && !dependsOn(state,other.id,work.id)
+      ) {
+        throw new Error('REFERENCE_UNORDERED_EFFECT_CONFLICT');
+      }
+    }
+  }
+}
+
+function effectAdmissionBenchmark() {
+  const results=EFFECT_ADMISSION_COUNTS.map(definitions=>{
+    const obligations={};
+    const definition_ids={};
+    for (let index=0;index<definitions;index+=1) {
+      const id='effect-'+String(index).padStart(5,'0');
+      obligations[id]=normalizeObligation({
+        id,
+        ...(index===0
+          ? {}
+          : {dependencies:[{
+              kind:'control',
+              upstream:'effect-'+String(index-1).padStart(5,'0'),
+            }]}),
+        postcondition:{
+          verifier:'github-commit-status/v2',
+          provider:'github',
+          repository_id:123,
+          repository_full_name:'owner/repo',
+          commit_sha:'a'.repeat(40),
+          context:'overcenter/effect-admission-benchmark',
+          expected_state:index%2===0 ? 'success' : 'failure',
+        },
+      });
+      definition_ids[id]='definition-'+String(index);
+    }
+    const state={obligations,definition_ids};
+
+    const reference_ms=timed(()=>referenceEffectAdmission(state),1);
+    const indexed_ms=timed(()=>validateAdmission(state),3);
+    return {
+      definitions,
+      reference_ms:Number(reference_ms.toFixed(3)),
+      indexed_ms:Number(indexed_ms.toFixed(3)),
+      speedup:Number((reference_ms/indexed_ms).toFixed(3)),
+    };
+  });
+  console.log(JSON.stringify({kind:'effect-admission',results}));
+  return results;
+}
+
+function indexedEffectAdmissionStressBenchmark() {
+  const definitions=EFFECT_ADMISSION_STRESS_COUNT;
+  const obligations={};
+  const definition_ids={};
+  for (let index=0;index<definitions;index+=1) {
+    const id='stress-effect-'+String(index).padStart(5,'0');
+    obligations[id]=normalizeObligation({
+      id,
+      ...(index===0
+        ? {}
+        : {dependencies:[{
+            kind:'control',
+            upstream:'stress-effect-'+String(index-1).padStart(5,'0'),
+          }]}),
+      postcondition:{
+        verifier:'github-commit-status/v2',
+        provider:'github',
+        repository_id:123,
+        repository_full_name:'owner/repo',
+        commit_sha:'a'.repeat(40),
+        context:'overcenter/effect-admission-stress',
+        expected_state:index%2===0 ? 'success' : 'failure',
+      },
+    });
+    definition_ids[id]='definition-'+String(index);
+  }
+  const state={obligations,definition_ids};
+
+  validateAdmission(state);
+  const started=performance.now();
+  validateAdmission(state);
+  const indexed_ms=performance.now()-started;
+  const result={
+    definitions,
+    indexed_ms:Number(indexed_ms.toFixed(3)),
+  };
+  console.log(JSON.stringify({kind:'indexed-effect-admission-stress',result}));
+  return result;
+}
+
 async function casWorker(db,count,workerId) {
   const store=new SqliteFactStore(db);
   let completed=0;
@@ -375,6 +491,8 @@ async function main() {
   const replay=replayBenchmark();
   const kernel=kernelReadBenchmark();
   const graphBuild=graphBuildBenchmark();
+  const effectAdmission=effectAdmissionBenchmark();
+  const effectAdmissionStress=indexedEffectAdmissionStressBenchmark();
   const cas=await bareCasBenchmark();
 
   console.log(JSON.stringify({
@@ -385,6 +503,10 @@ async function main() {
     graph_build_128_sequential_ms:graphBuild.at(-1).sequential_median_ms,
     graph_build_128_batch_ms:graphBuild.at(-1).batch_median_ms,
     graph_build_128_speedup:graphBuild.at(-1).speedup,
+    effect_admission_256_reference_ms:effectAdmission.at(-1).reference_ms,
+    effect_admission_256_indexed_ms:effectAdmission.at(-1).indexed_ms,
+    effect_admission_256_speedup:effectAdmission.at(-1).speedup,
+    effect_admission_stress_10000_ms:effectAdmissionStress.indexed_ms,
     bare_cas_1_worker_per_second:cas[0].appends_per_second,
     bare_cas_8_workers_per_second:cas.at(-1).appends_per_second,
   }));
