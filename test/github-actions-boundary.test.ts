@@ -6,6 +6,14 @@ const workflow = readFileSync(
   new URL('../.github/workflows/disposable-agent-proof.yml', import.meta.url),
   'utf8',
 );
+const mergeGate = readFileSync(
+  new URL('../.github/workflows/merge-gate.yml', import.meta.url),
+  'utf8',
+);
+const evidenceWorkflow = readFileSync(
+  new URL('../.github/workflows/tests.yml', import.meta.url),
+  'utf8',
+);
 
 function job(name: string, next: string): string {
   const start = workflow.indexOf(`  ${name}:\n`);
@@ -49,4 +57,42 @@ test('active hosted proof contains no legacy commit-status effect intent', () =>
     assert.doesNotMatch(source, /github-commit-status\/v1/);
     assert.doesNotMatch(source, /overcenter-effect-intent-v1/);
   }
+});
+
+test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
+  assert.match(
+    mergeGate,
+    /workflow_dispatch:\n\s+inputs:\n\s+candidate:/,
+    'merge gate must expose an explicit candidate dispatch',
+  );
+  assert.match(
+    mergeGate,
+    /source_sha:/,
+    'candidate dispatch must carry the exact expected source SHA',
+  );
+  assert.match(
+    mergeGate,
+    /test "\$REQUESTED_SOURCE_SHA" = "\$SOURCE_SHA"/,
+    'candidate dispatch must fail closed when the selected ref moved',
+  );
+  assert.match(
+    mergeGate,
+    /github\.event_name == 'push' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.candidate\)/,
+    'expensive merge-gate jobs must not be enabled by pull_request events',
+  );
+  assert.match(
+    mergeGate,
+    /pull_request\)\n[\s\S]*?Exact-head candidate evidence is required[\s\S]*?exit 1/,
+    'ordinary pull_request runs must remain non-mergeable until candidate evidence runs',
+  );
+  assert.match(
+    evidenceWorkflow,
+    /workflow_call:\n\s+inputs:\n\s+expensive:/,
+    'the reusable evidence workflow must accept an explicit expensive-evidence capability',
+  );
+  assert.match(
+    evidenceWorkflow,
+    /proofs:\n\s+name: Adversarial, experimental, and formal proofs\n\s+if: \$\{\{ inputs\.expensive \}\}/,
+    'proofs must be skipped unless the caller explicitly enables candidate evidence',
+  );
 });
