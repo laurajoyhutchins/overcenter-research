@@ -464,6 +464,9 @@ try {
     && outsideScope.length===0
     && verifier.status===0
     && verifier.completion_proven;
+  if (!accepted && verifier.stderr) {
+    process.stderr.write(`SANDBOX_VERIFIER_STDERR:\n${verifier.stderr}`);
+  }
   if (accepted) writeFileSync(attestationPath,attestation,{flag:'wx'});
 
   const receipt=kernel.resolve(permit,{
