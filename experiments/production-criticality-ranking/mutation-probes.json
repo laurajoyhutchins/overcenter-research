@@ -58,8 +58,8 @@
       "id": "execution-fence",
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
-          "qualifiedName": "KernelCore.#requireExecutionPermit"
+          "file": "src/transaction-admission.ts",
+          "name": "projectExecutionAuthority"
         }
       ]
     },

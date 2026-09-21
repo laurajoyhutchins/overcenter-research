@@ -117,6 +117,33 @@ test('SQLite production kernel reconstructs project truth after close and reopen
   }
 });
 
+
+test('SQLite kernel rejects every inexact execution permit identity',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-execution-authority-'));
+  const kernel=new OvercenterKernel(join(root,'overcenter.sqlite'));
+  try {
+    kernel.initialize();
+    kernel.define({id:'a',postcondition:pc(join(root,'a'),'A')});
+    const run=kernel.claim('a',kernel.deriveReadyWork()!.revision);
+    for (const hostile of [
+      {...run,obligation_id:'other'},
+      {...run,claimed_revision:'stale'},
+      {...run,claim_commit:'stale'},
+      {...run,obligation_key:'stale'},
+      {...run,execution_generation:run.execution_generation+1},
+      {...run,execution_authority_commit:'stale'},
+      {...run,execution_capability_sha256:'0'.repeat(64)},
+      {...run,execution_capability:'wrong'},
+    ]) {
+      assert.throws(()=>kernel.beginEffect(hostile),/STALE_EXECUTION_GENERATION/);
+      assert.throws(()=>kernel.resolve(hostile),/STALE_EXECUTION_GENERATION/);
+    }
+  } finally {
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
 test('SQLite kernel rejects a claim fenced to a stale authority revision',()=>{
   const root=mkdtempSync(join(tmpdir(),'sqlite-stale-revision-'));
   const database=join(root,'overcenter.sqlite');

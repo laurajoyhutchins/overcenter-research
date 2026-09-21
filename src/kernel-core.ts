@@ -48,6 +48,7 @@ import {
   replayProjection,
 } from './projection.ts';
 import type { Projection } from './projection.ts';
+import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -263,14 +264,24 @@ export class KernelCore {
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
       const {history,project}=this.#historicalProjection(head);
-      const run=this.#requireExecutionPermit(history,permit);
+      const run=history.runs.get(permit.id);
+      if (!run) throw new Error('UNKNOWN_RUN');
+      const authority=projectExecutionAuthority(
+        run,
+        permit,
+        this.#capabilityDigest(permit.execution_capability),
+      );
+      if (!authority.current_authority || !authority.exact_revision) {
+        throw new Error('STALE_EXECUTION_GENERATION');
+      }
       const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
         throw new Error('RUN_NOT_EXECUTING');
       }
-      if (history.unresolvedReservationsByRun.has(run.id)) {
-        throw new Error('UNRESOLVED_EFFECT');
-      }
+      if (!mutationAdmitted({
+        ...authority,
+        unresolved_effect:history.unresolvedReservationsByRun.has(run.id),
+      })) throw new Error('UNRESOLVED_EFFECT');
 
       const fact:EffectReservationFact={
         schema:EFFECT_RESERVATION_SCHEMA,
@@ -468,12 +479,12 @@ export class KernelCore {
   ):HistoricalRun {
     const run=history.runs.get(permit.id);
     if (!run) throw new Error('UNKNOWN_RUN');
-    if (
-      permit.execution_generation!==run.execution_generation
-      || permit.execution_authority_commit!==run.execution_authority_commit
-      || permit.execution_capability_sha256!==run.execution_capability_sha256
-      || this.#capabilityDigest(permit.execution_capability)!==run.execution_capability_sha256
-    ) {
+    const authority=projectExecutionAuthority(
+      run,
+      permit,
+      this.#capabilityDigest(permit.execution_capability),
+    );
+    if (!authority.current_authority || !authority.exact_revision) {
       throw new Error('STALE_EXECUTION_GENERATION');
     }
     return run;
