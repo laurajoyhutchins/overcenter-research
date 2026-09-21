@@ -1,0 +1,43 @@
+name: Provider round-trip comparison
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/provider-roundtrips.yml
+      - experiments/provider-roundtrips/**
+      - package.json
+      - experiments/registry.json
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Deterministic combined-status contract
+        run: npm run test:provider-roundtrips
+
+      - name: Live paired provider comparison
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY_ID: ${{ github.repository_id }}
+          ITERATIONS: 4
+        run: npm run bench:provider-roundtrips
