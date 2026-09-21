@@ -64,6 +64,7 @@ export class KernelCore {
   readonly githubToken:string|null;
   readonly observationContext:ObservationContext;
   readonly #store:DurableFactStore;
+  // Acceleration only: every read still validates store.history(head).
   #projectionCache:{head:string;commitCount:number;projection:Projection}|null=null;
 
   constructor(
