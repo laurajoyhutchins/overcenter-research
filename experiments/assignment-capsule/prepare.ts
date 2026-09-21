@@ -72,7 +72,14 @@ try {
   }
 
   writeFileSync(join(capsuleDir,'assignment.json'),encoded);
-  copyFileSync(new URL('../../src/assignment-capsule.mjs',import.meta.url),join(capsuleDir,'assignment-capsule.mjs'));
+  copyFileSync(
+    new URL('../../src/assignment-capsule.mjs',import.meta.url),
+    join(capsuleDir,'assignment-capsule.mjs'),
+  );
+  copyFileSync(
+    new URL('../../src/agent-schema-identifiers.generated.mjs',import.meta.url),
+    join(capsuleDir,'agent-schema-identifiers.generated.mjs'),
+  );
 
   console.log(JSON.stringify({
     obligation_id:obligationId,
