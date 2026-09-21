@@ -70,12 +70,19 @@ function counter(content:string,name:string):string {
 
 function requireFiniteParentEnvelope(parentFd:number):void {
   const parentPath=`/proc/self/fd/${parentFd}`;
-  const cgroupType=fs.readFileSync(path.join(parentPath,'cgroup.type'),'utf8').trim();
+  const read=(file:string):string=>{
+    try {
+      return fs.readFileSync(path.join(parentPath,file),'utf8').trim();
+    } catch {
+      throw new Error(`CGROUP_PARENT_INTERFACE_MISSING_${file.toUpperCase().replaceAll('.','_')}`);
+    }
+  };
+
+  const cgroupType=read('cgroup.type');
   if (cgroupType!=='domain') throw new Error('CGROUP_PARENT_NOT_DOMAIN');
 
   const enabled=new Set(
-    fs.readFileSync(path.join(parentPath,'cgroup.subtree_control'),'utf8')
-      .trim()
+    read('cgroup.subtree_control')
       .split(/\s+/u)
       .filter(Boolean),
   );
@@ -84,7 +91,7 @@ function requireFiniteParentEnvelope(parentFd:number):void {
   }
 
   const finite=(file:string):string=>{
-    const value=fs.readFileSync(path.join(parentPath,file),'utf8').trim();
+    const value=read(file);
     if (!/^[0-9]+$/u.test(value) || value==='0') {
       throw new Error(`CGROUP_PARENT_UNBOUNDED_${file.toUpperCase().replaceAll('.','_')}`);
     }
@@ -93,7 +100,7 @@ function requireFiniteParentEnvelope(parentFd:number):void {
   finite('memory.max');
   finite('pids.max');
 
-  const [quota,period,...extra]=fs.readFileSync(path.join(parentPath,'cpu.max'),'utf8').trim().split(/\s+/u);
+  const [quota,period,...extra]=read('cpu.max').split(/\s+/u);
   if (extra.length!==0 || !quota || !period || !/^[0-9]+$/u.test(quota) || !/^[0-9]+$/u.test(period)) {
     throw new Error('CGROUP_PARENT_UNBOUNDED_CPU_MAX');
   }
