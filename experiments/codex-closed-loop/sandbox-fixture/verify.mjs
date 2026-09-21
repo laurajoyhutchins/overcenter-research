@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readdirSync} from 'node:fs';
 import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 function walk(dir) {
   return readdirSync(dir,{withFileTypes:true}).flatMap(entry => {
@@ -9,7 +10,8 @@ function walk(dir) {
   });
 }
 
-const remaining=walk(new URL('./src',import.meta.url)).filter(path=>path.endsWith('.js'));
+const sourceRoot=fileURLToPath(new URL('./src',import.meta.url));
+const remaining=walk(sourceRoot).filter(path=>path.endsWith('.js'));
 assert.deepEqual(remaining,[],'production JavaScript remains');
 
 const mod=await import('./src/index.ts');
