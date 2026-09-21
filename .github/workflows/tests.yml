@@ -23,7 +23,7 @@ jobs:
   evidence:
     name: Candidate evidence
     runs-on: ubuntu-24.04
-    timeout-minutes: 4
+    timeout-minutes: 3
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -39,7 +39,24 @@ jobs:
       - name: Verify experiment contracts
         run: npm run test:experiment-contract
       - name: Run deterministic regression
+        if: ${{ !inputs.expensive }}
         run: npm run test:unit
+      - name: Run candidate regressions concurrently
+        if: ${{ inputs.expensive }}
+        shell: bash
+        run: |
+          set +e
+          npm run test:unit &
+          unit_pid=$!
+          npm run test:experiments &
+          experiments_pid=$!
+          wait "$unit_pid"
+          unit_status=$?
+          wait "$experiments_pid"
+          experiments_status=$?
+          set -e
+          test "$unit_status" -eq 0
+          test "$experiments_status" -eq 0
 
       - name: Install Java for candidate formal proof
         if: ${{ inputs.expensive }}
@@ -47,9 +64,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Run adversarial experiment proofs
-        if: ${{ inputs.expensive }}
-        run: npm run test:experiments
       - name: Run independent stress and TLA+ proofs concurrently
         if: ${{ inputs.expensive }}
         shell: bash
