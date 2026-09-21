@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -19,8 +21,31 @@ type conformanceCorpus struct {
 	} `json:"cases"`
 }
 
+func contractFile(t *testing.T, id, name string) string {
+	t.Helper()
+	matches, err := filepath.Glob("../contracts/*/contract.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, metadataPath := range matches {
+		data, err := os.ReadFile(metadataPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var metadata struct{ ID string `json:"id"` }
+		if err := json.Unmarshal(data, &metadata); err != nil {
+			t.Fatal(err)
+		}
+		if metadata.ID == id {
+			return filepath.Join(filepath.Dir(metadataPath), name)
+		}
+	}
+	t.Fatalf("contract package not found: %s", id)
+	return ""
+}
+
 func TestSharedProcessSpecConformance(t *testing.T) {
-	data, err := os.ReadFile("../contracts/computation-execution-v1/process-spec-conformance.json")
+	data, err := os.ReadFile(contractFile(t, "computation-execution", "process-spec-conformance.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +74,7 @@ func TestSharedProcessSpecConformance(t *testing.T) {
 func TestExecutionBindsExactSpecBytes(t *testing.T) {
 	capability := "capability"
 	capabilityDigest := sha256.Sum256([]byte(capability))
-	spec := []byte(`{"schema":"overcenter-process-spec-v1","executable":"/bin/echo","argv":["hello"],"cwd":".","env":{},"timeout_ms":1000,"stdout_max_bytes":1024,"stderr_max_bytes":1024}`)
+	spec := []byte(fmt.Sprintf(`{"schema":%q,"executable":"/bin/echo","argv":["hello"],"cwd":".","env":{},"timeout_ms":1000,"stdout_max_bytes":1024,"stderr_max_bytes":1024}`, ProcessSpecSchema))
 	specDigest := sha256.Sum256(spec)
 
 	execution := ComputationExecutionV1{
@@ -103,7 +128,7 @@ func TestExecutionIdentityKeyDoesNotAliasDelimiterShapedFields(t *testing.T) {
 func TestGoExecutionValidationMatchesTrustedIdentityBounds(t *testing.T) {
 	capability := "capability"
 	capabilityDigest := sha256.Sum256([]byte(capability))
-	spec := []byte(`{"schema":"overcenter-process-spec-v1","executable":"/bin/true","argv":[],"cwd":".","env":{},"timeout_ms":1000,"stdout_max_bytes":0,"stderr_max_bytes":0}`)
+	spec := []byte(fmt.Sprintf(`{"schema":%q,"executable":"/bin/true","argv":[],"cwd":".","env":{},"timeout_ms":1000,"stdout_max_bytes":0,"stderr_max_bytes":0}`, ProcessSpecSchema))
 	specDigest := sha256.Sum256(spec)
 
 	base := ComputationExecutionV1{
