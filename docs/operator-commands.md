@@ -64,7 +64,7 @@ It accepts no free-form command payload.
 
 On invocation, the trusted adapter dispatches `merge-gate.yml` for the captured branch ref and passes the captured head SHA as `source_sha`. The merge gate independently requires the dispatched run's actual source SHA to equal that requested SHA. A moved branch therefore fails closed rather than silently certifying newer code.
 
-GitHub Cloud's workflow-dispatch response provides the new workflow run ID and URLs. The command receipt records those values and a canonical receipt digest. Successful dispatch is not equivalent to successful candidate evidence; callers must observe the dispatched run separately.
+GitHub Cloud's workflow-dispatch response provides the new workflow run ID and URLs. The command receipt verifies those URLs against the repository and run ID, then records them with a canonical receipt digest. This is a transport receipt, not durable Overcenter settlement. Successful dispatch is not equivalent to successful candidate evidence; callers must observe the dispatched run separately.
 
 ## Authority and permissions
 
