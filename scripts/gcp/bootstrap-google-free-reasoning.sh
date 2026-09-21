@@ -14,6 +14,20 @@ READER_ROLE_ID="overcenterFreeInferenceReader"
 for command in gcloud gh jq curl; do
   command -v "$command" >/dev/null 2>&1 || { echo "$command is required" >&2; exit 2; }
 done
+
+retry_read() {
+  local attempts="$1"
+  shift
+  local output=""
+  for _ in $(seq 1 "$attempts"); do
+    if output="$("$@" 2>/dev/null)"; then
+      printf '%s' "$output"
+      return 0
+    fi
+    sleep 2
+  done
+  "$@"
+}
 gh auth status --hostname github.com >/dev/null 2>&1 || { echo "gh must be authenticated" >&2; exit 2; }
 [[ -n "$(gcloud auth list --filter=status:ACTIVE --format='value(account)' | head -n1)" ]] || {
   echo "gcloud must have an active administrator identity" >&2
@@ -106,7 +120,11 @@ else
   gcloud iam workload-identity-pools providers create-oidc "$PROVIDER_ID"     --project="$IDENTITY_PROJECT_ID"     --location=global     --workload-identity-pool="$POOL_ID"     --display-name="Overcenter research reasoning"     --issuer-uri="https://token.actions.githubusercontent.com/"     --attribute-mapping="$ATTRIBUTE_MAPPING"     --attribute-condition="$ATTRIBUTE_CONDITION"
 fi
 
-WIF_PROVIDER="$(gcloud iam workload-identity-pools providers describe "$PROVIDER_ID"   --project="$IDENTITY_PROJECT_ID"   --location=global   --workload-identity-pool="$POOL_ID"   --format='value(name)')"
+WIF_PROVIDER="$(retry_read 15 gcloud iam workload-identity-pools providers describe "$PROVIDER_ID" \
+  --project="$IDENTITY_PROJECT_ID" \
+  --location=global \
+  --workload-identity-pool="$POOL_ID" \
+  --format='value(name)')"
 EXPECTED_PROVIDER="projects/$IDENTITY_PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_ID/providers/$PROVIDER_ID"
 test "$WIF_PROVIDER" = "$EXPECTED_PROVIDER"
 
