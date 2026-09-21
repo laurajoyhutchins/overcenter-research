@@ -96,7 +96,8 @@ jobs:
         run: |
           set -euo pipefail
           root="$RUNNER_TEMP/google-free"
-          mkdir -p "$root/runtime/experiments/codex-closed-loop" "$root/runtime/src" "$root/input" "$root/out" "$root/home"
+          sandbox_root=/opt/overcenter-google-free
+          mkdir -p "$root/runtime/experiments/codex-closed-loop" "$root/runtime/src" "$root/input" "$root/out"
           cp experiments/codex-closed-loop/ai-sdk-candidate.ts "$root/runtime/experiments/codex-closed-loop/"
           cp src/reasoning-model.ts "$root/runtime/src/"
           cp experiments/codex-closed-loop/local-model-prompt.txt "$root/input/prompt.txt"
@@ -104,10 +105,13 @@ jobs:
           npm install --prefix "$root/runtime" --ignore-scripts --no-package-lock --no-save             "ai@$AI_SDK_VERSION" "@ai-sdk/google@$AI_SDK_GOOGLE_VERSION"
           npm --prefix "$root/runtime" ls --depth=0 ai @ai-sdk/google
           sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
-          sudo chown -R root:root "$root/runtime" "$root/input"
-          sudo chmod -R a-w "$root/runtime" "$root/input"
-          sudo chown overcenter-model:overcenter-model "$root/out" "$root/home"
-          sudo chmod 0700 "$root/out" "$root/home"
+          sudo rm -rf "$sandbox_root"
+          sudo install -d -o root -g root -m 0711 "$sandbox_root"
+          sudo mv "$root/runtime" "$sandbox_root/runtime"
+          sudo mv "$root/input" "$sandbox_root/input"
+          sudo chown -R root:root "$sandbox_root/runtime" "$sandbox_root/input"
+          sudo chmod -R a+rX,u-w,g-w,o-w "$sandbox_root/runtime" "$sandbox_root/input"
+          sudo install -d -o overcenter-model -g overcenter-model -m 0700 "$sandbox_root/out" "$sandbox_root/home"
           rm -rf "$GITHUB_WORKSPACE"
           mkdir -m 0700 "$GITHUB_WORKSPACE"
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
@@ -141,18 +145,28 @@ jobs:
           set -euo pipefail
           test -z "${GITHUB_TOKEN:-}"
           root="$RUNNER_TEMP/google-free"
+          sandbox_root=/opt/overcenter-google-free
           test -s "$root/gemini-api-key"
           model_uid="$(id -u overcenter-model)"
           model_gid="$(id -g overcenter-model)"
+          runner_uid="$(id -u)"
+          runner_gid="$(id -g)"
           node_bin="$(readlink -f "$(command -v node)")"
           test -x "$node_bin"
+          sudo -u overcenter-model test -r "$sandbox_root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"
+          sudo -u overcenter-model test -r "$sandbox_root/runtime/src/reasoning-model.ts"
+          sudo -u overcenter-model test -r "$sandbox_root/input/prompt.txt"
+          sudo -u overcenter-model test -r "$sandbox_root/input/schema.json"
+          sudo -u overcenter-model test -x "$node_bin"
           gemini_key="$(cat "$root/gemini-api-key")"
           cleanup() {
             rm -f "$root/gemini-api-key"
             unset gemini_key
           }
           trap cleanup EXIT
-          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               OVERCENTER_REASONING_BILLING_PROJECT_ID="$GEMINI_FREE_PROJECT_ID"               OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE=google-cloud-billing-api               OVERCENTER_REASONING_BILLING_ENABLED=false               "$node_bin" --experimental-strip-types                 "$root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$root/input/prompt.txt"                 --schema "$root/input/schema.json"                 --candidate "$root/out/candidate.json"                 --provenance "$root/out/provenance.json"
+          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$sandbox_root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               OVERCENTER_REASONING_BILLING_PROJECT_ID="$GEMINI_FREE_PROJECT_ID"               OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE=google-cloud-billing-api               OVERCENTER_REASONING_BILLING_ENABLED=false               "$node_bin" --experimental-strip-types                 "$sandbox_root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$sandbox_root/input/prompt.txt"                 --schema "$sandbox_root/input/schema.json"                 --candidate "$sandbox_root/out/candidate.json"                 --provenance "$sandbox_root/out/provenance.json"
+          sudo install -o "$runner_uid" -g "$runner_gid" -m 0600 "$sandbox_root/out/candidate.json" "$root/out/candidate.json"
+          sudo install -o "$runner_uid" -g "$runner_gid" -m 0600 "$sandbox_root/out/provenance.json" "$root/out/provenance.json"
           cleanup
           trap - EXIT
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
