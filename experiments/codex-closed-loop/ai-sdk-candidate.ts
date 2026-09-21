@@ -36,6 +36,10 @@ function parseArgs(argv:string[]):Args {
 }
 
 const args=parseArgs(process.argv.slice(2));
+const credentialSource=process.env.OVERCENTER_REASONING_CREDENTIAL_SOURCE??null;
+if (args.profile==='google-free' && credentialSource!=='gcp-api-keys-via-github-oidc') {
+  throw new Error('AI_SDK_GOOGLE_FREE_CREDENTIAL_SOURCE_INVALID');
+}
 if (process.env.GITHUB_TOKEN) throw new Error('AI_SDK_GITHUB_TOKEN_FORBIDDEN');
 if (process.env.OVERCENTER_DATABASE_URL || process.env.OVERCENTER_AUTHORITY_DATABASE) {
   throw new Error('AI_SDK_OVERCENTER_AUTHORITY_FORBIDDEN');
@@ -67,6 +71,7 @@ const provenance={
   routing_profile:selection.profile,
   model_id:selection.model_id,
   gateway_used:selection.gateway_used,
+  credential_source:credentialSource,
   repository_mutation_observed:false,
   prompt_sha256:sha256(promptBytes),
   candidate_sha256:sha256(candidateBytes),
