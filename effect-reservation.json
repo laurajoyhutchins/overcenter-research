@@ -1,0 +1,7 @@
+{
+  "schema": "overcenter-git-effect-reservation-v1",
+  "run_id": "a405fd21-440a-4625-b0bf-e78db001c3ed",
+  "obligation_id": "concurrency-35645209360-1-alpha",
+  "execution_generation": 2,
+  "execution_authority_commit": "39b7c232feb595387b5eadeeaf5dc6a9fad5a0f7"
+}
