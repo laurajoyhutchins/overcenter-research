@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto';
 import { posix as path } from 'node:path';
 import type { ExecutionPermit } from './model.ts';
+import {COMPUTATION_SCHEMAS} from './generated/schema-identifiers.ts';
 
-export const COMPUTATION_EXECUTION_SCHEMA='overcenter-computation-execution-v1' as const;
-export const PROCESS_SPEC_SCHEMA='overcenter-process-spec-v1' as const;
-export const COMPUTATION_EVIDENCE_SCHEMA='overcenter-computation-attempt-evidence-v1' as const;
-export const EXECUTOR_COMMAND_SCHEMA='overcenter-executor-command-v1' as const;
-export const EXECUTOR_HELLO_SCHEMA='overcenter-executor-hello-v1' as const;
+export const COMPUTATION_EXECUTION_SCHEMA=COMPUTATION_SCHEMAS.execution;
+export const PROCESS_SPEC_SCHEMA=COMPUTATION_SCHEMAS.processSpec;
+export const COMPUTATION_EVIDENCE_SCHEMA=COMPUTATION_SCHEMAS.attemptEvidence;
+export const EXECUTOR_COMMAND_SCHEMA=COMPUTATION_SCHEMAS.executorCommand;
+export const EXECUTOR_HELLO_SCHEMA=COMPUTATION_SCHEMAS.executorHello;
 
 const MAX_SPEC_BYTES=1024*1024;
 const MAX_ARG_COUNT=256;
