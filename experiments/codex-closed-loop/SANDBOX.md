@@ -30,7 +30,7 @@ no provider mutation credential
 no branch, PR, issue, status, deployment, or release write
 ```
 
-The worker may use a model service when the reasoning-worker stage requires one. Harmlessness does not depend on trusting the worker or its network behavior: the worker receives only synthetic project bytes and no credential or API capability that can mutate a real provider.
+The deterministic scripted worker is a control for the transaction harness, not evidence that a hostile reasoning process is physically contained. A model-backed worker is not admitted to a sandbox stage until it runs through an already-proved confinement profile (or an equivalently strict disposable environment) with synthetic project bytes, no provider or repository mutation credentials, and no ambient path to production authority. The worker never receives Overcenter's execution capability or authority database.
 
 The sandbox result is evidence only. It cannot promote itself, change production configuration, or become project truth outside its temporary authority store.
 
@@ -63,7 +63,11 @@ The stages intentionally reuse one sandbox and add one source of autonomy at a t
 | 6 | repair loop | certified compile/test failures feed follow-up work until the synthetic repository returns to green |
 | 7 | sustained campaign | at least 100 useful settled transitions complete with bounded attempts and zero unsafe state transitions |
 
-Stages may be run with a scripted worker first to prove the machinery, then with an uncertain reasoning worker without changing the authority topology.
+Stages may be run with a scripted worker first to prove the machinery. Those runs are labeled `scripted-control` and do **not** satisfy the autonomy capability claim or promotion gate. The same stage must subsequently pass with an uncertain reasoning worker under admitted confinement without changing the authority topology.
+
+### Current Stage 1 control
+
+`npm run experiment:autonomy-sandbox` runs the Stage 1 transaction with an explicit reproducible seed. It copies the synthetic fixture into a fresh temporary directory, creates a fresh SQLite authority database, claims one migration obligation, launches a fresh worker process with a credential-free environment, independently runs the fixture verifier, writes the only settlement attestation outside the worker workspace, settles through Overcenter, reconstructs the result from a fresh kernel, emits one JSON evidence record, and deletes the temporary sandbox. A paired no-op-worker negative control must remain non-DONE.
 
 ## Measurements
 
