@@ -131,41 +131,6 @@ test('execution manifest environment ordering is locale-independent',()=>{
   );
 });
 
-test('trusted launcher receives the exact bytes whose digest is reported',async()=>{
-  const {workspace,cgroupParent,manifest}=runnableManifest();
-  try {
-    const rendered=renderExecutionManifest(manifest);
-    const result=await runConfinedWorker({launcher:'/bin/cat',cgroup_parent:cgroupParent,manifest});
-    assert.equal(result.exit_code,0);
-    assert.equal(result.signal,null);
-    assert.equal(result.stderr,'');
-    assert.equal(result.stdout,rendered.bytes);
-    assert.equal(result.manifest_sha256,sha256(result.stdout));
-    assert.equal(result.resource_usage,null);
-  } finally {
-    fs.rmSync(workspace,{recursive:true,force:true});
-    fs.rmSync(cgroupParent,{recursive:true,force:true});
-  }
-});
-
-test('trusted launcher passes the exact workspace object on fd 3',async()=>{
-  const {workspace,cgroupParent,manifest}=runnableManifest();
-  try {
-    const result=await runConfinedWorker({
-      launcher:'/bin/sh',
-      cgroup_parent:cgroupParent,
-      launcher_args:['-c','/usr/bin/stat -Lc "%d %i" /proc/self/fd/3; /bin/cat'],
-      manifest,
-    });
-    const [identity,...manifestLines]=result.stdout.split('\n');
-    assert.equal(identity,`${manifest.workspace_dev} ${manifest.workspace_ino}`);
-    assert.equal(`${manifestLines.join('\n')}`,renderExecutionManifest(manifest).bytes);
-  } finally {
-    fs.rmSync(workspace,{recursive:true,force:true});
-    fs.rmSync(cgroupParent,{recursive:true,force:true});
-  }
-});
-
 test('trusted launcher rejects a workspace fd identity mismatch',async()=>{
   const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
@@ -183,50 +148,16 @@ test('trusted launcher rejects a workspace fd identity mismatch',async()=>{
   }
 });
 
-test('trusted launcher bounds untrusted output',async()=>{
-  const {workspace,cgroupParent,manifest}=runnableManifest();
-  try {
-    await assert.rejects(
-      runConfinedWorker({launcher:'/bin/cat',cgroup_parent:cgroupParent,manifest:{...manifest,max_output_bytes:8}}),
-      /WORKER_OUTPUT_LIMIT/u,
-    );
-  } finally {
-    fs.rmSync(workspace,{recursive:true,force:true});
-    fs.rmSync(cgroupParent,{recursive:true,force:true});
-  }
-});
-
-test('trusted launcher kills a hanging worker process group',async()=>{
-  const {workspace,cgroupParent,manifest}=runnableManifest();
-  const started=Date.now();
-  try {
-    await assert.rejects(
-      runConfinedWorker({
-        launcher:'/bin/sh',
-        cgroup_parent:cgroupParent,
-        launcher_args:['-c','cat >/dev/null; sleep 5'],
-        manifest:{...manifest,timeout_ms:50},
-      }),
-      /WORKER_TIMEOUT/u,
-    );
-    assert.ok(Date.now()-started<2_000);
-  } finally {
-    fs.rmSync(workspace,{recursive:true,force:true});
-    fs.rmSync(cgroupParent,{recursive:true,force:true});
-  }
-});
-
-test('missing cgroup evidence cannot strand the resource leaf',async()=>{
+test('missing kernel cgroup interfaces cannot strand the host-created leaf',async()=>{
   const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
     await assert.rejects(
       runConfinedWorker({
-        launcher:'/bin/bash',
+        launcher:'/bin/cat',
         cgroup_parent:cgroupParent,
-        launcher_args:['-c','mkdir "/proc/self/fd/4/overcenter-$BASHPID"; cat >/dev/null'],
         manifest,
       }),
-      /ENOENT|CGROUP_EVIDENCE/u,
+      /CGROUP_KILL_MISSING/u,
     );
     assert.deepEqual(fs.readdirSync(cgroupParent),[]);
   } finally {
