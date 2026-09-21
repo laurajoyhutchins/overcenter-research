@@ -681,6 +681,45 @@
       ]
     },
     {
+      "id": "scheduler-provisioning",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/scheduler-provisioning",
+      "readme": "experiments/scheduler-provisioning/README.md",
+      "question": "Is negative N-way scheduler scaling primarily caused by workers herding on one scalar READY choice, or by serialized settlement after claims are already distinct?",
+      "claim": "The experiment compares unchanged production herd scheduling with single-provisioner assignment over the same workload, including provisioning time, so claim-selection contention can be separated from settlement contention.",
+      "contrast": "Add a batch-claim schema or distributed authority before proving that redundant worker-side selection is the material scaling loss.",
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run experiment:scheduler-provisioning"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Local filesystem supporting SQLite WAL",
+        "Hosted reference run uses GitHub Actions ubuntu-24.04"
+      ],
+      "success_criteria": [
+        "Herd and provisioned modes each settle exactly 32 unique obligations DONE through production authority.",
+        "Provisioned workers receive exact production ExecutionPermit values; no direct fact-store mutation or relaxed identity check is used.",
+        "Provisioning time is included in end-to-end throughput.",
+        "The experiment reports throughput, speedup, provisioner rate, and contention retries for 1, 2, 4, and 8 workers."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          ".github/workflows/scheduler-provisioning.yml"
+        ]
+      },
+      "interpretation": "Use the same-host comparison to decide whether assignment provisioning deserves a production boundary before considering claim batching or distributed authority.",
+      "non_claims": [
+        "A singleton provisioner is the final production architecture.",
+        "Settlement writes are concurrent.",
+        "Fairness is proved when scheduler capacity is one.",
+        "SQLite is distributed or highly available.",
+        "Absolute throughput is portable across hosts."
+      ]
+    },
+    {
       "id": "sqlite-baseline",
       "kind": "experiment",
       "status": "historical",
