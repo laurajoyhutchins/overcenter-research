@@ -71,6 +71,7 @@ outside="$tmp/outside"
 manifest="$tmp/task.manifest"
 worker="$root/hostile-worker"
 x32_probe="$root/x32-probe"
+resource_probe="$root/resource-probe"
 
 mkdir -p "$root" "$outside"
 printf 'SAFE\n' > "$root/allowed.txt"
@@ -91,6 +92,7 @@ printf '%s\n' '== compile production launcher and hostile worker =='
 rustc --edition=2021 -D warnings "$here/main.rs" -o "$launcher"
 rustc --edition=2021 -D warnings "$here/hostile_worker.rs" -o "$worker"
 rustc --edition=2021 -D warnings "$here/x32_probe.rs" -o "$x32_probe"
+rustc --edition=2021 -D warnings "$here/resource_probe.rs" -o "$resource_probe"
 loader="$(ldd "$worker" 2>/dev/null | grep -oE '/[^[:space:]]*ld-linux[^[:space:]]*' | head -n 1)"
 test -n "$loader"
 
@@ -125,6 +127,33 @@ run_launcher() {
   wait "$pid" || status=$?
   cleanup_resource_leaf "$pid"
   return "$status"
+}
+
+write_resource_manifest() {
+  local target="$1"
+  local task="$2"
+  local mode="$3"
+  local memory="$4"
+  local pids="$5"
+  local quota="$6"
+  local period="$7"
+  {
+    printf 'OVERCENTER_EXEC_V1\n'
+    printf 'task_id\t%s\n' "$task"
+    printf 'workspace\t%s\n' "$root"
+    printf 'workspace_dev\t%s\n' "$workspace_dev"
+    printf 'workspace_ino\t%s\n' "$workspace_ino"
+    printf 'program\t%s\n' "$loader"
+    printf 'timeout_ms\t60000\n'
+    printf 'max_output_bytes\t1048576\n'
+    printf 'memory_max_bytes\t%s\n' "$memory"
+    printf 'pids_max\t%s\n' "$pids"
+    printf 'cpu_quota_us\t%s\n' "$quota"
+    printf 'cpu_period_us\t%s\n' "$period"
+    printf 'arg\t%s\n' "$resource_probe"
+    printf 'arg\t%s\n' "$mode"
+    runtime_closure "$resource_probe"
+  } > "$target"
 }
 
 {
@@ -328,6 +357,62 @@ if [[ "$x32_status" -ne "$expected_x32_status" ]]; then
   cat "$tmp/x32.err" >&2
   exit 1
 fi
+
+printf '%s\n' '== pids.max stops fork growth for the whole worker cgroup =='
+pids_manifest="$tmp/pids.manifest"
+write_resource_manifest "$pids_manifest" resource-pids pids 134217728 6 100000 100000
+"$launcher" 3<"$root" 4<"$cgroup_parent" <"$pids_manifest" >"$tmp/pids.out" 2>"$tmp/pids.err" &
+pids_pid=$!
+pids_status=0
+wait "$pids_pid" || pids_status=$?
+test "$pids_status" -eq 0
+grep -q '^PIDS_LIMIT ' "$tmp/pids.out"
+pids_leaf="$cgroup_parent/overcenter-$pids_pid"
+test "$(awk '$1 == "max" { print $2 }' "$pids_leaf/pids.events")" -ge 1
+test "$(cat "$pids_leaf/pids.peak")" -le 6
+cleanup_resource_leaf "$pids_pid"
+
+printf '%s\n' '== cpu.max produces observable throttling =='
+cpu_manifest="$tmp/cpu.manifest"
+write_resource_manifest "$cpu_manifest" resource-cpu cpu 134217728 16 10000 100000
+"$launcher" 3<"$root" 4<"$cgroup_parent" <"$cpu_manifest" >"$tmp/cpu.out" 2>"$tmp/cpu.err" &
+cpu_pid=$!
+cpu_status=0
+wait "$cpu_pid" || cpu_status=$?
+test "$cpu_status" -eq 0
+grep -q '^CPU_BUSY
+exec 200<"$outside/secret.txt"
+GITHUB_TOKEN='AMBIENT-GITHUB-SECRET' \
+AWS_SECRET_ACCESS_KEY='AMBIENT-AWS-SECRET' \
+  "$launcher" 3<"$root" 4<"$cgroup_parent" < "$manifest" &
+ambient_pid=$!
+wait "$ambient_pid"
+cleanup_resource_leaf "$ambient_pid"
+exec 200<&-
+
+printf '%s\n' '== verify durable filesystem effects =='
+test "$(cat "$root/output.txt")" = 'TASK-WRITE'
+test "$(cat "$outside/secret.txt")" = 'SECRET'
+test "$(cat "$outside/write-target.txt")" = 'UNCHANGED'
+
+printf '\nPASS: production Rust worker confinement boundary\n'
+ "$tmp/cpu.out"
+cpu_leaf="$cgroup_parent/overcenter-$cpu_pid"
+test "$(awk '$1 == "nr_throttled" { print $2 }' "$cpu_leaf/cpu.stat")" -ge 1
+cleanup_resource_leaf "$cpu_pid"
+
+printf '%s\n' '== memory.max contains OOM to the worker cgroup =='
+memory_manifest="$tmp/memory.manifest"
+write_resource_manifest "$memory_manifest" resource-memory memory 33554432 16 100000 100000
+"$launcher" 3<"$root" 4<"$cgroup_parent" <"$memory_manifest" >"$tmp/memory.out" 2>"$tmp/memory.err" &
+memory_pid=$!
+memory_status=0
+wait "$memory_pid" || memory_status=$?
+test "$memory_status" -ne 0
+memory_leaf="$cgroup_parent/overcenter-$memory_pid"
+test "$(awk '$1 == "oom_kill" { print $2 }' "$memory_leaf/memory.events")" -ge 1
+test "$(cat "$memory_leaf/memory.peak")" -le 50331648
+cleanup_resource_leaf "$memory_pid"
 
 printf '%s\n' '== ambient authority is physically removed =='
 exec 200<"$outside/secret.txt"
