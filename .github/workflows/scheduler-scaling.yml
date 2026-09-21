@@ -2,6 +2,9 @@ name: Scheduler fairness and scaling
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/incremental-projection-scaling-current
   pull_request:
     paths:
       - .github/workflows/scheduler-scaling.yml
