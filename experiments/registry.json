@@ -681,6 +681,44 @@
       ]
     },
     {
+      "id": "scheduler-scaling",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/scheduler-scaling",
+      "readme": "experiments/scheduler-scaling/README.md",
+      "question": "Does the production SQLite scheduler provide fairness and useful N-way end-to-end scaling?",
+      "claim": "The experiment distinguishes the current starvation counterexample from measured 1/2/4/8-worker claim-through-settlement scaling while preserving exact authority and settlement safety.",
+      "contrast": "Infer scheduler scalability from executor concurrency alone, or add distributed authority before measuring the serialized path.",
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run experiment:scheduler-scaling"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Local filesystem supporting SQLite WAL",
+        "Hosted reference run uses GitHub Actions ubuntu-24.04"
+      ],
+      "success_criteria": [
+        "The deterministic two-obligation witness reproduces starvation under the current first-ready selection policy.",
+        "Every scaling case settles exactly 32 unique obligations DONE with no fabricated or duplicate completion.",
+        "The harness reports throughput, retry pressure, speedup, and parallel efficiency for 1, 2, 4, and 8 worker processes.",
+        "Benchmark success is kept separate from any conclusion that scaling is linear or sufficient."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          ".github/workflows/scheduler-scaling.yml"
+        ]
+      },
+      "interpretation": "Rerun the original scheduler-scaling workload on the incremental-projection optimization head; interpret throughput and contention only at the evaluated revision.",
+      "non_claims": [
+        "SQLite is a distributed or highly available authority substrate.",
+        "The measured throughput is portable across hosts.",
+        "A green run proves linear N-way scaling.",
+        "The current unfair scheduler should be retained."
+      ]
+    },
+    {
       "id": "sqlite-baseline",
       "kind": "experiment",
       "status": "historical",
