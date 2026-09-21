@@ -152,7 +152,7 @@ fi
 
 ROLE_NAME="projects/$GEMINI_PROJECT_ID/roles/$READER_ROLE_ID"
 if gcloud iam roles describe "$READER_ROLE_ID" --project="$GEMINI_PROJECT_ID" >/dev/null 2>&1; then
-  gcloud iam roles update "$READER_ROLE_ID"     --project="$GEMINI_PROJECT_ID"     --title="Overcenter free inference key reader"     --permissions="apikeys.keys.getKeyString,resourcemanager.projects.get"     --stage=GA >/dev/null
+  gcloud iam roles update "$READER_ROLE_ID"     --project="$GEMINI_PROJECT_ID"     --title="Overcenter free inference key reader"     --permissions="apikeys.keys.getKeyString,resourcemanager.projects.get,serviceusage.services.use"     --stage=GA >/dev/null
 else
   gcloud iam roles create "$READER_ROLE_ID"     --project="$GEMINI_PROJECT_ID"     --title="Overcenter free inference key reader"     --description="Read the one Gemini authorization key and prove project billing state."     --permissions="apikeys.keys.getKeyString,resourcemanager.projects.get"     --stage=GA >/dev/null
 fi
