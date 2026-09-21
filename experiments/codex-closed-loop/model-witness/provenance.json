@@ -1,0 +1,14 @@
+{
+  "schema": "overcenter-autonomy-model-candidate-provenance/v1",
+  "provider": "openai-codex-cloud",
+  "transport": "github-pr-comment",
+  "request_comment_id": 5756705966,
+  "response_comment_id": 5756716623,
+  "response_author": "chatgpt-codex-connector[bot]",
+  "branch_head_before_request": "c448001cbad04c502b21fee6e52a961b5d326801",
+  "branch_head_after_response": "c448001cbad04c502b21fee6e52a961b5d326801",
+  "repository_mutation_observed": false,
+  "prompt_sha256": "25c15b359bf36e77ee89d2824d1521aff315fadca9fe4b8126c9bab8ab10220e",
+  "candidate_sha256": "9664af313f37aef23fb4d39473a85d0b2be563cdd4a91a0f430b256a025c2b1f",
+  "response_body_sha256": "886278b3367aead4e2ec8b5777f07c1fab20fb639231239f7b031c62ad0d934d"
+}

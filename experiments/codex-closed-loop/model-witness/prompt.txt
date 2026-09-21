@@ -1,0 +1,36 @@
+@codex This is a sandboxed reasoning-worker witness. Do NOT modify any file, branch, commit, pull-request metadata, issue state, label, review, or other repository/provider state. Reply only with one JSON object and no markdown fences.
+
+Return exactly this schema:
+{"schema":"overcenter-autonomy-sandbox-candidate/v1","writes":[{"path":"src/<name>.ts","content":"<complete UTF-8 contents>"}],"deletes":["src/<name>.js"]}
+
+Objective: migrate the following synthetic JavaScript modules to TypeScript while preserving behavior. You may write only direct children of src/. Delete all three .js files. Add no dependencies. The resulting fixture must have no .js under src and must satisfy:
+add(2,5)=7
+clamp(12,0,10)=10
+clamp(-2,0,10)=0
+formatUser({name:"Ada Lovelace",email:"ada@example.test"})="Ada Lovelace <ada@example.test>"
+initials("  Grace   Brewster Murray Hopper ")="GBMH"
+Node imports ./src/index.ts directly, so update internal import specifiers appropriately.
+
+src/math.js:
+export function add(a, b) {
+  return a + b;
+}
+
+export function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+src/format.js:
+export function formatUser(user) {
+  return `${user.name} <${user.email}>`;
+}
+
+export function initials(name) {
+  return name.split(/\s+/).filter(Boolean).map(part => part[0].toUpperCase()).join('');
+}
+
+src/index.js:
+export {add, clamp} from './math.js';
+export {formatUser, initials} from './format.js';
+
+Again: reply only with candidate JSON. Make no repository changes.

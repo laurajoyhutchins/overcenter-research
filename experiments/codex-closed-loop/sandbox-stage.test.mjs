@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {dirname,resolve} from 'node:path';
@@ -13,13 +14,14 @@ function joinPath(path) {
   return resolve(repoRoot,path);
 }
 
-function run(worker) {
+function run(worker,extra=[]) {
   const result=spawnSync(process.execPath,[
     '--experimental-strip-types',
     runner,
     '--stage','single-useful-obligation',
     '--seed','stage-one-contract',
     '--worker',worker,
+    ...extra,
   ],{
     cwd:repoRoot,
     encoding:'utf8',
@@ -68,4 +70,36 @@ test('Stage 1 runner has no provider-effect or publication path',()=>{
   assert.doesNotMatch(source,/\.performEffect\s*\(/);
   assert.doesNotMatch(source,/api\.github\.com/);
   assert.doesNotMatch(source,/GITHUB_TOKEN|OPENAI_API_KEY/);
+});
+
+test('recorded uncertain-model candidate is independently accepted and remains non-promotable',()=>{
+  const witness=joinPath('experiments/codex-closed-loop/model-witness');
+  const evidence=run('recorded-model',[
+    '--candidate',resolve(witness,'candidate.json'),
+    '--provenance',resolve(witness,'provenance.json'),
+  ]);
+  assert.equal(evidence.outcome,'accepted');
+  assert.equal(evidence.capability_claim,'uncertain-reasoning-stage1');
+  assert.equal(evidence.worker.reasoning_provider,'openai-codex-cloud');
+  assert.equal(evidence.worker.reasoning_transport,'github-pr-comment');
+  assert.equal(evidence.worker.repository_mutation_observed,false);
+  assert.equal(evidence.worker.reasoning_process_confinement_proven,false);
+  assert.equal(evidence.authority.disposition,'DONE');
+  assert.equal(evidence.authority.verified,true);
+  assert.equal(evidence.authority.fresh_reconstruction_passed,true);
+  assert.equal(evidence.metrics.verified_useful_transitions,1);
+  assert.equal(evidence.metrics.false_done_count,0);
+  assert.equal(evidence.metrics.human_judgment_interventions,0);
+  assert.equal(evidence.promotion_evidence.eligible,false);
+});
+
+test('recorded model provenance binds exact retained prompt, response, and candidate bytes',()=>{
+  const witness=joinPath('experiments/codex-closed-loop/model-witness');
+  const provenance=JSON.parse(readFileSync(resolve(witness,'provenance.json'),'utf8'));
+  const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+  assert.equal(hash(readFileSync(resolve(witness,'prompt.txt'))),provenance.prompt_sha256);
+  assert.equal(hash(readFileSync(resolve(witness,'candidate.json'))),provenance.candidate_sha256);
+  assert.equal(hash(readFileSync(resolve(witness,'response.txt'))),provenance.response_body_sha256);
+  assert.equal(provenance.branch_head_before_request,provenance.branch_head_after_response);
+  assert.equal(provenance.repository_mutation_observed,false);
 });

@@ -106,3 +106,9 @@ Promotion requires a separate reviewed change that names the capability being pr
 7. reproducible experiment instructions and retained exact evidence identity.
 
 A promoted capability may replace synthetic inputs or local fake effects with real ones only in that later change. The sandbox itself remains harmless after promotion.
+
+## First uncertain-reasoning witness
+
+The first Stage 1 reasoning pass is retained under `model-witness/`. Codex Cloud received only the synthetic source text in the prompt and returned structured candidate JSON. The request explicitly prohibited repository/provider mutation; the observed branch head did not change across the request and response.
+
+That candidate passes the same independent synthetic verifier and Overcenter settlement path as the scripted control. The evidence is classified `uncertain-reasoning-stage1`, not promotion-ready. Provider-side reasoning confinement remains unproven, so the stronger harmless-worker claim still requires a worker whose mutation capability is physically absent rather than merely unused.
