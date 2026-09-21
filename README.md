@@ -208,7 +208,7 @@ These are different evidence classes, not cumulative certification levels. A liv
 
 ### Operator commands
 
-For environments that can rerun GitHub Actions jobs but cannot expose a custom Overcenter tool, [operator commands](./docs/operator-commands.md) provide a narrow semantic control surface. The first command is `candidate.certify`: every same-repository PR head exposes an inert `command · candidate.certify` job, and rerunning that job dispatches the exact-SHA Merge gate and returns the resulting workflow-run identity. Rerun is transport only; command semantics live in deterministic TypeScript, not in comments, labels, or arbitrary workflow inputs.
+For environments that can rerun GitHub Actions jobs but cannot expose a custom Overcenter tool, [operator commands](./docs/operator-commands.md) provide a narrow semantic control surface. The first command is `candidate.certify`: every same-repository PR head exposes a trusted `Overcenter command · candidate.certify` workflow with one inert `candidate.certify` job, and rerunning that job dispatches the exact-SHA Merge gate and returns the resulting workflow-run identity. Rerun is transport only; command semantics live in deterministic TypeScript, not in comments, labels, or arbitrary workflow inputs.
 
 Requirements:
 
