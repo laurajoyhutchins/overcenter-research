@@ -102,7 +102,7 @@ export function reconcileMutationEvidence({
 }
 
 function parseArgs(argv){
-  const out={root:process.cwd(),current:null,generated:null,artifactDigest:null,output:null};
+  const out={root:process.cwd(),current:null,generated:null,artifactDigest:null,workflowRunId:null,revision:null,output:null};
   for(let i=2;i<argv.length;i++){
     const arg=argv[i];
     if(arg==='--root') out.root=path.resolve(argv[++i]);
