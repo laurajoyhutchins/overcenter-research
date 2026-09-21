@@ -14,7 +14,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-import {SELF_APPLICATION_SCHEMAS} from '../src/generated/schema-identifiers.ts';
+import {POSTCONDITION_VERIFIERS,SELF_APPLICATION_SCHEMAS} from '../src/generated/schema-identifiers.ts';
 
 import {
   PROCESS_SPEC_SCHEMA,
@@ -320,7 +320,7 @@ kernel.define({
     process_spec:processSpec('regression'),
   },
   postcondition:{
-    verifier:'file-content-equals/v1',
+    verifier:POSTCONDITION_VERIFIERS.fileContentEquals,
     path:regressionMarker,
     content:regressionContent,
   },
@@ -335,7 +335,7 @@ kernel.define({
     process_spec:processSpec('experiments'),
   },
   postcondition:{
-    verifier:'file-content-equals/v1',
+    verifier:POSTCONDITION_VERIFIERS.fileContentEquals,
     path:experimentsMarker,
     content:experimentsContent,
   },
