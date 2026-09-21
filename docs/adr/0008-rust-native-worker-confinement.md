@@ -6,7 +6,7 @@
 
 Rust is admitted to the supported Overcenter slice only for a small native worker-confinement substrate.
 
-The admitted boundary is `runtime/overcenter-exec`. Trusted TypeScript renders one strict execution manifest, computes the SHA-256 of those exact bytes, and pipes those same bytes to the launcher on stdin. The launcher may own only mechanically enforceable process-boundary work: workspace identity pinning, filesystem confinement, environment removal, inherited-file-descriptor closure, socket/bypass denial, and replacement of the launcher with the untrusted worker.
+The admitted boundary is `runtime/overcenter-exec`. Trusted TypeScript opens and identity-checks the exact workspace object, passes it on FD 3, renders one strict execution manifest including supervisor limits, computes the SHA-256 of those exact bytes, and pipes the same bytes to the launcher on stdin. The launcher may own only mechanically enforceable process-boundary work: exact-object workspace pinning, filesystem/process confinement, ambient-authority removal, bounded transport supervision, and replacement of the launcher with the untrusted worker.
 
 Rust does not own graph eligibility, project projection, claims, recovery policy, provider interpretation, provider mutation, verification, settlement, or project truth.
 
@@ -29,9 +29,13 @@ PR #84 converted that result into a reusable launcher rather than the experiment
 The native launcher buys properties that are awkward or unavailable through the ordinary Node process API:
 
 - Landlock filesystem policy inherited by descendants;
-- a workspace rule bound to an already-open directory identity;
-- seccomp denial of new socket/socketpair creation and selected bypass surfaces;
-- deterministic removal of ambient environment and inherited descriptors before `exec`.
+- a workspace rule and working directory bound to the caller's already-open directory FD rather than a reopened path;
+- explicit-only execution authority plus immutable regular-file program/runtime closure;
+- seccomp denial of socket creation, host System V/POSIX IPC, inherited kernel-keyring access, process-group escape, same-UID host-process control, x32 syscall aliasing, and selected bypass surfaces;
+- mandatory Landlock process scoping for signals and abstract Unix sockets;
+- fail-closed rejection of privileged or switchable caller credentials;
+- deterministic removal of ambient environment and inherited descriptors before `exec`;
+- manifest-bound wall-clock/output supervision with whole-process-group termination.
 
 Those are execution-correctness mechanisms, not reasoning or authority semantics.
 
@@ -55,9 +59,13 @@ Rejected. Filesystem/process confinement does not grant or interpret provider au
 
 ## Consequences
 
-- Supported hosts for this launcher are deliberately Linux x86-64 and must provide the required Landlock ABI and seccomp behavior.
-- Runtime files needed by a worker are explicit execution-closure inputs, not blanket access to `/usr` or `/etc`.
-- A missing required kernel primitive fails closed.
+- Supported hosts for this launcher are deliberately Linux x86-64, must provide Landlock ABI >= 6 and the required seccomp behavior, and must invoke the launcher without uid 0, switchable saved credentials, or ambient process capabilities.
+- The trusted transport must supply the exact workspace directory on FD 3; pathname replacement after that open is intentionally irrelevant.
+- Program/runtime files are explicit immutable regular-file execution-closure inputs, not blanket access to `/usr` or `/etc`; aliases are de-duplicated by opened inode identity.
+- Writable workspace authority excludes blanket execute, special-device/socket-node creation, device ioctls, and pathname-Unix-socket resolution.
+- Landlock does not currently provide pathname-metadata confidentiality or advisory-lock isolation, and the launcher does not claim either.
+- PID/memory/CPU/disk quotas remain an outer host/cgroup responsibility; the trusted transport itself is bounded by manifest-declared timeout and output limits.
+- A missing required kernel primitive or privileged caller context fails closed.
 - The Rust toolchain is pinned and its hostile proof is part of the production proof command.
 - The launcher remains disposable physical machinery. Durable execution truth stays in TypeScript + SQLite.
 

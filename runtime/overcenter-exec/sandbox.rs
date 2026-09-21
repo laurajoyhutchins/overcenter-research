@@ -1,4 +1,5 @@
 use crate::manifest::Manifest;
+use std::collections::HashSet;
 use std::ffi::{c_char, c_int, c_long, CString};
 use std::fs::File;
 use std::io;
@@ -16,8 +17,15 @@ const O_NOFOLLOW: c_int = 0x20000;
 const PR_SET_NO_NEW_PRIVS: c_int = 38;
 const PR_SET_SECCOMP: c_int = 22;
 const SECCOMP_MODE_FILTER: c_int = 2;
+const W_OK: c_int = 2;
+const AT_EACCESS: c_int = 0x200;
+const AT_EMPTY_PATH: c_int = 0x1000;
+const EACCES: i32 = 13;
+const EROFS: i32 = 30;
 
+const SYS_CAPGET: c_long = 125;
 const SYS_CLOSE_RANGE: c_long = 436;
+const SYS_FACCESSAT2: c_long = 439;
 const SYS_LANDLOCK_CREATE_RULESET: c_long = 444;
 const SYS_LANDLOCK_ADD_RULE: c_long = 445;
 const SYS_LANDLOCK_RESTRICT_SELF: c_long = 446;
@@ -48,16 +56,50 @@ const SCOPE_SIGNAL: u64 = 1 << 1;
 
 const BPF_LD_W_ABS: u16 = 0x20;
 const BPF_JMP_JEQ_K: u16 = 0x15;
+const BPF_JMP_JGE_K: u16 = 0x35;
 const BPF_RET_K: u16 = 0x06;
 const SECCOMP_RET_KILL_PROCESS: u32 = 0x80000000;
 const SECCOMP_RET_ERRNO: u32 = 0x00050000;
 const SECCOMP_RET_ALLOW: u32 = 0x7fff0000;
 const AUDIT_ARCH_X86_64: u32 = 0xc000003e;
 const EPERM: u32 = 1;
-const SYS_SOCKET: u32 = 41;
-const SYS_SOCKETPAIR: u32 = 53;
-const SYS_IO_URING_SETUP: u32 = 425;
-const SYS_PIDFD_GETFD: u32 = 438;
+const X32_SYSCALL_BIT: u32 = 0x40000000;
+const DENIED_SYSCALLS: [u32; 34] = [
+    29,  // shmget
+    30,  // shmat
+    31,  // shmctl
+    41,  // socket
+    53,  // socketpair
+    64,  // semget
+    65,  // semop
+    66,  // semctl
+    67,  // shmdt
+    68,  // msgget
+    69,  // msgsnd
+    70,  // msgrcv
+    71,  // msgctl
+    109, // setpgid
+    112, // setsid
+    141, // setpriority
+    142, // sched_setparam
+    144, // sched_setscheduler
+    203, // sched_setaffinity
+    220, // semtimedop
+    251, // ioprio_set
+    302, // prlimit64
+    314, // sched_setattr
+    240, // mq_open
+    241, // mq_unlink
+    242, // mq_timedsend
+    243, // mq_timedreceive
+    244, // mq_notify
+    245, // mq_getsetattr
+    248, // add_key
+    249, // request_key
+    250, // keyctl
+    425, // io_uring_setup
+    438, // pidfd_getfd
+];
 
 #[repr(C)]
 struct RulesetAttr {
@@ -70,6 +112,20 @@ struct RulesetAttr {
 struct PathBeneathAttr {
     allowed_access: u64,
     parent_fd: c_int,
+}
+
+#[repr(C)]
+struct CapabilityHeader {
+    version: u32,
+    pid: c_int,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct CapabilityData {
+    effective: u32,
+    permitted: u32,
+    inheritable: u32,
 }
 
 #[repr(C)]
@@ -88,6 +144,10 @@ struct SockFprog {
 }
 
 unsafe extern "C" {
+    fn dup(oldfd: c_int) -> c_int;
+    fn geteuid() -> u32;
+    fn getresuid(ruid: *mut u32, euid: *mut u32, suid: *mut u32) -> c_int;
+    fn getresgid(rgid: *mut u32, egid: *mut u32, sgid: *mut u32) -> c_int;
     fn open(pathname: *const c_char, flags: c_int, ...) -> c_int;
     fn fchdir(fd: c_int) -> c_int;
     fn prctl(option: c_int, ...) -> c_int;
@@ -96,6 +156,67 @@ unsafe extern "C" {
 
 fn cvt(rc: c_long) -> io::Result<c_long> {
     if rc < 0 { Err(io::Error::last_os_error()) } else { Ok(rc) }
+}
+
+fn ensure_unprivileged_caller() -> io::Result<()> {
+    let mut ruid = 0;
+    let mut euid = 0;
+    let mut suid = 0;
+    if unsafe { getresuid(&mut ruid, &mut euid, &mut suid) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if euid == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "refusing to launch an untrusted worker as effective uid 0",
+        ));
+    }
+    if ruid != euid || euid != suid {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("refusing caller with switchable uid state: real={ruid} effective={euid} saved={suid}"),
+        ));
+    }
+
+    let mut rgid = 0;
+    let mut egid = 0;
+    let mut sgid = 0;
+    if unsafe { getresgid(&mut rgid, &mut egid, &mut sgid) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if rgid != egid || egid != sgid {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("refusing caller with switchable gid state: real={rgid} effective={egid} saved={sgid}"),
+        ));
+    }
+
+    const LINUX_CAPABILITY_VERSION_3: u32 = 0x20080522;
+    let mut header = CapabilityHeader {
+        version: LINUX_CAPABILITY_VERSION_3,
+        pid: 0,
+    };
+    let mut data = [CapabilityData {
+        effective: 0,
+        permitted: 0,
+        inheritable: 0,
+    }; 2];
+
+    cvt(unsafe {
+        syscall(
+            SYS_CAPGET,
+            &mut header as *mut CapabilityHeader,
+            data.as_mut_ptr(),
+        )
+    })?;
+
+    if data.iter().any(|set| set.effective != 0 || set.permitted != 0 || set.inheritable != 0) {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "refusing to launch an untrusted worker with process capabilities",
+        ));
+    }
+    Ok(())
 }
 
 fn open_path(path: &Path, directory: bool, nofollow: bool) -> io::Result<File> {
@@ -110,13 +231,28 @@ fn open_path(path: &Path, directory: bool, nofollow: bool) -> io::Result<File> {
 }
 
 fn pin_workspace(manifest: &Manifest) -> io::Result<File> {
-    let workspace = open_path(&manifest.workspace, true, true)?;
+    const WORKSPACE_FD: c_int = 3;
+    let fd = unsafe { dup(WORKSPACE_FD) };
+    if fd < 0 {
+        return Err(io::Error::new(
+            io::Error::last_os_error().kind(),
+            format!("missing exact workspace file descriptor on fd 3 for {}", manifest.workspace.display()),
+        ));
+    }
+    let workspace = unsafe { File::from_raw_fd(fd) };
     let metadata = workspace.metadata()?;
+    if !metadata.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("workspace fd 3 for {} must name a directory", manifest.workspace.display()),
+        ));
+    }
     if metadata.dev() != manifest.workspace_dev || metadata.ino() != manifest.workspace_ino {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             format!(
-                "workspace identity changed: expected ({},{}), observed ({},{})",
+                "workspace identity changed for {}: expected ({},{}), observed ({},{})",
+                manifest.workspace.display(),
                 manifest.workspace_dev, manifest.workspace_ino, metadata.dev(), metadata.ino(),
             ),
         ));
@@ -137,10 +273,10 @@ fn landlock_abi() -> io::Result<i32> {
 }
 
 fn handled_fs_rights(abi: i32) -> io::Result<u64> {
-    if abi < 3 {
+    if abi < 6 {
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
-            format!("Landlock ABI {abi} is too old; ABI >= 3 is required"),
+            format!("Landlock ABI {abi} is too old; ABI >= 6 is required for process-scope isolation"),
         ));
     }
     let mut rights = ACCESS_FS_EXECUTE | ACCESS_FS_WRITE_FILE | ACCESS_FS_READ_FILE
@@ -151,6 +287,16 @@ fn handled_fs_rights(abi: i32) -> io::Result<u64> {
     if abi >= 5 { rights |= ACCESS_FS_IOCTL_DEV; }
     if abi >= 9 { rights |= ACCESS_FS_RESOLVE_UNIX; }
     Ok(rights)
+}
+
+fn workspace_access_rights(handled_fs: u64) -> u64 {
+    handled_fs
+        & !(ACCESS_FS_EXECUTE
+            | ACCESS_FS_MAKE_CHAR
+            | ACCESS_FS_MAKE_BLOCK
+            | ACCESS_FS_MAKE_SOCK
+            | ACCESS_FS_IOCTL_DEV
+            | ACCESS_FS_RESOLVE_UNIX)
 }
 
 fn create_ruleset(abi: i32, handled_fs: u64) -> io::Result<File> {
@@ -198,8 +344,74 @@ fn add_fd_rule(ruleset: &File, object: &File, allowed_access: u64) -> io::Result
     Ok(())
 }
 
-fn add_path_rule(ruleset: &File, path: &Path, allowed_access: u64) -> io::Result<()> {
+fn open_regular(path: &Path) -> io::Result<File> {
     let object = open_path(path, false, false)?;
+    if !object.metadata()?.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("execution closure path must name a regular file: {}", path.display()),
+        ));
+    }
+    Ok(object)
+}
+
+fn require_worker_immutable(object: &File, path: &Path) -> io::Result<()> {
+    let metadata = object.metadata()?;
+    let euid = unsafe { geteuid() };
+    if metadata.uid() == euid {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("execution closure object is owned by worker uid {euid}: {}", path.display()),
+        ));
+    }
+
+    let writable = unsafe {
+        syscall(
+            SYS_FACCESSAT2,
+            object.as_raw_fd(),
+            b"\0".as_ptr() as *const c_char,
+            W_OK,
+            AT_EMPTY_PATH | AT_EACCESS,
+        )
+    };
+    if writable == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("execution closure object is writable by worker credentials: {}", path.display()),
+        ));
+    }
+    let error = io::Error::last_os_error();
+    if !matches!(error.raw_os_error(), Some(EACCES) | Some(EROFS)) {
+        return Err(io::Error::new(
+            error.kind(),
+            format!("cannot prove execution closure object is immutable to worker: {}: {error}", path.display()),
+        ));
+    }
+    Ok(())
+}
+
+fn add_program_rule(ruleset: &File, path: &Path, allowed_access: u64) -> io::Result<()> {
+    let object = open_regular(path)?;
+    require_worker_immutable(&object, path)?;
+    add_fd_rule(ruleset, &object, allowed_access)
+}
+
+fn add_runtime_rule(
+    ruleset: &File,
+    path: &Path,
+    allowed_access: u64,
+    seen: &mut HashSet<(u64, u64)>,
+) -> io::Result<()> {
+    let object = open_regular(path)?;
+    let metadata = object.metadata()?;
+    let identity = (metadata.dev(), metadata.ino());
+    if !seen.insert(identity) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("duplicate runtime object identity: {}", path.display()),
+        ));
+    }
+    require_worker_immutable(&object, path)?;
     add_fd_rule(ruleset, &object, allowed_access)
 }
 
@@ -213,20 +425,27 @@ fn restrict_self(ruleset: &File) -> io::Result<()> {
 const fn stmt(code: u16, k: u32) -> SockFilter { SockFilter { code, jt: 0, jf: 0, k } }
 const fn jump(code: u16, k: u32, jt: u8, jf: u8) -> SockFilter { SockFilter { code, jt, jf, k } }
 
-fn install_socket_deny_seccomp() -> io::Result<()> {
+fn install_seccomp_policy() -> io::Result<()> {
     let errno = SECCOMP_RET_ERRNO | EPERM;
-    let filters = [
+    let mut filters = vec![
         stmt(BPF_LD_W_ABS, 4),
         jump(BPF_JMP_JEQ_K, AUDIT_ARCH_X86_64, 1, 0),
         stmt(BPF_RET_K, SECCOMP_RET_KILL_PROCESS),
         stmt(BPF_LD_W_ABS, 0),
-        jump(BPF_JMP_JEQ_K, SYS_SOCKET, 0, 1), stmt(BPF_RET_K, errno),
-        jump(BPF_JMP_JEQ_K, SYS_SOCKETPAIR, 0, 1), stmt(BPF_RET_K, errno),
-        jump(BPF_JMP_JEQ_K, SYS_IO_URING_SETUP, 0, 1), stmt(BPF_RET_K, errno),
-        jump(BPF_JMP_JEQ_K, SYS_PIDFD_GETFD, 0, 1), stmt(BPF_RET_K, errno),
-        stmt(BPF_RET_K, SECCOMP_RET_ALLOW),
+        // x32 syscalls share AUDIT_ARCH_X86_64 but set bit 30 in nr. Reject
+        // the namespace before matching native syscall numbers.
+        jump(BPF_JMP_JGE_K, X32_SYSCALL_BIT, 0, 1),
+        stmt(BPF_RET_K, SECCOMP_RET_KILL_PROCESS),
     ];
-    let program = SockFprog { len: filters.len() as u16, filter: filters.as_ptr() };
+    for syscall_number in DENIED_SYSCALLS {
+        filters.push(jump(BPF_JMP_JEQ_K, syscall_number, 0, 1));
+        filters.push(stmt(BPF_RET_K, errno));
+    }
+    filters.push(stmt(BPF_RET_K, SECCOMP_RET_ALLOW));
+
+    let len = u16::try_from(filters.len())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "seccomp program is too large"))?;
+    let program = SockFprog { len, filter: filters.as_ptr() };
     let rc = unsafe { prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program as *const SockFprog) };
     if rc != 0 { return Err(io::Error::last_os_error()); }
     Ok(())
@@ -238,18 +457,25 @@ fn close_inherited_fds() -> io::Result<()> {
 }
 
 pub fn execute(manifest: Manifest) -> io::Result<()> {
+    ensure_unprivileged_caller()?;
     let workspace = pin_workspace(&manifest)?;
     let abi = landlock_abi()?;
     let handled_fs = handled_fs_rights(abi)?;
     let ruleset = create_ruleset(abi, handled_fs)?;
 
-    add_fd_rule(&ruleset, &workspace, handled_fs)?;
-    add_path_rule(&ruleset, &manifest.program, ACCESS_FS_READ_FILE | ACCESS_FS_EXECUTE)?;
+    add_fd_rule(&ruleset, &workspace, workspace_access_rights(handled_fs))?;
+    add_program_rule(&ruleset, &manifest.program, ACCESS_FS_READ_FILE | ACCESS_FS_EXECUTE)?;
+    let mut runtime_seen = HashSet::new();
     for path in &manifest.runtime_read_only {
-        add_path_rule(&ruleset, path, ACCESS_FS_READ_FILE)?;
+        add_runtime_rule(&ruleset, path, ACCESS_FS_READ_FILE, &mut runtime_seen)?;
     }
     for path in &manifest.runtime_executable {
-        add_path_rule(&ruleset, path, ACCESS_FS_READ_FILE | ACCESS_FS_EXECUTE)?;
+        add_runtime_rule(
+            &ruleset,
+            path,
+            ACCESS_FS_READ_FILE | ACCESS_FS_EXECUTE,
+            &mut runtime_seen,
+        )?;
     }
 
     if unsafe { fchdir(workspace.as_raw_fd()) } != 0 {
@@ -259,9 +485,14 @@ pub fn execute(manifest: Manifest) -> io::Result<()> {
     drop(ruleset);
     drop(workspace);
     close_inherited_fds()?;
-    install_socket_deny_seccomp()?;
+    install_seccomp_policy()?;
 
-    eprintln!("overcenter-exec: task_id={} landlock_abi={abi}", manifest.task_id);
+    eprintln!(
+        "overcenter-exec: task_id={:?} landlock_abi={abi} timeout_ms={} max_output_bytes={}",
+        manifest.task_id,
+        manifest.timeout_ms,
+        manifest.max_output_bytes,
+    );
     let mut command = Command::new(&manifest.program);
     command.args(&manifest.args).env_clear();
     for (name, value) in &manifest.environment { command.env(name, value); }

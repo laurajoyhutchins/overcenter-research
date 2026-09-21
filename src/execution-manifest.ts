@@ -7,6 +7,8 @@ export interface ExecutionManifestInput {
   workspace_dev:string;
   workspace_ino:string;
   program:string;
+  timeout_ms?:number;
+  max_output_bytes?:number;
   args?:string[];
   environment?:Record<string,string>;
   runtime_read_only?:string[];
@@ -16,6 +18,8 @@ export interface ExecutionManifestInput {
 export interface RenderedExecutionManifest {
   bytes:string;
   sha256:string;
+  timeout_ms:number;
+  max_output_bytes:number;
 }
 
 const scalar=(name:string,value:string):string=>{
@@ -30,9 +34,23 @@ const absolutePath=(name:string,value:string):string=>{
   return value;
 };
 
+const MAX_U64=(1n<<64n)-1n;
+const DEFAULT_TIMEOUT_MS=60_000;
+const DEFAULT_MAX_OUTPUT_BYTES=1_048_576;
+const MAX_TIMEOUT_MS=2_147_483_647;
+
+const positiveSafeInteger=(name:string,value:number,max=Number.MAX_SAFE_INTEGER):number=>{
+  if (!Number.isSafeInteger(value) || value<=0 || value>max) {
+    throw new Error(`${name.toUpperCase()}_INVALID`);
+  }
+  return value;
+};
+
 const decimal=(name:string,value:string):string=>{
   scalar(name,value);
   if (!/^[0-9]+$/u.test(value)) throw new Error(`${name.toUpperCase()}_NOT_DECIMAL`);
+  if (value.length>1 && value.startsWith('0')) throw new Error(`${name.toUpperCase()}_NOT_CANONICAL`);
+  if (BigInt(value)>MAX_U64) throw new Error(`${name.toUpperCase()}_OUT_OF_RANGE`);
   return value;
 };
 
@@ -40,6 +58,8 @@ const envName=(value:string):string=>{
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(value)) throw new Error('ENV_NAME_INVALID');
   return value;
 };
+
+const codeUnitCompare=(left:string,right:string):number=>left<right ? -1 : left>right ? 1 : 0;
 
 const unique=(name:string,values:string[]):string[]=>{
   const seen=new Set<string>();
@@ -56,11 +76,16 @@ export function renderExecutionManifest(input:ExecutionManifestInput):RenderedEx
   const workspaceDev=decimal('workspace_dev',input.workspace_dev);
   const workspaceIno=decimal('workspace_ino',input.workspace_ino);
   const program=absolutePath('program',input.program);
+  const timeoutMs=positiveSafeInteger('timeout_ms',input.timeout_ms ?? DEFAULT_TIMEOUT_MS,MAX_TIMEOUT_MS);
+  const maxOutputBytes=positiveSafeInteger(
+    'max_output_bytes',
+    input.max_output_bytes ?? DEFAULT_MAX_OUTPUT_BYTES,
+  );
   const args=(input.args ?? []).map((value)=>scalar('arg',value));
 
   const environment=Object.entries(input.environment ?? {})
     .map(([name,value])=>[envName(name),scalar(`env_${name}`,value)] as const)
-    .sort(([left],[right])=>left.localeCompare(right));
+    .sort(([left],[right])=>codeUnitCompare(left,right));
 
   const runtimeReadOnly=unique(
     'runtime_read_only',
@@ -70,6 +95,10 @@ export function renderExecutionManifest(input:ExecutionManifestInput):RenderedEx
     'runtime_executable',
     (input.runtime_executable ?? []).map((value)=>absolutePath('runtime_executable',value)),
   ).sort();
+  const runtimeReadOnlySet=new Set(runtimeReadOnly);
+  if (runtimeExecutable.some((value)=>runtimeReadOnlySet.has(value))) {
+    throw new Error('RUNTIME_ACCESS_CONFLICT');
+  }
 
   const lines=[
     'OVERCENTER_EXEC_V1',
@@ -78,11 +107,13 @@ export function renderExecutionManifest(input:ExecutionManifestInput):RenderedEx
     `workspace_dev\t${workspaceDev}`,
     `workspace_ino\t${workspaceIno}`,
     `program\t${program}`,
+    `timeout_ms\t${timeoutMs}`,
+    `max_output_bytes\t${maxOutputBytes}`,
     ...args.map((value)=>`arg\t${value}`),
     ...environment.map(([name,value])=>`env\t${name}\t${value}`),
     ...runtimeReadOnly.map((value)=>`runtime_ro\t${value}`),
     ...runtimeExecutable.map((value)=>`runtime_exec\t${value}`),
   ];
   const bytes=`${lines.join('\n')}\n`;
-  return {bytes,sha256:sha256(bytes)};
+  return {bytes,sha256:sha256(bytes),timeout_ms:timeoutMs,max_output_bytes:maxOutputBytes};
 }
