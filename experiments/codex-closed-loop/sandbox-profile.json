@@ -1,0 +1,107 @@
+{
+  "schema": "overcenter-autonomy-sandbox/v1",
+  "fixture_root": "experiments/codex-closed-loop/sandbox-fixture",
+  "objective": "experiments/codex-closed-loop/sandbox-fixture/objective.json",
+  "authority": {
+    "kind": "sqlite",
+    "location_policy": "temporary-directory-only",
+    "persistent": false,
+    "production_database_allowed": false
+  },
+  "worker": {
+    "project_bytes": "synthetic-fixture-only",
+    "provider_credentials": "none",
+    "repository_write_credentials": "none",
+    "publication_authority": "none",
+    "fresh_process_per_attempt": true
+  },
+  "external_effects": {
+    "real_provider_mutation": false,
+    "implementation": "local-sandbox-only"
+  },
+  "evidence": {
+    "seed_required": true,
+    "record_source_revision": true,
+    "record_fixture_digest": true,
+    "record_fault_schedule": true,
+    "record_transition_identities": true,
+    "record_human_interventions": true
+  },
+  "limits": {
+    "max_settled_transitions": 100,
+    "max_attempts_per_transition": 5
+  },
+  "stages": [
+    {
+      "id": 1,
+      "name": "single-useful-obligation",
+      "target_settlements": 1,
+      "faults": []
+    },
+    {
+      "id": 2,
+      "name": "ten-obligation-relay",
+      "target_settlements": 10,
+      "faults": []
+    },
+    {
+      "id": 3,
+      "name": "crash-and-replace",
+      "target_settlements": 10,
+      "faults": [
+        "before-output",
+        "after-output",
+        "before-settlement"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "agent-selected-frontier",
+      "target_settlements": 10,
+      "faults": [
+        "worker-restart"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "dynamic-decomposition",
+      "target_settlements": 20,
+      "faults": [
+        "worker-restart",
+        "rejected-proposal"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "repair-loop",
+      "target_settlements": 20,
+      "faults": [
+        "compile-failure",
+        "test-failure",
+        "worker-restart"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "sustained-campaign",
+      "target_settlements": 100,
+      "faults": [
+        "worker-restart",
+        "lost-candidate-ack",
+        "verification-failure"
+      ]
+    }
+  ],
+  "promotion": {
+    "automatic": false,
+    "separate_reviewed_change_required": true,
+    "required_invariants": [
+      "false_done_count == 0",
+      "writes_outside_sandbox == 0",
+      "unsafe_or_duplicate_provider_effects == 0",
+      "fresh_reconstruction_passed == true",
+      "fault_classes_recovered == exercised_fault_classes",
+      "hidden_human_state_repairs == 0"
+    ]
+  }
+}

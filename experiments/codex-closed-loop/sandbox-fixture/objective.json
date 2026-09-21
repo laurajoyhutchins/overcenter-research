@@ -1,0 +1,23 @@
+{
+  "schema": "overcenter-synthetic-objective/v1",
+  "id": "typescript-migration",
+  "description": "Migrate every production JavaScript module in this synthetic fixture to TypeScript while preserving the declared behavior.",
+  "scope": {
+    "root": "src",
+    "production_extensions": [
+      ".js"
+    ],
+    "target_extension": ".ts"
+  },
+  "constraints": [
+    "Do not modify verify.mjs or objective.json.",
+    "Do not add external dependencies.",
+    "Preserve all behavior checked by verify.mjs.",
+    "The objective is complete only when no .js file remains under src."
+  ],
+  "acceptance": {
+    "command": "node --experimental-strip-types verify.mjs",
+    "remaining_source_pattern": "src/**/*.js",
+    "expected_remaining_count": 0
+  }
+}
