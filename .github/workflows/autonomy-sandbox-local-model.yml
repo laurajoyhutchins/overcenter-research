@@ -48,14 +48,31 @@ jobs:
           tar -xzf "$RUNNER_TEMP/local-model/llama.tar.gz" -C "$RUNNER_TEMP/local-model/runtime"
           curl --fail --location --retry 3             "https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/$MODEL_REVISION/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf?download=true"             -o "$RUNNER_TEMP/local-model/model.gguf"
           echo "$MODEL_SHA256  $RUNNER_TEMP/local-model/model.gguf" | sha256sum --check -
-      - name: Run one constrained inference with networking physically disabled
+      - name: Prepare byte-scoped unprivileged inference identity
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/local-model/input"
+          cp experiments/codex-closed-loop/local-model-prompt.txt "$RUNNER_TEMP/local-model/input/prompt.txt"
+          cp experiments/codex-closed-loop/local-model-candidate.schema.json "$RUNNER_TEMP/local-model/input/schema.json"
+          chmod 0444 "$RUNNER_TEMP/local-model/input/prompt.txt" "$RUNNER_TEMP/local-model/input/schema.json"
+          sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
+          sudo chown overcenter-model:overcenter-model "$RUNNER_TEMP/local-model/home"
+          chmod -R go-rwx "$GITHUB_WORKSPACE"
+      - name: Run one byte-scoped inference with networking physically disabled
         run: |
           set -euo pipefail
           test -z "${GITHUB_TOKEN:-}"
           llama_cli="$(find "$RUNNER_TEMP/local-model/runtime" -type f -name llama-cli -perm -u+x | head -n 1)"
           test -n "$llama_cli"
           runtime_dir="$(dirname "$llama_cli")"
-          sudo env -i             PATH=/usr/bin:/bin             HOME="$RUNNER_TEMP/local-model/home"             LD_LIBRARY_PATH="$runtime_dir"             /usr/bin/unshare --net --fork --             "$llama_cli"               -m "$RUNNER_TEMP/local-model/model.gguf"               -f "$GITHUB_WORKSPACE/experiments/codex-closed-loop/local-model-prompt.txt"               --json-schema-file "$GITHUB_WORKSPACE/experiments/codex-closed-loop/local-model-candidate.schema.json"               --seed 20260921               --temp 0               --ctx-size 4096               -n 1400               --no-display-prompt               --no-show-timings             > "$RUNNER_TEMP/local-model/out/raw.txt"
+          model_uid="$(id -u overcenter-model)"
+          model_gid="$(id -g overcenter-model)"
+          sudo /usr/bin/unshare --net --fork --             /usr/bin/setpriv --reuid="$model_uid" --regid="$model_gid" --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$RUNNER_TEMP/local-model/home"               LD_LIBRARY_PATH="$runtime_dir"               LLAMA_CLI="$llama_cli"               MODEL="$RUNNER_TEMP/local-model/model.gguf"               PROMPT="$RUNNER_TEMP/local-model/input/prompt.txt"               SCHEMA="$RUNNER_TEMP/local-model/input/schema.json"               CHECKOUT="$GITHUB_WORKSPACE"               /bin/sh -ceu '
+                test "$(id -u)" -ne 0
+                test ! -r "$CHECKOUT/package.json"
+                test "$(find /sys/class/net -mindepth 1 -maxdepth 1 -printf "%f\n" | grep -vc "^lo$")" -eq 0
+                exec "$LLAMA_CLI"                   -m "$MODEL"                   -f "$PROMPT"                   --json-schema-file "$SCHEMA"                   --seed 20260921                   --temp 0                   --ctx-size 4096                   -n 1400                   --no-display-prompt                   --no-show-timings
+              ' > "$RUNNER_TEMP/local-model/out/raw.txt"
       - name: Materialize candidate and provenance
         run: |
           set -euo pipefail
