@@ -13,10 +13,16 @@ const slash=({name,version})=>`${name}/v${version}`;
 const groups={
   AUTHORITY_SCHEMAS:Object.fromEntries(Object.entries(metadata.authority).map(([key,value])=>[key,dash(value)])),
   COMPUTATION_SCHEMAS:Object.fromEntries(Object.entries(metadata.computation).map(([key,value])=>[key,dash(value)])),
+  COMPUTATION_RUNNER_SCHEMAS:Object.fromEntries(Object.entries(metadata.computationRunner).map(([key,value])=>[key,dash(value)])),
   OBSERVATION_SCHEMAS:Object.fromEntries(Object.entries(metadata.observation).map(([key,value])=>[key,dash(value)])),
-  AGENT_SCHEMAS:Object.fromEntries(Object.entries(metadata.agent).map(([key,value])=>[key,slash(value).replace('/v','-v')])),
-  SELF_APPLICATION_SCHEMAS:Object.fromEntries(Object.entries(metadata.selfApplication).map(([key,value])=>[key,slash(value).replace('/v','-v')])),
+  AGENT_SCHEMAS:Object.fromEntries(Object.entries(metadata.agent).map(([key,value])=>[key,dash(value)])),
+  SELF_APPLICATION_SCHEMAS:Object.fromEntries(Object.entries(metadata.selfApplication).map(([key,value])=>[key,dash(value)])),
+  GITHUB_AUTHORITY_SCHEMAS:Object.fromEntries(Object.entries(metadata.githubAuthority).map(([key,value])=>[key,slash(value)])),
+  PRODUCTION_SCHEMAS:Object.fromEntries(Object.entries(metadata.production).map(([key,value])=>[key,dash(value)])),
+  REALIZATION_SCHEMAS:Object.fromEntries(Object.entries(metadata.realization).map(([key,value])=>[key,dash(value)])),
+  STORAGE_SCHEMAS:Object.fromEntries(Object.entries(metadata.storage).map(([key,value])=>[key,dash(value)])),
   POSTCONDITION_VERIFIERS:Object.fromEntries(Object.entries(metadata.verifier).map(([key,value])=>[key,slash(value)])),
+  ACCEPTANCE_PREDICATES:Object.fromEntries(Object.entries(metadata.acceptancePredicate).map(([key,value])=>[key,slash(value)])),
   ABSENCE_EVIDENCE_KINDS:Object.fromEntries(Object.entries(metadata.evidenceKind).map(([key,value])=>[key,slash(value)])),
   EFFECT_CONTRACTS:Object.fromEntries(Object.entries(metadata.effectContract).map(([key,value])=>[key,slash(value)])),
 };
