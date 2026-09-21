@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -26,6 +27,27 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - name: Validate non-secret Google identity configuration
+        env:
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_API_KEY_READER_SERVICE_ACCOUNT: ${{ vars.GCP_API_KEY_READER_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY_RESOURCE: ${{ vars.GEMINI_API_KEY_RESOURCE }}
+        run: |
+          set -euo pipefail
+          test -n "$GCP_WORKLOAD_IDENTITY_PROVIDER"
+          test -n "$GCP_API_KEY_READER_SERVICE_ACCOUNT"
+          test -n "$GEMINI_API_KEY_RESOURCE"
+          [[ "$GEMINI_API_KEY_RESOURCE" =~ ^projects/[0-9]+/locations/global/keys/[A-Za-z0-9-]+$ ]]
+      - id: google-auth
+        name: Exchange GitHub OIDC for short-lived Google credentials
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_API_KEY_READER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 300s
+          create_credentials_file: false
+          export_environment_variables: false
       - name: Prepare byte-scoped AI SDK runtime
         run: |
           set -euo pipefail
@@ -45,17 +67,37 @@ jobs:
           rm -rf "$GITHUB_WORKSPACE"
           mkdir -m 0700 "$GITHUB_WORKSPACE"
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
-      - name: Run one direct Google inference through AI SDK
+      - name: Resolve Gemini auth key from Google API Keys
         env:
-          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          GEMINI_API_KEY_RESOURCE: ${{ vars.GEMINI_API_KEY_RESOURCE }}
         run: |
           set -euo pipefail
-          test -n "$GOOGLE_GENERATIVE_AI_API_KEY"
+          root="$RUNNER_TEMP/google-free"
+          test -n "$GOOGLE_ACCESS_TOKEN"
+          curl --fail-with-body --silent --show-error             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             "https://apikeys.googleapis.com/v2/$GEMINI_API_KEY_RESOURCE/keyString"             -o "$root/key-response.json"
+          RESPONSE="$root/key-response.json" KEY="$root/gemini-api-key" node - <<'NODE'
+          const fs=require('node:fs');
+          const response=JSON.parse(fs.readFileSync(process.env.RESPONSE,'utf8'));
+          if (typeof response.keyString!=='string' || response.keyString.length<8) {
+            throw new Error('GEMINI_API_KEY_STRING_MISSING');
+          }
+          fs.writeFileSync(process.env.KEY,response.keyString,{mode:0o600,flag:'wx'});
+          NODE
+          rm -f "$root/key-response.json"
+          echo "::add-mask::$(cat "$root/gemini-api-key")"
+      - name: Run one direct Google inference through AI SDK
+        run: |
+          set -euo pipefail
           test -z "${GITHUB_TOKEN:-}"
           root="$RUNNER_TEMP/google-free"
+          test -s "$root/gemini-api-key"
           model_uid="$(id -u overcenter-model)"
           model_gid="$(id -g overcenter-model)"
-          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$GOOGLE_GENERATIVE_AI_API_KEY"               /usr/bin/node --experimental-strip-types                 "$root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$root/input/prompt.txt"                 --schema "$root/input/schema.json"                 --candidate "$root/out/candidate.json"                 --provenance "$root/out/provenance.json"
+          gemini_key="$(cat "$root/gemini-api-key")"
+          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               /usr/bin/node --experimental-strip-types                 "$root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$root/input/prompt.txt"                 --schema "$root/input/schema.json"                 --candidate "$root/out/candidate.json"                 --provenance "$root/out/provenance.json"
+          unset gemini_key
+          rm -f "$root/gemini-api-key"
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
       - name: Upload untrusted candidate only
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -111,6 +153,7 @@ jobs:
           if (e.worker.routing_profile!=='google-free') throw new Error('GOOGLE_FREE_PROFILE_MISMATCH');
           if (e.worker.reasoning_provider!=='google.generative-ai') throw new Error('GOOGLE_FREE_PROVIDER_MISMATCH');
           if (e.worker.gateway_used!==false) throw new Error('GOOGLE_FREE_GATEWAY_BYPASS_NOT_PROVEN');
+          if (e.worker.credential_source!=='gcp-api-keys-via-github-oidc') throw new Error('GOOGLE_FREE_CREDENTIAL_SOURCE_MISMATCH');
           if (e.worker.network_during_inference!==true) throw new Error('GOOGLE_FREE_NETWORK_EVIDENCE_MISSING');
           if (e.worker.reasoning_process_confinement_proven!==false) throw new Error('GOOGLE_FREE_FALSE_OFFLINE_CLAIM');
           if (e.worker.reasoning_authority_confinement_proven!==true) throw new Error('GOOGLE_FREE_AUTHORITY_NOT_CONFINED');
