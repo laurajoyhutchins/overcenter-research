@@ -58,6 +58,7 @@ const SCOPE_SIGNAL: u64 = 1 << 1;
 const BPF_LD_W_ABS: u16 = 0x20;
 const BPF_JMP_JEQ_K: u16 = 0x15;
 const BPF_JMP_JGE_K: u16 = 0x35;
+const BPF_ALU_AND_K: u16 = 0x54;
 const BPF_RET_K: u16 = 0x06;
 const SECCOMP_RET_KILL_PROCESS: u32 = 0x80000000;
 const SECCOMP_RET_ERRNO: u32 = 0x00050000;
@@ -65,6 +66,12 @@ const SECCOMP_RET_ALLOW: u32 = 0x7fff0000;
 const AUDIT_ARCH_X86_64: u32 = 0xc000003e;
 const EPERM: u32 = 1;
 const X32_SYSCALL_BIT: u32 = 0x40000000;
+const SYS_MMAP: u32 = 9;
+const SYS_MEMFD_CREATE: u32 = 319;
+const SECCOMP_ARG1_LOW: u32 = 24;
+const SECCOMP_ARG3_LOW: u32 = 40;
+const MAP_HUGETLB: u32 = 0x40000;
+const MFD_HUGETLB: u32 = 0x0004;
 const DENIED_SYSCALLS: [u32; 34] = [
     29,  // shmget
     30,  // shmat
@@ -426,6 +433,21 @@ fn restrict_self(ruleset: &File) -> io::Result<()> {
 const fn stmt(code: u16, k: u32) -> SockFilter { SockFilter { code, jt: 0, jf: 0, k } }
 const fn jump(code: u16, k: u32, jt: u8, jf: u8) -> SockFilter { SockFilter { code, jt, jf, k } }
 
+fn deny_flagged_syscall(
+    filters: &mut Vec<SockFilter>,
+    syscall_number: u32,
+    argument_offset: u32,
+    denied_flags: u32,
+    errno: u32,
+) {
+    filters.push(jump(BPF_JMP_JEQ_K, syscall_number, 0, 5));
+    filters.push(stmt(BPF_LD_W_ABS, argument_offset));
+    filters.push(stmt(BPF_ALU_AND_K, denied_flags));
+    filters.push(jump(BPF_JMP_JEQ_K, 0, 1, 0));
+    filters.push(stmt(BPF_RET_K, errno));
+    filters.push(stmt(BPF_LD_W_ABS, 0));
+}
+
 fn install_seccomp_policy() -> io::Result<()> {
     let errno = SECCOMP_RET_ERRNO | EPERM;
     let mut filters = vec![
@@ -438,6 +460,20 @@ fn install_seccomp_policy() -> io::Result<()> {
         jump(BPF_JMP_JGE_K, X32_SYSCALL_BIT, 0, 1),
         stmt(BPF_RET_K, SECCOMP_RET_KILL_PROCESS),
     ];
+    deny_flagged_syscall(
+        &mut filters,
+        SYS_MMAP,
+        SECCOMP_ARG3_LOW,
+        MAP_HUGETLB,
+        errno,
+    );
+    deny_flagged_syscall(
+        &mut filters,
+        SYS_MEMFD_CREATE,
+        SECCOMP_ARG1_LOW,
+        MFD_HUGETLB,
+        errno,
+    );
     for syscall_number in DENIED_SYSCALLS {
         filters.push(jump(BPF_JMP_JEQ_K, syscall_number, 0, 1));
         filters.push(stmt(BPF_RET_K, errno));
