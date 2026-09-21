@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
 import { OvercenterKernel } from '../../src/kernel.ts';
+import { SqliteFactStore } from '../../src/sqlite-store.ts';
 
 const TASKS=32;
 const WORKERS=[1,2,4,8];
@@ -100,6 +101,23 @@ async function herdWorker(db) {
   }
 }
 
+async function historyWorker(db,head,expectedLength,reads) {
+  const store=new SqliteFactStore(db);
+  try {
+    const started=performance.now();
+    for (let i=0;i<reads;i+=1) {
+      const history=store.history(head);
+      assert.equal(history.length,expectedLength);
+    }
+    return {
+      reads,
+      elapsed_ms:performance.now()-started,
+    };
+  } finally {
+    store.close();
+  }
+}
+
 async function assignedWorker(db,assignments) {
   const kernel=new OvercenterKernel(db);
   let completed=0;
@@ -127,6 +145,41 @@ async function assignedWorker(db,assignments) {
   } finally {
     kernel.close();
   }
+}
+
+function spawnHistoryWorker(db,head,expectedLength,reads) {
+  return new Promise((resolve,reject)=>{
+    const child=spawn(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        here,
+        '--history-worker',
+        db,
+        head,
+        String(expectedLength),
+        String(reads),
+      ],
+      {stdio:['ignore','pipe','pipe']},
+    );
+    let stdout='',stderr='';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data',chunk=>{stdout+=chunk;});
+    child.stderr.on('data',chunk=>{stderr+=chunk;});
+    child.once('error',reject);
+    child.once('close',code=>{
+      if (code!==0) {
+        reject(new Error('history worker failed: '+stderr));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout.trim()));
+      } catch (error) {
+        reject(new Error('invalid history worker output: '+stdout+'\n'+stderr,{cause:error}));
+      }
+    });
+  });
 }
 
 function spawnWorker(mode,db,assignmentPath='') {
@@ -248,6 +301,99 @@ async function provisionedCase(workers) {
   }
 }
 
+async function historyReadCase(workers) {
+  const root=mkdtempSync(join(tmpdir(),`overcenter-history-read-${workers}-`));
+  const db=join(root,'authority.sqlite');
+  const store=new SqliteFactStore(db);
+  let head=null;
+  const commits=96;
+  try {
+    for (let i=0;i<commits;i+=1) {
+      head=store.append(head,'overcenter: history-read benchmark',{});
+      assert.ok(head);
+    }
+  } finally {
+    store.close();
+  }
+
+  try {
+    const totalReads=1024;
+    assert.equal(totalReads%workers,0);
+    const reads=totalReads/workers;
+    const started=performance.now();
+    const summaries=await Promise.all(
+      Array.from(
+        {length:workers},
+        ()=>spawnHistoryWorker(db,head,commits,reads),
+      ),
+    );
+    const elapsed=performance.now()-started;
+    const completed=summaries.reduce((sum,item)=>sum+item.reads,0);
+    assert.equal(completed,totalReads);
+    return {
+      kind:'history-read-scaling',
+      workers,
+      commits,
+      reads:totalReads,
+      elapsed_ms:Number(elapsed.toFixed(3)),
+      reads_per_second:Number((totalReads/(elapsed/1000)).toFixed(3)),
+    };
+  } finally {
+    rmSync(root,{recursive:true,force:true});
+  }
+}
+
+async function catchupCase(settlements) {
+  const {root,db}=setupCase(`overcenter-catchup-${settlements}-`);
+  const provisioner=new OvercenterKernel(db);
+  const assignments=[];
+  try {
+    while (assignments.length<settlements) {
+      const ready=provisioner.deriveReadyWork();
+      assert.ok(ready);
+      const permit=provisioner.claim(ready.id,ready.revision);
+      assignments.push({permit,packet:ready.packet});
+    }
+  } finally {
+    provisioner.close();
+  }
+
+  const lagger=new OvercenterKernel(db);
+  const producer=new OvercenterKernel(db);
+  try {
+    // Prime the lagger exactly at the post-provisioning authority head.
+    assert.equal(
+      lagger.inspect().filter(work=>work.status==='EXECUTING').length,
+      settlements,
+    );
+
+    for (const {permit,packet} of assignments) {
+      const path=String(packet.path);
+      mkdirSync(dirname(path),{recursive:true});
+      writeFileSync(path,String(packet.content));
+      assert.equal(producer.resolve(permit).disposition,'DONE');
+    }
+
+    const started=performance.now();
+    const projected=lagger.inspect();
+    const elapsed=performance.now()-started;
+    assert.equal(
+      projected.filter(work=>work.status==='DONE').length,
+      settlements,
+    );
+    return {
+      kind:'external-settlement-catchup',
+      settlements,
+      elapsed_ms:Number(elapsed.toFixed(3)),
+      milliseconds_per_settlement:Number((elapsed/settlements).toFixed(3)),
+    };
+  } finally {
+    lagger.close();
+    producer.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+}
+
 async function main() {
   const results=[];
   for (const workers of WORKERS) {
@@ -281,6 +427,13 @@ async function main() {
       ),
     })),
   }));
+
+  for (const workers of WORKERS) {
+    console.log(JSON.stringify(await historyReadCase(workers)));
+  }
+  for (const settlements of [1,2,4,8,16]) {
+    console.log(JSON.stringify(await catchupCase(settlements)));
+  }
 }
 
 if (process.argv[2]==='--worker') {
@@ -294,6 +447,14 @@ if (process.argv[2]==='--worker') {
           JSON.parse(readFileSync(process.argv[5],'utf8')),
         )
       : (()=>{throw new Error('UNKNOWN_WORKER_MODE');})();
+  process.stdout.write(JSON.stringify(result)+'\n');
+} else if (process.argv[2]==='--history-worker') {
+  const result=await historyWorker(
+    process.argv[3],
+    process.argv[4],
+    Number(process.argv[5]),
+    Number(process.argv[6]),
+  );
   process.stdout.write(JSON.stringify(result)+'\n');
 } else {
   await main();
