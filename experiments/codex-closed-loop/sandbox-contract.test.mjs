@@ -8,7 +8,6 @@ const objective=JSON.parse(readFileSync(new URL('./sandbox-fixture/objective.jso
 const runner=readFileSync(new URL('./sandbox-runner.ts',here),'utf8');
 const cgroup=readFileSync(new URL('../../scripts/run-with-sandbox-cgroup.sh',here),'utf8');
 const modelWorkflow=readFileSync(new URL('../../.github/workflows/autonomy-sandbox-model.yml',here),'utf8');
-const localWorkflow=readFileSync(new URL('../../.github/workflows/autonomy-sandbox-local-model.yml',here),'utf8');
 
 test('autonomy sandbox owns only disposable local authority',()=>{
   assert.equal(profile.schema,'overcenter-autonomy-sandbox/v1');
@@ -75,7 +74,5 @@ test('confined verification has explicit finite cgroup resources',()=>{
   assert.match(cgroup,/cpu\.max/);
   assert.match(cgroup,/OVERCENTER_CGROUP_PARENT="\$parent"/);
 
-  for (const workflow of [modelWorkflow,localWorkflow]) {
-    assert.match(workflow,/scripts\/run-with-sandbox-cgroup\.sh/);
-  }
+  assert.match(modelWorkflow,/scripts\/run-with-sandbox-cgroup\.sh/);
 });
