@@ -109,6 +109,7 @@ export interface FactCommit {
   commit:string;
   parent:string|null;
   obligation?:unknown|null;
+  obligations?:unknown|null;
   claim?:unknown|null;
   execution_authority?:unknown|null;
   effect_reservation?:unknown|null;

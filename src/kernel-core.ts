@@ -59,6 +59,11 @@ export interface KernelOptions {
   observationContext?:Omit<ObservationContext,'githubToken'>;
 }
 
+export interface GraphPatchInput {
+  add?:ObligationInput[];
+  replace?:ObligationInput[];
+}
+
 export class KernelCore {
   readonly githubToken:string|null;
   readonly observationContext:ObservationContext;
@@ -137,6 +142,71 @@ export class KernelCore {
       {'obligation.json':fact},
     );
     if (!commit) throw new Error('AMEND_LOST');
+    return commit;
+  }
+
+  applyGraphPatch(
+    {add=[],replace=[]}:GraphPatchInput,
+    expectedRevision:string,
+  ):string {
+    const head=this.#requireHead();
+    if (head!==expectedRevision) throw new Error('STALE_REVISION');
+    if (add.length===0 && replace.length===0) throw new Error('EMPTY_GRAPH_PATCH');
+
+    const projection=this.#historicalProjection(head);
+    const {state,project}=projection;
+    if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
+
+    const planned=[
+      ...add.map(input=>({
+        kind:'defined' as const,
+        obligation:normalizeObligation(input),
+      })),
+      ...replace.map(input=>({
+        kind:'amended' as const,
+        obligation:normalizeObligation(input),
+      })),
+    ].sort((a,b)=>a.obligation.id.localeCompare(b.obligation.id));
+
+    const seen=new Set<string>();
+    const next={
+      obligations:structuredClone(state.obligations),
+      definition_commits:{...state.definition_commits},
+    };
+    const facts:ObligationFact[]=[];
+    for (const operation of planned) {
+      const {id}=operation.obligation;
+      if (seen.has(id)) throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${id}`);
+      seen.add(id);
+
+      if (operation.kind==='defined') {
+        if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
+        facts.push({
+          schema:OBLIGATION_SCHEMA,
+          kind:'defined',
+          obligation:operation.obligation,
+        });
+      } else {
+        if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
+        facts.push({
+          schema:OBLIGATION_SCHEMA,
+          kind:'amended',
+          obligation:operation.obligation,
+          previous_definition_commit:state.definition_commits[id],
+        });
+      }
+
+      next.obligations[id]=structuredClone(operation.obligation);
+      next.definition_commits[id]=head;
+    }
+
+    validateAdmission(next);
+    const commit=this.#store.append(
+      head,
+      `overcenter: patch graph +${add.length} ~${replace.length}`,
+      {'obligations.json':facts},
+    );
+    if (!commit) throw new Error('GRAPH_PATCH_LOST');
     return commit;
   }
 
