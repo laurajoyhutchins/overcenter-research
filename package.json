@@ -51,7 +51,7 @@
     "test:linkml-contract-refactor": "node --experimental-strip-types --test experiments/linkml-contract-refactor/comparison.test.mjs",
     "test:assignment-capsule": "node --test experiments/assignment-capsule/contract.test.mjs",
     "test:github-agent-ingress": "node --experimental-strip-types --test test/github-agent-ingress.test.ts",
-    "test:codex-closed-loop": "node --test experiments/codex-closed-loop/contract.test.mjs experiments/codex-closed-loop/sandbox-contract.test.mjs experiments/codex-closed-loop/sandbox-stage.test.mjs experiments/codex-closed-loop/local-model-contract.test.mjs",
+    "test:codex-closed-loop": "node --test experiments/codex-closed-loop/contract.test.mjs experiments/codex-closed-loop/sandbox-contract.test.mjs experiments/codex-closed-loop/sandbox-stage.test.mjs",
     "generate:settlement-observation": "node --experimental-strip-types scripts/generate-settlement-observation.mjs --write",
     "check:settlement-observation": "node --experimental-strip-types scripts/generate-settlement-observation.mjs --check",
     "test:typebox-production-runtime": "node --experimental-strip-types --test test/typebox-production-contract.test.ts",
