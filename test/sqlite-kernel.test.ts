@@ -222,6 +222,41 @@ test('SQLite graph reconciliation derives add replace and no-op without extra wr
   }
 });
 
+test('no-op graph reconciliation remains read-only while work is in flight',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-graph-reconcile-busy-noop-'));
+  const database=join(root,'overcenter.sqlite');
+  const kernel=new OvercenterKernel(database);
+  try {
+    const initial=kernel.initialize();
+    const defined=kernel.reconcileGraph([
+      {id:'a',packet:{value:1},postcondition:pc(join(root,'a'),'A')},
+    ],initial);
+    const run=kernel.claim('a',defined.revision);
+    const head=kernel.head();
+    assert.ok(head);
+
+    const result=kernel.reconcileGraph([
+      {id:'a',packet:{value:1},postcondition:pc(join(root,'a'),'A')},
+    ],head);
+    assert.equal(result.revision,head);
+    assert.deepEqual(result.added,[]);
+    assert.deepEqual(result.replaced,[]);
+    assert.deepEqual(result.unchanged,['a']);
+
+    assert.throws(
+      ()=>kernel.reconcileGraph([
+        {id:'a',packet:{value:2},postcondition:pc(join(root,'a'),'A')},
+      ],head),
+      /PROJECT_BUSY/,
+    );
+    assert.equal(kernel.head(),head);
+    kernel.recoverInterrupted(run);
+  } finally {
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
 test('invalid SQLite graph patch leaves authority unchanged',()=>{
   const root=mkdtempSync(join(tmpdir(),'sqlite-invalid-graph-patch-'));
   const database=join(root,'overcenter.sqlite');
