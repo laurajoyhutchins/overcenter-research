@@ -111,7 +111,7 @@ A promoted capability may replace synthetic inputs or local fake effects with re
 
 The first Stage 1 reasoning pass is retained under `model-witness/`. Codex Cloud received only the synthetic source text in the prompt and returned structured candidate JSON. The request explicitly prohibited repository/provider mutation; the observed branch head did not change across the request and response.
 
-That candidate passes the same independent synthetic verifier and Overcenter settlement path as the scripted control. The evidence is classified `uncertain-reasoning-stage1`, not promotion-ready. Provider-side reasoning confinement remains unproven, so the stronger harmless-worker claim still requires a worker whose mutation capability is physically absent rather than merely unused.
+That candidate passes the same independent synthetic verifier and Overcenter settlement path as the scripted control. The evidence is classified `uncertain-reasoning-stage1`, not promotion-ready. Stage 1 proves the reasoning-to-candidate-to-trusted-settlement boundary; it does not claim that the remote reasoning provider itself is physically offline or capability-free.
 
 
 ### Recorded uncertain-model Stage 1 witness
@@ -124,14 +124,12 @@ Codex does not settle anything. Trusted sandbox software admits only the exact d
 
 This is stronger evidence about reasoning usefulness, but it is still not promotion evidence: Codex Cloud's provider-side repository capability is not independently proven absent, the reasoning invocation is recorded external evidence rather than replayable from repository state alone, and fault-recovery stages remain unexercised.
 
-## Credential-free local reasoning worker
 
-The stronger Stage 1 witness runs a pinned public Qwen2.5-Coder 0.5B GGUF model with a pinned llama.cpp CPU runtime in a disposable GitHub-hosted worker job. Model and runtime bytes are SHA-256 checked before use. Immediately before inference, the process is launched through a fresh Linux network namespace with an empty environment; it receives a local model file, prompt, and JSON schema only.
+## Deferred dedicated-hardware inference proof
 
-The model job has read-only repository permission and an ephemeral checkout with no persisted credential. Its only retained output is candidate/provenance artifact bytes. A separate fresh runner applies those bytes to a new synthetic workspace and performs independent Overcenter verification and settlement. The model process never receives the authority database, execution permit, verifier attestation path, or settlement capability.
+Offline local-model inference is not a Stage 1 acceptance requirement. The previous CPU-only Qwen/llama.cpp GitHub-hosted proof was removed because hosted general-purpose runners are a poor substrate for sustained local inference and turn hardware scarcity into CI latency.
 
-This is the intended harmless Stage 1 worker boundary. Passing it establishes the bounded single-obligation reasoning capability; promotion remains a separate reviewed action and later fault/recovery stages remain required for broader autonomy claims.
-
+When dedicated inference hardware is available, a separate experiment may prove offline reasoning-process confinement with pinned model/runtime bytes, no network, no repository credentials, and the same independent candidate admission, bounded execution, verification, settlement, and reconstruction path. Until then, the maintained sandbox makes no claim that local offline inference has been exercised.
 
 ## AI SDK reasoning route
 

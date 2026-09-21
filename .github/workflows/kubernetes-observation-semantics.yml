@@ -53,6 +53,9 @@ concurrency:
 
 jobs:
   local-semantics:
+    # The exact-head Merge gate already runs these deterministic regressions.
+    # Candidate PRs retain only the distinct live-provider proof below.
+    if: ${{ github.event_name != 'pull_request' }}
     name: Deterministic Kubernetes observation semantics
     runs-on: ubuntu-24.04
     timeout-minutes: 10

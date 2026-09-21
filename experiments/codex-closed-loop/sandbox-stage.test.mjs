@@ -129,22 +129,14 @@ test('candidate process.exit(0) cannot manufacture DONE',()=>{
     writeFileSync(provenancePath,JSON.stringify({
       schema:'overcenter-autonomy-model-candidate-provenance/v1',
       provider:'hostile-regression',
-      transport:'offline-llama.cpp',
+      transport:'github-pr-comment',
       repository_mutation_observed:false,
       prompt_sha256:'1',
       candidate_sha256:hash(candidateBytes),
       response_body_sha256:'1',
-      model_id:'hostile-regression',
-      model_revision:'hostile-regression',
-      model_sha256:'0'.repeat(64),
-      runtime_id:'hostile-regression',
-      runtime_sha256:'0'.repeat(64),
-      network_during_inference:false,
-      repository_credentials_present:false,
-      checkout_readable_during_inference:false,
-      worker_uid_isolated:true,
-      input_scope:'synthetic-prompt-and-schema-only',
-      worker_job_is_disposable:true,
+      response_author:'chatgpt-codex-connector[bot]',
+      branch_head_before_request:'hostile-regression-head',
+      branch_head_after_response:'hostile-regression-head',
     })+'\n');
 
     const evidence=run('recorded-model',[
@@ -162,7 +154,6 @@ test('candidate process.exit(0) cannot manufacture DONE',()=>{
     rmSync(root,{recursive:true,force:true});
   }
 });
-
 
 test('AI SDK direct Google evidence proves authority confinement without claiming offline process confinement',()=>{
   const root=mkdtempSync(join(tmpdir(),'overcenter-ai-sdk-provenance-'));

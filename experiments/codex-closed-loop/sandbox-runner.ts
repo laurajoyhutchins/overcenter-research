@@ -218,18 +218,6 @@ function loadProvenance(path:string,candidateBytes:Buffer):{provenance:Provenanc
       || typeof provenance.branch_head_after_response!=='string'
       || provenance.branch_head_before_request!==provenance.branch_head_after_response
     ) throw new Error('SANDBOX_PROVENANCE_HEAD_CHANGED');
-  } else if (provenance.transport==='offline-llama.cpp') {
-    for (const key of ['model_id','model_revision','model_sha256','runtime_id','runtime_sha256'] as const) {
-      if (typeof provenance[key]!=='string' || !provenance[key]) throw new Error('SANDBOX_LOCAL_MODEL_PROVENANCE_INVALID');
-    }
-    if (!/^[0-9a-f]{64}$/.test(provenance.model_sha256!)) throw new Error('SANDBOX_MODEL_DIGEST_INVALID');
-    if (!/^[0-9a-f]{64}$/.test(provenance.runtime_sha256!)) throw new Error('SANDBOX_RUNTIME_DIGEST_INVALID');
-    if (provenance.network_during_inference!==false) throw new Error('SANDBOX_LOCAL_MODEL_NETWORK_NOT_DISABLED');
-    if (provenance.repository_credentials_present!==false) throw new Error('SANDBOX_LOCAL_MODEL_REPOSITORY_CREDENTIAL_PRESENT');
-    if (provenance.checkout_readable_during_inference!==false) throw new Error('SANDBOX_LOCAL_MODEL_CHECKOUT_READABLE');
-    if (provenance.worker_uid_isolated!==true) throw new Error('SANDBOX_LOCAL_MODEL_UID_NOT_ISOLATED');
-    if (provenance.input_scope!=='synthetic-prompt-and-schema-only') throw new Error('SANDBOX_LOCAL_MODEL_INPUT_SCOPE_INVALID');
-    if (provenance.worker_job_is_disposable!==true) throw new Error('SANDBOX_LOCAL_MODEL_WORKER_NOT_DISPOSABLE');
   } else if (provenance.transport==='ai-sdk') {
     if (provenance.routing_profile!=='google-free' && provenance.routing_profile!=='default') {
       throw new Error('SANDBOX_AI_SDK_PROFILE_INVALID');
@@ -578,13 +566,6 @@ try {
 
   const useful=accepted && receipt.disposition==='DONE' ? 1 : 0;
   const modelWitness=args.worker==='recorded-model';
-  const localReasoningConfined=provenance?.transport==='offline-llama.cpp'
-    && provenance.network_during_inference===false
-    && provenance.repository_credentials_present===false
-    && provenance.checkout_readable_during_inference===false
-    && provenance.worker_uid_isolated===true
-    && provenance.input_scope==='synthetic-prompt-and-schema-only'
-    && provenance.worker_job_is_disposable===true;
   const reasoningAuthorityConfined=provenance?.transport==='ai-sdk'
     && (
       provenance.routing_profile!=='google-free'
@@ -603,21 +584,16 @@ try {
     && provenance.input_scope==='synthetic-prompt-and-schema-only'
     && provenance.worker_job_is_disposable===true;
   const promotionReasons=modelWitness
-    ? provenance?.transport==='offline-llama.cpp'
+    ? provenance?.transport==='ai-sdk'
       ? [
         'only the Stage 1 single-obligation capability has been exercised',
+        'online reasoning retained inference-only network authority and has not exercised fault-recovery stages',
+      ]
+      : [
+        'uncertain reasoning succeeded, but the Codex Cloud provider-side repository capability is not proven absent',
+        'the model invocation is recorded evidence rather than replayable solely from repository state',
         'fault-recovery stages have not been exercised',
       ]
-      : provenance?.transport==='ai-sdk'
-        ? [
-          'only the Stage 1 single-obligation capability has been exercised',
-          'online reasoning retained inference-only network authority and has not exercised fault-recovery stages',
-        ]
-        : [
-          'uncertain reasoning succeeded, but the Codex Cloud provider-side repository capability is not proven absent',
-          'the model invocation is recorded evidence rather than replayable solely from repository state',
-          'fault-recovery stages have not been exercised',
-        ]
     : [
       'scripted control is not uncertain-agent evidence',
       ...(verifier.confined?[]:['candidate execution confinement was not exercised by this run']),
@@ -669,8 +645,8 @@ try {
       exit_code:workerStatus,
       stdout_sha256:sha256(workerStdout),
       stderr_sha256:sha256(workerStderr),
-      reasoning_process_confinement_proven:localReasoningConfined,
-      reasoning_authority_confinement_proven:localReasoningConfined || reasoningAuthorityConfined,
+      reasoning_process_confinement_proven:false,
+      reasoning_authority_confinement_proven:reasoningAuthorityConfined,
     },
     authority:{
       obligation_id:obligationId,

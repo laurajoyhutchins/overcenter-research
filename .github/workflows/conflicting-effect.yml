@@ -43,6 +43,7 @@ jobs:
         with:
           node-version-file: '.node-version'
       - name: Focused conflict-ordering regression
+        if: ${{ github.event_name != 'pull_request' }}
         run: node --experimental-strip-types --test experiments/conflicting-effect/effect-ordering.test.ts
       - name: Prove unordered beta is rejected and claim ordered alpha
         env:

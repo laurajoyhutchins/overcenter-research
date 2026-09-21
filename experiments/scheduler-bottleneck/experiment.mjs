@@ -20,6 +20,7 @@ const PROJECTION_COUNTS=[1,8,32,64,128];
 const KERNEL_COUNTS=[1,8,32,64];
 const GRAPH_BUILD_COUNTS=[8,32,64,128];
 const EFFECT_ADMISSION_COUNTS=[32,64,128,256];
+const EFFECT_ADMISSION_STRESS_COUNT=10_000;
 const WORKERS=[1,2,4,8];
 const CAS_APPENDS=4096;
 
@@ -306,6 +307,46 @@ function effectAdmissionBenchmark() {
   return results;
 }
 
+function indexedEffectAdmissionStressBenchmark() {
+  const definitions=EFFECT_ADMISSION_STRESS_COUNT;
+  const obligations={};
+  const definition_commits={};
+  for (let index=0;index<definitions;index+=1) {
+    const id='stress-effect-'+String(index).padStart(5,'0');
+    obligations[id]=normalizeObligation({
+      id,
+      ...(index===0
+        ? {}
+        : {dependencies:[{
+            kind:'control',
+            upstream:'stress-effect-'+String(index-1).padStart(5,'0'),
+          }]}),
+      postcondition:{
+        verifier:'github-commit-status/v2',
+        provider:'github',
+        repository_id:123,
+        repository_full_name:'owner/repo',
+        commit_sha:'a'.repeat(40),
+        context:'overcenter/effect-admission-stress',
+        expected_state:index%2===0 ? 'success' : 'failure',
+      },
+    });
+    definition_commits[id]='definition-'+String(index);
+  }
+  const state={obligations,definition_commits};
+
+  validateAdmission(state);
+  const started=performance.now();
+  validateAdmission(state);
+  const indexed_ms=performance.now()-started;
+  const result={
+    definitions,
+    indexed_ms:Number(indexed_ms.toFixed(3)),
+  };
+  console.log(JSON.stringify({kind:'indexed-effect-admission-stress',result}));
+  return result;
+}
+
 async function casWorker(db,count,workerId) {
   const store=new SqliteFactStore(db);
   let completed=0;
@@ -443,6 +484,7 @@ async function main() {
   const kernel=kernelReadBenchmark();
   const graphBuild=graphBuildBenchmark();
   const effectAdmission=effectAdmissionBenchmark();
+  const effectAdmissionStress=indexedEffectAdmissionStressBenchmark();
   const cas=await bareCasBenchmark();
 
   console.log(JSON.stringify({
@@ -456,6 +498,7 @@ async function main() {
     effect_admission_256_reference_ms:effectAdmission.at(-1).reference_ms,
     effect_admission_256_indexed_ms:effectAdmission.at(-1).indexed_ms,
     effect_admission_256_speedup:effectAdmission.at(-1).speedup,
+    effect_admission_stress_10000_ms:effectAdmissionStress.indexed_ms,
     bare_cas_1_worker_per_second:cas[0].appends_per_second,
     bare_cas_8_workers_per_second:cas.at(-1).appends_per_second,
   }));
