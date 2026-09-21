@@ -216,6 +216,25 @@ test('trusted launcher kills a hanging worker process group',async()=>{
   }
 });
 
+test('missing cgroup evidence cannot strand the resource leaf',async()=>{
+  const {workspace,cgroupParent,manifest}=runnableManifest();
+  try {
+    await assert.rejects(
+      runConfinedWorker({
+        launcher:'/bin/sh',
+        cgroup_parent:cgroupParent,
+        launcher_args:['-c','mkdir "/proc/self/fd/4/overcenter-$"; cat >/dev/null'],
+        manifest,
+      }),
+      /ENOENT|CGROUP_EVIDENCE/u,
+    );
+    assert.deepEqual(fs.readdirSync(cgroupParent),[]);
+  } finally {
+    fs.rmSync(workspace,{recursive:true,force:true});
+    fs.rmSync(cgroupParent,{recursive:true,force:true});
+  }
+});
+
 test('launcher budgets fail closed',async()=>{
   await assert.rejects(
     runConfinedWorker({launcher:'/bin/cat',cgroup_parent:'/tmp',manifest:{...base,timeout_ms:0}}),
