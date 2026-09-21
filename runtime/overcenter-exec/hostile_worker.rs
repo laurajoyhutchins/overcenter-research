@@ -9,6 +9,7 @@ const F_GETFD: i32 = 1;
 const EBADF: i32 = 9;
 const EPERM: i32 = 1;
 const SIGCONT: i32 = 18;
+const SYS_MMAP: i64 = 9;
 const SYS_SHMGET: i64 = 29;
 const SYS_SEMGET: i64 = 64;
 const SYS_MSGGET: i64 = 68;
@@ -17,11 +18,15 @@ const SYS_SETSID: i64 = 112;
 const SYS_SCHED_SETAFFINITY: i64 = 203;
 const SYS_MQ_OPEN: i64 = 240;
 const SYS_PRLIMIT64: i64 = 302;
+const SYS_MEMFD_CREATE: i64 = 319;
 const SYS_ADD_KEY: i64 = 248;
 const SYS_REQUEST_KEY: i64 = 249;
 const SYS_KEYCTL: i64 = 250;
 const KEYCTL_GET_KEYRING_ID: i64 = 0;
 const KEY_SPEC_SESSION_KEYRING: i64 = -3;
+const PROT_READ_WRITE: i64 = 0x3;
+const MAP_PRIVATE_ANONYMOUS_HUGETLB: i64 = 0x40022;
+const MFD_HUGETLB: i64 = 0x4;
 
 unsafe extern "C" {
     fn fcntl(fd: i32, cmd: i32, ...) -> i32;
@@ -148,6 +153,31 @@ fn main() {
         "request_key",
     );
 
+    must_syscall_denied(
+        unsafe {
+            syscall(
+                SYS_MMAP,
+                std::ptr::null_mut::<u8>(),
+                2_usize * 1024 * 1024,
+                PROT_READ_WRITE,
+                MAP_PRIVATE_ANONYMOUS_HUGETLB,
+                -1_i64,
+                0_i64,
+            )
+        },
+        "mmap(MAP_HUGETLB)",
+    );
+    must_syscall_denied(
+        unsafe {
+            syscall(
+                SYS_MEMFD_CREATE,
+                b"overcenter-hugetlb\0".as_ptr(),
+                MFD_HUGETLB,
+            )
+        },
+        "memfd_create(MFD_HUGETLB)",
+    );
+
     const HOST_IPC_KEY: i64 = 0x6f76_6572;
     must_syscall_denied(unsafe { syscall(SYS_SHMGET, HOST_IPC_KEY, 1_usize, 0_i64) }, "shmget");
     must_syscall_denied(unsafe { syscall(SYS_SEMGET, HOST_IPC_KEY, 1_i64, 0_i64) }, "semget");
@@ -181,6 +211,7 @@ fn main() {
     println!("process-group escape: denied");
     println!("same-uid host process control: denied");
     println!("kernel keyrings: denied");
+    println!("HugeTLB memory escape: denied");
     println!("host IPC namespaces: denied");
     println!("new sockets: denied");
 }
