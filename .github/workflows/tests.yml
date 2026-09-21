@@ -50,12 +50,22 @@ jobs:
       - name: Run adversarial experiment proofs
         if: ${{ inputs.expensive }}
         run: npm run test:experiments
-      - name: Run Git stress proof
+      - name: Run independent stress and TLA+ proofs concurrently
         if: ${{ inputs.expensive }}
-        run: npm run test:stress
-      - name: Run TLA+ safety proof
-        if: ${{ inputs.expensive }}
-        run: npm run proof:formal
+        shell: bash
+        run: |
+          set +e
+          npm run test:stress &
+          stress_pid=$!
+          npm run proof:formal &
+          formal_pid=$!
+          wait "$stress_pid"
+          stress_status=$?
+          wait "$formal_pid"
+          formal_status=$?
+          set -e
+          test "$stress_status" -eq 0
+          test "$formal_status" -eq 0
 
       - name: Install Go for candidate production evidence
         if: ${{ inputs.expensive }}
