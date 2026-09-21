@@ -373,9 +373,12 @@ export class KernelCore {
       const {state,history,project}=this.#historicalProjection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
+      const prior=history.receiptsByRun.get(runId);
+      if (prior && ['DONE','READY'].includes(prior.disposition)) {
+        return prior;
+      }
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
-      const prior=history.receiptsByRun.get(runId);
       const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
@@ -405,9 +408,12 @@ export class KernelCore {
       const {state,history,project}=this.#historicalProjection(head);
       const known=history.runs.get(runId);
       if (!known) throw new Error('UNKNOWN_RUN');
+      const prior=history.receiptsByRun.get(runId);
+      if (prior && ['DONE','READY'].includes(prior.disposition)) {
+        return prior;
+      }
       if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
       const work=known.obligation;
-      const prior=history.receiptsByRun.get(runId);
       const run=this.#requireExecutionPermit(history,permit);
       const lifecycle=project.lifecycles.get(run.obligation_id);
       if (lifecycle?.run?.id!==runId || lifecycle.status!=='EXECUTING') {
@@ -547,12 +553,12 @@ export class KernelCore {
     const {state,history,project}=this.#historicalProjection(head);
     const known=history.runs.get(runId);
     if (!known) throw new Error('UNKNOWN_RUN');
-    if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-    const work=known.obligation;
     const prior=history.receiptsByRun.get(runId);
     if (prior && ['DONE','READY'].includes(prior.disposition)) {
       return {receipt:prior};
     }
+    if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+    const work=known.obligation;
     const run=this.#requireExecutionPermit(history,permit);
     const lifecycle=project.lifecycles.get(run.obligation_id);
     if (lifecycle?.run?.id!==runId) {
