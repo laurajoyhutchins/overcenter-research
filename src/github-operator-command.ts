@@ -149,6 +149,14 @@ export async function executeGithubOperatorCommand(
   const dispatchedRunId=Number(payload.workflow_run_id);
   positiveInteger(dispatchedRunId,'workflow_run_id');
 
+  const dispatchedRunUrl=responseString(payload.run_url,'run_url');
+  const dispatchedHtmlUrl=responseString(payload.html_url,'html_url');
+  const expectedRunUrl=`https://api.github.com/repos/${context.repository_full_name}/actions/runs/${dispatchedRunId}`;
+  const expectedHtmlUrl=`https://github.com/${context.repository_full_name}/actions/runs/${dispatchedRunId}`;
+  if (dispatchedRunUrl!==expectedRunUrl || dispatchedHtmlUrl!==expectedHtmlUrl) {
+    throw new Error('GITHUB_OPERATOR_DISPATCH_RESPONSE_IDENTITY_MISMATCH');
+  }
+
   const base={
     schema:GITHUB_OPERATOR_COMMAND_SCHEMA,
     command,
@@ -162,8 +170,8 @@ export async function executeGithubOperatorCommand(
     command_run_attempt:context.command_run_attempt,
     dispatched_workflow:'merge-gate.yml' as const,
     dispatched_run_id:dispatchedRunId,
-    dispatched_run_url:responseString(payload.run_url,'run_url'),
-    dispatched_html_url:responseString(payload.html_url,'html_url'),
+    dispatched_run_url:dispatchedRunUrl,
+    dispatched_html_url:dispatchedHtmlUrl,
   };
   return {
     ...base,
