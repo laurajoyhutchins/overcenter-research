@@ -12,7 +12,7 @@ env:
   AI_SDK_GOOGLE_VERSION: 4.0.76
   GCP_IDENTITY_PROJECT_ID: project-6b810532-a302-48dc-b56
   GCP_WORKLOAD_IDENTITY_PROVIDER: projects/380435294892/locations/global/workloadIdentityPools/github-reasoning/providers/overcenter-research
-  GCP_API_KEY_READER_SERVICE_ACCOUNT: overcenter-reasoning-key-reader@project-6b810532-a302-48dc-b56.iam.gserviceaccount.com
+  GCP_API_KEY_READER_SERVICE_ACCOUNT: oc-reasoning-key-reader@project-6b810532-a302-48dc-b56.iam.gserviceaccount.com
   GEMINI_KEY_ID: overcenter-google-free
   GEMINI_FREE_PROJECT_ID: ${{ vars.GEMINI_FREE_PROJECT_ID }}
 
