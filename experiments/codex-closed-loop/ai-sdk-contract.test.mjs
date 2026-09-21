@@ -40,6 +40,10 @@ test('Google-free bootstrap discovers or accepts one unbilled Gemini project and
   assert.match(bootstrap,/gcloud beta billing projects describe/);
   assert.match(bootstrap,/billingEnabled/);
   assert.match(bootstrap,/generativelanguage\.googleapis\.com/);
+  assert.match(bootstrap,/local project="oc-gemini-free-\\$\\{REPOSITORY_ID\\}"/);
+  assert.match(bootstrap,/gcloud projects create "\\$project"/);
+  assert.match(bootstrap,/--no-set-as-default/);
+  assert.match(bootstrap,/Automatically created Gemini project unexpectedly has billing enabled/);
   assert.match(bootstrap,/GEMINI_KEY_ID="overcenter-google-free"/);
   assert.match(bootstrap,/serviceAccountEmail/);
   assert.match(bootstrap,/keyId=\$GEMINI_KEY_ID/);
