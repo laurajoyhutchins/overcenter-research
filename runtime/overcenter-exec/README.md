@@ -70,7 +70,7 @@ On Linux x86-64 with Landlock ABI >= 6, the launcher:
 - reads and parses a bounded, canonical manifest before creating the worker process;
 - refuses effective uid 0, switchable real/effective/saved UID or GID state, any nonzero effective/permitted/inheritable Linux capability set, and inherited scheduling policies outside the fair class; only `SCHED_OTHER`, `SCHED_BATCH`, and `SCHED_IDLE` are admitted because `cpu.max` does not govern realtime/deadline scheduling classes;
 - consumes the already-open workspace object from FD 3, verifies its directory type and device/inode identity, and binds Landlock directly to that object;
-- verifies FD 4 is an exact cgroup-v2 domain leaf with the required kernel interfaces, writes and reads back `memory.max`, `pids.max`, and `cpu.max`, disables swap, enables group OOM handling, and migrates itself into that pinned object before untrusted code exists;
+- verifies FD 4 is an exact cgroup-v2 domain leaf with the required kernel interfaces, writes and reads back `memory.max`, `pids.max`, and `cpu.max`, forces `cpu.max.burst=0`, disables swap, enables group OOM handling, and migrates itself into that pinned object before untrusted code exists;
 - keeps workspace file/dir mutation rights but withholds blanket execute authority plus character-device, block-device, Unix-socket-node, device-ioctl, and pathname-Unix-socket resolution authority;
 - allows kernel execution only through the selected program or explicitly declared executable runtime objects; a sibling executable merely present in the writable workspace is denied;
 - requires the selected program and runtime closure to resolve to regular files that are neither worker-owned nor writable under the worker's effective credentials, covering metadata operations that Landlock does not mediate;
@@ -110,7 +110,7 @@ This is a physical computation boundary only. Provider mutation credentials stil
 
 ## Host cgroup contract
 
-The host prepares a **finite aggregate cgroup-v2 pool**. The trusted supervisor opens that parent with no-follow semantics and fails closed unless it is a domain cgroup whose `cgroup.subtree_control` contains `cpu`, `memory`, and `pids`, and whose own `memory.max`, `pids.max`, and `cpu.max` are finite. These parent limits bound aggregate worker pressure; per-attempt manifest values are child ceilings, not capacity reservations.
+The host prepares a **finite aggregate cgroup-v2 pool**. The trusted supervisor opens that parent with no-follow semantics and fails closed unless it is a domain cgroup whose `cgroup.subtree_control` contains `cpu`, `memory`, and `pids`, and whose own `memory.max`, `pids.max`, and `cpu.max` are finite and whose `cpu.max.burst` is zero. These parent limits bound aggregate worker pressure; per-attempt manifest values are child ceilings, not capacity reservations.
 
 For each launch, TypeScript creates a fresh random leaf beneath that parent, opens and pins the leaf, records its device/inode identity, and passes only that exact leaf on FD 4. Rust neither selects nor creates cgroups by PID or pathname. It configures and enters FD 4, then Landlock and `close_range` remove the leaf capability before worker `exec`.
 
