@@ -303,7 +303,7 @@ test('criticality mutation shares read-only selection and evidence verification 
   const jobsSource=workflow.slice(workflow.indexOf('\njobs:\n')+'\njobs:\n'.length);
   const actual=[...jobsSource.matchAll(/^  ([A-Za-z0-9_-]+):\s*$/gm)].map(match=>match[1]);
   assert.deepEqual(actual,['preflight','mutate']);
-  assert.match(workflow,/preflight:[\s\S]*?Prove evidence verifier[\s\S]*?Bind checked-in evidence to authoritative artifact/);
+  assert.match(workflow,/preflight:[\s\S]*?Prove evidence machinery[\s\S]*?Bind checked-in evidence to authoritative artifacts/);
   assert.match(workflow,/mutate:[\s\S]*?needs: preflight/);
   assert.doesNotMatch(workflow,/verify-evidence:/);
 });
