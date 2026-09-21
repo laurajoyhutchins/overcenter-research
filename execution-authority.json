@@ -1,0 +1,8 @@
+{
+  "schema": "overcenter-git-execution-authority-v1",
+  "run_id": "20370827-c8f7-4941-a1d1-f68c110c0783",
+  "obligation_id": "actions-trust-proof-35562330551-1",
+  "generation": 2,
+  "previous_authority_commit": "0a3e212e96cef5a25df2fef536a07cdfe2e11e09",
+  "execution_capability_sha256": "a7ff27f0fad4466661da8fe483cdb92e0200fab436f82f57d80cc5e83804ed1c"
+}
