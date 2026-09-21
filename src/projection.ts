@@ -106,6 +106,41 @@ export function replayProjection(commits:FactCommit[]):Projection {
   };
 
   for (const record of commits) {
+    if (record.obligation!=null && record.obligations!=null) {
+      throw new Error('AMBIGUOUS_OBLIGATION_PAYLOAD');
+    }
+
+    if (record.obligations!=null) {
+      if (!Array.isArray(record.obligations) || record.obligations.length===0) {
+        throw new Error('INVALID_OBLIGATION_BATCH');
+      }
+      refresh(record.parent??'');
+      if (hasInFlight(project)) throw new Error('GRAPH_PATCH_WHILE_IN_FLIGHT');
+
+      const facts=record.obligations.map(validateObligationFact);
+      const seen=new Set<string>();
+      for (const fact of facts) {
+        const id=fact.obligation.id;
+        if (seen.has(id)) throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${id}`);
+        seen.add(id);
+        if (fact.kind==='defined') {
+          if (state.obligations[id]) throw new Error(`DUPLICATE_OBLIGATION:${id}`);
+          continue;
+        }
+        if (!state.obligations[id]) throw new Error(`AMEND_UNKNOWN_OBLIGATION:${id}`);
+        if (fact.previous_definition_commit!==state.definition_commits[id]) {
+          throw new Error('AMEND_PREVIOUS_DEFINITION_MISMATCH');
+        }
+      }
+
+      for (const fact of facts) {
+        const id=fact.obligation.id;
+        state.obligations[id]=fact.obligation;
+        state.definition_commits[id]=record.commit;
+      }
+      validateGraph(state);
+    }
+
     if (record.obligation!=null) {
       const fact=validateObligationFact(record.obligation);
       const obligation=fact.obligation;
