@@ -7,6 +7,7 @@ tmp="$(mktemp -d)"
 cgroup_root=""
 cgroup_parent=""
 original_cgroup=""
+proof_pid="$"
 
 cleanup_resource_leaf() {
   local pid="$1"
@@ -27,7 +28,7 @@ cleanup() {
   set +e
   if [[ -n "$cgroup_root" && -d "$cgroup_root" ]]; then
     if [[ -n "$original_cgroup" ]]; then
-      printf '%s' "$BASHPID" | sudo tee "/sys/fs/cgroup${original_cgroup}/cgroup.procs" >/dev/null
+      printf '%s' "$proof_pid" | sudo tee "/sys/fs/cgroup${original_cgroup}/cgroup.procs" >/dev/null
     fi
     for leaf in "$cgroup_parent"/overcenter-*; do
       [[ -d "$leaf" ]] || continue
@@ -50,7 +51,7 @@ setup_cgroup_delegation() {
     grep -qw "$controller" /sys/fs/cgroup/cgroup.controllers
   done
 
-  cgroup_root="/sys/fs/cgroup/overcenter-proof-$BASHPID"
+  cgroup_root="/sys/fs/cgroup/overcenter-proof-$proof_pid"
   cgroup_parent="$cgroup_root/work"
   sudo mkdir "$cgroup_root"
   printf '+cpu +memory +pids' | sudo tee "$cgroup_root/cgroup.subtree_control" >/dev/null
@@ -62,7 +63,7 @@ setup_cgroup_delegation() {
     "$cgroup_root/host" "$cgroup_root/host/cgroup.procs" \
     "$cgroup_parent" "$cgroup_parent/cgroup.procs" "$cgroup_parent/cgroup.subtree_control"
 
-  printf '%s' "$BASHPID" | sudo tee "$cgroup_root/host/cgroup.procs" >/dev/null
+  printf '%s' "$proof_pid" | sudo tee "$cgroup_root/host/cgroup.procs" >/dev/null
 }
 
 launcher="$tmp/overcenter-exec"
