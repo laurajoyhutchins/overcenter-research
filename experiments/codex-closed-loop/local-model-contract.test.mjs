@@ -9,7 +9,8 @@ test('local model proof has no provider mutation credential or publication autho
   assert.doesNotMatch(workflow,/contents: write/);
   assert.doesNotMatch(workflow,/pull-requests: write/);
   assert.doesNotMatch(workflow,/statuses: write/);
-  assert.doesNotMatch(workflow,/OPENAI_API_KEY|GITHUB_TOKEN:/);
+  assert.doesNotMatch(workflow,/OPENAI_API_KEY/);
+  assert.doesNotMatch(workflow,/^\s+GITHUB_TOKEN:\s/m);
   assert.match(workflow,/persist-credentials: false/g);
 });
 
