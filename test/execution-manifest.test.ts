@@ -32,7 +32,7 @@ function runnableManifest(){
 test('execution manifest is canonical and digest-bound',()=>{
   const rendered=renderExecutionManifest({
     ...base,
-    args:['worker.mjs','--mode=safe'],
+    args:['worker.ts','--mode=safe'],
     environment:{ZED:'z',ALPHA:'a'},
     runtime_read_only:['/lib/libc.so.6','/etc/ld.so.cache'],
     runtime_executable:['/lib64/ld-linux-x86-64.so.2'],
@@ -47,7 +47,7 @@ test('execution manifest is canonical and digest-bound',()=>{
     'program\t/usr/bin/node',
     'timeout_ms\t60000',
     'max_output_bytes\t1048576',
-    'arg\tworker.mjs',
+    'arg\tworker.ts',
     'arg\t--mode=safe',
     'env\tALPHA\ta',
     'env\tZED\tz',
@@ -59,7 +59,7 @@ test('execution manifest is canonical and digest-bound',()=>{
   assert.equal(rendered.sha256,sha256(rendered.bytes));
   assert.equal(rendered.sha256,renderExecutionManifest({
     ...base,
-    args:['worker.mjs','--mode=safe'],
+    args:['worker.ts','--mode=safe'],
     environment:{ALPHA:'a',ZED:'z'},
     runtime_read_only:['/etc/ld.so.cache','/lib/libc.so.6'],
     runtime_executable:['/lib64/ld-linux-x86-64.so.2'],

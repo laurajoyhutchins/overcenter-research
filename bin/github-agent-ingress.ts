@@ -13,13 +13,13 @@ import {
   assignmentSha256,
   buildAssignment,
   encodeAssignment,
-} from '../src/assignment-capsule.mjs';
+} from '../src/assignment-capsule.ts';
 import {GitOvercenterKernel} from '../src/git-kernel.ts';
 
 const DEFAULT_AUTHORITY_REF='refs/overcenter/agent-ingress';
-const TASK_PATH='experiments/assignment-capsule/fixture-task.mjs';
+const TASK_PATH='experiments/assignment-capsule/fixture-task.ts';
 const INPUT_PATH='experiments/assignment-capsule/fixture-input.txt';
-const RUNNER_PATH='src/assignment-capsule.mjs';
+const RUNNER_PATH='src/assignment-capsule.ts';
 
 function required(name:string):string {
   const value=process.env[name];
@@ -73,8 +73,8 @@ if (!work) {
       schema:AGENT_TASK_PACKET_SCHEMA,
       kind:'pure-candidate',
       source_sha:requestedSourceSha,
-      command:['node','task.mjs','input.txt','result.txt'],
-      required_paths:['task.mjs','input.txt'],
+      command:['node','--experimental-strip-types','task.ts','input.txt','result.txt'],
+      required_paths:['task.ts','input.txt'],
       output_path:'result.txt',
     },
     postcondition:{
@@ -105,7 +105,7 @@ const sourceSha=String(packet.source_sha??'').toLowerCase();
 if (!/^[0-9a-f]{40,64}$/.test(sourceSha)) throw new Error('INGRESS_PACKET_SOURCE_INVALID');
 
 const assignment=buildAssignment(work,[
-  assignmentFile('task.mjs',sourceBytes(sourceSha,TASK_PATH)),
+  assignmentFile('task.ts',sourceBytes(sourceSha,TASK_PATH)),
   assignmentFile('input.txt',sourceBytes(sourceSha,INPUT_PATH)),
 ]);
 const assignmentBytes=encodeAssignment(assignment);
@@ -116,7 +116,7 @@ if (assignmentBytes.includes(Buffer.from('execution_capability'))) {
 rmSync(capsuleDir,{recursive:true,force:true});
 mkdirSync(capsuleDir,{recursive:true});
 writeFileSync(join(capsuleDir,'assignment.json'),assignmentBytes);
-writeFileSync(join(capsuleDir,'assignment-capsule.mjs'),sourceBytes(sourceSha,RUNNER_PATH));
+writeFileSync(join(capsuleDir,'assignment-capsule.ts'),sourceBytes(sourceSha,RUNNER_PATH));
 
 const receipt={
   schema:'overcenter-github-agent-response/v1',

@@ -22,7 +22,7 @@ for (let index=0;index<args.length;index+=1) {
     index+=1;
     continue;
   }
-  throw new Error('usage: generate-settlement-observation.mjs [--check|--write] [--source PATH]');
+  throw new Error('usage: generate-settlement-observation.ts [--check|--write] [--source PATH]');
 }
 
 const sourceUrl=pathToFileURL(resolve(sourcePath)).href;

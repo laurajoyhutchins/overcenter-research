@@ -3,16 +3,16 @@ import fs from 'node:fs';
 import {pathToFileURL} from 'node:url';
 
 export const MUTATION_WORKFLOW='.github/workflows/production-criticality-mutation-probe.yml';
-export const MUTATION_SELECTOR='experiments/production-criticality-ranking/select-mutation-probe.mjs';
-export const MUTATION_SELECTOR_TEST='experiments/production-criticality-ranking/select-mutation-probe.test.mjs';
+export const MUTATION_SELECTOR='experiments/production-criticality-ranking/select-mutation-probe.ts';
+export const MUTATION_SELECTOR_TEST='experiments/production-criticality-ranking/select-mutation-probe.test.ts';
 
 const isRelevant=(file)=>
-  /^(src\/(digest|semantic-identity|projector|kernel-core|observation)\.ts|test\/(hostile|.*-hostile)\.test\.ts|experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs))$/.test(file)
+  /^(src\/(digest|semantic-identity|projector|kernel-core|observation)\.ts|test\/(hostile|.*-hostile)\.test\.ts|experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.ts|generate-stryker-config\.ts|summarize-mutation\.ts|summarize-mutation\.test\.ts|emit-mutation-evidence\.ts))$/.test(file)
   || [MUTATION_WORKFLOW,MUTATION_SELECTOR,MUTATION_SELECTOR_TEST].includes(file);
 
 const isBroad=(file)=>
   /^src\/(digest|projector|kernel-core)\.ts$/.test(file)
-  || /^experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs)$/.test(file);
+  || /^experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.ts|generate-stryker-config\.ts|summarize-mutation\.ts|summarize-mutation\.test\.ts|emit-mutation-evidence\.ts)$/.test(file);
 
 const isPlumbing=(file)=>
   file===MUTATION_WORKFLOW

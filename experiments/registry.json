@@ -528,7 +528,7 @@
       "contrast": "Periodically repeat a human ranking exercise or rely on generic complexity/hotspot metrics alone.",
       "reproduce": {
         "tier": "toolchain",
-        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --test experiments/production-criticality-ranking/analyze.test.mjs && node experiments/production-criticality-ranking/analyze.mjs --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
+        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --experimental-strip-types --test experiments/production-criticality-ranking/analyze.test.ts && node --experimental-strip-types experiments/production-criticality-ranking/analyze.ts --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
       },
       "environment": [
         "Node.js from .node-version",
@@ -691,7 +691,7 @@
       "contrast": "Start directly from later distributed machinery.",
       "reproduce": {
         "tier": "deterministic",
-        "local": "node --test experiments/sqlite-baseline/kernel.test.js"
+        "local": "node --experimental-strip-types --test experiments/sqlite-baseline/kernel.test.ts"
       },
       "environment": [
         "Node.js from .node-version",

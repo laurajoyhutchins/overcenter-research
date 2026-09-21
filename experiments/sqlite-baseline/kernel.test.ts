@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { OvercenterKernel, runCoreLoop } from './kernel.js';
+import { OvercenterKernel, runCoreLoop } from './kernel.ts';
 
 const verify = (post, observed) => post.effect === observed.effect;
 

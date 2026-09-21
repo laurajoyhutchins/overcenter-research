@@ -104,7 +104,7 @@ test('candidate submit settles once and replays the same verified receipt',()=>{
         `PATH=${process.env.PATH??'/usr/local/bin:/usr/bin:/bin'}`,
         `HOME=${join(work,'candidate-home')}`,
         'node',
-        join(work,'capsule','assignment-capsule.mjs'),
+        join(work,'capsule','assignment-capsule.ts'),
         'run',
         join(work,'capsule','assignment.json'),
         join(work,'candidate-workspace'),

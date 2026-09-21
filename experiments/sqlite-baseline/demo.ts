@@ -1,4 +1,4 @@
-import { OvercenterKernel, runCoreLoop } from './kernel.js';
+import { OvercenterKernel, runCoreLoop } from './kernel.ts';
 
 const kernel = new OvercenterKernel();
 const world = new Set();

@@ -35,7 +35,7 @@ import type { ExecutionPermit } from '../src/model.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
 const executorDir=join(repoRoot,'executor');
-const fixture=join(repoRoot,'test/fixtures/computation-child.mjs');
+const fixture=join(repoRoot,'test/fixtures/computation-child.ts');
 const scratch=mkdtempSync(join(tmpdir(),'overcenter-production-executor-'));
 const workspace=join(scratch,'workspace');
 const binary=join(scratch,'overcenter-executor');
@@ -216,7 +216,7 @@ function spec(
   return {
     schema:PROCESS_SPEC_SCHEMA,
     executable:process.execPath,
-    argv:[fixture,mode,arg,pidFile],
+    argv:['--experimental-strip-types',fixture,mode,arg,pidFile],
     cwd:'.',
     env,
     timeout_ms:timeoutMs,

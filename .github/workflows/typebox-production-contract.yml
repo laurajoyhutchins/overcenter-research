@@ -11,10 +11,10 @@ on:
       - 'src/structural-schema.ts'
       - 'src/model.ts'
       - 'src/observation.ts'
-      - 'scripts/generate-settlement-observation.mjs'
+      - 'scripts/generate-settlement-observation.ts'
       - 'test/typebox-production-contract.test.ts'
       - 'test/typebox-production-contract.static.ts'
-      - 'test/typebox-production-projection.test.mjs'
+      - 'test/typebox-production-projection.test.ts'
       - 'package.json'
       - '.github/workflows/typebox-production-contract.yml'
   workflow_dispatch:

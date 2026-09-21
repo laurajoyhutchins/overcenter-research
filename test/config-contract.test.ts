@@ -38,7 +38,7 @@ function filesUnder(path:string):string[] {
 function executableConfigFiles():string[] {
   const roots=['.github','scripts','src','bin','executor'];
   return roots.flatMap(filesUnder).filter(path=>
-    /(?:\.ya?ml|\.sh|\.ts|\.js|\.mjs|\.go|Dockerfile)$/.test(path),
+    /(?:\.ya?ml|\.sh|\.ts|\.go|Dockerfile)$/.test(path),
   );
 }
 

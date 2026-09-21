@@ -2,7 +2,7 @@ import {mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {dirname} from 'node:path';
 
 import {OvercenterKernel} from '../../src/kernel.ts';
-import {validateAssignment,validateCandidate} from '../../src/assignment-capsule.mjs';
+import {validateAssignment,validateCandidate} from '../../src/assignment-capsule.ts';
 
 const [database,assignmentPath,candidatePath]=process.argv.slice(2);
 if (!database || !assignmentPath || !candidatePath) {

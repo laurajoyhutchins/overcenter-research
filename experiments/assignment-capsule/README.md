@@ -12,7 +12,7 @@ The hosted proof uses the production SQLite kernel to derive READY work and clai
 - the exact source revision as provenance;
 - every task-specific input byte, each with path, mode, and SHA-256;
 - the worker command and declared output path;
-- the reusable `src/assignment-capsule.mjs` verifier/runner.
+- the reusable `src/assignment-capsule.ts` verifier/runner.
 
 The worker job performs **no checkout**, receives **no repository permission**, runs the assignment inside a separate network namespace, and receives no `ExecutionPermit`. It can produce only candidate output bytes bound to the assignment digest and claimed run. Trusted settlement reopens the durable SQLite authority, validates that binding, independently observes the candidate under the original postcondition, and settles the same run.
 

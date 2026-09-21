@@ -11,15 +11,15 @@ on:
       - 'test/hostile.test.ts'
       - 'test/*-hostile.test.ts'
       - 'experiments/production-criticality-ranking/mutation-probes.json'
-      - 'experiments/production-criticality-ranking/resolve-mutation-probes.mjs'
-      - 'experiments/production-criticality-ranking/stryker.config.mjs'
-      - 'experiments/production-criticality-ranking/summarize-mutation.mjs'
-      - 'experiments/production-criticality-ranking/summarize-mutation.test.mjs'
-      - 'experiments/production-criticality-ranking/emit-mutation-evidence.mjs'
-      - 'experiments/production-criticality-ranking/select-mutation-probe.mjs'
-      - 'experiments/production-criticality-ranking/select-mutation-probe.test.mjs'
-      - 'experiments/production-criticality-ranking/verify-mutation-evidence.mjs'
-      - 'experiments/production-criticality-ranking/verify-mutation-evidence.test.mjs'
+      - 'experiments/production-criticality-ranking/resolve-mutation-probes.ts'
+      - 'experiments/production-criticality-ranking/generate-stryker-config.ts'
+      - 'experiments/production-criticality-ranking/summarize-mutation.ts'
+      - 'experiments/production-criticality-ranking/summarize-mutation.test.ts'
+      - 'experiments/production-criticality-ranking/emit-mutation-evidence.ts'
+      - 'experiments/production-criticality-ranking/select-mutation-probe.ts'
+      - 'experiments/production-criticality-ranking/select-mutation-probe.test.ts'
+      - 'experiments/production-criticality-ranking/verify-mutation-evidence.ts'
+      - 'experiments/production-criticality-ranking/verify-mutation-evidence.test.ts'
       - 'experiments/production-criticality-ranking/mutation-evidence.json'
       - '.github/workflows/production-criticality-mutation-probe.yml'
   workflow_dispatch:
@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Prove mutation selector
-        run: node --test experiments/production-criticality-ranking/select-mutation-probe.test.mjs
+        run: node --experimental-strip-types --test experiments/production-criticality-ranking/select-mutation-probe.test.ts
       - id: changed
         name: Detect mutation-relevant change
         env:
@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            node experiments/production-criticality-ranking/select-mutation-probe.mjs "$EVENT_NAME" </dev/null >> "$GITHUB_OUTPUT"
+            node --experimental-strip-types experiments/production-criticality-ranking/select-mutation-probe.ts "$EVENT_NAME" </dev/null >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [[ -z "$BASE" || -z "$HEAD" ]]; then
@@ -62,7 +62,7 @@ jobs:
             exit 1
           fi
           git diff --name-only "$BASE" "$HEAD" \
-            | node experiments/production-criticality-ranking/select-mutation-probe.mjs "$EVENT_NAME" \
+            | node --experimental-strip-types experiments/production-criticality-ranking/select-mutation-probe.ts "$EVENT_NAME" \
             >> "$GITHUB_OUTPUT"
 
   mutate:
@@ -88,23 +88,23 @@ jobs:
       - name: Install pinned mutation engine
         if: steps.mutation-tools.outputs.cache-hit != 'true'
         run: npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0 typescript@5.8.3
-      - name: Resolve semantic mutation probes
-        run: node experiments/production-criticality-ranking/resolve-mutation-probes.mjs mutation-ranges.json
+      - name: Generate mutation config
+        run: node --experimental-strip-types experiments/production-criticality-ranking/generate-stryker-config.ts mutation-stryker-config.json
       - name: Prove mutation summarizer
-        run: node --test experiments/production-criticality-ranking/summarize-mutation.test.mjs
+        run: node --experimental-strip-types --test experiments/production-criticality-ranking/summarize-mutation.test.ts
       - name: Probe hostile mutations
-        run: ./node_modules/.bin/stryker run experiments/production-criticality-ranking/stryker.config.mjs
+        run: ./node_modules/.bin/stryker run mutation-stryker-config.json
       - name: Summarize semantic regions
         if: always()
         run: |
           if [[ -f mutation.json ]]; then
-            node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-ranges.json mutation-summary.md
+            node --experimental-strip-types experiments/production-criticality-ranking/summarize-mutation.ts mutation.json mutation-ranges.json mutation-summary.md
           fi
       - name: Emit revision-bound mutation evidence
         if: always()
         run: |
           if [[ -f mutation.json && -f mutation-ranges.json ]]; then
-            node experiments/production-criticality-ranking/emit-mutation-evidence.mjs \
+            node --experimental-strip-types experiments/production-criticality-ranking/emit-mutation-evidence.ts \
               --report mutation.json \
               --ranges mutation-ranges.json \
               --output mutation-evidence-generated.json \
@@ -132,7 +132,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Prove evidence verifier
-        run: node --test experiments/production-criticality-ranking/verify-mutation-evidence.test.mjs
+        run: node --experimental-strip-types --test experiments/production-criticality-ranking/verify-mutation-evidence.test.ts
       - id: source
         name: Verify cited workflow authority
         env:
@@ -178,5 +178,5 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ steps.source.outputs.run_id }}
       - name: Bind checked-in evidence to authoritative artifact
-        run: node experiments/production-criticality-ranking/verify-mutation-evidence.mjs
+        run: node --experimental-strip-types experiments/production-criticality-ranking/verify-mutation-evidence.ts
 

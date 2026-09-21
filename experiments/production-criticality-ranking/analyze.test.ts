@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {analyze} from './analyze.mjs';
+import {analyze} from './analyze.ts';
 
 function write(root,p,content){const full=path.join(root,p);fs.mkdirSync(path.dirname(full),{recursive:true});fs.writeFileSync(full,content);}
 function git(root,args,env={}){return execFileSync('git',args,{cwd:root,encoding:'utf8',env:{...process.env,...env}}).trim();}

@@ -36,4 +36,4 @@ jobs:
           echo 'd1bbb97a8b1ea4a99b145007875733a5e5e89b3acfe3e9d1e369fa4a582990ed  /tmp/linkml-wheel/linkml-1.11.1-py3-none-any.whl' | sha256sum -c -
           python3 -m pip install --disable-pip-version-check /tmp/linkml-wheel/linkml-1.11.1-py3-none-any.whl
           linkml-validate --version
-      - run: node --experimental-strip-types --test experiments/linkml-contract-refactor/comparison.test.mjs
+      - run: node --experimental-strip-types --test experiments/linkml-contract-refactor/comparison.test.ts

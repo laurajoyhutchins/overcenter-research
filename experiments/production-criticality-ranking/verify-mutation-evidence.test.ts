@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {verifyMutationEvidence} from './verify-mutation-evidence.mjs';
+import {verifyMutationEvidence} from './verify-mutation-evidence.ts';
 
 const git=(root,args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
 const sha256=bytes=>'sha256:'+createHash('sha256').update(bytes).digest('hex');

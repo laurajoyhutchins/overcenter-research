@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import {resolveMutationProbes,mutatePatterns} from './resolve-mutation-probes.mjs';
+import {resolveMutationProbes,mutatePatterns} from './resolve-mutation-probes.ts';
 
 const resolved=resolveMutationProbes(process.cwd());
 const requestedProbeIds=(process.env.MUTATION_PROBE??'')
@@ -28,7 +28,7 @@ const testCommand=requested.size===1
   ? focusedTestCommands.get([...requested][0])??broadTestCommand
   : broadTestCommand;
 
-export default {
+const config={
   mutate: mutatePatterns(selected),
   testRunner: 'command',
   commandRunner: {
@@ -48,3 +48,6 @@ export default {
     break: null,
   },
 };
+
+const output=process.argv[2]??'mutation-stryker-config.json';
+fs.writeFileSync(output,JSON.stringify(config,null,2)+'\n');

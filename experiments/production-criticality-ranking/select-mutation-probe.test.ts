@@ -6,7 +6,7 @@ import {
   MUTATION_SELECTOR_TEST,
   MUTATION_WORKFLOW,
   selectMutationProbe,
-} from './select-mutation-probe.mjs';
+} from './select-mutation-probe.ts';
 
 const select=(changed,eventName='pull_request')=>
   selectMutationProbe({eventName,changed});
@@ -61,11 +61,11 @@ test('production foundations and mutation-engine config force the broad probe',(
     'src/projector.ts',
     'src/kernel-core.ts',
     'experiments/production-criticality-ranking/mutation-probes.json',
-    'experiments/production-criticality-ranking/resolve-mutation-probes.mjs',
-    'experiments/production-criticality-ranking/stryker.config.mjs',
-    'experiments/production-criticality-ranking/summarize-mutation.mjs',
-    'experiments/production-criticality-ranking/summarize-mutation.test.mjs',
-    'experiments/production-criticality-ranking/emit-mutation-evidence.mjs',
+    'experiments/production-criticality-ranking/resolve-mutation-probes.ts',
+    'experiments/production-criticality-ranking/generate-stryker-config.ts',
+    'experiments/production-criticality-ranking/summarize-mutation.ts',
+    'experiments/production-criticality-ranking/summarize-mutation.test.ts',
+    'experiments/production-criticality-ranking/emit-mutation-evidence.ts',
   ]) {
     assert.deepEqual(select([file]),{
       runProbe:true,
@@ -118,7 +118,7 @@ test('semantic changes take precedence over plumbing smoke selection',()=>{
 
 test('evidence-verifier-only changes leave mutation execution skipped',()=>{
   assert.deepEqual(select([
-    'experiments/production-criticality-ranking/verify-mutation-evidence.mjs',
+    'experiments/production-criticality-ranking/verify-mutation-evidence.ts',
     'experiments/production-criticality-ranking/mutation-evidence.json',
   ]),{
     runProbe:false,
