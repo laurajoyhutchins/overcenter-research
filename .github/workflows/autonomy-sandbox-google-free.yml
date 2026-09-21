@@ -10,6 +10,11 @@ env:
   SOURCE_SHA: ${{ github.sha }}
   AI_SDK_VERSION: 7.0.107
   AI_SDK_GOOGLE_VERSION: 4.0.76
+  GCP_IDENTITY_PROJECT_ID: project-6b810532-a302-48dc-b56
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/380435294892/locations/global/workloadIdentityPools/github-reasoning/providers/overcenter-research
+  GCP_API_KEY_READER_SERVICE_ACCOUNT: overcenter-reasoning-key-reader@project-6b810532-a302-48dc-b56.iam.gserviceaccount.com
+  GEMINI_KEY_ID: overcenter-google-free
+  GEMINI_FREE_PROJECT_ID: ${{ vars.GEMINI_FREE_PROJECT_ID }}
 
 jobs:
   model:
@@ -27,27 +32,51 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
-      - name: Validate non-secret Google identity configuration
-        env:
-          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          GCP_API_KEY_READER_SERVICE_ACCOUNT: ${{ vars.GCP_API_KEY_READER_SERVICE_ACCOUNT }}
-          GEMINI_API_KEY_RESOURCE: ${{ vars.GEMINI_API_KEY_RESOURCE }}
+      - name: Validate free-project coordinate
         run: |
           set -euo pipefail
-          test -n "$GCP_WORKLOAD_IDENTITY_PROVIDER"
-          test -n "$GCP_API_KEY_READER_SERVICE_ACCOUNT"
-          test -n "$GEMINI_API_KEY_RESOURCE"
-          [[ "$GEMINI_API_KEY_RESOURCE" =~ ^projects/[0-9]+/locations/global/keys/[A-Za-z0-9-]+$ ]]
+          test -n "$GEMINI_FREE_PROJECT_ID"
+          [[ "$GEMINI_FREE_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]]
       - id: google-auth
         name: Exchange GitHub OIDC for short-lived Google credentials
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_API_KEY_READER_SERVICE_ACCOUNT }}
+          project_id: ${{ env.GCP_IDENTITY_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_API_KEY_READER_SERVICE_ACCOUNT }}
           token_format: access_token
           access_token_lifetime: 300s
           create_credentials_file: false
           export_environment_variables: false
+      - id: free-project
+        name: Prove Gemini project is still unbilled
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/google-free"
+          mkdir -p "$root"
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN" \
+            "https://cloudbilling.googleapis.com/v1/projects/$GEMINI_FREE_PROJECT_ID/billingInfo" \
+            -o "$root/billing.json"
+          BILLING="$root/billing.json" node - <<'NODE'
+          const fs=require('node:fs');
+          const billing=JSON.parse(fs.readFileSync(process.env.BILLING,'utf8'));
+          if (billing.billingEnabled!==false) throw new Error('GEMINI_PROJECT_BILLING_ENABLED');
+          NODE
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN" \
+            "https://cloudresourcemanager.googleapis.com/v1/projects/$GEMINI_FREE_PROJECT_ID" \
+            -o "$root/project.json"
+          PROJECT="$root/project.json" KEY_ID="$GEMINI_KEY_ID" node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs=require('node:fs');
+          const project=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));
+          const number=String(project.projectNumber??'');
+          if (!/^[0-9]+$/.test(number)) throw new Error('GEMINI_PROJECT_NUMBER_INVALID');
+          console.log(`project_number=${number}`);
+          console.log(`key_resource=projects/${number}/locations/global/keys/${process.env.KEY_ID}`);
+          NODE
       - name: Prepare byte-scoped AI SDK runtime
         run: |
           set -euo pipefail
@@ -70,11 +99,12 @@ jobs:
       - name: Resolve Gemini auth key from Google API Keys
         env:
           GOOGLE_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
-          GEMINI_API_KEY_RESOURCE: ${{ vars.GEMINI_API_KEY_RESOURCE }}
+          GEMINI_API_KEY_RESOURCE: ${{ steps.free-project.outputs.key_resource }}
         run: |
           set -euo pipefail
           root="$RUNNER_TEMP/google-free"
           test -n "$GOOGLE_ACCESS_TOKEN"
+          [[ "$GEMINI_API_KEY_RESOURCE" =~ ^projects/[0-9]+/locations/global/keys/overcenter-google-free$ ]]
           curl --fail-with-body --silent --show-error             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             "https://apikeys.googleapis.com/v2/$GEMINI_API_KEY_RESOURCE/keyString"             -o "$root/key-response.json"
           RESPONSE="$root/key-response.json" KEY="$root/gemini-api-key" node - <<'NODE'
           const fs=require('node:fs');
@@ -95,7 +125,7 @@ jobs:
           model_uid="$(id -u overcenter-model)"
           model_gid="$(id -g overcenter-model)"
           gemini_key="$(cat "$root/gemini-api-key")"
-          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               /usr/bin/node --experimental-strip-types                 "$root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$root/input/prompt.txt"                 --schema "$root/input/schema.json"                 --candidate "$root/out/candidate.json"                 --provenance "$root/out/provenance.json"
+          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               OVERCENTER_REASONING_BILLING_PROJECT_ID="$GEMINI_FREE_PROJECT_ID"               OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE=google-cloud-billing-api               OVERCENTER_REASONING_BILLING_ENABLED=false               /usr/bin/node --experimental-strip-types                 "$root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$root/input/prompt.txt"                 --schema "$root/input/schema.json"                 --candidate "$root/out/candidate.json"                 --provenance "$root/out/provenance.json"
           unset gemini_key
           rm -f "$root/gemini-api-key"
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
@@ -154,6 +184,9 @@ jobs:
           if (e.worker.reasoning_provider!=='google.generative-ai') throw new Error('GOOGLE_FREE_PROVIDER_MISMATCH');
           if (e.worker.gateway_used!==false) throw new Error('GOOGLE_FREE_GATEWAY_BYPASS_NOT_PROVEN');
           if (e.worker.credential_source!=='gcp-api-keys-via-github-oidc') throw new Error('GOOGLE_FREE_CREDENTIAL_SOURCE_MISMATCH');
+          if (e.worker.billing_project_id!=='${{ vars.GEMINI_FREE_PROJECT_ID }}') throw new Error('GOOGLE_FREE_BILLING_PROJECT_MISMATCH');
+          if (e.worker.billing_observation_source!=='google-cloud-billing-api') throw new Error('GOOGLE_FREE_BILLING_SOURCE_MISMATCH');
+          if (e.worker.billing_enabled!==false) throw new Error('GOOGLE_FREE_BILLING_ENABLED');
           if (e.worker.network_during_inference!==true) throw new Error('GOOGLE_FREE_NETWORK_EVIDENCE_MISSING');
           if (e.worker.reasoning_process_confinement_proven!==false) throw new Error('GOOGLE_FREE_FALSE_OFFLINE_CLAIM');
           if (e.worker.reasoning_authority_confinement_proven!==true) throw new Error('GOOGLE_FREE_AUTHORITY_NOT_CONFINED');
