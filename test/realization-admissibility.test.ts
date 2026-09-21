@@ -25,7 +25,7 @@ const work:Obligation={
 };
 const state:State={
   obligations:{a:work},
-  definition_commits:{a:'define-a'},
+  definition_ids:{a:'define-a'},
 };
 
 test('current realization classifier separates proof, contradiction, absence, and uncertainty',()=>{
