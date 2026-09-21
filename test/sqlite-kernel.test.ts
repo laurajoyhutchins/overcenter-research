@@ -171,7 +171,7 @@ test('SQLite graph patch admits multiple nodes in one authority transition',()=>
   }
 });
 
-test('SQLite graph reconciliation derives add replace and no-op without extra writes',()=>{
+test('SQLite graph reconciliation derives add rebind and no-op without extra writes',()=>{
   const root=mkdtempSync(join(tmpdir(),'sqlite-graph-reconcile-'));
   const database=join(root,'overcenter.sqlite');
   const kernel=new OvercenterKernel(database);
@@ -304,10 +304,10 @@ test('graph patch rebinding is exact-revision fenced',()=>{
     const defined=kernel.applyGraphPatch({
       upsert:[{id:'a',postcondition:pc(join(root,'a'),'A')}],
     },initial);
-    const replaced=kernel.applyGraphPatch({
+    const rebound=kernel.applyGraphPatch({
       upsert:[{id:'a',packet:{generation:2},postcondition:pc(join(root,'a'),'B')}],
     },defined);
-    assert.equal(kernel.head(),replaced);
+    assert.equal(kernel.head(),rebound);
     assert.throws(
       ()=>kernel.applyGraphPatch({
         upsert:[{id:'a',postcondition:pc(join(root,'a'),'C')}],
