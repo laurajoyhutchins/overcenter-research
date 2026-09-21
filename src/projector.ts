@@ -11,8 +11,10 @@ import type {
 } from './facts.ts';
 import { dependencyUpstreams } from './graph.ts';
 import {
+  buildStaticEffectIndex,
   staticEffectConflict,
   type StaticEffectConflict,
+  type StaticEffectIndex,
 } from './admission.ts';
 import { obligationKey } from './semantic-identity.ts';
 import type { CurrentRealizationJudgment } from './realization-admissibility.ts';
@@ -277,6 +279,7 @@ function deriveClaimability(
   lifecycles:Map<string,Lifecycle>,
   semanticKey:string|null,
   indeterminateRealization:RealizationJudgmentRelation|null,
+  staticEffectIndex:StaticEffectIndex,
 ):Claimability {
   const realization=lifecycles.get(work.id)?.status??'UNREALIZED';
   if (realization!=='UNREALIZED') {
@@ -319,7 +322,7 @@ function deriveClaimability(
   // Admission rejects new static conflicts. Keep this defensive projection for
   // older or externally constructed histories so they cannot become executable
   // merely because policy moved earlier.
-  const conflict=staticEffectConflict(state,work.id);
+  const conflict=staticEffectConflict(state,work.id,staticEffectIndex);
   return {
     error:conflict?.code??null,
     unsatisfiedDependencies:[],
@@ -586,6 +589,7 @@ export function deriveProjectProjection({
     receiptsByRun,
     currentRealizationJudgments,
   );
+  const staticEffectIndex=buildStaticEffectIndex(state);
   const claimabilityErrors=new Map<string,string|null>();
   const claimabilityById=new Map<string,Claimability>();
   const obligations=Object.values(state.obligations)
@@ -597,6 +601,7 @@ export function deriveProjectProjection({
       lifecycles,
       semanticKeys.get(obligation.id)??null,
         indeterminateRealizations.get(obligation.id)??null,
+        staticEffectIndex,
       );
     claimabilityById.set(obligation.id,claimability);
     claimabilityErrors.set(obligation.id,claimability.error);
