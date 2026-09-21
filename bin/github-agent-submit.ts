@@ -14,6 +14,7 @@ import {
   encodeAssignment,
   validateCandidate,
 } from '../src/assignment-capsule.mjs';
+import {POSTCONDITION_VERIFIERS} from '../src/generated/schema-identifiers.ts';
 import {GitOvercenterKernel} from '../src/git-kernel.ts';
 
 const DEFAULT_AUTHORITY_REF='refs/overcenter/agent-ingress';
@@ -131,7 +132,7 @@ if (!['EXECUTING','RECOVERY_REQUIRED'].includes(current.status)) {
 }
 const postcondition=assigned.postcondition;
 if (
-  postcondition.verifier!=='file-content-equals/v1'
+  postcondition.verifier!==POSTCONDITION_VERIFIERS.fileContentEquals
   || typeof postcondition.path!=='string'
   || typeof postcondition.content!=='string'
 ) {
