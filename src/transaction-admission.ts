@@ -1,4 +1,4 @@
-import type { EffectReservationFact } from './facts.ts';
+import type { EffectReservationFact, ReceiptFact } from './facts.ts';
 import type { ExecutionPermit, Run } from './model.ts';
 
 export interface ExecutionAuthorityProjection {
@@ -47,6 +47,29 @@ export function effectReservationAuthorityError(
   return unresolvedEffect ? 'DUPLICATE_UNRESOLVED_EFFECT' : null;
 }
 
+
+export type ReceiptAuthorityError =
+  | 'RECEIPT_RUN_MISMATCH'
+  | 'RECEIPT_OBLIGATION_MISMATCH'
+  | 'RECEIPT_REVISION_MISMATCH'
+  | 'RECEIPT_CLAIM_MISMATCH'
+  | 'RECEIPT_EXECUTION_AUTHORITY_MISMATCH'
+  | null;
+
+export function receiptAuthorityError(
+  run:Run,
+  fact:ReceiptFact,
+):ReceiptAuthorityError {
+  if (fact.run_id!==run.id) return 'RECEIPT_RUN_MISMATCH';
+  if (fact.obligation_id!==run.obligation_id) return 'RECEIPT_OBLIGATION_MISMATCH';
+  if (fact.claimed_revision!==run.claimed_revision) return 'RECEIPT_REVISION_MISMATCH';
+  if (fact.claim_commit!==run.claim_commit) return 'RECEIPT_CLAIM_MISMATCH';
+  if (
+    fact.execution_generation!==run.execution_generation
+    || fact.execution_authority_commit!==run.execution_authority_commit
+  ) return 'RECEIPT_EXECUTION_AUTHORITY_MISMATCH';
+  return null;
+}
 
 export const mutationAdmitted=(
   s:ExecutionAuthorityProjection&{unresolved_effect:boolean},
