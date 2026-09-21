@@ -15,7 +15,7 @@ const evidenceWorkflow = readFileSync(
   'utf8',
 );
 const operatorCommands = readFileSync(
-  new URL('../.github/workflows/operator-commands.yml', import.meta.url),
+  new URL('../.github/workflows/operator-candidate-certify.yml', import.meta.url),
   'utf8',
 );
 const candidateOnlyWorkflowPaths = [
@@ -155,11 +155,11 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
   }
 });
 
-test('operator commands expose semantic rerun anchors without a public command mailbox', () => {
+test('operator commands expose isolated trusted rerun anchors without a public command mailbox', () => {
   assert.match(
-    eventBlock(operatorCommands, 'pull_request'),
+    eventBlock(operatorCommands, 'pull_request_target'),
     /types: \[opened, synchronize, reopened\]/,
-    'operator commands must materialize once per ordinary PR head',
+    'operator commands must materialize once per PR head from trusted base code',
   );
   assert.doesNotMatch(
     operatorCommands,
@@ -168,8 +168,13 @@ test('operator commands expose semantic rerun anchors without a public command m
   );
   assert.match(
     operatorCommands,
-    /candidate-certify:\n\s+name: command · candidate\.certify/,
-    'candidate certification must have one stable semantic job identity',
+    /^name: Overcenter command · candidate\.certify/m,
+    'one workflow must represent one stable semantic command',
+  );
+  assert.match(
+    operatorCommands,
+    /command:\n\s+name: candidate\.certify/,
+    'the command workflow must expose one rerunnable command job',
   );
   assert.match(
     operatorCommands,
@@ -188,8 +193,13 @@ test('operator commands expose semantic rerun anchors without a public command m
   );
   assert.match(
     operatorCommands,
-    /if: \$\{\{ github\.run_attempt > 1 \}\}[\s\S]*ref: \$\{\{ env\.SOURCE_SHA \}\}/,
-    'invocation must execute command code from the exact advertised source SHA',
+    /COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/,
+    'privileged command code must be pinned to the trusted base revision',
+  );
+  assert.match(
+    operatorCommands,
+    /Check out trusted command implementation[\s\S]*ref: \$\{\{ env\.COMMAND_IMPLEMENTATION_SHA \}\}/,
+    'invocation must never execute pull-request source with the write token',
   );
   assert.match(
     operatorCommands,
