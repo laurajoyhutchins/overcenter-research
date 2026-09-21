@@ -171,7 +171,7 @@ The new provider is bound by immutable GitHub repository and owner numeric IDs. 
 
 ### Free-tier inference project
 
-The Gemini inference project is intentionally separate from the production Overcenter GCP project. The bootstrap requires a project whose Cloud Billing state is disabled. If `GEMINI_FREE_PROJECT_ID` is not supplied, it searches accessible projects and succeeds only when exactly one billing-disabled project already has the Generative Language API enabled.
+The Gemini inference project is intentionally separate from the production Overcenter GCP project. The bootstrap requires a project whose Cloud Billing state is disabled. If `GEMINI_FREE_PROJECT_ID` is not supplied, it first reuses the single eligible billing-disabled Gemini project when one exists; when none exists, it creates the stable dedicated project `oc-gemini-free-<GitHub repository ID>` without attaching billing. Multiple eligible projects still fail closed and require an explicit choice.
 
 The bootstrap then:
 
