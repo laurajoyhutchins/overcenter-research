@@ -151,6 +151,14 @@ Git implements the same contract as a reference backend and independent replay o
 
 A project graph should describe what must be true, not merely remember what a worker once did.
 
+Obligation definitions are immutable, content-addressed values. Stable graph node IDs bind to those definitions at a particular graph revision:
+
+```text
+stable node id ──binding──▶ immutable obligation definition
+```
+
+Changing intent does not mutate an obligation. A graph patch atomically rebinds the stable node to a new immutable definition. Retirement removes the node's current binding while preserving every historical definition, run, receipt, and realization. Reintroducing a node may bind it to an existing definition and reuse evidence when the ordinary semantic-identity and current-realization rules permit it.
+
 The Bazel/Nix research motivates an obligation-oriented model:
 
 ```text
@@ -238,7 +246,7 @@ The reference implementation has one production projection boundary:
 
 ```text
 validated authority history
-  current obligation definitions
+  current node bindings + immutable obligation definitions
   historical runs
   projected receipts
   exact revision
@@ -735,7 +743,7 @@ Before an obligation can enter authoritative history, graph admission now reject
 - unknown dependencies and cycles;
 - statically known unordered incompatible effect coordinates.
 
-For newly admitted work, definition or amendment failure therefore happens before the authority CAS. Existing v3 fact history is replayed under its original durable syntax semantics; defensive eligibility still fails closed on a legacy static effect conflict instead of retroactively making old authority unreplayable.
+For newly admitted work, graph-patch failure therefore happens before the authority CAS. Defensive eligibility still fails closed on a static effect conflict rather than allowing unsafe work to become executable.
 
 Settlement authority is also declared before execution begins. Replay from absence requires both:
 - verifier-level semantics that permit authoritative negative evidence; and
@@ -770,7 +778,7 @@ Examples:
 - unsatisfied dependencies;
 - a dynamic execution precondition is not currently met.
 
-For newly admitted work, invalid graph/amendment structure and statically knowable effect conflicts are earlier admission failures. Defensive projection may still surface a legacy static conflict as `BLOCKED` so older v3 authority remains replayable without becoming executable.
+For newly admitted work, invalid graph-patch structure and statically knowable effect conflicts are earlier admission failures. Defensive projection may still surface a static conflict as `BLOCKED` so unsafe authority cannot become executable.
 
 ### RECOVERY_REQUIRED
 
@@ -847,19 +855,19 @@ This is adapter-specific.
 
 A verifier that cannot define a canonical mutation coordinate must not pretend to provide generic conflict semantics.
 
-## 16. Amendments are workflow-state migration
+## 16. Graph revisions are workflow-state migration
 
-Changing the graph after work has completed is not merely editing configuration.
+Changing bindings after work has completed is not merely editing configuration.
 
-An amendment must preserve causal validity of already-established project truth.
+A graph patch may introduce immutable definitions, atomically rebind stable nodes, and retire nodes from the current graph. Admission validates the complete resulting graph before the authority CAS, so no invalid intermediate topology is externally visible.
 
-A useful minimum rule from the Petri-net/workflow analysis is:
+Historical runs remain bound to the immutable definition they claimed. Current project truth is re-derived from the new bindings and semantic dependency identities rather than repaired with invalidation events or mutable stale flags.
 
-> The completed set must remain predecessor-closed under the amended graph.
+A useful minimum rule from the Petri-net/workflow analysis remains:
 
-An amendment must not retroactively declare that a completed transition depended on something that was not complete when that transition became valid, unless a deliberate migration/revalidation protocol supplies new evidence.
+> The completed set must remain predecessor-closed under the current graph unless current semantic identity and evidence independently justify reuse.
 
-Graph revision identity therefore belongs in completion evidence.
+Graph revision and immutable definition identity therefore belong in completion evidence.
 
 ## 17. Formal kernel boundary
 
