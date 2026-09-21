@@ -308,7 +308,7 @@ export class KernelCore {
     return await effect();
   }
 
-  resolve(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
+  reconcile(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
     const runId=permit.id;
     for (let attempt=0;attempt<16;attempt+=1) {
       const head=this.#requireHead();
@@ -346,7 +346,7 @@ export class KernelCore {
       );
       if (commit) return {...receipt,settlement_commit:commit};
     }
-    throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
+    throw new Error('RECONCILE_CONTENTION_EXHAUSTED');
   }
 
   deferForJudgment(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
@@ -416,9 +416,6 @@ export class KernelCore {
     throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
   }
 
-  reconcile(permit:ExecutionPermit):Receipt {
-    return this.resolve(permit);
-  }
 
   receipts(runId:string|null=null):Receipt[] {
     const head=this.#requireHead();
@@ -581,7 +578,7 @@ export async function runCoreLoop(
       };
     }
 
-    const receipt=kernel.resolve(run);
+    const receipt=kernel.reconcile(run);
     if (receipt.disposition==='DONE' || receipt.disposition==='READY') continue;
     return {
       state:'RECOVERY_REQUIRED',
