@@ -165,8 +165,13 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
     };
 
     const killCgroup=(strict:boolean):void=>{
+      const killPath=path.join(leafPath,'cgroup.kill');
+      if (!fs.existsSync(killPath)) {
+        if (strict) throw new Error('CGROUP_KILL_MISSING');
+        return;
+      }
       try {
-        fs.writeFileSync(path.join(leafPath,'cgroup.kill'),'1');
+        fs.writeFileSync(killPath,'1');
       } catch (error) {
         if (strict) throw error;
       }
