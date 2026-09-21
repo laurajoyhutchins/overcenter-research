@@ -59,6 +59,8 @@
     "test:realization-reuse": "node --experimental-strip-types --test test/realization-pure.test.ts",
     "bench:production-latency": "node --experimental-strip-types experiments/production-latency/benchmark.ts --iterations 25",
     "bench:production-latency:live": "node --experimental-strip-types experiments/production-latency/benchmark.ts --live --iterations 3",
-    "experiment:scheduler-bottleneck": "node --experimental-strip-types experiments/scheduler-bottleneck/experiment.mjs"
+    "experiment:scheduler-bottleneck": "node --experimental-strip-types experiments/scheduler-bottleneck/experiment.mjs",
+    "test:provider-roundtrips": "node --experimental-strip-types --test experiments/provider-roundtrips/combined-status.test.ts",
+    "bench:provider-roundtrips": "node --experimental-strip-types experiments/provider-roundtrips/benchmark.ts"
   }
 }
