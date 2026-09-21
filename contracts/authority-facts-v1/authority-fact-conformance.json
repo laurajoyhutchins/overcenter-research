@@ -222,6 +222,21 @@
         ],
         "retire": []
       }
+    },
+    {
+      "name": "graph-patch-binding-definition-id-format-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-graph-patch-v1",
+        "definitions": [],
+        "bindings": [
+          {
+            "node_id": "alpha",
+            "definition_id": "not-a-digest"
+          }
+        ],
+        "retire": []
+      }
     }
   ]
 }
