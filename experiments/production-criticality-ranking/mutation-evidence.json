@@ -1,14 +1,14 @@
 {
-  "schema": "overcenter-criticality-mutation-evidence/v1",
-  "source_run": {
-    "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
-    "workflow_run_id": 35471986995,
-    "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
-    "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
-  },
+  "schema": "overcenter-criticality-mutation-evidence",
   "probes": [
     {
       "id": "digest-foundation",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/digest.ts": "7fceb3b722cc31fe318cbd8886159ced5e976f9d"
       },
@@ -31,6 +31,12 @@
     },
     {
       "id": "semantic-identity",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/semantic-identity.ts": "e86c460c34d292105b4160d23744d806a04337c6"
       },
@@ -53,6 +59,12 @@
     },
     {
       "id": "done-candidate-reuse",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/projector.ts": "a599877015777e1dab018730ed1bc07b2984e7ec"
       },
@@ -71,6 +83,12 @@
     },
     {
       "id": "effect-reservation",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
       },
@@ -89,6 +107,12 @@
     },
     {
       "id": "settlement",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
       },
@@ -107,6 +131,12 @@
     },
     {
       "id": "execution-fence",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
       },
@@ -125,6 +155,12 @@
     },
     {
       "id": "verification-and-absence",
+      "source_run": {
+        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
+        "workflow_run_id": 35471986995,
+        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
+        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+      },
       "source_blobs": {
         "src/observation.ts": "6431cb69c0335f7b5ef89648f1339703fa1830b3"
       },

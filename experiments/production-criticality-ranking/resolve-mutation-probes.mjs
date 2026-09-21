@@ -71,7 +71,14 @@ export function resolveMutationProbes(root=process.cwd(),config=null){
       if(matches.length!==1) throw new Error(`mutation probe ${probe.id}: selector ${JSON.stringify(selector)} matched ${matches.length} callables`);
       ranges.push(matches[0]);
     }
-    resolved.push({id:probe.id,ranges});
+    const tests=[...new Set(probe.tests??[])];
+    if(tests.length===0) throw new Error(`mutation probe ${probe.id}: no tests configured`);
+    for(const testFile of tests){
+      if(!fs.existsSync(path.join(root,testFile))){
+        throw new Error(`mutation probe ${probe.id}: test does not exist: ${testFile}`);
+      }
+    }
+    resolved.push({id:probe.id,ranges,tests});
   }
   return {schema:'overcenter-criticality-resolved-mutation-probes/v1',typescript:ts.version,probes:resolved};
 }
