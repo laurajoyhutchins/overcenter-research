@@ -112,3 +112,14 @@ A promoted capability may replace synthetic inputs or local fake effects with re
 The first Stage 1 reasoning pass is retained under `model-witness/`. Codex Cloud received only the synthetic source text in the prompt and returned structured candidate JSON. The request explicitly prohibited repository/provider mutation; the observed branch head did not change across the request and response.
 
 That candidate passes the same independent synthetic verifier and Overcenter settlement path as the scripted control. The evidence is classified `uncertain-reasoning-stage1`, not promotion-ready. Provider-side reasoning confinement remains unproven, so the stronger harmless-worker claim still requires a worker whose mutation capability is physically absent rather than merely unused.
+
+
+### Recorded uncertain-model Stage 1 witness
+
+The first uncertain reasoning witness uses Codex Cloud only to produce candidate bytes. Request comment `5756705966` asked for reply-only JSON and prohibited repository/provider mutation; response comment `5756716623` returned the candidate. The branch head remained exactly `c448001cbad04c502b21fee6e52a961b5d326801` before and after the reasoning response.
+
+The candidate is retained as inert data in `sandbox-candidate-codex.json` and bound to the live request/response by `sandbox-candidate-codex.provenance.json`. CI re-fetches both comments read-only and requires the prompt digest, full response digest, response author, first-line candidate bytes, candidate digest, and unchanged reasoning-time branch head to agree.
+
+Codex does not settle anything. Trusted sandbox software admits only the exact declared write/delete set, applies those bytes to a disposable fixture, and runs the resulting verifier through the production `overcenter-exec` Rust confinement boundary before minting the settlement attestation. The authority database and execution capability remain outside the worker workspace.
+
+This is stronger evidence about reasoning usefulness, but it is still not promotion evidence: Codex Cloud's provider-side repository capability is not independently proven absent, the reasoning invocation is recorded external evidence rather than replayable from repository state alone, and fault-recovery stages remain unexercised.
