@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "verify": "node --experimental-strip-types verify.mjs"
+    "verify": "node --experimental-strip-types verify.cjs"
   }
 }

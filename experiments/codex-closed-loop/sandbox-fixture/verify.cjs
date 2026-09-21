@@ -1,8 +1,7 @@
-import assert from 'node:assert/strict';
-import {randomBytes} from 'node:crypto';
-import {readdirSync,writeSync} from 'node:fs';
-import {join} from 'node:path';
-import {fileURLToPath} from 'node:url';
+const assert=require('node:assert/strict');
+const {randomBytes}=require('node:crypto');
+const {readdirSync,writeSync}=require('node:fs');
+const {join}=require('node:path');
 
 function walk(dir) {
   return readdirSync(dir,{withFileTypes:true}).flatMap(entry => {
@@ -11,7 +10,7 @@ function walk(dir) {
   });
 }
 
-const sourceRoot=fileURLToPath(new URL('./src',import.meta.url));
+const sourceRoot=join(__dirname,'src');
 const remaining=walk(sourceRoot).filter(path=>path.endsWith('.js'));
 assert.deepEqual(remaining,[],'production JavaScript remains');
 
@@ -26,7 +25,7 @@ const requireEqual=(label,actual,expected)=>{
 
 emit(1,`OVERCENTER_VERIFY_CHALLENGE ${nonce}\n`);
 
-const mod=await import('./src/index.ts');
+const mod=require('./src/index.ts');
 requireEqual('add-positive',mod.add(2,5),7);
 requireEqual('add-mixed',mod.add(-4,9),5);
 requireEqual('clamp-high',mod.clamp(12,0,10),10);

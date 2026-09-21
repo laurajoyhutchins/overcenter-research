@@ -263,7 +263,7 @@ async function runVerifier(
   launcher:string|null,
 ):Promise<VerifierResult> {
   if (!launcher) {
-    const result=spawnSync(process.execPath,['--experimental-strip-types','verify.mjs'],{
+    const result=spawnSync(process.execPath,['--experimental-strip-types','verify.cjs'],{
       cwd:workspace,
       env:minimalEnv(home,temporary,seed),
       encoding:'utf8',
@@ -291,7 +291,7 @@ async function runVerifier(
       program:process.execPath,
       timeout_ms:30_000,
       max_output_bytes:65_536,
-      args:['--experimental-strip-types','verify.mjs'],
+      args:['--experimental-strip-types','verify.cjs'],
       environment:{LANG:'C.UTF-8'},
       runtime_read_only:existsSync('/etc/ld.so.cache')?['/etc/ld.so.cache']:[],
       runtime_executable:runtimeExecutableClosure(process.execPath),

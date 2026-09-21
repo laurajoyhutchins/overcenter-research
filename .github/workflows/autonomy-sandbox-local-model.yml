@@ -71,7 +71,7 @@ jobs:
           sudo install -o root -g root -m 0444 "$RUNNER_TEMP/local-model/input/prompt.txt" "$sandbox_root/input/prompt.txt"
           sudo install -o root -g root -m 0444 "$RUNNER_TEMP/local-model/input/schema.json" "$sandbox_root/input/schema.json"
           sudo install -d -o overcenter-model -g overcenter-model -m 0700 "$sandbox_root/home"
-          test -z "$(sudo find "$sandbox_root/runtime" -perm /022 -print -quit)"
+          test -z "$(sudo find "$sandbox_root/runtime" ! -type l -perm /022 -print -quit)"
           rm -rf "$GITHUB_WORKSPACE"
           mkdir -m 0700 "$GITHUB_WORKSPACE"
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
