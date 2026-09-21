@@ -123,3 +123,11 @@ The candidate is retained as inert data in `sandbox-candidate-codex.json` and bo
 Codex does not settle anything. Trusted sandbox software admits only the exact declared write/delete set, applies those bytes to a disposable fixture, and runs the resulting verifier through the production `overcenter-exec` Rust confinement boundary before minting the settlement attestation. The authority database and execution capability remain outside the worker workspace.
 
 This is stronger evidence about reasoning usefulness, but it is still not promotion evidence: Codex Cloud's provider-side repository capability is not independently proven absent, the reasoning invocation is recorded external evidence rather than replayable from repository state alone, and fault-recovery stages remain unexercised.
+
+## Credential-free local reasoning worker
+
+The stronger Stage 1 witness runs a pinned public Qwen2.5-Coder 0.5B GGUF model with a pinned llama.cpp CPU runtime in a disposable GitHub-hosted worker job. Model and runtime bytes are SHA-256 checked before use. Immediately before inference, the process is launched through a fresh Linux network namespace with an empty environment; it receives a local model file, prompt, and JSON schema only.
+
+The model job has read-only repository permission and an ephemeral checkout with no persisted credential. Its only retained output is candidate/provenance artifact bytes. A separate fresh runner applies those bytes to a new synthetic workspace and performs independent Overcenter verification and settlement. The model process never receives the authority database, execution permit, verifier attestation path, or settlement capability.
+
+This is the intended harmless Stage 1 worker boundary. Passing it establishes the bounded single-obligation reasoning capability; promotion remains a separate reviewed action and later fault/recovery stages remain required for broader autonomy claims.

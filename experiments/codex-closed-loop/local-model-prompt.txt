@@ -1,0 +1,37 @@
+You are a software implementation worker. Return only one JSON object matching the requested candidate schema. Do not include markdown or explanation.
+
+Objective: migrate these three JavaScript modules to TypeScript while preserving behavior. Add exactly src/math.ts, src/format.ts, and src/index.ts. Delete exactly src/math.js, src/format.js, and src/index.js. Add no dependencies.
+
+Acceptance behavior:
+- add(2,5) returns 7
+- clamp(12,0,10) returns 10
+- clamp(-2,0,10) returns 0
+- formatUser({name:"Ada Lovelace",email:"ada@example.test"}) returns "Ada Lovelace <ada@example.test>"
+- initials("  Grace   Brewster Murray Hopper ") returns "GBMH"
+- Node imports ./src/index.ts directly, so internal import specifiers must point to .ts files.
+- no .js file may remain under src.
+
+src/math.js:
+export function add(a, b) {
+  return a + b;
+}
+
+export function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+src/format.js:
+export function formatUser(user) {
+  return `${user.name} <${user.email}>`;
+}
+
+export function initials(name) {
+  return name.split(/\s+/).filter(Boolean).map(part => part[0].toUpperCase()).join('');
+}
+
+src/index.js:
+export {add, clamp} from './math.js';
+export {formatUser, initials} from './format.js';
+
+Candidate schema conceptually:
+{"schema":"overcenter-autonomy-sandbox-candidate/v1","writes":[{"path":"src/<name>.ts","content":"complete UTF-8 file"}],"deletes":["src/<name>.js"]}

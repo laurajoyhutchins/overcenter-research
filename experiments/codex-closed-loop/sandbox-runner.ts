@@ -40,15 +40,23 @@ type Provenance={
   schema:'overcenter-autonomy-model-candidate-provenance/v1';
   provider:string;
   transport:string;
-  request_comment_id:number;
-  response_comment_id:number;
-  response_author:string;
-  branch_head_before_request:string;
-  branch_head_after_response:string;
   repository_mutation_observed:boolean;
   prompt_sha256:string;
   candidate_sha256:string;
   response_body_sha256:string;
+  request_comment_id?:number;
+  response_comment_id?:number;
+  response_author?:string;
+  branch_head_before_request?:string;
+  branch_head_after_response?:string;
+  model_id?:string;
+  model_revision?:string;
+  model_sha256?:string;
+  runtime_id?:string;
+  runtime_sha256?:string;
+  network_during_inference?:boolean;
+  repository_credentials_present?:boolean;
+  worker_job_is_disposable?:boolean;
 };
 type VerifierResult={
   status:number|null;
@@ -183,13 +191,29 @@ function loadProvenance(path:string,candidateBytes:Buffer):{provenance:Provenanc
   const provenance=value as Partial<Provenance>;
   if (provenance.schema!=='overcenter-autonomy-model-candidate-provenance/v1') throw new Error('SANDBOX_PROVENANCE_SCHEMA_MISMATCH');
   if (provenance.candidate_sha256!==sha256(candidateBytes)) throw new Error('SANDBOX_PROVENANCE_CANDIDATE_DIGEST_MISMATCH');
-  if (provenance.response_author!=='chatgpt-codex-connector[bot]') throw new Error('SANDBOX_PROVENANCE_AUTHOR_MISMATCH');
   if (provenance.repository_mutation_observed!==false) throw new Error('SANDBOX_PROVENANCE_REPOSITORY_MUTATION');
-  for (const key of ['branch_head_before_request','branch_head_after_response','prompt_sha256','response_body_sha256'] as const) {
+  for (const key of ['provider','transport','prompt_sha256','response_body_sha256'] as const) {
     if (typeof provenance[key]!=='string' || !provenance[key]) throw new Error('SANDBOX_PROVENANCE_FIELD_INVALID');
   }
-  if (provenance.branch_head_before_request!==provenance.branch_head_after_response) {
-    throw new Error('SANDBOX_PROVENANCE_HEAD_CHANGED');
+
+  if (provenance.transport==='github-pr-comment') {
+    if (provenance.response_author!=='chatgpt-codex-connector[bot]') throw new Error('SANDBOX_PROVENANCE_AUTHOR_MISMATCH');
+    if (
+      typeof provenance.branch_head_before_request!=='string'
+      || typeof provenance.branch_head_after_response!=='string'
+      || provenance.branch_head_before_request!==provenance.branch_head_after_response
+    ) throw new Error('SANDBOX_PROVENANCE_HEAD_CHANGED');
+  } else if (provenance.transport==='offline-llama.cpp') {
+    for (const key of ['model_id','model_revision','model_sha256','runtime_id','runtime_sha256'] as const) {
+      if (typeof provenance[key]!=='string' || !provenance[key]) throw new Error('SANDBOX_LOCAL_MODEL_PROVENANCE_INVALID');
+    }
+    if (!/^[0-9a-f]{64}$/.test(provenance.model_sha256!)) throw new Error('SANDBOX_MODEL_DIGEST_INVALID');
+    if (!/^[0-9a-f]{64}$/.test(provenance.runtime_sha256!)) throw new Error('SANDBOX_RUNTIME_DIGEST_INVALID');
+    if (provenance.network_during_inference!==false) throw new Error('SANDBOX_LOCAL_MODEL_NETWORK_NOT_DISABLED');
+    if (provenance.repository_credentials_present!==false) throw new Error('SANDBOX_LOCAL_MODEL_REPOSITORY_CREDENTIAL_PRESENT');
+    if (provenance.worker_job_is_disposable!==true) throw new Error('SANDBOX_LOCAL_MODEL_WORKER_NOT_DISPOSABLE');
+  } else {
+    throw new Error('SANDBOX_PROVENANCE_TRANSPORT_UNSUPPORTED');
   }
   return {provenance:provenance as Provenance,bytes};
 }
@@ -436,12 +460,21 @@ try {
 
   const useful=accepted && receipt.disposition==='DONE' ? 1 : 0;
   const modelWitness=args.worker==='recorded-model';
+  const localReasoningConfined=provenance?.transport==='offline-llama.cpp'
+    && provenance.network_during_inference===false
+    && provenance.repository_credentials_present===false
+    && provenance.worker_job_is_disposable===true;
   const promotionReasons=modelWitness
-    ? [
-      'uncertain reasoning succeeded, but the Codex Cloud provider-side repository capability is not proven absent',
-      'the model invocation is recorded evidence rather than replayable solely from repository state',
-      'fault-recovery stages have not been exercised',
-    ]
+    ? provenance?.transport==='offline-llama.cpp'
+      ? [
+        'only the Stage 1 single-obligation capability has been exercised',
+        'fault-recovery stages have not been exercised',
+      ]
+      : [
+        'uncertain reasoning succeeded, but the Codex Cloud provider-side repository capability is not proven absent',
+        'the model invocation is recorded evidence rather than replayable solely from repository state',
+        'fault-recovery stages have not been exercised',
+      ]
     : [
       'scripted control is not uncertain-agent evidence',
       ...(verifier.confined?[]:['candidate execution confinement was not exercised by this run']),
@@ -470,10 +503,18 @@ try {
       reasoning_transport:provenance?.transport??null,
       response_comment_id:provenance?.response_comment_id??null,
       repository_mutation_observed:provenance?.repository_mutation_observed??null,
+      model_id:provenance?.model_id??null,
+      model_revision:provenance?.model_revision??null,
+      model_sha256:provenance?.model_sha256??null,
+      runtime_id:provenance?.runtime_id??null,
+      runtime_sha256:provenance?.runtime_sha256??null,
+      network_during_inference:provenance?.network_during_inference??null,
+      repository_credentials_present:provenance?.repository_credentials_present??null,
+      worker_job_is_disposable:provenance?.worker_job_is_disposable??null,
       exit_code:workerStatus,
       stdout_sha256:sha256(workerStdout),
       stderr_sha256:sha256(workerStderr),
-      reasoning_process_confinement_proven:false,
+      reasoning_process_confinement_proven:localReasoningConfined,
     },
     authority:{
       obligation_id:obligationId,

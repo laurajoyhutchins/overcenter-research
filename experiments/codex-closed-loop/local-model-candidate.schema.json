@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "writes",
+    "deletes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "overcenter-autonomy-sandbox-candidate/v1"
+    },
+    "writes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "enum": [
+              "src/math.ts",
+              "src/format.ts",
+              "src/index.ts"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "deletes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "enum": [
+          "src/math.js",
+          "src/format.js",
+          "src/index.js"
+        ]
+      }
+    }
+  }
+}
