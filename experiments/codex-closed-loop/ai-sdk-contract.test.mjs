@@ -95,6 +95,11 @@ test('Google-free inference receives no repository or Overcenter authority',()=>
   assert.match(workflow,/persist-credentials: false/g);
   assert.match(workflow,/rm -rf "\$GITHUB_WORKSPACE"/);
   assert.match(workflow,/\/usr\/bin\/setpriv[\s\S]*\/usr\/bin\/env -i/);
+  assert.match(workflow,/node_bin="\$\(readlink -f "\$\(command -v node\)"\)"/);
+  assert.match(workflow,/"\$node_bin" --experimental-strip-types/);
+  assert.doesNotMatch(workflow,/\/usr\/bin\/node --experimental-strip-types/);
+  assert.match(workflow,/trap cleanup EXIT/);
+  assert.match(workflow,/rm -f "\$root\/gemini-api-key"/);
   assert.match(workflow,/OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc/);
   assert.doesNotMatch(workflow,/^\s+GITHUB_TOKEN:\s/m);
   assert.match(candidate,/AI_SDK_GITHUB_TOKEN_FORBIDDEN/);
