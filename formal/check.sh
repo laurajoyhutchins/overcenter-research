@@ -37,15 +37,16 @@ if [[ "$actual_sha" != "$TLA_SHA256" ]]; then
 fi
 
 run_tlc() {
-  local cfg="$1"
-  local log="$2"
+  local module="$1"
+  local cfg="$2"
+  local log="$3"
   (
     cd "$FORMAL"
     java -XX:+UseParallelGC -jar "$JAR" \
       -workers auto \
-      -metadir "$FORMAL/.tlc/${cfg%.cfg}" \
+      -metadir "$FORMAL/.tlc/${module}-${cfg%.cfg}" \
       -config "$cfg" \
-      TransitionKernel.tla
+      "$module.tla"
   ) >"$log" 2>&1
 }
 
@@ -54,7 +55,7 @@ mkdir -p "$FORMAL/.tlc/logs"
 
 GOOD_LOG="$FORMAL/.tlc/logs/TransitionKernel.log"
 echo "==> checking authoritative kernel"
-if ! run_tlc "TransitionKernel.cfg" "$GOOD_LOG"; then
+if ! run_tlc "TransitionKernel" "TransitionKernel.cfg" "$GOOD_LOG"; then
   cat "$GOOD_LOG" >&2
   exit 1
 fi
@@ -65,12 +66,13 @@ fi
 tail -n 8 "$GOOD_LOG"
 
 check_expected_failure() {
-  local cfg="$1"
-  local invariant="$2"
+  local module="$1"
+  local cfg="$2"
+  local invariant="$3"
   local log="$FORMAL/.tlc/logs/${cfg%.cfg}.log"
 
   echo "==> checking expected counterexample: $cfg ($invariant)"
-  if run_tlc "$cfg" "$log"; then
+  if run_tlc "$module" "$cfg" "$log"; then
     echo "expected TLC to reject $cfg" >&2
     cat "$log" >&2
     exit 1
@@ -83,10 +85,25 @@ check_expected_failure() {
   grep -m1 "Invariant ${invariant} is violated" "$log"
 }
 
-check_expected_failure "BrokenNoFence.cfg" "MutationAuthoritySafety"
-check_expected_failure "BrokenNoRevision.cfg" "ExactRevisionEvidence"
-check_expected_failure "BrokenNoReplayGuard.cfg" "ReplaySafety"
-check_expected_failure "BrokenNoReservation.cfg" "ReservationSafety"
-check_expected_failure "BrokenNoEvidence.cfg" "NoFalseDone"
+check_expected_failure "TransitionKernel" "BrokenNoFence.cfg" "MutationAuthoritySafety"
+check_expected_failure "TransitionKernel" "BrokenNoRevision.cfg" "ExactRevisionEvidence"
+check_expected_failure "TransitionKernel" "BrokenNoReplayGuard.cfg" "ReplaySafety"
+check_expected_failure "TransitionKernel" "BrokenNoReservation.cfg" "ReservationSafety"
+check_expected_failure "TransitionKernel" "BrokenNoEvidence.cfg" "NoFalseDone"
 
-echo "TLA+ kernel and all five negative controls behaved as expected."
+RESOURCE_LOG="$FORMAL/.tlc/logs/ResourceContainment.log"
+echo "==> checking resource containment protocol"
+if ! run_tlc "ResourceContainment" "ResourceContainment.cfg" "$RESOURCE_LOG"; then
+  cat "$RESOURCE_LOG" >&2
+  exit 1
+fi
+if ! grep -q "Model checking completed" "$RESOURCE_LOG"; then
+  cat "$RESOURCE_LOG" >&2
+  exit 1
+fi
+tail -n 8 "$RESOURCE_LOG"
+
+check_expected_failure "ResourceContainment" "BrokenResourceIdentity.cfg" "ExactLeafAuthority"
+check_expected_failure "ResourceContainment" "BrokenResourceEarlyEvidence.cfg" "FinalEvidenceSafety"
+
+echo "TLA+ transition kernel and resource-containment models, including all negative controls, behaved as expected."
