@@ -316,6 +316,12 @@ wait "$pinned_pid"
 cleanup_resource_leaf "$pinned_leaf"
 exec 201<&-
 
+printf '%s\n' '== exact cgroup leaf ownership ignores unrelated stale leaves =='
+stale_leaf="$(new_resource_leaf)"
+run_launcher "$pinned_manifest" "$tmp/pinned-root-original"
+test -d "$stale_leaf"
+cleanup_resource_leaf "$stale_leaf"
+
 printf '%s\n' '== stale workspace identity fails before sandbox entry =='
 swap_root="$tmp/swap-root"
 mkdir -p "$swap_root"
@@ -406,9 +412,9 @@ cleanup_resource_leaf "$memory_leaf"
 
 printf '%s\n' '== ambient authority is physically removed =='
 exec 200<"$outside/secret.txt"
+ambient_leaf="$(new_resource_leaf)"
 GITHUB_TOKEN='AMBIENT-GITHUB-SECRET' \
 AWS_SECRET_ACCESS_KEY='AMBIENT-AWS-SECRET' \
-  ambient_leaf="$(new_resource_leaf)"
   "$launcher" 3<"$root" 4<"$ambient_leaf" < "$manifest" &
 ambient_pid=$!
 wait "$ambient_pid"
