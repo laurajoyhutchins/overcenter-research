@@ -8,6 +8,22 @@ import {
 import type { FactCommit } from './facts.ts';
 
 const COMMIT_SCHEMA='overcenter-sqlite-fact-commit-v1' as const;
+const SCHEMA_BUSY_RETRIES=4;
+const SCHEMA_BUSY_RETRY_BASE_MS=25;
+
+const sleepSync=(milliseconds:number)=>{
+  Atomics.wait(
+    new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)),
+    0,
+    0,
+    milliseconds,
+  );
+};
+
+const isBusy=(error:unknown)=>
+  /SQLITE_BUSY|database is locked/i.test(
+    error instanceof Error ? error.message : String(error),
+  );
 
 interface AuthorityRow {
   head:string|null;
@@ -29,32 +45,10 @@ export class SqliteFactStore implements DurableFactStore {
   constructor(path:string) {
     this.path=path;
     this.#db=new DatabaseSync(path);
-    this.#db.exec('PRAGMA foreign_keys = ON');
     this.#db.exec('PRAGMA busy_timeout = 5000');
-    this.#db.exec('PRAGMA journal_mode = WAL');
+    this.#db.exec('PRAGMA foreign_keys = ON');
     this.#db.exec('PRAGMA synchronous = FULL');
-    this.#db.exec(`
-      CREATE TABLE IF NOT EXISTS fact_commits (
-        sequence INTEGER PRIMARY KEY,
-        commit_id TEXT NOT NULL UNIQUE,
-        parent_id TEXT REFERENCES fact_commits(commit_id),
-        message TEXT NOT NULL,
-        files_json TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS authority (
-        singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
-        head TEXT REFERENCES fact_commits(commit_id),
-        sequence INTEGER NOT NULL CHECK(sequence >= 0),
-        CHECK(
-          (head IS NULL AND sequence = 0)
-          OR (head IS NOT NULL AND sequence > 0)
-        )
-      );
-
-      INSERT OR IGNORE INTO authority(singleton,head,sequence)
-      VALUES(1,NULL,0);
-    `);
+    if (!this.#storageReady()) this.#initializeStorage();
   }
 
   head():string|null {
@@ -188,6 +182,76 @@ export class SqliteFactStore implements DurableFactStore {
 
   close():void {
     this.#db.close();
+  }
+
+  #storageReady():boolean {
+    const journal=this.#db.prepare('PRAGMA journal_mode').get() as
+      {journal_mode:string}|undefined;
+    if (String(journal?.journal_mode??'').toLowerCase()!=='wal') return false;
+
+    const tables=this.#db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM sqlite_master
+      WHERE type = 'table'
+        AND name IN ('fact_commits','authority')
+    `).get() as {count:number|bigint}|undefined;
+    if (Number(tables?.count??0)!==2) return false;
+
+    const authority=this.#db.prepare(`
+      SELECT 1 AS present
+      FROM authority
+      WHERE singleton = 1
+    `).get() as {present:number}|undefined;
+    return authority?.present===1;
+  }
+
+  #initializeStorage():void {
+    for (let attempt=0;attempt<SCHEMA_BUSY_RETRIES;attempt+=1) {
+      if (this.#storageReady()) return;
+      try {
+        this.#db.exec('PRAGMA journal_mode = WAL');
+        this.#db.exec('BEGIN IMMEDIATE');
+        try {
+          this.#db.exec(`
+            CREATE TABLE IF NOT EXISTS fact_commits (
+              sequence INTEGER PRIMARY KEY,
+              commit_id TEXT NOT NULL UNIQUE,
+              parent_id TEXT REFERENCES fact_commits(commit_id),
+              message TEXT NOT NULL,
+              files_json TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS authority (
+              singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+              head TEXT REFERENCES fact_commits(commit_id),
+              sequence INTEGER NOT NULL CHECK(sequence >= 0),
+              CHECK(
+                (head IS NULL AND sequence = 0)
+                OR (head IS NOT NULL AND sequence > 0)
+              )
+            );
+
+            INSERT OR IGNORE INTO authority(singleton,head,sequence)
+            VALUES(1,NULL,0);
+          `);
+          this.#db.exec('COMMIT');
+        } catch (error) {
+          try {
+            this.#db.exec('ROLLBACK');
+          } catch {}
+          throw error;
+        }
+
+        if (!this.#storageReady()) {
+          throw new Error('SQLITE_STORAGE_INITIALIZATION_INCOMPLETE');
+        }
+        return;
+      } catch (error) {
+        if (!isBusy(error) || attempt===SCHEMA_BUSY_RETRIES-1) throw error;
+        sleepSync(SCHEMA_BUSY_RETRY_BASE_MS*(2**attempt));
+      }
+    }
+    throw new Error('SQLITE_STORAGE_INITIALIZATION_INCOMPLETE');
   }
 
   #authority():AuthorityRow {
