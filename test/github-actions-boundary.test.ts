@@ -14,6 +14,25 @@ const evidenceWorkflow = readFileSync(
   new URL('../.github/workflows/tests.yml', import.meta.url),
   'utf8',
 );
+const candidateOnlyWorkflowPaths = [
+  '../.github/workflows/assignment-capsule-proof.yml',
+  '../.github/workflows/conflicting-effect.yml',
+  '../.github/workflows/datalog-projection.yml',
+  '../.github/workflows/disposable-agent-proof.yml',
+  '../.github/workflows/formal-kernel.yml',
+  '../.github/workflows/github-object-transport-proof.yml',
+  '../.github/workflows/github-observation-grammar.yml',
+  '../.github/workflows/kubernetes-observation-semantics.yml',
+  '../.github/workflows/lean-semantic-oracle.yml',
+  '../.github/workflows/linkml-contract-refactor.yml',
+  '../.github/workflows/linkml-ontology.yml',
+  '../.github/workflows/production-criticality-mutation-probe.yml',
+  '../.github/workflows/production-criticality-ranking.yml',
+  '../.github/workflows/production-latency.yml',
+  '../.github/workflows/projection-comparison.yml',
+  '../.github/workflows/scheduler-bottleneck.yml',
+  '../.github/workflows/typebox-production-contract.yml',
+];
 
 function job(name: string, next: string): string {
   const start = workflow.indexOf(`  ${name}:\n`);
@@ -21,6 +40,15 @@ function job(name: string, next: string): string {
   assert.notEqual(start, -1, `missing job ${name}`);
   assert.notEqual(end, -1, `missing following job ${next}`);
   return workflow.slice(start, end);
+}
+
+function eventBlock(source: string, event: string): string {
+  const marker = `  ${event}:\n`;
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `missing ${event} trigger`);
+  const after = source.slice(start + marker.length);
+  const next = after.search(/\n  [A-Za-z_][A-Za-z0-9_-]*:/);
+  return next === -1 ? after : after.slice(0, next);
 }
 
 test('GitHub Actions keeps provider write authority out of the disposable worker job', () => {
@@ -61,28 +89,28 @@ test('active hosted proof contains no legacy commit-status effect intent', () =>
 
 test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   assert.match(
+    eventBlock(mergeGate, 'pull_request'),
+    /types: \[opened, synchronize, reopened, ready_for_review\]/,
+    'merge gate must observe the exact Ready for review candidate transition',
+  );
+  assert.match(
     mergeGate,
-    /workflow_dispatch:\n\s+inputs:\n\s+candidate:/,
-    'merge gate must expose an explicit candidate dispatch',
+    /github\.event_name == 'pull_request' && github\.event\.action == 'ready_for_review'/,
+    'expensive merge-gate jobs must require the candidate transition on pull requests',
   );
   assert.match(
     mergeGate,
     /source_sha:/,
-    'candidate dispatch must carry the exact expected source SHA',
+    'manual candidate dispatch must carry the exact expected source SHA',
   );
   assert.match(
     mergeGate,
     /test "\$REQUESTED_SOURCE_SHA" = "\$SOURCE_SHA"/,
-    'candidate dispatch must fail closed when the selected ref moved',
+    'manual candidate dispatch must fail closed when the selected ref moved',
   );
   assert.match(
     mergeGate,
-    /github\.event_name == 'push' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.candidate\)/,
-    'expensive merge-gate jobs must not be enabled by pull_request events',
-  );
-  assert.match(
-    mergeGate,
-    /pull_request\)\n[\s\S]*?Exact-head candidate evidence is required[\s\S]*?exit 1/,
+    /Exact-head candidate evidence is required[\s\S]*?Ready for review[\s\S]*?exit 1/,
     'ordinary pull_request runs must remain non-mergeable until candidate evidence runs',
   );
   assert.match(
@@ -95,4 +123,15 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
     /proofs:\n\s+name: Adversarial, experimental, and formal proofs\n\s+if: \$\{\{ inputs\.expensive \}\}/,
     'proofs must be skipped unless the caller explicitly enables candidate evidence',
   );
+});
+
+test('standalone expensive workflows only run for candidate PR heads', () => {
+  for (const path of candidateOnlyWorkflowPaths) {
+    const source = readFileSync(new URL(path, import.meta.url), 'utf8');
+    assert.match(
+      eventBlock(source, 'pull_request'),
+      /types: \[ready_for_review\]/,
+      `${path} must not run expensive work on synchronize`,
+    );
+  }
 });
