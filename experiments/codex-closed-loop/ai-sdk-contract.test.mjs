@@ -95,7 +95,13 @@ test('Google-free inference receives no repository or Overcenter authority',()=>
   assert.match(workflow,/persist-credentials: false/g);
   assert.match(workflow,/rm -rf "\$GITHUB_WORKSPACE"/);
   assert.match(workflow,/\/usr\/bin\/setpriv[\s\S]*\/usr\/bin\/env -i/);
+  assert.match(workflow,/sandbox_root=\/opt\/overcenter-google-free/);
+  assert.match(workflow,/sudo install -d -o root -g root -m 0711 "\$sandbox_root"/);
+  assert.match(workflow,/sudo chmod -R a\+rX,u-w,g-w,o-w "\$sandbox_root\/runtime" "\$sandbox_root\/input"/);
+  assert.match(workflow,/sudo -u overcenter-model test -r "\$sandbox_root\/runtime\/experiments\/codex-closed-loop\/ai-sdk-candidate\.ts"/);
+  assert.match(workflow,/sudo -u overcenter-model test -r "\$sandbox_root\/input\/prompt\.txt"/);
   assert.match(workflow,/node_bin="\$\(readlink -f "\$\(command -v node\)"\)"/);
+  assert.match(workflow,/sudo -u overcenter-model test -x "\$node_bin"/);
   assert.match(workflow,/"\$node_bin" --experimental-strip-types/);
   assert.doesNotMatch(workflow,/\/usr\/bin\/node --experimental-strip-types/);
   assert.match(workflow,/trap cleanup EXIT/);
