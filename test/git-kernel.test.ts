@@ -356,7 +356,7 @@ test('supervisor rotates execution authority before recovering a dead worker', (
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('DONE resolution is idempotent after lost acknowledgement', () => {
+test('DONE resolution stays idempotent after the node is retired', () => {
   const f = fixture();
   try {
     const path = f.path('x');
@@ -364,6 +364,8 @@ test('DONE resolution is idempotent after lost acknowledgement', () => {
     const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     writeFileSync(path, 'yes');
     const first = f.kernel.resolve(run);
+    f.kernel.applyGraphPatch({retire:['x']},f.kernel.head()!);
+    assert.deepEqual(f.kernel.inspect(),[]);
     const second = f.kernel.resolve(run);
     assert.equal(first.disposition, 'DONE');
     assert.equal(second.settlement_commit, first.settlement_commit);
