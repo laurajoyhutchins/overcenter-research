@@ -64,7 +64,7 @@ resolve_free_project() {
     echo "No existing free Gemini project found; creating $project" >&2
     gcloud projects create "$project" \
       --name="Overcenter Gemini Free" \
-      --set-as-default=false >/dev/null
+      --no-set-as-default >/dev/null
   fi
 
   local billing_json
