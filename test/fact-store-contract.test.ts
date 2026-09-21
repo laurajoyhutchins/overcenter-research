@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -115,6 +117,34 @@ test('Git and SQLite satisfy the same durable fact store contract',()=>{
   }
 });
 
+
+test('opening an initialized SQLite store does not contend for the writer lock',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-open-contention-'));
+  const database=join(root,'authority.sqlite');
+  const setup=new SqliteFactStore(database);
+  const initial=setup.append(null,'initialize');
+  assert.ok(initial);
+  setup.close();
+
+  const blocker=new DatabaseSync(database);
+  blocker.exec('PRAGMA journal_mode = WAL');
+  blocker.exec('BEGIN IMMEDIATE');
+  const started=performance.now();
+  let reopened:SqliteFactStore|undefined;
+  try {
+    reopened=new SqliteFactStore(database);
+    assert.equal(reopened.head(),initial);
+    assert.ok(
+      performance.now()-started<1000,
+      'ordinary reopen waited on a writer lock',
+    );
+  } finally {
+    reopened?.close();
+    blocker.exec('ROLLBACK');
+    blocker.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
 
 test('SQLite serializes simultaneous writers and admits exactly one same-head CAS winner',async()=>{
   const root=mkdtempSync(join(tmpdir(),'sqlite-contention-'));
