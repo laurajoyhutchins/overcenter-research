@@ -24,6 +24,13 @@ test('Google-free bootstrap is valid shell',()=>{
   assert.equal(result.status,0,result.stderr);
 });
 
+test('Google-free proof can run on the exact same-repository PR head',()=>{
+  assert.match(workflow,/pull_request:[\s\S]*autonomy-sandbox-google-free\.yml/);
+  assert.doesNotMatch(workflow,/pull_request_target/);
+  assert.match(workflow,/SOURCE_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+  assert.match(workflow,/if: github\.event_name == 'workflow_dispatch' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
+});
+
 test('reasoning identity reuses proven GCP coordinates without reusing production deployment authority',()=>{
   assert.match(workflow,/GCP_IDENTITY_PROJECT_ID: project-6b810532-a302-48dc-b56/);
   assert.match(workflow,/projects\/380435294892\/locations\/global\/workloadIdentityPools\/github-reasoning\/providers\/overcenter-research/);
@@ -37,6 +44,8 @@ test('reasoning identity reuses proven GCP coordinates without reusing productio
   assert.match(bootstrap,/Invalid GCP service-account ID/);
   assert.match(bootstrap,/attribute\.repository_id=assertion\.repository_id/);
   assert.match(bootstrap,/attribute\.repository_owner_id=assertion\.repository_owner_id/);
+  assert.match(bootstrap,/attribute\.workflow_ref=assertion\.workflow_ref/);
+  assert.match(bootstrap,/attribute\.workflow_ref\.startsWith\('\$REPOSITORY\/\.github\/workflows\/autonomy-sandbox-google-free\.yml@'\)/);
 });
 
 test('Google-free bootstrap discovers or accepts one unbilled Gemini project and creates one stable auth key',()=>{

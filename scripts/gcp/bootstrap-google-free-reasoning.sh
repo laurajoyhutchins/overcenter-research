@@ -118,8 +118,8 @@ if ! gcloud iam workload-identity-pools describe "$POOL_ID"     --project="$IDEN
   gcloud iam workload-identity-pools create "$POOL_ID"     --project="$IDENTITY_PROJECT_ID"     --location=global     --display-name="GitHub reasoning workers"
 fi
 
-ATTRIBUTE_MAPPING="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id"
-ATTRIBUTE_CONDITION="assertion.repository_id == '$REPOSITORY_ID' && assertion.repository_owner_id == '$OWNER_ID'"
+ATTRIBUTE_MAPPING="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.workflow_ref=assertion.workflow_ref"
+ATTRIBUTE_CONDITION="assertion.repository_id == '$REPOSITORY_ID' && assertion.repository_owner_id == '$OWNER_ID' && attribute.workflow_ref.startsWith('$REPOSITORY/.github/workflows/autonomy-sandbox-google-free.yml@')"
 
 if gcloud iam workload-identity-pools providers describe "$PROVIDER_ID"     --project="$IDENTITY_PROJECT_ID" --location=global --workload-identity-pool="$POOL_ID" >/dev/null 2>&1; then
   gcloud iam workload-identity-pools providers update-oidc "$PROVIDER_ID"     --project="$IDENTITY_PROJECT_ID"     --location=global     --workload-identity-pool="$POOL_ID"     --issuer-uri="https://token.actions.githubusercontent.com/"     --attribute-mapping="$ATTRIBUTE_MAPPING"     --attribute-condition="$ATTRIBUTE_CONDITION"
