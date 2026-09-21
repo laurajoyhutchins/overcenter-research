@@ -68,7 +68,7 @@ The TypeScript emitter returns the exact bytes, their SHA-256, and the decoded s
 On Linux x86-64 with Landlock ABI >= 6, the launcher:
 
 - reads and parses a bounded, canonical manifest before creating the worker process;
-- refuses effective uid 0, switchable real/effective/saved UID or GID state, and any nonzero effective, permitted, or inheritable Linux capability set;
+- refuses effective uid 0, switchable real/effective/saved UID or GID state, any nonzero effective/permitted/inheritable Linux capability set, and inherited scheduling policies outside the fair class; only `SCHED_OTHER`, `SCHED_BATCH`, and `SCHED_IDLE` are admitted because `cpu.max` does not govern realtime/deadline scheduling classes;
 - consumes the already-open workspace object from FD 3, verifies its directory type and device/inode identity, and binds Landlock directly to that object;
 - verifies FD 4 is an exact cgroup-v2 domain leaf with the required kernel interfaces, writes and reads back `memory.max`, `pids.max`, and `cpu.max`, disables swap, enables group OOM handling, and migrates itself into that pinned object before untrusted code exists;
 - keeps workspace file/dir mutation rights but withholds blanket execute authority plus character-device, block-device, Unix-socket-node, device-ioctl, and pathname-Unix-socket resolution authority;
@@ -87,7 +87,7 @@ On Linux x86-64 with Landlock ABI >= 6, the launcher:
 
 Stdin/stdout/stderr are the intentional process interface. The trusted caller closes stdin after sending the complete manifest, so the worker inherits an EOF'd input stream rather than an ambient capability.
 
-The launcher is intentionally fail-closed when required kernel mechanisms are unavailable.
+The launcher is intentionally fail-closed when required kernel mechanisms are unavailable or when the inherited scheduling class would make the declared CPU ceiling unenforceable.
 
 ### Deliberate residual boundary
 
