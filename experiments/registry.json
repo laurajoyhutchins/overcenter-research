@@ -641,6 +641,46 @@
       "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     },
     {
+      "id": "scheduler-authority-lane",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/scheduler-authority-lane",
+      "readme": "experiments/scheduler-authority-lane/README.md",
+      "question": "Should parallel workers independently settle one global authority head, or should effects fan out while claims and settlements remain in one deterministic authority lane?",
+      "claim": "The experiment compares distributed settlement with a single trusted authority lane over identical exact claims while sweeping effect cost and worker count; authority-lane workers receive packets only and settlement independently observes postconditions.",
+      "contrast": "Treat negative multi-writer settlement scaling as a reason for distributed authority before testing whether serialization belongs intentionally in deterministic software while effects remain parallel.",
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run experiment:scheduler-authority-lane"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Local filesystem supporting SQLite WAL",
+        "Hosted reference run uses GitHub Actions ubuntu-24.04"
+      ],
+      "success_criteria": [
+        "Both modes settle exactly 32 unique obligations DONE through production authority.",
+        "Authority-lane workers receive packet bytes but no ExecutionPermit.",
+        "Settlement independently observes postconditions through production resolve().",
+        "The experiment reports 1/2/4/8-worker throughput at 0, 25, and 100 ms effect cost.",
+        "Provisioning, effect phase, and serialized settlement costs are included in end-to-end timing."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          ".github/workflows/scheduler-authority-lane.yml"
+        ]
+      },
+      "interpretation": "Use the effect-cost crossover to decide whether production scheduling should centralize exact assignment and settlement while parallelizing only effectful execution.",
+      "non_claims": [
+        "Artificial delay models a particular provider.",
+        "A singleton in-process authority lane is the final deployment topology.",
+        "Fairness policy is proved.",
+        "SQLite is distributed or highly available.",
+        "Worker-reported success is sufficient for settlement."
+      ]
+    },
+    {
       "id": "scheduler-bottleneck",
       "kind": "experiment",
       "status": "maintained",
