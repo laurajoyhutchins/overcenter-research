@@ -84,13 +84,13 @@
     {
       "id": "effect-reservation",
       "source_run": {
-        "revision": "615cca65245ffd7ebe487edfdaac7e4f48a55ff3",
-        "workflow_run_id": 35645209331,
-        "mutation_report_sha256": "sha256:03574cbcefc0a4570dedf937680f7c34d47d4698e49d23ce9f17f004ce36465b",
-        "artifact_digest": "sha256:b1e9fe6459542050af374163997cc7c7074e62380045a1c17f3e47634a887935"
+        "revision": "bafe732173fada2ced2f1b300a07136dddcbf70e",
+        "workflow_run_id": 35648457545,
+        "mutation_report_sha256": "sha256:1b5e0b333d526613e1bfc5e5db604f2230a1601b07a972c36f98571315aef110",
+        "artifact_digest": "sha256:ce14f75900276c2b81e5d921648d7f20e54892e05a80ff304c5b161383c31ac6"
       },
       "source_blobs": {
-        "src/kernel-core.ts": "fa3f9ef398056ac8a8cf101edc7368d2d108e5e0"
+        "src/kernel-core.ts": "23f12209b5c8d5a9f8655488b9aeaf6364d9e20f"
       },
       "selectors": [
         {
@@ -108,13 +108,13 @@
     {
       "id": "settlement",
       "source_run": {
-        "revision": "615cca65245ffd7ebe487edfdaac7e4f48a55ff3",
-        "workflow_run_id": 35645209331,
-        "mutation_report_sha256": "sha256:03574cbcefc0a4570dedf937680f7c34d47d4698e49d23ce9f17f004ce36465b",
-        "artifact_digest": "sha256:b1e9fe6459542050af374163997cc7c7074e62380045a1c17f3e47634a887935"
+        "revision": "bafe732173fada2ced2f1b300a07136dddcbf70e",
+        "workflow_run_id": 35648457545,
+        "mutation_report_sha256": "sha256:1b5e0b333d526613e1bfc5e5db604f2230a1601b07a972c36f98571315aef110",
+        "artifact_digest": "sha256:ce14f75900276c2b81e5d921648d7f20e54892e05a80ff304c5b161383c31ac6"
       },
       "source_blobs": {
-        "src/kernel-core.ts": "fa3f9ef398056ac8a8cf101edc7368d2d108e5e0"
+        "src/kernel-core.ts": "23f12209b5c8d5a9f8655488b9aeaf6364d9e20f"
       },
       "selectors": [
         {
@@ -123,11 +123,11 @@
         }
       ],
       "total": 12,
-      "killed": 7,
+      "killed": 8,
       "survived": 4,
       "no_coverage": 0,
-      "timeout_or_error": 1,
-      "mutation_score": 0.5833333333333334
+      "timeout_or_error": 0,
+      "mutation_score": 0.6666666666666666
     },
     {
       "id": "execution-fence",
