@@ -21,7 +21,7 @@ const obligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligati
 });
 
 test('static graph validation accepts an acyclic dependency chain',()=>{
-  let state:State={obligations:{},definition_commits:{}};
+  let state:State={obligations:{},definition_ids:{}};
   state=withObligation(state,obligation('a'),'a-def');
   state=withObligation(
     state,
@@ -45,7 +45,7 @@ test('static graph validation rejects unknown dependencies and cycles',()=>{
     obligations:{
       a:obligation('a',[{kind:'control',upstream:'missing'}]),
     },
-    definition_commits:{a:'a-def'},
+    definition_ids:{a:'a-def'},
   };
   assert.throws(()=>validateGraph(unknown),/UNKNOWN_DEPENDENCY:a:missing/);
 
@@ -54,7 +54,7 @@ test('static graph validation rejects unknown dependencies and cycles',()=>{
       a:obligation('a',[{kind:'control',upstream:'b'}]),
       b:obligation('b',[{kind:'control',upstream:'a'}]),
     },
-    definition_commits:{a:'a-def',b:'b-def'},
+    definition_ids:{a:'a-def',b:'b-def'},
   };
   assert.throws(()=>validateGraph(cycle),/DEPENDENCY_CYCLE/);
 });
