@@ -28,9 +28,9 @@ assert.equal(positive.repository_id,repositoryId);
 assert.equal(positive.repository_full_name,repositoryFullName);
 const positiveEvidence=positive.provider_evidence as Record<string,unknown>;
 assert.equal(positiveEvidence.schema_sha256,GITHUB_OPENAPI_SHA256);
-assert.equal(positiveEvidence.status_operation_id,'repos/list-commit-statuses-for-ref');
+assert.equal(positiveEvidence.status_operation_id,'repos/get-combined-status-for-ref');
 const repositoryEvidence=positiveEvidence.repository as Record<string,unknown>;
-assert.equal(repositoryEvidence.operation_id,'repos/get');
+assert.equal(repositoryEvidence.operation_id,'repos/get-combined-status-for-ref');
 assert.equal(repositoryEvidence.canonical_full_name,repositoryFullName);
 
 const missingContext=`overcenter/certified-observation/missing/${process.env.GITHUB_RUN_ID ?? 'run'}`;

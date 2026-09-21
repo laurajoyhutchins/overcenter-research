@@ -121,6 +121,25 @@ async function runSample(
         if (path==='/repos/acme/widget') {
           return repository(repositoryId,repositoryFullName);
         }
+        if (path.startsWith(`/repos/acme/widget/commits/${commitSha}/status?`)) {
+          return {
+            state:providerState?'success':'pending',
+            sha:commitSha,
+            total_count:providerState?1:0,
+            repository:repository(repositoryId,repositoryFullName),
+            statuses:providerState
+              ? [{
+                  id:index+1,
+                  node_id:`STATUS_${index+1}`,
+                  state:'success',
+                  context,
+                  target_url:null,
+                  created_at:'2026-09-20T21:00:00Z',
+                  updated_at:'2026-09-20T21:00:01Z',
+                }]
+              : [],
+          };
+        }
         if (path.startsWith(`/repos/acme/widget/commits/${commitSha}/statuses?`)) {
           return providerState
             ? [{
