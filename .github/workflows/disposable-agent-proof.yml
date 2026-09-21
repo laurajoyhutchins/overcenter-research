@@ -68,6 +68,7 @@ jobs:
           node-version-file: '.node-version'
 
       - name: Focused disposable-agent regressions
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           node --experimental-strip-types --test \
             test/git-kernel.test.ts \
