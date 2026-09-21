@@ -34,7 +34,7 @@ writeFileSync(join(src,'format.ts'),`export interface User {
 }
 
 export function formatUser(user:User):string {
-  return \`${user.name} <${user.email}>\`;
+  return \`\${user.name} <\${user.email}>\`;
 }
 
 export function initials(name:string):string {
