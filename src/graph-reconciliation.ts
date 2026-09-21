@@ -1,21 +1,16 @@
 import type { Obligation } from './model.ts';
 import type { ObligationInput, State } from './facts.ts';
-import { normalizeObligation } from './facts.ts';
-import { canonicalDigest } from './digest.ts';
+import {
+  normalizeObligation,
+  obligationDefinition,
+  obligationDefinitionId,
+} from './facts.ts';
 
 export interface GraphReconciliationPlan {
-  add:Obligation[];
-  replace:Obligation[];
+  upsert:Obligation[];
+  added:string[];
+  rebound:string[];
   unchanged:string[];
-}
-
-function definitionDigest(obligation:Obligation):string {
-  const dependencies=[...obligation.dependencies]
-    .sort((a,b)=>canonicalDigest(a).localeCompare(canonicalDigest(b)));
-  return canonicalDigest({
-    ...obligation,
-    dependencies,
-  });
 }
 
 export function planGraphReconciliation(
@@ -27,8 +22,9 @@ export function planGraphReconciliation(
     .sort((a,b)=>a.id.localeCompare(b.id));
 
   const seen=new Set<string>();
-  const add:Obligation[]=[];
-  const replace:Obligation[]=[];
+  const upsert:Obligation[]=[];
+  const added:string[]=[];
+  const rebound:string[]=[];
   const unchanged:string[]=[];
 
   for (const obligation of normalized) {
@@ -37,17 +33,23 @@ export function planGraphReconciliation(
     }
     seen.add(obligation.id);
 
-    const current=state.obligations[obligation.id];
-    if (!current) {
-      add.push(obligation);
+    const definitionId=obligationDefinitionId(
+      obligationDefinition(obligation),
+    );
+    const currentDefinitionId=state.definition_ids[obligation.id];
+
+    if (!currentDefinitionId) {
+      upsert.push(obligation);
+      added.push(obligation.id);
       continue;
     }
-    if (definitionDigest(current)===definitionDigest(obligation)) {
+    if (currentDefinitionId===definitionId) {
       unchanged.push(obligation.id);
       continue;
     }
-    replace.push(obligation);
+    upsert.push(obligation);
+    rebound.push(obligation.id);
   }
 
-  return {add,replace,unchanged};
+  return {upsert,added,rebound,unchanged};
 }
