@@ -87,7 +87,10 @@ jobs:
           model_gid="$(id -g overcenter-model)"
           if ! sudo /usr/bin/unshare --net --fork --             /usr/bin/setpriv --reuid="$model_uid" --regid="$model_gid" --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$sandbox_root/home"               LD_LIBRARY_PATH="$runtime_dir"               LLAMA_CLI="$llama_cli"               MODEL="$sandbox_root/model.gguf"               PROMPT="$sandbox_root/input/prompt.txt"               SCHEMA="$sandbox_root/input/schema.json"               /bin/sh -ceu '
                 cd "$HOME"
+                echo "LOCAL_MODEL_UID=$(id -u)" >&2
                 test "$(id -u)" -ne 0
+                interfaces="$(find /sys/class/net -mindepth 1 -maxdepth 1 -printf "%f " | sed "s/ $//")"
+                echo "LOCAL_MODEL_INTERFACES=$interfaces" >&2
                 test -z "$(find /sys/class/net -mindepth 1 -maxdepth 1 ! -name lo -print -quit)"
                 echo LOCAL_MODEL_PRECONDITIONS_OK >&2
                 exec "$LLAMA_CLI"                   -m "$MODEL"                   -f "$PROMPT"                   --json-schema-file "$SCHEMA"                   --seed 20260921                   --temp 0                   --ctx-size 4096                   -n 1400                   --no-display-prompt                   --no-show-timings
