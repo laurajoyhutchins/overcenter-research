@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  EVIDENCE_EMITTER,
+  EVIDENCE_RECONCILER,
+  EVIDENCE_RECONCILER_TEST,
   MUTATION_SELECTOR,
   MUTATION_SELECTOR_TEST,
   MUTATION_WORKFLOW,
@@ -65,7 +68,6 @@ test('production foundations and mutation-engine config force the broad probe',(
     'experiments/production-criticality-ranking/stryker.config.mjs',
     'experiments/production-criticality-ranking/summarize-mutation.mjs',
     'experiments/production-criticality-ranking/summarize-mutation.test.mjs',
-    'experiments/production-criticality-ranking/emit-mutation-evidence.mjs',
   ]) {
     assert.deepEqual(select([file]),{
       runProbe:true,
@@ -85,12 +87,22 @@ test('generic hostile regressions still force the broad probe',()=>{
   });
 });
 
-test('workflow and selector plumbing use one end-to-end smoke probe',()=>{
+test('workflow and evidence plumbing use one end-to-end smoke probe',()=>{
   for (const changed of [
     [MUTATION_WORKFLOW],
     [MUTATION_SELECTOR],
     [MUTATION_SELECTOR_TEST],
-    [MUTATION_WORKFLOW,MUTATION_SELECTOR,MUTATION_SELECTOR_TEST],
+    [EVIDENCE_EMITTER],
+    [EVIDENCE_RECONCILER],
+    [EVIDENCE_RECONCILER_TEST],
+    [
+      MUTATION_WORKFLOW,
+      MUTATION_SELECTOR,
+      MUTATION_SELECTOR_TEST,
+      EVIDENCE_EMITTER,
+      EVIDENCE_RECONCILER,
+      EVIDENCE_RECONCILER_TEST,
+    ],
   ]) {
     assert.deepEqual(select(changed),{
       runProbe:true,
