@@ -16,6 +16,9 @@ private def stringField (json : Json) (name : String) : Except String String := 
 private def boolField (json : Json) (name : String) : Except String Bool := do
   (← field json name).getBool?
 
+private def natField (json : Json) (name : String) : Except String Nat := do
+  (← field json name).getNat?
+
 private def optionalStringField (json : Json) (name : String) : Except String (Option String) := do
   let value ← field json name
   if value.isNull then
@@ -106,7 +109,7 @@ private def mutationRunIdentity
     claimedRevision := ← stringField request s!"{stem}_claimed_revision"
     claimCommit := ← stringField request s!"{stem}_claim_commit"
     obligationKey := ← stringField request s!"{stem}_obligation_key"
-    executionGeneration := ← stringField request s!"{stem}_execution_generation"
+    executionGeneration := ← natField request s!"{stem}_execution_generation"
     executionAuthorityCommit := ← stringField request s!"{stem}_execution_authority_commit"
     executionCapabilitySha256 := ← stringField request s!"{stem}_execution_capability_sha256"
   }
@@ -131,7 +134,7 @@ private def reservationReplayComparison (request : Json) : Except String Json :=
   let reservation : EffectReservationIdentity := {
     runId := ← stringField request "reservation_run_id"
     obligationId := ← stringField request "reservation_obligation_id"
-    executionGeneration := ← stringField request "reservation_execution_generation"
+    executionGeneration := ← natField request "reservation_execution_generation"
     executionAuthorityCommit := ← stringField request "reservation_execution_authority_commit"
   }
   pure <| Json.mkObj [
@@ -146,12 +149,25 @@ private def receiptReplayComparison (request : Json) : Except String Json := do
     obligationId := ← stringField request "receipt_obligation_id"
     claimedRevision := ← stringField request "receipt_claimed_revision"
     claimCommit := ← stringField request "receipt_claim_commit"
-    executionGeneration := ← stringField request "receipt_execution_generation"
+    executionGeneration := ← natField request "receipt_execution_generation"
     executionAuthorityCommit := ← stringField request "receipt_execution_authority_commit"
   }
   pure <| Json.mkObj [
     ("schema", "overcenter-lean-receipt-replay-comparison/v1"),
     ("admitted", receiptReplayAllowed run receipt)
+  ]
+
+private def executionAuthorityComparison (request : Json) : Except String Json := do
+  let run ← mutationRunIdentity request "run"
+  let authority : ExecutionAuthorityIdentity := {
+    runId := ← stringField request "authority_run_id"
+    obligationId := ← stringField request "authority_obligation_id"
+    generation := ← natField request "authority_generation"
+    previousAuthorityCommit := ← stringField request "authority_previous_commit"
+  }
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-execution-authority-comparison/v1"),
+    ("admitted", executionAuthorityAdvanceAllowed run authority)
   ]
 
 private def transactionKernelComparison (request : Json) : Except String Json := do
@@ -185,6 +201,8 @@ def handleComparisonJson (request : Json) : Except String Json := do
     reservationReplayComparison request
   else if command == "receipt-replay" then
     receiptReplayComparison request
+  else if command == "execution-authority" then
+    executionAuthorityComparison request
   else
     if command != "claim-admission" then
       throw s!"unsupported command: {command}"
