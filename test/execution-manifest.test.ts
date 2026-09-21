@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import { sha256 } from '../src/digest.ts';
 import { runConfinedWorker } from '../src/confined-executor.ts';
@@ -11,6 +14,20 @@ const base={
   workspace_ino:'987654',
   program:'/usr/bin/node',
 };
+
+function runnableManifest(){
+  const workspace=fs.mkdtempSync(path.join(os.tmpdir(),'overcenter-exec-'));
+  const stat=fs.statSync(workspace,{bigint:true});
+  return {
+    workspace,
+    manifest:{
+      ...base,
+      workspace,
+      workspace_dev:stat.dev.toString(),
+      workspace_ino:stat.ino.toString(),
+    },
+  };
+}
 
 test('execution manifest is canonical and digest-bound',()=>{
   const rendered=renderExecutionManifest({
@@ -28,6 +45,8 @@ test('execution manifest is canonical and digest-bound',()=>{
     'workspace_dev\t2049',
     'workspace_ino\t987654',
     'program\t/usr/bin/node',
+    'timeout_ms\t60000',
+    'max_output_bytes\t1048576',
     'arg\tworker.mjs',
     'arg\t--mode=safe',
     'env\tALPHA\ta',
@@ -50,23 +69,128 @@ test('execution manifest is canonical and digest-bound',()=>{
 test('execution manifest rejects authority-smearing inputs',()=>{
   assert.throws(()=>renderExecutionManifest({...base,workspace:'relative'}),/WORKSPACE_NOT_ABSOLUTE/u);
   assert.throws(()=>renderExecutionManifest({...base,workspace_dev:'1e3'}),/WORKSPACE_DEV_NOT_DECIMAL/u);
+  assert.throws(()=>renderExecutionManifest({...base,workspace_dev:'01'}),/WORKSPACE_DEV_NOT_CANONICAL/u);
+  assert.throws(
+    ()=>renderExecutionManifest({...base,workspace_dev:'18446744073709551616'}),
+    /WORKSPACE_DEV_OUT_OF_RANGE/u,
+  );
   assert.throws(()=>renderExecutionManifest({...base,args:['ok\nsmuggled']}),/ARG_INVALID/u);
   assert.throws(()=>renderExecutionManifest({...base,environment:{'BAD-NAME':'x'}}),/ENV_NAME_INVALID/u);
   assert.throws(()=>renderExecutionManifest({...base,runtime_read_only:['/lib/a','/lib/a']}),/RUNTIME_READ_ONLY_DUPLICATE/u);
+  assert.throws(
+    ()=>renderExecutionManifest({...base,runtime_read_only:['/lib/a'],runtime_executable:['/lib/a']}),
+    /RUNTIME_ACCESS_CONFLICT/u,
+  );
+  assert.throws(
+    ()=>renderExecutionManifest({...base,timeout_ms:2_147_483_648}),
+    /TIMEOUT_MS_INVALID/u,
+  );
+});
+
+test('supervisor policy is part of execution identity',()=>{
+  const ordinary=renderExecutionManifest(base);
+  const tighterTimeout=renderExecutionManifest({...base,timeout_ms:59_999});
+  const tighterOutput=renderExecutionManifest({...base,max_output_bytes:1_048_575});
+  assert.notEqual(tighterTimeout.sha256,ordinary.sha256);
+  assert.notEqual(tighterOutput.sha256,ordinary.sha256);
+});
+
+test('execution manifest environment ordering is locale-independent',()=>{
+  const rendered=renderExecutionManifest({
+    ...base,
+    environment:{a:'lower',_Z:'underscore',B:'upper'},
+  });
+  assert.deepEqual(
+    rendered.bytes.split('\n').filter((line)=>line.startsWith('env\t')),
+    ['env\tB\tupper','env\t_Z\tunderscore','env\ta\tlower'],
+  );
 });
 
 test('trusted launcher receives the exact bytes whose digest is reported',async()=>{
-  const rendered=renderExecutionManifest(base);
-  const result=await runConfinedWorker({
-    launcher:'/bin/cat',
-    manifest:base,
-  });
+  const {workspace,manifest}=runnableManifest();
+  try {
+    const rendered=renderExecutionManifest(manifest);
+    const result=await runConfinedWorker({launcher:'/bin/cat',manifest});
+    assert.equal(result.exit_code,0);
+    assert.equal(result.signal,null);
+    assert.equal(result.stderr,'');
+    assert.equal(result.stdout,rendered.bytes);
+    assert.equal(result.manifest_sha256,sha256(result.stdout));
+  } finally {
+    fs.rmSync(workspace,{recursive:true,force:true});
+  }
+});
 
-  assert.equal(result.exit_code,0);
-  assert.equal(result.signal,null);
-  assert.equal(result.stderr,'');
-  assert.equal(result.stdout,rendered.bytes);
-  assert.equal(result.manifest_sha256,sha256(result.stdout));
+test('trusted launcher passes the exact workspace object on fd 3',async()=>{
+  const {workspace,manifest}=runnableManifest();
+  try {
+    const result=await runConfinedWorker({
+      launcher:'/bin/sh',
+      launcher_args:['-c','/usr/bin/stat -Lc "%d %i" /proc/self/fd/3; /bin/cat'],
+      manifest,
+    });
+    const [identity,...manifestLines]=result.stdout.split('\n');
+    assert.equal(identity,`${manifest.workspace_dev} ${manifest.workspace_ino}`);
+    assert.equal(`${manifestLines.join('\n')}`,renderExecutionManifest(manifest).bytes);
+  } finally {
+    fs.rmSync(workspace,{recursive:true,force:true});
+  }
+});
+
+test('trusted launcher rejects a workspace fd identity mismatch',async()=>{
+  const {workspace,manifest}=runnableManifest();
+  try {
+    await assert.rejects(
+      runConfinedWorker({
+        launcher:'/bin/cat',
+        manifest:{...manifest,workspace_ino:(BigInt(manifest.workspace_ino)+1n).toString()},
+      }),
+      /WORKSPACE_IDENTITY_CHANGED/u,
+    );
+  } finally {
+    fs.rmSync(workspace,{recursive:true,force:true});
+  }
+});
+
+test('trusted launcher bounds untrusted output',async()=>{
+  const {workspace,manifest}=runnableManifest();
+  try {
+    await assert.rejects(
+      runConfinedWorker({launcher:'/bin/cat',manifest:{...manifest,max_output_bytes:8}}),
+      /WORKER_OUTPUT_LIMIT/u,
+    );
+  } finally {
+    fs.rmSync(workspace,{recursive:true,force:true});
+  }
+});
+
+test('trusted launcher kills a hanging worker process group',async()=>{
+  const {workspace,manifest}=runnableManifest();
+  const started=Date.now();
+  try {
+    await assert.rejects(
+      runConfinedWorker({
+        launcher:'/bin/sh',
+        launcher_args:['-c','cat >/dev/null; sleep 5'],
+        manifest:{...manifest,timeout_ms:50},
+      }),
+      /WORKER_TIMEOUT/u,
+    );
+    assert.ok(Date.now()-started<2_000);
+  } finally {
+    fs.rmSync(workspace,{recursive:true,force:true});
+  }
+});
+
+test('launcher budgets fail closed',async()=>{
+  await assert.rejects(
+    runConfinedWorker({launcher:'/bin/cat',manifest:{...base,timeout_ms:0}}),
+    /TIMEOUT_MS_INVALID/u,
+  );
+  await assert.rejects(
+    runConfinedWorker({launcher:'/bin/cat',manifest:{...base,max_output_bytes:0}}),
+    /MAX_OUTPUT_BYTES_INVALID/u,
+  );
 });
 
 test('launcher identity is configuration, not manifest-controlled',async()=>{

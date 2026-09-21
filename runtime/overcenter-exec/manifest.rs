@@ -8,6 +8,8 @@ pub struct Manifest {
     pub workspace_dev: u64,
     pub workspace_ino: u64,
     pub program: PathBuf,
+    pub timeout_ms: u64,
+    pub max_output_bytes: u64,
     pub args: Vec<String>,
     pub environment: Vec<(String, String)>,
     pub runtime_read_only: Vec<PathBuf>,
@@ -18,7 +20,18 @@ fn parse_u64(name: &str, value: &str) -> Result<u64, String> {
     if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
         return Err(format!("{name} must be decimal"));
     }
+    if value.len() > 1 && value.starts_with('0') {
+        return Err(format!("{name} must use canonical decimal"));
+    }
     value.parse::<u64>().map_err(|_| format!("{name} is out of range"))
+}
+
+fn parse_bounded_positive_u64(name: &str, value: &str, maximum: u64) -> Result<u64, String> {
+    let parsed = parse_u64(name, value)?;
+    if parsed == 0 || parsed > maximum {
+        return Err(format!("{name} must be between 1 and {maximum}"));
+    }
+    Ok(parsed)
 }
 
 fn validate_atom(name: &str, value: &str) -> Result<(), String> {
@@ -61,6 +74,13 @@ fn set_once<T>(slot: &mut Option<T>, value: T, name: &str) -> Result<(), String>
 }
 
 pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
+    if input.is_empty() || !input.ends_with('\n') {
+        return Err("manifest must end with exactly one newline-delimited record stream".to_owned());
+    }
+    if input.contains('\r') {
+        return Err("manifest contains carriage return".to_owned());
+    }
+
     let mut lines = input.lines();
     if lines.next() != Some("OVERCENTER_EXEC_V1") {
         return Err("unsupported manifest header".to_owned());
@@ -71,6 +91,8 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
     let mut workspace_dev = None;
     let mut workspace_ino = None;
     let mut program = None;
+    let mut timeout_ms = None;
+    let mut max_output_bytes = None;
     let mut args = Vec::new();
     let mut environment = Vec::new();
     let mut runtime_read_only = Vec::new();
@@ -102,6 +124,16 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
             ["program", value] => {
                 set_once(&mut program, validate_absolute("program", value)?, "program")?;
             }
+            ["timeout_ms", value] => {
+                set_once(&mut timeout_ms, parse_bounded_positive_u64("timeout_ms", value, 2_147_483_647)?, "timeout_ms")?;
+            }
+            ["max_output_bytes", value] => {
+                set_once(
+                    &mut max_output_bytes,
+                    parse_bounded_positive_u64("max_output_bytes", value, 9_007_199_254_740_991)?,
+                    "max_output_bytes",
+                )?;
+            }
             ["arg", value] => {
                 validate_atom("arg", value)?;
                 args.push((*value).to_owned());
@@ -119,12 +151,18 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
                 if !runtime_ro_seen.insert(path.clone()) {
                     return Err(format!("duplicate runtime_ro path: {}", path.display()));
                 }
+                if runtime_exec_seen.contains(&path) {
+                    return Err(format!("runtime path has conflicting access mode: {}", path.display()));
+                }
                 runtime_read_only.push(path);
             }
             ["runtime_exec", value] => {
                 let path = validate_absolute("runtime_exec", value)?;
                 if !runtime_exec_seen.insert(path.clone()) {
                     return Err(format!("duplicate runtime_exec path: {}", path.display()));
+                }
+                if runtime_ro_seen.contains(&path) {
+                    return Err(format!("runtime path has conflicting access mode: {}", path.display()));
                 }
                 runtime_executable.push(path);
             }
@@ -138,6 +176,8 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
         workspace_dev: workspace_dev.ok_or_else(|| "missing workspace_dev".to_owned())?,
         workspace_ino: workspace_ino.ok_or_else(|| "missing workspace_ino".to_owned())?,
         program: program.ok_or_else(|| "missing program".to_owned())?,
+        timeout_ms: timeout_ms.ok_or_else(|| "missing timeout_ms".to_owned())?,
+        max_output_bytes: max_output_bytes.ok_or_else(|| "missing max_output_bytes".to_owned())?,
         args,
         environment,
         runtime_read_only,
