@@ -50,6 +50,7 @@ test('Stage 1 scripted control settles only after independent verification',()=>
   assert.equal(evidence.capability_claim,'harness-only');
   assert.equal(evidence.authority.disposition,'DONE');
   assert.equal(evidence.authority.verified,true);
+  assert.equal(evidence.candidate.verifier_completion_proven,true);
   assert.equal(evidence.authority.fresh_reconstruction_passed,true);
   assert.equal(evidence.metrics.verified_useful_transitions,1);
   assert.equal(evidence.metrics.false_done_count,0);
@@ -153,6 +154,7 @@ test('candidate process.exit(0) cannot manufacture DONE',()=>{
     assert.equal(evidence.outcome,'rejected');
     assert.equal(evidence.authority.disposition,'READY');
     assert.equal(evidence.authority.verified,false);
+    assert.equal(evidence.candidate.verifier_completion_proven,false);
     assert.equal(evidence.metrics.verified_useful_transitions,0);
     assert.equal(evidence.metrics.false_done_count,0);
     assert.equal(evidence.authority.fresh_reconstruction_passed,true);

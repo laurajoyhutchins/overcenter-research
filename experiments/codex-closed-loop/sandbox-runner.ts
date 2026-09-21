@@ -65,6 +65,7 @@ type VerifierResult={
   status:number|null;
   stdout:string;
   stderr:string;
+  completion_proven:boolean;
   confined:boolean;
   manifest_sha256:string|null;
 };
@@ -244,6 +245,16 @@ function runtimeExecutableClosure(program:string):string[] {
   return [...new Set(paths)].filter(path=>path!==program).sort();
 }
 
+function verifierCompletionProven(stdout:string):boolean {
+  const lines=stdout.endsWith('\n')
+    ? stdout.slice(0,-1).split('\n')
+    : stdout.split('\n');
+  if (lines.length!==2) return false;
+  const challenge=/^OVERCENTER_VERIFY_CHALLENGE ([0-9a-f]{64})$/.exec(lines[0]??'');
+  const completion=/^OVERCENTER_VERIFY_COMPLETE ([0-9a-f]{64})$/.exec(lines[1]??'');
+  return challenge!==null && completion!==null && challenge[1]===completion[1];
+}
+
 async function runVerifier(
   workspace:string,
   home:string,
@@ -258,10 +269,12 @@ async function runVerifier(
       encoding:'utf8',
       timeout:30_000,
     });
+    const stdout=result.stdout??'';
     return {
       status:result.status,
-      stdout:result.stdout??'',
+      stdout,
       stderr:result.stderr??'',
+      completion_proven:verifierCompletionProven(stdout),
       confined:false,
       manifest_sha256:null,
     };
@@ -288,6 +301,7 @@ async function runVerifier(
     status:result.exit_code,
     stdout:result.stdout,
     stderr:result.stderr,
+    completion_proven:verifierCompletionProven(result.stdout),
     confined:true,
     manifest_sha256:result.manifest_sha256,
   };
@@ -425,7 +439,10 @@ try {
   const outsideScope=changedPaths.filter(path=>!path.startsWith('src/'));
   const verifier=await runVerifier(workspace,workerHome,workerTemp,args.seed,args.launcher);
 
-  const accepted=workerStatus===0 && outsideScope.length===0 && verifier.status===0;
+  const accepted=workerStatus===0
+    && outsideScope.length===0
+    && verifier.status===0
+    && verifier.completion_proven;
   if (accepted) writeFileSync(attestationPath,attestation,{flag:'wx'});
 
   const receipt=kernel.resolve(permit,{
@@ -546,6 +563,7 @@ try {
       verifier_exit_code:verifier.status,
       verifier_stdout_sha256:sha256(verifier.stdout),
       verifier_stderr_sha256:sha256(verifier.stderr),
+      verifier_completion_proven:verifier.completion_proven,
       execution_confinement_proven:verifier.confined,
       execution_manifest_sha256:verifier.manifest_sha256,
     },

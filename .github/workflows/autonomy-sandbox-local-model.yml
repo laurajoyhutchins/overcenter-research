@@ -42,7 +42,7 @@ jobs:
       - name: Download pinned public inference bytes
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/local-model/runtime" "$RUNNER_TEMP/local-model/out" "$RUNNER_TEMP/local-model/home"
+          mkdir -p "$RUNNER_TEMP/local-model/runtime" "$RUNNER_TEMP/local-model/out"
           curl --fail --location --retry 3             "https://github.com/ggml-org/llama.cpp/releases/download/b10964/llama-b10964-bin-ubuntu-x64.tar.gz"             -o "$RUNNER_TEMP/local-model/llama.tar.gz"
           echo "$RUNTIME_SHA256  $RUNNER_TEMP/local-model/llama.tar.gz" | sha256sum --check -
           tar -xzf "$RUNNER_TEMP/local-model/llama.tar.gz" -C "$RUNNER_TEMP/local-model/runtime"
@@ -59,8 +59,19 @@ jobs:
           chmod 0700 "$RUNNER_TEMP/local-model/trusted"
           chmod 0600 "$RUNNER_TEMP/local-model/trusted/normalize.mjs"
           sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
-          sudo chown overcenter-model:overcenter-model "$RUNNER_TEMP/local-model/home"
-          sudo chmod 0700 "$RUNNER_TEMP/local-model/home"
+          sandbox_root=/opt/overcenter-local-model
+          sudo rm -rf "$sandbox_root"
+          sudo install -d -o root -g root -m 0711 "$sandbox_root"
+          sudo mv "$RUNNER_TEMP/local-model/runtime" "$sandbox_root/runtime"
+          sudo mv "$RUNNER_TEMP/local-model/model.gguf" "$sandbox_root/model.gguf"
+          sudo chown -R root:root "$sandbox_root/runtime" "$sandbox_root/model.gguf"
+          sudo chmod -R a-w "$sandbox_root/runtime"
+          sudo chmod 0444 "$sandbox_root/model.gguf"
+          sudo install -d -o root -g root -m 0555 "$sandbox_root/input"
+          sudo install -o root -g root -m 0444 "$RUNNER_TEMP/local-model/input/prompt.txt" "$sandbox_root/input/prompt.txt"
+          sudo install -o root -g root -m 0444 "$RUNNER_TEMP/local-model/input/schema.json" "$sandbox_root/input/schema.json"
+          sudo install -d -o overcenter-model -g overcenter-model -m 0700 "$sandbox_root/home"
+          test -z "$(sudo find "$sandbox_root/runtime" -perm /022 -print -quit)"
           rm -rf "$GITHUB_WORKSPACE"
           mkdir -m 0700 "$GITHUB_WORKSPACE"
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
@@ -68,12 +79,13 @@ jobs:
         run: |
           set -euo pipefail
           test -z "${GITHUB_TOKEN:-}"
-          llama_cli="$(find "$RUNNER_TEMP/local-model/runtime" -type f -name llama-cli -perm -u+x | head -n 1)"
+          sandbox_root=/opt/overcenter-local-model
+          llama_cli="$(find "$sandbox_root/runtime" -type f -name llama-cli -perm -u+x | head -n 1)"
           test -n "$llama_cli"
           runtime_dir="$(dirname "$llama_cli")"
           model_uid="$(id -u overcenter-model)"
           model_gid="$(id -g overcenter-model)"
-          sudo /usr/bin/unshare --net --fork --             /usr/bin/setpriv --reuid="$model_uid" --regid="$model_gid" --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$RUNNER_TEMP/local-model/home"               LD_LIBRARY_PATH="$runtime_dir"               LLAMA_CLI="$llama_cli"               MODEL="$RUNNER_TEMP/local-model/model.gguf"               PROMPT="$RUNNER_TEMP/local-model/input/prompt.txt"               SCHEMA="$RUNNER_TEMP/local-model/input/schema.json"               /bin/sh -ceu '
+          sudo /usr/bin/unshare --net --fork --             /usr/bin/setpriv --reuid="$model_uid" --regid="$model_gid" --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$sandbox_root/home"               LD_LIBRARY_PATH="$runtime_dir"               LLAMA_CLI="$llama_cli"               MODEL="$sandbox_root/model.gguf"               PROMPT="$sandbox_root/input/prompt.txt"               SCHEMA="$sandbox_root/input/schema.json"               /bin/sh -ceu '
                 cd "$HOME"
                 test "$(id -u)" -ne 0
                 test "$(find /sys/class/net -mindepth 1 -maxdepth 1 -printf "%f\n" | grep -vc "^lo$")" -eq 0
