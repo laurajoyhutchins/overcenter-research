@@ -544,7 +544,6 @@
     },
     "SettlementObservation": {
       "type": "object",
-      "additionalProperties": false,
       "required": [
         "verifier",
         "mutation_certainty"
@@ -656,7 +655,8 @@
         "actual_head_sha": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "StructuralValidationCertificate": {
       "type": "object",

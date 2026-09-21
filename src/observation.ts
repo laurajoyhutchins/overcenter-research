@@ -26,6 +26,7 @@ import {
   githubGet,
   githubGetAsync,
   isGithubObjectId,
+  sameGithubObjectId,
   runGithubReadObserverAsync,
   type GithubJsonGetAsync,
 } from './providers/github-rest.ts';

@@ -2,7 +2,6 @@
 // Do not edit by hand.
 export const SettlementObservationSchema={
   "type": "object",
-  "additionalProperties": false,
   "required": [
     "verifier",
     "mutation_certainty"
@@ -114,5 +113,6 @@ export const SettlementObservationSchema={
     "actual_head_sha": {
       "type": "string"
     }
-  }
+  },
+  "additionalProperties": false
 } as const;
