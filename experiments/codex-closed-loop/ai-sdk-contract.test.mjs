@@ -59,7 +59,7 @@ test('Google-free bootstrap discovers or accepts one unbilled Gemini project and
   assert.match(bootstrap,/GEMINI_KEY_ID="overcenter-google-free"/);
   assert.match(bootstrap,/serviceAccountEmail/);
   assert.match(bootstrap,/keyId=\$GEMINI_KEY_ID/);
-  assert.match(bootstrap,/apikeys\.keys\.getKeyString,resourcemanager\.projects\.get/);
+  assert.match(bootstrap,/apikeys\.keys\.getKeyString,resourcemanager\.projects\.get,serviceusage\.services\.use/);
   assert.match(bootstrap,/gh variable set GEMINI_FREE_PROJECT_ID/);
   assert.doesNotMatch(bootstrap,/keyString.*gh variable|gh secret set/);
 });
@@ -73,6 +73,7 @@ test('Google-free credential is resolved from Google through GitHub OIDC, not st
   assert.match(workflow,/access_token_lifetime: 300s/);
   assert.match(workflow,/create_credentials_file: false/);
   assert.match(workflow,/apikeys\.googleapis\.com\/v2\/\$GEMINI_API_KEY_RESOURCE\/keyString/);
+  assert.match(workflow,/x-goog-user-project: \$GEMINI_FREE_PROJECT_ID/);
   assert.match(workflow,/GEMINI_FREE_PROJECT_ID: \$\{\{ vars\.GEMINI_FREE_PROJECT_ID \}\}/);
   assert.doesNotMatch(workflow,/\$\{\{\s*secrets\./);
   assert.match(candidate,/AI_SDK_GOOGLE_FREE_CREDENTIAL_SOURCE_INVALID/);
