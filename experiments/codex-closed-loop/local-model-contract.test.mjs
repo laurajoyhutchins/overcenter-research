@@ -25,7 +25,7 @@ test('local inference is pinned and loses networking before model execution',()=
   assert.match(workflow,/find "\$GITHUB_WORKSPACE" -mindepth 1 -print -quit/);
   assert.match(workflow,/cd "\$HOME"/);
   assert.match(workflow,/\/usr\/bin\/unshare --net --fork --[\s\S]*\/usr\/bin\/setpriv --reuid=/);
-  assert.match(workflow,/find \/sys\/class\/net[\s\S]*grep -vc "\^lo\$"/);
+  assert.match(workflow,/test -z "\$\(find \/sys\/class\/net -mindepth 1 -maxdepth 1 ! -name lo -print -quit\)"/);
   assert.match(workflow,/--json-schema-file/);
   assert.match(workflow,/--seed 20260921/);
   assert.match(workflow,/--temp 0/);
