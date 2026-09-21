@@ -705,12 +705,13 @@
         "The experiment reports throughput, speedup, provisioner rate, and contention retries for 1, 2, 4, and 8 workers."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
+        "evaluated_revision": "f34b9cc4b5bf794f0d28e9b30f2a2271b70b1422",
         "artifacts": [
-          ".github/workflows/scheduler-provisioning.yml"
+          "GitHub Actions run 35570409213"
         ]
       },
-      "interpretation": "Use the same-host comparison to decide whether assignment provisioning deserves a production boundary before considering claim batching or distributed authority.",
+      "interpretation": "Pre-provisioning exact claims removes claim collisions but does not restore positive N-way scaling. At 8 processes, fixed-head history validation still sustains ~498 reads/s and semantic catch-up costs ~0.9 ms per external settlement, while provisioned settlement reaches only ~15.5 tasks/s. The dominant remaining boundary is the optimistic multi-writer settlement loop around one global authority head. Test a single deterministic authority-commit lane with parallel effects before adding batch claims or distributed authority.",
       "non_claims": [
         "A singleton provisioner is the final production architecture.",
         "Settlement writes are concurrent.",
