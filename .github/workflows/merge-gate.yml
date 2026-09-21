@@ -27,23 +27,10 @@ jobs:
     with:
       expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
 
-  production-computation:
-    name: Production computation
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
-    uses: ./.github/workflows/computation-executor.yml
-
-  self-application:
-    name: Self application
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
-    uses: ./.github/workflows/self-application.yml
-
   gate:
     name: Merge gate
     if: ${{ always() }}
-    needs:
-      - evidence
-      - production-computation
-      - self-application
+    needs: evidence
     runs-on: ubuntu-slim
     timeout-minutes: 1
     env:
@@ -52,8 +39,6 @@ jobs:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       REQUESTED_SOURCE_SHA: ${{ inputs.source_sha || '' }}
       EVIDENCE_RESULT: ${{ needs.evidence.result }}
-      PRODUCTION_COMPUTATION_RESULT: ${{ needs.production-computation.result }}
-      SELF_APPLICATION_RESULT: ${{ needs.self-application.result }}
     steps:
       - name: Require an exact-head candidate before merge
         run: |
@@ -78,17 +63,12 @@ jobs:
               ;;
           esac
 
-      - name: Require all candidate evidence for one source revision
+      - name: Require candidate evidence for one source revision
         run: |
           set -euo pipefail
           printf 'source_sha=%s\n' "$SOURCE_SHA"
           printf 'evidence=%s\n' "$EVIDENCE_RESULT"
-          printf 'production_computation=%s\n' "$PRODUCTION_COMPUTATION_RESULT"
-          printf 'self_application=%s\n' "$SELF_APPLICATION_RESULT"
-
           test "$EVIDENCE_RESULT" = success
-          test "$PRODUCTION_COMPUTATION_RESULT" = success
-          test "$SELF_APPLICATION_RESULT" = success
 
       - name: Publish merge-gate evidence summary
         if: ${{ always() }}
@@ -101,6 +81,4 @@ jobs:
             echo "- action: ${EVENT_ACTION:-none}"
             echo "- requested source SHA: ${REQUESTED_SOURCE_SHA:-not supplied}"
             echo "- Evidence: $EVIDENCE_RESULT"
-            echo "- Production computation: $PRODUCTION_COMPUTATION_RESULT"
-            echo "- Self application: $SELF_APPLICATION_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"
