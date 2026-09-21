@@ -148,7 +148,7 @@ test('trusted launcher rejects a workspace fd identity mismatch',async()=>{
   }
 });
 
-test('missing kernel cgroup interfaces cannot strand the host-created leaf',async()=>{
+test('non-cgroup parent fails before any resource leaf is created',async()=>{
   const {workspace,cgroupParent,manifest}=runnableManifest();
   try {
     await assert.rejects(
@@ -157,7 +157,7 @@ test('missing kernel cgroup interfaces cannot strand the host-created leaf',asyn
         cgroup_parent:cgroupParent,
         manifest,
       }),
-      /CGROUP_KILL_MISSING/u,
+      /CGROUP_PARENT_INTERFACE_MISSING_CGROUP_TYPE/u,
     );
     assert.deepEqual(fs.readdirSync(cgroupParent),[]);
   } finally {
