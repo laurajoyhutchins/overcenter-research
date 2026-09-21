@@ -84,7 +84,7 @@ class LeanOracle {
             ].includes(value.schema),
             'unexpected Lean oracle response schema',
           );
-          next.reconcile(value);
+          next.resolve(value);
         }catch(error){
           next.reject(error as Error);
         }
