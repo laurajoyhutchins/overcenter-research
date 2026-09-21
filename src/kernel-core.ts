@@ -44,6 +44,7 @@ import {
 } from './projector.ts';
 import { deriveCurrentRealizationJudgments } from './realization-admissibility.ts';
 import {
+  advanceProjection,
   projectReceipt,
   replayProjection,
 } from './projection.ts';
@@ -63,6 +64,7 @@ export class KernelCore {
   readonly githubToken:string|null;
   readonly observationContext:ObservationContext;
   readonly #store:DurableFactStore;
+  #projectionCache:{head:string;commitCount:number;projection:Projection}|null=null;
 
   constructor(
     store:DurableFactStore,
@@ -440,7 +442,26 @@ export class KernelCore {
   }
 
   #historicalProjection(head:string):Projection {
-    return replayProjection(this.#store.history(head));
+    const commits=this.#store.history(head);
+    const cached=this.#projectionCache;
+    let projection:Projection;
+
+    if (
+      cached
+      && cached.commitCount>0
+      && cached.commitCount<=commits.length
+      && commits[cached.commitCount-1]?.commit===cached.head
+    ) {
+      projection=cached.projection;
+      for (const record of commits.slice(cached.commitCount)) {
+        projection=advanceProjection(projection,record);
+      }
+    } else {
+      projection=replayProjection(commits);
+    }
+
+    this.#projectionCache={head,commitCount:commits.length,projection};
+    return projection;
   }
 
   #currentProjection(head:string):Projection {
