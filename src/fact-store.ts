@@ -18,8 +18,7 @@ export function factCommitFromFiles(
   return {
     commit,
     parent,
-    obligation:files['obligation.json']??null,
-    obligations:files['obligations.json']??null,
+    graph_patch:files['graph-patch.json']??null,
     claim:files['claim.json']??null,
     execution_authority:files['execution-authority.json']??null,
     effect_reservation:files['effect-reservation.json']??null,
