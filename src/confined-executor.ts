@@ -17,6 +17,8 @@ export interface ConfinedWorkerLaunch {
 
 export interface ConfinedWorkerResourceUsage {
   cgroup:string;
+  cgroup_dev:string;
+  cgroup_ino:string;
   memory_peak_bytes:string;
   memory_oom_kills:string;
   pids_peak:string;
@@ -252,6 +254,8 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
 
       return {
         cgroup:leaf.name,
+        cgroup_dev:leaf.dev.toString(),
+        cgroup_ino:leaf.ino.toString(),
         memory_peak_bytes:counter(
           fs.readFileSync(path.join(leafPath,'memory.peak'),'utf8'),
           'MEMORY_PEAK',
