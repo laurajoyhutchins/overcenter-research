@@ -188,8 +188,10 @@ export function validateStoredObligation(obligation:Obligation):Obligation {
 export function obligationDefinition(
   obligation:Obligation,
 ):ObligationDefinition {
+  const dependencies=structuredClone(obligation.dependencies)
+    .sort((a,b)=>canonicalDigest(a).localeCompare(canonicalDigest(b)));
   return {
-    dependencies:structuredClone(obligation.dependencies),
+    dependencies,
     packet:structuredClone(obligation.packet),
     postcondition:structuredClone(obligation.postcondition),
   };
