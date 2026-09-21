@@ -126,6 +126,19 @@ private def mutationAuthorityComparison (request : Json) : Except String Json :=
     ("mutation_allowed", (step facts .mutate).isSome)
   ]
 
+private def reservationReplayComparison (request : Json) : Except String Json := do
+  let run ← mutationRunIdentity request "run"
+  let reservation : EffectReservationIdentity := {
+    runId := ← stringField request "reservation_run_id"
+    obligationId := ← stringField request "reservation_obligation_id"
+    executionGeneration := ← stringField request "reservation_execution_generation"
+    executionAuthorityCommit := ← stringField request "reservation_execution_authority_commit"
+  }
+  pure <| Json.mkObj [
+    ("schema", "overcenter-lean-reservation-replay-comparison/v1"),
+    ("admitted", reservationReplayAllowed run reservation (← boolField request "unresolved_effect"))
+  ]
+
 private def transactionKernelComparison (request : Json) : Except String Json := do
   let facts : TransactionFacts := {
     currentAuthority := ← boolField request "current_authority"
@@ -153,6 +166,8 @@ def handleComparisonJson (request : Json) : Except String Json := do
     transactionKernelComparison request
   else if command == "mutation-authority" then
     mutationAuthorityComparison request
+  else if command == "reservation-replay" then
+    reservationReplayComparison request
   else
     if command != "claim-admission" then
       throw s!"unsupported command: {command}"
