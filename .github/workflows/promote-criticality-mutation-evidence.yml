@@ -61,18 +61,27 @@ jobs:
           path: authoritative-mutation-evidence
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
-      - name: Reconcile fresh probe evidence
+      - name: Reconcile and verify fresh probe evidence
         if: steps.artifact.outputs.found == 'true'
         run: |
           node experiments/production-criticality-ranking/mutation-evidence.mjs \
             --current experiments/production-criticality-ranking/mutation-evidence.json \
             --generated authoritative-mutation-evidence/mutation-evidence-generated.json \
             --artifact-digest "${{ steps.artifact.outputs.digest }}" \
+            --workflow-run-id "${{ github.event.workflow_run.id }}" \
+            --revision "${{ github.event.workflow_run.head_sha }}" \
             --output experiments/production-criticality-ranking/mutation-evidence.json
+          node experiments/production-criticality-ranking/verify-mutation-evidence.mjs \
+            --committed experiments/production-criticality-ranking/mutation-evidence.json \
+            --report authoritative-mutation-evidence/mutation.json \
+            --ranges authoritative-mutation-evidence/mutation-ranges.json \
+            --workflow-run-id "${{ github.event.workflow_run.id }}"
       - name: Commit reconciled evidence
         if: steps.artifact.outputs.found == 'true'
         env:
-          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.digest }}\n          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}\n          SOURCE_REVISION: ${{ github.event.workflow_run.head_sha }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.digest }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_REVISION: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
           evidence=experiments/production-criticality-ranking/mutation-evidence.json
@@ -95,7 +104,14 @@ jobs:
             --current "$evidence" \
             --generated authoritative-mutation-evidence/mutation-evidence-generated.json \
             --artifact-digest "$ARTIFACT_DIGEST" \
+            --workflow-run-id "$SOURCE_RUN_ID" \
+            --revision "$SOURCE_REVISION" \
             --output "$evidence"
+          node experiments/production-criticality-ranking/verify-mutation-evidence.mjs \
+            --committed "$evidence" \
+            --report authoritative-mutation-evidence/mutation.json \
+            --ranges authoritative-mutation-evidence/mutation-ranges.json \
+            --workflow-run-id "$SOURCE_RUN_ID"
           if git diff --quiet -- "$evidence"; then
             echo "A newer main revision made this evidence obsolete or already promoted."
             exit 0
