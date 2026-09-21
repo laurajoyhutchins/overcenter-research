@@ -8,7 +8,10 @@
   ],
   "properties": {
     "schema": {
-      "const": "overcenter-autonomy-sandbox-candidate/v1"
+      "type": "string",
+      "enum": [
+        "overcenter-autonomy-sandbox-candidate/v1"
+      ]
     },
     "writes": {
       "type": "array",
@@ -27,7 +30,8 @@
               "src/math.ts",
               "src/format.ts",
               "src/index.ts"
-            ]
+            ],
+            "type": "string"
           },
           "content": {
             "type": "string",
@@ -46,7 +50,8 @@
           "src/math.js",
           "src/format.js",
           "src/index.js"
-        ]
+        ],
+        "type": "string"
       }
     }
   }
