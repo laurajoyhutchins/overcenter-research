@@ -320,7 +320,19 @@ async function runVerifier(
   seed:string,
   launcher:string|null,
 ):Promise<VerifierResult> {
-  const moduleUrl=candidateModuleUrl(workspace);
+  let moduleUrl:string;
+  try {
+    moduleUrl=candidateModuleUrl(workspace);
+  } catch (error) {
+    return {
+      status:1,
+      stdout:'',
+      stderr:`SANDBOX_VERIFIER_PREPARE_FAILED:${String((error as Error)?.message??error)}\n`,
+      completion_proven:false,
+      confined:false,
+      manifest_sha256:null,
+    };
+  }
   if (!launcher) {
     const result=spawnSync(process.execPath,['verify.cjs',moduleUrl],{
       cwd:workspace,
