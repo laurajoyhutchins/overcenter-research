@@ -1,3 +1,5 @@
+import {OBSERVATION_SCHEMAS,POSTCONDITION_VERIFIERS} from './generated/schema-identifiers.ts';
+
 export type LifecycleStatus = 'READY' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
 export type WorkStatus = LifecycleStatus | 'BLOCKED';
 export type Disposition = 'DONE' | 'READY' | 'WAITING' | 'RECOVERY_REQUIRED';
@@ -5,7 +7,7 @@ export type MutationCertainty = 'present' | 'absent' | 'uncertain';
 export type Data = Record<string, unknown>;
 
 export interface AbsenceEvidenceCertificate {
-  schema: 'overcenter-absence-evidence-v1';
+  schema: typeof OBSERVATION_SCHEMAS.absenceEvidence;
   kind: string;
   subject: Data;
   scope: Data;
@@ -15,19 +17,19 @@ export interface AbsenceEvidenceCertificate {
 }
 
 export interface FileContentPostcondition {
-  verifier: 'file-content-equals/v1';
+  verifier: typeof POSTCONDITION_VERIFIERS.fileContentEquals;
   path: string;
   content: string;
 }
 
 export interface EventuallyConsistentFilePostcondition {
-  verifier: 'eventually-consistent-file-content-equals/v1';
+  verifier: typeof POSTCONDITION_VERIFIERS.eventuallyConsistentFileContentEquals;
   path: string;
   content: string;
 }
 
 export interface GitHubCommitStatusPostcondition {
-  verifier: 'github-commit-status/v2';
+  verifier: typeof POSTCONDITION_VERIFIERS.githubCommitStatus;
   provider: 'github';
   repository_id: number;
   repository_full_name: string;
@@ -37,7 +39,7 @@ export interface GitHubCommitStatusPostcondition {
 }
 
 export interface KubernetesConfigMapExistsPostcondition {
-  verifier: 'kubernetes-configmap-exists/v1';
+  verifier: typeof POSTCONDITION_VERIFIERS.kubernetesConfigMapExists;
   provider: 'kubernetes';
   authority_id: string;
   api_group: '';
