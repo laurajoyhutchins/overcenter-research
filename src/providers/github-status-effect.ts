@@ -1,11 +1,11 @@
 import type { KernelCore } from '../kernel-core.ts';
 import type { ExecutionPermit } from '../model.ts';
+import {EFFECT_CONTRACTS,POSTCONDITION_VERIFIERS} from '../generated/schema-identifiers.ts';
 import { GITHUB_API_VERSION } from './github-contract.ts';
 import { observeCertifiedGithubRepository } from './github-certified-repository.ts';
 import { githubGet, type GithubJsonGet } from './github-rest.ts';
 
-export const GITHUB_COMMIT_STATUS_EFFECT =
-  'github-commit-status/set-from-postcondition/v1' as const;
+export const GITHUB_COMMIT_STATUS_EFFECT=EFFECT_CONTRACTS.githubCommitStatus;
 
 export interface GithubStatusMutationBody {
   state:'error'|'failure'|'pending'|'success';
@@ -71,7 +71,7 @@ export async function performGithubCommitStatusEffect(
   if (work.packet.effect_contract!==GITHUB_COMMIT_STATUS_EFFECT) {
     throw new Error('GITHUB_STATUS_EFFECT_NOT_AUTHORIZED');
   }
-  if (work.postcondition.verifier!=='github-commit-status/v2') {
+  if (work.postcondition.verifier!==POSTCONDITION_VERIFIERS.githubCommitStatus) {
     throw new Error('GITHUB_STATUS_EFFECT_POSTCONDITION_MISMATCH');
   }
 
