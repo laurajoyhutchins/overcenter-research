@@ -33,7 +33,7 @@ The native launcher buys properties that are awkward or unavailable through the 
 - explicit-only execution authority plus immutable regular-file program/runtime closure;
 - seccomp denial of socket creation, host System V/POSIX IPC, inherited kernel-keyring access, process-group escape, same-UID host-process control, HugeTLB allocation bypasses, x32 syscall aliasing, and selected bypass surfaces;
 - mandatory Landlock process scoping for signals and abstract Unix sockets;
-- fail-closed rejection of privileged or switchable caller credentials;
+- fail-closed rejection of privileged or switchable caller credentials and inherited scheduling classes outside the fair class;
 - deterministic removal of ambient environment and inherited descriptors before `exec`;
 - manifest-bound wall-clock/output supervision plus cgroup-v2 memory, PID, and CPU limits with exact-leaf whole-cgroup termination and final post-kill kernel evidence.
 
@@ -59,7 +59,7 @@ Rejected. Filesystem/process confinement does not grant or interpret provider au
 
 ## Consequences
 
-- Supported hosts for this launcher are deliberately Linux x86-64, must provide Landlock ABI >= 6 and the required seccomp behavior, and must invoke the launcher without uid 0, switchable saved credentials, or ambient process capabilities.
+- Supported hosts for this launcher are deliberately Linux x86-64, must provide Landlock ABI >= 6 and the required seccomp behavior, and must invoke the launcher without uid 0, switchable saved credentials, ambient process capabilities, or a realtime/deadline scheduling policy. Only `SCHED_OTHER`, `SCHED_BATCH`, and `SCHED_IDLE` are admitted because `cpu.max` is a fair-class bandwidth limit.
 - The trusted transport must supply the exact workspace directory on FD 3; pathname replacement after that open is intentionally irrelevant.
 - Program/runtime files are explicit immutable regular-file execution-closure inputs, not blanket access to `/usr` or `/etc`; aliases are de-duplicated by opened inode identity.
 - Writable workspace authority excludes blanket execute, special-device/socket-node creation, device ioctls, and pathname-Unix-socket resolution.
