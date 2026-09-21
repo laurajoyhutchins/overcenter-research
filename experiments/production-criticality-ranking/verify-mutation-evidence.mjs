@@ -5,6 +5,7 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {summarize} from './summarize-mutation.mjs';
+import {assertMutationEvidence} from './mutation-evidence.mjs';
 
 const git=(root,args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
 const sha256=bytes=>'sha256:'+createHash('sha256').update(bytes).digest('hex');
@@ -22,35 +23,34 @@ export function verifyMutationEvidence({
   report,
   reportBytes=Buffer.from(JSON.stringify(report)),
   resolved,
+  workflowRunId,
 }){
-  if(committed.schema!=='overcenter-criticality-mutation-evidence/v1'){
-    throw new Error(`unsupported committed mutation evidence schema: ${committed.schema}`);
-  }
-  const source=committed.source_run??{};
-  if(!/^[0-9a-f]{40}$/.test(source.revision??'')
-    || !Number.isInteger(source.workflow_run_id)
-    || source.workflow_run_id<=0
-    || !/^sha256:[0-9a-f]{64}$/.test(source.artifact_digest??'')
-    || !/^sha256:[0-9a-f]{64}$/.test(source.mutation_report_sha256??'')){
-    throw new Error('mutation evidence is missing trusted-run provenance fields');
-  }
-  if(sha256(reportBytes)!==source.mutation_report_sha256){
-    throw new Error('mutation report digest does not match committed provenance');
+  assertMutationEvidence(committed);
+  if(!Number.isInteger(workflowRunId)||workflowRunId<=0){
+    throw new Error('workflowRunId is required to verify mutation evidence');
   }
   if(resolved.schema!=='overcenter-criticality-resolved-mutation-probes/v1'){
     throw new Error(`unsupported resolved mutation probe schema: ${resolved.schema}`);
   }
 
-  const rows=new Map(summarize(report,resolved).map(row=>[row.id,row]));
-  const rangesById=new Map((resolved.probes??[]).map(probe=>[probe.id,probe]));
-  const committedIds=(committed.probes??[]).map(probe=>probe.id).sort();
-  const resolvedIds=[...rangesById.keys()].sort();
-  if(JSON.stringify(committedIds)!==JSON.stringify(resolvedIds)){
-    throw new Error('committed mutation probe ids do not match authoritative resolved ranges');
+  const probes=(committed.probes??[]).filter(
+    probe=>probe.source_run.workflow_run_id===workflowRunId,
+  );
+  if(probes.length===0) throw new Error(`no mutation evidence cites workflow run ${workflowRunId}`);
+  const source=probes[0].source_run;
+  for(const probe of probes){
+    if(JSON.stringify(probe.source_run)!==JSON.stringify(source)){
+      throw new Error(`workflow run ${workflowRunId} has inconsistent mutation provenance`);
+    }
+  }
+  if(sha256(reportBytes)!==source.mutation_report_sha256){
+    throw new Error('mutation report digest does not match committed provenance');
   }
 
+  const rows=new Map(summarize(report,resolved).map(row=>[row.id,row]));
+  const rangesById=new Map((resolved.probes??[]).map(probe=>[probe.id,probe]));
   const stale=[];
-  for(const probe of committed.probes??[]){
+  for(const probe of probes){
     const row=rows.get(probe.id);
     const resolvedProbe=rangesById.get(probe.id);
     if(!row||!resolvedProbe) throw new Error(`missing authoritative mutation data for ${probe.id}`);
@@ -89,9 +89,9 @@ export function verifyMutationEvidence({
   }
 
   return {
-    workflowRunId:source.workflow_run_id,
+    workflowRunId,
     revision:source.revision,
-    probes:(committed.probes??[]).length,
+    probes:probes.length,
     stale,
   };
 }
@@ -102,6 +102,7 @@ function parseArgs(argv){
     committed:'experiments/production-criticality-ranking/mutation-evidence.json',
     report:'authoritative-mutation-evidence/mutation.json',
     ranges:'authoritative-mutation-evidence/mutation-ranges.json',
+    workflowRunId:null,
   };
   for(let i=2;i<argv.length;i++){
     const a=argv[i];
@@ -109,6 +110,7 @@ function parseArgs(argv){
     else if(a==='--committed') out.committed=path.resolve(argv[++i]);
     else if(a==='--report') out.report=path.resolve(argv[++i]);
     else if(a==='--ranges') out.ranges=path.resolve(argv[++i]);
+    else if(a==='--workflow-run-id') out.workflowRunId=Number(argv[++i]);
     else throw new Error(`unknown argument: ${a}`);
   }
   return out;
@@ -120,7 +122,14 @@ if(import.meta.url===pathToFileURL(process.argv[1]).href){
   const reportBytes=fs.readFileSync(args.report);
   const report=JSON.parse(reportBytes);
   const resolved=JSON.parse(fs.readFileSync(args.ranges,'utf8'));
-  const result=verifyMutationEvidence({root:args.root,committed,report,reportBytes,resolved});
+  const result=verifyMutationEvidence({
+    root:args.root,
+    committed,
+    report,
+    reportBytes,
+    resolved,
+    workflowRunId:args.workflowRunId,
+  });
   process.stdout.write(`Verified ${result.probes} mutation probes from workflow run ${result.workflowRunId} at ${result.revision}.\n`);
   if(result.stale.length){
     process.stdout.write(`Current source has ${result.stale.length} stale mutation-evidence binding(s):\n`);

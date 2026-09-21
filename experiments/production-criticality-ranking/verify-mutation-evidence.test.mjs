@@ -10,7 +10,7 @@ import {verifyMutationEvidence} from './verify-mutation-evidence.mjs';
 const git=(root,args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
 const sha256=bytes=>'sha256:'+createHash('sha256').update(bytes).digest('hex');
 
-test('binds mutation claims to a successful artifact while reporting current staleness separately',()=>{
+test('binds one run\'s mutation claims while reporting current staleness separately',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-evidence-'));
   fs.mkdirSync(path.join(root,'src'),{recursive:true});
   fs.writeFileSync(path.join(root,'src/core.ts'),'export const value=1;\n');
@@ -42,15 +42,15 @@ test('binds mutation claims to a successful artifact while reporting current sta
     }],
   };
   const committed={
-    schema:'overcenter-criticality-mutation-evidence/v1',
-    source_run:{
-      revision,
-      workflow_run_id:123,
-      artifact_digest:'sha256:'+'b'.repeat(64),
-      mutation_report_sha256:sha256(reportBytes),
-    },
+    schema:'overcenter-criticality-mutation-evidence',
     probes:[{
       id:'core',
+      source_run:{
+        revision,
+        workflow_run_id:123,
+        artifact_digest:'sha256:'+'b'.repeat(64),
+        mutation_report_sha256:sha256(reportBytes),
+      },
       source_blobs:{'src/core.ts':blob},
       selectors:[{file:'src/core.ts',name:'value'}],
       total:1,
@@ -63,32 +63,32 @@ test('binds mutation claims to a successful artifact while reporting current sta
   };
 
   assert.deepEqual(
-    verifyMutationEvidence({root,committed,report,reportBytes,resolved}),
+    verifyMutationEvidence({root,committed,report,reportBytes,resolved,workflowRunId:123}),
     {workflowRunId:123,revision,probes:1,stale:[]},
   );
 
   const missingArtifactDigest=structuredClone(committed);
-  delete missingArtifactDigest.source_run.artifact_digest;
+  delete missingArtifactDigest.probes[0].source_run.artifact_digest;
   assert.throws(
-    ()=>verifyMutationEvidence({root,committed:missingArtifactDigest,report,reportBytes,resolved}),
+    ()=>verifyMutationEvidence({root,committed:missingArtifactDigest,report,reportBytes,resolved,workflowRunId:123}),
     /trusted-run provenance/,
   );
 
   const forged=structuredClone(committed);
   forged.probes[0].mutation_score=0;
   assert.throws(
-    ()=>verifyMutationEvidence({root,committed:forged,report,reportBytes,resolved}),
+    ()=>verifyMutationEvidence({root,committed:forged,report,reportBytes,resolved,workflowRunId:123}),
     /mutation claim mismatch/,
   );
 
   const wrongBlob=structuredClone(committed);
   wrongBlob.probes[0].source_blobs['src/core.ts']='0'.repeat(40);
   assert.throws(
-    ()=>verifyMutationEvidence({root,committed:wrongBlob,report,reportBytes,resolved}),
+    ()=>verifyMutationEvidence({root,committed:wrongBlob,report,reportBytes,resolved,workflowRunId:123}),
     /historical source blob mismatch/,
   );
 
   fs.writeFileSync(path.join(root,'src/core.ts'),'export const value=2;\n');
-  const stale=verifyMutationEvidence({root,committed,report,reportBytes,resolved});
+  const stale=verifyMutationEvidence({root,committed,report,reportBytes,resolved,workflowRunId:123});
   assert.deepEqual(stale.stale.map(item=>[item.probe,item.file]),[['core','src/core.ts']]);
 });
