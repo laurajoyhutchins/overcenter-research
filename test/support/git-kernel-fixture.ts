@@ -52,8 +52,11 @@ export class GitKernelFixture {
     return this.kernel.define(this.#obligation(id,spec));
   }
 
-  amendFile(id:string,spec:FileSpec):string {
-    return this.kernel.amend(this.#obligation(id,spec),this.kernel.head()!);
+  rebindFile(id:string,spec:FileSpec):string {
+    return this.kernel.applyGraphPatch(
+      {upsert:[this.#obligation(id,spec)]},
+      this.kernel.head()!,
+    );
   }
 
   work(id:string,snapshot:Work[]=this.kernel.inspect()):Work {
