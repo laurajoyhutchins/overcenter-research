@@ -51,13 +51,17 @@ jobs:
       - name: Prepare byte-scoped unprivileged inference identity
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/local-model/input"
+          mkdir -p "$RUNNER_TEMP/local-model/input" "$RUNNER_TEMP/local-model/trusted"
           cp experiments/codex-closed-loop/local-model-prompt.txt "$RUNNER_TEMP/local-model/input/prompt.txt"
           cp experiments/codex-closed-loop/local-model-candidate.schema.json "$RUNNER_TEMP/local-model/input/schema.json"
+          cp experiments/codex-closed-loop/local-model-normalize.mjs "$RUNNER_TEMP/local-model/trusted/normalize.mjs"
           chmod 0444 "$RUNNER_TEMP/local-model/input/prompt.txt" "$RUNNER_TEMP/local-model/input/schema.json"
+          chmod 0700 "$RUNNER_TEMP/local-model/trusted"
+          chmod 0600 "$RUNNER_TEMP/local-model/trusted/normalize.mjs"
           sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
           sudo chown overcenter-model:overcenter-model "$RUNNER_TEMP/local-model/home"
-          chmod -R go-rwx "$GITHUB_WORKSPACE"
+          rm -rf "$GITHUB_WORKSPACE"
+          test ! -e "$GITHUB_WORKSPACE"
       - name: Run one byte-scoped inference with networking physically disabled
         run: |
           set -euo pipefail
@@ -67,16 +71,16 @@ jobs:
           runtime_dir="$(dirname "$llama_cli")"
           model_uid="$(id -u overcenter-model)"
           model_gid="$(id -g overcenter-model)"
-          sudo /usr/bin/unshare --net --fork --             /usr/bin/setpriv --reuid="$model_uid" --regid="$model_gid" --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$RUNNER_TEMP/local-model/home"               LD_LIBRARY_PATH="$runtime_dir"               LLAMA_CLI="$llama_cli"               MODEL="$RUNNER_TEMP/local-model/model.gguf"               PROMPT="$RUNNER_TEMP/local-model/input/prompt.txt"               SCHEMA="$RUNNER_TEMP/local-model/input/schema.json"               CHECKOUT="$GITHUB_WORKSPACE"               /bin/sh -ceu '
+          sudo /usr/bin/unshare --net --fork --             /usr/bin/setpriv --reuid="$model_uid" --regid="$model_gid" --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$RUNNER_TEMP/local-model/home"               LD_LIBRARY_PATH="$runtime_dir"               LLAMA_CLI="$llama_cli"               MODEL="$RUNNER_TEMP/local-model/model.gguf"               PROMPT="$RUNNER_TEMP/local-model/input/prompt.txt"               SCHEMA="$RUNNER_TEMP/local-model/input/schema.json"               /bin/sh -ceu '
                 test "$(id -u)" -ne 0
-                test ! -r "$CHECKOUT/package.json"
                 test "$(find /sys/class/net -mindepth 1 -maxdepth 1 -printf "%f\n" | grep -vc "^lo$")" -eq 0
                 exec "$LLAMA_CLI"                   -m "$MODEL"                   -f "$PROMPT"                   --json-schema-file "$SCHEMA"                   --seed 20260921                   --temp 0                   --ctx-size 4096                   -n 1400                   --no-display-prompt                   --no-show-timings
               ' > "$RUNNER_TEMP/local-model/out/raw.txt"
       - name: Materialize candidate and provenance
         run: |
           set -euo pipefail
-          node experiments/codex-closed-loop/local-model-normalize.mjs             "$RUNNER_TEMP/local-model/out/raw.txt"             experiments/codex-closed-loop/local-model-prompt.txt             "$RUNNER_TEMP/local-model/out/candidate.json"             "$RUNNER_TEMP/local-model/out/provenance.json"
+          test ! -e "$GITHUB_WORKSPACE"
+          node "$RUNNER_TEMP/local-model/trusted/normalize.mjs"             "$RUNNER_TEMP/local-model/out/raw.txt"             "$RUNNER_TEMP/local-model/input/prompt.txt"             "$RUNNER_TEMP/local-model/out/candidate.json"             "$RUNNER_TEMP/local-model/out/provenance.json"
       - name: Upload untrusted candidate only
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
