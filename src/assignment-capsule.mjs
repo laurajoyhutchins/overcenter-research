@@ -11,19 +11,12 @@ import {
 import {dirname, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {
-  AGENT_RESPONSE_SCHEMA,
-  AGENT_TASK_PACKET_SCHEMA,
-  ASSIGNMENT_SCHEMA,
-  CANDIDATE_SCHEMA,
-} from './agent-schema-identifiers.generated.mjs';
+import {AGENT_SCHEMAS} from './schema-identifiers.generated.mjs';
 
-export {
-  AGENT_RESPONSE_SCHEMA,
-  AGENT_TASK_PACKET_SCHEMA,
-  ASSIGNMENT_SCHEMA,
-  CANDIDATE_SCHEMA,
-};
+export const ASSIGNMENT_SCHEMA=AGENT_SCHEMAS.assignment;
+export const CANDIDATE_SCHEMA=AGENT_SCHEMAS.candidate;
+export const AGENT_TASK_PACKET_SCHEMA=AGENT_SCHEMAS.task;
+export const AGENT_RESPONSE_SCHEMA=AGENT_SCHEMAS.response;
 
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 const fail=code=>{throw new Error(code);};
