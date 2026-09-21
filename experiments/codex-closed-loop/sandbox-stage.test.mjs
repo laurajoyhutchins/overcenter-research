@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {dirname,join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';

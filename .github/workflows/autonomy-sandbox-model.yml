@@ -70,11 +70,16 @@ jobs:
           if (provenance.branch_head_before_request!==provenance.branch_head_after_response) throw new Error('SANDBOX_REPOSITORY_CHANGED_DURING_REASONING');
           NODE
       - name: Compile production confinement launcher
-        run: rustc --edition=2021 -D warnings runtime/overcenter-exec/main.rs -o "$RUNNER_TEMP/overcenter-exec"
+        run: |
+          set -euo pipefail
+          rustc --edition=2021 -D warnings runtime/overcenter-exec/main.rs -o "$RUNNER_TEMP/overcenter-exec"
+          sudo install -o root -g root -m 0555 "$(command -v node)" "$RUNNER_TEMP/trusted-node"
+          test "$(stat -c %u "$RUNNER_TEMP/trusted-node")" = 0
+          test ! -w "$RUNNER_TEMP/trusted-node"
       - name: Run recorded model candidate through confined verification and settlement
         run: |
           set -euo pipefail
-          node --experimental-strip-types experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed codex-cloud-5756716623             --worker recorded-model             --candidate experiments/codex-closed-loop/sandbox-candidate-codex.json             --provenance experiments/codex-closed-loop/sandbox-candidate-codex.provenance.json             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/autonomy-sandbox-evidence.json"
+          "$RUNNER_TEMP/trusted-node" --experimental-strip-types experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed codex-cloud-5756716623             --worker recorded-model             --candidate experiments/codex-closed-loop/sandbox-candidate-codex.json             --provenance experiments/codex-closed-loop/sandbox-candidate-codex.provenance.json             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/autonomy-sandbox-evidence.json"
           EVIDENCE="$RUNNER_TEMP/autonomy-sandbox-evidence.json" node - <<'NODE'
           const fs=require('node:fs');
           const e=JSON.parse(fs.readFileSync(process.env.EVIDENCE,'utf8'));

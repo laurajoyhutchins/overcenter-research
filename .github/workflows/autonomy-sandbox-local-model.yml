@@ -60,7 +60,7 @@ jobs:
           chmod 0600 "$RUNNER_TEMP/local-model/trusted/normalize.mjs"
           sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
           sudo chown overcenter-model:overcenter-model "$RUNNER_TEMP/local-model/home"
-          chmod 0700 "$RUNNER_TEMP/local-model/home"
+          sudo chmod 0700 "$RUNNER_TEMP/local-model/home"
           rm -rf "$GITHUB_WORKSPACE"
           mkdir -m 0700 "$GITHUB_WORKSPACE"
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
@@ -117,6 +117,9 @@ jobs:
           rustup toolchain install "$channel" --profile minimal --no-self-update
           test "$(rustc --version | awk '{print $2}')" = "$channel"
           rustc --edition=2021 -D warnings runtime/overcenter-exec/main.rs -o "$RUNNER_TEMP/overcenter-exec"
+          sudo install -o root -g root -m 0555 "$(command -v node)" "$RUNNER_TEMP/trusted-node"
+          test "$(stat -c %u "$RUNNER_TEMP/trusted-node")" = 0
+          test ! -w "$RUNNER_TEMP/trusted-node"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: autonomy-local-model-candidate
@@ -126,7 +129,7 @@ jobs:
           OVERCENTER_SOURCE_REVISION: ${{ env.SOURCE_SHA }}
         run: |
           set -euo pipefail
-          node --experimental-strip-types experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed local-model-20260921             --worker recorded-model             --candidate "$RUNNER_TEMP/local-model-candidate/candidate.json"             --provenance "$RUNNER_TEMP/local-model-candidate/provenance.json"             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/local-model-evidence.json"
+          "$RUNNER_TEMP/trusted-node" --experimental-strip-types experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed local-model-20260921             --worker recorded-model             --candidate "$RUNNER_TEMP/local-model-candidate/candidate.json"             --provenance "$RUNNER_TEMP/local-model-candidate/provenance.json"             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/local-model-evidence.json"
           EVIDENCE="$RUNNER_TEMP/local-model-evidence.json" node - <<'NODE'
           const fs=require('node:fs');
           const evidence=JSON.parse(fs.readFileSync(process.env.EVIDENCE,'utf8'));
