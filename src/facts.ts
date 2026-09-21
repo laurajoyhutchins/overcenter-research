@@ -7,17 +7,15 @@ import type {
   Postcondition,
   Run,
 } from './model.ts';
-import {
-  validateObservationEnvelope,
-  validatePostcondition,
-} from './observation.ts';
+import { validateObservationEnvelope } from './observation.ts';
+import { validateCanonicalPostcondition } from './postconditions.ts';
 import {
   assertExactKeys as exactKeys,
   assertNonEmptyString as nonEmptyString,
   isData as data,
 } from './validation.ts';
 
-export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
+export const OBLIGATION_SCHEMA='overcenter-git-obligation-v4' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
@@ -151,7 +149,7 @@ export function normalizeObligation(input:ObligationInput):Obligation {
   if (!input || typeof input.id!=='string' || input.id.length===0) {
     throw new Error('INVALID_OBLIGATION_ID');
   }
-  validatePostcondition(input.postcondition);
+  validateCanonicalPostcondition(input.postcondition);
   const dependencies:Dependency[]=structuredClone(input.dependencies??[]);
   validateDependencies(dependencies);
   return {
@@ -170,7 +168,7 @@ export function validateStoredObligation(obligation:Obligation):Obligation {
   if (!Array.isArray(obligation.dependencies)) throw new Error('INVALID_DEPENDENCIES');
   if (!data(raw.packet)) throw new Error('INVALID_PACKET');
   validateDependencies(obligation.dependencies);
-  validatePostcondition(obligation.postcondition);
+  validateCanonicalPostcondition(obligation.postcondition);
   return structuredClone(obligation);
 }
 
