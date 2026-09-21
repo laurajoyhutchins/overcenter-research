@@ -1,4 +1,4 @@
-import type { EffectReservationFact, ReceiptFact } from './facts.ts';
+import type { EffectReservationFact, ExecutionAuthorityFact, ReceiptFact } from './facts.ts';
 import type { ExecutionPermit, Run } from './model.ts';
 
 export interface ExecutionAuthorityProjection {
@@ -68,6 +68,30 @@ export function receiptAuthorityError(
     fact.execution_generation!==run.execution_generation
     || fact.execution_authority_commit!==run.execution_authority_commit
   ) return 'RECEIPT_EXECUTION_AUTHORITY_MISMATCH';
+  return null;
+}
+
+export type ExecutionAuthorityAdvanceError =
+  | 'EXECUTION_AUTHORITY_RUN_MISMATCH'
+  | 'EXECUTION_AUTHORITY_OBLIGATION_MISMATCH'
+  | 'EXECUTION_GENERATION_NOT_SUCCESSOR'
+  | 'EXECUTION_AUTHORITY_PREDECESSOR_MISMATCH'
+  | null;
+
+export function executionAuthorityAdvanceError(
+  run:Run,
+  fact:ExecutionAuthorityFact,
+):ExecutionAuthorityAdvanceError {
+  if (fact.run_id!==run.id) return 'EXECUTION_AUTHORITY_RUN_MISMATCH';
+  if (fact.obligation_id!==run.obligation_id) {
+    return 'EXECUTION_AUTHORITY_OBLIGATION_MISMATCH';
+  }
+  if (fact.generation!==run.execution_generation+1) {
+    return 'EXECUTION_GENERATION_NOT_SUCCESSOR';
+  }
+  if (fact.previous_authority_commit!==run.execution_authority_commit) {
+    return 'EXECUTION_AUTHORITY_PREDECESSOR_MISMATCH';
+  }
   return null;
 }
 
