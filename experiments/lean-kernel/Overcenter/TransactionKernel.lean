@@ -123,6 +123,37 @@ theorem reservation_replay_sound
     unresolvedEffect = false := by
   simpa [reservationReplayAllowed, and_assoc] using h
 
+structure ReceiptIdentity where
+  runId : String
+  obligationId : String
+  claimedRevision : String
+  claimCommit : String
+  executionGeneration : String
+  executionAuthorityCommit : String
+  deriving Repr, BEq
+
+def receiptReplayAllowed
+    (run : MutationRunIdentity)
+    (receipt : ReceiptIdentity) : Bool :=
+  receipt.runId == run.id &&
+  receipt.obligationId == run.obligationId &&
+  receipt.claimedRevision == run.claimedRevision &&
+  receipt.claimCommit == run.claimCommit &&
+  receipt.executionGeneration == run.executionGeneration &&
+  receipt.executionAuthorityCommit == run.executionAuthorityCommit
+
+theorem receipt_replay_sound
+    (run : MutationRunIdentity)
+    (receipt : ReceiptIdentity)
+    (h : receiptReplayAllowed run receipt = true) :
+    receipt.runId = run.id ∧
+    receipt.obligationId = run.obligationId ∧
+    receipt.claimedRevision = run.claimedRevision ∧
+    receipt.claimCommit = run.claimCommit ∧
+    receipt.executionGeneration = run.executionGeneration ∧
+    receipt.executionAuthorityCommit = run.executionAuthorityCommit := by
+  simpa [receiptReplayAllowed, and_assoc] using h
+
 def mutationAllowed (s : TransactionFacts) : Bool :=
   s.currentAuthority && s.exactRevision && !s.unresolvedEffect
 
