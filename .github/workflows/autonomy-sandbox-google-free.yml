@@ -144,10 +144,17 @@ jobs:
           test -s "$root/gemini-api-key"
           model_uid="$(id -u overcenter-model)"
           model_gid="$(id -g overcenter-model)"
+          node_bin="$(readlink -f "$(command -v node)")"
+          test -x "$node_bin"
           gemini_key="$(cat "$root/gemini-api-key")"
-          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               OVERCENTER_REASONING_BILLING_PROJECT_ID="$GEMINI_FREE_PROJECT_ID"               OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE=google-cloud-billing-api               OVERCENTER_REASONING_BILLING_ENABLED=false               /usr/bin/node --experimental-strip-types                 "$root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$root/input/prompt.txt"                 --schema "$root/input/schema.json"                 --candidate "$root/out/candidate.json"                 --provenance "$root/out/provenance.json"
-          unset gemini_key
-          rm -f "$root/gemini-api-key"
+          cleanup() {
+            rm -f "$root/gemini-api-key"
+            unset gemini_key
+          }
+          trap cleanup EXIT
+          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               OVERCENTER_REASONING_BILLING_PROJECT_ID="$GEMINI_FREE_PROJECT_ID"               OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE=google-cloud-billing-api               OVERCENTER_REASONING_BILLING_ENABLED=false               "$node_bin" --experimental-strip-types                 "$root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$root/input/prompt.txt"                 --schema "$root/input/schema.json"                 --candidate "$root/out/candidate.json"                 --provenance "$root/out/provenance.json"
+          cleanup
+          trap - EXIT
           test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
       - name: Upload untrusted candidate only
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
