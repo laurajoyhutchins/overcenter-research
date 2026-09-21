@@ -8,6 +8,7 @@ import {
 import {dirname} from 'node:path';
 
 import {
+  AGENT_RESPONSE_SCHEMA,
   assignmentFile,
   buildAssignment,
   encodeAssignment,
@@ -103,7 +104,7 @@ if (priorDone) {
   }
 
   const receipt={
-    schema:'overcenter-github-agent-response/v1',
+    schema:AGENT_RESPONSE_SCHEMA,
     operation:'submit',
     request_sha:requestId,
     target_request_sha:targetRequestSha,
@@ -169,7 +170,7 @@ if (settled.disposition!=='DONE' || settled.verified!==true) {
 }
 
 const receipt={
-  schema:'overcenter-github-agent-response/v1',
+  schema:AGENT_RESPONSE_SCHEMA,
   operation:'submit',
   request_sha:requestId,
   target_request_sha:targetRequestSha,
