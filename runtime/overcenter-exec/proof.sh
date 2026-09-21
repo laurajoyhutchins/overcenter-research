@@ -7,7 +7,7 @@ tmp="$(mktemp -d)"
 cgroup_root=""
 cgroup_parent=""
 original_cgroup=""
-proof_pid="$"
+proof_pid="$BASHPID"
 
 cleanup_resource_leaf() {
   local pid="$1"
