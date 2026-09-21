@@ -16,6 +16,7 @@ import {
 import {spawnSync,execFileSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {dirname,join,relative,resolve,sep} from 'node:path';
+import {stripTypeScriptTypes} from 'node:module';
 import {fileURLToPath} from 'node:url';
 
 import {runConfinedWorker} from '../../src/confined-executor.ts';
@@ -277,6 +278,25 @@ function verifierCompletionProven(stdout:string):boolean {
   return challenge!==null && completion!==null && challenge[1]===completion[1];
 }
 
+function candidateModuleUrl(workspace:string):string {
+  const sourceRoot=join(workspace,'src');
+  const strip=(name:string)=>stripTypeScriptTypes(
+    readFileSync(join(sourceRoot,name),'utf8'),
+    {mode:'strip'},
+  );
+  const dataUrl=(source:string)=>`data:text/javascript;base64,${Buffer.from(source,'utf8').toString('base64')}`;
+
+  const mathUrl=dataUrl(strip('math.ts'));
+  const formatUrl=dataUrl(strip('format.ts'));
+  let index=strip('index.ts');
+  index=index
+    .split("'./math.ts'").join(`'${mathUrl}'`)
+    .split('"./math.ts"').join(`"${mathUrl}"`)
+    .split("'./format.ts'").join(`'${formatUrl}'`)
+    .split('"./format.ts"').join(`"${formatUrl}"`);
+  return dataUrl(index);
+}
+
 async function runVerifier(
   workspace:string,
   home:string,
@@ -284,8 +304,9 @@ async function runVerifier(
   seed:string,
   launcher:string|null,
 ):Promise<VerifierResult> {
+  const moduleUrl=candidateModuleUrl(workspace);
   if (!launcher) {
-    const result=spawnSync(process.execPath,['--experimental-strip-types','verify.cjs'],{
+    const result=spawnSync(process.execPath,['verify.cjs',moduleUrl],{
       cwd:workspace,
       env:minimalEnv(home,temporary,seed),
       encoding:'utf8',
@@ -313,7 +334,7 @@ async function runVerifier(
       program:process.execPath,
       timeout_ms:30_000,
       max_output_bytes:65_536,
-      args:['--experimental-strip-types','verify.cjs'],
+      args:['verify.cjs',moduleUrl],
       environment:{LANG:'C.UTF-8'},
       runtime_read_only:existsSync('/etc/ld.so.cache')?['/etc/ld.so.cache']:[],
       runtime_executable:runtimeExecutableClosure(process.execPath),
@@ -465,6 +486,9 @@ try {
     && outsideScope.length===0
     && verifier.status===0
     && verifier.completion_proven;
+  if (!accepted && verifier.stderr) {
+    process.stderr.write(`SANDBOX_VERIFIER_STDERR:\n${verifier.stderr}`);
+  }
   if (accepted) writeFileSync(attestationPath,attestation,{flag:'wx'});
 
   const receipt=kernel.resolve(permit,{
