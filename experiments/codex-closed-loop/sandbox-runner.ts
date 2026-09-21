@@ -56,6 +56,9 @@ type Provenance={
   runtime_sha256?:string;
   network_during_inference?:boolean;
   repository_credentials_present?:boolean;
+  checkout_readable_during_inference?:boolean;
+  worker_uid_isolated?:boolean;
+  input_scope?:string;
   worker_job_is_disposable?:boolean;
 };
 type VerifierResult={
@@ -211,6 +214,9 @@ function loadProvenance(path:string,candidateBytes:Buffer):{provenance:Provenanc
     if (!/^[0-9a-f]{64}$/.test(provenance.runtime_sha256!)) throw new Error('SANDBOX_RUNTIME_DIGEST_INVALID');
     if (provenance.network_during_inference!==false) throw new Error('SANDBOX_LOCAL_MODEL_NETWORK_NOT_DISABLED');
     if (provenance.repository_credentials_present!==false) throw new Error('SANDBOX_LOCAL_MODEL_REPOSITORY_CREDENTIAL_PRESENT');
+    if (provenance.checkout_readable_during_inference!==false) throw new Error('SANDBOX_LOCAL_MODEL_CHECKOUT_READABLE');
+    if (provenance.worker_uid_isolated!==true) throw new Error('SANDBOX_LOCAL_MODEL_UID_NOT_ISOLATED');
+    if (provenance.input_scope!=='synthetic-prompt-and-schema-only') throw new Error('SANDBOX_LOCAL_MODEL_INPUT_SCOPE_INVALID');
     if (provenance.worker_job_is_disposable!==true) throw new Error('SANDBOX_LOCAL_MODEL_WORKER_NOT_DISPOSABLE');
   } else {
     throw new Error('SANDBOX_PROVENANCE_TRANSPORT_UNSUPPORTED');
@@ -463,6 +469,9 @@ try {
   const localReasoningConfined=provenance?.transport==='offline-llama.cpp'
     && provenance.network_during_inference===false
     && provenance.repository_credentials_present===false
+    && provenance.checkout_readable_during_inference===false
+    && provenance.worker_uid_isolated===true
+    && provenance.input_scope==='synthetic-prompt-and-schema-only'
     && provenance.worker_job_is_disposable===true;
   const promotionReasons=modelWitness
     ? provenance?.transport==='offline-llama.cpp'
@@ -510,6 +519,9 @@ try {
       runtime_sha256:provenance?.runtime_sha256??null,
       network_during_inference:provenance?.network_during_inference??null,
       repository_credentials_present:provenance?.repository_credentials_present??null,
+      checkout_readable_during_inference:provenance?.checkout_readable_during_inference??null,
+      worker_uid_isolated:provenance?.worker_uid_isolated??null,
+      input_scope:provenance?.input_scope??null,
       worker_job_is_disposable:provenance?.worker_job_is_disposable??null,
       exit_code:workerStatus,
       stdout_sha256:sha256(workerStdout),
