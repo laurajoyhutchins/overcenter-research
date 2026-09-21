@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 
 const workflow=readFileSync(new URL('../../.github/workflows/autonomy-sandbox-google-free.yml',import.meta.url),'utf8');
-const bootstrap=readFileSync(new URL('../../scripts/gcp/bootstrap-google-free-reasoning.sh',import.meta.url),'utf8');
+const bootstrapUrl=new URL('../../scripts/gcp/bootstrap-google-free-reasoning.sh',import.meta.url);
+const bootstrap=readFileSync(bootstrapUrl,'utf8');
 const candidate=readFileSync(new URL('./ai-sdk-candidate.ts',import.meta.url),'utf8');
 const resolver=readFileSync(new URL('../../src/reasoning-model.ts',import.meta.url),'utf8');
 const schema=JSON.parse(readFileSync(new URL('./local-model-candidate.schema.json',import.meta.url),'utf8'));
@@ -14,6 +17,11 @@ test('AI SDK routing keeps Gateway default and Google-free as the only direct es
   assert.match(resolver,/GOOGLE_GENERATIVE_AI_API_KEY_REQUIRED/);
   assert.match(resolver,/import\('@ai-sdk\/google'\)/);
   assert.doesNotMatch(resolver,/OPENAI_API_KEY|ANTHROPIC_API_KEY/);
+});
+
+test('Google-free bootstrap is valid shell',()=>{
+  const result=spawnSync('bash',['-n',fileURLToPath(bootstrapUrl)],{encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
 });
 
 test('reasoning identity reuses proven GCP coordinates without reusing production deployment authority',()=>{
