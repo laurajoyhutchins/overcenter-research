@@ -6,7 +6,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
-import { normalizeObligation, OBLIGATION_SCHEMA } from '../../src/facts.ts';
+import {
+  GRAPH_PATCH_SCHEMA,
+  normalizeObligation,
+  obligationDefinition,
+  obligationDefinitionId,
+} from '../../src/facts.ts';
 import { OvercenterKernel } from '../../src/kernel.ts';
 import { replayProjection } from '../../src/projection.ts';
 import { SqliteFactStore } from '../../src/sqlite-store.ts';
@@ -50,13 +55,16 @@ function syntheticDefinitionCommits(count) {
         content:id,
       },
     });
+    const definition=obligationDefinition(obligation);
+    const definitionId=obligationDefinitionId(definition);
     commits.push({
       commit,
       parent,
-      obligation:{
-        schema:OBLIGATION_SCHEMA,
-        kind:'defined',
-        obligation,
+      graph_patch:{
+        schema:GRAPH_PATCH_SCHEMA,
+        definitions:[{id:definitionId,definition}],
+        bindings:[{node_id:id,definition_id:definitionId}],
+        retire:[],
       },
       claim:null,
       execution_authority:null,
@@ -190,7 +198,7 @@ function graphBuildBenchmark() {
           if (mode==='sequential') {
             for (const obligation of obligations) kernel.define(obligation);
           } else {
-            kernel.applyGraphPatch({add:obligations},initial);
+            kernel.applyGraphPatch({upsert:obligations},initial);
           }
           const elapsed_ms=performance.now()-started;
           assert.equal(kernel.inspect().length,definitions);
