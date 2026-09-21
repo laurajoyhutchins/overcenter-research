@@ -492,6 +492,7 @@ pub fn execute(manifest: Manifest) -> io::Result<()> {
     eprintln!(
         "overcenter-exec: task_id={:?} landlock_abi={abi} cgroup={resource_cgroup:?} timeout_ms={} max_output_bytes={} memory_max_bytes={} pids_max={} cpu_max={}/{}",
         manifest.task_id,
+        resource_cgroup,
         manifest.timeout_ms,
         manifest.max_output_bytes,
         manifest.memory_max_bytes,
