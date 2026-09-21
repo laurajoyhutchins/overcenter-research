@@ -86,6 +86,9 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
         windowsHide:true,
         detached:true,
       });
+    } catch (error) {
+      fs.closeSync(cgroupFd);
+      throw error;
     } finally {
       fs.closeSync(workspaceFd);
     }
