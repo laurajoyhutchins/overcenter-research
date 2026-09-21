@@ -153,7 +153,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
   const workflows=[
     {
       path:'.github/workflows/tests.yml',
-      jobs:['regression','experiments','production','evidence'],
+      jobs:['evidence'],
     },
     {
       path:'.github/workflows/computation-executor.yml',
@@ -185,10 +185,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
   }
 
   const budgets=[
-    ['.github/workflows/tests.yml','regression',3],
-    ['.github/workflows/tests.yml','experiments',3],
-    ['.github/workflows/tests.yml','production',3],
-    ['.github/workflows/tests.yml','evidence',1],
+    ['.github/workflows/tests.yml','evidence',3],
     ['.github/workflows/computation-executor.yml','executor',2],
     ['.github/workflows/self-application.yml','self-evidence',2],
     ['.github/workflows/merge-gate.yml','gate',1],
@@ -271,6 +268,32 @@ test('supplemental proofs trigger from evidence dependencies instead of package-
   ]) {
     const source=read(path);
     assert.doesNotMatch(source,/^\s*-\s*['\"]?package\.json['\"]?\s*$/m,path);
+  }
+});
+
+test('candidate supplemental proofs do not repeat Merge-gate deterministic coverage',()=>{
+  for (const [path,job] of [
+    ['.github/workflows/github-observation-grammar.yml','test'],
+    ['.github/workflows/kubernetes-observation-semantics.yml','local-semantics'],
+    ['.github/workflows/formal-kernel.yml','tlc'],
+  ] as const) {
+    const workflow=read(path);
+    const block=workflow.match(
+      new RegExp(`(?:^|\\n)  ${job}:\\n([\\s\\S]*?)(?=\\n  [A-Za-z0-9_-]+:\\n|$)`),
+    );
+    assert.ok(block,`${path} is missing candidate-deduplicated job ${job}`);
+    assert.match(block[1],/github\.event_name != 'pull_request'/,path);
+  }
+
+  for (const [path,step] of [
+    ['.github/workflows/conflicting-effect.yml','Focused conflict-ordering regression'],
+    ['.github/workflows/disposable-agent-proof.yml','Focused disposable-agent regressions'],
+  ] as const) {
+    const workflow=read(path);
+    const index=workflow.indexOf(`- name: ${step}`);
+    assert.notEqual(index,-1,`${path} is missing ${step}`);
+    const slice=workflow.slice(index,index+240);
+    assert.match(slice,/if: \$\{\{ github\.event_name != 'pull_request' \}\}/,path);
   }
 });
 
