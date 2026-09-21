@@ -4,6 +4,7 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {summarize} from './summarize-mutation.mjs';
+import {MUTATION_EVIDENCE_SCHEMA} from './mutation-evidence.mjs';
 
 const git=(root,args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
 const sha256=bytes=>'sha256:'+createHash('sha256').update(bytes).digest('hex');
@@ -27,16 +28,25 @@ const args=parseArgs(process.argv);
 const reportBytes=fs.readFileSync(args.report);
 const report=JSON.parse(reportBytes);
 const resolved=JSON.parse(fs.readFileSync(args.ranges,'utf8'));
-const rows=new Map(summarize(report,resolved).map(r=>[r.id,r]));
-const sourceRun={\n  revision:git(args.root,['rev-parse','HEAD']),\n  workflow_run_id:args.workflowRunId,\n  mutation_report_sha256:sha256(reportBytes),\n};\nconst probes=resolved.probes.map(p=>{
-  const row=rows.get(p.id);
-  if(!row) throw new Error(`missing mutation summary row for ${p.id}`);
+const rows=new Map(summarize(report,resolved).map(row=>[row.id,row]));
+const sourceRun={
+  revision:git(args.root,['rev-parse','HEAD']),
+  workflow_run_id:args.workflowRunId,
+  mutation_report_sha256:sha256(reportBytes),
+  ...(args.artifactDigest?{artifact_digest:args.artifactDigest}:{}),
+};
+const probes=resolved.probes.map(probe=>{
+  const row=rows.get(probe.id);
+  if(!row) throw new Error(`missing mutation summary row for ${probe.id}`);
   const sourceBlobs={};
-  for(const file of [...new Set(p.ranges.map(r=>r.file))]) sourceBlobs[file]=git(args.root,['hash-object',file]);
+  for(const file of [...new Set(probe.ranges.map(range=>range.file))]){
+    sourceBlobs[file]=git(args.root,['hash-object',file]);
+  }
   return {
-    id:p.id,
+    id:probe.id,
+    source_run:sourceRun,
     source_blobs:sourceBlobs,
-    selectors:p.ranges.map(r=>({file:r.file,qualifiedName:r.qualifiedName})),
+    selectors:probe.ranges.map(range=>({file:range.file,qualifiedName:range.qualifiedName})),
     total:row.total,
     killed:row.killed,
     survived:row.survived,
@@ -45,15 +55,6 @@ const sourceRun={\n  revision:git(args.root,['rev-parse','HEAD']),\n  workflow_r
     mutation_score:row.mutationScore,
   };
 });
-const evidence={
-  schema:'overcenter-criticality-mutation-evidence/v1',
-  source_run:{
-    revision:git(args.root,['rev-parse','HEAD']),
-    workflow_run_id:args.workflowRunId,
-    artifact_digest:args.artifactDigest,
-    mutation_report_sha256:sha256(reportBytes),
-  },
-  probes,
-};
+const evidence={schema:MUTATION_EVIDENCE_SCHEMA,probes};
 fs.writeFileSync(args.output,JSON.stringify(evidence,null,2)+'\n');
 process.stdout.write(JSON.stringify(evidence,null,2)+'\n');
