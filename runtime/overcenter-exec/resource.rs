@@ -54,6 +54,7 @@ fn require_leaf_interfaces(leaf: &Path) -> io::Result<()> {
         "memory.oom.group",
         "pids.max",
         "cpu.max",
+        "cpu.max.burst",
     ] {
         if !leaf.join(interface).exists() {
             return Err(fail(format!("resource cgroup is missing {interface}")));
@@ -84,6 +85,7 @@ fn configure(leaf: &Path, manifest: &Manifest) -> io::Result<()> {
         &leaf.join("cpu.max"),
         &format!("{} {}", manifest.cpu_quota_us, manifest.cpu_period_us),
     )?;
+    write_exact(&leaf.join("cpu.max.burst"), "0")?;
     Ok(())
 }
 
