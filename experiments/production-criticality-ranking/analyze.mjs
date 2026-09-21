@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
-import {pathToFileURL} from 'node:url';
+import {pathToFileURL} from 'node:url';\nimport {assertMutationEvidence} from './mutation-evidence.mjs';
 
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
@@ -358,18 +358,9 @@ export function analyze({root,config}){
   const mutationEvidenceStatus={applied:[],stale:[],missing:[]};
   if(config.mutationEvidenceFile){
     const evidencePath=path.join(root,config.mutationEvidenceFile);
-    const snapshot=JSON.parse(fs.readFileSync(evidencePath,'utf8'));
-    if(snapshot.schema!=='overcenter-criticality-mutation-evidence/v1') throw new Error(`unsupported mutation evidence schema: ${snapshot.schema}`);
-    const sourceRun=snapshot.source_run;
-    if(!sourceRun
-      || !/^[0-9a-f]{40}$/.test(sourceRun.revision??'')
-      || !Number.isInteger(sourceRun.workflow_run_id)
-      || sourceRun.workflow_run_id<=0
-      || !/^sha256:[0-9a-f]{64}$/.test(sourceRun.artifact_digest??'')
-      || !/^sha256:[0-9a-f]{64}$/.test(sourceRun.mutation_report_sha256??'')){
-      throw new Error('mutation evidence is missing trusted-run provenance fields');
-    }
+    const snapshot=assertMutationEvidence(JSON.parse(fs.readFileSync(evidencePath,'utf8')));
     for(const probe of snapshot.probes??[]){
+      const sourceRun=probe.source_run;
       const selected=(probe.selectors??[]).map(selector=>selectOne(production,selector,`mutation-evidence:${probe.id}`));
       const staleFiles=[];
       for(const [file,expected] of Object.entries(probe.source_blobs??{})){
@@ -383,7 +374,7 @@ export function analyze({root,config}){
       for(const unit of selected){
         const prior=mutationEvidenceByUnit.get(unit.id);
         if(!prior || score<prior.mutationScore){
-          mutationEvidenceByUnit.set(unit.id,{probeId:probe.id,mutationScore:score,status,sourceRun:snapshot.source_run??null});
+          mutationEvidenceByUnit.set(unit.id,{probeId:probe.id,mutationScore:score,status,sourceRun});
         }
       }
     }
