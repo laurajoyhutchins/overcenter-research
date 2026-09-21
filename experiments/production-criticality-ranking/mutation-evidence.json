@@ -32,10 +32,10 @@
     {
       "id": "semantic-identity",
       "source_run": {
-        "revision": "13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
-        "workflow_run_id": 35471986995,
-        "artifact_digest": "sha256:6b38889f984b1c0f178917f4d9ed5dc2e98f94e7e8e924581e15ef0b06a03c88",
-        "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
+        "revision": "3d186b50489a34e065de415a8bd7ad119af21ada",
+        "workflow_run_id": 35624735183,
+        "mutation_report_sha256": "sha256:b33b6823e2b6a6b7e9ae3fd30a483298459976765432cf42190e722b7a948c18",
+        "artifact_digest": "sha256:973b3cec21aca10effee50c1a20a5f4b10dbf3ba6bc7c82b833c9b112b9a4cab"
       },
       "source_blobs": {
         "src/semantic-identity.ts": "e86c460c34d292105b4160d23744d806a04337c6"
@@ -43,19 +43,19 @@
       "selectors": [
         {
           "file": "src/semantic-identity.ts",
-          "name": "semanticDependencyIdentity"
+          "qualifiedName": "semanticDependencyIdentity"
         },
         {
           "file": "src/semantic-identity.ts",
-          "name": "obligationKey"
+          "qualifiedName": "obligationKey"
         }
       ],
       "total": 46,
-      "killed": 5,
-      "survived": 41,
+      "killed": 46,
+      "survived": 0,
       "no_coverage": 0,
       "timeout_or_error": 0,
-      "mutation_score": 0.10869565217391304
+      "mutation_score": 1
     },
     {
       "id": "done-candidate-reuse",
