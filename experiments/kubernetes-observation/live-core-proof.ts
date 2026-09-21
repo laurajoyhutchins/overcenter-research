@@ -186,7 +186,7 @@ try {
       'ensure-configmap',
       kernel.deriveReadyWork()!.revision,
     );
-    const absent=kernel.resolve(first);
+    const absent=kernel.reconcile(first);
 
     assert.equal(absent.disposition,'READY');
     assert.equal(absent.observed?.mutation_certainty,'absent');
@@ -209,7 +209,7 @@ try {
         '--from-literal=value=created-by-safe-replay',
       );
     });
-    const done=kernel.resolve(second);
+    const done=kernel.reconcile(second);
 
     assert.equal(done.disposition,'DONE');
     assert.equal(done.verified,true);

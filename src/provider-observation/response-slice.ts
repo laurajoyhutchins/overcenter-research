@@ -354,14 +354,3 @@ export function structurallyCertifiedFor<T extends StructuralObservation>(
   });
 }
 
-export function structurallyValidatedFor<T extends StructuralObservation>(
-  observation:T,
-  operationId:string,
-  requiredPaths:readonly string[],
-):observation is CertifiedObservation<T> {
-  return structurallyCertifiedFor(
-    observation,
-    operationId,
-    requiredPaths.map(path=>({path})),
-  );
-}

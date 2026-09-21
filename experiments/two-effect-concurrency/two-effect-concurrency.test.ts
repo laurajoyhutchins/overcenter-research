@@ -99,7 +99,7 @@ test('claim identity remains exact after later claims move authority', () => {
 
     const retryB=f.kernel.claim('b',f.kernel.deriveReadyWork()!.revision);
     writeFileSync(b,'B');
-    const bDone=f.kernel.resolve(retryB);
+    const bDone=f.kernel.reconcile(retryB);
     assert.equal(bDone.disposition,'DONE');
     assert.deepEqual(
       f.kernel.inspect().map(work=>[work.id,work.status]),
@@ -140,7 +140,7 @@ test('two fresh recovery processes concurrently settle independent effects throu
       while (!existsSync(go)) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);
       try {
         const permit=kernel.acquireExecution(runId);
-        const receipt=kernel.resolve(permit);
+        const receipt=kernel.reconcile(permit);
         process.stdout.write(JSON.stringify({ok:true,receipt,generation:permit.execution_generation}));
       } catch (error) {
         process.stdout.write(JSON.stringify({ok:false,error:error.message}));

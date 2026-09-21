@@ -194,7 +194,7 @@ test('wrong real effect cannot become DONE or READY', () => {
     f.kernel.define({ id: 'x', postcondition: pc(path, 'right') });
     const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     writeFileSync(path, 'wrong');
-    const receipt = f.kernel.resolve(run);
+    const receipt = f.kernel.reconcile(run);
     assert.equal(receipt.disposition, 'RECOVERY_REQUIRED');
     assert.equal(receipt.verified, false);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -206,7 +206,7 @@ test('authoritative absence alone makes work replayable', () => {
     const path = f.path('x');
     f.kernel.define({ id: 'x', postcondition: pc(path, 'yes') });
     const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
-    const receipt = f.kernel.resolve(run);
+    const receipt = f.kernel.reconcile(run);
     assert.equal(receipt.schema, RECEIPT_SCHEMA);
     assert.equal(receipt.observed?.mutation_certainty, 'absent');
     assert.equal(receipt.observed?.absence_evidence?.kind, 'local-file-enoent/v1');
@@ -268,10 +268,10 @@ test('execution generation fences a stale permit without changing the claimed re
     );
 
     assert.throws(() => f.kernel.beginEffect(first), /STALE_EXECUTION_GENERATION/);
-    assert.throws(() => f.kernel.resolve(first), /STALE_EXECUTION_GENERATION/);
+    assert.throws(() => f.kernel.reconcile(first), /STALE_EXECUTION_GENERATION/);
 
     f.kernel.beginEffect(second);
-    const replayable = f.kernel.resolve(second);
+    const replayable = f.kernel.reconcile(second);
     assert.equal(replayable.disposition, 'READY');
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
@@ -289,9 +289,9 @@ test('unresolved effect reservation survives generation handoff until presence s
 
     const second = f.kernel.acquireExecution(first.id);
     assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);
-    assert.throws(() => f.kernel.resolve(first), /STALE_EXECUTION_GENERATION/);
+    assert.throws(() => f.kernel.reconcile(first), /STALE_EXECUTION_GENERATION/);
 
-    const settled = f.kernel.resolve(second);
+    const settled = f.kernel.reconcile(second);
     assert.equal(settled.disposition, 'DONE');
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
   } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -308,7 +308,7 @@ test('only authoritative absence releases an unresolved reservation for replay',
     const second = f.kernel.acquireExecution(first.id);
     assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);
 
-    const absent = f.kernel.resolve(second);
+    const absent = f.kernel.reconcile(second);
     assert.equal(absent.disposition, 'READY');
 
     const retry = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
@@ -363,8 +363,8 @@ test('DONE resolution is idempotent after lost acknowledgement', () => {
     f.kernel.define({ id: 'x', postcondition: pc(path, 'yes') });
     const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     writeFileSync(path, 'yes');
-    const first = f.kernel.resolve(run);
-    const second = f.kernel.resolve(run);
+    const first = f.kernel.reconcile(run);
+    const second = f.kernel.reconcile(run);
     assert.equal(first.disposition, 'DONE');
     assert.equal(second.settlement_commit, first.settlement_commit);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
@@ -473,7 +473,7 @@ test('historical receipt stays bound to the obligation generation claimed by its
 
     const firstRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     writeFileSync(path, 'one');
-    const firstDone = f.kernel.resolve(firstRun);
+    const firstDone = f.kernel.reconcile(firstRun);
     assert.equal(firstDone.disposition, 'DONE');
     assert.equal(firstDone.verified, true);
 
@@ -498,7 +498,7 @@ test('historical receipt stays bound to the obligation generation claimed by its
 
     const secondRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     writeFileSync(path, 'two');
-    const secondDone = f.kernel.resolve(secondRun);
+    const secondDone = f.kernel.reconcile(secondRun);
     assert.equal(secondDone.disposition, 'DONE');
     assert.equal(secondDone.verified, true);
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
@@ -545,11 +545,11 @@ test('projected terminal receipt remains idempotent after a retry is claimed', (
     f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
 
     const firstRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
-    const replayable = f.kernel.resolve(firstRun);
+    const replayable = f.kernel.reconcile(firstRun);
     assert.equal(replayable.disposition, 'READY');
 
     const secondRun = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
-    const repeated = f.kernel.resolve(firstRun);
+    const repeated = f.kernel.reconcile(firstRun);
 
     assert.equal(repeated.disposition, 'READY');
     assert.equal(repeated.settlement_commit, replayable.settlement_commit);

@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   structurallyCertifiedFor,
-  structurallyValidatedFor,
   validateObservationSlice,
   validateResponseSlice,
   type SchemaResolver,
@@ -152,7 +151,6 @@ test('full response-slice certification distinguishes validated from optional ab
   const certified=validateObservationSlice(operation,observation,fields);
 
   assert.equal(structurallyCertifiedFor(certified,'test/get',fields),true);
-  assert.equal(structurallyValidatedFor(certified,'test/get',['id','note']),false);
 
   const missingOptional=structuredClone(certified);
   missingOptional.structural_validation.optional_absent_paths=[];

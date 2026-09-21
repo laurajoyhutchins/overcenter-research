@@ -70,7 +70,7 @@ test('reachable state and receipts survive aggressive GC in SHA-256 repo', () =>
     const run = k.claim('x', k.deriveReadyWork()!.revision);
     k.beginEffect(run);
     writeFileSync(path, 'yes');
-    k.resolve(run);
+    k.reconcile(run);
     const head = k.head();
     assert.equal(head?.length, 64);
     execFileSync('git', ['-C', repo, 'gc', '--prune=now'], { stdio: 'ignore' });

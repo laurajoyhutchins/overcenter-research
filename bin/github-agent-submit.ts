@@ -157,7 +157,7 @@ if (!['EXECUTING','RECOVERY_REQUIRED'].includes(before.status)) {
 }
 
 const permit=settlementKernel.acquireExecution(candidate.run_id);
-const settled=settlementKernel.resolve(permit,{
+const settled=settlementKernel.reconcile(permit,{
   assignment_candidate:{
     assignment_sha256:candidate.assignment_sha256,
     output_sha256:candidate.output_sha256,
