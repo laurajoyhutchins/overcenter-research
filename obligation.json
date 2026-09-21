@@ -2,7 +2,7 @@
   "schema": "overcenter-git-obligation-v3",
   "kind": "defined",
   "obligation": {
-    "id": "guard-35561850860-1-unordered-alpha",
+    "id": "guard-35561850860-1-ordered-alpha",
     "dependencies": [],
     "packet": {},
     "postcondition": {
@@ -11,7 +11,7 @@
       "repository_id": 1354872053,
       "repository_full_name": "laurajoyhutchins/overcenter-research",
       "commit_sha": "98e1a91194ce8b87967305b595b47e421548b2b9",
-      "context": "overcenter/conflict-guard/35561850860/1/unordered/Build",
+      "context": "overcenter/conflict-guard/35561850860/1/ordered",
       "expected_state": "success"
     }
   }
