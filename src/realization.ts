@@ -13,7 +13,7 @@ export interface SemanticDependencyIdentity {
 }
 
 export interface AcceptancePredicate {
-  kind:ACCEPTANCE_PREDICATES.sha256Equals;
+  kind:typeof ACCEPTANCE_PREDICATES.sha256Equals;
   expected_sha256:string;
   [key:string]:unknown;
 }
