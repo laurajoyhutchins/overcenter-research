@@ -110,10 +110,10 @@ function currentDefinitions(
 }
 
 function currentState(definitions:DefinitionFixture[]):State {
-  const state:State={obligations:{},definition_commits:{}};
+  const state:State={obligations:{},definition_ids:{}};
   for (const [id,definition] of currentDefinitions(definitions)) {
     state.obligations[id]=structuredClone(definition.work);
-    state.definition_commits[id]=`definition-${definition.ordinal}`;
+    state.definition_ids[id]=`definition-${definition.ordinal}`;
   }
   return state;
 }
