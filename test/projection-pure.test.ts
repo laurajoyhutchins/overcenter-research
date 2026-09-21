@@ -192,10 +192,10 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
   const defineRecord:FactCommit={
     commit:'define-1',
     parent:null,
-    obligation:defined,
+    graph_patch:defined,
   };
   const claimRecord=claimCommit('define-1');
-  claimRecord.parent='different-head';
+  (claimRecord.claim as {claimed_revision:string}).claimed_revision='different-head';
 
   assert.throws(
     ()=>replayProjection([defineRecord,claimRecord]),
