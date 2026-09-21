@@ -18,6 +18,29 @@ function withFixture(name:string,body:(f:GitKernelFixture)=>void) {
   });
 }
 
+function boundDefinition(
+  f:GitKernelFixture,
+  commit:string,
+  nodeId:string,
+) {
+  const patch=JSON.parse(f.git(['show',`${commit}:graph-patch.json`])) as {
+    schema:string;
+    definitions:Array<{
+      id:string;
+      definition:{dependencies:unknown[];packet:unknown;postcondition:unknown};
+    }>;
+    bindings:Array<{node_id:string;definition_id:string}>;
+    retire:string[];
+  };
+  const binding=patch.bindings.find(candidate=>candidate.node_id===nodeId);
+  assert.ok(binding,`missing binding for ${nodeId}`);
+  const definition=patch.definitions.find(
+    candidate=>candidate.id===binding.definition_id,
+  );
+  assert.ok(definition,`missing introduced definition for ${nodeId}`);
+  return {patch,binding,definition};
+}
+
 
 withFixture('control dependency changes executability but does not poison downstream semantic identity',f=>{
   f.defineFile('a',{content:'A1'});
@@ -110,11 +133,10 @@ withFixture('semantic selector is part of durable edge meaning',f=>{
     }],
   });
 
-  const fact=obligationFact(f,bDefinition);
-  assert.equal(fact.schema,'overcenter-git-obligation-v3');
-  assert.equal('deps' in fact.obligation,false);
+  const fact=boundDefinition(f,bDefinition,'b');
+  assert.equal(fact.patch.schema,'overcenter-graph-patch-v1');
   assert.deepEqual(
-    (fact.obligation as {dependencies?:unknown}).dependencies,
+    fact.definition.definition.dependencies,
     [{
       kind:'semantic',
       upstream:'a',
@@ -134,11 +156,11 @@ withFixture('reclassifying control dependency as semantic cannot reuse old compl
     upstream:'a',
     consumes:{kind:'evidence' as const,selector:'settlement-receipt'},
   }];
-  const amended=f.rebindFile('b',{content:'B',dependencies});
-  const fact=obligationFact(f,amended);
+  const rebound=f.rebindFile('b',{content:'B',dependencies});
+  const fact=boundDefinition(f,rebound,'b');
 
   assert.deepEqual(
-    (fact.obligation as {dependencies?:unknown}).dependencies,
+    fact.definition.definition.dependencies,
     dependencies,
   );
   assert.equal(f.work('b').status,'READY');
@@ -208,12 +230,19 @@ withFixture('semantic edge declaration order does not change obligation identity
   f.settleFile('b');
   const before=f.work('b');
 
-  f.rebindFile('b',{
-    content:'B',
+  const head=f.kernel.head()!;
+  const reconciled=f.kernel.reconcileGraph([{
+    id:'b',
     dependencies:[verifiedContent('c'),verifiedContent('a')],
-  });
-  const after=f.work('b');
+    packet:before.packet,
+    postcondition:before.postcondition,
+  }],head);
+  assert.equal(reconciled.revision,head);
+  assert.deepEqual(reconciled.added,[]);
+  assert.deepEqual(reconciled.rebound,[]);
+  assert.deepEqual(reconciled.unchanged,['b']);
 
+  const after=f.work('b');
   assert.equal(after.status,'DONE');
   assert.equal(after.run_id,before.run_id);
 });
