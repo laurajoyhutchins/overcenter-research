@@ -21,7 +21,9 @@ test('local inference is pinned and loses networking before model execution',()=
   assert.match(workflow,/sha256sum --check -/);
   assert.match(workflow,/useradd --no-create-home --shell \/usr\/sbin\/nologin overcenter-model/);
   assert.match(workflow,/rm -rf "\$GITHUB_WORKSPACE"/);
-  assert.match(workflow,/test ! -e "\$GITHUB_WORKSPACE"/);
+  assert.match(workflow,/mkdir -m 0700 "\$GITHUB_WORKSPACE"/);
+  assert.match(workflow,/find "\$GITHUB_WORKSPACE" -mindepth 1 -print -quit/);
+  assert.match(workflow,/cd "\$HOME"/);
   assert.match(workflow,/\/usr\/bin\/unshare --net --fork --[\s\S]*\/usr\/bin\/setpriv --reuid=/);
   assert.match(workflow,/find \/sys\/class\/net[\s\S]*grep -vc "\^lo\$"/);
   assert.match(workflow,/--json-schema-file/);
