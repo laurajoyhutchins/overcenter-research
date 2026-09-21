@@ -107,13 +107,7 @@
           "description": "Application-defined packet; intentionally open but authoritative by value."
         },
         "postcondition": {
-          "type": "object",
-          "x-overcenter-openBoundary": true,
-          "additionalProperties": true,
-          "required": [
-            "verifier"
-          ],
-          "description": "Verifier-owned postcondition contract; intentionally open here."
+          "$ref": "../postconditions-v1/schema.json#/$defs/Postcondition"
         }
       }
     },
@@ -127,7 +121,7 @@
       ],
       "properties": {
         "schema": {
-          "const": "overcenter-git-obligation-v3"
+          "const": "overcenter-git-obligation-v4"
         },
         "kind": {
           "const": "defined"
@@ -148,7 +142,7 @@
       ],
       "properties": {
         "schema": {
-          "const": "overcenter-git-obligation-v3"
+          "const": "overcenter-git-obligation-v4"
         },
         "kind": {
           "const": "amended"
