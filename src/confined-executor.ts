@@ -123,23 +123,36 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
     };
 
     const cleanupCgroup=async():Promise<ConfinedWorkerResourceUsage|null>=>{
-      const usage=collectResourceUsage();
-      if (!cgroupPath || !fs.existsSync(cgroupPath)) return usage;
-      killCgroup();
-      for (let attempt=0;attempt<50;attempt+=1) {
-        try {
-          fs.rmdirSync(cgroupPath);
-          return usage;
-        } catch (error) {
-          if (
-            !(error instanceof Error)
-            || !('code' in error)
-            || !['EBUSY','ENOTEMPTY'].includes(String(error.code))
-          ) throw error;
-          await sleep(10);
-        }
+      let usage:ConfinedWorkerResourceUsage|null=null;
+      let evidenceError:unknown;
+      try {
+        usage=collectResourceUsage();
+      } catch (error) {
+        evidenceError=error;
       }
-      throw new Error('WORKER_CGROUP_CLEANUP');
+
+      if (cgroupPath && fs.existsSync(cgroupPath)) {
+        killCgroup();
+        let removed=false;
+        for (let attempt=0;attempt<50;attempt+=1) {
+          try {
+            fs.rmdirSync(cgroupPath);
+            removed=true;
+            break;
+          } catch (error) {
+            if (
+              !(error instanceof Error)
+              || !('code' in error)
+              || !['EBUSY','ENOTEMPTY'].includes(String(error.code))
+            ) throw error;
+            await sleep(10);
+          }
+        }
+        if (!removed) throw new Error('WORKER_CGROUP_CLEANUP');
+      }
+
+      if (evidenceError) throw evidenceError;
+      return usage;
     };
 
     const killTree=(error:Error):void=>{
