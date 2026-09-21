@@ -40,8 +40,9 @@ permissions:
   contents: read
 
 jobs:
-  detect:
+  preflight:
     runs-on: ubuntu-24.04
+    timeout-minutes: 3
     outputs:
       run_probe: ${{ steps.changed.outputs.run_probe }}
       mutation_probe: ${{ steps.changed.outputs.mutation_probe }}
@@ -50,6 +51,9 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
       - name: Prove mutation selector
         run: node --test experiments/production-criticality-ranking/select-mutation-probe.test.mjs
       - id: changed
@@ -72,13 +76,22 @@ jobs:
             | node experiments/production-criticality-ranking/select-mutation-probe.mjs "$EVENT_NAME" \
             >> "$GITHUB_OUTPUT"
 
+      - name: Prove evidence machinery
+        run: |
+          node --test \
+            experiments/production-criticality-ranking/mutation-evidence.test.mjs \
+            experiments/production-criticality-ranking/verify-mutation-evidence.test.mjs
+      - name: Bind checked-in evidence to authoritative artifacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node experiments/production-criticality-ranking/verify-mutation-evidence-sources.mjs
   mutate:
-    needs: detect
-    if: needs.detect.outputs.run_probe == 'true'
+    needs: preflight
+    if: needs.preflight.outputs.run_probe == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      MUTATION_PROBE: ${{ needs.detect.outputs.mutation_probe }}
+      MUTATION_PROBE: ${{ needs.preflight.outputs.mutation_probe }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -131,22 +144,3 @@ jobs:
             mutation-evidence-generated.json
           if-no-files-found: ignore
 
-  verify-evidence:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version-file: .node-version
-      - name: Prove evidence machinery
-        run: |
-          node --test \
-            experiments/production-criticality-ranking/mutation-evidence.test.mjs \
-            experiments/production-criticality-ranking/verify-mutation-evidence.test.mjs
-      - name: Bind checked-in evidence to authoritative artifacts
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node experiments/production-criticality-ranking/verify-mutation-evidence-sources.mjs

@@ -120,8 +120,23 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     evidenceWorkflow,
-    /proofs:\n\s+name: Adversarial, experimental, and formal proofs\n\s+if: \$\{\{ inputs\.expensive \}\}/,
-    'proofs must be skipped unless the caller explicitly enables candidate evidence',
+    /evidence:\n\s+name: Candidate evidence/,
+    'merge-gate evidence must share one full runner',
+  );
+  for (const command of [
+    'npm run test:unit',
+    'npm run test:experiments',
+    'npm run test:stress',
+    'npm run proof:formal',
+    'npm run proof:production-boundary',
+    'scripts/proof-self-application.sh',
+  ]) {
+    assert.ok(evidenceWorkflow.includes(command), `candidate evidence is missing ${command}`);
+  }
+  assert.doesNotMatch(
+    mergeGate,
+    /production-computation:|self-application:/,
+    'candidate-local evidence must not acquire dedicated merge-gate runners',
   );
 });
 

@@ -4,6 +4,12 @@ on:
   pull_request:
     branches: [main]
     types: [ready_for_review]
+    paths:
+      - '.github/workflows/assignment-capsule-proof.yml'
+      - 'experiments/assignment-capsule/**'
+      - 'src/**'
+      - 'package.json'
+      - '.node-version'
   workflow_dispatch:
 
 permissions: {}

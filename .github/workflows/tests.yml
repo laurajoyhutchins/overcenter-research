@@ -4,14 +4,14 @@ on:
   workflow_call:
     inputs:
       expensive:
-        description: Run adversarial, experimental, stress, and formal proof lanes
+        description: Run candidate-only adversarial, formal, production, and self-application evidence
         required: false
         type: boolean
         default: false
   workflow_dispatch:
     inputs:
       expensive:
-        description: Run adversarial, experimental, stress, and formal proof lanes
+        description: Run candidate-only adversarial, formal, production, and self-application evidence
         required: false
         type: boolean
         default: false
@@ -20,15 +20,19 @@ permissions:
   contents: read
 
 jobs:
-  regression:
-    name: Deterministic regression
+  evidence:
+    name: Candidate evidence
     runs-on: ubuntu-24.04
-    timeout-minutes: 2
+    timeout-minutes: 3
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.SOURCE_SHA }}
           persist-credentials: false
+      - name: Verify exact evidence revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
@@ -37,26 +41,55 @@ jobs:
       - name: Run deterministic regression
         run: npm run test:unit
 
-  proofs:
-    name: Adversarial, experimental, and formal proofs
-    if: ${{ inputs.expensive }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version-file: '.node-version'
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - name: Install Java for candidate formal proof
+        if: ${{ inputs.expensive }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '21'
       - name: Run adversarial experiment proofs
+        if: ${{ inputs.expensive }}
         run: npm run test:experiments
       - name: Run Git stress proof
+        if: ${{ inputs.expensive }}
         run: npm run test:stress
       - name: Run TLA+ safety proof
+        if: ${{ inputs.expensive }}
         run: npm run proof:formal
+
+      - name: Install Go for candidate production evidence
+        if: ${{ inputs.expensive }}
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: '.go-version'
+          cache: false
+      - name: Install pinned Rust toolchain
+        if: ${{ inputs.expensive }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal --no-self-update
+          test "$(rustc --version | awk '{print $2}')" = "$channel"
+      - name: Prove production computation boundary
+        if: ${{ inputs.expensive }}
+        env:
+          OVERCENTER_PREVERIFIED_COMPUTATION_EXECUTOR: '1'
+          OVERCENTER_KEEP_BUILD: '1'
+        run: npm run proof:production-boundary
+      - name: Prove self-application on the same exact revision
+        if: ${{ inputs.expensive }}
+        env:
+          OVERCENTER_REUSE_EXECUTOR: '1'
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/overcenter-self-application.json"
+          image="overcenter-self-application:${{ github.run_id }}"
+          bash scripts/proof-self-application.sh "$SOURCE_SHA" "$image" "$report"
+          {
+            echo '## Overcenter self-application'
+            echo
+            echo '### Report'
+            sed 's/^/    /' "$report"
+          } >> "$GITHUB_STEP_SUMMARY"
