@@ -1,15 +1,16 @@
 import Type from 'typebox';
 
 import type {AbsenceEvidenceCertificate,Data} from '../../src/model.ts';
+import {POSTCONDITION_VERIFIERS} from '../../src/generated/schema-identifiers.ts';
 
 const stringEnum=<const T extends readonly string[]>(values:T)=>
   Type.Unsafe<T[number]>({enum:[...values]});
 
 export const VerifierKind=stringEnum([
-  'file-content-equals/v1',
-  'eventually-consistent-file-content-equals/v1',
-  'github-commit-status/v2',
-  'kubernetes-configmap-exists/v1',
+  POSTCONDITION_VERIFIERS.fileContentEquals,
+  POSTCONDITION_VERIFIERS.eventuallyConsistentFileContentEquals,
+  POSTCONDITION_VERIFIERS.githubCommitStatus,
+  POSTCONDITION_VERIFIERS.kubernetesConfigMapExists,
 ] as const);
 
 export const SettlementObservation=Type.Object({
