@@ -52,6 +52,15 @@ fn must_syscall_denied(result: i64, name: &str) {
     }
 }
 
+fn must_fd_closed(fd: i32) {
+    let state = unsafe { fcntl(fd, F_GETFD) };
+    must(state == -1, &format!("inherited fd {fd} remained open"));
+    must(
+        std::io::Error::last_os_error().raw_os_error() == Some(EBADF),
+        &format!("fd {fd} failed for an unexpected reason"),
+    );
+}
+
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     must(args.len() == 2, "usage: hostile-worker <outside-read> <outside-write>");
@@ -79,9 +88,9 @@ fn main() {
     must(env::var_os("AWS_SECRET_ACCESS_KEY").is_none(), "ambient AWS credential leaked");
     must(env::var("OVERCENTER_TEST").as_deref() == Ok("explicit"), "explicit environment missing");
 
-    let fd_state = unsafe { fcntl(200, F_GETFD) };
-    must(fd_state == -1, "inherited fd 200 remained open");
-    must(std::io::Error::last_os_error().raw_os_error() == Some(EBADF), "fd 200 failed for an unexpected reason");
+    must_fd_closed(3);
+    must_fd_closed(4);
+    must_fd_closed(200);
 
     let parent = unsafe { getppid() };
     let signal_state = unsafe { kill(parent, SIGCONT) };
@@ -166,6 +175,7 @@ fn main() {
     println!("workspace execute: explicit-only");
     println!("outside filesystem: denied");
     println!("ambient credentials: absent");
+    println!("workspace/cgroup authority fds: closed");
     println!("inherited fd: closed");
     println!("outside-domain signals: denied");
     println!("process-group escape: denied");
