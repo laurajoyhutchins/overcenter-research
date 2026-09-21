@@ -11,10 +11,14 @@ import {
 import {dirname, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import schemaIdentifiers from '../contracts/schema-identifiers.json' with {type:'json'};
 
-export const ASSIGNMENT_SCHEMA='overcenter-agent-assignment/v1';
-export const CANDIDATE_SCHEMA='overcenter-agent-candidate/v1';
-export const AGENT_TASK_PACKET_SCHEMA='overcenter-agent-task/v1';
+const schemaId=({name,version})=>`${name}-v${version}`;
+
+export const ASSIGNMENT_SCHEMA=schemaId(schemaIdentifiers.agent.assignment);
+export const CANDIDATE_SCHEMA=schemaId(schemaIdentifiers.agent.candidate);
+export const AGENT_TASK_PACKET_SCHEMA=schemaId(schemaIdentifiers.agent.task);
+export const AGENT_RESPONSE_SCHEMA=schemaId(schemaIdentifiers.agent.response);
 
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 const fail=code=>{throw new Error(code);};
