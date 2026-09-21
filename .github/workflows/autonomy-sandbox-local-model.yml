@@ -91,7 +91,7 @@ jobs:
                 self_netns="$(readlink /proc/self/ns/net)"
                 host_netns="$(readlink /proc/1/ns/net)"
                 test "$self_netns" != "$host_netns"
-                non_loopback="$(awk -F: 'NR>2 {gsub(/[[:space:]]/,"",$1); if ($1!="lo") {print $1; exit}}' /proc/net/dev)"
+                non_loopback="$(tail -n +3 /proc/net/dev | cut -d: -f1 | sed "s/[[:space:]]//g" | grep -v "^lo$" || true)"
                 test -z "$non_loopback"
                 exec "$LLAMA_CLI"                   -m "$MODEL"                   -f "$PROMPT"                   --json-schema-file "$SCHEMA"                   --seed 20260921                   --temp 0                   --ctx-size 4096                   -n 1400                   --no-display-prompt                   --no-show-timings
               ' > "$RUNNER_TEMP/local-model/out/raw.txt"; then
