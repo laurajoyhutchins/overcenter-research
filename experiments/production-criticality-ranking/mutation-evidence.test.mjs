@@ -63,6 +63,18 @@ test('reconciles fresh targeted evidence without rewriting unrelated probe prove
   assert.equal(result.snapshot.probes[0].source_run.workflow_run_id,3);
   assert.equal(result.snapshot.probes[0].source_run.artifact_digest,digest);
   assert.deepEqual(result.snapshot.probes[1],current.probes[1]);
+
+  assert.throws(
+    ()=>reconcileMutationEvidence({
+      current,
+      generated,
+      artifactDigest:digest,
+      expectedWorkflowRunId:99,
+      expectedRevision:revision,
+      root,
+    }),
+    /expected 99/,
+  );
 });
 
 test('skips a targeted result when its exact source blob is no longer current',()=>{
