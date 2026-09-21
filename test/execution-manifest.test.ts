@@ -13,6 +13,10 @@ const base={
   workspace_dev:'2049',
   workspace_ino:'987654',
   program:'/usr/bin/node',
+  memory_max_bytes:'2147483648',
+  pids_max:'128',
+  cpu_quota_us:'200000',
+  cpu_period_us:'100000',
 };
 
 function runnableManifest(){
@@ -47,6 +51,10 @@ test('execution manifest is canonical and digest-bound',()=>{
     'program\t/usr/bin/node',
     'timeout_ms\t60000',
     'max_output_bytes\t1048576',
+    'memory_max_bytes\t2147483648',
+    'pids_max\t128',
+    'cpu_quota_us\t200000',
+    'cpu_period_us\t100000',
     'arg\tworker.mjs',
     'arg\t--mode=safe',
     'env\tALPHA\ta',
@@ -85,6 +93,21 @@ test('execution manifest rejects authority-smearing inputs',()=>{
     ()=>renderExecutionManifest({...base,timeout_ms:2_147_483_648}),
     /TIMEOUT_MS_INVALID/u,
   );
+  assert.throws(()=>renderExecutionManifest({...base,memory_max_bytes:'0'}),/MEMORY_MAX_BYTES_INVALID/u);
+  assert.throws(()=>renderExecutionManifest({...base,pids_max:'0'}),/PIDS_MAX_INVALID/u);
+  assert.throws(()=>renderExecutionManifest({...base,cpu_quota_us:'0'}),/CPU_QUOTA_US_INVALID/u);
+  assert.throws(()=>renderExecutionManifest({...base,cpu_period_us:'0'}),/CPU_PERIOD_US_INVALID/u);
+});
+
+test('resource budget is part of execution identity',()=>{
+  const ordinary=renderExecutionManifest(base);
+  assert.notEqual(
+    renderExecutionManifest({...base,memory_max_bytes:'1073741824'}).sha256,
+    ordinary.sha256,
+  );
+  assert.notEqual(renderExecutionManifest({...base,pids_max:'64'}).sha256,ordinary.sha256);
+  assert.notEqual(renderExecutionManifest({...base,cpu_quota_us:'100000'}).sha256,ordinary.sha256);
+  assert.notEqual(renderExecutionManifest({...base,cpu_period_us:'50000'}).sha256,ordinary.sha256);
 });
 
 test('supervisor policy is part of execution identity',()=>{
