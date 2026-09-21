@@ -193,7 +193,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
     ['.github/workflows/computation-executor.yml','executor',2],
     ['.github/workflows/self-application.yml','self-evidence',2],
     ['.github/workflows/merge-gate.yml','gate',1],
-    ['.github/workflows/operator-commands.yml','command',1],
+    ['.github/workflows/operator-candidate-certify.yml','command',1],
     ['.github/workflows/assignment-capsule-proof.yml','assign',1],
     ['.github/workflows/assignment-capsule-proof.yml','execute',1],
     ['.github/workflows/assignment-capsule-proof.yml','settle',1],
