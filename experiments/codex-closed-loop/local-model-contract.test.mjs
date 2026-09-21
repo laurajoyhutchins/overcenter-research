@@ -20,9 +20,9 @@ test('local inference is pinned and loses networking before model execution',()=
   assert.match(workflow,/RUNTIME_SHA256: 9abf88aea48a55d0f80edb1ee20220b186848cca0b4e919d71518cfd7ca67443/);
   assert.match(workflow,/sha256sum --check -/);
   assert.match(workflow,/useradd --no-create-home --shell \/usr\/sbin\/nologin overcenter-model/);
-  assert.match(workflow,/chmod -R go-rwx "\$GITHUB_WORKSPACE"/);
+  assert.match(workflow,/rm -rf "\$GITHUB_WORKSPACE"/);
+  assert.match(workflow,/test ! -e "\$GITHUB_WORKSPACE"/);
   assert.match(workflow,/\/usr\/bin\/unshare --net --fork --[\s\S]*\/usr\/bin\/setpriv --reuid=/);
-  assert.match(workflow,/test ! -r "\$CHECKOUT\/package\.json"/);
   assert.match(workflow,/find \/sys\/class\/net[\s\S]*grep -vc "\^lo\$"/);
   assert.match(workflow,/--json-schema-file/);
   assert.match(workflow,/--seed 20260921/);
@@ -33,7 +33,9 @@ test('candidate crosses a fresh-runner boundary before trusted settlement',()=>{
   const model=workflow.match(/\n  model:[\s\S]*?\n  verify:/)?.[0]??'';
   const verify=workflow.match(/\n  verify:[\s\S]*$/)?.[0]??'';
   assert.match(model,/Upload untrusted candidate only/);
+  assert.match(model,/rm -rf "\$GITHUB_WORKSPACE"/);
   assert.doesNotMatch(model,/sandbox-runner\.ts/);
+  assert.doesNotMatch(model,/contents: write|pull-requests: write|statuses: write/);
   assert.match(verify,/needs: model/);
   assert.match(verify,/sandbox-runner\.ts/);
   assert.match(verify,/rustc --edition=2021 -D warnings runtime\/overcenter-exec\/main\.rs/);
