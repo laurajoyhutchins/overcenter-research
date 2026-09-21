@@ -10,6 +10,10 @@ pub struct Manifest {
     pub program: PathBuf,
     pub timeout_ms: u64,
     pub max_output_bytes: u64,
+    pub memory_max_bytes: u64,
+    pub pids_max: u64,
+    pub cpu_quota_us: u64,
+    pub cpu_period_us: u64,
     pub args: Vec<String>,
     pub environment: Vec<(String, String)>,
     pub runtime_read_only: Vec<PathBuf>,
@@ -93,6 +97,10 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
     let mut program = None;
     let mut timeout_ms = None;
     let mut max_output_bytes = None;
+    let mut memory_max_bytes = None;
+    let mut pids_max = None;
+    let mut cpu_quota_us = None;
+    let mut cpu_period_us = None;
     let mut args = Vec::new();
     let mut environment = Vec::new();
     let mut runtime_read_only = Vec::new();
@@ -132,6 +140,34 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
                     &mut max_output_bytes,
                     parse_bounded_positive_u64("max_output_bytes", value, 9_007_199_254_740_991)?,
                     "max_output_bytes",
+                )?;
+            }
+            ["memory_max_bytes", value] => {
+                set_once(
+                    &mut memory_max_bytes,
+                    parse_bounded_positive_u64("memory_max_bytes", value, u64::MAX)?,
+                    "memory_max_bytes",
+                )?;
+            }
+            ["pids_max", value] => {
+                set_once(
+                    &mut pids_max,
+                    parse_bounded_positive_u64("pids_max", value, u64::MAX)?,
+                    "pids_max",
+                )?;
+            }
+            ["cpu_quota_us", value] => {
+                set_once(
+                    &mut cpu_quota_us,
+                    parse_bounded_positive_u64("cpu_quota_us", value, u64::MAX)?,
+                    "cpu_quota_us",
+                )?;
+            }
+            ["cpu_period_us", value] => {
+                set_once(
+                    &mut cpu_period_us,
+                    parse_bounded_positive_u64("cpu_period_us", value, u64::MAX)?,
+                    "cpu_period_us",
                 )?;
             }
             ["arg", value] => {
@@ -178,6 +214,10 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
         program: program.ok_or_else(|| "missing program".to_owned())?,
         timeout_ms: timeout_ms.ok_or_else(|| "missing timeout_ms".to_owned())?,
         max_output_bytes: max_output_bytes.ok_or_else(|| "missing max_output_bytes".to_owned())?,
+        memory_max_bytes: memory_max_bytes.ok_or_else(|| "missing memory_max_bytes".to_owned())?,
+        pids_max: pids_max.ok_or_else(|| "missing pids_max".to_owned())?,
+        cpu_quota_us: cpu_quota_us.ok_or_else(|| "missing cpu_quota_us".to_owned())?,
+        cpu_period_us: cpu_period_us.ok_or_else(|| "missing cpu_period_us".to_owned())?,
         args,
         environment,
         runtime_read_only,
