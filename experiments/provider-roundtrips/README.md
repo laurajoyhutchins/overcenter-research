@@ -50,6 +50,10 @@ The candidate earns promotion only if:
 - the candidate does not depend on worker-declared provider coordinates;
 - no production source is modified merely to run the experiment.
 
+## Result
+
+See [`results/2026-09-21.md`](./results/2026-09-21.md). The candidate won all four paired live comparisons and reduced median provider time by 24.6%; combined-status readback reduced the readback median from 721 ms to 225 ms.
+
 ## Non-claims
 
 This experiment does not establish:
