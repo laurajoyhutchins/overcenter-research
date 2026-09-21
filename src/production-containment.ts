@@ -1,5 +1,6 @@
+import {PRODUCTION_SCHEMAS} from './generated/schema-identifiers.ts';
 export const PRODUCTION_COMPUTATION_CONTAINMENT = {
-  schema:'overcenter-production-containment-v1',
+  schema:PRODUCTION_SCHEMAS.containment,
   network:'none',
   read_only_root:true,
   no_new_privileges:true,
