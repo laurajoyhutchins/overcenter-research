@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import {contractPackage} from '../scripts/contract-package.mjs';
 
 import {
   CLAIM_SCHEMA,
@@ -36,9 +37,9 @@ import {
 import { GoExecutorClient } from '../src/go-executor-client.ts';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
-const contractDir=join(root,'contracts/computation-execution-v1');
-const authorityContractDir=join(root,'contracts/authority-facts-v1');
-const observationContractDir=join(root,'contracts/observation-evidence-v1');
+const contractDir=contractPackage('computation-execution');
+const authorityContractDir=contractPackage('authority-facts');
+const observationContractDir=contractPackage('observation-evidence');
 const readJson=(path:string):any=>JSON.parse(readFileSync(path,'utf8'));
 
 const contract=readJson(join(contractDir,'contract.json'));
@@ -80,7 +81,10 @@ function assertContractReferencesExist(
   }
 }
 
-const goProtocol=readFileSync(join(root,'executor/protocol.go'),'utf8');
+const goProtocol=[
+  readFileSync(join(root,'executor/protocol.go'),'utf8'),
+  readFileSync(join(root,'executor/schema_identifiers_generated.go'),'utf8'),
+].join('\n');
 const goMain=readFileSync(join(root,'executor/cmd/overcenter-executor/main.go'),'utf8');
 
 test('computation contract declares explicit structural authority and compatibility',()=>{
@@ -121,8 +125,8 @@ test('wire discriminator registry agrees with TypeScript, Go, and JSON Schema',(
     assert.match(goProtocol,new RegExp(goName+'\\s*=\\s*"'+value+'"'));
   }
   assert.match(
-    goMain,
-    new RegExp('executorHelloSchema\\s*=\\s*"'+EXECUTOR_HELLO_SCHEMA+'"'),
+    goProtocol,
+    new RegExp('ExecutorHelloSchema\\s*=\\s*"'+EXECUTOR_HELLO_SCHEMA+'"'),
   );
 });
 
