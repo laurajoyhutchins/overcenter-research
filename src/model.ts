@@ -54,7 +54,7 @@ export type Postcondition =
   | GitHubCommitStatusPostcondition
   | KubernetesConfigMapExistsPostcondition;
 
-export type {Observation} from '../contracts/observation-evidence-v1/settlement-observation.typebox.ts';
+export type {Observation} from './generated/settlement-observation-type.ts';
 
 export type Dependency =
   | { kind: 'control'; upstream: string }
