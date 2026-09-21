@@ -176,6 +176,42 @@ test('SQLite kernel rejects a claim fenced to a stale authority revision',()=>{
 });
 
 
+test('SQLite projection cache follows external heads and never bypasses durable validation',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-projection-cache-'));
+  const database=join(root,'overcenter.sqlite');
+  const first=new OvercenterKernel(database);
+  const second=new OvercenterKernel(database);
+
+  try {
+    first.initialize();
+    first.define({id:'a',postcondition:pc(join(root,'a'),'A')});
+    assert.deepEqual(first.inspect().map(work=>work.id),['a']);
+
+    second.define({id:'b',postcondition:pc(join(root,'b'),'B')});
+    assert.deepEqual(first.inspect().map(work=>work.id),['a','b']);
+
+    const db=new DatabaseSync(database);
+    try {
+      db.prepare(`
+        UPDATE fact_commits
+        SET files_json = ?
+        WHERE sequence = 2
+      `).run(JSON.stringify({
+        'obligation.json':{schema:'tampered',obligation:{id:'a'}},
+      }));
+    } finally {
+      db.close();
+    }
+
+    assert.throws(()=>first.inspect(),/FACT_COMMIT_DIGEST_MISMATCH/);
+  } finally {
+    first.close();
+    second.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
+
 test('SQLite replay fails closed when durable fact bytes no longer match their commit id',()=>{
   const root=mkdtempSync(join(tmpdir(),'sqlite-corruption-'));
   const database=join(root,'overcenter.sqlite');
