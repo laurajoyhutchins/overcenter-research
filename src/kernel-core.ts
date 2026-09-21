@@ -20,22 +20,24 @@ import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
-  OBLIGATION_SCHEMA,
+  GRAPH_PATCH_SCHEMA,
   RECEIPT_SCHEMA,
+  materializeObligation,
   normalizeObligation,
+  obligationDefinition,
+  obligationDefinitionId,
 } from './facts.ts';
 import type {
   ClaimFact,
   EffectReservationFact,
   ExecutionAuthorityFact,
+  GraphPatchFact,
   HistoricalRun,
-  ObligationFact,
   ObligationInput,
   Receipt,
   ReceiptFact,
   ReceiptKind,
 } from './facts.ts';
-import { withObligation } from './graph.ts';
 import { validateAdmission } from './admission.ts';
 import {
   deriveProjectProjection,
@@ -62,14 +64,14 @@ export interface KernelOptions {
 }
 
 export interface GraphPatchInput {
-  add?:ObligationInput[];
-  replace?:ObligationInput[];
+  upsert?:ObligationInput[];
+  retire?:string[];
 }
 
 export interface GraphReconciliationResult {
   revision:string;
   added:string[];
-  replaced:string[];
+  rebound:string[];
   unchanged:string[];
 }
 
@@ -107,66 +109,28 @@ export class KernelCore {
 
   define(input:ObligationInput):string {
     const obligation=normalizeObligation(input);
-    const {id}=obligation;
     const head=this.#requireHead();
     const projection=this.#historicalProjection(head);
-    const {state,project}=projection;
-    if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
-    if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
-
-    const next=withObligation(state,obligation,head);
-    validateAdmission(next);
-    const fact:ObligationFact={schema:OBLIGATION_SCHEMA,kind:'defined',obligation};
-    const commit=this.#store.append(
-      head,
-      `overcenter: define ${id}`,
-      {'obligation.json':fact},
-    );
-    if (!commit) throw new Error('DEFINE_LOST');
-    return commit;
-  }
-
-  amend(input:ObligationInput,expectedRevision:string):string {
-    const obligation=normalizeObligation(input);
-    const {id}=obligation;
-    const head=this.#requireHead();
-    if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const projection=this.#historicalProjection(head);
-    const {state,project}=projection;
-    if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
-    if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
-
-    const previous=state.definition_commits[id];
-    const next=withObligation(state,obligation,head);
-    validateAdmission(next);
-    const fact:ObligationFact={
-      schema:OBLIGATION_SCHEMA,
-      kind:'amended',
-      obligation,
-      previous_definition_commit:previous,
-    };
-    const commit=this.#store.append(
-      head,
-      `overcenter: amend ${id}`,
-      {'obligation.json':fact},
-    );
-    if (!commit) throw new Error('AMEND_LOST');
-    return commit;
+    if (projection.state.obligations[obligation.id]) {
+      throw new Error(`duplicate obligation: ${obligation.id}`);
+    }
+    return this.#commitGraphPatch(projection,[obligation],[],head);
   }
 
   applyGraphPatch(
-    {add=[],replace=[]}:GraphPatchInput,
+    {upsert=[],retire=[]}:GraphPatchInput,
     expectedRevision:string,
   ):string {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    if (add.length===0 && replace.length===0) throw new Error('EMPTY_GRAPH_PATCH');
+    if (upsert.length===0 && retire.length===0) {
+      throw new Error('EMPTY_GRAPH_PATCH');
+    }
 
-    const projection=this.#historicalProjection(head);
     return this.#commitGraphPatch(
-      projection,
-      add.map(normalizeObligation),
-      replace.map(normalizeObligation),
+      this.#historicalProjection(head),
+      upsert.map(normalizeObligation),
+      retire,
       head,
     );
   }
@@ -180,25 +144,25 @@ export class KernelCore {
 
     const projection=this.#historicalProjection(head);
     const plan=planGraphReconciliation(projection.state,desired);
-    if (plan.add.length===0 && plan.replace.length===0) {
+    if (plan.upsert.length===0) {
       return {
         revision:head,
         added:[],
-        replaced:[],
+        rebound:[],
         unchanged:plan.unchanged,
       };
     }
 
     const revision=this.#commitGraphPatch(
       projection,
-      plan.add,
-      plan.replace,
+      plan.upsert,
+      [],
       head,
     );
     return {
       revision,
-      added:plan.add.map(({id})=>id),
-      replaced:plan.replace.map(({id})=>id),
+      added:plan.added,
+      rebound:plan.rebound,
       unchanged:plan.unchanged,
     };
   }
@@ -488,55 +452,86 @@ export class KernelCore {
 
   #commitGraphPatch(
     projection:Projection,
-    add:Obligation[],
-    replace:Obligation[],
+    upsert:Obligation[],
+    retire:string[],
     head:string,
   ):string {
-    const {state,project}=projection;
+    const {state,project,definitions}=projection;
     if (hasInFlight(project)) throw new Error('PROJECT_BUSY');
 
-    const planned=[
-      ...add.map(obligation=>({kind:'defined' as const,obligation})),
-      ...replace.map(obligation=>({kind:'amended' as const,obligation})),
-    ].sort((a,b)=>a.obligation.id.localeCompare(b.obligation.id));
+    const planned=upsert
+      .map(obligation=>structuredClone(obligation))
+      .sort((a,b)=>a.id.localeCompare(b.id));
+    const retiring=[...retire].sort((a,b)=>a.localeCompare(b));
 
     const seen=new Set<string>();
-    const next={
-      obligations:structuredClone(state.obligations),
-      definition_commits:{...state.definition_commits},
-    };
-    const facts:ObligationFact[]=[];
-    for (const operation of planned) {
-      const {id}=operation.obligation;
+    for (const obligation of planned) {
+      if (seen.has(obligation.id)) {
+        throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${obligation.id}`);
+      }
+      seen.add(obligation.id);
+    }
+    for (const id of retiring) {
+      if (typeof id!=='string' || id.length===0) {
+        throw new Error('INVALID_OBLIGATION_ID');
+      }
       if (seen.has(id)) throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${id}`);
       seen.add(id);
+    }
 
-      if (operation.kind==='defined') {
-        if (state.obligations[id]) throw new Error(`duplicate obligation: ${id}`);
-        facts.push({
-          schema:OBLIGATION_SCHEMA,
-          kind:'defined',
-          obligation:operation.obligation,
-        });
-      } else {
-        if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
-        facts.push({
-          schema:OBLIGATION_SCHEMA,
-          kind:'amended',
-          obligation:operation.obligation,
-          previous_definition_commit:state.definition_commits[id],
-        });
+    const next={
+      obligations:structuredClone(state.obligations),
+      definition_ids:{...state.definition_ids},
+    };
+    const newDefinitions:GraphPatchFact['definitions']=[];
+    const bindings:GraphPatchFact['bindings']=[];
+    const introducedDefinitions=new Set<string>();
+
+    for (const obligation of planned) {
+      const definition=obligationDefinition(obligation);
+      const definitionId=obligationDefinitionId(definition);
+      if (state.definition_ids[obligation.id]===definitionId) continue;
+
+      if (!definitions[definitionId] && !introducedDefinitions.has(definitionId)) {
+        newDefinitions.push({id:definitionId,definition});
+        introducedDefinitions.add(definitionId);
       }
+      bindings.push({
+        node_id:obligation.id,
+        definition_id:definitionId,
+      });
+      next.obligations[obligation.id]=materializeObligation(
+        obligation.id,
+        definition,
+      );
+      next.definition_ids[obligation.id]=definitionId;
+    }
 
-      next.obligations[id]=structuredClone(operation.obligation);
-      next.definition_commits[id]=head;
+    for (const id of retiring) {
+      if (!state.obligations[id]) throw new Error(`unknown obligation: ${id}`);
+      delete next.obligations[id];
+      delete next.definition_ids[id];
+    }
+
+    if (bindings.length===0 && retiring.length===0) {
+      throw new Error('NOOP_GRAPH_PATCH');
     }
 
     validateAdmission(next);
+    const fact:GraphPatchFact={
+      schema:GRAPH_PATCH_SCHEMA,
+      definitions:newDefinitions,
+      bindings,
+      retire:retiring,
+    };
+    const added=bindings.filter(
+      ({node_id})=>!state.obligations[node_id],
+    ).length;
+    const rebound=bindings.length-added;
     const commit=this.#store.append(
       head,
-      `overcenter: patch graph +${add.length} ~${replace.length}`,
-      {'obligations.json':facts},
+      `overcenter: patch graph +${added} ~${rebound} -${retiring.length}`,
+      {'graph-patch.json':fact},
     );
     if (!commit) throw new Error('GRAPH_PATCH_LOST');
     return commit;
