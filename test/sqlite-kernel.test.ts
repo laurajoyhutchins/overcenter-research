@@ -176,6 +176,37 @@ test('SQLite kernel rejects a claim fenced to a stale authority revision',()=>{
 });
 
 
+test('SQLite projection cache recovers after historical claimed-work lookup',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-projection-cache-history-'));
+  const database=join(root,'overcenter.sqlite');
+  const kernel=new OvercenterKernel(database);
+
+  try {
+    kernel.initialize();
+    kernel.define({id:'a',postcondition:pc(join(root,'a'),'A')});
+    const ready=kernel.deriveReadyWork();
+    assert.ok(ready);
+    const run=kernel.claim('a',ready.revision);
+    writeFileSync(join(root,'a'),'A');
+    assert.equal(kernel.resolve(run).disposition,'DONE');
+
+    const currentHead=kernel.head();
+    assert.ok(currentHead);
+    assert.equal(kernel.inspect()[0]?.status,'DONE');
+
+    const claimed=kernel.claimedWork(run.id);
+    assert.equal(claimed.status,'EXECUTING');
+    assert.equal(claimed.revision,run.claim_commit);
+
+    assert.equal(kernel.head(),currentHead);
+    assert.equal(kernel.inspect()[0]?.status,'DONE');
+  } finally {
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
+
 test('SQLite projection cache follows external heads and never bypasses durable validation',()=>{
   const root=mkdtempSync(join(tmpdir(),'sqlite-projection-cache-'));
   const database=join(root,'overcenter.sqlite');
