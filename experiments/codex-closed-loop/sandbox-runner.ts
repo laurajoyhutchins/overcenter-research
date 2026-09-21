@@ -60,6 +60,11 @@ type Provenance={
   worker_uid_isolated?:boolean;
   input_scope?:string;
   worker_job_is_disposable?:boolean;
+  routing_profile?:string;
+  gateway_used?:boolean;
+  reasoning_api_credential_present?:boolean;
+  overcenter_authority_present?:boolean;
+  project_provider_mutation_authority_present?:boolean;
 };
 type VerifierResult={
   status:number|null;
@@ -219,6 +224,23 @@ function loadProvenance(path:string,candidateBytes:Buffer):{provenance:Provenanc
     if (provenance.worker_uid_isolated!==true) throw new Error('SANDBOX_LOCAL_MODEL_UID_NOT_ISOLATED');
     if (provenance.input_scope!=='synthetic-prompt-and-schema-only') throw new Error('SANDBOX_LOCAL_MODEL_INPUT_SCOPE_INVALID');
     if (provenance.worker_job_is_disposable!==true) throw new Error('SANDBOX_LOCAL_MODEL_WORKER_NOT_DISPOSABLE');
+  } else if (provenance.transport==='ai-sdk') {
+    if (provenance.routing_profile!=='google-free' && provenance.routing_profile!=='default') {
+      throw new Error('SANDBOX_AI_SDK_PROFILE_INVALID');
+    }
+    if (typeof provenance.model_id!=='string' || !provenance.model_id) throw new Error('SANDBOX_AI_SDK_MODEL_INVALID');
+    if (typeof provenance.gateway_used!=='boolean') throw new Error('SANDBOX_AI_SDK_GATEWAY_FLAG_INVALID');
+    if (provenance.network_during_inference!==true) throw new Error('SANDBOX_AI_SDK_NETWORK_EXPECTED');
+    if (provenance.reasoning_api_credential_present!==true) throw new Error('SANDBOX_AI_SDK_REASONING_CREDENTIAL_MISSING');
+    if (provenance.repository_credentials_present!==false) throw new Error('SANDBOX_AI_SDK_REPOSITORY_CREDENTIAL_PRESENT');
+    if (provenance.checkout_readable_during_inference!==false) throw new Error('SANDBOX_AI_SDK_CHECKOUT_READABLE');
+    if (provenance.overcenter_authority_present!==false) throw new Error('SANDBOX_AI_SDK_OVERCENTER_AUTHORITY_PRESENT');
+    if (provenance.project_provider_mutation_authority_present!==false) {
+      throw new Error('SANDBOX_AI_SDK_PROJECT_MUTATION_AUTHORITY_PRESENT');
+    }
+    if (provenance.worker_uid_isolated!==true) throw new Error('SANDBOX_AI_SDK_UID_NOT_ISOLATED');
+    if (provenance.input_scope!=='synthetic-prompt-and-schema-only') throw new Error('SANDBOX_AI_SDK_INPUT_SCOPE_INVALID');
+    if (provenance.worker_job_is_disposable!==true) throw new Error('SANDBOX_AI_SDK_WORKER_NOT_DISPOSABLE');
   } else {
     throw new Error('SANDBOX_PROVENANCE_TRANSPORT_UNSUPPORTED');
   }
@@ -490,17 +512,31 @@ try {
     && provenance.worker_uid_isolated===true
     && provenance.input_scope==='synthetic-prompt-and-schema-only'
     && provenance.worker_job_is_disposable===true;
+  const reasoningAuthorityConfined=provenance?.transport==='ai-sdk'
+    && provenance.reasoning_api_credential_present===true
+    && provenance.repository_credentials_present===false
+    && provenance.checkout_readable_during_inference===false
+    && provenance.overcenter_authority_present===false
+    && provenance.project_provider_mutation_authority_present===false
+    && provenance.worker_uid_isolated===true
+    && provenance.input_scope==='synthetic-prompt-and-schema-only'
+    && provenance.worker_job_is_disposable===true;
   const promotionReasons=modelWitness
     ? provenance?.transport==='offline-llama.cpp'
       ? [
         'only the Stage 1 single-obligation capability has been exercised',
         'fault-recovery stages have not been exercised',
       ]
-      : [
-        'uncertain reasoning succeeded, but the Codex Cloud provider-side repository capability is not proven absent',
-        'the model invocation is recorded evidence rather than replayable solely from repository state',
-        'fault-recovery stages have not been exercised',
-      ]
+      : provenance?.transport==='ai-sdk'
+        ? [
+          'only the Stage 1 single-obligation capability has been exercised',
+          'online reasoning retained inference-only network authority and has not exercised fault-recovery stages',
+        ]
+        : [
+          'uncertain reasoning succeeded, but the Codex Cloud provider-side repository capability is not proven absent',
+          'the model invocation is recorded evidence rather than replayable solely from repository state',
+          'fault-recovery stages have not been exercised',
+        ]
     : [
       'scripted control is not uncertain-agent evidence',
       ...(verifier.confined?[]:['candidate execution confinement was not exercised by this run']),
@@ -540,10 +576,16 @@ try {
       worker_uid_isolated:provenance?.worker_uid_isolated??null,
       input_scope:provenance?.input_scope??null,
       worker_job_is_disposable:provenance?.worker_job_is_disposable??null,
+      routing_profile:provenance?.routing_profile??null,
+      gateway_used:provenance?.gateway_used??null,
+      reasoning_api_credential_present:provenance?.reasoning_api_credential_present??null,
+      overcenter_authority_present:provenance?.overcenter_authority_present??null,
+      project_provider_mutation_authority_present:provenance?.project_provider_mutation_authority_present??null,
       exit_code:workerStatus,
       stdout_sha256:sha256(workerStdout),
       stderr_sha256:sha256(workerStderr),
       reasoning_process_confinement_proven:localReasoningConfined,
+      reasoning_authority_confinement_proven:localReasoningConfined || reasoningAuthorityConfined,
     },
     authority:{
       obligation_id:obligationId,
