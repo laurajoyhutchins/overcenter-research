@@ -177,7 +177,7 @@ The bootstrap then:
 
 1. creates `overcenter-gemini-inference` in that free project;
 2. creates or verifies the stable authorization key `overcenter-google-free`, restricted to `generativelanguage.googleapis.com` and bound to that service account;
-3. creates a narrow project custom role containing only `apikeys.keys.getKeyString` and `resourcemanager.projects.get`;
+3. creates a narrow project custom role containing `apikeys.keys.getKeyString`, `resourcemanager.projects.get`, and `serviceusage.services.use`;
 4. grants that role to the reasoning key-reader identity; and
 5. writes only the non-secret `GEMINI_FREE_PROJECT_ID` repository variable.
 
@@ -222,7 +222,7 @@ Google API Keys getKeyString(
 disposable inference process only
 ```
 
-The workflow exchanges GitHub OIDC for a five-minute Google access token. Before reading the key, it freshly observes the Gemini project's Cloud Billing state and fails closed unless `billingEnabled=false`. It then derives the stable key resource from the observed project number, retrieves the key string directly from Google's API Keys API, masks it, passes it only into the unprivileged inference process, and deletes the temporary key file immediately afterward.
+The workflow exchanges GitHub OIDC for a five-minute Google access token. Before reading the key, it freshly observes the Gemini project's Cloud Billing state and fails closed unless `billingEnabled=false`. It then derives the stable key resource from the observed project number and calls Google's API Keys API with the free project explicitly supplied as `X-Goog-User-Project`. The reader identity has `serviceusage.services.use` solely so that project can be used for quota attribution. The workflow masks the retrieved key, passes it only into the unprivileged inference process, and deletes the temporary key file immediately afterward.
 
 The retained provenance binds `google-free` to all of these facts:
 
