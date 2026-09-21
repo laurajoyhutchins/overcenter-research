@@ -18,7 +18,7 @@ import type {
   Postcondition,
 } from '../src/model.ts';
 import { effectSemantics } from '../src/semantics.ts';
-import { effectReservationAuthorityError, mutationAdmitted, projectExecutionAuthority } from '../src/transaction-admission.ts';
+import { effectReservationAuthorityError, mutationAdmitted, projectExecutionAuthority, receiptAuthorityError } from '../src/transaction-admission.ts';
 
 const oracleBin=process.env.LEAN_ORACLE_BIN;
 const oracleSha=process.env.LEAN_ORACLE_SHA;
@@ -79,6 +79,7 @@ class LeanOracle {
               'overcenter-lean-transaction-kernel-comparison/v1',
               'overcenter-lean-mutation-authority-comparison/v1',
               'overcenter-lean-reservation-replay-comparison/v1',
+              'overcenter-lean-receipt-replay-comparison/v1',
             ].includes(value.schema),
             'unexpected Lean oracle response schema',
           );
@@ -398,6 +399,57 @@ test('durable reservation replay exhaustively agrees with proved Lean rule',asyn
   console.log('LEAN_RESERVATION_REPLAY_ORACLE '+JSON.stringify({classes:1<<5,oracle_sha:oracleSha}));
 });
 
+
+test('durable receipt replay exhaustively agrees with proved Lean rule',async()=>{
+  const oracle=new LeanOracle();
+  const run={
+    id:'run',obligation_id:'obligation',claimed_revision:'revision',
+    claim_commit:'claim',obligation_key:'key',execution_generation:7,
+    execution_authority_commit:'authority',execution_capability_sha256:'capability',
+  };
+  try{
+    for(let mask=0;mask<1<<6;mask+=1){
+      const bad=(bit:number)=>(mask&(1<<bit))!==0;
+      const receipt={
+        schema:'overcenter-git-receipt-v5' as const,
+        run_id:bad(0)?'other-run':run.id,
+        obligation_id:bad(1)?'other-obligation':run.obligation_id,
+        claimed_revision:bad(2)?'other-revision':run.claimed_revision,
+        claim_commit:bad(3)?'other-claim':run.claim_commit,
+        execution_generation:bad(4)?8:run.execution_generation,
+        execution_authority_commit:bad(5)?'other-authority':run.execution_authority_commit,
+        kind:'observation' as const,
+        observed:null,
+        settled_at:'2026-09-20T00:00:00.000Z',
+      };
+      const observed=await oracle.compare({
+        command:'receipt-replay',
+        run_id:run.id,
+        run_obligation_id:run.obligation_id,
+        run_claimed_revision:run.claimed_revision,
+        run_claim_commit:run.claim_commit,
+        run_obligation_key:run.obligation_key,
+        run_execution_generation:String(run.execution_generation),
+        run_execution_authority_commit:run.execution_authority_commit,
+        run_execution_capability_sha256:run.execution_capability_sha256,
+        receipt_run_id:receipt.run_id,
+        receipt_obligation_id:receipt.obligation_id,
+        receipt_claimed_revision:receipt.claimed_revision,
+        receipt_claim_commit:receipt.claim_commit,
+        receipt_execution_generation:String(receipt.execution_generation),
+        receipt_execution_authority_commit:receipt.execution_authority_commit,
+      });
+      assert.equal(
+        observed.admitted,
+        receiptAuthorityError(run,receipt)===null,
+        `receipt replay mask=${mask}`,
+      );
+    }
+  }finally{
+    await oracle.close();
+  }
+  console.log('LEAN_RECEIPT_REPLAY_ORACLE '+JSON.stringify({classes:1<<6,oracle_sha:oracleSha}));
+});
 
 test('production kernel enforces transaction admission at the effect boundary',()=>{
   const root=mkdtempSync(join(tmpdir(),'tla-refinement-'));

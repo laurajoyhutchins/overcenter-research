@@ -28,7 +28,7 @@ import {
   validateGraph,
 } from './graph.ts';
 import { settlementSemantics } from './semantics.ts';
-import { effectReservationAuthorityError } from './transaction-admission.ts';
+import { effectReservationAuthorityError, receiptAuthorityError } from './transaction-admission.ts';
 import {
   deriveProjectProjection,
   hasInFlight,
@@ -218,15 +218,8 @@ export function replayProjection(commits:FactCommit[]):Projection {
     const fact=validateReceiptFact(record.receipt);
     const run=runs.get(fact.run_id);
     if (!run) throw new Error('RECEIPT_WITHOUT_CLAIM');
-    if (run.obligation_id!==fact.obligation_id) throw new Error('RECEIPT_OBLIGATION_MISMATCH');
-    if (fact.claimed_revision!==run.claimed_revision) throw new Error('RECEIPT_REVISION_MISMATCH');
-    if (fact.claim_commit!==run.claim_commit) throw new Error('RECEIPT_CLAIM_MISMATCH');
-    if (
-      fact.execution_generation!==run.execution_generation
-      || fact.execution_authority_commit!==run.execution_authority_commit
-    ) {
-      throw new Error('RECEIPT_EXECUTION_AUTHORITY_MISMATCH');
-    }
+    const receiptError=receiptAuthorityError(run,fact);
+    if (receiptError) throw new Error(receiptError);
 
     refresh(record.commit);
     const current=project.lifecycles.get(run.obligation_id);
