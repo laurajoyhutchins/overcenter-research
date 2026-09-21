@@ -17,7 +17,6 @@ import (
 	executor "overcenter-research/executor"
 )
 
-const executorHelloSchema = "overcenter-executor-hello-v1"
 
 var executionContextPattern = regexp.MustCompile("^sha256:[0-9a-f]{64}$")
 
@@ -248,7 +247,7 @@ func serveUnixSocket(
 	defer connection.Close()
 
 	if err := json.NewEncoder(connection).Encode(executorHelloV1{
-		Schema:                 executorHelloSchema,
+		Schema:                 executor.ExecutorHelloSchema,
 		ExecutionContextSHA256: executionContextSHA256,
 		ContainmentID:          containmentID,
 	}); err != nil {
