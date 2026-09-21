@@ -165,7 +165,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
     },
     {
       path:'.github/workflows/merge-gate.yml',
-      jobs:['evidence','gate'],
+      jobs:['candidate-command','evidence','gate'],
     },
     {
       path:'.github/workflows/assignment-capsule-proof.yml',
@@ -191,6 +191,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
     ['.github/workflows/tests.yml','evidence',1],
     ['.github/workflows/computation-executor.yml','executor',2],
     ['.github/workflows/self-application.yml','self-evidence',2],
+    ['.github/workflows/merge-gate.yml','candidate-command',1],
     ['.github/workflows/merge-gate.yml','gate',1],
     ['.github/workflows/assignment-capsule-proof.yml','assign',1],
     ['.github/workflows/assignment-capsule-proof.yml','execute',1],
