@@ -50,7 +50,7 @@ test('admission rejects unsupported semantic selectors before realization',()=>{
         consumes:{kind:'output',selector:'ambient-file'},
       }]),
     },
-    definition_commits:{a:'a-def',b:'b-def'},
+    definition_ids:{a:'a-def',b:'b-def'},
   };
 
   assert.throws(
@@ -65,7 +65,7 @@ test('admission rejects unordered incompatible static effects',()=>{
       alpha:statusObligation('alpha','success'),
       beta:statusObligation('beta','failure'),
     },
-    definition_commits:{alpha:'alpha-def',beta:'beta-def'},
+    definition_ids:{alpha:'alpha-def',beta:'beta-def'},
   };
 
   assert.throws(
@@ -84,7 +84,7 @@ test('admission accepts explicit ordering for incompatible effects',()=>{
         [{kind:'control',upstream:'alpha'}],
       ),
     },
-    definition_commits:{alpha:'alpha-def',beta:'beta-def'},
+    definition_ids:{alpha:'alpha-def',beta:'beta-def'},
   };
 
   assert.doesNotThrow(()=>validateAdmission(state));
@@ -148,7 +148,7 @@ test('indexed effect ordering matches recursive reference on every four-node lab
       }
       const state:State={
         obligations,
-        definition_commits:Object.fromEntries(
+        definition_ids:Object.fromEntries(
           ids.map(id=>[id,`${id}-def`]),
         ),
       };
