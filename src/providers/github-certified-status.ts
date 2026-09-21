@@ -31,7 +31,7 @@ export interface CertifiedGithubStatusEvidence {
   api_version:string;
   schema_sha256:string;
   schema_source_commit:string;
-  observer:{kind:'git-kernel';id:POSTCONDITION_VERIFIERS.githubCommitStatus};
+  observer:{kind:'git-kernel';id:typeof POSTCONDITION_VERIFIERS.githubCommitStatus};
   repository_id:number;
   requested_repository_full_name:string;
   repository:CertifiedGithubRepositoryEvidence;
