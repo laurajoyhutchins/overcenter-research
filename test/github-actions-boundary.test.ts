@@ -87,7 +87,7 @@ test('active hosted proof contains no legacy commit-status effect intent', () =>
   }
 });
 
-test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
+test('candidate-only CI requires an explicit exact-head promotion', () => {
   assert.match(
     eventBlock(mergeGate, 'pull_request'),
     /types: \[opened, synchronize, reopened, ready_for_review\]/,
@@ -95,8 +95,18 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
+    /candidate-command:\n\s+name: Candidate command[\s\S]*?github\.event_name == 'pull_request' && github\.event\.action != 'ready_for_review'/,
+    'ordinary PR runs must expose one narrow rerunnable candidate command',
+  );
+  assert.match(
+    mergeGate,
+    /evidence:\n\s+name: Evidence\n\s+needs: candidate-command[\s\S]*?github\.run_attempt > 1/,
+    'rerunning the candidate command must promote its dependent Evidence workflow to candidate-only evidence',
+  );
+  assert.match(
+    mergeGate,
     /github\.event_name == 'pull_request' && github\.event\.action == 'ready_for_review'/,
-    'expensive merge-gate jobs must require the candidate transition on pull requests',
+    'Ready for review remains an explicit candidate transition',
   );
   assert.match(
     mergeGate,
@@ -110,8 +120,18 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
-    /Exact-head candidate evidence is required[\s\S]*?Ready for review[\s\S]*?exit 1/,
-    'ordinary pull_request runs must remain non-mergeable until candidate evidence runs',
+    /Exact-head candidate evidence is required[\s\S]*?Candidate command[\s\S]*?Ready for review[\s\S]*?exit 1/,
+    'ordinary pull_request runs must remain non-mergeable until candidate evidence is explicitly requested',
+  );
+  assert.match(
+    mergeGate,
+    /test "\$EVIDENCE_CANDIDATE" = true/,
+    'rerunning only the gate must not bypass candidate evidence',
+  );
+  assert.match(
+    mergeGate,
+    /test "\$EVIDENCE_SOURCE_SHA" = "\$SOURCE_SHA"/,
+    'candidate evidence must certify the exact source SHA consumed by the gate',
   );
   assert.match(
     evidenceWorkflow,
@@ -120,8 +140,23 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     evidenceWorkflow,
+    /workflow_call:[\s\S]*outputs:[\s\S]*candidate_evidence:[\s\S]*source_sha:/,
+    'the reusable evidence workflow must return an exact-head candidate certificate',
+  );
+  assert.match(
+    evidenceWorkflow,
+    /outputs:[\s\S]*candidate_evidence: \$\{\{ steps\.certificate\.outputs\.candidate_evidence \}\}[\s\S]*source_sha: \$\{\{ steps\.certificate\.outputs\.source_sha \}\}/,
+    'the candidate certificate must come from the final evidence aggregator',
+  );
+  assert.match(
+    evidenceWorkflow,
+    /Publish exact-head evidence certificate[\s\S]*candidate_evidence=\$EXPENSIVE[\s\S]*source_sha=\$SOURCE_SHA/,
+    'the certificate must bind candidate status to the exact source revision after evidence succeeds',
+  );
+  assert.match(
+    evidenceWorkflow,
     /evidence:\n\s+name: Candidate evidence/,
-    'merge-gate evidence must share one full runner',
+    'candidate evidence must retain an explicit final aggregator',
   );
   for (const command of [
     'npm run test:unit',
