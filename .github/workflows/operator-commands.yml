@@ -1,0 +1,89 @@
+name: Overcenter commands
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+
+concurrency:
+  group: overcenter-commands-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  candidate-certify:
+    name: command · candidate.certify
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions:
+      actions: write
+      contents: read
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      SOURCE_REF: ${{ github.event.pull_request.head.ref }}
+      PULL_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
+    steps:
+      - name: Advertise command
+        if: ${{ github.run_attempt == 1 }}
+        run: |
+          {
+            echo '## Overcenter command'
+            echo
+            echo '- command: `candidate.certify`'
+            echo "- source SHA: `$SOURCE_SHA`"
+            echo '- state: available'
+            echo
+            echo 'Rerun this job to invoke the command for this exact PR head.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check out exact command implementation
+        if: ${{ github.run_attempt > 1 }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Use pinned Node.js
+        if: ${{ github.run_attempt > 1 }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Invoke candidate.certify
+        if: ${{ github.run_attempt > 1 }}
+        id: invoke
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          OVERCENTER_COMMAND_REPOSITORY_ID: ${{ github.repository_id }}
+          OVERCENTER_COMMAND_REPOSITORY: ${{ github.repository }}
+          OVERCENTER_COMMAND_HEAD_REPOSITORY: ${{ env.HEAD_REPOSITORY }}
+          OVERCENTER_COMMAND_PULL_NUMBER: ${{ env.PULL_NUMBER }}
+          OVERCENTER_COMMAND_SOURCE_SHA: ${{ env.SOURCE_SHA }}
+          OVERCENTER_COMMAND_REF: ${{ env.SOURCE_REF }}
+          OVERCENTER_COMMAND_RUN_ID: ${{ github.run_id }}
+          OVERCENTER_COMMAND_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node --experimental-strip-types bin/github-operator-command.ts candidate.certify
+
+      - name: Publish command receipt
+        if: ${{ github.run_attempt > 1 && always() }}
+        env:
+          DISPATCHED_RUN_ID: ${{ steps.invoke.outputs.dispatched_run_id }}
+          DISPATCHED_HTML_URL: ${{ steps.invoke.outputs.dispatched_html_url }}
+          RECEIPT_DIGEST: ${{ steps.invoke.outputs.receipt_digest }}
+        run: |
+          {
+            echo '## Overcenter command receipt'
+            echo
+            echo '- command: `candidate.certify`'
+            echo "- source SHA: `$SOURCE_SHA`"
+            echo "- command attempt: `$RUN_ATTEMPT`"
+            echo "- dispatched run ID: `${DISPATCHED_RUN_ID:-none}`"
+            echo "- receipt digest: `${RECEIPT_DIGEST:-none}`"
+            if [ -n "${DISPATCHED_HTML_URL:-}" ]; then
+              echo "- dispatched run: $DISPATCHED_HTML_URL"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
