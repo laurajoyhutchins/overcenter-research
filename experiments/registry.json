@@ -666,12 +666,13 @@
         "Provisioning, effect phase, and serialized settlement costs are included in end-to-end timing."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
+        "evaluated_revision": "fd9350a52217fbd612b51c364591a35b1285dd0e",
         "artifacts": [
-          ".github/workflows/scheduler-authority-lane.yml"
+          "GitHub Actions run 35570781339"
         ]
       },
-      "interpretation": "Use the effect-cost crossover to decide whether production scheduling should centralize exact assignment and settlement while parallelizing only effectful execution.",
+      "interpretation": "The single authority lane is consistently faster than distributed settlement and restores positive N-way scaling when effect cost is material: at 100 ms effects it reaches 2.139x speedup at four workers while settling all 32 receipts serially in ~90 ms regardless of worker count. Eight-process regression is dominated by process startup/effect-pool overhead. Production scheduling should keep exact permits and settlement in deterministic software and add bounded parallelism only around effect execution.",
       "non_claims": [
         "Artificial delay models a particular provider.",
         "A singleton in-process authority lane is the final deployment topology.",
