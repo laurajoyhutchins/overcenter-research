@@ -561,6 +561,46 @@
       ]
     },
     {
+      "id": "production-latency",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/production-latency",
+      "readme": "experiments/production-latency/README.md",
+      "question": "For one successful production GitHub status transaction, how much latency belongs to Overcenter local correctness machinery versus provider I/O?",
+      "claim": "The benchmark separates SQLite authority, reservation, provider identity, the mutation boundary, readback, and local settlement costs while exercising the unchanged production GitHub status effect.",
+      "contrast": "Infer feasibility from whole GitHub Actions job duration or storage microbenchmarks without timing the production transaction boundary.",
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run bench:production-latency"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Local mode uses SQLite plus an in-memory fake GitHub transport.",
+        "Hosted live mode uses GitHub Actions ubuntu-24.04 and the workflow GITHUB_TOKEN with statuses: write."
+      ],
+      "success_criteria": [
+        "Every sample claims exact SQLite-backed work and settles DONE from authoritative readback.",
+        "Experiment-only timing wraps the production effect boundary without changing production mutation code.",
+        "Provider-facing I/O and local Overcenter work are reported separately."
+      ],
+      "evidence": {
+        "state": "historical",
+        "evaluated_revision": "e103e0d8442f55cb7d4c55e49104c676d5c8f95b",
+        "artifacts": [
+          "GitHub Actions run 35540143115: 25-sample deterministic baseline and 3-sample live GitHub decomposition passed with production source unchanged.",
+          "experiments/production-latency/results/2026-09-20.md"
+        ]
+      },
+      "interpretation": "Use the result as a single-operation latency decomposition. Compare provider and Overcenter-local cost; do not extrapolate it directly to concurrency or large-history throughput.",
+      "non_claims": [
+        "Large-history projection remains constant-time.",
+        "SQLite is a distributed or HA authority store.",
+        "GitHub rate limits permit arbitrary transaction throughput.",
+        "Recovery-path latency matches successful-path latency.",
+        "Other providers have the same latency profile."
+      ]
+    },
+    {
       "id": "projection-comparison",
       "kind": "experiment",
       "status": "maintained",
