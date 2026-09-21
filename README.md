@@ -205,6 +205,8 @@ These are different evidence classes, not cumulative certification levels. A liv
 
 `.github/workflows/tests.yml` enforces the first three tiers on every pull request and every push to `main`. The live tier remains separate because it exercises real provider boundaries and permissions.
 
+An ordinary pull-request head can be promoted to candidate evidence without changing PR state: rerun the **Candidate command** job in its Merge gate workflow run. GitHub re-runs that job and its dependent Evidence workflow and gate at the original `GITHUB_SHA`/`GITHUB_REF`; the reusable workflow emits an exact-source candidate certificate only after candidate-only evidence succeeds, and the gate rejects a rerun without that certificate.
+
 Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
