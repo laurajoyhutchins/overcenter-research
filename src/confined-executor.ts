@@ -102,6 +102,8 @@ function requireFiniteParentEnvelope(parentFd:number):void {
   finite('memory.max');
   finite('pids.max');
 
+  if (read('cpu.max.burst')!=='0') throw new Error('CGROUP_PARENT_CPU_BURST_ENABLED');
+
   const [quota,period,...extra]=read('cpu.max').split(/\s+/u);
   if (extra.length!==0 || !quota || !period || !/^[0-9]+$/u.test(quota) || !/^[0-9]+$/u.test(period)) {
     throw new Error('CGROUP_PARENT_UNBOUNDED_CPU_MAX');
@@ -148,9 +150,16 @@ function createCgroupLeaf(cgroupParent:string):CgroupLeaf {
 }
 
 function removeUnstartedLeaf(leaf:CgroupLeaf):void {
-  try { fs.closeSync(leaf.leaf_fd); } catch {}
-  try { fs.rmdirSync(leaf.entry_path); } catch {}
-  try { fs.closeSync(leaf.parent_fd); } catch {}
+  try {
+    const entryStat=fs.statSync(leaf.entry_path,{bigint:true});
+    if (entryStat.dev!==leaf.dev || entryStat.ino!==leaf.ino) {
+      throw new Error('WORKER_CGROUP_IDENTITY_CHANGED');
+    }
+    fs.rmdirSync(leaf.entry_path);
+  } finally {
+    try { fs.closeSync(leaf.leaf_fd); } catch {}
+    try { fs.closeSync(leaf.parent_fd); } catch {}
+  }
 }
 
 export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<ConfinedWorkerResult> {
@@ -243,6 +252,7 @@ export async function runConfinedWorker(input:ConfinedWorkerLaunch):Promise<Conf
       exact('memory.oom.group','1');
       exact('pids.max',rendered.pids_max);
       exact('cpu.max',`${rendered.cpu_quota_us} ${rendered.cpu_period_us}`);
+      exact('cpu.max.burst','0');
 
       const memoryEvents=fs.readFileSync(path.join(leafPath,'memory.events'),'utf8');
       const pidsEvents=fs.readFileSync(path.join(leafPath,'pids.events'),'utf8');
