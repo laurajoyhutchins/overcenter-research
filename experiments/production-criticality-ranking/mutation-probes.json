@@ -50,7 +50,7 @@
       "selectors": [
         {
           "file": "src/kernel-core.ts",
-          "qualifiedName": "KernelCore.resolve"
+          "qualifiedName": "KernelCore.reconcile"
         }
       ]
     },
