@@ -11,7 +11,7 @@ const work:Obligation={
   packet:{},
   postcondition:{verifier:'file-content-equals/v1',path:'/provider/a',content:'A'},
 };
-const state:State={obligations:{a:work},definition_commits:{a:'define-a'}};
+const state:State={obligations:{a:work},definition_ids:{a:'define-a'}};
 
 test('unrealized lifecycle becomes public READY only through project projection',()=>{
   const project=deriveProjectProjection({
