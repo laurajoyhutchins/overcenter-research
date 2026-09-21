@@ -28,6 +28,7 @@ import {
   validateGraph,
 } from './graph.ts';
 import { settlementSemantics } from './semantics.ts';
+import { effectReservationAuthorityError } from './transaction-admission.ts';
 import {
   deriveProjectProjection,
   hasInFlight,
@@ -196,22 +197,16 @@ export function replayProjection(commits:FactCommit[]):Projection {
       const fact=validateEffectReservationFact(record.effect_reservation);
       const run=runs.get(fact.run_id);
       if (!run) throw new Error('EFFECT_RESERVATION_WITHOUT_CLAIM');
-      if (run.obligation_id!==fact.obligation_id) {
-        throw new Error('EFFECT_RESERVATION_OBLIGATION_MISMATCH');
-      }
+      const authorityError=effectReservationAuthorityError(
+        run,
+        fact,
+        unresolvedReservationsByRun.has(run.id),
+      );
+      if (authorityError) throw new Error(authorityError);
       refresh(record.commit);
       const current=project.lifecycles.get(run.obligation_id);
       if (current?.run?.id!==run.id || current.status!=='EXECUTING') {
         throw new Error('EFFECT_RESERVATION_WHILE_NOT_EXECUTING');
-      }
-      if (
-        fact.execution_generation!==run.execution_generation
-        || fact.execution_authority_commit!==run.execution_authority_commit
-      ) {
-        throw new Error('STALE_EFFECT_RESERVATION');
-      }
-      if (unresolvedReservationsByRun.has(run.id)) {
-        throw new Error('DUPLICATE_UNRESOLVED_EFFECT');
       }
       unresolvedReservationsByRun.set(run.id,{
         ...fact,
