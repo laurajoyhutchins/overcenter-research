@@ -131,3 +131,22 @@ The stronger Stage 1 witness runs a pinned public Qwen2.5-Coder 0.5B GGUF model 
 The model job has read-only repository permission and an ephemeral checkout with no persisted credential. Its only retained output is candidate/provenance artifact bytes. A separate fresh runner applies those bytes to a new synthetic workspace and performs independent Overcenter verification and settlement. The model process never receives the authority database, execution permit, verifier attestation path, or settlement capability.
 
 This is the intended harmless Stage 1 worker boundary. Passing it establishes the bounded single-obligation reasoning capability; promotion remains a separate reviewed action and later fault/recovery stages remain required for broader autonomy claims.
+
+
+## AI SDK reasoning route
+
+The sandbox uses one model-selection seam rather than teaching Overcenter provider-specific inference APIs:
+
+```text
+reasoningModel(profile)
+  default     -> AI Gateway model string
+  google-free -> direct @ai-sdk/google model
+```
+
+Both routes feed the same candidate schema and the same independent admission, confined execution, verification, settlement, and reconstruction machinery. The route changes how reasoning is funded and transported; it does not change what counts as project truth.
+
+The `google-free` profile requires `GOOGLE_GENERATIVE_AI_API_KEY`. The manual `Autonomy sandbox Google-free AI SDK proof` workflow copies only the trusted AI SDK client, model resolver, synthetic prompt, and candidate schema into a disposable runtime, removes the repository checkout, drops to an unprivileged UID, and performs one networked Gemini inference. The model worker has inference authority but no repository credential, Overcenter authority database, or project-provider mutation authority.
+
+Because direct Gemini inference requires networking, this route does **not** claim offline process confinement. Its retained evidence instead requires `reasoning_authority_confinement_proven=true`, while candidate execution remains independently confined by `overcenter-exec`.
+
+A successful run is still non-promotable. It proves only that an AI SDK-selected uncertain reasoner can produce one useful Stage 1 candidate without gaining authority to decide or publish the resulting project state.
