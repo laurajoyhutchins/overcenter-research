@@ -6,12 +6,81 @@
   "claim_commit": "4d95dc890ec8a0c5e7333ce3098d2948456012a6",
   "execution_generation": 2,
   "execution_authority_commit": "f016c2b7c704331135b3eb1b408a675ad0ef8ee1",
-  "kind": "execution-terminated",
-  "observed": null,
-  "diagnostic": {
-    "source": "github-actions-job-supervisor",
-    "slot": "beta",
-    "outcome": "failure"
+  "kind": "observation",
+  "observed": {
+    "verifier": "github-commit-status/v2",
+    "provider": "github",
+    "repository_id": 1354872053,
+    "repository_full_name": "laurajoyhutchins/overcenter-research",
+    "commit_sha": "615cca65245ffd7ebe487edfdaac7e4f48a55ff3",
+    "context": "overcenter/conflict-guard/35645209327/1/ordered",
+    "expected_state": "failure",
+    "actual_state": "failure",
+    "mutation_certainty": "present",
+    "provider_evidence": {
+      "provider": "github",
+      "api_version": "2026-03-10",
+      "schema_sha256": "9d0534e66064a95f0637d542b463a868fc60a53a8cac37eddc85d72a465b8810",
+      "schema_source_commit": "d4278c869e367f5d6d4e0f46878119128abba77b",
+      "observer": {
+        "kind": "git-kernel",
+        "id": "github-commit-status/v2"
+      },
+      "repository_id": 1354872053,
+      "requested_repository_full_name": "laurajoyhutchins/overcenter-research",
+      "repository": {
+        "operation_id": "repos/get-combined-status-for-ref",
+        "observed_at": "2026-09-21T19:32:12.997Z",
+        "node_id": "R_kgDOUMG09Q",
+        "canonical_full_name": "laurajoyhutchins/overcenter-research",
+        "validated_paths": [
+          "state",
+          "sha",
+          "total_count",
+          "repository.id",
+          "repository.node_id",
+          "repository.full_name",
+          "repository.name",
+          "repository.owner.login",
+          "statuses[].id",
+          "statuses[].node_id",
+          "statuses[].state",
+          "statuses[].context",
+          "statuses[].target_url",
+          "statuses[].created_at",
+          "statuses[].updated_at"
+        ],
+        "optional_absent_paths": []
+      },
+      "commit_sha": "615cca65245ffd7ebe487edfdaac7e4f48a55ff3",
+      "status_operation_id": "repos/get-combined-status-for-ref",
+      "pages": [
+        {
+          "page": 1,
+          "member_count": 5,
+          "observed_at": "2026-09-21T19:32:12.997Z",
+          "validated_paths": [
+            "state",
+            "sha",
+            "total_count",
+            "repository.id",
+            "repository.node_id",
+            "repository.full_name",
+            "repository.name",
+            "repository.owner.login",
+            "statuses[].id",
+            "statuses[].node_id",
+            "statuses[].state",
+            "statuses[].context",
+            "statuses[].target_url",
+            "statuses[].created_at",
+            "statuses[].updated_at"
+          ],
+          "optional_absent_paths": []
+        }
+      ]
+    }
   },
-  "settled_at": "2026-09-21T19:32:10.025Z"
+  "diagnostic": {},
+  "settled_at": "2026-09-21T19:32:12.998Z"
 }
