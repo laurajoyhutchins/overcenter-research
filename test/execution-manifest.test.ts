@@ -221,9 +221,9 @@ test('missing cgroup evidence cannot strand the resource leaf',async()=>{
   try {
     await assert.rejects(
       runConfinedWorker({
-        launcher:'/bin/sh',
+        launcher:'/bin/bash',
         cgroup_parent:cgroupParent,
-        launcher_args:['-c','mkdir "/proc/self/fd/4/overcenter-$"; cat >/dev/null'],
+        launcher_args:['-c','mkdir "/proc/self/fd/4/overcenter-$BASHPID"; cat >/dev/null'],
         manifest,
       }),
       /ENOENT|CGROUP_EVIDENCE/u,
