@@ -13,7 +13,7 @@ import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import schemaIdentifiers from '../contracts/schema-identifiers.json' with {type:'json'};
 
-const schemaId=({name,version})=>`${name}-v${version}`;
+const schemaId=({name,version})=>`${name}/v${version}`;
 
 export const ASSIGNMENT_SCHEMA=schemaId(schemaIdentifiers.agent.assignment);
 export const CANDIDATE_SCHEMA=schemaId(schemaIdentifiers.agent.candidate);
