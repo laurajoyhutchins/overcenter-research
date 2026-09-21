@@ -84,7 +84,7 @@ class LeanOracle {
             ].includes(value.schema),
             'unexpected Lean oracle response schema',
           );
-          next.resolve(value);
+          next.reconcile(value);
         }catch(error){
           next.reject(error as Error);
         }
@@ -520,14 +520,14 @@ test('production kernel enforces transaction admission at the effect boundary',(
     kernel.beginEffect(run);
     const successor=kernel.acquireExecution(run.id);
     assert.throws(()=>kernel.beginEffect(run),/STALE_EXECUTION_GENERATION/);
-    assert.throws(()=>kernel.resolve(run),/STALE_EXECUTION_GENERATION/);
+    assert.throws(()=>kernel.reconcile(run),/STALE_EXECUTION_GENERATION/);
     assert.throws(()=>kernel.beginEffect(successor),/UNRESOLVED_EFFECT/);
-    assert.equal(kernel.resolve(successor).disposition,'READY');
+    assert.equal(kernel.reconcile(successor).disposition,'READY');
 
     const retry=kernel.claim('x',kernel.deriveReadyWork()!.revision);
     kernel.beginEffect(retry);
     writeFileSync(target,'present');
-    assert.equal(kernel.resolve(retry).disposition,'DONE');
+    assert.equal(kernel.reconcile(retry).disposition,'DONE');
     assert.equal(kernel.inspect()[0].status,'DONE');
   }finally{
     kernel.close();
