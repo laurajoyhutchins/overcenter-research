@@ -5,11 +5,18 @@ IDENTITY_PROJECT_ID="project-6b810532-a302-48dc-b56"
 IDENTITY_PROJECT_NUMBER="380435294892"
 POOL_ID="github-reasoning"
 PROVIDER_ID="overcenter-research"
-READER_SA_NAME="overcenter-reasoning-key-reader"
+READER_SA_NAME="oc-reasoning-key-reader"
 REPOSITORY="laurajoyhutchins/overcenter-research"
 GEMINI_KEY_ID="overcenter-google-free"
 GEMINI_SA_NAME="overcenter-gemini-inference"
 READER_ROLE_ID="overcenterFreeInferenceReader"
+
+for account_id in "$READER_SA_NAME" "$GEMINI_SA_NAME"; do
+  [[ "$account_id" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]] || {
+    echo "Invalid GCP service-account ID: $account_id" >&2
+    exit 2
+  }
+done
 
 for command in gcloud gh jq curl; do
   command -v "$command" >/dev/null 2>&1 || { echo "$command is required" >&2; exit 2; }
