@@ -17,6 +17,12 @@ export const COMPUTATION_SCHEMAS={
   "executorHello": "overcenter-executor-hello-v1"
 } as const;
 
+export const COMPUTATION_RUNNER_SCHEMAS={
+  "replaySafeTestPacket": "overcenter-replay-safe-test-computation-v1",
+  "attemptSummary": "overcenter-computation-attempt-summary-v1",
+  "transportFailure": "overcenter-computation-transport-failure-v1"
+} as const;
+
 export const OBSERVATION_SCHEMAS={
   "absenceEvidence": "overcenter-absence-evidence-v1"
 } as const;
@@ -33,11 +39,32 @@ export const SELF_APPLICATION_SCHEMAS={
   "evidence": "overcenter-self-application-v1"
 } as const;
 
+export const GITHUB_AUTHORITY_SCHEMAS={
+  "command": "github-authority/v1"
+} as const;
+
+export const PRODUCTION_SCHEMAS={
+  "containment": "overcenter-production-containment-v1"
+} as const;
+
+export const REALIZATION_SCHEMAS={
+  "verified": "overcenter-verified-realization-v1",
+  "key": "overcenter-realization-key-v1"
+} as const;
+
+export const STORAGE_SCHEMAS={
+  "sqliteFactCommit": "overcenter-sqlite-fact-commit-v1"
+} as const;
+
 export const POSTCONDITION_VERIFIERS={
   "fileContentEquals": "file-content-equals/v1",
   "eventuallyConsistentFileContentEquals": "eventually-consistent-file-content-equals/v1",
   "githubCommitStatus": "github-commit-status/v2",
   "kubernetesConfigMapExists": "kubernetes-configmap-exists/v1"
+} as const;
+
+export const ACCEPTANCE_PREDICATES={
+  "sha256Equals": "sha256-equals/v1"
 } as const;
 
 export const ABSENCE_EVIDENCE_KINDS={
