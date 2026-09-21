@@ -42,7 +42,7 @@ try {
   }
 
   const permit=kernel.acquireExecution(candidate.run_id);
-  const receipt=kernel.resolve(permit,{
+  const receipt=kernel.reconcile(permit,{
     assignment_candidate:{
       assignment_sha256:candidate.assignment_sha256,
       output_sha256:candidate.output_sha256,
