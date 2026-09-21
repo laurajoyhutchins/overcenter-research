@@ -14,6 +14,10 @@ const evidenceWorkflow = readFileSync(
   new URL('../.github/workflows/tests.yml', import.meta.url),
   'utf8',
 );
+const operatorCommands = readFileSync(
+  new URL('../.github/workflows/operator-commands.yml', import.meta.url),
+  'utf8',
+);
 const candidateOnlyWorkflowPaths = [
   '../.github/workflows/assignment-capsule-proof.yml',
   '../.github/workflows/conflicting-effect.yml',
@@ -149,4 +153,47 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
       `${path} must not run expensive work on synchronize`,
     );
   }
+});
+
+test('operator commands expose semantic rerun anchors without a public command mailbox', () => {
+  assert.match(
+    eventBlock(operatorCommands, 'pull_request'),
+    /types: \[opened, synchronize, reopened\]/,
+    'operator commands must materialize once per ordinary PR head',
+  );
+  assert.doesNotMatch(
+    operatorCommands,
+    /issue_comment:|pull_request_review:|label:/,
+    'operator commands must not use public discussion or labels as transport',
+  );
+  assert.match(
+    operatorCommands,
+    /candidate-certify:\n\s+name: command · candidate\.certify/,
+    'candidate certification must have one stable semantic job identity',
+  );
+  assert.match(
+    operatorCommands,
+    /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
+    'cross-repository PR heads must not acquire command authority',
+  );
+  assert.match(
+    operatorCommands,
+    /permissions:\n\s+actions: write\n\s+contents: read/,
+    'the command anchor may write Actions state but not repository content',
+  );
+  assert.match(
+    operatorCommands,
+    /if: \$\{\{ github\.run_attempt == 1 \}\}[\s\S]*state: available/,
+    'the first command run must advertise availability without invoking',
+  );
+  assert.match(
+    operatorCommands,
+    /if: \$\{\{ github\.run_attempt > 1 \}\}[\s\S]*ref: \$\{\{ env\.SOURCE_SHA \}\}/,
+    'invocation must execute command code from the exact advertised source SHA',
+  );
+  assert.match(
+    operatorCommands,
+    /github-operator-command\.ts candidate\.certify/,
+    'workflow YAML must delegate command semantics to deterministic software',
+  );
 });
