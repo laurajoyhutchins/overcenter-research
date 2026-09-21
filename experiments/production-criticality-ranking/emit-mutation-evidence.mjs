@@ -28,7 +28,7 @@ const reportBytes=fs.readFileSync(args.report);
 const report=JSON.parse(reportBytes);
 const resolved=JSON.parse(fs.readFileSync(args.ranges,'utf8'));
 const rows=new Map(summarize(report,resolved).map(r=>[r.id,r]));
-const probes=resolved.probes.map(p=>{
+const sourceRun={\n  revision:git(args.root,['rev-parse','HEAD']),\n  workflow_run_id:args.workflowRunId,\n  mutation_report_sha256:sha256(reportBytes),\n};\nconst probes=resolved.probes.map(p=>{
   const row=rows.get(p.id);
   if(!row) throw new Error(`missing mutation summary row for ${p.id}`);
   const sourceBlobs={};
