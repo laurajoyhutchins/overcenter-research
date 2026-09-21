@@ -664,12 +664,14 @@
         "The candidate materially reduces median provider-facing transaction time."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "historical",
+        "evaluated_revision": "c823527f59e0b451fe1a0fe22a67418e9576994b",
         "artifacts": [
-          ".github/workflows/provider-roundtrips.yml"
+          "GitHub Actions run 35570657393: 6/6 fail-closed contract tests passed and the candidate won all 4 paired live comparisons.",
+          "experiments/provider-roundtrips/results/2026-09-21.md"
         ]
       },
-      "interpretation": "Use the paired live result to decide whether the transport/readback simplification earns productionization; do not infer caching, webhook, or absence semantics from this experiment.",
+      "interpretation": "The paired live result supports productionizing combined-status positive readback: median provider time fell 24.6%, with readback falling from 720.943 ms to 224.592 ms. Persistent fetch also reduced identity-read latency, but replacing synchronous production reads requires a separate async-observation refactor.",
       "non_claims": [
         "One combined-status page proves authoritative absence.",
         "Repository identity may be cached indefinitely.",
