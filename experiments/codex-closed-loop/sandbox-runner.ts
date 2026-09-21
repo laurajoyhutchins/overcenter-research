@@ -314,7 +314,10 @@ async function runVerifier(
       max_output_bytes:65_536,
       args:['verify.cjs',moduleUrl],
       environment:{LANG:'C.UTF-8'},
-      runtime_read_only:existsSync('/etc/ld.so.cache')?['/etc/ld.so.cache']:[],
+      runtime_read_only:[
+        ...(existsSync('/etc/ld.so.cache')?['/etc/ld.so.cache']:[]),
+        ...(existsSync('/etc/ssl/openssl.cnf')?['/etc/ssl/openssl.cnf']:[]),
+      ],
       runtime_executable:runtimeExecutableClosure(process.execPath),
     },
   });
