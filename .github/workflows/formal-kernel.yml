@@ -20,6 +20,9 @@ permissions:
 
 jobs:
   tlc:
+    # PR candidates run this identical formal/check.sh proof in the Merge gate.
+    # Keep the standalone lane for post-merge main evidence.
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

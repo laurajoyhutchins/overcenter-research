@@ -69,6 +69,9 @@ concurrency:
 
 jobs:
   test:
+    # Candidate deterministic coverage is owned by the exact-head Merge gate.
+    # Keep this job for main/manual runs; PR candidates pay only for live semantics.
+    if: ${{ github.event_name != 'pull_request' }}
     name: Unit regression and observation experiment
     runs-on: ubuntu-24.04
     timeout-minutes: 10
