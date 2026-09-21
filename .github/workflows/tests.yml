@@ -8,6 +8,13 @@ on:
         required: false
         type: boolean
         default: false
+    outputs:
+      candidate_evidence:
+        description: Whether candidate-only evidence completed successfully
+        value: ${{ jobs.evidence.outputs.candidate_evidence }}
+      source_sha:
+        description: Exact source SHA certified by the evidence run
+        value: ${{ jobs.evidence.outputs.source_sha }}
   workflow_dispatch:
     inputs:
       expensive:
@@ -137,8 +144,12 @@ jobs:
     needs: [regression, experiments, production]
     runs-on: ubuntu-slim
     timeout-minutes: 1
+    outputs:
+      candidate_evidence: ${{ steps.certificate.outputs.candidate_evidence }}
+      source_sha: ${{ steps.certificate.outputs.source_sha }}
     env:
       EXPENSIVE: ${{ inputs.expensive }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       REGRESSION_RESULT: ${{ needs.regression.result }}
       EXPERIMENTS_RESULT: ${{ needs.experiments.result }}
       PRODUCTION_RESULT: ${{ needs.production.result }}
@@ -154,3 +165,8 @@ jobs:
             test "$EXPERIMENTS_RESULT" = skipped
             test "$PRODUCTION_RESULT" = skipped
           fi
+      - name: Publish exact-head evidence certificate
+        id: certificate
+        run: |
+          echo "candidate_evidence=$EXPENSIVE" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
