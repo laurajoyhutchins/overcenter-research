@@ -233,7 +233,11 @@ export function validateStoredObligationDefinition(
   if (!data(raw.packet)) throw new Error('INVALID_PACKET');
   validateDependencies(definition.dependencies);
   validatePostcondition(definition.postcondition);
-  return structuredClone(definition);
+  const normalized=structuredClone(definition);
+  normalized.dependencies.sort(
+    (a,b)=>canonicalDigest(a).localeCompare(canonicalDigest(b)),
+  );
+  return normalized;
 }
 
 export function validateGraphPatchFact(value:unknown):GraphPatchFact {
