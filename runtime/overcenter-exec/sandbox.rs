@@ -23,6 +23,9 @@ const AT_EACCESS: c_int = 0x200;
 const AT_EMPTY_PATH: c_int = 0x1000;
 const EACCES: i32 = 13;
 const EROFS: i32 = 30;
+const SCHED_OTHER: c_int = 0;
+const SCHED_BATCH: c_int = 3;
+const SCHED_IDLE: c_int = 5;
 
 const SYS_CAPGET: c_long = 125;
 const SYS_CLOSE_RANGE: c_long = 436;
@@ -156,6 +159,7 @@ unsafe extern "C" {
     fn geteuid() -> u32;
     fn getresuid(ruid: *mut u32, euid: *mut u32, suid: *mut u32) -> c_int;
     fn getresgid(rgid: *mut u32, egid: *mut u32, sgid: *mut u32) -> c_int;
+    fn sched_getscheduler(pid: c_int) -> c_int;
     fn open(pathname: *const c_char, flags: c_int, ...) -> c_int;
     fn fchdir(fd: c_int) -> c_int;
     fn prctl(option: c_int, ...) -> c_int;
@@ -222,6 +226,19 @@ fn ensure_unprivileged_caller() -> io::Result<()> {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             "refusing to launch an untrusted worker with process capabilities",
+        ));
+    }
+
+    let scheduling_policy = unsafe { sched_getscheduler(0) };
+    if scheduling_policy < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if !matches!(scheduling_policy, SCHED_OTHER | SCHED_BATCH | SCHED_IDLE) {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!(
+                "refusing scheduling policy {scheduling_policy}; cpu.max requires a fair-class worker"
+            ),
         ));
     }
     Ok(())
