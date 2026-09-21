@@ -145,36 +145,94 @@ reasoningModel(profile)
 
 Both routes feed the same candidate schema and the same independent admission, confined execution, verification, settlement, and reconstruction machinery. The route changes how reasoning is funded and transported; it does not change what counts as project truth.
 
-The `google-free` profile uses a Gemini authorization key from a dedicated free-tier Google project, but the key is **not stored in GitHub** and is not duplicated into another secret store. The manual `Autonomy sandbox Google-free AI SDK proof` workflow uses this chain:
+### Reused identity plane
+
+The original Overcenter GCP deployment provides verified coordinates for the existing identity project:
+
+- project ID: `project-6b810532-a302-48dc-b56`;
+- project number: `380435294892`;
+- production GitHub WIF pool/provider: `github/overcenter`;
+- production deployer: `overcenter-deployer@project-6b810532-a302-48dc-b56.iam.gserviceaccount.com`.
+
+The reasoning proof deliberately reuses only the **identity project**, not the production deployer or production WIF provider. The production provider is repository/ref-fenced to the original Overcenter source authority, and the deployer owns powers that a disposable reasoner must never inherit.
+
+`scripts/gcp/bootstrap-google-free-reasoning.sh` therefore creates a separate boundary in that same identity project:
+
+```text
+projects/380435294892
+  workloadIdentityPools/github-reasoning
+    providers/overcenter-research
+         |
+         v
+overcenter-reasoning-key-reader
+```
+
+The new provider is bound by immutable GitHub repository and owner numeric IDs. The reader service account gets only Workload Identity User from that federated repository identity.
+
+### Free-tier inference project
+
+The Gemini inference project is intentionally separate from the production Overcenter GCP project. The bootstrap requires a project whose Cloud Billing state is disabled. If `GEMINI_FREE_PROJECT_ID` is not supplied, it searches accessible projects and succeeds only when exactly one billing-disabled project already has the Generative Language API enabled.
+
+The bootstrap then:
+
+1. creates `overcenter-gemini-inference` in that free project;
+2. creates or verifies the stable authorization key `overcenter-google-free`, restricted to `generativelanguage.googleapis.com` and bound to that service account;
+3. creates a narrow project custom role containing only `apikeys.keys.getKeyString` and `resourcemanager.projects.get`;
+4. grants that role to the reasoning key-reader identity; and
+5. writes only the non-secret `GEMINI_FREE_PROJECT_ID` repository variable.
+
+No key string is copied into GitHub, Secret Manager, source, or a retained artifact.
+
+Run the one-time bootstrap from an administrator-authenticated machine or Cloud Shell:
+
+```bash
+bash scripts/gcp/bootstrap-google-free-reasoning.sh
+```
+
+If discovery is ambiguous, select the desired unbilled project explicitly for that invocation:
+
+```bash
+GEMINI_FREE_PROJECT_ID=your-free-project \
+  bash scripts/gcp/bootstrap-google-free-reasoning.sh
+```
+
+### Live credential and billing proof
+
+The manual `Autonomy sandbox Google-free AI SDK proof` workflow uses:
 
 ```text
 GitHub Actions OIDC
         |
         v
-GCP Workload Identity Federation
+github-reasoning / overcenter-research
         |
         v
-dedicated API-key reader service account
+overcenter-reasoning-key-reader
+        |
+        +---- Cloud Billing API: billingEnabled must be false
+        |
+        +---- Cloud Resource Manager: resolve exact project number
         |
         v
-Google API Keys getKeyString(existing Gemini auth key)
+Google API Keys getKeyString(
+  projects/<free-project-number>/locations/global/keys/overcenter-google-free
+)
         |
         v
 disposable inference process only
 ```
 
-The repository stores only non-secret GitHub Actions variables:
+The workflow exchanges GitHub OIDC for a five-minute Google access token. Before reading the key, it freshly observes the Gemini project's Cloud Billing state and fails closed unless `billingEnabled=false`. It then derives the stable key resource from the observed project number, retrieves the key string directly from Google's API Keys API, masks it, passes it only into the unprivileged inference process, and deletes the temporary key file immediately afterward.
 
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`;
-- `GCP_API_KEY_READER_SERVICE_ACCOUNT`;
-- `GEMINI_API_KEY_RESOURCE` (the full `projects/.../locations/global/keys/...` resource name).
+The retained provenance binds `google-free` to all of these facts:
 
-The GitHub principal should have only Workload Identity User on the reader service account. Prefer a project custom role containing only `apikeys.keys.getKeyString` on the dedicated Gemini project; Google documents that as the sole permission required by the `GetKeyString` method, and the permission is supported in custom roles. If a predefined role is used for a quick proof, `roles/serviceusage.apiKeysViewer` is broader because it can also get, list, and look up every API key in the project, which is why the inference project should remain dedicated.
+- `credential_source=gcp-api-keys-via-github-oidc`;
+- `billing_observation_source=google-cloud-billing-api`;
+- `billing_enabled=false`;
+- the exact non-secret billing project ID.
 
-The workflow exchanges GitHub OIDC for a five-minute Google access token, resolves the Gemini key string directly from Google's API Keys API, masks it, passes it only into the unprivileged inference process, deletes the temporary key file immediately afterward, and never writes the key to a GitHub secret or retained artifact.
-
-The reasoning worker still receives no repository credential, readable checkout, Overcenter authority database, or project-provider mutation authority. Provenance binds the `google-free` run to `credential_source=gcp-api-keys-via-github-oidc`.
+The reasoning worker still receives no repository credential, readable checkout, Overcenter authority database, or project-provider mutation authority.
 
 Because direct Gemini inference requires networking, this route does **not** claim offline process confinement. Its retained evidence instead requires `reasoning_authority_confinement_proven=true`, while candidate execution remains independently confined by `overcenter-exec`.
 
-A successful run is still non-promotable. It proves only that an AI SDK-selected uncertain reasoner can produce one useful Stage 1 candidate without gaining authority to decide or publish the resulting project state.
+A successful run is still non-promotable. It proves only that an AI SDK-selected uncertain reasoner can produce one useful Stage 1 candidate using a freshly proven unbilled Gemini project without gaining authority to decide or publish the resulting project state.
