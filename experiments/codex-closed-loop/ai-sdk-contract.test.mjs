@@ -27,13 +27,14 @@ test('Google-free bootstrap is valid shell',()=>{
 test('reasoning identity reuses proven GCP coordinates without reusing production deployment authority',()=>{
   assert.match(workflow,/GCP_IDENTITY_PROJECT_ID: project-6b810532-a302-48dc-b56/);
   assert.match(workflow,/projects\/380435294892\/locations\/global\/workloadIdentityPools\/github-reasoning\/providers\/overcenter-research/);
-  assert.match(workflow,/overcenter-reasoning-key-reader@project-6b810532-a302-48dc-b56\.iam\.gserviceaccount\.com/);
+  assert.match(workflow,/oc-reasoning-key-reader@project-6b810532-a302-48dc-b56\.iam\.gserviceaccount\.com/);
   assert.doesNotMatch(workflow,/overcenter-deployer@/);
   assert.match(bootstrap,/retry_read\(\)/);
   assert.match(bootstrap,/retry_read 15 gcloud iam workload-identity-pools providers describe/);
   assert.match(bootstrap,/POOL_ID="github-reasoning"/);
   assert.match(bootstrap,/PROVIDER_ID="overcenter-research"/);
-  assert.match(bootstrap,/READER_SA_NAME="overcenter-reasoning-key-reader"/);
+  assert.match(bootstrap,/READER_SA_NAME="oc-reasoning-key-reader"/);
+  assert.match(bootstrap,/Invalid GCP service-account ID/);
   assert.match(bootstrap,/attribute\.repository_id=assertion\.repository_id/);
   assert.match(bootstrap,/attribute\.repository_owner_id=assertion\.repository_owner_id/);
 });
