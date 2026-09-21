@@ -95,6 +95,10 @@ test('execution manifest rejects authority-smearing inputs',()=>{
     ()=>renderExecutionManifest({...base,timeout_ms:2_147_483_648}),
     /TIMEOUT_MS_INVALID/u,
   );
+  assert.throws(
+    ()=>renderExecutionManifest({...base,max_output_bytes:67_108_865}),
+    /MAX_OUTPUT_BYTES_INVALID/u,
+  );
   assert.throws(()=>renderExecutionManifest({...base,memory_max_bytes:'0'}),/MEMORY_MAX_BYTES_INVALID/u);
   assert.throws(()=>renderExecutionManifest({...base,pids_max:'0'}),/PIDS_MAX_INVALID/u);
   assert.throws(()=>renderExecutionManifest({...base,cpu_quota_us:'0'}),/CPU_QUOTA_US_INVALID/u);
