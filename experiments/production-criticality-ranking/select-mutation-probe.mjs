@@ -5,19 +5,26 @@ import {pathToFileURL} from 'node:url';
 export const MUTATION_WORKFLOW='.github/workflows/production-criticality-mutation-probe.yml';
 export const MUTATION_SELECTOR='experiments/production-criticality-ranking/select-mutation-probe.mjs';
 export const MUTATION_SELECTOR_TEST='experiments/production-criticality-ranking/select-mutation-probe.test.mjs';
+export const EVIDENCE_EMITTER='experiments/production-criticality-ranking/emit-mutation-evidence.mjs';
+export const EVIDENCE_RECONCILER='experiments/production-criticality-ranking/mutation-evidence.mjs';
+export const EVIDENCE_RECONCILER_TEST='experiments/production-criticality-ranking/mutation-evidence.test.mjs';
+
+const plumbing=new Set([
+  MUTATION_WORKFLOW,
+  MUTATION_SELECTOR,
+  MUTATION_SELECTOR_TEST,
+  EVIDENCE_EMITTER,
+  EVIDENCE_RECONCILER,
+  EVIDENCE_RECONCILER_TEST,
+]);
 
 const isRelevant=(file)=>
-  /^(src\/(digest|semantic-identity|projector|kernel-core|observation)\.ts|test\/(hostile|.*-hostile)\.test\.ts|experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs))$/.test(file)
-  || [MUTATION_WORKFLOW,MUTATION_SELECTOR,MUTATION_SELECTOR_TEST].includes(file);
+  /^(src\/(digest|semantic-identity|projector|kernel-core|observation)\.ts|test\/(hostile|.*-hostile)\.test\.ts|experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs))$/.test(file)
+  || plumbing.has(file);
 
 const isBroad=(file)=>
   /^src\/(digest|projector|kernel-core)\.ts$/.test(file)
-  || /^experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs|emit-mutation-evidence\.mjs)$/.test(file);
-
-const isPlumbing=(file)=>
-  file===MUTATION_WORKFLOW
-  || file===MUTATION_SELECTOR
-  || file===MUTATION_SELECTOR_TEST;
+  || /^experiments\/production-criticality-ranking\/(mutation-probes\.json|resolve-mutation-probes\.mjs|stryker\.config\.mjs|summarize-mutation\.mjs|summarize-mutation\.test\.mjs)$/.test(file);
 
 export function selectMutationProbe({eventName,changed}) {
   if (eventName==='workflow_dispatch') {
@@ -51,7 +58,7 @@ export function selectMutationProbe({eventName,changed}) {
     return {runProbe:true,mutationProbe:probes.join(',')};
   }
 
-  if (relevant.every(isPlumbing)) {
+  if (relevant.every(file=>plumbing.has(file))) {
     return {runProbe:true,mutationProbe:'semantic-identity'};
   }
 
