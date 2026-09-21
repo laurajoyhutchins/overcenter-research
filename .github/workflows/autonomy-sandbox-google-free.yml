@@ -120,7 +120,12 @@ jobs:
           root="$RUNNER_TEMP/google-free"
           test -n "$GOOGLE_ACCESS_TOKEN"
           [[ "$GEMINI_API_KEY_RESOURCE" =~ ^projects/[0-9]+/locations/global/keys/overcenter-google-free$ ]]
-          curl --fail-with-body --silent --show-error             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             "https://apikeys.googleapis.com/v2/$GEMINI_API_KEY_RESOURCE/keyString"             -o "$root/key-response.json"
+          key_http="$(curl --silent --show-error -o "$root/key-response.json" -w '%{http_code}'             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             -H "x-goog-user-project: $GEMINI_FREE_PROJECT_ID"             "https://apikeys.googleapis.com/v2/$GEMINI_API_KEY_RESOURCE/keyString")"
+          if [[ "$key_http" != "200" ]]; then
+            cat "$root/key-response.json" >&2
+            echo "GetKeyString failed with HTTP $key_http" >&2
+            exit 1
+          fi
           RESPONSE="$root/key-response.json" KEY="$root/gemini-api-key" node - <<'NODE'
           const fs=require('node:fs');
           const response=JSON.parse(fs.readFileSync(process.env.RESPONSE,'utf8'));
