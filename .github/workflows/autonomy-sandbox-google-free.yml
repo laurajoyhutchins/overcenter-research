@@ -1,0 +1,135 @@
+name: Autonomy sandbox Google-free AI SDK proof
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: ${{ github.sha }}
+  AI_SDK_VERSION: 7.0.107
+  AI_SDK_GOOGLE_VERSION: 4.0.76
+
+jobs:
+  model:
+    name: Direct Google free-tier reasoning worker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Prepare byte-scoped AI SDK runtime
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/google-free"
+          mkdir -p "$root/runtime/experiments/codex-closed-loop" "$root/runtime/src" "$root/input" "$root/out" "$root/home"
+          cp experiments/codex-closed-loop/ai-sdk-candidate.ts "$root/runtime/experiments/codex-closed-loop/"
+          cp src/reasoning-model.ts "$root/runtime/src/"
+          cp experiments/codex-closed-loop/local-model-prompt.txt "$root/input/prompt.txt"
+          cp experiments/codex-closed-loop/local-model-candidate.schema.json "$root/input/schema.json"
+          npm install --prefix "$root/runtime" --ignore-scripts --no-package-lock --no-save             "ai@$AI_SDK_VERSION" "@ai-sdk/google@$AI_SDK_GOOGLE_VERSION"
+          npm --prefix "$root/runtime" ls --depth=0 ai @ai-sdk/google
+          sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
+          sudo chown -R root:root "$root/runtime" "$root/input"
+          sudo chmod -R a-w "$root/runtime" "$root/input"
+          sudo chown overcenter-model:overcenter-model "$root/out" "$root/home"
+          sudo chmod 0700 "$root/out" "$root/home"
+          rm -rf "$GITHUB_WORKSPACE"
+          mkdir -m 0700 "$GITHUB_WORKSPACE"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
+      - name: Run one direct Google inference through AI SDK
+        env:
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$GOOGLE_GENERATIVE_AI_API_KEY"
+          test -z "${GITHUB_TOKEN:-}"
+          root="$RUNNER_TEMP/google-free"
+          model_uid="$(id -u overcenter-model)"
+          model_gid="$(id -g overcenter-model)"
+          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$GOOGLE_GENERATIVE_AI_API_KEY"               /usr/bin/node --experimental-strip-types                 "$root/runtime/experiments/codex-closed-loop/ai-sdk-candidate.ts"                 --profile google-free                 --prompt "$root/input/prompt.txt"                 --schema "$root/input/schema.json"                 --candidate "$root/out/candidate.json"                 --provenance "$root/out/provenance.json"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
+      - name: Upload untrusted candidate only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: autonomy-google-free-candidate
+          path: |
+            ${{ runner.temp }}/google-free/out/candidate.json
+            ${{ runner.temp }}/google-free/out/provenance.json
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    name: Fresh trusted verification and settlement
+    needs: model
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Install exact Rust confinement toolchain
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal --no-self-update
+          test "$(rustc --version | awk '{print $2}')" = "$channel"
+          rustc --edition=2021 -D warnings runtime/overcenter-exec/main.rs -o "$RUNNER_TEMP/overcenter-exec"
+          sudo install -o root -g root -m 0555 "$(command -v node)" "$RUNNER_TEMP/trusted-node"
+          test "$(stat -c %u "$RUNNER_TEMP/trusted-node")" = 0
+          test ! -w "$RUNNER_TEMP/trusted-node"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: autonomy-google-free-candidate
+          path: ${{ runner.temp }}/google-free-candidate
+      - name: Independently verify and settle through Overcenter
+        env:
+          OVERCENTER_SOURCE_REVISION: ${{ env.SOURCE_SHA }}
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/trusted-node" --experimental-strip-types             experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed google-free-ai-sdk-20260921             --worker recorded-model             --candidate "$RUNNER_TEMP/google-free-candidate/candidate.json"             --provenance "$RUNNER_TEMP/google-free-candidate/provenance.json"             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/google-free-evidence.json"
+          EVIDENCE="$RUNNER_TEMP/google-free-evidence.json" node - <<'NODE'
+          const fs=require('node:fs');
+          const e=JSON.parse(fs.readFileSync(process.env.EVIDENCE,'utf8'));
+          if (e.outcome!=='accepted') throw new Error('GOOGLE_FREE_CANDIDATE_REJECTED');
+          if (e.capability_claim!=='uncertain-reasoning-stage1') throw new Error('GOOGLE_FREE_CLAIM_MISMATCH');
+          if (e.worker.routing_profile!=='google-free') throw new Error('GOOGLE_FREE_PROFILE_MISMATCH');
+          if (e.worker.reasoning_provider!=='google.generative-ai') throw new Error('GOOGLE_FREE_PROVIDER_MISMATCH');
+          if (e.worker.gateway_used!==false) throw new Error('GOOGLE_FREE_GATEWAY_BYPASS_NOT_PROVEN');
+          if (e.worker.network_during_inference!==true) throw new Error('GOOGLE_FREE_NETWORK_EVIDENCE_MISSING');
+          if (e.worker.reasoning_process_confinement_proven!==false) throw new Error('GOOGLE_FREE_FALSE_OFFLINE_CLAIM');
+          if (e.worker.reasoning_authority_confinement_proven!==true) throw new Error('GOOGLE_FREE_AUTHORITY_NOT_CONFINED');
+          if (e.worker.repository_credentials_present!==false) throw new Error('GOOGLE_FREE_REPOSITORY_CREDENTIAL_PRESENT');
+          if (e.worker.checkout_readable_during_inference!==false) throw new Error('GOOGLE_FREE_CHECKOUT_READABLE');
+          if (e.worker.overcenter_authority_present!==false) throw new Error('GOOGLE_FREE_OVERCENTER_AUTHORITY_PRESENT');
+          if (e.worker.project_provider_mutation_authority_present!==false) throw new Error('GOOGLE_FREE_PROJECT_MUTATION_AUTHORITY_PRESENT');
+          if (e.candidate.execution_confinement_proven!==true) throw new Error('GOOGLE_FREE_CANDIDATE_EXECUTION_NOT_CONFINED');
+          if (e.authority.disposition!=='DONE' || e.authority.verified!==true) throw new Error('GOOGLE_FREE_NOT_VERIFIED_DONE');
+          if (e.authority.fresh_reconstruction_passed!==true) throw new Error('GOOGLE_FREE_RECONSTRUCTION_FAILED');
+          if (e.metrics.false_done_count!==0) throw new Error('GOOGLE_FREE_FALSE_DONE');
+          if (e.metrics.human_judgment_interventions!==0) throw new Error('GOOGLE_FREE_HUMAN_INTERVENTION');
+          if (e.promotion_evidence.eligible!==false) throw new Error('GOOGLE_FREE_AUTO_PROMOTION_FORBIDDEN');
+          console.log(JSON.stringify(e,null,2));
+          NODE
+      - name: Upload retained evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: autonomy-google-free-evidence
+          path: ${{ runner.temp }}/google-free-evidence.json
+          if-no-files-found: error
+          retention-days: 30
