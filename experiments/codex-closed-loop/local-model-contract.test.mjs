@@ -26,8 +26,8 @@ test('local inference is pinned and loses networking before model execution',()=
   assert.match(workflow,/cd "\$HOME"/);
   assert.match(workflow,/\/usr\/bin\/unshare --net --fork --[\s\S]*\/usr\/bin\/setpriv --reuid=/);
   assert.match(workflow,/readlink \/proc\/self\/ns\/net/);
-  assert.match(workflow,/readlink \/proc\/1\/ns\/net/);
   assert.match(workflow,/\/proc\/net\/dev/);
+  assert.match(workflow,/test -z "\$non_loopback"/);
   assert.match(workflow,/--json-schema-file/);
   assert.match(workflow,/--seed 20260921/);
   assert.match(workflow,/--temp 0/);
