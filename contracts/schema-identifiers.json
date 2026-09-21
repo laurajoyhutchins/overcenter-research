@@ -94,8 +94,7 @@
   "githubAuthority": {
     "command": {
       "name": "github-authority",
-      "version": 1,
-      "separator": "/v"
+      "version": 1
     }
   },
   "production": {
