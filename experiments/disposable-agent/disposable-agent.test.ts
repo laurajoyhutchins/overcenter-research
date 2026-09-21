@@ -94,7 +94,7 @@ test('kernel-owned verifier cannot be replaced by the agent', () => {
     const run = k.claim(work.id, work.revision);
     k.beginEffect(run);
     writeFileSync(f.world, 'wrong');
-    const result = k.resolve(run);
+    const result = k.reconcile(run);
 
     assert.equal(result.disposition, 'RECOVERY_REQUIRED');
     assert.equal(result.verified, false);

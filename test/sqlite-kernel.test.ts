@@ -136,7 +136,7 @@ test('SQLite kernel rejects every inexact execution permit identity',()=>{
       {...run,execution_capability:'wrong'},
     ]) {
       assert.throws(()=>kernel.beginEffect(hostile),/STALE_EXECUTION_GENERATION/);
-      assert.throws(()=>kernel.resolve(hostile),/STALE_EXECUTION_GENERATION/);
+      assert.throws(()=>kernel.reconcile(hostile),/STALE_EXECUTION_GENERATION/);
     }
   } finally {
     kernel.close();

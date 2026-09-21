@@ -220,7 +220,7 @@ async function executeTestAttempt(
     };
   }
 
-  const receipt=kernel.resolve(permit,{
+  const receipt=kernel.reconcile(permit,{
     computation_attempt:attemptSummary(evidence),
   });
   return {
