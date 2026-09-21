@@ -138,7 +138,7 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
             ["max_output_bytes", value] => {
                 set_once(
                     &mut max_output_bytes,
-                    parse_bounded_positive_u64("max_output_bytes", value, 9_007_199_254_740_991)?,
+                    parse_bounded_positive_u64("max_output_bytes", value, 67_108_864)?,
                     "max_output_bytes",
                 )?;
             }
