@@ -24,6 +24,11 @@ import {
 } from '../src/provider-observation/observation.ts';
 
 import {
+  POSTCONDITION_VERIFIERS,
+  validateCanonicalPostcondition,
+} from '../src/postconditions.ts';
+
+import {
   COMPUTATION_EVIDENCE_SCHEMA,
   COMPUTATION_EXECUTION_SCHEMA,
   EXECUTOR_COMMAND_SCHEMA,
@@ -39,6 +44,7 @@ const root=fileURLToPath(new URL('../',import.meta.url));
 const contractDir=join(root,'contracts/computation-execution-v1');
 const authorityContractDir=join(root,'contracts/authority-facts-v1');
 const observationContractDir=join(root,'contracts/observation-evidence-v1');
+const postconditionContractDir=join(root,'contracts/postconditions-v1');
 const readJson=(path:string):any=>JSON.parse(readFileSync(path,'utf8'));
 
 const contract=readJson(join(contractDir,'contract.json'));
@@ -57,6 +63,15 @@ const observationSchema=readJson(
 );
 const observationConformance=readJson(
   join(observationContractDir,'observation-evidence-conformance.json'),
+);
+const postconditionContract=readJson(
+  join(postconditionContractDir,'contract.json'),
+);
+const postconditionSchema=readJson(
+  join(postconditionContractDir,'schema.json'),
+);
+const postconditionConformance=readJson(
+  join(postconditionContractDir,'postcondition-conformance.json'),
 );
 
 function assertContractReferencesExist(
@@ -234,7 +249,7 @@ test('executor hello uses the shared UTF-8 byte limit across the language bounda
 
 test('durable authority contract preserves backend-neutral logical facts',()=>{
   assert.equal(authorityContract.id,'authority-facts');
-  assert.equal(authorityContract.version,'1.0.0');
+  assert.equal(authorityContract.version,'1.1.0');
   assert.equal(authorityContract.status,'active');
   assert.equal(authorityContract.storageIndependence.backendLocalCommitIdentity,true);
   assert.deepEqual(authorityContract.schema.wireDiscriminators,[
@@ -246,7 +261,6 @@ test('durable authority contract preserves backend-neutral logical facts',()=>{
   ]);
   assert.equal(authorityContract.compatibility.outerFactUnknownFields,'reject');
   assert.equal('receipt' in authorityContract.compatibility,false);
-
   assert.equal(
     authoritySchema.$defs.DefinedObligationFact.properties.schema.const,
     OBLIGATION_SCHEMA,
@@ -343,7 +357,6 @@ test('every intentionally open authority payload is named in contract metadata',
   );
   assert.deepEqual(declared,new Set([
     'Obligation.packet',
-    'Obligation.postcondition',
     'ReceiptFact.observed',
     'ReceiptFact.diagnostic',
   ]));
@@ -517,6 +530,7 @@ test('contract evidence and authoritative-definition references resolve',()=>{
     [contract,contractDir],
     [authorityContract,authorityContractDir],
     [observationContract,observationContractDir],
+    [postconditionContract,postconditionContractDir],
   ] as const) {
     assert.ok(
       Array.isArray(value.authoritativeDefinitions)
@@ -525,4 +539,91 @@ test('contract evidence and authoritative-definition references resolve',()=>{
     );
     assertContractReferencesExist(value,directory);
   }
+});
+
+
+test('postcondition contract closes the obligation postcondition boundary',()=>{
+  assert.equal(postconditionContract.id,'postconditions');
+  assert.equal(postconditionContract.version,'1.0.0');
+  assert.equal(postconditionContract.status,'active');
+  assert.deepEqual(
+    postconditionContract.schema.wireDiscriminators,
+    [...POSTCONDITION_VERIFIERS],
+  );
+  assert.equal(
+    authoritySchema.$defs.Obligation.properties.postcondition.$ref,
+    '../postconditions-v1/schema.json#/$defs/Postcondition',
+  );
+  assert.equal('GithubCommitStatusV1' in postconditionSchema.$defs,false);
+});
+
+test('postcondition conformance corpus runs against the canonical write validator',()=>{
+  assert.equal(
+    postconditionConformance.schema,
+    'overcenter-postcondition-conformance-v1',
+  );
+  for (const candidate of postconditionConformance.cases as Array<{
+    name:string;
+    valid:boolean;
+    postcondition:unknown;
+  }>) {
+    if (candidate.valid) {
+      assert.doesNotThrow(
+        ()=>validateCanonicalPostcondition(candidate.postcondition),
+        candidate.name,
+      );
+    } else {
+      assert.throws(
+        ()=>validateCanonicalPostcondition(candidate.postcondition),
+        undefined,
+        candidate.name,
+      );
+    }
+  }
+});
+
+test('postcondition verifier registry agrees with observation evidence schema',()=>{
+  assert.deepEqual(
+    observationSchema.$defs.SettlementObservation.properties.verifier.enum,
+    [...POSTCONDITION_VERIFIERS],
+  );
+});
+
+test('postcondition JSON Schema carries runtime safe-integer and object-id bounds',()=>{
+  const defs=postconditionSchema.$defs;
+  assert.equal(
+    defs.GithubCommitStatusV2.properties.repository_id.maximum,
+    Number.MAX_SAFE_INTEGER,
+  );
+  const githubObjectId=new RegExp(defs.GithubObjectId.pattern);
+  assert.equal(githubObjectId.test('a'.repeat(40)),true);
+  assert.equal(githubObjectId.test('b'.repeat(64)),true);
+  assert.equal(githubObjectId.test('c'.repeat(39)),false);
+  assert.equal(githubObjectId.test('g'.repeat(40)),false);
+});
+
+test('obsolete obligation schemas and postcondition extensions fail closed',()=>{
+  const current={
+    schema:OBLIGATION_SCHEMA,
+    kind:'defined',
+    obligation:{
+      id:'current',
+      dependencies:[],
+      packet:{},
+      postcondition:{
+        verifier:'file-content-equals/v1',
+        path:'/provider/current',
+        content:'A',
+        historical_extension:true,
+      },
+    },
+  };
+  assert.throws(
+    ()=>validateAuthorityFact({...current,schema:'overcenter-git-obligation-v3'}),
+    /UNKNOWN_AUTHORITY_FACT_SCHEMA/,
+  );
+  assert.throws(
+    ()=>validateAuthorityFact(current),
+    /POSTCONDITION_UNKNOWN_FIELD:historical_extension/,
+  );
 });

@@ -2,10 +2,10 @@
   "apiVersion": "overcenter.dev/data-contract/v1",
   "kind": "DataContract",
   "id": "authority-facts",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "active",
   "description": {
-    "purpose": "Define the durable fact vocabulary from which Overcenter reconstructs project truth.",
+    "purpose": "Define the durable fact vocabulary from which Overcenter reconstructs project truth, with canonical obligation-v4 postconditions.",
     "limitations": "This contract defines persisted fact structure and semantic roles. It does not make a fact valid in history merely because its JSON shape is valid; replay still enforces ordering, fencing, graph, observation, and settlement semantics."
   },
   "participants": {
@@ -24,7 +24,7 @@
     "path": "./schema.json",
     "entrypoint": "#/$defs/AuthorityFact",
     "wireDiscriminators": [
-      "overcenter-git-obligation-v3",
+      "overcenter-git-obligation-v4",
       "overcenter-git-claim-v3",
       "overcenter-git-execution-authority-v1",
       "overcenter-git-effect-reservation-v1",
@@ -67,13 +67,6 @@
       "authoritative": true,
       "identityImpact": "included by value in obligation semantic identity",
       "closure": "intentionally-open"
-    },
-    {
-      "path": "Obligation.postcondition",
-      "role": "verifier-contract",
-      "authoritative": true,
-      "identityImpact": "included by value in obligation semantic identity",
-      "closure": "owned by verifier/observation contracts"
     },
     {
       "path": "ReceiptFact.observed",
@@ -200,5 +193,15 @@
       "path": "../../src/fact-store.ts"
     }
   ],
-  "extensions": {}
+  "extensions": {},
+  "closedBoundaries": [
+    {
+      "path": "Obligation.postcondition",
+      "role": "verifier-contract",
+      "authoritative": true,
+      "identityImpact": "included by value in obligation semantic identity",
+      "closure": "obligation-v4 owned by ../postconditions-v1",
+      "contractRef": "../postconditions-v1/schema.json#/$defs/Postcondition"
+    }
+  ]
 }

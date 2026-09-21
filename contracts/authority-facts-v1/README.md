@@ -24,14 +24,17 @@ Several persisted discriminators contain `overcenter-git-*`. Those are historica
 
 ## Open boundaries
 
-The outer fact envelopes reject unknown fields. Four nested payloads remain deliberately open:
+The outer fact envelopes reject unknown fields. The remaining open nested payloads are:
 
 - `Obligation.packet`: application-defined and authoritative by value.
-- `Obligation.postcondition`: owned by verifier contracts.
 - `ReceiptFact.observed`: owned by the observation/evidence contract.
 - `ReceiptFact.diagnostic`: intentionally non-authoritative diagnostics.
 
-Open does not mean ungoverned. The first three can affect identity or settlement and therefore need their own referenced contracts. They are not extension buckets for arbitrary outer fact fields.
+`Obligation.postcondition` is closed by the `postconditions-v1` contract. Unknown nested fields are rejected before an obligation fact is admitted.
+
+## Obligation schema
+
+Overcenter accepts `overcenter-git-obligation-v4`. Earlier obligation discriminators are rejected rather than adapted into the current contract.
 
 ## Receipt schema
 
