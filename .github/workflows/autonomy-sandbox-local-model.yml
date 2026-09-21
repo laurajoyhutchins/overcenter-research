@@ -120,6 +120,9 @@ jobs:
           if (evidence.worker.reasoning_process_confinement_proven!==true) throw new Error('LOCAL_MODEL_CONFINEMENT_NOT_PROVEN');
           if (evidence.worker.network_during_inference!==false) throw new Error('LOCAL_MODEL_NETWORK_NOT_DISABLED');
           if (evidence.worker.repository_credentials_present!==false) throw new Error('LOCAL_MODEL_CREDENTIAL_BOUNDARY_FAILED');
+          if (evidence.worker.checkout_readable_during_inference!==false) throw new Error('LOCAL_MODEL_CHECKOUT_BOUNDARY_FAILED');
+          if (evidence.worker.worker_uid_isolated!==true) throw new Error('LOCAL_MODEL_UID_BOUNDARY_FAILED');
+          if (evidence.worker.input_scope!=='synthetic-prompt-and-schema-only') throw new Error('LOCAL_MODEL_INPUT_SCOPE_FAILED');
           if (evidence.authority.disposition!=='DONE' || evidence.authority.verified!==true) throw new Error('LOCAL_MODEL_NOT_VERIFIED_DONE');
           if (evidence.metrics.false_done_count!==0) throw new Error('LOCAL_MODEL_FALSE_DONE');
           if (evidence.metrics.human_judgment_interventions!==0) throw new Error('LOCAL_MODEL_HUMAN_INTERVENTION');
