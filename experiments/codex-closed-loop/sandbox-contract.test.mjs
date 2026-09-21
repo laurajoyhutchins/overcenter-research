@@ -5,6 +5,10 @@ import test from 'node:test';
 const here=new URL('./',import.meta.url);
 const profile=JSON.parse(readFileSync(new URL('./sandbox-profile.json',here),'utf8'));
 const objective=JSON.parse(readFileSync(new URL('./sandbox-fixture/objective.json',here),'utf8'));
+const runner=readFileSync(new URL('./sandbox-runner.ts',here),'utf8');
+const cgroup=readFileSync(new URL('../../scripts/run-with-sandbox-cgroup.sh',here),'utf8');
+const modelWorkflow=readFileSync(new URL('../../.github/workflows/autonomy-sandbox-model.yml',here),'utf8');
+const localWorkflow=readFileSync(new URL('../../.github/workflows/autonomy-sandbox-local-model.yml',here),'utf8');
 
 test('autonomy sandbox owns only disposable local authority',()=>{
   assert.equal(profile.schema,'overcenter-autonomy-sandbox/v1');
@@ -52,4 +56,26 @@ test('synthetic objective is objective-level and mechanically finishable',()=>{
   assert.equal(objective.acceptance.expected_remaining_count,0);
   assert.match(objective.acceptance.command,/verify\.mjs/);
   assert.ok(objective.constraints.some(value=>value.includes('no .js file remains')));
+});
+
+
+test('confined verification has explicit finite cgroup resources',()=>{
+  assert.match(runner,/cgroup_parent:resolve\(cgroupParent\)/);
+  assert.match(runner,/memory_max_bytes:'268435456'/);
+  assert.match(runner,/pids_max:'32'/);
+  assert.match(runner,/cpu_quota_us:'100000'/);
+  assert.match(runner,/cpu_period_us:'100000'/);
+  assert.match(runner,/SANDBOX_CGROUP_PARENT_REQUIRED/);
+  assert.match(runner,/resource_usage:result\.resource_usage/);
+
+  assert.match(cgroup,/memory\.max/);
+  assert.match(cgroup,/pids\.max/);
+  assert.match(cgroup,/cgroup\.max\.descendants/);
+  assert.match(cgroup,/cgroup\.max\.depth/);
+  assert.match(cgroup,/cpu\.max/);
+  assert.match(cgroup,/OVERCENTER_CGROUP_PARENT="\$parent"/);
+
+  for (const workflow of [modelWorkflow,localWorkflow]) {
+    assert.match(workflow,/scripts\/run-with-sandbox-cgroup\.sh/);
+  }
 });

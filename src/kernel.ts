@@ -6,7 +6,11 @@ import {
 import { SqliteFactStore } from './sqlite-store.ts';
 
 export type { Receipt } from './kernel-core.ts';
-export type { KernelOptions } from './kernel-core.ts';
+export type {
+  GraphPatchInput,
+  GraphReconciliationResult,
+  KernelOptions,
+} from './kernel-core.ts';
 
 export class OvercenterKernel extends KernelCore {
   readonly path:string;

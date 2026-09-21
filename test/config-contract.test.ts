@@ -111,9 +111,9 @@ test('runtime toolchains and executor images have exact checked-in identities',(
   assert.match(productionProof,/CGO_ENABLED=0 go build -trimpath -buildvcs=false/);
   assert.match(productionProof,/build_dir="\.overcenter-build"/);
   assert.match(productionProof,/\.\.\/\$build_dir\/overcenter-executor/);
-  const selfApplication=read('.github/workflows/self-application.yml');
-  assert.match(selfApplication,/CGO_ENABLED=0 go build -trimpath -buildvcs=false/);
-  assert.match(selfApplication,/\.overcenter-build\/overcenter-executor/);
+  const selfApplicationProof=read('scripts/proof-self-application.sh');
+  assert.match(selfApplicationProof,/CGO_ENABLED=0 go build -trimpath -buildvcs=false/);
+  assert.match(selfApplicationProof,/\.overcenter-build\/overcenter-executor/);
 });
 
 test('CI execution substrate and third-party actions are immutable',()=>{
@@ -153,7 +153,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
   const workflows=[
     {
       path:'.github/workflows/tests.yml',
-      jobs:['regression','proofs'],
+      jobs:['regression','experiments','production','evidence'],
     },
     {
       path:'.github/workflows/computation-executor.yml',
@@ -165,7 +165,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
     },
     {
       path:'.github/workflows/merge-gate.yml',
-      jobs:['evidence','production-computation','self-application','gate'],
+      jobs:['evidence','gate'],
     },
     {
       path:'.github/workflows/assignment-capsule-proof.yml',
@@ -185,8 +185,10 @@ test('PR CI critical paths fail closed within three minutes',()=>{
   }
 
   const budgets=[
-    ['.github/workflows/tests.yml','regression',2],
-    ['.github/workflows/tests.yml','proofs',2],
+    ['.github/workflows/tests.yml','regression',3],
+    ['.github/workflows/tests.yml','experiments',3],
+    ['.github/workflows/tests.yml','production',3],
+    ['.github/workflows/tests.yml','evidence',1],
     ['.github/workflows/computation-executor.yml','executor',2],
     ['.github/workflows/self-application.yml','self-evidence',2],
     ['.github/workflows/merge-gate.yml','gate',1],
@@ -211,7 +213,7 @@ test('PR CI critical paths fail closed within three minutes',()=>{
   }
 
   const mergeGate=read('.github/workflows/merge-gate.yml');
-  assert.match(mergeGate,/gate:[\s\S]*?needs:\n      - evidence\n      - production-computation\n      - self-application/);
+  assert.match(mergeGate,/gate:[\s\S]*?needs: evidence/);
 
   const assignment=read('.github/workflows/assignment-capsule-proof.yml');
   assert.match(assignment,/execute:[\s\S]*?needs: assign/);
@@ -221,10 +223,9 @@ test('PR CI critical paths fail closed within three minutes',()=>{
 test('self-application receives exact source bytes without checkout credentials',()=>{
   const workflow=read('.github/workflows/self-application.yml');
   assert.match(workflow,/persist-credentials:\s*false/);
-  assert.match(
-    workflow,
-    /--image "overcenter-self-application:\$\{\{ github\.run_id \}\}"/,
-  );
+  assert.match(workflow,/scripts\/proof-self-application\.sh "\$SOURCE_SHA"/);
+  const proofScript=read('scripts/proof-self-application.sh');
+  assert.match(proofScript,/--image "\$image"/);
   assert.doesNotMatch(workflow,/OVERCENTER_SELF_APPLICATION_IMAGE/);
 
   const selfApplication=read('bin/self-application-evidence.ts');
@@ -281,6 +282,42 @@ test('live supplemental proofs do not recertify the whole repository suite',()=>
   ]) {
     assert.doesNotMatch(read(path),/^\s*run:\s*npm test\s*$/m,path);
   }
+});
+
+test('candidate evidence reuses only same-runner exact-revision production work',()=>{
+  const evidence=read('.github/workflows/tests.yml');
+  const production=read('scripts/proof-production.sh');
+  const selfApplication=read('scripts/proof-self-application.sh');
+
+  assert.match(evidence,/OVERCENTER_PREVERIFIED_COMPUTATION_EXECUTOR: '1'[\s\S]*?OVERCENTER_KEEP_BUILD: '1'/);
+  assert.match(evidence,/OVERCENTER_REUSE_EXECUTOR: '1'/);
+  assert.ok(
+    evidence.indexOf('npm run proof:production-boundary') < evidence.indexOf('scripts/proof-self-application.sh'),
+    'production proof must precede reuse by self-application',
+  );
+  assert.match(production,/preverified_computation_executor/);
+  assert.match(production,/keep_build/);
+  assert.match(selfApplication,/reuse_executor/);
+  assert.match(selfApplication,/test -x \.overcenter-build\/overcenter-executor/);
+});
+
+test('criticality mutation shares read-only selection and evidence verification on one preflight runner',()=>{
+  const workflow=read('.github/workflows/production-criticality-mutation-probe.yml');
+  const jobsSource=workflow.slice(workflow.indexOf('\njobs:\n')+'\njobs:\n'.length);
+  const actual=[...jobsSource.matchAll(/^  ([A-Za-z0-9_-]+):\s*$/gm)].map(match=>match[1]);
+  assert.deepEqual(actual,['preflight','mutate']);
+  assert.match(workflow,/preflight:[\s\S]*?Prove evidence machinery[\s\S]*?Bind checked-in evidence to authoritative artifacts/);
+  assert.match(workflow,/mutate:[\s\S]*?needs: preflight/);
+  assert.doesNotMatch(workflow,/verify-evidence:/);
+});
+
+test('assignment capsule proof runs only when its mechanism or execution dependencies change',()=>{
+  const workflow=read('.github/workflows/assignment-capsule-proof.yml');
+  assert.match(workflow,/pull_request:[\s\S]*?paths:[\s\S]*?assignment-capsule-proof\.yml/);
+  assert.match(workflow,/pull_request:[\s\S]*?paths:[\s\S]*?experiments\/assignment-capsule\/\*\*/);
+  assert.match(workflow,/pull_request:[\s\S]*?paths:[\s\S]*?src\/\*\*/);
+  assert.doesNotMatch(workflow,/pull_request:[\s\S]*?paths:[\s\S]*?test\/\*\*/);
+  assert.doesNotMatch(workflow,/pull_request:[\s\S]*?paths:[\s\S]*?\.github\/workflows\/\*\*/);
 });
 
 test('GitHub object transport runs only when its mechanism or fixtures change',()=>{

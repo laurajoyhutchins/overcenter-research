@@ -9,6 +9,7 @@ on:
       - 'src/confined-executor.ts'
       - 'src/execution-manifest.ts'
       - 'rust-toolchain.toml'
+      - 'scripts/run-with-sandbox-cgroup.sh'
   workflow_dispatch:
 
 permissions:
@@ -79,7 +80,7 @@ jobs:
       - name: Run recorded model candidate through confined verification and settlement
         run: |
           set -euo pipefail
-          "$RUNNER_TEMP/trusted-node" --experimental-strip-types experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed codex-cloud-5756716623             --worker recorded-model             --candidate experiments/codex-closed-loop/sandbox-candidate-codex.json             --provenance experiments/codex-closed-loop/sandbox-candidate-codex.provenance.json             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/autonomy-sandbox-evidence.json"
+          bash scripts/run-with-sandbox-cgroup.sh "$RUNNER_TEMP/trusted-node" --experimental-strip-types experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed codex-cloud-5756716623             --worker recorded-model             --candidate experiments/codex-closed-loop/sandbox-candidate-codex.json             --provenance experiments/codex-closed-loop/sandbox-candidate-codex.provenance.json             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/autonomy-sandbox-evidence.json"
           EVIDENCE="$RUNNER_TEMP/autonomy-sandbox-evidence.json" node - <<'NODE'
           const fs=require('node:fs');
           const e=JSON.parse(fs.readFileSync(process.env.EVIDENCE,'utf8'));

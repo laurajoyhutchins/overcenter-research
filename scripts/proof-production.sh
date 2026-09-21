@@ -15,11 +15,20 @@ go_version="$(tr -d '\r\n' < .go-version)"
 node_version="$(tr -d '\r\n' < .node-version)"
 node_image="$(node -e "const x=require('./executor/runtime-images.json'); process.stdout.write(x.node_runtime)")"
 build_dir=".overcenter-build"
+preverified_computation_executor="${OVERCENTER_PREVERIFIED_COMPUTATION_EXECUTOR:-0}"
+keep_build="${OVERCENTER_KEEP_BUILD:-0}"
+
+case "$preverified_computation_executor:$keep_build" in
+  0:0|0:1|1:0|1:1) ;;
+  *) echo "invalid production-proof reuse flags" >&2; exit 2 ;;
+esac
 
 test "$(go env GOVERSION)" = "go${go_version}"
 rm -rf "$build_dir"
 mkdir -p "$build_dir"
-trap 'rm -rf "$build_dir"' EXIT
+if [[ "$keep_build" != "1" ]]; then
+  trap 'rm -rf "$build_dir"' EXIT
+fi
 
 (
   cd executor
@@ -27,7 +36,9 @@ trap 'rm -rf "$build_dir"' EXIT
   CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "../$build_dir/overcenter-executor" ./cmd/overcenter-executor
 )
 
-npm run test:computation-executor
+if [[ "$preverified_computation_executor" != "1" ]]; then
+  npm run test:computation-executor
+fi
 
 docker build \
   --build-arg NODE_IMAGE="$node_image" \

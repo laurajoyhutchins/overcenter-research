@@ -10,6 +10,7 @@ on:
       - 'experiments/codex-closed-loop/local-model-prompt.txt'
       - 'experiments/codex-closed-loop/sandbox-runner.ts'
       - 'scripts/gcp/bootstrap-google-free-reasoning.sh'
+      - 'scripts/run-with-sandbox-cgroup.sh'
       - 'src/reasoning-model.ts'
   workflow_dispatch:
 
@@ -215,7 +216,7 @@ jobs:
           OVERCENTER_SOURCE_REVISION: ${{ env.SOURCE_SHA }}
         run: |
           set -euo pipefail
-          "$RUNNER_TEMP/trusted-node" --experimental-strip-types             experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed google-free-ai-sdk-20260921             --worker recorded-model             --candidate "$RUNNER_TEMP/google-free-candidate/candidate.json"             --provenance "$RUNNER_TEMP/google-free-candidate/provenance.json"             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/google-free-evidence.json"
+          bash scripts/run-with-sandbox-cgroup.sh "$RUNNER_TEMP/trusted-node" --experimental-strip-types             experiments/codex-closed-loop/sandbox-runner.ts             --stage single-useful-obligation             --seed google-free-ai-sdk-20260921             --worker recorded-model             --candidate "$RUNNER_TEMP/google-free-candidate/candidate.json"             --provenance "$RUNNER_TEMP/google-free-candidate/provenance.json"             --launcher "$RUNNER_TEMP/overcenter-exec"             --evidence "$RUNNER_TEMP/google-free-evidence.json"
           EVIDENCE="$RUNNER_TEMP/google-free-evidence.json" node - <<'NODE'
           const fs=require('node:fs');
           const e=JSON.parse(fs.readFileSync(process.env.EVIDENCE,'utf8'));

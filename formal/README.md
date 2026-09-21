@@ -81,6 +81,50 @@ The model has five guard constants. The authoritative configuration enables all 
 
 The negative controls matter because a green model is weak evidence if the specification is incapable of expressing the failures it claims to exclude.
 
+## Resource-containment protocol model
+
+`ResourceContainment.tla` models a second, deliberately smaller safety boundary: the trusted supervisor protocol around one exact cgroup leaf.
+
+It does **not** model Linux CPU scheduling, memory accounting, PID accounting, Landlock, seccomp, or cgroup controller implementation. Those are exercised by the hosted kernel proof in `runtime/overcenter-exec/proof.sh`.
+
+The model asks:
+
+> Once the host has pinned one exact resource-domain object for an attempt, can a stale locator or an early observation be mistaken for final resource evidence?
+
+The finite model contains two possible cgroup-leaf identities and the supervisor lifecycle:
+
+```text
+start exact leaf
+      |
+worker / descendants run
+      |
+direct child closes
+      |
+kill exact leaf
+      |
+observe populated = 0
+      |
+capture final evidence
+      |
+remove exact leaf
+```
+
+The authoritative configuration checks:
+
+- `TypeOK`: the state remains in the finite modeled domains.
+- `ExactLeafAuthority`: kill, evidence, and removal never target a leaf other than the pinned active object.
+- `FinalEvidenceSafety`: resource evidence is never final unless the active leaf has been killed and observed unpopulated.
+- `RemovalSafety`: removal cannot occur before final evidence for the exact active leaf.
+
+Two negative controls are mandatory:
+
+| configuration | removed guard | expected violated invariant |
+| --- | --- | --- |
+| `BrokenResourceIdentity.cfg` | exact leaf-identity check | `ExactLeafAuthority` |
+| `BrokenResourceEarlyEvidence.cfg` | empty-before-evidence ordering | `FinalEvidenceSafety` |
+
+This formal layer is intentionally about protocol authority and ordering. The stronger physical claim that `memory.max`, `pids.max`, and `cpu.max` actually constrain hostile descendants requires the independent real-kernel proof.
+
 ## Run
 
 Requirements:
@@ -100,7 +144,7 @@ The runner pins TLA+ Tools 1.7.4 by SHA-256:
 936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
 ```
 
-It checks the authoritative model first, then requires all five broken models to fail for their expected invariant rather than accepting any non-zero TLC exit code as a successful negative test.
+It checks the authoritative transition model and five negative controls, then the resource-containment model and its two negative controls. Every broken configuration must fail for its expected invariant rather than merely returning a non-zero TLC exit code.
 
 Temporary TLC state and logs live under `formal/.tlc/` and are not authoritative evidence.
 

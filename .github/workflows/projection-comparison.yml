@@ -2,6 +2,7 @@ name: Projection implementation comparison
 
 on:
   pull_request:
+    types: [ready_for_review]
     paths:
       - 'experiments/projection-comparison/**'
       - 'src/projector.ts'

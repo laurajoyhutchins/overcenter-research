@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RECEIPT_SCHEMA, type ReceiptFact } from '../src/facts.ts';
 import type { GitHubCommitStatusPostcondition, Obligation } from '../src/model.ts';
-import { observePostcondition } from '../src/observation.ts';
+import { observePostcondition, observePostconditionAsync } from '../src/observation.ts';
 import {
   GITHUB_OPENAPI_SHA256,
   observeCertifiedGithubCommitStatus,
@@ -51,16 +51,30 @@ function status(id:number,context:string,state:'error'|'failure'|'pending'|'succ
   };
 }
 
+function combined(statuses:unknown[],repositoryBody:unknown=repository(),overrides:Record<string,unknown>={}) {
+  return {
+    state:'success',
+    sha:COMMIT,
+    total_count:statuses.length,
+    repository:repositoryBody,
+    statuses,
+    ...overrides,
+  };
+}
+
 function provider(
   pages:unknown[][],
   repositoryBody:unknown=repository(),
+  combinedBody:unknown=combined(pages[0]??[],repositoryBody),
 ):{get:GithubJsonGet;calls:string[]} {
   const calls:string[]=[];
   const get:GithubJsonGet=(_token,path)=>{
     calls.push(path);
+    if (path.includes(`/commits/${COMMIT}/status?`)) return combinedBody;
     if (path==='/repos/acme/widget') return repositoryBody;
+    if (!path.includes('/statuses?')) throw new Error(`unexpected provider path: ${path}`);
     const match=/[?&]page=(\d+)/.exec(path);
-    if (!match) throw new Error(`unexpected provider path: ${path}`);
+    if (!match) throw new Error(`missing provider page: ${path}`);
     return pages[Number(match[1])-1]??[];
   };
   return {get,calls};
@@ -94,7 +108,7 @@ test('repository full name is a locator, not GitHub status effect identity', () 
   assert.deepEqual(effectSemantics(before),effectSemantics(after));
 });
 
-test('certified repository identity and status membership preserve positive settlement evidence', () => {
+test('combined status preserves positive settlement evidence in one provider read', () => {
   const p=provider([[status(1,'Overcenter/Proof')]]);
   const observed=observePostcondition(postcondition(),{
     githubToken:'token',
@@ -109,21 +123,42 @@ test('certified repository identity and status membership preserve positive sett
 
   const evidence=observed.provider_evidence as Record<string,unknown>;
   assert.equal(evidence.schema_sha256,GITHUB_OPENAPI_SHA256);
-  assert.equal(evidence.status_operation_id,'repos/list-commit-statuses-for-ref');
+  assert.equal(evidence.status_operation_id,'repos/get-combined-status-for-ref');
   const repositoryEvidence=evidence.repository as Record<string,unknown>;
-  assert.equal(repositoryEvidence.operation_id,'repos/get');
+  assert.equal(repositoryEvidence.operation_id,'repos/get-combined-status-for-ref');
   assert.equal(repositoryEvidence.node_id,'R_42');
   assert.equal(repositoryEvidence.canonical_full_name,'acme/widget');
   assert.equal((evidence.pages as Array<Record<string,unknown>>).length,1);
   assert.equal(receiptFor(observed).disposition,'DONE');
-  assert.deepEqual(p.calls.slice(0,2),[
-    '/repos/acme/widget',
-    `/repos/acme/widget/commits/${COMMIT}/statuses?page=1&per_page=30`,
+  assert.deepEqual(p.calls,[
+    `/repos/acme/widget/commits/${COMMIT}/status?page=1&per_page=100`,
   ]);
-  assert.ok(!p.calls.some(path=>path.startsWith('/repositories/')));
 });
 
-test('missing commit status remains indeterminate after certified repository lookup', () => {
+test('async transport preserves the same certified positive observation', async() => {
+  const p=provider([[status(1,'Overcenter/Proof')]]);
+  let awaited=false;
+  const observed=await observePostconditionAsync(postcondition(),{
+    githubToken:'token',
+    githubGetAsync:async(token,path)=>{
+      await Promise.resolve();
+      awaited=true;
+      return p.get(token,path);
+    },
+    clock:()=> '2026-09-18T16:02:30.000Z',
+  });
+
+  assert.equal(awaited,true);
+  assert.equal(observed.mutation_certainty,'present');
+  assert.equal(observed.actual_state,'success');
+  const evidence=observed.provider_evidence as Record<string,unknown>;
+  assert.equal(evidence.status_operation_id,'repos/get-combined-status-for-ref');
+  assert.deepEqual(p.calls,[
+    `/repos/acme/widget/commits/${COMMIT}/status?page=1&per_page=100`,
+  ]);
+});
+
+test('missing combined target falls back and remains indeterminate', () => {
   const p=provider([[]]);
   const observed=observePostcondition(postcondition(),{
     githubToken:'token',
@@ -135,10 +170,20 @@ test('missing commit status remains indeterminate after certified repository loo
   assert.equal(observed.absence_evidence,undefined);
   assert.equal(observed.observation_error,'COLLECTION_ABSENCE_NOT_AUTHORITATIVE');
   assert.equal(receiptFor(observed).disposition,'RECOVERY_REQUIRED');
+  assert.deepEqual(p.calls,[
+    `/repos/acme/widget/commits/${COMMIT}/status?page=1&per_page=100`,
+    '/repos/acme/widget',
+    `/repos/acme/widget/commits/${COMMIT}/statuses?page=1&per_page=30`,
+  ]);
 });
 
-test('repository locator cannot override stable repository identity', () => {
-  const p=provider([[status(1,'overcenter/proof')]],repository({id:43}));
+test('combined response cannot override stable repository identity', () => {
+  const badRepository=repository({id:43});
+  const p=provider(
+    [[status(1,'overcenter/proof')]],
+    badRepository,
+    combined([status(1,'overcenter/proof')],badRepository),
+  );
   const observed=observePostcondition(postcondition(),{
     githubToken:'token',
     githubGet:p.get,
@@ -148,11 +193,29 @@ test('repository locator cannot override stable repository identity', () => {
   assert.equal(observed.mutation_certainty,'uncertain');
   assert.equal(observed.observation_error,'GITHUB_REPOSITORY_IDENTITY_MISMATCH');
   assert.equal(observed.provider_evidence,undefined);
-  assert.deepEqual(p.calls,['/repos/acme/widget']);
+  assert.deepEqual(p.calls,[
+    `/repos/acme/widget/commits/${COMMIT}/status?page=1&per_page=100`,
+  ]);
   assert.equal(receiptFor(observed).disposition,'RECOVERY_REQUIRED');
 });
 
-test('certified status scan can prove membership on a later page without upgrading absence', () => {
+test('combined response cannot substitute a different commit', () => {
+  const p=provider(
+    [[status(1,'overcenter/proof')]],
+    repository(),
+    combined([status(1,'overcenter/proof')],repository(),{sha:'b'.repeat(40)}),
+  );
+  const observed=observePostcondition(postcondition(),{
+    githubToken:'token',
+    githubGet:p.get,
+  });
+
+  assert.equal(observed.mutation_certainty,'uncertain');
+  assert.equal(observed.observation_error,'GITHUB_STATUS_COMMIT_IDENTITY_MISMATCH');
+  assert.equal(receiptFor(observed).disposition,'RECOVERY_REQUIRED');
+});
+
+test('combined miss preserves later-page positive fallback', () => {
   const first=Array.from({length:30},(_,index)=>status(index+1,`other/${index}`));
   const p=provider([first,[status(31,'overcenter/proof')]]);
   const result=observeCertifiedGithubCommitStatus('token',{
@@ -166,12 +229,19 @@ test('certified status scan can prove membership on a later page without upgradi
 
   assert.equal(result.state,'present');
   assert.equal(result.actual_state,'success');
+  assert.equal(result.evidence.status_operation_id,'repos/list-commit-statuses-for-ref');
   assert.equal(result.evidence.pages.length,2);
   assert.equal(result.evidence.pages[0].member_count,30);
   assert.equal(result.evidence.pages[1].member_count,1);
+  assert.deepEqual(p.calls,[
+    `/repos/acme/widget/commits/${COMMIT}/status?page=1&per_page=100`,
+    '/repos/acme/widget',
+    `/repos/acme/widget/commits/${COMMIT}/statuses?page=1&per_page=30`,
+    `/repos/acme/widget/commits/${COMMIT}/statuses?page=2&per_page=30`,
+  ]);
 });
 
-test('malformed provider response fails closed before it becomes GitHub truth', () => {
+test('malformed combined status fails closed before it becomes GitHub truth', () => {
   const malformed=[{
     id:1,
     state:'success',
@@ -188,7 +258,7 @@ test('malformed provider response fails closed before it becomes GitHub truth', 
   });
 
   assert.equal(observed.mutation_certainty,'uncertain');
-  assert.match(String(observed.observation_error),/RESPONSE_SLICE_REQUIRED_FIELD_MISSING:\[\]\.node_id/);
+  assert.match(String(observed.observation_error),/RESPONSE_SLICE_REQUIRED_FIELD_MISSING:statuses\[\]\.node_id/);
   assert.equal(observed.provider_evidence,undefined);
   assert.equal(receiptFor(observed).disposition,'RECOVERY_REQUIRED');
 });

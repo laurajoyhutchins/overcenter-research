@@ -1,4 +1,5 @@
 use crate::manifest::Manifest;
+use crate::resource;
 use std::collections::HashSet;
 use std::ffi::{c_char, c_int, c_long, CString};
 use std::fs::File;
@@ -22,6 +23,9 @@ const AT_EACCESS: c_int = 0x200;
 const AT_EMPTY_PATH: c_int = 0x1000;
 const EACCES: i32 = 13;
 const EROFS: i32 = 30;
+const SCHED_OTHER: c_int = 0;
+const SCHED_BATCH: c_int = 3;
+const SCHED_IDLE: c_int = 5;
 
 const SYS_CAPGET: c_long = 125;
 const SYS_CLOSE_RANGE: c_long = 436;
@@ -57,6 +61,7 @@ const SCOPE_SIGNAL: u64 = 1 << 1;
 const BPF_LD_W_ABS: u16 = 0x20;
 const BPF_JMP_JEQ_K: u16 = 0x15;
 const BPF_JMP_JGE_K: u16 = 0x35;
+const BPF_ALU_AND_K: u16 = 0x54;
 const BPF_RET_K: u16 = 0x06;
 const SECCOMP_RET_KILL_PROCESS: u32 = 0x80000000;
 const SECCOMP_RET_ERRNO: u32 = 0x00050000;
@@ -64,6 +69,12 @@ const SECCOMP_RET_ALLOW: u32 = 0x7fff0000;
 const AUDIT_ARCH_X86_64: u32 = 0xc000003e;
 const EPERM: u32 = 1;
 const X32_SYSCALL_BIT: u32 = 0x40000000;
+const SYS_MMAP: u32 = 9;
+const SYS_MEMFD_CREATE: u32 = 319;
+const SECCOMP_ARG1_LOW: u32 = 24;
+const SECCOMP_ARG3_LOW: u32 = 40;
+const MAP_HUGETLB: u32 = 0x40000;
+const MFD_HUGETLB: u32 = 0x0004;
 const DENIED_SYSCALLS: [u32; 34] = [
     29,  // shmget
     30,  // shmat
@@ -148,6 +159,7 @@ unsafe extern "C" {
     fn geteuid() -> u32;
     fn getresuid(ruid: *mut u32, euid: *mut u32, suid: *mut u32) -> c_int;
     fn getresgid(rgid: *mut u32, egid: *mut u32, sgid: *mut u32) -> c_int;
+    fn sched_getscheduler(pid: c_int) -> c_int;
     fn open(pathname: *const c_char, flags: c_int, ...) -> c_int;
     fn fchdir(fd: c_int) -> c_int;
     fn prctl(option: c_int, ...) -> c_int;
@@ -214,6 +226,19 @@ fn ensure_unprivileged_caller() -> io::Result<()> {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             "refusing to launch an untrusted worker with process capabilities",
+        ));
+    }
+
+    let scheduling_policy = unsafe { sched_getscheduler(0) };
+    if scheduling_policy < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if !matches!(scheduling_policy, SCHED_OTHER | SCHED_BATCH | SCHED_IDLE) {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!(
+                "refusing scheduling policy {scheduling_policy}; cpu.max requires a fair-class worker"
+            ),
         ));
     }
     Ok(())
@@ -425,6 +450,21 @@ fn restrict_self(ruleset: &File) -> io::Result<()> {
 const fn stmt(code: u16, k: u32) -> SockFilter { SockFilter { code, jt: 0, jf: 0, k } }
 const fn jump(code: u16, k: u32, jt: u8, jf: u8) -> SockFilter { SockFilter { code, jt, jf, k } }
 
+fn deny_flagged_syscall(
+    filters: &mut Vec<SockFilter>,
+    syscall_number: u32,
+    argument_offset: u32,
+    denied_flags: u32,
+    errno: u32,
+) {
+    filters.push(jump(BPF_JMP_JEQ_K, syscall_number, 0, 5));
+    filters.push(stmt(BPF_LD_W_ABS, argument_offset));
+    filters.push(stmt(BPF_ALU_AND_K, denied_flags));
+    filters.push(jump(BPF_JMP_JEQ_K, 0, 1, 0));
+    filters.push(stmt(BPF_RET_K, errno));
+    filters.push(stmt(BPF_LD_W_ABS, 0));
+}
+
 fn install_seccomp_policy() -> io::Result<()> {
     let errno = SECCOMP_RET_ERRNO | EPERM;
     let mut filters = vec![
@@ -437,6 +477,20 @@ fn install_seccomp_policy() -> io::Result<()> {
         jump(BPF_JMP_JGE_K, X32_SYSCALL_BIT, 0, 1),
         stmt(BPF_RET_K, SECCOMP_RET_KILL_PROCESS),
     ];
+    deny_flagged_syscall(
+        &mut filters,
+        SYS_MMAP,
+        SECCOMP_ARG3_LOW,
+        MAP_HUGETLB,
+        errno,
+    );
+    deny_flagged_syscall(
+        &mut filters,
+        SYS_MEMFD_CREATE,
+        SECCOMP_ARG1_LOW,
+        MFD_HUGETLB,
+        errno,
+    );
     for syscall_number in DENIED_SYSCALLS {
         filters.push(jump(BPF_JMP_JEQ_K, syscall_number, 0, 1));
         filters.push(stmt(BPF_RET_K, errno));
@@ -458,6 +512,7 @@ fn close_inherited_fds() -> io::Result<()> {
 
 pub fn execute(manifest: Manifest) -> io::Result<()> {
     ensure_unprivileged_caller()?;
+    resource::enter(&manifest)?;
     let workspace = pin_workspace(&manifest)?;
     let abi = landlock_abi()?;
     let handled_fs = handled_fs_rights(abi)?;
@@ -488,10 +543,14 @@ pub fn execute(manifest: Manifest) -> io::Result<()> {
     install_seccomp_policy()?;
 
     eprintln!(
-        "overcenter-exec: task_id={:?} landlock_abi={abi} timeout_ms={} max_output_bytes={}",
+        "overcenter-exec: task_id={:?} landlock_abi={abi} cgroup_fd=4 timeout_ms={} max_output_bytes={} memory_max_bytes={} pids_max={} cpu_max={}/{}",
         manifest.task_id,
         manifest.timeout_ms,
         manifest.max_output_bytes,
+        manifest.memory_max_bytes,
+        manifest.pids_max,
+        manifest.cpu_quota_us,
+        manifest.cpu_period_us,
     );
     let mut command = Command::new(&manifest.program);
     command.args(&manifest.args).env_clear();

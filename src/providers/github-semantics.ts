@@ -67,7 +67,7 @@ export const GITHUB_OPERATION_SEMANTICS={
   check_run:operation("checks/get","checks:read",CHECK_RUN_FIELDS),
   check_suite:operation("checks/get-suite","checks:read",CHECK_SUITE_FIELDS),
   commit_statuses:operation("repos/list-commit-statuses-for-ref","statuses:read",fields("[].id","[].node_id","[].state","[].context","[].target_url","[].created_at","[].updated_at")),
-  combined_commit_status:operation("repos/get-combined-status-for-ref","statuses:read",fields("state","sha","total_count","statuses[].id","statuses[].node_id","statuses[].state","statuses[].context","statuses[].target_url","statuses[].created_at","statuses[].updated_at")),
+  combined_commit_status:operation("repos/get-combined-status-for-ref","statuses:read",fields("state","sha","total_count","repository.id","repository.node_id","repository.full_name","repository.name","repository.owner.login","statuses[].id","statuses[].node_id","statuses[].state","statuses[].context","statuses[].target_url","statuses[].created_at","statuses[].updated_at")),
   workflow:operation("actions/get-workflow","actions:read",WORKFLOW_FIELDS),
   workflow_run:operation("actions/get-workflow-run","actions:read",fields("id","node_id","workflow_id","run_number","run_attempt","name","event","status","conclusion","head_sha","head_branch","path","created_at","updated_at")),
   workflow_job:operation("actions/get-job-for-workflow-run","actions:read",WORKFLOW_JOB_FIELDS),

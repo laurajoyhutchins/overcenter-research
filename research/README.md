@@ -43,3 +43,8 @@ durable runtimes -> execution survival, not final project-truth authority
 ```
 
 Overcenter should borrow the invariant each body of prior art is good at without turning into a clone of any one of them.
+
+
+## Proof surfaces
+
+- [Resource containment proof](./resource-containment-proof.md) — exact cgroup-object authority, final evidence ordering, two-level resource bounds, and the deterministic/formal/kernel witness map.

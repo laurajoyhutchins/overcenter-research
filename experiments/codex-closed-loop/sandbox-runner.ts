@@ -78,6 +78,7 @@ type VerifierResult={
   completion_proven:boolean;
   confined:boolean;
   manifest_sha256:string|null;
+  resource_usage:Record<string,string>|null;
 };
 
 const sha256=(bytes:string|Buffer)=>createHash('sha256').update(bytes).digest('hex');
@@ -319,6 +320,7 @@ async function runVerifier(
   temporary:string,
   seed:string,
   launcher:string|null,
+  cgroupParent:string|null,
 ):Promise<VerifierResult> {
   let moduleUrl:string;
   try {
@@ -331,6 +333,7 @@ async function runVerifier(
       completion_proven:false,
       confined:false,
       manifest_sha256:null,
+      resource_usage:null,
     };
   }
   if (!launcher) {
@@ -348,12 +351,15 @@ async function runVerifier(
       completion_proven:verifierCompletionProven(stdout),
       confined:false,
       manifest_sha256:null,
+      resource_usage:null,
     };
   }
 
+  if (!cgroupParent) throw new Error('SANDBOX_CGROUP_PARENT_REQUIRED');
   const stat=statSync(workspace,{bigint:true});
   const result=await runConfinedWorker({
     launcher:resolve(launcher),
+    cgroup_parent:resolve(cgroupParent),
     manifest:{
       task_id:`autonomy-sandbox-verifier-${sha256(seed).slice(0,12)}`,
       workspace,
@@ -362,6 +368,10 @@ async function runVerifier(
       program:process.execPath,
       timeout_ms:30_000,
       max_output_bytes:65_536,
+      memory_max_bytes:'268435456',
+      pids_max:'32',
+      cpu_quota_us:'100000',
+      cpu_period_us:'100000',
       args:['verify.cjs',moduleUrl],
       environment:{LANG:'C.UTF-8'},
       runtime_read_only:[
@@ -378,6 +388,7 @@ async function runVerifier(
     completion_proven:verifierCompletionProven(result.stdout),
     confined:true,
     manifest_sha256:result.manifest_sha256,
+    resource_usage:result.resource_usage,
   };
 }
 
@@ -511,7 +522,14 @@ try {
   const after=snapshot(workspace);
   const changedPaths=changes(before,after);
   const outsideScope=changedPaths.filter(path=>!path.startsWith('src/'));
-  const verifier=await runVerifier(workspace,workerHome,workerTemp,args.seed,args.launcher);
+  const verifier=await runVerifier(
+    workspace,
+    workerHome,
+    workerTemp,
+    args.seed,
+    args.launcher,
+    process.env.OVERCENTER_CGROUP_PARENT??null,
+  );
 
   const accepted=workerStatus===0
     && outsideScope.length===0
@@ -675,6 +693,7 @@ try {
       verifier_completion_proven:verifier.completion_proven,
       execution_confinement_proven:verifier.confined,
       execution_manifest_sha256:verifier.manifest_sha256,
+      resource_usage:verifier.resource_usage,
     },
     metrics:{
       verified_useful_transitions:useful,

@@ -9,6 +9,10 @@ export interface ExecutionManifestInput {
   program:string;
   timeout_ms?:number;
   max_output_bytes?:number;
+  memory_max_bytes:string;
+  pids_max:string;
+  cpu_quota_us:string;
+  cpu_period_us:string;
   args?:string[];
   environment?:Record<string,string>;
   runtime_read_only?:string[];
@@ -20,6 +24,10 @@ export interface RenderedExecutionManifest {
   sha256:string;
   timeout_ms:number;
   max_output_bytes:number;
+  memory_max_bytes:string;
+  pids_max:string;
+  cpu_quota_us:string;
+  cpu_period_us:string;
 }
 
 const scalar=(name:string,value:string):string=>{
@@ -37,6 +45,7 @@ const absolutePath=(name:string,value:string):string=>{
 const MAX_U64=(1n<<64n)-1n;
 const DEFAULT_TIMEOUT_MS=60_000;
 const DEFAULT_MAX_OUTPUT_BYTES=1_048_576;
+const MAX_OUTPUT_BYTES=67_108_864;
 const MAX_TIMEOUT_MS=2_147_483_647;
 
 const positiveSafeInteger=(name:string,value:number,max=Number.MAX_SAFE_INTEGER):number=>{
@@ -80,7 +89,16 @@ export function renderExecutionManifest(input:ExecutionManifestInput):RenderedEx
   const maxOutputBytes=positiveSafeInteger(
     'max_output_bytes',
     input.max_output_bytes ?? DEFAULT_MAX_OUTPUT_BYTES,
+    MAX_OUTPUT_BYTES,
   );
+  const memoryMaxBytes=decimal('memory_max_bytes',input.memory_max_bytes);
+  const pidsMax=decimal('pids_max',input.pids_max);
+  const cpuQuotaUs=decimal('cpu_quota_us',input.cpu_quota_us);
+  const cpuPeriodUs=decimal('cpu_period_us',input.cpu_period_us);
+  if (memoryMaxBytes==='0') throw new Error('MEMORY_MAX_BYTES_INVALID');
+  if (pidsMax==='0') throw new Error('PIDS_MAX_INVALID');
+  if (cpuQuotaUs==='0') throw new Error('CPU_QUOTA_US_INVALID');
+  if (cpuPeriodUs==='0') throw new Error('CPU_PERIOD_US_INVALID');
   const args=(input.args ?? []).map((value)=>scalar('arg',value));
 
   const environment=Object.entries(input.environment ?? {})
@@ -109,11 +127,24 @@ export function renderExecutionManifest(input:ExecutionManifestInput):RenderedEx
     `program\t${program}`,
     `timeout_ms\t${timeoutMs}`,
     `max_output_bytes\t${maxOutputBytes}`,
+    `memory_max_bytes\t${memoryMaxBytes}`,
+    `pids_max\t${pidsMax}`,
+    `cpu_quota_us\t${cpuQuotaUs}`,
+    `cpu_period_us\t${cpuPeriodUs}`,
     ...args.map((value)=>`arg\t${value}`),
     ...environment.map(([name,value])=>`env\t${name}\t${value}`),
     ...runtimeReadOnly.map((value)=>`runtime_ro\t${value}`),
     ...runtimeExecutable.map((value)=>`runtime_exec\t${value}`),
   ];
   const bytes=`${lines.join('\n')}\n`;
-  return {bytes,sha256:sha256(bytes),timeout_ms:timeoutMs,max_output_bytes:maxOutputBytes};
+  return {
+    bytes,
+    sha256:sha256(bytes),
+    timeout_ms:timeoutMs,
+    max_output_bytes:maxOutputBytes,
+    memory_max_bytes:memoryMaxBytes,
+    pids_max:pidsMax,
+    cpu_quota_us:cpuQuotaUs,
+    cpu_period_us:cpuPeriodUs,
+  };
 }

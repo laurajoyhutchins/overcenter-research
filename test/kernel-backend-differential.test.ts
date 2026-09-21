@@ -48,25 +48,31 @@ async function exercise(
   secondPath:string,
 ) {
   kernel.initialize();
-  kernel.define({
-    id:'first',
-    packet:{path:firstPath,content:'A'},
-    postcondition:{
-      verifier:'file-content-equals/v1',
-      path:firstPath,
-      content:'A',
-    },
-  });
-  kernel.define({
-    id:'second',
-    dependencies:[{kind:'control',upstream:'first'}],
-    packet:{path:secondPath,content:'B'},
-    postcondition:{
-      verifier:'file-content-equals/v1',
-      path:secondPath,
-      content:'B',
-    },
-  });
+  const revision=kernel.head();
+  assert.ok(revision);
+  kernel.applyGraphPatch({
+    add:[
+      {
+        id:'second',
+        dependencies:[{kind:'control',upstream:'first'}],
+        packet:{path:secondPath,content:'B'},
+        postcondition:{
+          verifier:'file-content-equals/v1',
+          path:secondPath,
+          content:'B',
+        },
+      },
+      {
+        id:'first',
+        packet:{path:firstPath,content:'A'},
+        postcondition:{
+          verifier:'file-content-equals/v1',
+          path:firstPath,
+          content:'A',
+        },
+      },
+    ],
+  },revision);
 
   const before=snapshot(kernel);
   await runCoreLoop(kernel,{

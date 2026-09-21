@@ -3,6 +3,7 @@ name: Scheduler bottleneck decomposition
 on:
   workflow_dispatch:
   pull_request:
+    types: [ready_for_review]
     paths:
       - .github/workflows/scheduler-bottleneck.yml
       - experiments/scheduler-bottleneck/**

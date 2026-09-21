@@ -2,6 +2,7 @@ name: LinkML ontology experiment
 
 on:
   pull_request:
+    types: [ready_for_review]
     paths:
       - 'experiments/linkml-ontology/**'
       - 'experiments/registry.json'
