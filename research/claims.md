@@ -224,6 +224,26 @@ A cached lifecycle field may exist, but it should not be the deepest source of t
 
 The pure replay and projection-reconstruction tests derive `DONE` from obligation, claim, observation, verification, and receipt facts after materialized projection state is discarded. The formal kernel separately checks `NoFalseDone` and requires the broken no-evidence model to produce a counterexample. This does not yet prove that the proposed compact transition-attestation format is sufficient for every provider or future storage backend.
 
+### S13. Resource containment is bound to an exact kernel object
+
+**Status:** Demonstrated on the supported Linux x86-64 confinement path by deterministic contracts, a machine-checked supervisor model, and a hostile real-cgroup proof.
+
+The resource claim is not merely that a worker happens to be placed in a cgroup.
+
+**Claim:**
+
+> One attempt is bound to one exact cgroup-v2 leaf; final resource evidence is accepted only after that leaf is killed and observed empty; per-attempt CPU, memory, and PID ceilings sit beneath a finite aggregate worker-pool envelope.
+
+The trusted supervisor creates and pins the child cgroup object. PID, process-group ID, cgroup name, and pathname are locators rather than execution authority. Resource evidence carries the exact leaf device/inode identity.
+
+The formal model `formal/ResourceContainment.tla` checks `ExactLeafAuthority`, `FinalEvidenceSafety`, and `RemovalSafety`. `BrokenResourceIdentity.cfg` and `BrokenResourceEarlyEvidence.cfg` must produce counterexamples when the respective guards are removed.
+
+The physical proof remains separate: `runtime/overcenter-exec/proof.sh` exercises actual `pids.max` exhaustion, `cpu.max` throttling, `memory.max` OOM containment, HugeTLB denial, stale-leaf noninterference, and trusted-supervisor timeout/output cleanup on cgroup v2.
+
+**Non-claims:** This does not establish device I/O throttling, workspace disk quota, guaranteed capacity equal to the declared ceiling, automatic authority-safe orphan cleanup after supervisor death, or complete VM isolation.
+
+See [`resource-containment-proof.md`](./resource-containment-proof.md).
+
 ## Safety assumptions and non-claims
 
 Overcenter does not prove:
