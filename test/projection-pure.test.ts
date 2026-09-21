@@ -8,7 +8,7 @@ import {
 } from '../src/facts.ts';
 import type { FactCommit, ObligationFact, ReceiptFact } from '../src/facts.ts';
 import { obligationKey } from '../src/semantic-identity.ts';
-import { projectReceipt, replayProjection } from '../src/projection.ts';
+import { advanceProjection, projectReceipt, replayProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
 import { localFileEnoentEvidence } from '../src/evidence.ts';
 
@@ -120,6 +120,39 @@ test('replay re-derives current lifecycle before amendment validation',()=>{
     ]),
     /AMEND_WHILE_IN_FLIGHT/,
   );
+});
+
+test('incremental projection is exactly equivalent to replaying the same prefix',()=>{
+  const defineRecord:FactCommit={commit:'define-1',parent:null,obligation:defined};
+  const claimRecord=claimCommit('define-1');
+  const receipt:ReceiptFact={
+    schema:RECEIPT_SCHEMA,
+    run_id:'run-1',
+    obligation_id:'a',
+    claimed_revision:'define-1',
+    claim_commit:'claim-1',
+    execution_generation:1,
+    execution_authority_commit:'claim-1',
+    kind:'observation',
+    observed:{
+      verifier:'file-content-equals/v1',
+      path:'/provider/a',
+      expected_sha256:sha256('A'),
+      actual_sha256:sha256('A'),
+      mutation_certainty:'present',
+    },
+    settled_at:'2026-09-18T00:00:00.000Z',
+  };
+  const receiptRecord:FactCommit={commit:'receipt-1',parent:'claim-1',receipt};
+
+  const ready=replayProjection([defineRecord]);
+  const executing=advanceProjection(ready,claimRecord);
+  const done=advanceProjection(executing,receiptRecord);
+
+  assert.deepEqual(done,replayProjection([defineRecord,claimRecord,receiptRecord]));
+  assert.equal(ready.project.lifecycles.get('a')?.status,'UNREALIZED');
+  assert.equal(executing.project.lifecycles.get('a')?.status,'EXECUTING');
+  assert.equal(done.project.lifecycles.get('a')?.status,'DONE');
 });
 
 test('pure replay rejects a claim whose parent is not its claimed revision',()=>{
