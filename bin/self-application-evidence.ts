@@ -14,6 +14,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+import {SELF_APPLICATION_SCHEMAS} from '../src/generated/schema-identifiers.ts';
+
 import {
   PROCESS_SPEC_SCHEMA,
   assertComputationEvidenceFor,
@@ -109,7 +111,7 @@ function docker(args:string[]):string {
 function executionContextSha256():string {
   const imageId=docker(['image','inspect',image!,'--format','{{.Id}}']).trim();
   return hashExecutionContext({
-    schema:'overcenter-self-application-execution-context-v1',
+    schema:SELF_APPLICATION_SCHEMAS.executionContext,
     image_id:imageId,
     source_sha:sourceSha,
     source_tree_sha256:sourceTreeSha256(sourceRoot),
@@ -446,7 +448,7 @@ try {
   assert.ok(receipts.every(receipt=>receipt.disposition==='DONE' && receipt.verified));
 
   const report={
-    schema:'overcenter-self-application-v1',
+    schema:SELF_APPLICATION_SCHEMAS.evidence,
     source_sha:sourceSha,
     authority_head:authorityHead,
     work:reconstructedWork,
