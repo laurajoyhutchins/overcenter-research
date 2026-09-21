@@ -1,3 +1,4 @@
+import {GITHUB_AUTHORITY_SCHEMAS} from './generated/schema-identifiers.ts';
 import type {
   CertifiedGithubPullRequestIdentityResult,
   GithubPullRequestExpectedIdentity,
@@ -33,13 +34,13 @@ export type GithubAuthorityCommand =
 
 export type GithubAuthorityCommandResult =
   | {
-      schema:'github-authority/v1';
+      schema:typeof GITHUB_AUTHORITY_SCHEMAS.command;
       command:'ref';
       state:GithubAuthorityState;
       result:CertifiedGithubRefFenceResult;
     }
   | {
-      schema:'github-authority/v1';
+      schema:typeof GITHUB_AUTHORITY_SCHEMAS.command;
       command:'pr';
       state:GithubAuthorityState;
       result:CertifiedGithubPullRequestIdentityResult;
@@ -148,7 +149,7 @@ export function executeGithubAuthorityCommand(
       ...(clock?{clock}:{}),
     });
     return {
-      schema:'github-authority/v1',
+      schema:GITHUB_AUTHORITY_SCHEMAS.command,
       command:'ref',
       state:result.state,
       result,
@@ -164,7 +165,7 @@ export function executeGithubAuthorityCommand(
     ...(clock?{clock}:{}),
   });
   return {
-    schema:'github-authority/v1',
+    schema:GITHUB_AUTHORITY_SCHEMAS.command,
     command:'pr',
     state:result.state,
     result,
