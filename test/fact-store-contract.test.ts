@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
@@ -125,7 +126,7 @@ test('opening an initialized SQLite store does not contend for the writer lock',
   assert.ok(initial);
   setup.close();
 
-  const blocker=new (await import('node:sqlite')).DatabaseSync(database);
+  const blocker=new DatabaseSync(database);
   blocker.exec('PRAGMA journal_mode = WAL');
   blocker.exec('BEGIN IMMEDIATE');
   const started=performance.now();
