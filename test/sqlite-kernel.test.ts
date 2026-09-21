@@ -125,7 +125,7 @@ test('SQLite graph patch admits multiple nodes in one authority transition',()=>
   try {
     const initial=kernel.initialize();
     const commit=kernel.applyGraphPatch({
-      add:[
+      upsert:[
         {
           id:'second',
           dependencies:[{kind:'control',upstream:'first'}],
@@ -152,8 +152,16 @@ test('SQLite graph patch admits multiple nodes in one authority transition',()=>
       assert.equal(rows.length,2);
       const files=JSON.parse(rows[1].files_json) as Record<string,unknown>;
       assert.equal('obligation.json' in files,false);
-      assert.equal(Array.isArray(files['obligations.json']),true);
-      assert.equal((files['obligations.json'] as unknown[]).length,2);
+      assert.equal('obligations.json' in files,false);
+      const patch=files['graph-patch.json'] as {
+        definitions:unknown[];
+        bindings:unknown[];
+        retire:unknown[];
+      };
+      assert.equal(Array.isArray(patch.definitions),true);
+      assert.equal(patch.definitions.length,2);
+      assert.equal(patch.bindings.length,2);
+      assert.deepEqual(patch.retire,[]);
     } finally {
       db.close();
     }
@@ -179,7 +187,7 @@ test('SQLite graph reconciliation derives add replace and no-op without extra wr
       },
     ],initial);
     assert.deepEqual(first.added,['leaf','root']);
-    assert.deepEqual(first.replaced,[]);
+    assert.deepEqual(first.rebound,[]);
     assert.deepEqual(first.unchanged,[]);
 
     const unchanged=kernel.reconcileGraph([
@@ -193,7 +201,7 @@ test('SQLite graph reconciliation derives add replace and no-op without extra wr
     ],first.revision);
     assert.equal(unchanged.revision,first.revision);
     assert.deepEqual(unchanged.added,[]);
-    assert.deepEqual(unchanged.replaced,[]);
+    assert.deepEqual(unchanged.rebound,[]);
     assert.deepEqual(unchanged.unchanged,['leaf','root']);
 
     const changed=kernel.reconcileGraph([
@@ -206,7 +214,7 @@ test('SQLite graph reconciliation derives add replace and no-op without extra wr
       {id:'extra',postcondition:pc(join(root,'extra'),'E')},
     ],unchanged.revision);
     assert.deepEqual(changed.added,['extra']);
-    assert.deepEqual(changed.replaced,['leaf']);
+    assert.deepEqual(changed.rebound,['leaf']);
     assert.deepEqual(changed.unchanged,[]);
 
     const db=new DatabaseSync(database);
@@ -240,7 +248,7 @@ test('no-op graph reconciliation remains read-only while work is in flight',()=>
     ],head);
     assert.equal(result.revision,head);
     assert.deepEqual(result.added,[]);
-    assert.deepEqual(result.replaced,[]);
+    assert.deepEqual(result.rebound,[]);
     assert.deepEqual(result.unchanged,['a']);
 
     assert.throws(
@@ -265,7 +273,7 @@ test('invalid SQLite graph patch leaves authority unchanged',()=>{
     const initial=kernel.initialize();
     assert.throws(
       ()=>kernel.applyGraphPatch({
-        add:[{
+        upsert:[{
           id:'dangling',
           dependencies:[{kind:'control',upstream:'missing'}],
           postcondition:pc(join(root,'dangling'),'A'),
@@ -288,24 +296,116 @@ test('invalid SQLite graph patch leaves authority unchanged',()=>{
   }
 });
 
-test('graph patch replacement is exact-revision fenced',()=>{
+test('graph patch rebinding is exact-revision fenced',()=>{
   const root=mkdtempSync(join(tmpdir(),'sqlite-graph-patch-replace-'));
   const kernel=new OvercenterKernel(join(root,'overcenter.sqlite'));
   try {
     const initial=kernel.initialize();
     const defined=kernel.applyGraphPatch({
-      add:[{id:'a',postcondition:pc(join(root,'a'),'A')}],
+      upsert:[{id:'a',postcondition:pc(join(root,'a'),'A')}],
     },initial);
     const replaced=kernel.applyGraphPatch({
-      replace:[{id:'a',packet:{generation:2},postcondition:pc(join(root,'a'),'B')}],
+      upsert:[{id:'a',packet:{generation:2},postcondition:pc(join(root,'a'),'B')}],
     },defined);
     assert.equal(kernel.head(),replaced);
     assert.throws(
       ()=>kernel.applyGraphPatch({
-        replace:[{id:'a',postcondition:pc(join(root,'a'),'C')}],
+        upsert:[{id:'a',postcondition:pc(join(root,'a'),'C')}],
       },defined),
       /STALE_REVISION/,
     );
+  } finally {
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
+test('retirement validates the complete resulting graph atomically',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-graph-retire-'));
+  const kernel=new OvercenterKernel(join(root,'overcenter.sqlite'));
+  try {
+    const initial=kernel.initialize();
+    const built=kernel.applyGraphPatch({
+      upsert:[
+        {id:'first',postcondition:pc(join(root,'first'),'A')},
+        {
+          id:'second',
+          dependencies:[{kind:'control',upstream:'first'}],
+          postcondition:pc(join(root,'second'),'B'),
+        },
+      ],
+    },initial);
+
+    assert.throws(
+      ()=>kernel.applyGraphPatch({retire:['first']},built),
+      /UNKNOWN_DEPENDENCY:second:first/,
+    );
+    assert.equal(kernel.head(),built);
+
+    const retired=kernel.applyGraphPatch({
+      upsert:[{
+        id:'second',
+        postcondition:pc(join(root,'second'),'B'),
+      }],
+      retire:['first'],
+    },built);
+    assert.equal(kernel.head(),retired);
+    assert.deepEqual(
+      kernel.inspect().map(work=>[work.id,work.status]),
+      [['second','READY']],
+    );
+  } finally {
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
+
+test('retired node can rebind the same immutable definition and reuse evidence',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-graph-reintroduce-'));
+  const database=join(root,'overcenter.sqlite');
+  const path=join(root,'a');
+  const kernel=new OvercenterKernel(database);
+  try {
+    kernel.initialize();
+    kernel.define({
+      id:'a',
+      packet:{kind:'same-definition'},
+      postcondition:pc(path,'A'),
+    });
+    const run=kernel.claim('a',kernel.deriveReadyWork()!.revision);
+    writeFileSync(path,'A');
+    assert.equal(kernel.resolve(run).disposition,'DONE');
+
+    kernel.applyGraphPatch({retire:['a']},kernel.head()!);
+    assert.deepEqual(kernel.inspect(),[]);
+
+    kernel.applyGraphPatch({
+      upsert:[{
+        id:'a',
+        packet:{kind:'same-definition'},
+        postcondition:pc(path,'A'),
+      }],
+    },kernel.head()!);
+    assert.equal(kernel.inspect()[0].status,'DONE');
+    assert.equal(kernel.inspect()[0].run_id,run.id);
+
+    const db=new DatabaseSync(database);
+    try {
+      const rows=db.prepare(
+        'SELECT files_json FROM fact_commits WHERE files_json LIKE ? ORDER BY sequence',
+      ).all('%"graph-patch.json"%') as Array<{files_json:string}>;
+      assert.equal(rows.length,3);
+      const reintroduced=JSON.parse(rows[2].files_json)['graph-patch.json'] as {
+        definitions:unknown[];
+        bindings:unknown[];
+        retire:unknown[];
+      };
+      assert.deepEqual(reintroduced.definitions,[]);
+      assert.equal(reintroduced.bindings.length,1);
+      assert.deepEqual(reintroduced.retire,[]);
+    } finally {
+      db.close();
+    }
   } finally {
     kernel.close();
     rmSync(root,{recursive:true,force:true});
@@ -390,9 +490,11 @@ test('SQLite replay fails closed when durable fact bytes no longer match their c
         SET files_json = ?
         WHERE sequence = 2
       `).run(JSON.stringify({
-        'obligation.json':{
+        'graph-patch.json':{
           schema:'tampered',
-          obligation:{id:'a'},
+          definitions:[],
+          bindings:[],
+          retire:[],
         },
       }));
     } finally {
