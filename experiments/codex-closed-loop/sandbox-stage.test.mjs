@@ -162,3 +162,53 @@ test('candidate process.exit(0) cannot manufacture DONE',()=>{
     rmSync(root,{recursive:true,force:true});
   }
 });
+
+
+test('AI SDK direct Google evidence proves authority confinement without claiming offline process confinement',()=>{
+  const root=mkdtempSync(join(tmpdir(),'overcenter-ai-sdk-provenance-'));
+  try {
+    const candidateBytes=readFileSync(modelCandidate);
+    const provenancePath=join(root,'provenance.json');
+    const hash=value=>createHash('sha256').update(value).digest('hex');
+    writeFileSync(provenancePath,JSON.stringify({
+      schema:'overcenter-autonomy-model-candidate-provenance/v1',
+      provider:'google.generative-ai',
+      transport:'ai-sdk',
+      routing_profile:'google-free',
+      model_id:'gemini-3.8-flash',
+      gateway_used:false,
+      repository_mutation_observed:false,
+      prompt_sha256:'1',
+      candidate_sha256:hash(candidateBytes),
+      response_body_sha256:'1',
+      network_during_inference:true,
+      reasoning_api_credential_present:true,
+      repository_credentials_present:false,
+      checkout_readable_during_inference:false,
+      overcenter_authority_present:false,
+      project_provider_mutation_authority_present:false,
+      worker_uid_isolated:true,
+      input_scope:'synthetic-prompt-and-schema-only',
+      worker_job_is_disposable:true,
+    })+'\n');
+
+    const evidence=run('recorded-model',[
+      '--candidate',modelCandidate,
+      '--provenance',provenancePath,
+    ]);
+    assert.equal(evidence.outcome,'accepted');
+    assert.equal(evidence.authority.disposition,'DONE');
+    assert.equal(evidence.candidate.verifier_completion_proven,true);
+    assert.equal(evidence.worker.routing_profile,'google-free');
+    assert.equal(evidence.worker.gateway_used,false);
+    assert.equal(evidence.worker.network_during_inference,true);
+    assert.equal(evidence.worker.reasoning_process_confinement_proven,false);
+    assert.equal(evidence.worker.reasoning_authority_confinement_proven,true);
+    assert.equal(evidence.worker.overcenter_authority_present,false);
+    assert.equal(evidence.worker.project_provider_mutation_authority_present,false);
+    assert.equal(evidence.metrics.false_done_count,0);
+    assert.equal(evidence.promotion_evidence.eligible,false);
+  } finally {
+    rmSync(root,{recursive:true,force:true});
+  }
+});
