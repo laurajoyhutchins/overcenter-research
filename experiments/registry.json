@@ -351,11 +351,14 @@
         "npm run test:experiments passes from the Git-free snapshot."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
         "artifacts": [
+          "GitHub Actions run 35738774674: exact-head Git-metadata independence proof established no .git, failed ambient git rev-parse, and passed both deterministic suites.",
           ".github/workflows/git-metadata-independence.yml",
           "experiments/git-metadata-independence/experiment.ts"
-        ]
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "89f79ee7c1031b9490de95ff0f0df5220c04676c"
       },
       "interpretation": "A positive result establishes ambient-Git independence for deterministic regression/experiment evidence and supports a later, separately proven tree-bound evidence layer. It does not authorize cross-revision substitution.",
       "non_claims": [
@@ -363,7 +366,15 @@
         "Tree equality is sufficient for merge evidence substitution.",
         "Git is absent from tests that intentionally exercise Git semantics.",
         "The live Merge gate may skip post-merge evidence."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The no-.git/no-ambient-worktree conditions and required deterministic suite passes were fixed before the hosted proof was accepted."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The deterministic unit and experiment suites pass from a source snapshot with no .git directory and no ambient worktree after removing accidental checkout dependencies."
+      }
     },
     {
       "id": "git-stress",
@@ -863,11 +874,14 @@
         "Production computation boundary passes from the snapshot."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
         "artifacts": [
-          ".github/workflows/tree-bound-candidate-evidence.yml",
-          "experiments/tree-bound-candidate-evidence/experiment.ts"
-        ]
+          "GitHub Actions run 35739503501: initial hosted proof falsified the first draft because test-only computation context consumed ambient revision metadata.",
+          "GitHub Actions run 35739852417: corrected exact-head hosted proof passed Git stress, TLA+, and the production computation boundary from a .git-free snapshot with revision-coordinate environment removed.",
+          ".github/workflows/tree-bound-candidate-evidence.yml"
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "62fe49a53f80c0a99c2b9e4c501da83877786da4"
       },
       "interpretation": "A positive result supports factoring candidate verification into reusable tree/toolchain-bound evidence plus a smaller revision-bound derivation/self-application tail. Cross-revision reuse still requires a separate exact derivation contract.",
       "non_claims": [
@@ -875,7 +889,15 @@
         "Provider/live evidence is tree-bound.",
         "Equal Git trees imply equal execution identity.",
         "The current Merge gate may skip post-merge evidence."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The initial tree-bound hypothesis preceded execution, but the first hosted run exposed a test-only ambient revision dependency. The test fixture was narrowed to the production execution identity boundary before the successful rerun."
+      },
+      "outcome": {
+        "state": "mixed",
+        "summary": "The first draft was falsified by a test-only ambient revision dependency; after removing that non-production coupling, Git stress, TLA+, and the production computation boundary passed from a .git-free source snapshot with revision-coordinate environment removed."
+      }
     },
     {
       "id": "tree-evidence-derivation",
@@ -903,12 +925,14 @@
         "Fresh exact-lineage and self-application evidence must name the merge SHA."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
         "artifacts": [
+          "GitHub Actions run 35741449465: exact-head tree evidence derivation proof passed.",
           ".github/workflows/tree-evidence-derivation.yml",
-          "experiments/tree-evidence-derivation/tree-evidence-derivation.ts",
           "experiments/tree-evidence-derivation/tree-evidence-derivation.test.ts"
-        ]
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "f5e1c289ca8935b5158ff921018bff935854246a"
       },
       "interpretation": "A positive result establishes the derivation contract shape required before tree evidence can be reused across a content-preserving merge. It does not itself alter live certification.",
       "non_claims": [
@@ -916,7 +940,15 @@
         "Provider/live evidence is tree-bound.",
         "Revision-bound self-application evidence is reusable across SHAs.",
         "The live Merge gate may skip post-merge tree evidence yet."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The reusable-tree-evidence restrictions, candidate provenance binding, exact lineage/tree/digest applicability checks, and fresh revision-evidence requirement were fixed before the hosted derivation proof."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The tested derivation contract safely applies revision-free tree/toolchain evidence across an identical-content merge only when candidate provenance, exact [base, head] lineage, Git tree, and independently recomputed source-tree digest agree, while fresh revision-bound evidence still names the merge SHA."
+      }
     },
     {
       "id": "two-effect-concurrency",
