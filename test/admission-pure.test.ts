@@ -163,3 +163,54 @@ test('indexed effect ordering matches recursive reference on every four-node lab
     }
   }
 });
+
+
+const prUpdateObligation=(
+  id:string,
+  previousHead:string,
+  dependencies:Obligation['dependencies']=[],
+):Obligation=>({
+  id,
+  dependencies,
+  packet:{},
+  postcondition:{
+    verifier:'github-pull-request-branch-updated/v1',
+    provider:'github',
+    repository_id:123,
+    repository_full_name:'owner/repo',
+    pull_number:17,
+    pull_node_id:'PR_node_17',
+    expected_previous_head_sha:previousHead,
+    base_ref:'main',
+    expected_base_sha:'b'.repeat(40),
+  },
+});
+
+test('admission rejects unordered refresh effects for the same PR branch',()=>{
+  const state:State={
+    obligations:{
+      alpha:prUpdateObligation('alpha','a'.repeat(40)),
+      beta:prUpdateObligation('beta','c'.repeat(40)),
+    },
+    definition_ids:{alpha:'alpha-def',beta:'beta-def'},
+  };
+  assert.throws(
+    ()=>validateAdmission(state),
+    /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
+  );
+});
+
+test('admission accepts explicit ordering for refreshes of the same PR branch',()=>{
+  const state:State={
+    obligations:{
+      alpha:prUpdateObligation('alpha','a'.repeat(40)),
+      beta:prUpdateObligation(
+        'beta',
+        'c'.repeat(40),
+        [{kind:'control',upstream:'alpha'}],
+      ),
+    },
+    definition_ids:{alpha:'alpha-def',beta:'beta-def'},
+  };
+  assert.doesNotThrow(()=>validateAdmission(state));
+});
