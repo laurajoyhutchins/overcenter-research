@@ -31,6 +31,7 @@ const context:GithubOperatorCommandContext={
   head_repository_full_name:required('OVERCENTER_COMMAND_HEAD_REPOSITORY'),
   pull_number:positiveInteger('OVERCENTER_COMMAND_PULL_NUMBER'),
   source_sha:required('OVERCENTER_COMMAND_SOURCE_SHA'),
+  base_sha:required('OVERCENTER_COMMAND_BASE_SHA'),
   ref:required('OVERCENTER_COMMAND_REF'),
   command_run_id:positiveInteger('OVERCENTER_COMMAND_RUN_ID'),
   command_run_attempt:positiveInteger('OVERCENTER_COMMAND_RUN_ATTEMPT'),
@@ -49,9 +50,11 @@ if (output) {
   for (const [key,value] of Object.entries({
     command:receipt.command,
     source_sha:receipt.source_sha,
-    dispatched_run_id:receipt.dispatched_run_id,
-    dispatched_run_url:receipt.dispatched_run_url,
-    dispatched_html_url:receipt.dispatched_html_url,
+    base_sha:receipt.base_sha,
+    result_mode:receipt.result_mode,
+    certification_run_id:receipt.certification_run_id,
+    certification_run_url:receipt.certification_run_url,
+    certification_html_url:receipt.certification_html_url,
     receipt_digest:receipt.receipt_digest,
   })) {
     appendFileSync(output,`${key}=${String(value)}\n`);
