@@ -24,9 +24,9 @@ test('reasoning-agent interface exposes semantic project commands',()=>{
   for (const removed of [
     '../.github/workflows/agent-ingress.yml',
     '../.github/workflows/agent-request-signal.yml',
-    '../bin/github-agent-ingress.ts',
-    '../bin/github-agent-submit.ts',
-    '../bin/github-agent-publish-response.ts',
+    '../src/cli/github-agent-ingress.ts',
+    '../src/cli/github-agent-submit.ts',
+    '../src/cli/github-agent-publish-response.ts',
   ]) {
     assert.equal(
       existsSync(new URL(removed,import.meta.url)),
