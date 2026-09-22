@@ -866,6 +866,45 @@
       "non_claims": [
         "Anything outside the documented experiment boundary."
       ]
+    },
+    {
+      "id": "recovery-judgment-residue",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/recovery-judgment-residue",
+      "readme": "experiments/recovery-judgment-residue/README.md",
+      "question": "Can a reasoning model recover the single JUDGMENT_REQUIRED residue by synthesizing parameters for one declared non-consequential authoritative search while deterministic software alone controls certainty?",
+      "claim": "The model-visible surface is limited to search-parameter synthesis for the locked judgment residue; candidate admission and authoritative evidence admission remain deterministic and fail closed.",
+      "contrast": "Give the model the whole recovery problem, let it assert an outcome, replay the effect, select a different tool, or treat a failed search as evidence of absence.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:recovery-judgment-residue"
+      },
+      "environment": [
+        "Node.js from .node-version for the deterministic contract.",
+        "The hosted model stage reuses the isolated Google-free reasoning pattern; trusted scoring remains separate."
+      ],
+      "success_criteria": [
+        "The model receives only the locked judgment residue, declared search contract, and unstructured incident evidence.",
+        "The candidate schema contains search parameters and rationale only, with no certainty, outcome, retry, tool-selection, or settlement fields.",
+        "The shared recovery gate rejects extra authority-bearing fields and admits certainty only from authoritative evidence.",
+        "An empty, ambiguous, or irrelevant search result leaves the case at JUDGMENT_REQUIRED.",
+        "False certainty and consequential recovery actions while uncertain remain zero."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          "experiments/recovery-reasoning/recovery-gate.ts",
+          "experiments/recovery-judgment-residue/residue.test.ts"
+        ]
+      },
+      "interpretation": "A positive live result would show only that inference can synthesize a useful search for this locked residue. It would not make the model authoritative or overturn broader negative evidence from other recovery-search experiments.",
+      "non_claims": [
+        "Inference is necessary for ordinary mechanically enumerable recovery.",
+        "A no-hit search proves the effect is absent.",
+        "The model may retry the consequential effect or settle its own proposal.",
+        "One successful residue generalizes to all providers or recovery cases."
+      ]
     }
   ]
 }
