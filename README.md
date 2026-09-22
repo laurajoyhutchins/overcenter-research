@@ -233,7 +233,7 @@ These are different evidence classes, not cumulative certification levels. A liv
 The reasoning-agent interface is deliberately small:
 
 ```text
-project.advance -> work packet -> reasoning -> agent.submit
+project.advance -> work packet -> reasoning -> project.submit
 ```
 
 [Operator commands](./docs/operator-commands.md) hide frontier selection, claims, leases, authority coordinates, transport refs, and settlement mechanics behind those two semantic operations. The reasoner receives work only when judgment is required and never declares its own success. Pull-request certification is CI behavior: rerun the existing `Certify candidate` job on the PR's Merge gate to spend the full exact-head evidence suite.
