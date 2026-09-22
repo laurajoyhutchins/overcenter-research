@@ -18,6 +18,22 @@ const operatorCommands = readFileSync(
   new URL('../.github/workflows/operator-candidate-certify.yml', import.meta.url),
   'utf8',
 );
+const projectAdvanceCommand = readFileSync(
+  new URL('../.github/workflows/operator-project-advance.yml', import.meta.url),
+  'utf8',
+);
+const workExecuteCommand = readFileSync(
+  new URL('../.github/workflows/operator-work-execute.yml', import.meta.url),
+  'utf8',
+);
+const projectAdvanceWorkflow = readFileSync(
+  new URL('../.github/workflows/project-advance.yml', import.meta.url),
+  'utf8',
+);
+const workExecuteWorkflow = readFileSync(
+  new URL('../.github/workflows/work-execute.yml', import.meta.url),
+  'utf8',
+);
 const candidateOnlyWorkflowPaths = [
   '../.github/workflows/assignment-capsule-proof.yml',
   '../.github/workflows/conflicting-effect.yml',
@@ -230,5 +246,76 @@ test('operator commands expose isolated trusted rerun anchors without a public c
     operatorCommands,
     /github-operator-command\.ts candidate\.certify/,
     'workflow YAML must delegate command semantics to deterministic software',
+  );
+});
+
+
+test('project commands expose inert default-branch rerun anchors and isolate authority', () => {
+  for (const [source,command] of [
+    [projectAdvanceCommand,'project.advance'],
+    [workExecuteCommand,'work.execute'],
+  ] as const) {
+    assert.match(eventBlock(source,'push'),/branches: \[main\]/);
+    assert.doesNotMatch(source,/issue_comment:|pull_request_review:|label:/);
+    assert.match(source,new RegExp(`^name: Overcenter command · ${command.replace('.','\\.')}\\s*$`,'m'));
+    assert.match(source,new RegExp(`command:\\n\\s+name: ${command.replace('.','\\.')}`));
+    assert.match(
+      source,
+      /github\.run_attempt == 1 \|\| github\.triggering_actor == github\.repository_owner/,
+      'only the inert first run or repository owner may enter a project command job',
+    );
+    assert.match(
+      source,
+      /permissions:\n\s+actions: write\n\s+contents: read/,
+      'agent-facing command anchors may dispatch Actions but not mutate authority or provider state',
+    );
+    assert.match(
+      source,
+      /if: \$\{\{ github\.run_attempt == 1 \}\}[\s\S]*state: available/,
+      'the first run must only advertise availability',
+    );
+    assert.match(
+      source,
+      /COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.sha \}\}/,
+      'project commands must pin trusted implementation identity',
+    );
+  }
+
+  assert.match(
+    projectAdvanceCommand,
+    /github-operator-command\.ts project\.advance/,
+  );
+  assert.match(
+    workExecuteCommand,
+    /github-operator-command\.ts work\.execute/,
+  );
+
+  for (const workflow of [projectAdvanceWorkflow,workExecuteWorkflow]) {
+    assert.match(eventBlock(workflow,'workflow_dispatch'),/source_sha:/);
+    assert.match(
+      workflow,
+      /test "\$GITHUB_SHA" = "\$SOURCE_SHA"/,
+      'a stale command anchor must fail before authority mutation',
+    );
+    assert.match(
+      workflow,
+      /permissions:\n\s+contents: write\n\s+statuses: write/,
+      'only implementation jobs may mutate the hosted authority and bounded GitHub effect',
+    );
+    assert.match(workflow,/persist-credentials: true/);
+    assert.doesNotMatch(
+      workflow,
+      /issue_comment:|pull_request_review:|label:/,
+      'implementation workflows must not grow a public mailbox',
+    );
+  }
+
+  assert.match(
+    projectAdvanceWorkflow,
+    /github-project-advance\.ts[\s\\]*--output/,
+  );
+  assert.match(
+    workExecuteWorkflow,
+    /github-work-execute\.ts[\s\\]*--output/,
   );
 });
