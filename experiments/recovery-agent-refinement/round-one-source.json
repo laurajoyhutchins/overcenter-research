@@ -1,0 +1,13 @@
+{
+  "schema": "overcenter-frozen-recovery-search-source/v1",
+  "source_pr": 237,
+  "source_head_sha": "88c90ab73fdc49facbb48b014cd543c65d22b2a0",
+  "workflow_run_id": 35694479360,
+  "candidate_artifact_id": 10679658548,
+  "candidate_artifact_name": "recovery-agent-candidate",
+  "candidate_artifact_zip_sha256": "a9b007403b54ebfff958226445f8611e79ebd9a624a15ba5dc5c2d351da28958",
+  "candidate_sha256": "8576fbf64c57d2d70dba379868b3fa06ae21db56daf4f927edea8cea9623885c",
+  "provenance_sha256": "18c9c197a3fcc39369d46425eafc9fc928eda860280c1b029a6a67954de7c3cc",
+  "result_artifact_id": 10679861411,
+  "result_artifact_zip_sha256": "67c5598a9648389eb4f50e958f6227501b448b88d28540f1c4903dfb41365f13"
+}
