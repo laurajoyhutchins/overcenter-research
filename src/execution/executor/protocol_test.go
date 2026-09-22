@@ -20,7 +20,7 @@ type conformanceCorpus struct {
 }
 
 func TestSharedProcessSpecConformance(t *testing.T) {
-	data, err := os.ReadFile("../contracts/computation-execution-v1/process-spec-conformance.json")
+	data, err := os.ReadFile("../../../contracts/computation-execution-v1/process-spec-conformance.json")
 	if err != nil {
 		t.Fatal(err)
 	}

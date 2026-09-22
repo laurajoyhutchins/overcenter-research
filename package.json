@@ -46,7 +46,7 @@
     "test:lean-oracle": "node --experimental-strip-types --test test/lean-semantic-oracle.test.ts",
     "test:data-contracts": "node --experimental-strip-types --test test/data-contracts.test.ts",
     "test:execution-manifest": "node --experimental-strip-types --test test/execution-manifest.test.ts",
-    "proof:rust-exec": "bash runtime/overcenter-exec/proof.sh",
+    "proof:rust-exec": "bash src/execution/confinement/proof.sh",
     "test:linkml-ontology": "node --experimental-strip-types --test experiments/linkml-ontology/linkml-ontology.test.ts",
     "test:linkml-contract-refactor": "node --experimental-strip-types --test experiments/linkml-contract-refactor/comparison.test.ts",
     "test:assignment-capsule": "node --experimental-strip-types --test experiments/assignment-capsule/contract.test.ts",

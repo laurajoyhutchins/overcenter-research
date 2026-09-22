@@ -53,7 +53,7 @@ test('repository contains no tracked JavaScript source',()=>{
 
 test('active surfaces use self-application terminology consistently',()=>{
   const legacyTerm=['dog','food'].join('');
-  const paths=[...executableConfigFiles(),'README.md','executor/README.md'];
+  const paths=[...executableConfigFiles(),'README.md','src/execution/executor/README.md'];
   for (const path of paths) {
     assert.equal(
       read(path).toLowerCase().includes(legacyTerm),
@@ -69,7 +69,7 @@ test('runtime toolchains and executor images have exact checked-in identities',(
   assert.match(nodeVersion,/^\d+\.\d+\.\d+$/);
   assert.match(goVersion,/^\d+\.\d+\.\d+$/);
 
-  const images=JSON.parse(read('executor/runtime-images.json')) as {
+  const images=JSON.parse(read('src/execution/executor/runtime-images.json')) as {
     schema:string;
     node_runtime:string;
     node_self_application:string;
@@ -91,7 +91,7 @@ test('runtime toolchains and executor images have exact checked-in identities',(
   assert.ok(images.node_runtime.startsWith(`node:${nodeVersion}-bookworm-slim@sha256:`));
   assert.ok(images.node_self_application.startsWith(`node:${nodeVersion}-bookworm@sha256:`));
 
-  for (const path of ['executor/containment/Dockerfile','executor/self-application/Dockerfile']) {
+  for (const path of ['src/execution/executor/containment/Dockerfile','src/execution/executor/self-application/Dockerfile']) {
     const dockerfile=read(path);
     assert.match(dockerfile,/^ARG NODE_IMAGE$/m);
     assert.match(dockerfile,/^ARG NODE_VERSION$/m);
@@ -102,7 +102,7 @@ test('runtime toolchains and executor images have exact checked-in identities',(
     assert.doesNotMatch(dockerfile,/go build|go env GOVERSION/);
     assert.doesNotMatch(dockerfile,/FROM (?:golang|node):[^$]/);
   }
-  const selfApplicationDockerfile=read('executor/self-application/Dockerfile');
+  const selfApplicationDockerfile=read('src/execution/executor/self-application/Dockerfile');
   assert.doesNotMatch(selfApplicationDockerfile,/apt-get/);
   assert.match(selfApplicationDockerfile,/git --version/);
 

@@ -25,7 +25,7 @@ An unrelated stale leaf is therefore not a valid termination or evidence target.
 
 **Witnesses**
 
-- implementation: `src/execution/confined-executor.ts`, `runtime/overcenter-exec/resource.rs`;
+- implementation: `src/execution/confined-executor.ts`, `src/execution/confinement/resource.rs`;
 - formal: `formal/ResourceContainment.tla` invariant `ExactLeafAuthority`;
 - negative control: `formal/BrokenResourceIdentity.cfg`;
 - hostile proof: an unrelated stale leaf survives another launch untouched.
@@ -84,7 +84,7 @@ A supervisor crash may leave a bounded orphan leaf. This layer does not guess wh
 **Witnesses**
 
 - deterministic parent-contract validation in `src/execution/confined-executor.ts`;
-- real delegated hierarchy constructed by `runtime/overcenter-exec/proof.sh`;
+- real delegated hierarchy constructed by `src/execution/confinement/proof.sh`;
 - kernel enforcement probes for PID exhaustion, CPU throttling, and memory OOM.
 
 The TLA+ resource model does not prove Linux aggregate accounting. That remains a physical host/kernel claim.
@@ -113,8 +113,8 @@ Rust writes and reads back the cgroup controls before untrusted code runs. The r
 **Witnesses**
 
 - canonical manifest tests in `test/execution-manifest.test.ts`;
-- Rust parser/configuration in `runtime/overcenter-exec/manifest.rs` and `resource.rs`;
-- hostile probes in `runtime/overcenter-exec/hostile_worker.rs` and `resource_probe.rs`;
+- Rust parser/configuration in `src/execution/confinement/manifest.rs` and `resource.rs`;
+- hostile probes in `src/execution/confinement/hostile_worker.rs` and `resource_probe.rs`;
 - hosted real-cgroup proof.
 
 ## Invariant 5: trusted containment machinery is itself bounded
@@ -133,7 +133,7 @@ Cleanup failure is an execution failure, never silent success.
 
 **Witnesses**
 
-- `src/execution/manifest.ts` and `runtime/overcenter-exec/manifest.rs`;
+- `src/execution/manifest.ts` and `src/execution/confinement/manifest.rs`;
 - deterministic output-ceiling and invalid-parent tests;
 - real supervisor timeout/output-overflow proof under cgroup v2.
 

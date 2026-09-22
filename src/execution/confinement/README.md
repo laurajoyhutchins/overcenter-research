@@ -98,7 +98,7 @@ This is authority confinement, not a complete VM boundary. Current Landlock does
 Run:
 
 ```sh
-bash runtime/overcenter-exec/proof.sh
+bash src/execution/confinement/proof.sh
 ```
 
 The proof checks canonical manifest rejection, exact FD-based workspace pinning across pathname replacement, rejection of non-regular/worker-mutable/aliased execution closure objects, explicit-only workspace execution, outside read/write denial, ambient environment and kernel-keyring removal, inherited-FD closure, process-group escape denial, same-UID host-process control denial, HugeTLB allocation denial, System V/POSIX IPC denial, TCP/Unix-socket denial, x32 seccomp rejection, and preservation of authorized workspace effects.

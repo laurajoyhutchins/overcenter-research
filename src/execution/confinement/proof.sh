@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-here="$repo_root/runtime/overcenter-exec"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+here="$repo_root/src/execution/confinement"
 tmp="$(mktemp -d)"
 cgroup_root=""
 cgroup_parent=""
