@@ -309,7 +309,7 @@ test('candidate supplemental proofs do not repeat Merge-gate deterministic cover
 test('GitHub observation proof is scoped to GitHub provider changes and exact revision checks',()=>{
   const workflow=read('.github/workflows/github-observation-grammar.yml');
   assert.doesNotMatch(workflow,/src\/providers\/\*\*/);
-  assert.match(workflow,/src\/providers\/github-\*\.ts/);
+  assert.match(workflow,/src\/providers\/github\/\*\*/);
   assert.match(workflow,/CHECK_REF:\s*\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
 });
 
