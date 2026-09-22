@@ -1,0 +1,30 @@
+{
+  "schema": "overcenter-recovery-search-model-provenance/v1",
+  "provider": "google.generative-ai",
+  "model_id": "gemini-3.8-flash",
+  "transport": "ai-sdk",
+  "credential_source": "gcp-api-keys-via-github-oidc",
+  "billing_project_id": "oc-gemini-free-1354872053",
+  "billing_observation_source": "google-cloud-billing-api",
+  "billing_enabled": false,
+  "prompt_sha256": "ec769621bd86868c3fc61a04c6230f976eeeb888bba106d14aa451b0e5bb09df",
+  "candidate_sha256": "8576fbf64c57d2d70dba379868b3fa06ae21db56daf4f927edea8cea9623885c",
+  "repository_credentials_present": false,
+  "checkout_readable_during_inference": false,
+  "overcenter_authority_present": false,
+  "provider_mutation_authority_present": false,
+  "input_scope": "public-recovery-packets-and-proposal-schema-only",
+  "usage": {
+    "inputTokens": 779,
+    "inputTokenDetails": {
+      "noCacheTokens": 779,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 3330,
+    "outputTokenDetails": {
+      "textTokens": 341,
+      "reasoningTokens": 2989
+    },
+    "totalTokens": 4109
+  }
+}
