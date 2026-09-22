@@ -6,7 +6,7 @@ on:
     paths:
       - 'experiments/recovery-agent-search/**'
       - 'experiments/recovery-reasoning/**'
-      - '.github/workflows/recovery-agent-search.yml'
+      - '.github/workflows/autonomy-sandbox-google-free.yml'
       - 'package.json'
       - 'experiments/registry.json'
 
