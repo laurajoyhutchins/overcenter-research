@@ -39,16 +39,16 @@
     "universe": 6855,
     "affected": 383,
     "regressions": 357,
-    "predicted": 3904,
-    "caught": 326,
-    "missed": 57,
-    "missed_regressions": 50
+    "predicted": 4231,
+    "caught": 354,
+    "missed": 29,
+    "missed_regressions": 26
   },
   "metrics": {
-    "recall": 0.8511749347258486,
-    "precision": 0.08350409836065574,
-    "selected_fraction": 0.5695113056163384,
-    "reduction": 0.43048869438366155
+    "recall": 0.9242819843342036,
+    "precision": 0.0836681635547152,
+    "selected_fraction": 0.6172137126185266,
+    "reduction": 0.38278628738147336
   },
   "gates": {
     "recall": false,
@@ -73,80 +73,33 @@
     {
       "case": "pallets__flask-4544",
       "variant": "human-gold",
-      "changed_symbols": [
-        "src/flask/cli.py::<module>"
-      ],
-      "affected": [
-        "tests/test_cli.py::test_run_cert_path"
-      ],
-      "counts": {
-        "affected": 1,
-        "caught": 0,
-        "missed": 1,
-        "missed_regressions": 0,
-        "predicted": 171,
-        "universe": 363
-      },
-      "diagnosis": "The edit is on a click.option decorator line preceding run_command; v1 attributes decorator-line changes to module scope instead of the decorated callable."
-    },
-    {
-      "case": "pallets__flask-5063",
-      "variant": "human-gold",
-      "changed_symbols": [
-        "src/flask/cli.py::routes_command"
-      ],
-      "affected": [
-        "tests/test_cli.py::TestRoutes::test_host",
-        "tests/test_cli.py::TestRoutes::test_subdomain"
-      ],
-      "counts": {
-        "affected": 2,
-        "caught": 0,
-        "missed": 2,
-        "missed_regressions": 0,
-        "predicted": 0,
-        "universe": 362
-      },
-      "diagnosis": "Tests reach routes_command through Click command registration and runner.invoke dispatch, a framework edge absent from the ordinary AST call graph."
+      "diagnosis": "A click.option decorator edit was attributed to module scope rather than the decorated command; the affected test remained outside the v1 frontier."
     },
     {
       "case": "pallets__flask-5063",
       "variant": "ai-qwen32-direct",
-      "changed_symbols": [
-        "src/flask/cli.py::find_app_by_string"
-      ],
-      "collection_aborted": true,
-      "counts": {
-        "affected": 362,
-        "caught": 308,
-        "missed": 54,
-        "regressions": 355,
-        "missed_regressions": 50,
-        "predicted": 308,
-        "universe": 362
-      },
-      "diagnosis": "The patch is syntactically invalid. Importing Flask fails during pytest collection, creating an import/parse blast radius that a base-tree callable reachability graph does not model."
+      "diagnosis": "The syntax-invalid patch creates package import/collection blast radius. Corrected scoring still leaves v1 with missed regressions; the scorer-coordinate fix does not rescue this safety failure."
     },
     {
       "case": "pallets__flask-4992",
       "variant": "ai-qwen32-direct",
-      "counts": {
-        "affected": 2,
-        "caught": 2,
-        "missed": 0,
-        "regressions": 2,
-        "missed_regressions": 0,
-        "predicted": 3,
-        "universe": 364
-      },
-      "diagnosis": "A localized direct dependency case where v1 performed well: 100% recall with only 0.82% of the verification universe selected."
+      "diagnosis": "A localized direct dependency remained a useful positive control: the graph can be selective when the dependency is explicit."
     }
   ],
   "next_deterministic_representation_changes": [
     "Include decorator spans in changed-symbol attribution.",
-    "Add framework registration/dispatch edges for Click and Flask CLI commands.",
-    "Preflight patched Python syntax and model module-import blast radius when a changed module cannot load.",
-    "Replace simple-name call fanout with qualified/import-aware resolution to reduce the 46-86% selected fractions seen in many correct cases.",
-    "Re-run the same frozen corpus and thresholds; do not tune the corpus or gates after observing v1."
-  ]
+    "Add explicit framework registration/dispatch edges.",
+    "Parse patched Python and model import blast radius for syntax/import failure.",
+    "Use qualified/import-aware resolution, exact re-export resolution, and bounded low-ambiguity attribute fallback rather than unbounded name fanout.",
+    "Replay graph mechanics against immutable oracle evidence; reserve fresh oracle executions for genuinely new outcome data."
+  ],
+  "scoring_correction": {
+    "reason": "AST class-test coordinates used Class.test while pytest JUnit used Class::test; score normalization now canonicalizes both forms.",
+    "scorer_fix_commit": "78810bb4be337d22dd98e31c670fa68af9cee1b7",
+    "rescore_run_id": 35740676637,
+    "rescore_job_id": 106789316548,
+    "artifact_id": 10699258109,
+    "artifact_sha256": "d9b3557bd1a8a64834d104c4c0e71cdb5dcb760949a0e2704c0a9c97bc877d6c",
+    "conclusion": "The correction improves v1 recall but does not change the falsification: all three preregistered gates still fail."
+  }
 }

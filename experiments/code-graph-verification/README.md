@@ -96,7 +96,9 @@ execution admission: true
 
 ## Representation
 
-Version 1 intentionally uses only Python's standard-library AST. It does not use an LLM.
+The predictor uses only Python's standard-library AST and deterministic relations. It does not use an LLM.
+
+The historical v1 used broad simple-name resolution. After v1 was falsified, the repaired representation added decorator spans, qualified/import-aware and re-export resolution, explicit Click dispatch edges, patched syntax/import blast-radius handling, and a bounded low-ambiguity attribute fallback.
 
 ```text
 patch hunks
@@ -203,23 +205,48 @@ The real historical Flask executions are intentionally separate from ordinary fa
 
 `.github/workflows/code-graph-verification-confirmatory.yml` is manual-only. It resolves each official SWE-bench instance image to an immutable Docker RepoDigest, verifies the image's `/testbed` commit against `corpus.json`, runs one held-out-test base suite per Flask case, then runs every candidate variant for that case with container networking disabled.
 
-The 11 cases fan out in parallel. Base outcomes are reused within each case, reducing the full-suite oracle workload from 42 runs to 32. The aggregation job accepts results only when they match exact preflight admission and lets `summarize.py` evaluate the preregistered gates.
+The 11 cases fan out in parallel. Base outcomes are reused within each case, reducing the full-suite oracle workload from 42 runs to 32. Each container is reset to the exact benchmark base commit while retaining its immutable dependency environment. The aggregation job accepts results only when they match exact preflight admission and lets `summarize.py` evaluate the preregistered gates.
+
+Once immutable JUnit outcomes exist, graph mechanics can be iterated without rerunning pytest:
+
+```sh
+npm run experiment:code-graph-replay-frontiers -- \
+  --flask-repo /path/to/flask \
+  --results /path/to/preserved/results
+
+npm run experiment:code-graph-rescore -- \
+  --results /path/to/preserved/results
+```
 
 ## Confirmatory result — 2026-09-22
 
-The v1 hypothesis was **falsified**.
+The corrected v1 result is still **falsified**:
 
 ```text
-affected-test recall: 0.851175   (required >= 0.99)
-selected fraction:    0.569511   (required <= 0.30)
-missed regressions:   50         (required 0)
-precision:            0.083504
-reduction:            0.430489
+affected-test recall: 0.924282   (required >= 0.99)
+selected fraction:    0.617214   (required <= 0.30)
+missed regressions:   26         (required 0)
+precision:            0.083668
+reduction:            0.382786
 ```
 
-All three preregistered gates failed. The complete result and immutable environment digests are recorded in `results/2026-09-22-confirmatory.json` and `results/2026-09-22-confirmatory.md`.
+A scoring audit found that AST class-test IDs used `Class.test` while pytest JUnit used `Class::test`. Immutable evidence was rescored after canonicalizing that coordinate. The correction changes the magnitude, not the conclusion: all three v1 gates still fail.
 
-The failures point to deterministic representation work rather than an inference boundary: decorator-aware changed-symbol attribution, Click/Flask registration edges, patched syntax/import blast-radius handling, and more precise qualified call resolution. Any follow-up must reuse the same frozen corpus and thresholds.
+### Repaired calibration replay
+
+The deterministic repair derived from those failures was replayed against the same preserved oracle outcomes:
+
+```text
+affected-test recall: 1.000000
+selected fraction:    0.231072
+missed regressions:   0
+precision:            0.241793
+reduction:            0.768928
+```
+
+So every previously observed affected test is now selected while remaining below the frozen 30% ceiling. This is deliberately labeled **post-hoc calibration**, not independent confirmation, because the representation was changed after observing this corpus.
+
+Evidence is recorded in `results/2026-09-22-confirmatory.*` and `results/2026-09-22-repaired-replay.*`. The next falsification must use a fresh holdout without first changing the repaired representation.
 
 ## Interpretation
 

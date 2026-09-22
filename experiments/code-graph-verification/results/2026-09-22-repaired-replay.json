@@ -1,0 +1,62 @@
+{
+  "schema": "overcenter-code-graph-verification-calibration-replay/v1",
+  "date": "2026-09-22",
+  "status": "posthoc_calibration_not_independent_confirmation",
+  "corpus_sha256": "ab603d5839bf8d76eb5b1836612cf2200f1cb2ea0d232cfd1a32aa13aa2fc53e",
+  "thresholds": {
+    "recall_min": 0.99,
+    "selected_fraction_max": 0.3,
+    "missed_regressions_max": 0
+  },
+  "oracle_evidence": {
+    "source_run_id": 35739887949,
+    "note": "JUnit outcomes are reused unchanged. Only frontier prediction and scoring are replayed."
+  },
+  "graph": {
+    "base_revision": "b1e726bca0210536285ab3fcd081160167bb9165",
+    "replay_workflow_revision": "86f12c3a4aa3afa673edf1b8dbbff8af78390e15",
+    "representation": [
+      "decorator-aware changed-symbol spans",
+      "qualified/import-aware call resolution",
+      "exact re-export resolution",
+      "Click command registration and literal dispatch edges",
+      "patched syntax and import blast-radius expansion",
+      "bounded unresolved attribute fallback to at most three internal definitions"
+    ],
+    "bounded_attribute_candidate_limit": 3
+  },
+  "replay": {
+    "run_id": 35741538548,
+    "job_id": 106792274322,
+    "artifact_id": 10699658915,
+    "artifact_sha256": "fc0a62ca98a922c2be97d8a3a223ede9ba48d355b6ad32bdbdc39401dbc96e17"
+  },
+  "raw_runs": 21,
+  "effective_observations": 19,
+  "totals": {
+    "universe": 6855,
+    "affected": 383,
+    "regressions": 357,
+    "predicted": 1584,
+    "caught": 383,
+    "missed": 0,
+    "missed_regressions": 0
+  },
+  "metrics": {
+    "recall": 1,
+    "precision": 0.24179292929292928,
+    "selected_fraction": 0.23107221006564552,
+    "reduction": 0.7689277899343545
+  },
+  "gates": {
+    "recall": true,
+    "selected_fraction": true,
+    "missed_regressions": true
+  },
+  "frozen_gates_satisfied": true,
+  "interpretation": [
+    "The repaired deterministic representation can explain and select every affected test in the already-observed Flask corpus while remaining below the preregistered selection ceiling.",
+    "Because the representation was repaired using failures observed on this same corpus, this is calibration evidence rather than independent confirmation.",
+    "The result supports exhausting deterministic graph relations before introducing an inference layer, but requires a fresh holdout corpus before making a generalization claim."
+  ]
+}

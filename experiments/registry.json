@@ -833,7 +833,7 @@
       "directory": "experiments/code-graph-verification",
       "readme": "experiments/code-graph-verification/README.md",
       "question": "Can a mechanically derived static code graph predict the verification consequences of the complete SWE-bench Flask slice and exact human/AI patches while eliminating most irrelevant test execution?",
-      "claim": "On the frozen 11-instance Flask corpus, v1 failed all preregistered gates: pooled affected-test recall was 0.851175, selected fraction was 0.569511, and 50 regressions were missed. The observed failures expose decorator attribution, framework dispatch, import/parse blast-radius, and simple-name fanout gaps.",
+      "claim": "The preregistered v1 graph was falsified after corrected scoring (0.924282 recall, 0.617214 selected fraction, 26 missed regressions). A deterministic repair then cleared the same frozen gates on post-hoc replay (1.0 recall, 0.231072 selected fraction, 0 missed regressions), which is calibration evidence rather than independent confirmation.",
       "contrast": "Run the full verification universe for every change, or ask a reasoning agent to guess which tests matter.",
       "reproduce": {
         "tier": "toolchain",
@@ -854,24 +854,25 @@
       ],
       "evidence": {
         "state": "current",
-        "evaluated_revision": "1aaeadeccbfb6f78a0f317960ffa8ccc98c126f6",
+        "evaluated_revision": "b1e726bca0210536285ab3fcd081160167bb9165",
         "artifacts": [
           "experiments/code-graph-verification/results/2026-09-22-confirmatory.json",
           "experiments/code-graph-verification/results/2026-09-22-confirmatory.md",
-          "GitHub Actions confirmatory run 35693710320",
-          "GitHub Actions replication aggregation run 35693741253",
-          "Summary artifact 10678913301 (sha256 41d5ba0cc8027885699cf57013211d84bc92120f1af7241f172bc441fd83ae54)",
-          "experiments/code-graph-verification/preflight-evidence.json"
+          "experiments/code-graph-verification/results/2026-09-22-repaired-replay.json",
+          "experiments/code-graph-verification/results/2026-09-22-repaired-replay.md",
+          "GitHub Actions corrected-score run 35740676637",
+          "GitHub Actions frontier replay run 35741538548",
+          "Repaired replay summary artifact 10699658915 (sha256 fc0a62ca98a922c2be97d8a3a223ede9ba48d355b6ad32bdbdc39401dbc96e17)"
         ]
       },
-      "interpretation": "The v1 static graph is not safe or selective enough for verification pruning on the admitted Flask distribution. The misses are concrete: decorator lines are not attributed to decorated callables, Click command dispatch is absent, and syntax/import failures have a wider blast radius than callable reachability. At the same time, simple-name fanout makes many successful frontiers too broad. These are deterministic representation problems to attack before considering inference.",
+      "interpretation": "v1 showed that naive static reachability was simultaneously unsafe and too broad. The repaired deterministic representation removes all misses in the observed Flask corpus while selecting 23.1% of verification, demonstrating that those observed ambiguities were mechanically representable. Because the repairs were informed by this corpus, a fresh holdout is required before claiming generalization or production readiness.",
       "non_claims": [
-        "Static verification pruning is impossible.",
-        "The observed result generalizes to other repositories or languages.",
+        "The repaired representation is independently confirmed.",
+        "The result generalizes to unseen repositories, languages, frameworks, or change distributions.",
+        "The bounded attribute fallback is a universally optimal uncertainty budget.",
         "AI authorship is intrinsically safer or riskier than human authorship.",
-        "The frozen thresholds should be relaxed after observing v1.",
-        "An inference layer is required to resolve the observed misses.",
-        "The v1 graph is authorized to replace full verification in production."
+        "An inference layer is required by the observed Flask failures.",
+        "The repaired graph is authorized to replace full verification in production."
       ]
     }
   ]
