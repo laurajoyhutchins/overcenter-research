@@ -1,0 +1,51 @@
+name: Tree-bound candidate evidence proof
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tree-bound-candidate-evidence.yml'
+      - 'experiments/tree-bound-candidate-evidence/**'
+      - 'experiments/git-stress/**'
+      - 'formal/**'
+      - 'scripts/proof-production.sh'
+      - 'executor/**'
+      - 'runtime/**'
+      - 'test/support/repository-source.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: '.go-version'
+          cache: false
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal --no-self-update
+          test "$(rustc --version | awk '{print $2}')" = "$channel"
+      - name: Prove expensive candidate body is independent of revision identity
+        run: npm run test:tree-bound-candidate-evidence

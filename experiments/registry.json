@@ -834,6 +834,50 @@
       ]
     },
     {
+      "id": "tree-bound-candidate-evidence",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/tree-bound-candidate-evidence",
+      "readme": "experiments/tree-bound-candidate-evidence/README.md",
+      "question": "Can Git stress, TLA+, and the production computation boundary run without ambient Git metadata or revision-coordinate environment?",
+      "claim": "The expensive non-self-application candidate proofs execute from a Git-free source snapshot with revision-coordinate environment removed, establishing tree/toolchain-bound behavior under the tested environment.",
+      "contrast": "Treat every expensive candidate proof as revision-bound because the hosted runner starts from a Git checkout.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:tree-bound-candidate-evidence"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Java 21",
+        "Go from .go-version",
+        "Rust from rust-toolchain.toml",
+        "Docker",
+        "Network access when pinned formal or toolchain artifacts are not cached"
+      ],
+      "success_criteria": [
+        "The copied source snapshot contains no .git directory.",
+        "git rev-parse --show-toplevel fails in the copied source snapshot.",
+        "Revision-coordinate environment variables are removed from child proofs.",
+        "Git stress passes from the snapshot.",
+        "TLA+ formal proof passes from the snapshot.",
+        "Production computation boundary passes from the snapshot."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          ".github/workflows/tree-bound-candidate-evidence.yml",
+          "experiments/tree-bound-candidate-evidence/experiment.ts"
+        ]
+      },
+      "interpretation": "A positive result supports factoring candidate verification into reusable tree/toolchain-bound evidence plus a smaller revision-bound derivation/self-application tail. Cross-revision reuse still requires a separate exact derivation contract.",
+      "non_claims": [
+        "Self-application evidence is tree-bound.",
+        "Provider/live evidence is tree-bound.",
+        "Equal Git trees imply equal execution identity.",
+        "The current Merge gate may skip post-merge evidence."
+      ]
+    },
+    {
       "id": "two-effect-concurrency",
       "kind": "experiment",
       "status": "maintained",

@@ -21,6 +21,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `git-metadata-independence/` - prove deterministic regression suites run from source bytes with no ambient Git worktree identity.
+- `tree-bound-candidate-evidence/` - test Git stress, TLA+, and production-boundary evidence from a Git-free, revision-free source snapshot.
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
 - `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
