@@ -56,7 +56,7 @@ function stateFromMask(n:number,mask:number):State {
     obligations:Object.fromEntries(
       dependencies.map((deps,index)=>[id(index),obligation(index,deps)]),
     ),
-    definition_commits:Object.fromEntries(
+    definition_ids:Object.fromEntries(
       Array.from({length:n},(_,index)=>[id(index),`definition:${id(index)}`]),
     ),
   };
@@ -88,7 +88,7 @@ function typedState(n:number,code:number):State {
     obligations:Object.fromEntries(
       dependencies.map((deps,index)=>[id(index),obligation(index,deps)]),
     ),
-    definition_commits:Object.fromEntries(
+    definition_ids:Object.fromEntries(
       Array.from({length:n},(_,index)=>[id(index),`definition:${id(index)}`]),
     ),
   };
@@ -474,7 +474,7 @@ test('every typed DAG through four nodes invalidates exactly the semantic descen
         const postcondition=mutated.obligations[id(changed)].postcondition;
         assert.equal(postcondition.verifier,'file-content-equals/v1');
         postcondition.content+=`:changed:${changed}`;
-        mutated.definition_commits[id(changed)]=`definition:${id(changed)}:changed`;
+        mutated.definition_ids[id(changed)]=`definition:${id(changed)}:changed`;
 
         const projection=deriveProjectProjection({
           state:mutated,
@@ -516,7 +516,7 @@ test('same-output resettlement preserves exactly the semantic identities that re
       for (let changed=0;changed<n;changed++) {
         const mutated=structuredClone(state);
         mutated.obligations[id(changed)].packet={version:'v2'};
-        mutated.definition_commits[id(changed)]=`definition:${id(changed)}:packet-v2`;
+        mutated.definition_ids[id(changed)]=`definition:${id(changed)}:packet-v2`;
         const runs=new Map(baseline.runs);
         const receipts=new Map(baseline.receipts);
 
