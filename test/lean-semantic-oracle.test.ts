@@ -189,7 +189,7 @@ function stateFromDependencies(
   dependencyKind:DependencyKind='control',
 ):State{
   const obligations:Record<string,Obligation>={};
-  const definition_commits:Record<string,string>={};
+  const definition_ids:Record<string,string>={};
   for(let i=0;i<dependencies.length;i+=1){
     const id=`n-${i}`;
     const postcondition=i===effect?.target
@@ -206,9 +206,9 @@ function stateFromDependencies(
       postcondition,
       dependencyKind,
     );
-    definition_commits[id]=`definition-${i}`;
+    definition_ids[id]=`definition-${i}`;
   }
-  return {obligations,definition_commits};
+  return {obligations,definition_ids};
 }
 
 function typeScriptGraphValid(state:State):boolean{
