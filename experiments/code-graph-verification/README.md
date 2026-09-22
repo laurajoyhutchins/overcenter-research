@@ -18,27 +18,64 @@ The experiment is falsified if any of these preregistered conditions fails:
 
 Precision and wall-clock reduction are reported but are not gates. Authorship is a preregistered stratum, not a different hypothesis.
 
-## Why this corpus
+## Confirmatory corpus
 
-Each runnable case binds one exact Flask base commit to both a human-authored patch and an independently published AI-authored patch. The initial two cases are plumbing controls:
+The confirmatory slice is fixed to every `repo=pallets/flask` row in the full SWE-bench test split. The source fixture contains exactly 11 instances:
 
-- `pallets__flask-4045`: human patch from Flask history and the final Loope AI patch.
-- `pallets__flask-5014`: human patch from Flask history and the `dm-agent-deepseek` patch published by DM-Code-Agent.
+```text
+pallets__flask-4045
+pallets__flask-4074
+pallets__flask-4160
+pallets__flask-4169
+pallets__flask-4544
+pallets__flask-4575
+pallets__flask-4642
+pallets__flask-4935
+pallets__flask-4992
+pallets__flask-5014
+pallets__flask-5063
+```
 
-For both initial cases the successful AI production patch is byte-equivalent in meaning to the human production patch. That is useful as an authorship control, but it does **not** provide patch-shape diversity. Variants in the same `equivalence_group` must be deduplicated for primary graph-performance statistics; authorship controls may be reported separately but cannot increase the effective sample size.
+For all 11, `corpus.json` pins the exact base commit, gold production patch, and held-out test patch from the published SWE-bench Flask fixture.
 
-A documented `gpt-oss:120b` Flask-5014 run is also recorded because it fixed the target test while regressing 44 previously passing tests. It is excluded from primary statistics until the exact patch bytes are pinned. Outcome tables are not a substitute for an executable patch artifact.
+The candidate AI stratum currently contains 10 exact patch artifacts from four independent public sources:
 
-### Confirmatory-corpus admission
+- Loope for Flask 4045;
+- DM-Code-Agent for Flask 5014;
+- SWE-benchify Claude Opus, Haiku, and Sonnet outputs for Flask 4045 and 4074; and
+- the lightweight-code-agent failure corpus's Qwen 2.5 Coder 32B direct outputs for Flask 4992 and 5063.
 
-No broad conclusion is allowed from the two-case pilot. A confirmatory run requires, before looking at aggregate results:
+The latter two are intentionally adversarial. Their published SWE-bench harness reports record:
 
-- all usable Flask instances in the selected SWE-bench slice to be enumerated;
-- at least 10 exact human patches and 10 exact AI patches;
+- Flask 4992: target still failing, plus **2 previously passing tests failing**;
+- Flask 5063: both target tests still failing, plus **54 previously passing tests failing**.
+
+Those are useful because a verification frontier that only works on correct or gold-like patches is not useful enough.
+
+Variants in the same `equivalence_group` are deduplicated for primary graph-performance statistics. Different authorship labels or model runs do not increase the effective sample size when they induce the same graph-relevant edit.
+
+A documented `gpt-oss:120b` Flask-5014 run remains outside the primary corpus even though its published outcome reports 44 regressions. Its exact patch bytes are not pinned, and an outcome table is not a substitute for an executable artifact.
+
+### Admission state
+
+The preregistered artifact-count gates are:
+
+- at least 10 exact human patches;
+- at least 10 exact AI patches;
 - at least 5 AI patches whose bytes differ from the corresponding human patch; and
 - at least 2 exact unsuccessful or regressive AI patches.
 
-If those conditions cannot be met, the result remains a pilot rather than being promoted by relaxing the corpus after inspection.
+The repository now contains enough candidate artifacts to test those gates mechanically. This is **not yet execution admission**.
+
+Before a variant enters confirmatory statistics:
+
+1. its held-out test patch must apply exactly to the declared base commit;
+2. its candidate production patch must pass ordinary `git apply --check` at that base;
+3. no fuzzy patching, manual repair, or context reinterpretation is allowed;
+4. the graph frontier must be generated before patched test outcomes are inspected; and
+5. the test environment must be recorded by immutable identity.
+
+A candidate that fails exact application is excluded from the executable corpus and reported as such. It is not silently repaired to make the experiment easier.
 
 ## Representation
 
@@ -99,8 +136,6 @@ python3 experiments/code-graph-verification/score.py \
 
 An affected test is defined mechanically as a test whose normalized outcome differs between the base and patched runs. A regression is a test that passes in the base run and does not pass in the patched run.
 
-The exact test environment is evidence. Before a run is admitted to the confirmatory corpus, record an immutable container/environment identity alongside the result. A mutable image tag or an unrecorded local environment is exploratory only.
-
 ## Metrics
 
 For predicted frontier `P`, affected tests `A`, and verification universe `U`:
@@ -124,7 +159,9 @@ The cheap repository contract is deterministic and dependency-free:
 npm run test:code-graph-verification
 ```
 
-It checks the corpus schema and runs a synthetic negative control where only one of two tests reaches the changed function. The real Flask corpus is intentionally not part of ordinary CI because cloning external history and running full historical test environments is expensive and host-dependent.
+It checks the fixed 11-case slice, artifact-count admission, patch-file presence, adversarial outcome provenance, thresholds, and a synthetic negative control where only one of two tests reaches the changed function.
+
+The real historical Flask executions are intentionally separate from ordinary fast CI. Their environment identity and full result artifacts are evidence, not ambient developer state.
 
 ## Interpretation
 
@@ -139,4 +176,4 @@ It would not prove that:
 - selected tests may replace full verification without an independently justified operating policy; or
 - the current AST graph should become Overcenter authority.
 
-A negative result is useful. Missed affected tests identify concrete missing graph relations; poor reduction shows that the representation is too coarse even if it is safe.
+Artifact-count completion alone is not evidence for the hypothesis. A negative execution result is useful: missed affected tests identify concrete missing graph relations, while poor reduction shows that the representation is too coarse even if it remains safe.
