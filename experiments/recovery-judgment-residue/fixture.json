@@ -1,0 +1,57 @@
+{
+  "schema": "overcenter-recovery-judgment-fixture/v1",
+  "public": {
+    "id": "unstructured-audit-query",
+    "incident": "The canary control-plane bootstrap submitted creation of its deploy identity. The operator note calls that identity the canary deployer and retained request label violet-sunrise. The provider response disappeared immediately after submission.",
+    "tool": {
+      "name": "search-authoritative-audit",
+      "syntax": "space-separated key=value clauses",
+      "allowed_fields": [
+        "operation",
+        "principal",
+        "label"
+      ],
+      "conventions": [
+        "operation uses the provider canonical API method name",
+        "service-account principals use serviceAccount:<environment>-<role>",
+        "label is copied exactly from the retained request label"
+      ]
+    }
+  },
+  "hidden": {
+    "truth": "present",
+    "expected_effect_digest": "sha256:canary-deploy-identity",
+    "records": [
+      {
+        "id": "audit:event-8841",
+        "fields": {
+          "operation": "iam.serviceAccounts.create",
+          "principal": "serviceAccount:canary-deployer",
+          "label": "violet-sunrise"
+        },
+        "effect_digest": "sha256:canary-deploy-identity",
+        "effect_state": "present"
+      },
+      {
+        "id": "audit:event-8840",
+        "fields": {
+          "operation": "iam.serviceAccounts.create",
+          "principal": "serviceAccount:billing-deployer",
+          "label": "violet-sunrise"
+        },
+        "effect_digest": "sha256:billing-deploy-identity",
+        "effect_state": "present"
+      },
+      {
+        "id": "audit:event-8839",
+        "fields": {
+          "operation": "iam.serviceAccounts.create",
+          "principal": "serviceAccount:shadow-deployer",
+          "label": "amber-moon"
+        },
+        "effect_digest": "sha256:shadow-deploy-identity",
+        "effect_state": "present"
+      }
+    ]
+  }
+}
