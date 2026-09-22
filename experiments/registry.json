@@ -716,11 +716,14 @@
         "The locked unstructured-search case reaches JUDGMENT_REQUIRED without an asserted outcome."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
         "artifacts": [
+          "GitHub Actions run 35682912211: exact-head candidate evidence passed the experiment contract and deterministic regression at 88b4fd815488af85280a4d8414fbdf6d6a2c6445.",
           "experiments/recovery-reasoning/cases.json",
           "experiments/recovery-reasoning/recovery-reasoning.test.ts"
-        ]
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "88b4fd815488af85280a4d8414fbdf6d6a2c6445"
       },
       "interpretation": "This establishes the deterministic recovery frontier and the safety contract for future agent proposals. It does not show that inference improves recovery. A later hosted stage must use locked judgment fixtures and compare deterministic search with agent-assisted proposal generation under the same deterministic validator.",
       "non_claims": [
@@ -729,7 +732,15 @@
         "Agent output is authority-bearing evidence.",
         "Recovery must eventually regain liveness.",
         "A consequential effect may be retried directly from RECOVERY_REQUIRED."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The locked eight-case corpus, deterministic search boundary, and expected recovery assertions were fixed before the exact-head deterministic result was accepted."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Deterministic recovery resolves all five mechanically recoverable cases, leaves two permanently unknowable cases unresolved, and sends the unstructured-search residue to JUDGMENT_REQUIRED with zero false certainty."
+      }
     },
     {
       "id": "scheduler-bottleneck",
@@ -894,9 +905,12 @@
       "evidence": {
         "state": "pending",
         "artifacts": [
+          "GitHub Actions run 35740389360: deterministic residue preparation passed, the oracle-blind inference invocation failed, and trusted evidence admission was skipped.",
           "experiments/recovery-reasoning/recovery-gate.ts",
           "experiments/recovery-judgment-residue/residue.test.ts"
-        ]
+        ],
+        "status": "pending",
+        "pending_reason": "The hosted attempt failed at model invocation after deterministic preparation, so there is no admitted inference result for the locked residue."
       },
       "interpretation": "A positive live result would show only that inference can synthesize a useful search for this locked residue. It would not make the model authoritative or overturn broader negative evidence from other recovery-search experiments.",
       "non_claims": [
@@ -904,7 +918,15 @@
         "A no-hit search proves the effect is absent.",
         "The model may retry the consequential effect or settle its own proposal.",
         "One successful residue generalizes to all providers or recovery cases."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The single locked JUDGMENT_REQUIRED residue, model-visible packet, allowed search tool, deterministic proposal gate, and authority boundary were fixed before the hosted inference attempt."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "No scientific outcome is admitted yet because the hosted reasoner failed during the inference invocation; deterministic residue preparation passed and trusted evidence admission did not run."
+      }
     }
   ]
 }
