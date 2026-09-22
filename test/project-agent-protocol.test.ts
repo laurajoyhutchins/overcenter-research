@@ -154,6 +154,37 @@ test('project.advance selects and claims real READY work, then emits a bounded p
   }
 });
 
+test('project.advance requires native client bytes before claiming reasoning work',()=>{
+  const f=fixture();
+  try {
+    defineAgentWork(f.work,f.sourceSha,f.postconditionPath);
+    const before=new GitOvercenterKernel(
+      f.work,
+      {remote:'origin',ref:AUTHORITY_REF},
+    );
+    const head=before.head();
+
+    assert.throws(
+      ()=>advanceProjectForAgent(
+        f.work,
+        commandContext(f.sourceSha),
+        {outputDir:join(f.root,'packet'),authorityRef:AUTHORITY_REF,remote:'origin'},
+      ),
+      /PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED/,
+    );
+
+    const after=new GitOvercenterKernel(
+      f.work,
+      {remote:'origin',ref:AUTHORITY_REF},
+    );
+    assert.equal(after.head(),head);
+    assert.equal(after.inspect()[0].status,'READY');
+  } finally {
+    rmSync(f.root,{recursive:true,force:true});
+    rmSync(f.postconditionRoot,{recursive:true,force:true});
+  }
+});
+
 test('unsupported READY work fails before authority is claimed',()=>{
   const f=fixture();
   try {
