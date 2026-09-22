@@ -35,18 +35,30 @@ same work packet                      same work packet
 
 ## Run
 
+Deterministic capability-isolation witness:
+
 ```sh
 npm run test:ambient-authority-boundary
 ```
 
+Hosted permission-boundary witness:
+
+```sh
+gh workflow run ambient-authority-boundary.yml
+```
+
+The hosted workflow also runs when its pull request is moved out of draft. It keeps the work packet and source revision fixed across two worker jobs. The control gets `contents: read` only. The deliberately over-capable worker gets `contents: read` plus `statuses: write`. Neither receives `contents: write`, so neither owns Overcenter project authority.
+
 ## Falsification conditions
 
-The claim is falsified if the over-capable worker can make Overcenter report DONE merely by returning a success assertion, or if possession of the modeled provider-write capability also grants it a path to settlement authority.
+The project-truth claim is falsified if the over-capable worker can make Overcenter report DONE merely by returning success or by possessing the provider-write capability.
 
 The physical-confinement negative is falsified if the over-capable arm cannot produce the provider effect despite being explicitly given the host capability.
+
+The hosted proof additionally fails if the two workers do not observe the same packet digest, if the control can write the GitHub status, if the over-capable worker cannot write it, or if the over-capable worker's successful provider mutation advances the project to DONE before trusted recovery.
 
 ## Interpretation
 
 Passing both arms means the architectural boundary is narrower than "sandbox the agent": Overcenter can keep project truth outside an uncontrolled substrate, but it cannot claim to prevent external effects that the host independently authorizes.
 
-This experiment intentionally models the host capability as an explicit object capability. It does not prove that a real hosted agent platform lacks hidden authority, nor does it replace the Rust confinement proof. A hosted follow-on should vary real job/tool permissions while holding the work packet fixed.
+The deterministic case models the host tool as an explicit object capability. The hosted case turns that capability into a real GitHub job permission. Neither replaces the Rust confinement proof. Instead, they test the boundary outside Rust's jurisdiction: capabilities held by the parent agent environment.
