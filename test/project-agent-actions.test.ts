@@ -11,15 +11,15 @@ const signal=readFileSync(
   'utf8',
 );
 const submit=readFileSync(
-  new URL('../.github/workflows/operator-agent-submit.yml',import.meta.url),
+  new URL('../.github/workflows/operator-project-submit.yml',import.meta.url),
   'utf8',
 );
 
 test('reasoning-agent interface exposes semantic project commands',()=>{
   assert.match(advance,/^name: Overcenter command · project\.advance/m);
   assert.match(advance,/command:\n\s+name: project\.advance/);
-  assert.match(submit,/^name: Overcenter command · agent\.submit/m);
-  assert.match(submit,/command:\n\s+name: agent\.submit/);
+  assert.match(submit,/^name: Overcenter command · project\.submit/m);
+  assert.match(submit,/command:\n\s+name: project\.submit/);
 
   for (const removed of [
     '../.github/workflows/agent-ingress.yml',
@@ -51,7 +51,7 @@ test('project.advance is a project-scoped trusted rerun command',()=>{
   assert.match(advance,/overcenter-work-packet-\$\{\{ steps\.invoke\.outputs\.run_id \}\}/);
 });
 
-test('candidate transport stays internal and inert until agent.submit is invoked',()=>{
+test('candidate transport stays internal and inert until project.submit is invoked',()=>{
   assert.match(signal,/^name: Overcenter internal · candidate handoff/m);
   assert.match(signal,/overcenter\/candidate\/\*\*/);
   assert.match(signal,/permissions: \{\}/);
@@ -65,7 +65,7 @@ test('candidate transport stays internal and inert until agent.submit is invoked
   assert.match(submit,/COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.sha \}\}/);
   assert.match(submit,/test "\$changed" = "\.overcenter\/candidate\.json"/);
   assert.match(submit,/test "\$branch_run_id" = "\$candidate_run_id"/);
-  assert.match(submit,/github-agent-submit-command\.ts --receipt response\/receipt\.json/);
+  assert.match(submit,/github-project-submit\.ts --receipt response\/receipt\.json/);
   assert.doesNotMatch(submit,/issue_comment:|pull_request_review:|workflow_dispatch:/);
 });
 

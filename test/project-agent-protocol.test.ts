@@ -15,7 +15,7 @@ import test from 'node:test';
 import {GitOvercenterKernel} from '../src/git-kernel.ts';
 import {
   advanceProjectForAgent,
-  submitProjectAgentCandidate,
+  submitProjectCandidate,
 } from '../src/project-agent-protocol.ts';
 
 const AUTHORITY_REF='refs/overcenter/test-project-agent';
@@ -173,7 +173,7 @@ test('unsupported READY work fails before authority is claimed',()=>{
   }
 });
 
-test('agent.submit validates exact packet identity and settles independently',()=>{
+test('project.submit validates exact packet identity and settles independently',()=>{
   const f=fixture();
   try {
     defineAgentWork(f.work,f.sourceSha,f.postconditionPath);
@@ -208,7 +208,7 @@ test('agent.submit validates exact packet identity and settles independently',()
     execFileSync('git',['-C',f.work,'commit','-m','candidate bytes'],{stdio:'ignore'});
     const candidateSha=git(f.work,['rev-parse','HEAD']);
 
-    const settled=submitProjectAgentCandidate(
+    const settled=submitProjectCandidate(
       f.work,
       {
         ...commandContext(f.sourceSha,9002),
@@ -228,7 +228,7 @@ test('agent.submit validates exact packet identity and settles independently',()
     ).inspect();
     assert.equal(current[0].status,'DONE');
 
-    const replay=submitProjectAgentCandidate(
+    const replay=submitProjectCandidate(
       f.work,
       {
         ...commandContext(f.sourceSha,9003),

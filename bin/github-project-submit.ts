@@ -2,8 +2,8 @@ import {appendFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {dirname} from 'node:path';
 
 import {
-  submitProjectAgentCandidate,
-  type AgentSubmitContext,
+  submitProjectCandidate,
+  type ProjectSubmitContext,
 } from '../src/project-agent-protocol.ts';
 
 function required(name:string):string {
@@ -28,10 +28,10 @@ function option(name:string):string|null {
 
 const receiptPath=option('--receipt');
 if (!receiptPath) {
-  throw new Error('usage: github-agent-submit-command.ts --receipt <path>');
+  throw new Error('usage: github-project-submit.ts --receipt <path>');
 }
 
-const context:AgentSubmitContext={
+const context:ProjectSubmitContext={
   repository_id:positiveInteger('OVERCENTER_COMMAND_REPOSITORY_ID'),
   repository_full_name:required('OVERCENTER_COMMAND_REPOSITORY'),
   command_source_sha:required('OVERCENTER_COMMAND_SOURCE_SHA'),
@@ -40,7 +40,7 @@ const context:AgentSubmitContext={
   candidate_sha:required('OVERCENTER_CANDIDATE_SHA'),
 };
 
-const receipt=submitProjectAgentCandidate(process.cwd(),context,{
+const receipt=submitProjectCandidate(process.cwd(),context,{
   authorityRef:process.env.OVERCENTER_PROJECT_AUTHORITY_REF,
   remote:process.env.OVERCENTER_PROJECT_REMOTE,
   githubToken:process.env.GITHUB_TOKEN??null,

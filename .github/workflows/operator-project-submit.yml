@@ -1,4 +1,4 @@
-name: Overcenter command · agent.submit
+name: Overcenter command · project.submit
 
 on:
   workflow_run:
@@ -8,12 +8,12 @@ on:
 permissions: {}
 
 concurrency:
-  group: overcenter-command-agent-submit-${{ github.event.workflow_run.head_sha }}
+  group: overcenter-command-project-submit-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: false
 
 jobs:
   command:
-    name: agent.submit
+    name: project.submit
     if: >-
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.conclusion == 'success' &&
@@ -36,7 +36,7 @@ jobs:
           {
             echo '## Overcenter command'
             echo
-            echo '- command: `agent.submit`'
+            echo '- command: `project.submit`'
             echo "- candidate SHA: $CANDIDATE_SHA"
             echo "- implementation SHA: $COMMAND_IMPLEMENTATION_SHA"
             echo '- state: available'
@@ -78,7 +78,7 @@ jobs:
           ')"
           test "$branch_run_id" = "$candidate_run_id"
 
-      - name: Invoke agent.submit
+      - name: Invoke project.submit
         if: ${{ github.run_attempt > 1 }}
         id: invoke
         env:
@@ -91,13 +91,13 @@ jobs:
           OVERCENTER_CANDIDATE_SHA: ${{ env.CANDIDATE_SHA }}
           OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
           OVERCENTER_PROJECT_REMOTE: origin
-        run: node --experimental-strip-types bin/github-agent-submit-command.ts --receipt response/receipt.json
+        run: node --experimental-strip-types bin/github-project-submit.ts --receipt response/receipt.json
 
       - name: Publish settlement receipt
         if: ${{ github.run_attempt > 1 && steps.invoke.outputs.run_id != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: overcenter-agent-submit-${{ steps.invoke.outputs.run_id }}
+          name: overcenter-project-submit-${{ steps.invoke.outputs.run_id }}
           path: response/receipt.json
           if-no-files-found: error
           retention-days: 1
@@ -117,7 +117,7 @@ jobs:
           {
             echo '## Overcenter command receipt'
             echo
-            echo '- command: `agent.submit`'
+            echo '- command: `project.submit`'
             echo "- command attempt: $RUN_ATTEMPT"
             echo "- candidate SHA: $CANDIDATE_SHA"
             echo "- disposition: ${DISPOSITION:-failed}"
