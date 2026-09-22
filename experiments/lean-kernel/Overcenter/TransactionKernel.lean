@@ -319,4 +319,47 @@ theorem step_refines
           simpa [abstract] using allowed)
       · simp [step, allowed] at h
 
+
+/--
+A single epoch cannot simultaneously represent revocable execution authority and
+an unresolved external mutation across recovery.
+
+Recovery must rotate execution authority so the dead worker becomes stale.
+While the mutation outcome is unresolved, the mutation identity must remain
+stable so a successor cannot mistake recovery for permission to issue a second
+external effect. If both identities are one clock before and after recovery,
+those requirements are contradictory.
+-/
+theorem single_clock_recovery_impossible
+    {Epoch : Type}
+    {authorityBefore authorityAfter mutationBefore mutationAfter : Epoch}
+    (authorityRotates : authorityAfter ≠ authorityBefore)
+    (mutationPersists : mutationAfter = mutationBefore)
+    (singleClockBefore : authorityBefore = mutationBefore)
+    (singleClockAfter : authorityAfter = mutationAfter) :
+    False := by
+  apply authorityRotates
+  calc
+    authorityAfter = mutationAfter := singleClockAfter
+    _ = mutationBefore := mutationPersists
+    _ = authorityBefore := singleClockBefore.symm
+
+/--
+Equivalent constructive statement: under the two recovery requirements, a
+single-clock representation cannot remain aliased across the transition.
+-/
+theorem recovery_requires_distinct_clock_dimension
+    {Epoch : Type}
+    {authorityBefore authorityAfter mutationBefore mutationAfter : Epoch}
+    (authorityRotates : authorityAfter ≠ authorityBefore)
+    (mutationPersists : mutationAfter = mutationBefore)
+    (singleClockBefore : authorityBefore = mutationBefore) :
+    authorityAfter ≠ mutationAfter := by
+  intro singleClockAfter
+  exact single_clock_recovery_impossible
+    authorityRotates
+    mutationPersists
+    singleClockBefore
+    singleClockAfter
+
 end Overcenter
