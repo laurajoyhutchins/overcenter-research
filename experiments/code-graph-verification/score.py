@@ -10,7 +10,11 @@ from pathlib import Path
 
 
 def normalize(test_id: str) -> str:
-    return re.sub(r"\[.*\]$", "", test_id)
+    test_id = re.sub(r"\[.*\]$", "", test_id)
+    if "::" not in test_id:
+        return test_id
+    path, qualname = test_id.split("::", 1)
+    return path + "::" + qualname.replace(".", "::")
 
 
 def junit_statuses(path: Path) -> dict[str, str]:
