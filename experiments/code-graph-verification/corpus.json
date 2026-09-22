@@ -26,7 +26,8 @@
           "provenance": {
             "source": "pallets/flask commit 7c5261407dae61679c268b44c63d73909c3fe652",
             "artifact_kind": "exact_git_commit_source_diff"
-          }
+          },
+          "equivalence_group": "pallets__flask-4045-gold-source-edit"
         },
         {
           "id": "ai-loope-final",
@@ -36,7 +37,8 @@
           "provenance": {
             "source": "mateaix/loope benchmarks/results/swebench-flask-4045.patch",
             "artifact_kind": "exact_published_model_patch"
-          }
+          },
+          "equivalence_group": "pallets__flask-4045-gold-source-edit"
         }
       ]
     },
@@ -53,7 +55,8 @@
           "provenance": {
             "source": "pallets/flask commit b8b410014d85f9861acc87c5f21c9a55a42d09c9",
             "artifact_kind": "exact_git_commit_source_diff"
-          }
+          },
+          "equivalence_group": "pallets__flask-5014-gold-source-edit"
         },
         {
           "id": "ai-dm-deepseek",
@@ -64,7 +67,8 @@
             "source": "hwfengcs/DM-Code-Agent bench_reports/swebench-verified-crossrepo-50-predictions-20260806.jsonl",
             "model": "dm-agent-deepseek",
             "artifact_kind": "exact_published_model_patch"
-          }
+          },
+          "equivalence_group": "pallets__flask-5014-gold-source-edit"
         }
       ]
     }
