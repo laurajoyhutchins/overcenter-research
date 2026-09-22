@@ -25,7 +25,7 @@ Each runnable case binds one exact Flask base commit to both a human-authored pa
 - `pallets__flask-4045`: human patch from Flask history and the final Loope AI patch.
 - `pallets__flask-5014`: human patch from Flask history and the `dm-agent-deepseek` patch published by DM-Code-Agent.
 
-For both initial cases the successful AI production patch is byte-equivalent in meaning to the human production patch. That is useful as an authorship control, but it does **not** provide patch-shape diversity. Identical `(base_commit, patch bytes)` pairs must be deduplicated for primary graph-performance statistics.
+For both initial cases the successful AI production patch is byte-equivalent in meaning to the human production patch. That is useful as an authorship control, but it does **not** provide patch-shape diversity. Variants in the same `equivalence_group` must be deduplicated for primary graph-performance statistics; authorship controls may be reported separately but cannot increase the effective sample size.
 
 A documented `gpt-oss:120b` Flask-5014 run is also recorded because it fixed the target test while regressing 44 previously passing tests. It is excluded from primary statistics until the exact patch bytes are pinned. Outcome tables are not a substitute for an executable patch artifact.
 
