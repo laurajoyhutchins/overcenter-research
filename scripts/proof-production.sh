@@ -33,7 +33,7 @@ fi
 (
   cd src/execution/executor
   go test ./...
-  CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "../$build_dir/overcenter-executor" ./cmd/overcenter-executor
+  CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "../../../$build_dir/overcenter-executor" ./cmd/overcenter-executor
 )
 
 if [[ "$preverified_computation_executor" != "1" ]]; then
