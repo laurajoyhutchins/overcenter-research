@@ -718,15 +718,16 @@
         "The hosted result reports agent recovery yield and delta even when the agent does not beat the baseline."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "historical",
         "artifacts": [
-          ".github/workflows/autonomy-sandbox-google-free.yml",
+          "GitHub Actions run 35694479360: exact-head hosted recovery-agent-search experiment completed successfully and scored the oracle-blind reasoning candidate.",
+          "Candidate artifact 10679658548 retained by the refinement experiment as the exact frozen round-one candidate.",
           "experiments/recovery-agent-search/packets.json",
           "experiments/recovery-agent-search/oracle.json",
-          "experiments/recovery-agent-search/proposal.schema.json",
-          "experiments/recovery-agent-search/google-free-candidate.ts",
-          "experiments/recovery-agent-search/score.mjs"
-        ]
+          "experiments/recovery-agent-search/proposal.schema.json"
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "88c90ab73fdc49facbb48b014cd543c65d22b2a0"
       },
       "interpretation": "A positive recovery delta would support inference as a narrow search-hypothesis generator after deterministic recovery is exhausted. It would not authorize agent settlement. Repeated successful transformations should be candidates for deterministic promotion. A zero or negative delta is evidence against spending inference on this recovery slice.",
       "non_claims": [
@@ -735,7 +736,15 @@
         "The synthetic audit corpus represents every provider.",
         "A model win makes the successful transformations permanently agent-owned.",
         "The worker can safely perform provider mutations."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The 4/7 deterministic baseline, seven recoverable cases, one permanent-uncertainty control, proposal schema, oracle isolation, and scoring boundary were frozen before the hosted reasoning result."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "The one-shot reasoning worker recovered 3/7 recoverable cases versus the locked deterministic baseline of 4/7, for a recovery delta of -1 with zero false certainty and zero permanent-uncertainty violations."
+      }
     },
     {
       "id": "recovery-reasoning",
@@ -763,11 +772,14 @@
         "The locked unstructured-search case reaches JUDGMENT_REQUIRED without an asserted outcome."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
         "artifacts": [
+          "GitHub Actions run 35682912211: exact-head candidate evidence passed the experiment contract and deterministic regression at 88b4fd815488af85280a4d8414fbdf6d6a2c6445.",
           "experiments/recovery-reasoning/cases.json",
           "experiments/recovery-reasoning/recovery-reasoning.test.ts"
-        ]
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "88b4fd815488af85280a4d8414fbdf6d6a2c6445"
       },
       "interpretation": "This establishes the deterministic recovery frontier and the safety contract for future agent proposals. It does not show that inference improves recovery. A later hosted stage must use locked judgment fixtures and compare deterministic search with agent-assisted proposal generation under the same deterministic validator.",
       "non_claims": [
@@ -776,7 +788,15 @@
         "Agent output is authority-bearing evidence.",
         "Recovery must eventually regain liveness.",
         "A consequential effect may be retried directly from RECOVERY_REQUIRED."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The locked eight-case corpus, deterministic search boundary, and expected recovery assertions were fixed before the exact-head deterministic result was accepted."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Deterministic recovery resolves all five mechanically recoverable cases, leaves two permanently unknowable cases unresolved, and sends the unstructured-search residue to JUDGMENT_REQUIRED with zero false certainty."
+      }
     },
     {
       "id": "scheduler-bottleneck",
