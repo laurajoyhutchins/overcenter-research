@@ -55,6 +55,14 @@ test('src root exposes only architectural namespaces and cross-cutting primitive
   ]);
 });
 
+test('CLI exposes only semantic project commands',()=>{
+  assert.deepEqual(entries('src/cli'),[
+    'project-advance.ts',
+    'project-submit.ts',
+  ]);
+  assert.equal(existsSync('src/providers/github/authority-command.ts'),false);
+});
+
 test('provider implementations are namespaced by provider',()=>{
   assert.deepEqual(entries('src/providers'),['gcp/','github/','kubernetes/']);
 });
