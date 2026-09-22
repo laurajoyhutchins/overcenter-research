@@ -180,7 +180,7 @@ examples/     small runnable demonstrations
 
 Important entry points:
 
-- [`src/cli/`](./src/cli/) - supported command-line entrypoints for semantic operator commands and narrow authority tooling.
+- [`src/cli/`](./src/cli/) - the two supported semantic operator entrypoints: `project.advance` and `project.submit`.
 - [`src/authority/kernel.ts`](./src/authority/kernel.ts) - production SQLite-backed kernel entry point.
 - [`src/authority/engine.ts`](./src/authority/engine.ts) - storage-neutral transaction, recovery, and settlement policy.
 - [`src/authority/store.ts`](./src/authority/store.ts) - minimal durable-fact authority contract.
