@@ -85,7 +85,9 @@ def main():
                 subprocess.run(
                     [
                         sys.executable, str(HERE / "frontier.py"), "predict",
-                        "--repo", str(base), "--patch", str(candidate_patch),
+                        "--repo", str(base),
+                        "--patched-repo", str(patched),
+                        "--patch", str(candidate_patch),
                         "--source-root", "src", "--test-root", "tests",
                     ],
                     check=True, stdout=handle, text=True,

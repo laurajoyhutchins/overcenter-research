@@ -246,36 +246,71 @@ def main() -> None:
                 cwd=worktree,
             )
 
-            for variant in case["variants"]:
+            for variant_index, variant in enumerate(case["variants"]):
                 variant_dir = out / variant["id"]
                 variant_dir.mkdir(parents=True, exist_ok=True)
                 frontier = variant_dir / "frontier.json"
                 patch = (HERE / variant["patch"]).resolve()
+                graph_patched = Path(tmp) / f"patched-{variant_index}"
 
-                with frontier.open("w", encoding="utf-8") as handle:
-                    prediction = subprocess.run(
-                        [
-                            sys.executable,
-                            str(HERE / "frontier.py"),
-                            "predict",
-                            "--repo",
-                            str(worktree),
-                            "--patch",
-                            str(patch),
-                            "--source-root",
-                            "src",
-                            "--test-root",
-                            "tests",
-                        ],
-                        text=True,
-                        stdout=handle,
-                        stderr=subprocess.PIPE,
-                        check=False,
+                run(
+                    [
+                        "git",
+                        "-C",
+                        str(repo),
+                        "worktree",
+                        "add",
+                        "--detach",
+                        str(graph_patched),
+                        case["base_commit"],
+                    ]
+                )
+                try:
+                    run(
+                        ["git", "apply", str((HERE / test_patch).resolve())],
+                        cwd=graph_patched,
                     )
-                if prediction.returncode != 0:
-                    raise RuntimeError(
-                        f"frontier failed for {case['id']}/{variant['id']}: "
-                        f"{prediction.stderr}"
+                    run(["git", "apply", str(patch)], cwd=graph_patched)
+
+                    with frontier.open("w", encoding="utf-8") as handle:
+                        prediction = subprocess.run(
+                            [
+                                sys.executable,
+                                str(HERE / "frontier.py"),
+                                "predict",
+                                "--repo",
+                                str(worktree),
+                                "--patched-repo",
+                                str(graph_patched),
+                                "--patch",
+                                str(patch),
+                                "--source-root",
+                                "src",
+                                "--test-root",
+                                "tests",
+                            ],
+                            text=True,
+                            stdout=handle,
+                            stderr=subprocess.PIPE,
+                            check=False,
+                        )
+                    if prediction.returncode != 0:
+                        raise RuntimeError(
+                            f"frontier failed for {case['id']}/{variant['id']}: "
+                            f"{prediction.stderr}"
+                        )
+                finally:
+                    run(
+                        [
+                            "git",
+                            "-C",
+                            str(repo),
+                            "worktree",
+                            "remove",
+                            "--force",
+                            str(graph_patched),
+                        ],
+                        check=False,
                     )
 
                 patched_exit = container_test(
