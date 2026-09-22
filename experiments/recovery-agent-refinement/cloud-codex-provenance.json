@@ -1,0 +1,33 @@
+{
+  "schema": "overcenter-recovery-refinement-cloud-codex-provenance/v1",
+  "provider": "openai-codex-cloud",
+  "model_id": "cloud-environment-default-not-exposed-by-github-connector",
+  "transport": "chatgpt-codex-connector-github-issue",
+  "experiment_source_sha": "800f6063b066c50fc25a3f1b6e6a68d44e972b6a",
+  "treatment_prompt_sha256": "d57b70a5b4779856b472a14f8a6b0a4fd7ce801462b3fcf0995895474abd5f14",
+  "candidate_sha256": "2d4e2d375b97b7202480fb4ad015734093ba52554b38130b412fd64f13aef461",
+  "isolation": {
+    "probe_request_comment_id": 5780682855,
+    "probe_response_comment_id": 5780690558,
+    "visible_refs": [
+      "refs/heads/work"
+    ],
+    "file_check_request_comment_id": 5780700948,
+    "file_check_response_comment_id": 5780709958,
+    "checkout_head": "92f5c2a68fdf789ceec5c85b11b09f35d417ab7a",
+    "oracle_exists": false,
+    "packets_exists": false,
+    "round_one_candidate_exists": false
+  },
+  "treatment": {
+    "request_comment_id": 5780725141,
+    "response_comment_id": 5780736471,
+    "task_url": "https://chatgpt.com/s/cd_6ab2b66566c48191b094d71e00a5b695",
+    "repository_mutation_requested": false,
+    "repository_reads_requested": false,
+    "network_access_requested": false,
+    "authority_present": false,
+    "provider_mutation_authority_present": false
+  },
+  "interpretation": "Provider replication only. It does not replace or complete the preregistered Gemini-free treatment."
+}
