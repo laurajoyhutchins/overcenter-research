@@ -124,7 +124,7 @@ jobs:
           sudo chown -R root:root "$sandbox_root/input"
           sudo chmod -R a+rX,u-w,g-w,o-w "$sandbox_root/input"
           sudo chown -R overcenter-codex:overcenter-codex "$sandbox_root/out" "$sandbox_root/work"
-          chmod 700 "$sandbox_root/out" "$sandbox_root/work"
+          sudo chmod 700 "$sandbox_root/out" "$sandbox_root/work"
           test -z "$(find "$sandbox_root/work" -mindepth 1 -print -quit)"
       - name: Run final oracle-blind Codex refinement inference
         id: codex
