@@ -1,8 +1,23 @@
 {
   "schema": "overcenter-code-graph-holdout-corpus/v1",
+  "question": "Does the frozen repaired deterministic Python code graph generalize to an unseen pylint-dev/pylint holdout without representation changes?",
   "subject": {
     "repository": "pylint-dev/pylint",
-    "selection_rule": "Use every pylint-dev__pylint-* directory in IBM Issue-Test-Localizer verified_gpt4o_all_unique_patches, choose exactly dedup_patch_0.jsonl, and pair with SWE-bench task gold.patch and test.patch. Do not consult model outcome reports."
+    "human_artifact_source": {
+      "repository": "Xingkai98/asterwynd",
+      "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+      "root": "benchmarks/tasks"
+    },
+    "ai_patch_source": {
+      "repository": "IBM/Issue-Test-Localizer",
+      "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+      "root": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches"
+    },
+    "selection_rule": "Take the exact intersection of pylint-dev__pylint-* task directories in Asterwynd and IBM's verified_gpt4o_all_unique_patches corpus. For every intersecting issue, use Asterwynd gold.patch and test.patch plus IBM dedup_patch_0.jsonl. Do not inspect model outcomes."
+  },
+  "contamination": {
+    "requests_holdout_excluded": true,
+    "reason": "The earlier Requests attempt exposed test-root discovery after outcomes were observed; Requests is no longer independent."
   },
   "representation": {
     "frontier_path": "experiments/code-graph-verification/frontier.py",
@@ -24,10 +39,11 @@
     "missed_regressions_max": 0
   },
   "execution_admission": {
-    "human_exact_patches": 10,
-    "ai_exact_patches": 10,
-    "ai_nonidentical_to_human_exact_patches": 10,
-    "minimum_graph_test_nodes_per_case": 1
+    "cases": 8,
+    "human_exact_patches": 8,
+    "ai_exact_patches": 8,
+    "ai_nonidentical_to_human_exact_patches": 8,
+    "cases_with_nonzero_discovered_tests": 8
   },
   "cases": [
     {
@@ -40,7 +56,10 @@
           "authorship": "human",
           "patch": "patches/pylint-4551-human.patch",
           "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-4551/gold.patch"
+            "repository": "Xingkai98/asterwynd",
+            "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+            "path": "benchmarks/tasks/swebench-pylint-dev__pylint-4551/gold.patch",
+            "selection_rule": "exact gold.patch from every Pylint task present in both artifact sources"
           }
         },
         {
@@ -48,9 +67,11 @@
           "authorship": "ai",
           "patch": "patches/pylint-4551-ai-agentless-0.patch",
           "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4551/dedup_patch_0.jsonl",
+            "repository": "IBM/Issue-Test-Localizer",
+            "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+            "path": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4551/dedup_patch_0.jsonl",
             "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+            "selection_rule": "exact dedup_patch_0 from every Pylint directory in the named AI corpus that also has Asterwynd gold/test artifacts; no outcome metadata consulted"
           }
         }
       ]
@@ -65,7 +86,10 @@
           "authorship": "human",
           "patch": "patches/pylint-4604-human.patch",
           "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-4604/gold.patch"
+            "repository": "Xingkai98/asterwynd",
+            "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+            "path": "benchmarks/tasks/swebench-pylint-dev__pylint-4604/gold.patch",
+            "selection_rule": "exact gold.patch from every Pylint task present in both artifact sources"
           }
         },
         {
@@ -73,9 +97,11 @@
           "authorship": "ai",
           "patch": "patches/pylint-4604-ai-agentless-0.patch",
           "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4604/dedup_patch_0.jsonl",
+            "repository": "IBM/Issue-Test-Localizer",
+            "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+            "path": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4604/dedup_patch_0.jsonl",
             "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+            "selection_rule": "exact dedup_patch_0 from every Pylint directory in the named AI corpus that also has Asterwynd gold/test artifacts; no outcome metadata consulted"
           }
         }
       ]
@@ -90,7 +116,10 @@
           "authorship": "human",
           "patch": "patches/pylint-4661-human.patch",
           "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-4661/gold.patch"
+            "repository": "Xingkai98/asterwynd",
+            "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+            "path": "benchmarks/tasks/swebench-pylint-dev__pylint-4661/gold.patch",
+            "selection_rule": "exact gold.patch from every Pylint task present in both artifact sources"
           }
         },
         {
@@ -98,9 +127,11 @@
           "authorship": "ai",
           "patch": "patches/pylint-4661-ai-agentless-0.patch",
           "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4661/dedup_patch_0.jsonl",
+            "repository": "IBM/Issue-Test-Localizer",
+            "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+            "path": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4661/dedup_patch_0.jsonl",
             "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+            "selection_rule": "exact dedup_patch_0 from every Pylint directory in the named AI corpus that also has Asterwynd gold/test artifacts; no outcome metadata consulted"
           }
         }
       ]
@@ -115,7 +146,10 @@
           "authorship": "human",
           "patch": "patches/pylint-4970-human.patch",
           "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-4970/gold.patch"
+            "repository": "Xingkai98/asterwynd",
+            "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+            "path": "benchmarks/tasks/swebench-pylint-dev__pylint-4970/gold.patch",
+            "selection_rule": "exact gold.patch from every Pylint task present in both artifact sources"
           }
         },
         {
@@ -123,9 +157,11 @@
           "authorship": "ai",
           "patch": "patches/pylint-4970-ai-agentless-0.patch",
           "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4970/dedup_patch_0.jsonl",
+            "repository": "IBM/Issue-Test-Localizer",
+            "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+            "path": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4970/dedup_patch_0.jsonl",
             "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+            "selection_rule": "exact dedup_patch_0 from every Pylint directory in the named AI corpus that also has Asterwynd gold/test artifacts; no outcome metadata consulted"
           }
         }
       ]
@@ -140,7 +176,10 @@
           "authorship": "human",
           "patch": "patches/pylint-6386-human.patch",
           "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-6386/gold.patch"
+            "repository": "Xingkai98/asterwynd",
+            "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+            "path": "benchmarks/tasks/swebench-pylint-dev__pylint-6386/gold.patch",
+            "selection_rule": "exact gold.patch from every Pylint task present in both artifact sources"
           }
         },
         {
@@ -148,9 +187,11 @@
           "authorship": "ai",
           "patch": "patches/pylint-6386-ai-agentless-0.patch",
           "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6386/dedup_patch_0.jsonl",
+            "repository": "IBM/Issue-Test-Localizer",
+            "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+            "path": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6386/dedup_patch_0.jsonl",
             "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+            "selection_rule": "exact dedup_patch_0 from every Pylint directory in the named AI corpus that also has Asterwynd gold/test artifacts; no outcome metadata consulted"
           }
         }
       ]
@@ -165,7 +206,10 @@
           "authorship": "human",
           "patch": "patches/pylint-6528-human.patch",
           "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-6528/gold.patch"
+            "repository": "Xingkai98/asterwynd",
+            "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+            "path": "benchmarks/tasks/swebench-pylint-dev__pylint-6528/gold.patch",
+            "selection_rule": "exact gold.patch from every Pylint task present in both artifact sources"
           }
         },
         {
@@ -173,9 +217,11 @@
           "authorship": "ai",
           "patch": "patches/pylint-6528-ai-agentless-0.patch",
           "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6528/dedup_patch_0.jsonl",
+            "repository": "IBM/Issue-Test-Localizer",
+            "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+            "path": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6528/dedup_patch_0.jsonl",
             "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+            "selection_rule": "exact dedup_patch_0 from every Pylint directory in the named AI corpus that also has Asterwynd gold/test artifacts; no outcome metadata consulted"
           }
         }
       ]
@@ -190,7 +236,10 @@
           "authorship": "human",
           "patch": "patches/pylint-6903-human.patch",
           "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-6903/gold.patch"
+            "repository": "Xingkai98/asterwynd",
+            "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+            "path": "benchmarks/tasks/swebench-pylint-dev__pylint-6903/gold.patch",
+            "selection_rule": "exact gold.patch from every Pylint task present in both artifact sources"
           }
         },
         {
@@ -198,9 +247,11 @@
           "authorship": "ai",
           "patch": "patches/pylint-6903-ai-agentless-0.patch",
           "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6903/dedup_patch_0.jsonl",
+            "repository": "IBM/Issue-Test-Localizer",
+            "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+            "path": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6903/dedup_patch_0.jsonl",
             "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+            "selection_rule": "exact dedup_patch_0 from every Pylint directory in the named AI corpus that also has Asterwynd gold/test artifacts; no outcome metadata consulted"
           }
         }
       ]
@@ -215,7 +266,10 @@
           "authorship": "human",
           "patch": "patches/pylint-7080-human.patch",
           "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-7080/gold.patch"
+            "repository": "Xingkai98/asterwynd",
+            "revision": "4424f54882179ef1ec53d2eaa1a7d373280b91fb",
+            "path": "benchmarks/tasks/swebench-pylint-dev__pylint-7080/gold.patch",
+            "selection_rule": "exact gold.patch from every Pylint task present in both artifact sources"
           }
         },
         {
@@ -223,59 +277,11 @@
           "authorship": "ai",
           "patch": "patches/pylint-7080-ai-agentless-0.patch",
           "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-7080/dedup_patch_0.jsonl",
+            "repository": "IBM/Issue-Test-Localizer",
+            "revision": "b9100eb6a4550486a26a07704d2d93560eaf751e",
+            "path": "results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-7080/dedup_patch_0.jsonl",
             "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
-          }
-        }
-      ]
-    },
-    {
-      "id": "pylint-dev__pylint-7277",
-      "base_commit": "684a1d6aa0a6791e20078bc524f97c8906332390",
-      "test_patch": "patches/pylint-7277-tests.patch",
-      "variants": [
-        {
-          "id": "human-gold",
-          "authorship": "human",
-          "patch": "patches/pylint-7277-human.patch",
-          "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-7277/gold.patch"
-          }
-        },
-        {
-          "id": "ai-agentless-0",
-          "authorship": "ai",
-          "patch": "patches/pylint-7277-ai-agentless-0.patch",
-          "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-7277/dedup_patch_0.jsonl",
-            "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
-          }
-        }
-      ]
-    },
-    {
-      "id": "pylint-dev__pylint-8898",
-      "base_commit": "1f8c4d9eb185c16a2c1d881c054f015e1c2eb334",
-      "test_patch": "patches/pylint-8898-tests.patch",
-      "variants": [
-        {
-          "id": "human-gold",
-          "authorship": "human",
-          "patch": "patches/pylint-8898-human.patch",
-          "provenance": {
-            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-8898/gold.patch"
-          }
-        },
-        {
-          "id": "ai-agentless-0",
-          "authorship": "ai",
-          "patch": "patches/pylint-8898-ai-agentless-0.patch",
-          "provenance": {
-            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-8898/dedup_patch_0.jsonl",
-            "model_name_or_path": "agentless",
-            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+            "selection_rule": "exact dedup_patch_0 from every Pylint directory in the named AI corpus that also has Asterwynd gold/test artifacts; no outcome metadata consulted"
           }
         }
       ]

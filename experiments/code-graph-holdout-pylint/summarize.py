@@ -1,34 +1,132 @@
 #!/usr/bin/env python3
+"""Aggregate independent Pylint holdout evidence against frozen gates."""
 from __future__ import annotations
-import argparse,json
+
+import argparse
+import json
 from pathlib import Path
-HERE=Path(__file__).resolve().parent
 
-def ratio(n,d,empty): return n/d if d else empty
+HERE = Path(__file__).resolve().parent
 
-def main():
-    p=argparse.ArgumentParser(); p.add_argument("--results",type=Path,required=True); p.add_argument("--preflight",type=Path,required=True); p.add_argument("--out",type=Path); a=p.parse_args()
-    corpus=json.loads((HERE/"corpus.json").read_text()); pre=json.loads(a.preflight.read_text())
-    if not pre["execution_admission"]: raise SystemExit("preflight not admitted")
-    expected={(c["id"],v["id"]) for c in corpus["cases"] for v in c["variants"]}
-    runs={}
-    for rp in sorted(a.results.rglob("run.json")):
-        d=rp.parent; run=json.loads(rp.read_text()); key=(run["case"],run["variant"])
-        if key in runs: raise SystemExit(f"duplicate {key}")
-        if not (d/"score.json").exists() or not (d/"frontier.json").exists(): raise SystemExit(f"incomplete {d}")
-        if not run.get("environment_id"): raise SystemExit(f"no environment {key}")
-        runs[key]={"run":run,"score":json.loads((d/"score.json").read_text()),"frontier":json.loads((d/"frontier.json").read_text())}
-    if set(runs)!=expected: raise SystemExit(f"result set mismatch missing={sorted(expected-set(runs))} extra={sorted(set(runs)-expected)}")
-    keys=["universe","affected","regressions","predicted","caught","missed","missed_regressions"]
-    totals={k:0 for k in keys}; strata={s:{k:0 for k in keys} for s in ["human","ai"]}; obs=[]
+
+def ratio(numerator: int, denominator: int, empty: float) -> float:
+    return numerator / denominator if denominator else empty
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--results", type=Path, required=True)
+    parser.add_argument("--preflight", type=Path, required=True)
+    parser.add_argument("--out", type=Path)
+    args = parser.parse_args()
+
+    corpus = json.loads((HERE / "corpus.json").read_text(encoding="utf-8"))
+    preflight = json.loads(args.preflight.read_text(encoding="utf-8"))
+    if preflight["schema"] != "overcenter-code-graph-holdout-preflight/v1":
+        raise SystemExit("unexpected preflight schema")
+    if not preflight["execution_admission"]:
+        raise SystemExit("holdout preflight was not admitted")
+
+    expected = {
+        (case["id"], variant["id"])
+        for case in corpus["cases"]
+        for variant in case["variants"]
+    }
+    runs = {}
+    for run_path in sorted(args.results.rglob("run.json")):
+        directory = run_path.parent
+        run = json.loads(run_path.read_text(encoding="utf-8"))
+        key = (run["case"], run["variant"])
+        if key in runs:
+            raise SystemExit(f"duplicate run {key}")
+        score_path = directory / "score.json"
+        frontier_path = directory / "frontier.json"
+        if not score_path.exists() or not frontier_path.exists():
+            raise SystemExit(f"incomplete evidence {directory}")
+        if not run.get("environment_id"):
+            raise SystemExit(f"missing immutable environment for {key}")
+        runs[key] = {
+            "run": run,
+            "score": json.loads(score_path.read_text(encoding="utf-8")),
+            "frontier": json.loads(
+                frontier_path.read_text(encoding="utf-8")
+            ),
+        }
+
+    if set(runs) != expected:
+        raise SystemExit(
+            f"result set mismatch "
+            f"missing={sorted(expected - set(runs))} "
+            f"extra={sorted(set(runs) - expected)}"
+        )
+
+    keys = [
+        "universe", "affected", "regressions", "predicted",
+        "caught", "missed", "missed_regressions",
+    ]
+    totals = {key: 0 for key in keys}
+    strata = {
+        "human": {key: 0 for key in keys},
+        "ai": {key: 0 for key in keys},
+    }
+    observations = []
+
     for key in sorted(runs):
-        art=runs[key]; counts=art["score"]["counts"]; auth=art["run"]["authorship"]
-        for k in keys: totals[k]+=counts[k]; strata[auth][k]+=counts[k]
-        obs.append({"case":key[0],"variant":key[1],"authorship":auth,"score":art["score"],"changed_symbols":art["frontier"]["changed_symbols"],"frontier_metrics":art["frontier"]["metrics"]})
-    metrics={"recall":ratio(totals["caught"],totals["affected"],1.0),"precision":ratio(totals["caught"],totals["predicted"],1.0),"selected_fraction":ratio(totals["predicted"],totals["universe"],0.0),"reduction":1-ratio(totals["predicted"],totals["universe"],0.0)}
-    t=corpus["primary_thresholds"]; gates={"recall":metrics["recall"]>=t["recall_min"],"selected_fraction":metrics["selected_fraction"]<=t["selected_fraction_max"],"missed_regressions":totals["missed_regressions"]<=t["missed_regressions_max"]}
-    report={"schema":"overcenter-code-graph-holdout-summary/v1","independent_holdout":True,"corpus_sha256":pre["corpus_sha256"],"raw_runs":len(runs),"totals":totals,"metrics":metrics,"thresholds":t,"gates":gates,"hypothesis_survived":all(gates.values()),"strata":strata,"observations":obs}
-    payload=json.dumps(report,indent=2,sort_keys=True)+"\n"
-    if a.out: a.out.write_text(payload)
-    print(payload,end="")
-if __name__=="__main__": main()
+        artifact = runs[key]
+        counts = artifact["score"]["counts"]
+        authorship = artifact["run"]["authorship"]
+        for name in keys:
+            totals[name] += counts[name]
+            strata[authorship][name] += counts[name]
+        observations.append({
+            "case": key[0],
+            "variant": key[1],
+            "authorship": authorship,
+            "score": artifact["score"],
+            "changed_symbols": artifact["frontier"]["changed_symbols"],
+            "frontier_metrics": artifact["frontier"]["metrics"],
+        })
+
+    metrics = {
+        "recall": ratio(totals["caught"], totals["affected"], 1.0),
+        "precision": ratio(totals["caught"], totals["predicted"], 1.0),
+        "selected_fraction": ratio(
+            totals["predicted"], totals["universe"], 0.0
+        ),
+        "reduction": 1.0 - ratio(
+            totals["predicted"], totals["universe"], 0.0
+        ),
+    }
+    thresholds = corpus["primary_thresholds"]
+    gates = {
+        "recall": metrics["recall"] >= thresholds["recall_min"],
+        "selected_fraction": (
+            metrics["selected_fraction"]
+            <= thresholds["selected_fraction_max"]
+        ),
+        "missed_regressions": (
+            totals["missed_regressions"]
+            <= thresholds["missed_regressions_max"]
+        ),
+    }
+    report = {
+        "schema": "overcenter-code-graph-holdout-summary/v1",
+        "independent_holdout": True,
+        "corpus_sha256": preflight["corpus_sha256"],
+        "raw_runs": len(runs),
+        "totals": totals,
+        "metrics": metrics,
+        "thresholds": thresholds,
+        "gates": gates,
+        "hypothesis_survived": all(gates.values()),
+        "strata": strata,
+        "observations": observations,
+    }
+    payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if args.out:
+        args.out.write_text(payload, encoding="utf-8")
+    print(payload, end="")
+
+
+if __name__ == "__main__":
+    main()

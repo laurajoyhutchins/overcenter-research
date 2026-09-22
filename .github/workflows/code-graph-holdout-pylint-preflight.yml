@@ -1,4 +1,5 @@
 name: Pylint code graph holdout preflight
+
 on:
   push:
     branches:
@@ -9,11 +10,14 @@ on:
       - experiments/code-graph-verification/score.py
       - .github/workflows/code-graph-holdout-pylint-preflight.yml
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: pylint-code-graph-holdout-preflight-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   preflight:
     runs-on: ubuntu-24.04
@@ -23,29 +27,38 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .node-version
-      - name: Verify frozen contract
+      - name: Verify frozen holdout contract
         run: node --test experiments/code-graph-holdout-pylint/contract.test.mjs
       - name: Fetch Pylint history
         run: git clone --filter=blob:none https://github.com/pylint-dev/pylint.git /tmp/pylint
-      - name: Require exact admission
+      - name: Require exact holdout admission
         run: |
           python3 experiments/code-graph-holdout-pylint/preflight.py \
             --pylint-repo /tmp/pylint \
-            --out "$RUNNER_TEMP/pylint-preflight.json" \
+            --out "$RUNNER_TEMP/pylint-holdout-preflight.json" \
             --require-admission
       - name: Publish summary
         if: always()
         env:
-          PREFLIGHT: ${{ runner.temp }}/pylint-preflight.json
+          PREFLIGHT: ${{ runner.temp }}/pylint-holdout-preflight.json
         run: |
           python3 - <<'PY'
-          import json,os
-          p=os.environ["PREFLIGHT"]
-          if not os.path.exists(p): raise SystemExit(0)
-          r=json.load(open(p))
+          import json, os
+          path=os.environ["PREFLIGHT"]
+          if not os.path.exists(path):
+              raise SystemExit(0)
+          report=json.load(open(path))
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as out:
               out.write("## Pylint holdout preflight\n\n")
-              out.write(f"- representation frozen: **{r['representation']['frozen']}**\n")
-              out.write(f"- execution admission: **{r['execution_admission']}**\n")
-              for k,v in r["counts"].items(): out.write(f"- {k}: {v}\n")
+              out.write(f"- representation frozen: **{report['representation']['frozen']}**\n")
+              out.write(f"- execution admission: **{report['execution_admission']}**\n")
+              for key,value in report["counts"].items():
+                  out.write(f"- {key}: {value}\n")
+              out.write("\n### Test discovery\n\n")
+              for case in report["cases"]:
+                  discovery=case.get("test_discovery") or {}
+                  out.write(
+                      f"- `{case['id']}`: "
+                      f"{discovery.get('tests',0)} tests\n"
+                  )
           PY
