@@ -54,7 +54,7 @@ post-merge run:  35691877235
 
 The Git relation satisfies the experiment's content-preserving predicate exactly. The repository still reran full Merge-gate evidence on the merge commit because the current proof identity is revision-bound.
 
-A local Node 22.16.0 scratch execution of the deterministic fixtures passed the positive witness, all hostile near-misses, and the revision-identity falsifier on 2026-09-22.
+An exact local Node 22.16.0 scratch execution of the checked-in TypeScript experiment against the current execution-context and digest implementations passed 4/4 tests on 2026-09-22: the positive witness, hostile near-misses, revision-identity falsifier, and attestation-identity falsifier.
 ## Result interpretation
 
 A passing experiment **falsifies direct exact-evidence substitution under the current identity model**.
