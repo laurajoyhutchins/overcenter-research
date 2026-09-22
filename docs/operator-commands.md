@@ -55,8 +55,6 @@ The following are implementation details and are not supported agent operations:
 
 The GitHub transport may use refs, workflow events, artifacts, and reruns internally. Those mechanics are deliberately hidden behind `project.advance` and `agent.submit`.
 
-There is no legacy `acquire` or mailbox protocol.
-
 ## Pull-request certification
 
 `candidate.certify` is a separate repository-maintenance command. It is not part of the reasoning-agent work protocol.
