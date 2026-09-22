@@ -1,0 +1,19 @@
+{
+  "schema": "overcenter-git-receipt-v5",
+  "run_id": "04630cfd-d9ff-4af6-9dfd-07a05b874334",
+  "obligation_id": "ambient-authority-35773933844-1",
+  "claimed_revision": "c4da376f3613f112e1c28af3b131ed7b57ac731d",
+  "claim_commit": "938cda71515244883f3b064abdeef88d4f65e97e",
+  "execution_generation": 2,
+  "execution_authority_commit": "b110c50eb3c66d88f29a396f37d972c6edf55d6b",
+  "kind": "execution-terminated",
+  "observed": null,
+  "diagnostic": {
+    "source": "github-actions-job-supervisor",
+    "workflow_run_id": "35773933844",
+    "workflow_run_attempt": "1",
+    "job": "foreign-worker",
+    "outcome": "completed-after-ambient-provider-write"
+  },
+  "settled_at": "2026-09-22T19:29:06.282Z"
+}
