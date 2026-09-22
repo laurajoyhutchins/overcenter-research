@@ -30,6 +30,7 @@ import {
   runGithubReadObserverAsync,
   type GithubJsonGetAsync,
 } from './providers/github-rest.ts';
+import type { GithubStatusMirror } from './providers/github-status-webhook.ts';
 import {
   kubernetesConfigMapAbsenceEvidenceMatches,
   observeCertifiedKubernetesConfigMap,
@@ -40,6 +41,7 @@ export interface ObservationContext {
   githubToken: string | null;
   githubGet?: GithubJsonGet;
   githubGetAsync?: GithubJsonGetAsync;
+  githubStatusMirror?:Pick<GithubStatusMirror,'observe'>;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
   // Optional trusted confinement root for local-file observations. In confined
@@ -194,6 +196,33 @@ const githubStatusError=(
   mutation_certainty:'uncertain',
   observation_error:error,
 });
+
+function githubStatusMirrorObservation(
+  p:Extract<Postcondition,{verifier:'github-commit-status/v2'}>,
+  context:ObservationContext,
+):Observation|null {
+  const mirror=context.githubStatusMirror;
+  if (!mirror) return null;
+  const mirrored=mirror.observe({
+    repositoryId:p.repository_id,
+    commitSha:p.commit_sha,
+    context:p.context,
+    observedAt:context.clock?.()??new Date().toISOString(),
+  });
+  if (mirrored.state==='present') {
+    return {
+      ...githubStatusCommon(p),
+      actual_state:mirrored.actual_state,
+      mutation_certainty:'present',
+      provider_evidence:mirrored.evidence,
+    };
+  }
+  return {
+    ...githubStatusCommon(p),
+    mutation_certainty:'uncertain',
+    observation_error:mirrored.reason,
+  };
+}
 
 type GithubPullRequestBranchUpdatedPostcondition=Extract<
   Postcondition,
@@ -397,6 +426,8 @@ export function observePostcondition(
   }
 
   if (p.verifier==='github-commit-status/v2') {
+    const mirrored=githubStatusMirrorObservation(p,context);
+    if (mirrored) return mirrored;
     if (!context.githubToken) return githubStatusError(p,'GITHUB_TOKEN_UNAVAILABLE');
     try {
       return githubStatusObservation(
@@ -570,6 +601,8 @@ export async function observePostconditionAsync(
     }
   }
   if (p.verifier!=='github-commit-status/v2') return observePostcondition(p,context);
+  const mirrored=githubStatusMirrorObservation(p,context);
+  if (mirrored) return mirrored;
   if (!context.githubToken) return githubStatusError(p,'GITHUB_TOKEN_UNAVAILABLE');
   const getAsync=context.githubGetAsync
     ?? (context.githubGet
