@@ -120,12 +120,12 @@ jobs:
           mkdir -p "$sandbox_root/input" "$sandbox_root/out" "$sandbox_root/work"
           cp "$source_root/prompt.md" "$sandbox_root/input/prompt.md"
           cp "$source_root/proposal.schema.json" "$sandbox_root/input/proposal.schema.json"
-          sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-codex
+          sudo useradd --create-home --shell /usr/sbin/nologin overcenter-codex
           sudo chown -R root:root "$sandbox_root/input"
           sudo chmod -R a+rX,u-w,g-w,o-w "$sandbox_root/input"
           sudo chown -R overcenter-codex:overcenter-codex "$sandbox_root/out" "$sandbox_root/work"
           sudo chmod 700 "$sandbox_root/out" "$sandbox_root/work"
-          test -z "$(find "$sandbox_root/work" -mindepth 1 -print -quit)"
+          test -z "$(sudo -u overcenter-codex find "$sandbox_root/work" -mindepth 1 -print -quit)"
       - name: Run final oracle-blind Codex refinement inference
         id: codex
         uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12
@@ -148,6 +148,7 @@ jobs:
           set -euo pipefail
           root="$RUNNER_TEMP/recovery-agent-refinement-codex"
           candidate="$root/out/candidate.json"
+          sudo chown -R "$USER":"$USER" "$root/out" "$root/work"
           test -s "$candidate"
           test -z "$(find "$root/work" -mindepth 1 -print -quit)"
           candidate_sha256="$(sha256sum "$candidate" | cut -d' ' -f1)"
