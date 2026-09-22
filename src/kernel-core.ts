@@ -13,7 +13,9 @@ import type {
 } from './model.ts';
 import type { DurableFactStore } from './fact-store.ts';
 import {
-  observePostcondition, observePostconditionAsync,
+  observationVerified,
+  observePostcondition,
+  observePostconditionAsync,
   type ObservationContext,
 } from './observation.ts';
 import {
@@ -364,6 +366,23 @@ export class KernelCore {
       if (settled) return settled;
     }
     throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
+  }
+
+  async reconcileIfVerified(
+    permit:ExecutionPermit,
+    diagnostic:Data={},
+  ):Promise<Receipt|null> {
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const candidate=this.#resolutionCandidate(permit);
+      if ('receipt' in candidate) return candidate.receipt;
+      const observed=await this.#observeAsync(candidate.work.postcondition);
+      if (!observationVerified(candidate.work.postcondition,observed)) {
+        return null;
+      }
+      const settled=this.#commitObservation(candidate,observed,diagnostic);
+      if (settled) return settled;
+    }
+    throw new Error('RECONCILE_VERIFIED_CONTENTION_EXHAUSTED');
   }
 
   deferForJudgment(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
