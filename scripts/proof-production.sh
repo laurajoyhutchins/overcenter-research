@@ -50,7 +50,7 @@ docker build \
 OVERCENTER_EXECUTOR_IMAGE="$image" \
   node --experimental-strip-types --test test/computation-container.test.ts
 
-node --experimental-strip-types bin/prove-computation-containment.ts \
+node --experimental-strip-types scripts/prove-computation-containment.ts \
   --image "$image"
 
 npm run proof:rust-exec
