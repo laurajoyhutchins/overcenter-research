@@ -20,6 +20,11 @@ function verify(){
     if(e.kind!=='experiment')fail(`${e.id}: unknown kind`);
     for(const k of ['question','claim','contrast','interpretation'])text(e,k);
     for(const k of ['environment','success_criteria','non_claims'])strings(e,k);
+    const genericSuccess='The hostile cases and distinguishing criterion documented in the experiment README pass.';
+    const genericNonClaim='Anything outside the documented experiment boundary.';
+    if(e.success_criteria.includes(genericSuccess))fail(`${e.id}: success criteria must be explicit in the registry`);
+    if(e.non_claims.includes(genericNonClaim))fail(`${e.id}: non-claims must be explicit in the registry`);
+    if(e.environment.some(x=>x.includes('See experiment README')))fail(`${e.id}: material environment must be explicit in the registry`);
     if(!e.reproduce||typeof e.reproduce.local!=='string'||!e.reproduce.local.trim())fail(`${e.id}: missing reproduce.local`);
     text(e.reproduce,'tier'); npmScript(e,e.reproduce.local);
     if(!e.evidence||!['current','historical','pending'].includes(e.evidence.state))fail(`${e.id}: invalid evidence state`);
