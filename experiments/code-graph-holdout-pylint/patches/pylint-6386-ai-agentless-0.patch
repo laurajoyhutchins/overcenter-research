@@ -1,0 +1,19 @@
+diff --git a/pylint/config/option_manager_mixin.py b/pylint/config/option_manager_mixin.py
+index d22ea01..06ea3de 100644
+--- a/pylint/config/option_manager_mixin.py
++++ b/pylint/config/option_manager_mixin.py
+@@ -168,6 +168,8 @@ class OptionsManagerMixIn:
+         if "short" in optdict:
+             self._short_options[optdict["short"]] = opt
+             args.append("-" + optdict["short"])
++            if opt == "verbose":
++                optdict["action"] = "store_true"
+             del optdict["short"]
+         # cleanup option definition dict before giving it to optik
+         for key in list(optdict.keys()):
+@@ -343,4 +345,4 @@ class OptionsManagerMixIn:
+         """Return the usage string for available options."""
+         self.cmdline_parser.formatter.output_level = level
+         with _patch_optparse():
+-            return self.cmdline_parser.format_help()
++            return self.cmdline_parser.format_help()
