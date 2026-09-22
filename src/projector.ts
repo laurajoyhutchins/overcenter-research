@@ -251,7 +251,14 @@ function deriveRealizationRelations(
         if (!receipt) {
           lifecycle={status:'EXECUTING',run:latest};
         } else if (receipt.disposition==='WAITING') {
-          lifecycle={status:'WAITING',run:latest};
+          lifecycle={
+            status:
+              typeof receipt.execution_generation==='number'
+              && latest.execution_generation>receipt.execution_generation
+                ? 'EXECUTING'
+                : 'WAITING',
+            run:latest,
+          };
         } else if (receipt.disposition==='RECOVERY_REQUIRED') {
           lifecycle={status:'RECOVERY_REQUIRED',run:latest};
         }
