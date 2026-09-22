@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: merge-gate-${{ github.event.pull_request.number || inputs.source_sha || github.ref }}
+  group: merge-gate-${{ github.event.pull_request.head.sha || inputs.source_sha || github.sha }}
   cancel-in-progress: true
 
 jobs:

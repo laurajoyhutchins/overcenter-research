@@ -114,6 +114,11 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
+    /group: merge-gate-\$\{\{ github\.event\.pull_request\.head\.sha \|\| inputs\.source_sha \|\| github\.sha \}\}/,
+    'same-head PR and command-dispatch certification must share one concurrency key',
+  );
+  assert.match(
+    mergeGate,
     /test "\$REQUESTED_SOURCE_SHA" = "\$SOURCE_SHA"/,
     'manual candidate dispatch must fail closed when the selected ref moved',
   );
@@ -163,13 +168,18 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
 test('operator commands expose isolated trusted rerun anchors without a public command mailbox', () => {
   assert.match(
     eventBlock(operatorCommands, 'pull_request_target'),
-    /types: \[opened, synchronize, reopened\]/,
-    'operator commands must materialize once per PR head from trusted base code',
+    /types: \[opened, synchronize, reopened, edited\]/,
+    'operator commands must materialize for new heads and main-base retargets',
   );
   assert.doesNotMatch(
     operatorCommands,
     /issue_comment:|pull_request_review:|label:/,
     'operator commands must not use public discussion or labels as transport',
+  );
+  assert.match(
+    operatorCommands,
+    /github\.event\.action != 'edited' \|\| github\.event\.changes\.base\.ref\.from != null/,
+    'edited events must materialize command anchors only for base-branch changes',
   );
   assert.match(
     operatorCommands,
