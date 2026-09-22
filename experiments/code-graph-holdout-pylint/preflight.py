@@ -40,6 +40,7 @@ def exact(worktree:Path,patch:Path)->dict:
 
 
 def graph_test_nodes(worktree:Path,source_roots:list[str],test_roots:list[str],scratch:Path)->dict:
+    scratch.mkdir(parents=True,exist_ok=True)
     empty=scratch/"empty.patch"
     empty.write_text("",encoding="utf-8")
     cmd=["python3",str(GRAPH),"predict","--repo",str(worktree),"--patch",str(empty)]
