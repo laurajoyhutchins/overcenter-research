@@ -30,6 +30,29 @@ recompute project projection ↺
 
 The worker does not decide that its work succeeded.
 
+## Resolution frontier
+
+Overcenter's goal is not merely to fail closed when certainty ends. It is to push the boundary of deterministic resolution outward as far as software can safely prove.
+
+```text
+deterministic software
+  known reconciliation, evidence acquisition, recovery, and retry rules
+        ↓ unresolved
+reasoning agent
+  discover additional evidence or execute a bounded one-off recovery procedure
+        ↓ unresolved
+human operator
+  decide the precise residual ambiguity
+```
+
+Deterministic software gets the first and widest opportunity to resolve uncertainty. Known reconciliation paths, authoritative observations, proof validation, replay rules, recovery procedures, and other mechanically knowable work belong in the kernel or in provider-specific deterministic machinery.
+
+When those paths are exhausted, Overcenter may deploy a reasoning agent to investigate the remaining ambiguity. The agent may gather information, discover an unmodeled evidence source, synthesize a one-off procedure, or carry out a narrowly authorized recovery step that was not practical to model in advance. The agent does not become the authority on success: any resulting claim must still be grounded in retained evidence, independently verified where verification is possible, and settled through the normal authority boundary.
+
+Agent recovery is also a learning signal. If agents repeatedly resolve the same class of ambiguity with materially the same procedure, Overcenter should treat that repetition as evidence of missing deterministic machinery. The recurring recovery path should be captured, tested against hostile cases, and promoted into software when its preconditions and outcome can be mechanically recognized. A mature system should therefore make its agent-recovery frontier retreat over time.
+
+If deterministic machinery and bounded agent recovery both fail to resolve an ambiguity, Overcenter should escalate the exact residual problem to a human operator: what is known, what remains unknown, what procedures were attempted, which actions remain unsafe, and what consequences follow from the available decisions. Humans are the final decision-makers for genuinely unresolved cases, not a substitute for recovery logic that software could own.
+
 ## Current production slice
 
 The supported runtime boundary is intentionally smaller than the research surface:
