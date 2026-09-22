@@ -398,6 +398,9 @@ export async function executeWaitingWork(
     source:'work.execute',
     authorization:'agent-semantic-command',
   });
+  if (receipt.disposition==='WAITING') {
+    throw new Error('WORK_EXECUTE_UNEXPECTED_WAITING_RECEIPT');
+  }
   return {
     schema:WORK_EXECUTION_RESULT_SCHEMA,
     outcome:receipt.disposition,
