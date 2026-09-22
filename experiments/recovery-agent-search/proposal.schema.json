@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "proposals"
+  ],
+  "properties": {
+    "schema": {
+      "const": "overcenter-recovery-search-proposals/v1"
+    },
+    "proposals": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "kind",
+              "fields"
+            ],
+            "properties": {
+              "case_id": {
+                "enum": [
+                  "exact-litware",
+                  "northwind-payment",
+                  "analytics-preview-vm",
+                  "acme-kim-mail",
+                  "checkout-east-canary",
+                  "contoso-eu-archive",
+                  "maya-finance-access",
+                  "missing-physical-receipt"
+                ]
+              },
+              "kind": {
+                "const": "search"
+              },
+              "fields": {
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "operation": {
+                    "enum": [
+                      "payment.capture",
+                      "compute.instances.insert",
+                      "mail.send",
+                      "deploy.release",
+                      "storage.objects.create",
+                      "iam.grant"
+                    ]
+                  },
+                  "resource": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "actor": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "principal": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "amount": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "region": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "artifact": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "kind"
+            ],
+            "properties": {
+              "case_id": {
+                "enum": [
+                  "exact-litware",
+                  "northwind-payment",
+                  "analytics-preview-vm",
+                  "acme-kim-mail",
+                  "checkout-east-canary",
+                  "contoso-eu-archive",
+                  "maya-finance-access",
+                  "missing-physical-receipt"
+                ]
+              },
+              "kind": {
+                "const": "unresolved"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
