@@ -99,6 +99,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - name: GitHub observation conformance experiment
+        run: node --experimental-strip-types --test experiments/github-observation-grammar/github-observation.test.ts
+
       - name: Fetch immutable 2026-03-10 dereferenced schema
         run: |
           curl --fail --location --retry 3 \
