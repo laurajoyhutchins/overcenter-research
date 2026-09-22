@@ -179,21 +179,8 @@ function reusableCertificationRun(
     || run.head_sha.toLowerCase()!==context.source_sha.toLowerCase()
   ) return null;
 
-  const inputs=run.inputs;
-  if (!inputs || typeof inputs!=='object' || Array.isArray(inputs)) {
-    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:inputs');
-  }
-  const coordinates=inputs as Record<string,unknown>;
-  if (
-    typeof coordinates.source_sha!=='string'
-    || typeof coordinates.base_sha!=='string'
-  ) {
-    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:coordinates');
-  }
-  if (
-    coordinates.source_sha.toLowerCase()!==context.source_sha.toLowerCase()
-    || coordinates.base_sha.toLowerCase()!==context.base_sha.toLowerCase()
-  ) return null;
+  const expectedTitle=`candidate.certify=${context.source_sha.toLowerCase()} base=${context.base_sha.toLowerCase()} event=workflow_dispatch`;
+  if (run.display_title!==expectedTitle) return null;
 
   if (typeof run.status!=='string') {
     throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:status');

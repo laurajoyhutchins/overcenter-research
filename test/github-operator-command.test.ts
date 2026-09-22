@@ -51,7 +51,7 @@ function providerRun(
     status,
     conclusion,
     head_sha:headSha,
-    inputs:{source_sha:headSha,base_sha:baseSha},
+    display_title:`candidate.certify=${headSha} base=${baseSha} event=workflow_dispatch`,
     url:`https://api.github.com/repos/acme/widget/actions/runs/${id}`,
     html_url:`https://github.com/acme/widget/actions/runs/${id}`,
   };
@@ -62,7 +62,7 @@ function lookupWithRuns(runs:ReturnType<typeof providerRun>[]) {
     if (path.includes('/actions/runs?')) {
       return {
         status:200,
-        body:JSON.stringify({workflow_runs:runs.map(({inputs,...run})=>run)}),
+        body:JSON.stringify({workflow_runs:runs}),
       };
     }
     const id=Number(path.split('/').pop());
