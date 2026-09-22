@@ -238,7 +238,7 @@ The trusted supervisor creates and pins the child cgroup object. PID, process-gr
 
 The formal model `formal/ResourceContainment.tla` checks `ExactLeafAuthority`, `FinalEvidenceSafety`, and `RemovalSafety`. `BrokenResourceIdentity.cfg` and `BrokenResourceEarlyEvidence.cfg` must produce counterexamples when the respective guards are removed.
 
-The physical proof remains separate: `runtime/overcenter-exec/proof.sh` exercises actual `pids.max` exhaustion, `cpu.max` throttling, `memory.max` OOM containment, HugeTLB denial, stale-leaf noninterference, and trusted-supervisor timeout/output cleanup on cgroup v2.
+The physical proof remains separate: `src/execution/confinement/proof.sh` exercises actual `pids.max` exhaustion, `cpu.max` throttling, `memory.max` OOM containment, HugeTLB denial, stale-leaf noninterference, and trusted-supervisor timeout/output cleanup on cgroup v2.
 
 **Non-claims:** This does not establish device I/O throttling, workspace disk quota, guaranteed capacity equal to the declared ceiling, automatic authority-safe orphan cleanup after supervisor death, or complete VM isolation.
 

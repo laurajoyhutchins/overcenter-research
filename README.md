@@ -168,7 +168,7 @@ The safety claim is narrower: an uncertain or even locally hostile worker does n
 ```text
 src/          reusable reference mechanism and trusted executor client
 contracts/    versioned machine-readable data contracts
-executor/     Go physical computation executor
+src/execution/executor/     Go physical computation executor
 runtime/      narrow native execution/confinement substrates
 test/         focused invariants of that mechanism
 experiments/  executable empirical and adversarial proofs
@@ -203,9 +203,9 @@ Important entry points:
 - [`src/execution/go-client.ts`](./src/execution/go-client.ts) - Unix-socket client for an isolated physical executor.
 - [`src/execution/manifest.ts`](./src/execution/manifest.ts) - canonical exact-byte manifest for the Rust confinement launcher.
 - [`src/execution/confined-executor.ts`](./src/execution/confined-executor.ts) - trusted TypeScript transport that sends exactly the hashed manifest bytes to the native launcher.
-- [`runtime/overcenter-exec/`](./runtime/overcenter-exec/README.md) - Rust Landlock/seccomp worker-confinement substrate; physical confinement only, with no project-state authority.
+- [`src/execution/confinement/`](./src/execution/confinement/README.md) - Rust Landlock/seccomp worker-confinement substrate; physical confinement only, with no project-state authority.
 - [`contracts/computation-execution-v1/`](./contracts/computation-execution-v1/) - shared versioned wire contract and conformance corpus.
-- [`executor/`](./executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
+- [`src/execution/executor/`](./src/execution/executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
 - [`formal/`](./formal/) - TLA+ transaction/recovery kernel.
 - [`research/README.md`](./research/README.md) - research map.
@@ -241,9 +241,9 @@ project.advance -> work packet -> reasoning -> project.submit
 Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
-- Go at the exact runtime version declared in [`.go-version`](./.go-version) for the physical computation executor (`executor/go.mod` remains the Go language/module compatibility declaration);
+- Go at the exact runtime version declared in [`.go-version`](./.go-version) for the physical computation executor (`src/execution/executor/go.mod` remains the Go language/module compatibility declaration);
 - Rust at the exact version declared in [`rust-toolchain.toml`](./rust-toolchain.toml) for the native worker-confinement substrate;
-- Docker for the catastrophic executor-death containment proof; executor base images are pinned by immutable digest in [`executor/runtime-images.json`](./executor/runtime-images.json);
+- Docker for the catastrophic executor-death containment proof; executor base images are pinned by immutable digest in [`src/execution/executor/runtime-images.json`](./src/execution/executor/runtime-images.json);
 - Git;
 - Java 21 for the TLA+ model;
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;

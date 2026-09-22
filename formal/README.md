@@ -85,7 +85,7 @@ The negative controls matter because a green model is weak evidence if the speci
 
 `ResourceContainment.tla` models a second, deliberately smaller safety boundary: the trusted supervisor protocol around one exact cgroup leaf.
 
-It does **not** model Linux CPU scheduling, memory accounting, PID accounting, Landlock, seccomp, or cgroup controller implementation. Those are exercised by the hosted kernel proof in `runtime/overcenter-exec/proof.sh`.
+It does **not** model Linux CPU scheduling, memory accounting, PID accounting, Landlock, seccomp, or cgroup controller implementation. Those are exercised by the hosted kernel proof in `src/execution/confinement/proof.sh`.
 
 The model asks:
 

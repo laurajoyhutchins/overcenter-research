@@ -34,7 +34,7 @@ import { GoExecutorClient } from '../src/execution/go-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
-const executorDir=join(repoRoot,'executor');
+const executorDir=join(repoRoot,'src/execution/executor');
 const fixture=join(repoRoot,'test/fixtures/computation-child.ts');
 const scratch=mkdtempSync(join(tmpdir(),'overcenter-production-executor-'));
 const workspace=join(scratch,'workspace');

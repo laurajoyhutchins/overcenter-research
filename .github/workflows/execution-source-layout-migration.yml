@@ -26,15 +26,15 @@ jobs:
           set -euo pipefail
 
           echo '== old path references before migration =='
-          git grep -n -E 'runtime/overcenter-exec|(^|[^[:alnum:]_-])executor/' -- . || true
+          git grep -n -E 'src/execution/confinement|(^|[^[:alnum:]_-])src/execution/executor/' -- . || true
 
           test -d executor
-          test -d runtime/overcenter-exec
+          test -d src/execution/confinement
           test ! -e src/execution/executor
           test ! -e src/execution/confinement
 
           git mv executor src/execution/executor
-          git mv runtime/overcenter-exec src/execution/confinement
+          git mv src/execution/confinement src/execution/confinement
           rmdir runtime
 
           python3 - <<'PY'
@@ -50,19 +50,19 @@ jobs:
                   text = raw.decode('utf-8')
               except (UnicodeDecodeError, IsADirectoryError):
                   continue
-              updated = text.replace('runtime/overcenter-exec', 'src/execution/confinement')
+              updated = text.replace('src/execution/confinement', 'src/execution/confinement')
               updated = re.sub(
-                  r'(?<!src/execution/)(?<![A-Za-z0-9_-])executor/',
+                  r'(?<!src/execution/)(?<![A-Za-z0-9_-])src/execution/executor/',
                   'src/execution/executor/',
                   updated,
               )
               exact = {
-                  "join(repoRoot,'executor')": "join(repoRoot,'src/execution/executor')",
-                  'join(repoRoot,"executor")': 'join(repoRoot,"src/execution/executor")',
-                  'cd executor': 'cd src/execution/executor',
-                  'working-directory: executor': 'working-directory: src/execution/executor',
-                  'working-directory: ./executor': 'working-directory: ./src/execution/executor',
-                  '-C executor': '-C src/execution/executor',
+                  "join(repoRoot,'src/execution/executor')": "join(repoRoot,'src/execution/executor')",
+                  'join(repoRoot,"src/execution/executor")': 'join(repoRoot,"src/execution/executor")',
+                  'cd src/execution/executor': 'cd src/execution/executor',
+                  'working-directory: src/execution/executor': 'working-directory: src/execution/executor',
+                  'working-directory: ./src/execution/executor': 'working-directory: ./src/execution/executor',
+                  '-C src/execution/executor': '-C src/execution/executor',
               }
               for old, new in exact.items():
                   updated = updated.replace(old, new)
@@ -110,7 +110,7 @@ jobs:
               'confinement/',
               'containment.ts',
               'context.ts',
-              'executor/',
+              'src/execution/executor/',
               'go-client.ts',
               'manifest.ts',
               'protocol.ts',
@@ -129,19 +129,19 @@ jobs:
           text = text.replace(
               "├── execution/      authorized computation, confinement, and executor transport",
               "├── execution/      authorized computation, confinement, and executor transport\n"
-              "│   ├── executor/   Go physical computation executor\n"
+              "│   ├── src/execution/executor/   Go physical computation executor\n"
               "│   └── confinement/ Rust native worker-confinement substrate",
           )
           source_readme.write_text(text)
           PY
 
           echo '== stale root path references after migration =='
-          if git grep -n 'runtime/overcenter-exec' -- .; then
-            echo 'stale runtime/overcenter-exec path remains' >&2
+          if git grep -n 'src/execution/confinement' -- .; then
+            echo 'stale src/execution/confinement path remains' >&2
             exit 1
           fi
 
-          if git grep -n -E "(join\(repoRoot,['\"]executor['\"]\)|cd executor([[:space:]]|$)|working-directory:[[:space:]]+(\./)?executor([[:space:]]|$)|-C executor([[:space:]]|$))" -- .; then
+          if git grep -n -E "(join\(repoRoot,['\"]executor['\"]\)|cd src/execution/executor([[:space:]]|$)|working-directory:[[:space:]]+(\./)?executor([[:space:]]|$)|-C src/execution/executor([[:space:]]|$))" -- .; then
             echo 'stale root executor directory reference remains' >&2
             exit 1
           fi

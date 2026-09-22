@@ -6,7 +6,7 @@
 
 Rust is admitted to the supported Overcenter slice only for a small native worker-confinement substrate.
 
-The admitted boundary is `runtime/overcenter-exec`. Trusted TypeScript opens and identity-checks the exact workspace object, passes it on FD 3, opens a finite delegated cgroup-v2 parent, creates and pins one fresh exact child leaf, passes that leaf on FD 4, renders one strict execution manifest including supervisor and resource limits, computes the SHA-256 of those exact bytes, and pipes the same bytes to the launcher on stdin. The launcher may own only mechanically enforceable process-boundary work: exact-object workspace pinning, filesystem/process confinement, ambient-authority removal, bounded transport supervision, and replacement of the launcher with the untrusted worker.
+The admitted boundary is `src/execution/confinement`. Trusted TypeScript opens and identity-checks the exact workspace object, passes it on FD 3, opens a finite delegated cgroup-v2 parent, creates and pins one fresh exact child leaf, passes that leaf on FD 4, renders one strict execution manifest including supervisor and resource limits, computes the SHA-256 of those exact bytes, and pipes the same bytes to the launcher on stdin. The launcher may own only mechanically enforceable process-boundary work: exact-object workspace pinning, filesystem/process confinement, ambient-authority removal, bounded transport supervision, and replacement of the launcher with the untrusted worker.
 
 Rust does not own graph eligibility, project projection, claims, recovery policy, provider interpretation, provider mutation, verification, settlement, or project truth.
 
