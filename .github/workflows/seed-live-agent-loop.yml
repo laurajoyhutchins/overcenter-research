@@ -1,0 +1,87 @@
+name: Seed live agent-loop witness
+
+on:
+  push:
+    branches:
+      - maintenance/seed-live-agent-loop
+    paths:
+      - .github/workflows/seed-live-agent-loop.yml
+
+permissions: {}
+
+jobs:
+  seed:
+    name: Seed exact agent work
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions:
+      contents: write
+    env:
+      SOURCE_SHA: 107e949f61ab0bb93c6c95ad21fdd4ae2fdabfd8
+      EXPECTED_AUTHORITY_HEAD: 16d71b6fb0c172b49c6ce54aa889dccbc011ecd3
+    steps:
+      - name: Check out exact main source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Use pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Define one exact agent obligation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'NODE'
+          import {GitOvercenterKernel} from './src/git-kernel.ts';
+
+          const sourceSha=process.env.SOURCE_SHA;
+          const expectedHead=process.env.EXPECTED_AUTHORITY_HEAD;
+          if (!sourceSha || !expectedHead) throw new Error('SEED_IDENTITY_REQUIRED');
+
+          const kernel=new GitOvercenterKernel(process.cwd(),{
+            remote:'origin',
+            ref:'refs/overcenter/state',
+          });
+          const head=kernel.head();
+          if (head!==expectedHead) {
+            throw new Error(`SEED_AUTHORITY_HEAD_MISMATCH:${head}`);
+          }
+          if (kernel.inspect().length!==0) {
+            throw new Error('SEED_AUTHORITY_NOT_EMPTY');
+          }
+
+          const revision=kernel.define({
+            id:'live-agent-loop-witness',
+            packet:{
+              schema:'overcenter-agent-task/v1',
+              kind:'pure-candidate',
+              source_sha:sourceSha,
+              command:[
+                'node',
+                'experiments/assignment-capsule/fixture-task.ts',
+                'experiments/assignment-capsule/fixture-input.txt',
+                'result.txt',
+              ],
+              required_paths:[
+                'experiments/assignment-capsule/fixture-task.ts',
+                'experiments/assignment-capsule/fixture-input.txt',
+              ],
+              output_path:'result.txt',
+            },
+            postcondition:{
+              verifier:'file-content-equals/v1',
+              path:'/tmp/overcenter-live-agent-loop/result.txt',
+              content:'completed:assignment-bytes\n',
+            },
+          });
+          console.log(JSON.stringify({
+            obligation_id:'live-agent-loop-witness',
+            source_sha:sourceSha,
+            authority_revision:revision,
+          }));
+          NODE
