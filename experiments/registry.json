@@ -75,48 +75,6 @@
       ]
     },
     {
-      "id": "code-graph-verification",
-      "kind": "experiment",
-      "status": "maintained",
-      "directory": "experiments/code-graph-verification",
-      "readme": "experiments/code-graph-verification/README.md",
-      "question": "Can a mechanically derived static code graph predict the verification consequences of real human and AI Flask changes while eliminating most irrelevant test execution?",
-      "claim": "For the preregistered admitted Flask corpus, the v1 static graph is tested against a 0.99 affected-test recall threshold, a 0.30 selected-test-fraction ceiling, and a zero-missed-regression safety guard.",
-      "contrast": "Run the full verification universe for every change, or ask a reasoning agent to guess which tests matter.",
-      "reproduce": {
-        "tier": "toolchain",
-        "local": "npm run test:code-graph-verification"
-      },
-      "environment": [
-        "Node.js from .node-version for the repository contract.",
-        "Python 3 with only the standard library for the deterministic graph predictor.",
-        "Git plus exact pallets/flask history for real corpus materialization; confirmatory outcomes additionally require an immutable recorded test-environment identity."
-      ],
-      "success_criteria": [
-        "The registered corpus contains exact human and AI patch artifacts with explicit provenance.",
-        "The deterministic negative control selects the affected test and excludes an unrelated test.",
-        "Non-pinned AI outcomes cannot enter primary statistics.",
-        "A confirmatory verdict is prohibited until the README corpus-admission criteria are satisfied.",
-        "Once admitted, pooled recall is at least 0.99, selected fraction is at most 0.30, and no previously passing regression is missed."
-      ],
-      "evidence": {
-        "state": "pending",
-        "artifacts": [
-          "experiments/code-graph-verification/corpus.json",
-          "experiments/code-graph-verification/contract.test.mjs",
-          "experiments/code-graph-verification/frontier.py"
-        ]
-      },
-      "interpretation": "A positive confirmatory result would support deterministic verification pruning for the admitted Flask change distribution; a negative result identifies missing graph relations or insufficient pruning.",
-      "non_claims": [
-        "The two-case pilot is confirmatory evidence.",
-        "Static reachability establishes semantic correctness.",
-        "The result generalizes to other repositories or languages.",
-        "AI authorship is intrinsically safer or riskier than human authorship.",
-        "The graph is authorized to replace full verification in production."
-      ]
-    },
-    {
       "id": "codex-closed-loop",
       "kind": "experiment",
       "status": "maintained",
@@ -316,56 +274,6 @@
       "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
       "non_claims": [
         "Anything outside the documented experiment boundary."
-      ]
-    },
-    {
-      "id": "frontier-prioritization",
-      "kind": "experiment",
-      "status": "maintained",
-      "directory": "experiments/frontier-prioritization",
-      "readme": "experiments/frontier-prioritization/README.md",
-      "question": "When several graph nodes are simultaneously admissible, how often can deterministic software settle the priority before an AI agent is consulted, and what actually limits the exact fallback?",
-      "claim": "Across 7,395 exhaustive reachable small-graph frontier states, the structural heuristic leaves zero ambiguity or misses. In 15,574 reachable frontier states from a fixed 5–10 node adversarial sample it is oracle-equivalent in 99.28%; all 112 residuals are exactly certified. The exact fallback is then reduced by kernelization, objective-interaction decomposition, and branch-and-bound: representative state counts fall from 8,191 to 12 for independent binary objectives and from 7,714 to 1 for a connected 20-objective cycle, while a 200-node decomposable case remains linear in 100 objective components.",
-      "contrast": "Treat multiple READY nodes as an AI prioritization problem merely because no trivial ordering rule selects one.",
-      "reproduce": {
-        "tier": "deterministic",
-        "local": "node --test experiments/frontier-prioritization/frontier-prioritization.test.mjs"
-      },
-      "environment": [
-        "Node.js from .node-version",
-        "No network, model, or external dependency"
-      ],
-      "success_criteria": [
-        "Only dependency-closed reachable states are evaluated.",
-        "Every modeled nontrivial frontier is compared with the complete oracle-equivalent choice set.",
-        "Every heuristic feature is mechanically derived from graph/objective state.",
-        "The final heuristic leaves zero ambiguity and zero unique misses in the exhaustive small corpus.",
-        "The fixed 5–10 node sample retains at least 99% oracle-equivalent heuristic coverage.",
-        "Every larger-sample residual is exactly certified by the closure verifier.",
-        "Closure verification exactly matches subset-state dynamic programming throughout the exhaustive reachable corpus.",
-        "Irrelevant width and forced depth do not inflate closure-search state count in controlled cases.",
-        "Objective-alternative scaling remains explicit rather than hidden by an aggregate.",
-        "The optimized exact solver matches the reference subset-state oracle on minimum cost and complete oracle-equivalent next-choice sets throughout the exhaustive reachable corpus.",
-        "Solver-ladder ablations separately demonstrate kernelization, objective-interaction decomposition, and branch-and-bound reductions.",
-        "A 200-node, 100-objective independent case is solved in 100 bounded search states, demonstrating that raw node count is not the controlling parameter.",
-        "A fixed connected 80-node, 50-objective stress case remains exactly solvable within 248 bounded search states."
-      ],
-      "evidence": {
-        "state": "pending",
-        "artifacts": [
-          "experiments/frontier-prioritization/frontier-prioritization.test.mjs"
-        ]
-      },
-      "interpretation": "Multiple READY nodes are not themselves an AI prioritization problem. The cheap structural policy settles every exhaustive reachable small-graph frontier and 99.28% of the larger fixed sample; exact verification settles the residuals. The exact fallback can itself be compressed aggressively: kernelization removes dominated/forced structure, objective-interaction decomposition makes independent objective components additive, and branch-and-bound collapses many connected cases. The controlling difficulty is the size and overlap of the remaining interacting objective kernel, not raw graph size. Exceeding a deterministic budget still calls first for stronger deterministic optimization or decomposition, not automatic AI escalation. Heavier exact solvers and parameterized decomposition are explicitly future research rather than acceptance criteria for this experiment.",
-      "non_claims": [
-        "The current heuristic tuple is globally optimal.",
-        "The closure verifier is polynomial in arbitrary objective systems.",
-        "Every real software objective is machine-readable.",
-        "Equal node-selection cost is an adequate production utility model.",
-        "All combinatorial optimization should be solved by brute force.",
-        "A heuristic result should be trusted without deterministic verification.",
-        "No software-engineering task ever requires AI judgment.",
-        "Pseudo-Boolean, SAT, CP-SAT, MILP, incremental, or treewidth-aware solvers are required for the current experiment."
       ]
     },
     {
@@ -607,6 +515,56 @@
       "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
       "non_claims": [
         "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "frontier-prioritization",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/frontier-prioritization",
+      "readme": "experiments/frontier-prioritization/README.md",
+      "question": "When several graph nodes are simultaneously admissible, how often can deterministic software settle the priority before an AI agent is consulted, and what actually limits the exact fallback?",
+      "claim": "Across 7,395 exhaustive reachable small-graph frontier states, the structural heuristic leaves zero ambiguity or misses. In 15,574 reachable frontier states from a fixed 5–10 node adversarial sample it is oracle-equivalent in 99.28%; all 112 residuals are exactly certified. The exact fallback is then reduced by kernelization, objective-interaction decomposition, and branch-and-bound: representative state counts fall from 8,191 to 12 for independent binary objectives and from 7,714 to 1 for a connected 20-objective cycle, while a 200-node decomposable case remains linear in 100 objective components.",
+      "contrast": "Treat multiple READY nodes as an AI prioritization problem merely because no trivial ordering rule selects one.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "node --test experiments/frontier-prioritization/frontier-prioritization.test.mjs"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "No network, model, or external dependency"
+      ],
+      "success_criteria": [
+        "Only dependency-closed reachable states are evaluated.",
+        "Every modeled nontrivial frontier is compared with the complete oracle-equivalent choice set.",
+        "Every heuristic feature is mechanically derived from graph/objective state.",
+        "The final heuristic leaves zero ambiguity and zero unique misses in the exhaustive small corpus.",
+        "The fixed 5–10 node sample retains at least 99% oracle-equivalent heuristic coverage.",
+        "Every larger-sample residual is exactly certified by the closure verifier.",
+        "Closure verification exactly matches subset-state dynamic programming throughout the exhaustive reachable corpus.",
+        "Irrelevant width and forced depth do not inflate closure-search state count in controlled cases.",
+        "Objective-alternative scaling remains explicit rather than hidden by an aggregate.",
+        "The optimized exact solver matches the reference subset-state oracle on minimum cost and complete oracle-equivalent next-choice sets throughout the exhaustive reachable corpus.",
+        "Solver-ladder ablations separately demonstrate kernelization, objective-interaction decomposition, and branch-and-bound reductions.",
+        "A 200-node, 100-objective independent case is solved in 100 bounded search states, demonstrating that raw node count is not the controlling parameter.",
+        "A fixed connected 80-node, 50-objective stress case remains exactly solvable within 248 bounded search states."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          "experiments/frontier-prioritization/frontier-prioritization.test.mjs"
+        ]
+      },
+      "interpretation": "Multiple READY nodes are not themselves an AI prioritization problem. The cheap structural policy settles every exhaustive reachable small-graph frontier and 99.28% of the larger fixed sample; exact verification settles the residuals. The exact fallback can itself be compressed aggressively: kernelization removes dominated/forced structure, objective-interaction decomposition makes independent objective components additive, and branch-and-bound collapses many connected cases. The controlling difficulty is the size and overlap of the remaining interacting objective kernel, not raw graph size. Exceeding a deterministic budget still calls first for stronger deterministic optimization or decomposition, not automatic AI escalation. Heavier exact solvers and parameterized decomposition are explicitly future research rather than acceptance criteria for this experiment.",
+      "non_claims": [
+        "The current heuristic tuple is globally optimal.",
+        "The closure verifier is polynomial in arbitrary objective systems.",
+        "Every real software objective is machine-readable.",
+        "Equal node-selection cost is an adequate production utility model.",
+        "All combinatorial optimization should be solved by brute force.",
+        "A heuristic result should be trusted without deterministic verification.",
+        "No software-engineering task ever requires AI judgment.",
+        "Pseudo-Boolean, SAT, CP-SAT, MILP, incremental, or treewidth-aware solvers are required for the current experiment."
       ]
     },
     {
@@ -866,6 +824,48 @@
       "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
       "non_claims": [
         "Anything outside the documented experiment boundary."
+      ]
+    },
+    {
+      "id": "code-graph-verification",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/code-graph-verification",
+      "readme": "experiments/code-graph-verification/README.md",
+      "question": "Can a mechanically derived static code graph predict the verification consequences of real human and AI Flask changes while eliminating most irrelevant test execution?",
+      "claim": "For the preregistered admitted Flask corpus, the v1 static graph is tested against a 0.99 affected-test recall threshold, a 0.30 selected-test-fraction ceiling, and a zero-missed-regression safety guard.",
+      "contrast": "Run the full verification universe for every change, or ask a reasoning agent to guess which tests matter.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:code-graph-verification"
+      },
+      "environment": [
+        "Node.js from .node-version for the repository contract.",
+        "Python 3.11+ with only the standard library for the deterministic graph predictor.",
+        "Git plus exact pallets/flask history for real corpus materialization; confirmatory outcomes additionally require an immutable recorded test-environment identity."
+      ],
+      "success_criteria": [
+        "The registered corpus contains exact human and AI patch artifacts with explicit provenance.",
+        "The deterministic negative control selects the affected test and excludes an unrelated test.",
+        "Non-pinned AI outcomes cannot enter primary statistics.",
+        "A confirmatory verdict is prohibited until the README corpus-admission criteria are satisfied.",
+        "Once admitted, pooled recall is at least 0.99, selected fraction is at most 0.30, and no previously passing regression is missed."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          "experiments/code-graph-verification/corpus.json",
+          "experiments/code-graph-verification/contract.test.mjs",
+          "experiments/code-graph-verification/frontier.py"
+        ]
+      },
+      "interpretation": "A positive confirmatory result would support deterministic verification pruning for the admitted Flask change distribution; a negative result identifies missing graph relations or insufficient pruning.",
+      "non_claims": [
+        "The two-case pilot is confirmatory evidence.",
+        "Static reachability establishes semantic correctness.",
+        "The result generalizes to other repositories or languages.",
+        "AI authorship is intrinsically safer or riskier than human authorship.",
+        "The graph is authorized to replace full verification in production."
       ]
     }
   ]
