@@ -46,6 +46,11 @@ test('full Flask candidate corpus satisfies preregistered artifact admission', (
       assert.ok(v.equivalence_group);
 
       const bytes = patchBytes(v.patch);
+      const touched = [...bytes.matchAll(/^\+\+\+ b\/(.+)$/gm)].map(match => match[1]);
+      assert.ok(
+        touched.every(path => path !== 'tests' && !path.startsWith('tests/')),
+        c.id + '/' + v.id + ' modifies held-out tests',
+      );
       if (v.authorship !== 'ai') continue;
 
       ai += 1;
@@ -119,5 +124,17 @@ test('unreproducible AI outcomes stay outside the primary corpus', () => {
   for (const c of corpus.documented_ai_cases) {
     assert.equal(c.primary, false);
     assert.equal(c.exclusion_reason, 'exact_patch_artifact_not_pinned');
+  }
+});
+
+
+test('experiment lifecycle scripts parse and expose help without side effects', () => {
+  for (const name of ['prepare.py', 'preflight.py', 'score.py', 'summarize.py']) {
+    const result = spawnSync(
+      'python3',
+      [new URL(name, root).pathname, '--help'],
+      {encoding: 'utf8'},
+    );
+    assert.equal(result.status, 0, name + ': ' + (result.stderr || result.stdout));
   }
 });
