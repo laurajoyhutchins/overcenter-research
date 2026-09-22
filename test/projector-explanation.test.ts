@@ -35,7 +35,7 @@ const b:Obligation={
 };
 const state:State={
   obligations:{a,b},
-  definition_commits:{a:'define-a',b:'define-b'},
+  definition_ids:{a:'define-a',b:'define-b'},
 };
 
 function runA(
@@ -305,7 +305,7 @@ test('static effect-conflict provenance preserves obligation IDs containing colo
       [left.id]:left,
       [right.id]:right,
     },
-    definition_commits:{
+    definition_ids:{
       [left.id]:'define-left',
       [right.id]:'define-right',
     },

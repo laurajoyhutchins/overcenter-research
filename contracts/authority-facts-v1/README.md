@@ -9,7 +9,7 @@ Shape validity is necessary but not sufficient. A well-shaped claim can still be
 The logical fact vocabulary is:
 
 ```text
-obligation.json
+graph-patch.json
 claim.json
 execution-authority.json
 effect-reservation.json
@@ -18,16 +18,22 @@ receipt.json
 
 Git and SQLite are storage implementations of this logical history. Backend-local commit identifiers are intentionally not interchangeable.
 
-## Legacy wire names
+## Graph patches
 
-Several persisted discriminators contain `overcenter-git-*`. Those are historical wire names, not current architectural authority. Renaming them would make old durable history incompatible for cosmetic benefit, so this contract preserves them. New persisted families should not inherit a storage-backend name unless the backend is actually part of their semantics.
+`graph-patch.json` is the only persisted graph-definition transition. It contains:
+
+- content-addressed immutable obligation definitions;
+- stable node-to-definition bindings;
+- stable node IDs retired from the current graph.
+
+A graph revision may rebind a node or retire it, but it never mutates or deletes a definition. Definitions remain available for historical run interpretation and later reuse.
 
 ## Open boundaries
 
 The outer fact envelopes reject unknown fields. Four nested payloads remain deliberately open:
 
-- `Obligation.packet`: application-defined and authoritative by value.
-- `Obligation.postcondition`: owned by verifier contracts.
+- `GraphPatchFact.definitions[].definition.packet`: application-defined and authoritative by value.
+- `GraphPatchFact.definitions[].definition.postcondition`: owned by verifier contracts.
 - `ReceiptFact.observed`: owned by the observation/evidence contract.
 - `ReceiptFact.diagnostic`: intentionally non-authoritative diagnostics.
 

@@ -48,7 +48,7 @@ test('unordered incompatible canonical effects are rejected before definition co
   }
 });
 
-test('amendment cannot remove ordering and create a static effect conflict', () => {
+test('rebinding cannot remove ordering and create a static effect conflict', () => {
   const f=fixture();
   try {
     f.kernel.define({id:'alpha',postcondition:statusPostcondition('success')});
@@ -60,10 +60,12 @@ test('amendment cannot remove ordering and create a static effect conflict', () 
     const acceptedHead=f.kernel.head()!;
 
     assert.throws(
-      ()=>f.kernel.amend({
-        id:'beta',
-        dependencies:[],
-        postcondition:statusPostcondition('failure'),
+      ()=>f.kernel.applyGraphPatch({
+        upsert:[{
+          id:'beta',
+          dependencies:[],
+          postcondition:statusPostcondition('failure'),
+        }],
       },acceptedHead),
       /UNORDERED_EFFECT_CONFLICT:alpha:beta/,
     );

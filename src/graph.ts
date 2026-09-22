@@ -14,16 +14,16 @@ export function dependencyUpstreams(obligation:Obligation):string[] {
 export function withObligation(
   state:State,
   obligation:Obligation,
-  definitionCommit:string,
+  definitionId:string,
 ):State {
   return {
     obligations:{
       ...structuredClone(state.obligations),
       [obligation.id]:structuredClone(obligation),
     },
-    definition_commits:{
-      ...state.definition_commits,
-      [obligation.id]:definitionCommit,
+    definition_ids:{
+      ...state.definition_ids,
+      [obligation.id]:definitionId,
     },
   };
 }

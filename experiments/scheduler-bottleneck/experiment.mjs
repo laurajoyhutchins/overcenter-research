@@ -6,7 +6,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
-import { normalizeObligation, OBLIGATION_SCHEMA } from '../../src/facts.ts';
+import {
+  GRAPH_PATCH_SCHEMA,
+  normalizeObligation,
+  obligationDefinition,
+  obligationDefinitionId,
+} from '../../src/facts.ts';
 import { validateAdmission } from '../../src/admission.ts';
 import { dependsOn, validateGraph } from '../../src/graph.ts';
 import { OvercenterKernel } from '../../src/kernel.ts';
@@ -55,13 +60,16 @@ function syntheticDefinitionCommits(count) {
         content:id,
       },
     });
+    const definition=obligationDefinition(obligation);
+    const definitionId=obligationDefinitionId(definition);
     commits.push({
       commit,
       parent,
-      obligation:{
-        schema:OBLIGATION_SCHEMA,
-        kind:'defined',
-        obligation,
+      graph_patch:{
+        schema:GRAPH_PATCH_SCHEMA,
+        definitions:[{id:definitionId,definition}],
+        bindings:[{node_id:id,definition_id:definitionId}],
+        retire:[],
       },
       claim:null,
       execution_authority:null,
@@ -195,7 +203,7 @@ function graphBuildBenchmark() {
           if (mode==='sequential') {
             for (const obligation of obligations) kernel.define(obligation);
           } else {
-            kernel.applyGraphPatch({add:obligations},initial);
+            kernel.applyGraphPatch({upsert:obligations},initial);
           }
           const elapsed_ms=performance.now()-started;
           assert.equal(kernel.inspect().length,definitions);
@@ -269,7 +277,7 @@ function referenceEffectAdmission(state) {
 function effectAdmissionBenchmark() {
   const results=EFFECT_ADMISSION_COUNTS.map(definitions=>{
     const obligations={};
-    const definition_commits={};
+    const definition_ids={};
     for (let index=0;index<definitions;index+=1) {
       const id='effect-'+String(index).padStart(5,'0');
       obligations[id]=normalizeObligation({
@@ -290,9 +298,9 @@ function effectAdmissionBenchmark() {
           expected_state:index%2===0 ? 'success' : 'failure',
         },
       });
-      definition_commits[id]='definition-'+String(index);
+      definition_ids[id]='definition-'+String(index);
     }
-    const state={obligations,definition_commits};
+    const state={obligations,definition_ids};
 
     const reference_ms=timed(()=>referenceEffectAdmission(state),1);
     const indexed_ms=timed(()=>validateAdmission(state),3);
@@ -310,7 +318,7 @@ function effectAdmissionBenchmark() {
 function indexedEffectAdmissionStressBenchmark() {
   const definitions=EFFECT_ADMISSION_STRESS_COUNT;
   const obligations={};
-  const definition_commits={};
+  const definition_ids={};
   for (let index=0;index<definitions;index+=1) {
     const id='stress-effect-'+String(index).padStart(5,'0');
     obligations[id]=normalizeObligation({
@@ -331,9 +339,9 @@ function indexedEffectAdmissionStressBenchmark() {
         expected_state:index%2===0 ? 'success' : 'failure',
       },
     });
-    definition_commits[id]='definition-'+String(index);
+    definition_ids[id]='definition-'+String(index);
   }
-  const state={obligations,definition_commits};
+  const state={obligations,definition_ids};
 
   validateAdmission(state);
   const started=performance.now();

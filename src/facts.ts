@@ -11,13 +11,14 @@ import {
   validateObservationEnvelope,
   validatePostcondition,
 } from './observation.ts';
+import { canonicalDigest } from './digest.ts';
 import {
   assertExactKeys as exactKeys,
   assertNonEmptyString as nonEmptyString,
   isData as data,
 } from './validation.ts';
 
-export const OBLIGATION_SCHEMA='overcenter-git-obligation-v3' as const;
+export const GRAPH_PATCH_SCHEMA='overcenter-graph-patch-v1' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
@@ -30,23 +31,33 @@ export interface ObligationInput {
   postcondition:Postcondition;
 }
 
-export interface State {
-  obligations:Record<string,Obligation>;
-  definition_commits:Record<string,string>;
+export interface ObligationDefinition {
+  dependencies:Dependency[];
+  packet:Data;
+  postcondition:Postcondition;
 }
 
-export type ObligationFact =
-  | {
-      schema:typeof OBLIGATION_SCHEMA;
-      kind:'defined';
-      obligation:Obligation;
-    }
-  | {
-      schema:typeof OBLIGATION_SCHEMA;
-      kind:'amended';
-      obligation:Obligation;
-      previous_definition_commit:string;
-    };
+export interface State {
+  obligations:Record<string,Obligation>;
+  definition_ids:Record<string,string>;
+}
+
+export interface DefinitionFact {
+  id:string;
+  definition:ObligationDefinition;
+}
+
+export interface BindingFact {
+  node_id:string;
+  definition_id:string;
+}
+
+export interface GraphPatchFact {
+  schema:typeof GRAPH_PATCH_SCHEMA;
+  definitions:DefinitionFact[];
+  bindings:BindingFact[];
+  retire:string[];
+}
 
 export interface ClaimFact {
   schema:typeof CLAIM_SCHEMA;
@@ -102,14 +113,13 @@ export interface Receipt extends ReceiptFact {
 
 export interface HistoricalRun extends Run {
   obligation:Obligation;
-  definition_commit:string;
+  definition_id:string;
 }
 
 export interface FactCommit {
   commit:string;
   parent:string|null;
-  obligation?:unknown|null;
-  obligations?:unknown|null;
+  graph_patch?:unknown|null;
   claim?:unknown|null;
   execution_authority?:unknown|null;
   effect_reservation?:unknown|null;
@@ -117,7 +127,7 @@ export interface FactCommit {
 }
 
 export function emptyState():State {
-  return {obligations:{},definition_commits:{}};
+  return {obligations:{},definition_ids:{}};
 }
 
 function positiveSafeInteger(value:unknown,error:string):asserts value is number {
@@ -175,36 +185,118 @@ export function validateStoredObligation(obligation:Obligation):Obligation {
   return structuredClone(obligation);
 }
 
-export function validateObligationFact(value:unknown):ObligationFact {
-  if (!data(value)) throw new Error('INVALID_OBLIGATION_FACT');
-  if (value.schema!==OBLIGATION_SCHEMA) throw new Error('INVALID_OBLIGATION_SCHEMA');
-  if (value.kind==='defined') {
-    exactKeys(value,['schema','kind','obligation'],[],'INVALID_OBLIGATION_FACT');
-    return {
-      schema:OBLIGATION_SCHEMA,
-      kind:'defined',
-      obligation:validateStoredObligation(value.obligation as Obligation),
-    };
-  }
-  if (value.kind==='amended') {
-    exactKeys(
-      value,
-      ['schema','kind','obligation','previous_definition_commit'],
-      [],
-      'INVALID_OBLIGATION_FACT',
+export function obligationDefinition(
+  obligation:Obligation,
+):ObligationDefinition {
+  const dependencies=structuredClone(obligation.dependencies)
+    .sort((a,b)=>canonicalDigest(a).localeCompare(canonicalDigest(b)));
+  return {
+    dependencies,
+    packet:structuredClone(obligation.packet),
+    postcondition:structuredClone(obligation.postcondition),
+  };
+}
+
+export function obligationDefinitionId(
+  definition:ObligationDefinition,
+):string {
+  return canonicalDigest({
+    domain:'overcenter-obligation-definition',
+    definition,
+  });
+}
+
+export function materializeObligation(
+  nodeId:string,
+  definition:ObligationDefinition,
+):Obligation {
+  return {
+    id:nodeId,
+    dependencies:structuredClone(definition.dependencies),
+    packet:structuredClone(definition.packet),
+    postcondition:structuredClone(definition.postcondition),
+  };
+}
+
+export function validateStoredObligationDefinition(
+  definition:ObligationDefinition,
+):ObligationDefinition {
+  if (!data(definition)) throw new Error('INVALID_OBLIGATION_DEFINITION');
+  const raw=definition as unknown as Record<string,unknown>;
+  exactKeys(
+    raw,
+    ['dependencies','packet','postcondition'],
+    [],
+    'INVALID_OBLIGATION_DEFINITION',
+  );
+  if (!Array.isArray(definition.dependencies)) throw new Error('INVALID_DEPENDENCIES');
+  if (!data(raw.packet)) throw new Error('INVALID_PACKET');
+  validateDependencies(definition.dependencies);
+  validatePostcondition(definition.postcondition);
+  const normalized=structuredClone(definition);
+  normalized.dependencies.sort(
+    (a,b)=>canonicalDigest(a).localeCompare(canonicalDigest(b)),
+  );
+  return normalized;
+}
+
+export function validateGraphPatchFact(value:unknown):GraphPatchFact {
+  if (!data(value)) throw new Error('INVALID_GRAPH_PATCH');
+  exactKeys(
+    value,
+    ['schema','definitions','bindings','retire'],
+    [],
+    'INVALID_GRAPH_PATCH',
+  );
+  if (value.schema!==GRAPH_PATCH_SCHEMA) throw new Error('INVALID_GRAPH_PATCH_SCHEMA');
+  if (!Array.isArray(value.definitions)) throw new Error('INVALID_GRAPH_PATCH_DEFINITIONS');
+  if (!Array.isArray(value.bindings)) throw new Error('INVALID_GRAPH_PATCH_BINDINGS');
+  if (!Array.isArray(value.retire)) throw new Error('INVALID_GRAPH_PATCH_RETIRE');
+
+  const definitions:DefinitionFact[]=[];
+  const definitionIds=new Set<string>();
+  for (const item of value.definitions) {
+    if (!data(item)) throw new Error('INVALID_GRAPH_PATCH_DEFINITION');
+    exactKeys(item,['id','definition'],[],'INVALID_GRAPH_PATCH_DEFINITION');
+    sha256Hex(item.id,'INVALID_DEFINITION_ID');
+    const definition=validateStoredObligationDefinition(
+      item.definition as ObligationDefinition,
     );
-    nonEmptyString(
-      value.previous_definition_commit,
-      'INVALID_PREVIOUS_DEFINITION_COMMIT',
-    );
-    return {
-      schema:OBLIGATION_SCHEMA,
-      kind:'amended',
-      obligation:validateStoredObligation(value.obligation as Obligation),
-      previous_definition_commit:value.previous_definition_commit,
-    };
+    if (obligationDefinitionId(definition)!==item.id) {
+      throw new Error('OBLIGATION_DEFINITION_ID_MISMATCH');
+    }
+    if (definitionIds.has(item.id)) throw new Error(`DUPLICATE_DEFINITION:${item.id}`);
+    definitionIds.add(item.id);
+    definitions.push({id:item.id,definition});
   }
-  throw new Error('INVALID_OBLIGATION_KIND');
+
+  const bindings:BindingFact[]=[];
+  const nodeIds=new Set<string>();
+  for (const item of value.bindings) {
+    if (!data(item)) throw new Error('INVALID_GRAPH_PATCH_BINDING');
+    exactKeys(item,['node_id','definition_id'],[],'INVALID_GRAPH_PATCH_BINDING');
+    nonEmptyString(item.node_id,'INVALID_OBLIGATION_ID');
+    sha256Hex(item.definition_id,'INVALID_DEFINITION_ID');
+    if (nodeIds.has(item.node_id)) throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${item.node_id}`);
+    nodeIds.add(item.node_id);
+    bindings.push({node_id:item.node_id,definition_id:item.definition_id});
+  }
+
+  const retire:string[]=[];
+  for (const id of value.retire) {
+    nonEmptyString(id,'INVALID_OBLIGATION_ID');
+    if (nodeIds.has(id)) throw new Error(`DUPLICATE_GRAPH_PATCH_ID:${id}`);
+    nodeIds.add(id);
+    retire.push(id);
+  }
+
+  if (bindings.length===0 && retire.length===0) throw new Error('EMPTY_GRAPH_PATCH');
+  return {
+    schema:GRAPH_PATCH_SCHEMA,
+    definitions,
+    bindings,
+    retire,
+  };
 }
 
 export function validateClaimFact(value:unknown):ClaimFact {
@@ -321,7 +413,7 @@ export function validateReceiptFact(value:unknown):ReceiptFact {
 }
 
 export type AuthorityFact =
-  | ObligationFact
+  | GraphPatchFact
   | ClaimFact
   | ExecutionAuthorityFact
   | EffectReservationFact
@@ -330,8 +422,8 @@ export type AuthorityFact =
 export function validateAuthorityFact(value:unknown):AuthorityFact {
   if (!data(value)) throw new Error('INVALID_AUTHORITY_FACT');
   switch (value.schema) {
-    case OBLIGATION_SCHEMA:
-      return validateObligationFact(value);
+    case GRAPH_PATCH_SCHEMA:
+      return validateGraphPatchFact(value);
     case CLAIM_SCHEMA:
       return validateClaimFact(value);
     case EXECUTION_AUTHORITY_SCHEMA:
