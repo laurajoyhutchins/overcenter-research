@@ -53,6 +53,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Use pinned Node.js
+        if: ${{ github.run_attempt > 1 }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
       - name: Validate inert candidate transport
         if: ${{ github.run_attempt > 1 }}
         shell: bash
@@ -72,12 +78,6 @@ jobs:
             });
           ')"
           test "$branch_run_id" = "$candidate_run_id"
-
-      - name: Use pinned Node.js
-        if: ${{ github.run_attempt > 1 }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version-file: '.node-version'
 
       - name: Invoke agent.submit
         if: ${{ github.run_attempt > 1 }}
