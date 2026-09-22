@@ -46,7 +46,7 @@ test('project.advance is a project-scoped trusted rerun command',()=>{
   );
   assert.match(advance,/permissions:\n\s+contents: write/);
   assert.doesNotMatch(advance,/workflow_dispatch:|issue_comment:|pull_request_review:/);
-  assert.match(advance,/github-project-advance\.ts --output-dir response/);
+  assert.match(advance,/project-advance\.ts --output-dir response/);
   assert.match(advance,/steps\.invoke\.outputs\.state == 'AGENT_EXECUTION_REQUIRED'/);
   assert.match(advance,/overcenter-work-packet-\$\{\{ steps\.invoke\.outputs\.run_id \}\}/);
 });
@@ -65,7 +65,7 @@ test('candidate transport stays internal and inert until project.submit is invok
   assert.match(submit,/COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.sha \}\}/);
   assert.match(submit,/test "\$changed" = "\.overcenter\/candidate\.json"/);
   assert.match(submit,/test "\$branch_run_id" = "\$candidate_run_id"/);
-  assert.match(submit,/github-project-submit\.ts --receipt response\/receipt\.json/);
+  assert.match(submit,/project-submit\.ts --receipt response\/receipt\.json/);
   assert.doesNotMatch(submit,/issue_comment:|pull_request_review:|workflow_dispatch:/);
 });
 
