@@ -27,6 +27,8 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
 - `frontier-prioritization/` - exhaustive and sampled proof that apparently ambiguous READY-frontier priority can be resolved or verified deterministically before AI escalation.
 - `code-graph-verification/` - preregistered Flask experiment testing whether deterministic static reachability can predict changed verification outcomes across exact human and AI patches.
+- `code-graph-holdout-requests/` - invalidated Requests holdout retained as methodological evidence for nonzero test-universe admission; not graph-performance evidence.
+- `code-graph-holdout-pylint/` - fresh preregistered Pylint holdout for independent confirmation of the frozen repaired code-graph representation.
 - `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
 
