@@ -2,7 +2,7 @@
   "schema": "overcenter-graph-patch-v1",
   "definitions": [
     {
-      "id": "37daf1ae5cc05c38aa61a14642952f48efa51e4bbac1770c52891fd98b12320f",
+      "id": "5c022570d0a027ca61c330c6ae4991ba73175d65c2ae34bdf50f3315e2bafb69",
       "definition": {
         "dependencies": [],
         "packet": {
@@ -12,7 +12,7 @@
             "repository_id": 1354872053,
             "workflow_run_id": "35784162768",
             "workflow_run_attempt": "1",
-            "slot": "alpha"
+            "slot": "beta"
           },
           "exact_input": {
             "kind": "git-commit/v1",
@@ -27,7 +27,7 @@
           "repository_id": 1354872053,
           "repository_full_name": "laurajoyhutchins/overcenter-research",
           "commit_sha": "078d924e456c0fe4a01140d8b2c013a37169316d",
-          "context": "overcenter/concurrency/35784162768/1/alpha",
+          "context": "overcenter/concurrency/35784162768/1/beta",
           "expected_state": "success"
         }
       }
@@ -35,8 +35,8 @@
   ],
   "bindings": [
     {
-      "node_id": "concurrency-35784162768-1-alpha",
-      "definition_id": "37daf1ae5cc05c38aa61a14642952f48efa51e4bbac1770c52891fd98b12320f"
+      "node_id": "concurrency-35784162768-1-beta",
+      "definition_id": "5c022570d0a027ca61c330c6ae4991ba73175d65c2ae34bdf50f3315e2bafb69"
     }
   ],
   "retire": []
