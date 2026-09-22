@@ -259,10 +259,10 @@ test('project commands expose inert default-branch rerun anchors and isolate aut
     assert.doesNotMatch(source,/issue_comment:|pull_request_review:|label:/);
     assert.match(source,new RegExp(`^name: Overcenter command · ${command.replace('.','\\.')}\\s*$`,'m'));
     assert.match(source,new RegExp(`command:\\n\\s+name: ${command.replace('.','\\.')}`));
-    assert.match(
+    assert.doesNotMatch(
       source,
-      /github\.run_attempt == 1 \|\| github\.triggering_actor == github\.repository_owner/,
-      'only the inert first run or repository owner may enter a project command job',
+      /github\.triggering_actor|github\.actor == github\.repository_owner/,
+      'GitHub rerun permission is the command authorization boundary; YAML must not add an owner-only alias',
     );
     assert.match(
       source,
