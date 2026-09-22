@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {mkdtempSync,rmSync,writeFileSync} from 'node:fs';
+import {mkdirSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
@@ -29,6 +29,18 @@ function fixture():{root:string;base:string;head:string;merge:string;cleanup:()=
   git(root,['init','-q']);
   git(root,['config','user.email','test@example.com']);
   git(root,['config','user.name','Test']);
+  mkdirSync(join(root,'executor'),{recursive:true});
+  writeFileSync(join(root,'.node-version'),'22.16.0\n');
+  writeFileSync(join(root,'.go-version'),'1.24.5\n');
+  writeFileSync(join(root,'rust-toolchain.toml'),'[toolchain]\nchannel = "1.88.0"\nprofile = "minimal"\n');
+  writeFileSync(
+    join(root,'executor/runtime-images.json'),
+    JSON.stringify({
+      schema:'overcenter-runtime-images-v2',
+      node_runtime:'node:22.16.0-bookworm-slim@sha256:'+'1'.repeat(64),
+      node_self_application:'node:22.16.0-bookworm@sha256:'+'2'.repeat(64),
+    })+'\n',
+  );
   writeFileSync(join(root,'same.txt'),'same bytes\n');
   git(root,['add','.']);
   git(root,['commit','-qm','base']);
