@@ -1,0 +1,114 @@
+name: Pylint code graph holdout confirmatory
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Run the frozen independent Pylint holdout
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: pylint-code-graph-holdout-confirmatory-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  admission:
+    if: ${{ inputs.confirm }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      cases: ${{ steps.plan.outputs.cases }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Verify frozen contract
+        run: node --test experiments/code-graph-holdout-pylint/contract.test.mjs
+      - name: Fetch Pylint history
+        run: git clone --filter=blob:none https://github.com/pylint-dev/pylint.git /tmp/pylint
+      - name: Re-prove admission
+        run: |
+          python3 experiments/code-graph-holdout-pylint/preflight.py \
+            --pylint-repo /tmp/pylint --out "$RUNNER_TEMP/preflight.json" --require-admission
+      - name: Derive matrix
+        id: plan
+        run: |
+          python3 - <<'PY'
+          import json,os
+          c=json.load(open("experiments/code-graph-holdout-pylint/corpus.json"))
+          with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+              out.write("cases="+json.dumps([x["id"] for x in c["cases"]],separators=(",",":"))+"\n")
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pylint-holdout-preflight
+          path: ${{ runner.temp }}/preflight.json
+          if-no-files-found: error
+          retention-days: 30
+  cases:
+    needs: admission
+    name: ${{ matrix.case }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        case: ${{ fromJSON(needs.admission.outputs.cases) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Fetch Pylint history
+        run: git clone --filter=blob:none https://github.com/pylint-dev/pylint.git /tmp/pylint
+      - name: Run frozen holdout case
+        run: |
+          python3 experiments/code-graph-holdout-pylint/run_case.py \
+            --pylint-repo /tmp/pylint --case "${{ matrix.case }}" --out "$RUNNER_TEMP/results"
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pylint-holdout-${{ matrix.case }}
+          path: ${{ runner.temp }}/results
+          if-no-files-found: error
+          retention-days: 30
+  aggregate:
+    needs: [admission,cases]
+    if: ${{ always() && needs.admission.result == 'success' && needs.cases.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pylint-holdout-preflight
+          path: ${{ runner.temp }}/preflight
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: pylint-holdout-pylint-dev__pylint-*
+          path: ${{ runner.temp }}/results
+          merge-multiple: true
+      - name: Aggregate
+        run: |
+          python3 experiments/code-graph-holdout-pylint/summarize.py \
+            --results "$RUNNER_TEMP/results" \
+            --preflight "$RUNNER_TEMP/preflight/preflight.json" \
+            --out "$RUNNER_TEMP/summary.json"
+      - name: Publish verdict
+        env:
+          SUMMARY: ${{ runner.temp }}/summary.json
+        run: |
+          python3 - <<'PY'
+          import json,os
+          r=json.load(open(os.environ["SUMMARY"]))
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as out:
+              out.write("## Independent Pylint holdout\n\n")
+              out.write(f"- recall: {r['metrics']['recall']:.6f}\n")
+              out.write(f"- selected fraction: {r['metrics']['selected_fraction']:.6f}\n")
+              out.write(f"- missed regressions: {r['totals']['missed_regressions']}\n")
+              out.write(f"- hypothesis survived: **{r['hypothesis_survived']}**\n")
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pylint-holdout-summary
+          path: ${{ runner.temp }}/summary.json
+          if-no-files-found: error
+          retention-days: 30

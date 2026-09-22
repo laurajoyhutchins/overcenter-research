@@ -1,0 +1,11 @@
+{
+  "schema": "overcenter-code-graph-holdout-invalid-attempt/v1",
+  "repository": "psf/requests",
+  "run_id": 35744157408,
+  "execution_revision": "93da936df15d8198ff73bc44d7dca6567e13d920",
+  "summary_artifact_id": 10702790872,
+  "summary_artifact_sha256": "aa29d24d62ce1fc8ee25778c7db34fb3c19740edfa35715660318b1ad8a29a57",
+  "valid_holdout_result": false,
+  "reason": "The holdout adapter configured test_roots=['tests'], but these historical Requests revisions keep graph-visible tests in root-level test_requests.py. The pinned graph therefore discovered zero test nodes and predicted an empty frontier. Oracle outcomes were observed, so Requests is now contaminated and is not reused for independent confirmation.",
+  "durable_fix": "Future holdout admission requires at least one graph-visible static test node for every case before oracle execution."
+}

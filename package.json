@@ -71,6 +71,10 @@
     "test:code-graph-holdout-requests": "node --test experiments/code-graph-holdout-requests/contract.test.mjs",
     "experiment:code-graph-holdout-requests-preflight": "python3 experiments/code-graph-holdout-requests/preflight.py",
     "experiment:code-graph-holdout-requests-run-case": "python3 experiments/code-graph-holdout-requests/run_case.py",
-    "experiment:code-graph-holdout-requests-summarize": "python3 experiments/code-graph-holdout-requests/summarize.py"
+    "experiment:code-graph-holdout-requests-summarize": "python3 experiments/code-graph-holdout-requests/summarize.py",
+    "test:code-graph-holdout-pylint": "node --test experiments/code-graph-holdout-pylint/contract.test.mjs",
+    "experiment:code-graph-holdout-pylint-preflight": "python3 experiments/code-graph-holdout-pylint/preflight.py",
+    "experiment:code-graph-holdout-pylint-run-case": "python3 experiments/code-graph-holdout-pylint/run_case.py",
+    "experiment:code-graph-holdout-pylint-summarize": "python3 experiments/code-graph-holdout-pylint/summarize.py"
   }
 }

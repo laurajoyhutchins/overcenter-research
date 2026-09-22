@@ -1,0 +1,284 @@
+{
+  "schema": "overcenter-code-graph-holdout-corpus/v1",
+  "subject": {
+    "repository": "pylint-dev/pylint",
+    "selection_rule": "Use every pylint-dev__pylint-* directory in IBM Issue-Test-Localizer verified_gpt4o_all_unique_patches, choose exactly dedup_patch_0.jsonl, and pair with SWE-bench task gold.patch and test.patch. Do not consult model outcome reports."
+  },
+  "representation": {
+    "frontier_path": "experiments/code-graph-verification/frontier.py",
+    "frontier_git_blob_sha": "d504fbdc575d520cb2360cf223eb5ff960db8e98",
+    "score_path": "experiments/code-graph-verification/score.py",
+    "score_git_blob_sha": "3fc6acb019c4dada4eea3972abd3736303ac9502",
+    "source_roots": [
+      "pylint"
+    ],
+    "test_roots": [
+      "tests"
+    ],
+    "bounded_attribute_candidate_limit": 3,
+    "frozen_before_holdout_outcomes": true
+  },
+  "primary_thresholds": {
+    "recall_min": 0.99,
+    "selected_fraction_max": 0.3,
+    "missed_regressions_max": 0
+  },
+  "execution_admission": {
+    "human_exact_patches": 10,
+    "ai_exact_patches": 10,
+    "ai_nonidentical_to_human_exact_patches": 10,
+    "minimum_graph_test_nodes_per_case": 1
+  },
+  "cases": [
+    {
+      "id": "pylint-dev__pylint-4551",
+      "base_commit": "99589b08de8c5a2c6cc61e13a37420a868c80599",
+      "test_patch": "patches/pylint-4551-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-4551-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-4551/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-4551-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4551/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-4604",
+      "base_commit": "1e55ae64624d28c5fe8b63ad7979880ee2e6ef3f",
+      "test_patch": "patches/pylint-4604-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-4604-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-4604/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-4604-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4604/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-4661",
+      "base_commit": "1d1619ef913b99b06647d2030bddff4800abdf63",
+      "test_patch": "patches/pylint-4661-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-4661-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-4661/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-4661-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4661/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-4970",
+      "base_commit": "40cc2ffd7887959157aaf469e09585ec2be7f528",
+      "test_patch": "patches/pylint-4970-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-4970-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-4970/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-4970-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-4970/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-6386",
+      "base_commit": "754b487f4d892e3d4872b6fc7468a71db4e31c13",
+      "test_patch": "patches/pylint-6386-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-6386-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-6386/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-6386-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6386/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-6528",
+      "base_commit": "273a8b25620467c1e5686aa8d2a1dbb8c02c78d0",
+      "test_patch": "patches/pylint-6528-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-6528-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-6528/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-6528-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6528/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-6903",
+      "base_commit": "ca80f03a43bc39e4cc2c67dc99817b3c9f13b8a6",
+      "test_patch": "patches/pylint-6903-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-6903-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-6903/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-6903-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-6903/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-7080",
+      "base_commit": "3c5eca2ded3dd2b59ebaf23eb289453b5d2930f0",
+      "test_patch": "patches/pylint-7080-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-7080-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-7080/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-7080-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-7080/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-7277",
+      "base_commit": "684a1d6aa0a6791e20078bc524f97c8906332390",
+      "test_patch": "patches/pylint-7277-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-7277-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-7277/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-7277-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-7277/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pylint-dev__pylint-8898",
+      "base_commit": "1f8c4d9eb185c16a2c1d881c054f015e1c2eb334",
+      "test_patch": "patches/pylint-8898-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/pylint-8898-human.patch",
+          "provenance": {
+            "source": "SWE-bench/swe-bench-tasks/tasks/pylint-dev__pylint-8898/gold.patch"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/pylint-8898-ai-agentless-0.patch",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/pylint-dev__pylint-8898/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every pylint-dev/pylint directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    }
+  ]
+}
