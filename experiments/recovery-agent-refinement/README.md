@@ -118,4 +118,4 @@ Deterministic contract:
 npm run test:recovery-agent-refinement
 ```
 
-The real-model comparison runs in GitHub Actions through `.github/workflows/recovery-agent-refinement.yml`.
+The real-model comparison extends the already-admitted Google-free reasoning workflow at `.github/workflows/autonomy-sandbox-google-free.yml`, reusing the one-shot worker as round one before trusted cardinality feedback and one final refinement call.
