@@ -109,7 +109,7 @@ Deterministic contract and oracle:
 npm run test:recovery-agent-search
 ```
 
-The real-model comparison runs in GitHub Actions through `.github/workflows/recovery-agent-search.yml` using the already-proven billing-disabled Google-free OIDC path.
+The real-model comparison runs in GitHub Actions through `.github/workflows/autonomy-sandbox-google-free.yml` using the already-proven billing-disabled Google-free OIDC path.
 
 ## Interpretation
 
