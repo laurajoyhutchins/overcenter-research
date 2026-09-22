@@ -326,6 +326,38 @@ test('live supplemental proofs do not recertify the whole repository suite',()=>
   }
 });
 
+test('tree evidence artifacts are post-candidate receipts and shadow reuse is non-authoritative',()=>{
+  const evidence=read('.github/workflows/tests.yml');
+  const selfIndex=evidence.indexOf('Prove self-application on the same exact revision');
+  const emitIndex=evidence.indexOf('Emit reusable candidate tree evidence');
+  const uploadIndex=evidence.indexOf('Upload reusable candidate tree evidence');
+  assert.ok(selfIndex>=0 && emitIndex>selfIndex && uploadIndex>emitIndex);
+  assert.match(evidence,/emit_tree_evidence:[\s\S]*?type: boolean/);
+
+  const mergeGate=read('.github/workflows/merge-gate.yml');
+  assert.match(
+    mergeGate,
+    /emit_tree_evidence: \$\{\{ github\.event_name == 'workflow_dispatch' \}\}/,
+    'only explicit candidate certification may publish reusable tree evidence',
+  );
+  assert.match(
+    mergeGate,
+    /run-name: candidate\.certify=\$\{\{ inputs\.source_sha \|\| github\.sha \}\} base=\$\{\{ inputs\.base_sha \|\| 'none' \}\}/,
+    'provider-visible run identity must expose exact certification coordinates',
+  );
+
+  const shadow=read('.github/workflows/tree-evidence-reuse-shadow.yml');
+  assert.match(shadow,/^name: Tree evidence reuse shadow$/m);
+  assert.match(shadow,/push:\n\s+branches: \[main\]/);
+  assert.match(shadow,/actions: read/);
+  assert.match(shadow,/Run fresh revision-bound self-application/);
+  assert.match(shadow,/authoritative Merge gate remains unchanged/);
+  assert.doesNotMatch(
+    mergeGate,
+    /tree-evidence-reuse-shadow|derive-and-rebind/,
+    'shadow derivation must not participate in merge admission yet',
+  );
+});
 test('candidate evidence reuses only same-runner exact-revision production work',()=>{
   const evidence=read('.github/workflows/tests.yml');
   const production=read('scripts/proof-production.sh');
