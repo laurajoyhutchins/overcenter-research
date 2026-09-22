@@ -77,6 +77,23 @@ Before a variant enters confirmatory statistics:
 
 A candidate that fails exact application is excluded from the executable corpus and reported as such. It is not silently repaired to make the experiment easier.
 
+### Hosted preflight evidence
+
+The frozen corpus passed exact-base hosted preflight in GitHub Actions run `35692049450` at revision `ce1dddb8d2c70ffc6b7104f455283f3532799e53`.
+
+The content-bound evidence snapshot records:
+
+```text
+corpus sha256:      ab603d5839bf8d76eb5b1836612cf2200f1cb2ea0d232cfd1a32aa13aa2fc53e
+human exact apply:  11
+AI exact apply:     10
+AI nonidentical:    10
+adversarial AI:     4
+execution admission: true
+```
+
+`contract.test.mjs` recomputes the current corpus digest and rejects this evidence snapshot if the corpus bytes change.
+
 ## Representation
 
 Version 1 intentionally uses only Python's standard-library AST. It does not use an LLM.
