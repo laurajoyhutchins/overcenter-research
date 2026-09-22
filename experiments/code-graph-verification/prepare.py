@@ -12,6 +12,14 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 
+def patch_paths(path: Path) -> list[str]:
+    return [
+        line[6:]
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.startswith("+++ b/")
+    ]
+
+
 def run(*args: str, cwd: Path | None = None):
     subprocess.run(args, cwd=cwd, check=True)
 
@@ -57,6 +65,9 @@ def main():
         try:
             test_patch = (HERE / case["test_patch"]).resolve()
             candidate_patch = (HERE / variant["patch"]).resolve()
+            candidate_paths = patch_paths(candidate_patch)
+            if any(p == "tests" or p.startswith("tests/") for p in candidate_paths):
+                raise SystemExit("candidate patch modifies held-out test namespace")
 
             for worktree in (base, patched):
                 run("git", "apply", "--check", str(test_patch), cwd=worktree)
