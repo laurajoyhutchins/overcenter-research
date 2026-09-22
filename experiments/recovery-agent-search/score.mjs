@@ -12,6 +12,7 @@ const exactKeys=(value,keys)=>{
   const expected=[...keys].sort();
   return actual.length===expected.length && actual.every((key,index)=>key===expected[index]);
 };
+const cleanToken=value=>value.replace(/[.,;!?]+$/,'');
 const slug=value=>value
   .toLowerCase()
   .replace(/[^a-z0-9]+/g,'-')
@@ -35,7 +36,7 @@ function deterministicProposal(packet) {
   if (operation) fields.operation=operation;
 
   const canonicalResource=note.match(/\b(?:resource=)?((?:merchant|vm|recipient|service|bucket|dataset):[a-z0-9._@-]+)/i);
-  if (canonicalResource) fields.resource=canonicalResource[1].toLowerCase();
+  if (canonicalResource) fields.resource=cleanToken(canonicalResource[1].toLowerCase());
 
   const cents=note.match(/\b(\d+)\s+cents\b/i);
   if (cents) fields.amount=(Number(cents[1])/100).toFixed(2);
@@ -46,14 +47,14 @@ function deterministicProposal(packet) {
   const fullName=note.match(/\b([A-Z][a-z]+) ([A-Z][a-z]+)\b/);
   const atDomain=note.match(/\bat ([a-z0-9.-]+)\b/i);
   if (fullName && atDomain && /first initial plus surname/i.test(note)) {
-    const address=`${fullName[1][0].toLowerCase()}${fullName[2].toLowerCase()}@${atDomain[1].toLowerCase()}`;
+    const address=`${fullName[1][0].toLowerCase()}${fullName[2].toLowerCase()}@${cleanToken(atDomain[1].toLowerCase())}`;
     if (operation==='mail.send') fields.resource='recipient:'+address;
     if (operation==='iam.grant') fields.principal='user:'+address;
   }
 
   const contractorDomain=note.match(/from ([a-z0-9.-]+).*first initial plus surname plus -ext at \1/is);
   if (fullName && contractorDomain && operation==='iam.grant') {
-    fields.principal=`user:${fullName[1][0].toLowerCase()}${fullName[2].toLowerCase()}-ext@${contractorDomain[1].toLowerCase()}`;
+    fields.principal=`user:${fullName[1][0].toLowerCase()}${fullName[2].toLowerCase()}-ext@${cleanToken(contractorDomain[1].toLowerCase())}`;
   }
 
   const dataset=note.match(/\b(finance_\d{4})\b/i);
