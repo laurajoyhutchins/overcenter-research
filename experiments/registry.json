@@ -854,7 +854,7 @@
       ],
       "evidence": {
         "state": "current",
-        "evaluated_revision": "b1e726bca0210536285ab3fcd081160167bb9165",
+        "evaluated_revision": "9086be6a2d0502fb36109fac9b1aeeb3f322bf2c",
         "artifacts": [
           "experiments/code-graph-verification/results/2026-09-22-confirmatory.json",
           "experiments/code-graph-verification/results/2026-09-22-confirmatory.md",
@@ -863,7 +863,8 @@
           "GitHub Actions corrected-score run 35740676637",
           "GitHub Actions frontier replay run 35741538548",
           "Repaired replay summary artifact 10699658915 (sha256 fc0a62ca98a922c2be97d8a3a223ede9ba48d355b6ad32bdbdc39401dbc96e17)"
-        ]
+        ],
+        "status": "evaluated"
       },
       "interpretation": "v1 showed that naive static reachability was simultaneously unsafe and too broad. The repaired deterministic representation removes all misses in the observed Flask corpus while selecting 23.1% of verification, demonstrating that those observed ambiguities were mechanically representable. Because the repairs were informed by this corpus, a fresh holdout is required before claiming generalization or production readiness.",
       "non_claims": [
@@ -873,7 +874,119 @@
         "AI authorship is intrinsically safer or riskier than human authorship.",
         "An inference layer is required by the observed Flask failures.",
         "The repaired graph is authorized to replace full verification in production."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The v1 Flask corpus and gates were preregistered. The deterministic graph representation was then repaired using observed v1 failures, so the repaired pass is post-hoc calibration and requires a fresh holdout for independent confirmation."
+      },
+      "outcome": {
+        "state": "mixed",
+        "summary": "The preregistered v1 hypothesis was falsified after corrected scoring; the repaired deterministic representation passed the same frozen gates on the observed Flask corpus, which is calibration evidence rather than independent confirmation."
+      }
+    },
+    {
+      "id": "code-graph-holdout-requests",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/code-graph-holdout-requests",
+      "readme": "experiments/code-graph-holdout-requests/README.md",
+      "question": "Does the repaired deterministic code-graph representation generalize to an outcome-blind Requests holdout under the same frozen verification gates?",
+      "claim": "This attempted holdout is invalid as graph-performance evidence because the frozen graph discovered zero tests at the historical Requests bases; the setup failure demonstrates that nonzero graph test discovery must be an admission invariant before oracle execution.",
+      "contrast": "Treat exact patch application and frozen graph/scorer identity as sufficient holdout admission without validating the graph-discovered verification universe.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:code-graph-holdout-requests"
+      },
+      "environment": [
+        "Node.js from .node-version for the repository contract.",
+        "Python 3.11+ with only the standard library for preflight, graph execution, and summarization.",
+        "Git plus the exact historical Requests base commits and frozen human/AI/test patches.",
+        "Official SWE-bench container images by immutable RepoDigest for oracle execution."
+      ],
+      "success_criteria": [
+        "The pinned graph and scorer blobs remain byte-identical to the frozen repaired representation.",
+        "Every exact historical base admits the corpus only if the frozen graph discovers a nonzero test universe under the declared test roots before any oracle execution.",
+        "Candidate and held-out test patches apply exactly and candidate edits remain outside the held-out test namespace.",
+        "Only an admitted corpus may be scored against the unchanged pooled gates of affected-test recall >= 0.99, selected fraction <= 0.30, and missed regressions == 0.",
+        "If admission fails, the corpus is recorded as invalid/inconclusive rather than interpreted as a graph recall or selectivity result."
+      ],
+      "evidence": {
+        "state": "historical",
+        "status": "evaluated",
+        "evaluated_revision": "93da936df15d8198ff73bc44d7dca6567e13d920",
+        "artifacts": [
+          "GitHub Actions run 35744157408: Requests confirmatory execution completed but exposed a zero-test-universe setup defect.",
+          "experiments/code-graph-holdout-requests/results/2026-09-22-invalid-setup.json",
+          "experiments/code-graph-holdout-requests/results/2026-09-22-invalid.json"
+        ]
+      },
+      "interpretation": "Requests contributes methodological evidence only: holdout admission must validate the graph-discovered test universe before expensive oracle outcomes are observed. Because the defect was discovered after outcomes existed, this corpus is permanently contaminated for independent confirmation of this representation.",
+      "non_claims": [
+        "The observed zero recall is a property of the repaired graph.",
+        "Requests falsifies the repaired representation.",
+        "Changing the Requests test root after observing outcomes would restore independent-confirmation status.",
+        "Exact patch application alone is sufficient scientific admission for verification-frontier experiments."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The Requests holdout selection, frozen representation, and verification gates preceded the oracle run, but the nonzero-test-universe admission invariant was added only after the run exposed the setup defect."
+      },
+      "outcome": {
+        "state": "inconclusive",
+        "summary": "The holdout is invalidated by a zero-test-universe configuration defect. It provides no graph-performance conclusion and is retained only as methodological evidence."
+      }
+    },
+    {
+      "id": "code-graph-holdout-pylint",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/code-graph-holdout-pylint",
+      "readme": "experiments/code-graph-holdout-pylint/README.md",
+      "question": "Does the frozen repaired deterministic code-graph representation generalize to a fresh outcome-blind Pylint holdout under the unchanged Flask verification gates?",
+      "claim": "A mechanically selected Pylint holdout can independently test the frozen repaired graph only after preflight proves a nonzero graph-discovered test universe at every exact base revision.",
+      "contrast": "Reuse the contaminated Requests corpus, alter the repaired graph after seeing holdout failures, or execute oracle tests before validating holdout admission.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:code-graph-holdout-pylint"
+      },
+      "environment": [
+        "Node.js from .node-version for the repository contract.",
+        "Python 3.11+ with only the standard library for preflight, graph execution, and summarization.",
+        "Git plus the exact eight Pylint historical bases and frozen human/AI/test patches.",
+        "Official SWE-bench container images by immutable RepoDigest for confirmatory oracle execution."
+      ],
+      "success_criteria": [
+        "The exact pinned frontier.py and score.py blobs match the repaired representation before any Pylint oracle outcome is admitted.",
+        "The mechanically selected corpus contains exactly the eight declared Pylint issues, with one human and one AI Agentless patch per issue and no outcome metadata used for selection.",
+        "At every exact historical base the frozen graph discovers a nonzero test universe under source root pylint/ and test root tests/ before oracle execution.",
+        "All patches apply exactly, candidate changes remain outside the held-out test namespace, and the frontier is computed before patched-suite outcome inspection.",
+        "The pooled holdout satisfies affected-test recall >= 0.99, selected fraction <= 0.30, and missed regressions == 0 without representation changes after outcome observation."
+      ],
+      "evidence": {
+        "state": "pending",
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/code-graph-holdout-pylint-preflight.yml",
+          ".github/workflows/code-graph-holdout-pylint-confirmatory.yml",
+          "experiments/code-graph-holdout-pylint/corpus.json"
+        ],
+        "pending_reason": "The fresh Pylint holdout is preregistered and admitted only after the new nonzero-test-universe preflight; confirmatory oracle evidence has not yet been accepted."
+      },
+      "interpretation": "A clean pass would independently support generalization of the repaired representation beyond the Flask calibration corpus. Any failure must be preserved; repairing the representation from Pylint failures would convert Pylint into calibration and require another fresh holdout.",
+      "non_claims": [
+        "A Pylint pass would prove generalization to arbitrary repositories, languages, frameworks, or change distributions.",
+        "The Requests corpus remains eligible for independent confirmation.",
+        "The bounded unresolved-attribute fallback is universally optimal.",
+        "The repaired graph may change after Pylint outcomes while retaining independent-holdout status."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The Pylint corpus, frozen graph/scorer blobs, nonzero-test-universe admission invariant, and unchanged verification gates are fixed before confirmatory Pylint outcomes are accepted."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The fresh independent Pylint holdout has not yet produced accepted confirmatory evidence."
+      }
     }
   ]
 }
