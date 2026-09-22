@@ -706,8 +706,8 @@
       "environment": [
         "Node.js from .node-version for the deterministic baseline, validator, and scorer.",
         "GitHub Actions ubuntu-24.04 for the hosted comparison.",
-        "OPENAI_API_KEY GitHub Actions secret used only by the pinned Codex action.",
-        "The reasoning job has no repository checkout or GitHub permissions and receives only the public packet artifact."
+        "Google-free inference authenticated through the dedicated GitHub OIDC reasoning identity into the billing-disabled Gemini project.",
+        "The reasoning process receives no repository checkout, GitHub token, hidden oracle, Overcenter authority, or project-provider mutation credential."
       ],
       "success_criteria": [
         "The deterministic baseline remains fixed at 4 of 7 recoverable cases on the locked corpus.",
@@ -723,6 +723,8 @@
           ".github/workflows/recovery-agent-search.yml",
           "experiments/recovery-agent-search/packets.json",
           "experiments/recovery-agent-search/oracle.json",
+          "experiments/recovery-agent-search/proposal.schema.json",
+          "experiments/recovery-agent-search/google-free-candidate.ts",
           "experiments/recovery-agent-search/score.mjs"
         ]
       },
