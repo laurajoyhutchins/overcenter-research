@@ -517,3 +517,41 @@ test('SQLite replay fails closed when durable fact bytes no longer match their c
     rmSync(root,{recursive:true,force:true});
   }
 });
+
+
+test('judgment receipt requires a fresh execution generation before effect resume',()=>{
+  const root=mkdtempSync(join(tmpdir(),'sqlite-judgment-resume-'));
+  const kernel=new OvercenterKernel(join(root,'overcenter.sqlite'));
+  try {
+    kernel.initialize();
+    const path=join(root,'authorized');
+    kernel.define({
+      id:'authorization',
+      postcondition:pc(path,'done'),
+    });
+    const first=kernel.claim(
+      'authorization',
+      kernel.deriveReadyWork()!.revision,
+    );
+    const waiting=kernel.deferForJudgment(first,{
+      reason:'authorization-required',
+    });
+    assert.equal(waiting.disposition,'WAITING');
+
+    assert.throws(
+      ()=>kernel.beginEffect(first),
+      /RUN_NOT_EXECUTING/,
+      'the pre-judgment capability must not cross the effect boundary',
+    );
+
+    const resumed=kernel.acquireExecution(first.id);
+    assert.equal(
+      resumed.execution_generation,
+      first.execution_generation+1,
+    );
+    assert.doesNotThrow(()=>kernel.beginEffect(resumed));
+  } finally {
+    kernel.close();
+    rmSync(root,{recursive:true,force:true});
+  }
+});
