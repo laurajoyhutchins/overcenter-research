@@ -1,21 +1,15 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import {observe} from './observe.mjs';
 import {evaluateRefinement} from './score.mjs';
 
-const roundOne={
-  schema:'overcenter-recovery-search-proposals/v1',
-  proposals:[
-    {case_id:'exact-litware',kind:'search',fields:{operation:'payment.capture',resource:'merchant:litware'}},
-    {case_id:'northwind-payment',kind:'search',fields:{operation:'payment.capture',resource:'merchant:northwind-traders',amount:'184.27',actor:'svc:ledger-heron'}},
-    {case_id:'analytics-preview-vm',kind:'search',fields:{operation:'compute.instances.insert',resource:'vm:analytics-preview-03',region:'us-west1'}},
-    {case_id:'acme-kim-mail',kind:'search',fields:{operation:'mail.send',principal:'klee@acme.example'}},
-    {case_id:'checkout-east-canary',kind:'search',fields:{operation:'deploy.release',resource:'service:checkout-api-canary-e1',artifact:'7f3d9a'}},
-    {case_id:'contoso-eu-archive',kind:'search',fields:{operation:'storage.objects.create',resource:'bucket:contoso-invoices-eu-primary',artifact:'september-close-bundle'}},
-    {case_id:'maya-finance-access',kind:'search',fields:{operation:'iam.grant',resource:'finance_2026',principal:'user:mchen-ext@vendor.example'}},
-    {case_id:'missing-physical-receipt',kind:'unresolved'},
-  ],
-};
+const candidateBytes=readFileSync(new URL('./round-one-candidate.json',import.meta.url));
+const provenanceBytes=readFileSync(new URL('./round-one-provenance.json',import.meta.url));
+const roundOne=JSON.parse(candidateBytes);
+const roundOneProvenance=JSON.parse(provenanceBytes);
+const roundOneSource=JSON.parse(readFileSync(new URL('./round-one-source.json',import.meta.url),'utf8'));
 
 const repaired={
   schema:'overcenter-recovery-search-proposals/v1',
@@ -30,6 +24,19 @@ const repaired={
     {case_id:'missing-physical-receipt',kind:'unresolved'},
   ],
 };
+
+test('round one is the exact frozen #237 candidate artifact',()=>{
+  const sha=value=>createHash('sha256').update(value).digest('hex');
+  assert.equal(roundOneSource.source_pr,237);
+  assert.equal(roundOneSource.source_head_sha,'88c90ab73fdc49facbb48b014cd543c65d22b2a0');
+  assert.equal(roundOneSource.workflow_run_id,35694479360);
+  assert.equal(sha(candidateBytes),roundOneSource.candidate_sha256);
+  assert.equal(sha(candidateBytes),roundOneProvenance.candidate_sha256);
+  assert.equal(sha(provenanceBytes),roundOneSource.provenance_sha256);
+  assert.equal(roundOneProvenance.model_id,'gemini-3.8-flash');
+  assert.equal(roundOneProvenance.overcenter_authority_present,false);
+  assert.equal(roundOneProvenance.provider_mutation_authority_present,false);
+});
 
 test('sanitized observations expose cardinality but not settlement evidence',()=>{
   const result=observe(roundOne);
