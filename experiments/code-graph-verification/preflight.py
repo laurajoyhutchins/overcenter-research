@@ -171,8 +171,8 @@ def main() -> None:
     unsuccessful_ai = [
         v
         for v in ai
-        if v.get("evaluation", {}).get("state") == "unresolved"
-        or v.get("evaluation", {}).get("pass_to_pass_failure", 0) > 0
+        if (v.get("evaluation") or {}).get("state") == "unresolved"
+        or (v.get("evaluation") or {}).get("pass_to_pass_failure", 0) > 0
     ]
 
     nonidentical_ai = 0
