@@ -39,7 +39,7 @@ docker build \
   -t "$image" \
   .
 
-node --experimental-strip-types bin/self-application-evidence.ts \
+node --experimental-strip-types scripts/self-application-evidence.ts \
   --image "$image" \
   --source-sha "$source_sha" \
   --report "$report"
