@@ -3,8 +3,8 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {summarize} from './summarize-mutation.mjs';
-import {MUTATION_EVIDENCE_SCHEMA} from './mutation-evidence.mjs';
+import {summarize} from './summarize-mutation.ts';
+import {MUTATION_EVIDENCE_SCHEMA} from './mutation-evidence.ts';
 
 const git=(root,args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
 const sha256=bytes=>'sha256:'+createHash('sha256').update(bytes).digest('hex');

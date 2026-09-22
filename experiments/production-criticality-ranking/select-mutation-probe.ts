@@ -4,12 +4,12 @@ import fs from 'node:fs';
 import {pathToFileURL} from 'node:url';
 
 export const MUTATION_WORKFLOW='.github/workflows/production-criticality-mutation-probe.yml';
-export const MUTATION_SELECTOR='experiments/production-criticality-ranking/select-mutation-probe.mjs';
-export const MUTATION_SELECTOR_TEST='experiments/production-criticality-ranking/select-mutation-probe.test.mjs';
+export const MUTATION_SELECTOR='experiments/production-criticality-ranking/select-mutation-probe.ts';
+export const MUTATION_SELECTOR_TEST='experiments/production-criticality-ranking/select-mutation-probe.test.ts';
 export const MUTATION_PROBES='experiments/production-criticality-ranking/mutation-probes.json';
-export const EVIDENCE_EMITTER='experiments/production-criticality-ranking/emit-mutation-evidence.mjs';
-export const EVIDENCE_RECONCILER='experiments/production-criticality-ranking/mutation-evidence.mjs';
-export const EVIDENCE_RECONCILER_TEST='experiments/production-criticality-ranking/mutation-evidence.test.mjs';
+export const EVIDENCE_EMITTER='experiments/production-criticality-ranking/emit-mutation-evidence.ts';
+export const EVIDENCE_RECONCILER='experiments/production-criticality-ranking/mutation-evidence.ts';
+export const EVIDENCE_RECONCILER_TEST='experiments/production-criticality-ranking/mutation-evidence.test.ts';
 
 const plumbing=new Set([
   MUTATION_WORKFLOW,
@@ -21,8 +21,8 @@ const plumbing=new Set([
 ]);
 
 const broadMechanics=new Set([
-  'experiments/production-criticality-ranking/resolve-mutation-probes.mjs',
-  'experiments/production-criticality-ranking/stryker.config.mjs',
+  'experiments/production-criticality-ranking/resolve-mutation-probes.ts',
+  'experiments/production-criticality-ranking/generate-stryker-config.ts',
   'experiments/production-criticality-ranking/summarize-mutation.mjs',
   'experiments/production-criticality-ranking/summarize-mutation.test.mjs',
 ]);

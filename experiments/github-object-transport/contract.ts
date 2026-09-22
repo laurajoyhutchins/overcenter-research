@@ -34,4 +34,4 @@ export function verifyManifest(m,root){
 const [cmd,...args]=process.argv.slice(2);
 if(cmd==='verify-request'){if(!validateRequest(JSON.parse(readFileSync(args[0],'utf8'))))process.exit(1);}
 else if(cmd==='verify-manifest')verifyManifest(JSON.parse(readFileSync(args[0],'utf8')),args[1]);
-else if(cmd){console.error('usage: contract.mjs verify-request <request.json> | verify-manifest <manifest.json> <root>');process.exit(2);}
+else if(cmd){console.error('usage: contract.ts verify-request <request.json> | verify-manifest <manifest.json> <root>');process.exit(2);}

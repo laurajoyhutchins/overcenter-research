@@ -64,14 +64,14 @@ jobs:
       - name: Reconcile and verify fresh probe evidence
         if: steps.artifact.outputs.found == 'true'
         run: |
-          node experiments/production-criticality-ranking/mutation-evidence.mjs \
+          node --experimental-strip-types experiments/production-criticality-ranking/mutation-evidence.ts \
             --current experiments/production-criticality-ranking/mutation-evidence.json \
             --generated authoritative-mutation-evidence/mutation-evidence-generated.json \
             --artifact-digest "${{ steps.artifact.outputs.digest }}" \
             --workflow-run-id "${{ github.event.workflow_run.id }}" \
             --revision "${{ github.event.workflow_run.head_sha }}" \
             --output experiments/production-criticality-ranking/mutation-evidence.json
-          node experiments/production-criticality-ranking/verify-mutation-evidence.mjs \
+          node --experimental-strip-types experiments/production-criticality-ranking/verify-mutation-evidence.ts \
             --committed experiments/production-criticality-ranking/mutation-evidence.json \
             --report authoritative-mutation-evidence/mutation.json \
             --ranges authoritative-mutation-evidence/mutation-ranges.json \
@@ -100,14 +100,14 @@ jobs:
           echo "main advanced; retrying reconciliation against the new head"
           git fetch origin main
           git reset --hard origin/main
-          node experiments/production-criticality-ranking/mutation-evidence.mjs \
+          node --experimental-strip-types experiments/production-criticality-ranking/mutation-evidence.ts \
             --current "$evidence" \
             --generated authoritative-mutation-evidence/mutation-evidence-generated.json \
             --artifact-digest "$ARTIFACT_DIGEST" \
             --workflow-run-id "$SOURCE_RUN_ID" \
             --revision "$SOURCE_REVISION" \
             --output "$evidence"
-          node experiments/production-criticality-ranking/verify-mutation-evidence.mjs \
+          node --experimental-strip-types experiments/production-criticality-ranking/verify-mutation-evidence.ts \
             --committed "$evidence" \
             --report authoritative-mutation-evidence/mutation.json \
             --ranges authoritative-mutation-evidence/mutation-ranges.json \

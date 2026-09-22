@@ -229,7 +229,7 @@ jobs:
 
           # No checkout exists in this job. The verifier is itself one of the
           # exact read-only GitHub blobs in the manifest-bound input capsule.
-          node original/experiments/github-object-transport/contract.mjs verify-manifest manifest.json original
+          node --experimental-strip-types original/experiments/github-object-transport/contract.ts verify-manifest manifest.json original
           jq -r '.entries[].path' manifest.json | LC_ALL=C sort > expected-files
 
           # Negative control: a mode-only mutation to a read-only entry must be

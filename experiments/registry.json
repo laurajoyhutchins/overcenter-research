@@ -528,7 +528,7 @@
       "contrast": "Treat multiple READY nodes as an AI prioritization problem merely because no trivial ordering rule selects one.",
       "reproduce": {
         "tier": "deterministic",
-        "local": "node --test experiments/frontier-prioritization/frontier-prioritization.test.mjs"
+        "local": "node --experimental-strip-types --test experiments/frontier-prioritization/frontier-prioritization.test.ts"
       },
       "environment": [
         "Node.js from .node-version",
@@ -552,7 +552,7 @@
       "evidence": {
         "state": "pending",
         "artifacts": [
-          "experiments/frontier-prioritization/frontier-prioritization.test.mjs"
+          "experiments/frontier-prioritization/frontier-prioritization.test.ts"
         ]
       },
       "interpretation": "Multiple READY nodes are not themselves an AI prioritization problem. The cheap structural policy settles every exhaustive reachable small-graph frontier and 99.28% of the larger fixed sample; exact verification settles the residuals. The exact fallback can itself be compressed aggressively: kernelization removes dominated/forced structure, objective-interaction decomposition makes independent objective components additive, and branch-and-bound collapses many connected cases. The controlling difficulty is the size and overlap of the remaining interacting objective kernel, not raw graph size. Exceeding a deterministic budget still calls first for stronger deterministic optimization or decomposition, not automatic AI escalation. Heavier exact solvers and parameterized decomposition are explicitly future research rather than acceptance criteria for this experiment.",
@@ -578,7 +578,7 @@
       "contrast": "Periodically repeat a human ranking exercise or rely on generic complexity/hotspot metrics alone.",
       "reproduce": {
         "tier": "toolchain",
-        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --test experiments/production-criticality-ranking/analyze.test.mjs && node experiments/production-criticality-ranking/analyze.mjs --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
+        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --experimental-strip-types --test experiments/production-criticality-ranking/analyze.test.ts && node --experimental-strip-types experiments/production-criticality-ranking/analyze.ts --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
       },
       "environment": [
         "Node.js from .node-version",
@@ -741,7 +741,7 @@
       "contrast": "Start directly from later distributed machinery.",
       "reproduce": {
         "tier": "deterministic",
-        "local": "node --test experiments/sqlite-baseline/kernel.test.js"
+        "local": "node --experimental-strip-types --test experiments/sqlite-baseline/kernel.test.ts"
       },
       "environment": [
         "Node.js from .node-version",

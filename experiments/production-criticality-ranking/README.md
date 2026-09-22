@@ -102,8 +102,8 @@ The experiment pins TypeScript 5.8.3.
 
 ```sh
 npm install --no-save --ignore-scripts typescript@5.8.3
-node --test experiments/production-criticality-ranking/analyze.test.mjs
-node experiments/production-criticality-ranking/analyze.mjs \
+node --experimental-strip-types --test experiments/production-criticality-ranking/analyze.test.ts
+node --experimental-strip-types experiments/production-criticality-ranking/analyze.ts \
   --config experiments/production-criticality-ranking/config.json \
   --json /tmp/criticality.json \
   --markdown /tmp/criticality.md
@@ -149,9 +149,9 @@ Run it with:
 
 ```sh
 npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0
-node --test experiments/production-criticality-ranking/summarize-mutation.test.mjs
-npx stryker run experiments/production-criticality-ranking/stryker.config.mjs
-node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-summary.md
+node --experimental-strip-types --test experiments/production-criticality-ranking/summarize-mutation.test.ts
+npx stryker run experiments/production-criticality-ranking/generate-stryker-config.ts
+node --experimental-strip-types experiments/production-criticality-ranking/summarize-mutation.ts mutation.json mutation-summary.md
 ```
 
 

@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import test from 'node:test';
 
 const source='contracts/observation-evidence-v1/settlement-observation.typebox.ts';
-const generator='scripts/generate-settlement-observation.mjs';
+const generator='scripts/generate-settlement-observation.ts';
 const original=readFileSync(source,'utf8');
 
 function rejected(name,mutate,needle){

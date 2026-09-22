@@ -6,7 +6,7 @@ import {
   assignmentFile,
   buildAssignment,
   encodeAssignment,
-} from '../../src/assignment-capsule.mjs';
+} from '../../src/assignment-capsule.ts';
 
 function required(name:string):string {
   const value=process.env[name];
@@ -26,7 +26,7 @@ if (!/^[0-9a-f]{40}$/.test(sourceSha)) throw new Error('SOURCE_SHA_INVALID');
 const obligationId=`assignment-capsule-${runId}-${runAttempt}`;
 const settlementRoot=`/tmp/overcenter-assignment-capsule-${runId}-${runAttempt}`;
 const resultPath=join(settlementRoot,'result.txt');
-const taskBytes=readFileSync(new URL('./fixture-task.mjs',import.meta.url));
+const taskBytes=readFileSync(new URL('./fixture-task.ts',import.meta.url));
 const inputBytes=readFileSync(new URL('./fixture-input.txt',import.meta.url));
 const expectedOutput=`completed:${inputBytes.toString('utf8').trim()}\n`;
 
@@ -43,8 +43,8 @@ try {
       schema:'overcenter-agent-task/v1',
       kind:'pure-candidate',
       source_sha:sourceSha,
-      command:['node','task.mjs','input.txt','result.txt'],
-      required_paths:['task.mjs','input.txt'],
+      command:['node','--experimental-strip-types','task.ts','input.txt','result.txt'],
+      required_paths:['task.ts','input.txt'],
       output_path:'result.txt',
     },
     postcondition:{
@@ -63,7 +63,7 @@ try {
   if (assigned.claimed_revision!==permit.claimed_revision) throw new Error('ASSIGNMENT_REVISION_MISMATCH');
 
   const assignment=buildAssignment(assigned,[
-    assignmentFile('task.mjs',taskBytes),
+    assignmentFile('task.ts',taskBytes),
     assignmentFile('input.txt',inputBytes),
   ]);
   const encoded=encodeAssignment(assignment);
@@ -72,7 +72,7 @@ try {
   }
 
   writeFileSync(join(capsuleDir,'assignment.json'),encoded);
-  copyFileSync(new URL('../../src/assignment-capsule.mjs',import.meta.url),join(capsuleDir,'assignment-capsule.mjs'));
+  copyFileSync(new URL('../../src/assignment-capsule.ts',import.meta.url),join(capsuleDir,'assignment-capsule.ts'));
 
   console.log(JSON.stringify({
     obligation_id:obligationId,

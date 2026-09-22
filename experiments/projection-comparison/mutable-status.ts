@@ -4,7 +4,7 @@ import type {
   StatusMap,
 } from './model.ts';
 
-// Deliberately shaped after experiments/sqlite-baseline/kernel.js, but with
+// Deliberately shaped after experiments/sqlite-baseline/kernel.ts, but with
 // BLOCKED made explicit so it can represent the current public vocabulary.
 // Correctness depends on lifecycle rows being mutated when semantic meaning
 // changes.

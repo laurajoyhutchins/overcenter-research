@@ -137,7 +137,8 @@ function realTestSpec(mode:'node-test'|'delayed-node-test'):ProcessSpecV1 {
     schema:PROCESS_SPEC_SCHEMA,
     executable:'/usr/local/bin/node',
     argv:[
-      '/fixture.mjs',
+      '--experimental-strip-types',
+      '/fixture.ts',
       mode,
       '/source/test/digest-pure.test.ts',
       '/workspace/test-result.txt',
@@ -311,7 +312,7 @@ test('production source snapshot excludes Git metadata and checkout credentials'
 
 test('production computation refuses a pre-populated writable workspace',async()=>{
   const workspace=freshWorkspace('prepopulated-workspace');
-  writeFileSync(join(workspace,'payload.mjs'),'process.exit(0)');
+  writeFileSync(join(workspace,'payload.ts'),'process.exit(0)');
   await assert.rejects(
     startIsolatedExecutor(workspace),
     /PRODUCTION_COMPUTATION_WORKSPACE_MUST_START_EMPTY/,
@@ -389,7 +390,8 @@ test('production computation cannot emit a network effect',async()=>{
           schema:PROCESS_SPEC_SCHEMA,
           executable:'/usr/local/bin/node',
           argv:[
-            '/fixture.mjs',
+            '--experimental-strip-types',
+            '/fixture.ts',
             'network-effect-then-write',
             `http://${gateway}:${address.port}/effect`,
             '/workspace/test-result.txt',

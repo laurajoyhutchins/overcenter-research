@@ -18,7 +18,7 @@ const capability='containment-capability';
 const spec={
   schema:'overcenter-process-spec-v1',
   executable:process.execPath,
-  argv:['/fixture.mjs','tree-detached-ignore-term','',workspace+'/tree.pid'],
+  argv:['--experimental-strip-types','/fixture.ts','tree-detached-ignore-term','',workspace+'/tree.pid'],
   cwd:'.',
   env:{},
   timeout_ms:60000,

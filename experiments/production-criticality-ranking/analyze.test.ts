@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {analyze} from './analyze.mjs';
+import {analyze} from './analyze.ts';
 
 function write(root,p,content){const full=path.join(root,p);fs.mkdirSync(path.dirname(full),{recursive:true});fs.writeFileSync(full,content);}
 function git(root,args,env={}){return execFileSync('git',args,{cwd:root,encoding:'utf8',env:{...process.env,...env}}).trim();}
@@ -208,6 +208,33 @@ test('recognizes runtime-global and external-value method calls as external boun
   assert.equal(r.analyzer.byScope.production.unresolvedInternalCalls,0);
   assert.equal(r.analyzer.byScope.production.internalResolutionRate,1);
   assert.ok(r.analyzer.byScope.production.externalCalls>=4);
+});
+
+
+test('untyped property calls are external only when no repository callable shares the method name',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-untyped-external-'));
+  write(root,'src/core.ts',`export function settle(){ return 1; }\n`);
+  write(root,'experiments/evidence.test.ts',`export function evidence(payload:any){ return payload.items.filter(Boolean).map(String); }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','fixture']);
+  const config={
+    requiredEvidenceTiers:[],
+    graphQuality:{minimumResolution:{production:0,experiment:1},failOnCriticalUnresolved:false},
+    authorityClasses:[],
+    recoveryScenarios:[],
+    requiredCalibrationPairs:[],
+    diagnosticCalibrationPairs:[],
+  };
+  const external=analyze({root,config});
+  assert.equal(external.analyzer.byScope.experiment.unknownCalls,0);
+  assert.equal(external.analyzer.byScope.experiment.internalResolutionRate,1);
+
+  write(root,'src/internal.ts',`export class Internal { filter(){ return 1; } }\n`);
+  git(root,['add','.']);git(root,['commit','-qm','internal method collision']);
+  assert.throws(
+    ()=>analyze({root,config}),
+    /graph resolution for experiment fell below floor/,
+    'an unresolved property call must stay unknown when it could name repository code',
+  );
 });
 
 

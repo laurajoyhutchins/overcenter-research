@@ -217,7 +217,7 @@ if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
   if (command==='run' && args.length===3) {
     runAssignment(args[0],args[1],args[2]);
   } else {
-    console.error('usage: contract.mjs run <assignment.json> <workspace> <candidate.json>');
+    console.error('usage: assignment-capsule.ts run <assignment.json> <workspace> <candidate.json>');
     process.exit(2);
   }
 }

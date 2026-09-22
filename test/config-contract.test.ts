@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 import {
   existsSync,
   readFileSync,
@@ -38,9 +39,17 @@ function filesUnder(path:string):string[] {
 function executableConfigFiles():string[] {
   const roots=['.github','scripts','src','bin','executor'];
   return roots.flatMap(filesUnder).filter(path=>
-    /(?:\.ya?ml|\.sh|\.ts|\.js|\.mjs|\.go|Dockerfile)$/.test(path),
+    /(?:\.ya?ml|\.sh|\.ts|\.go|Dockerfile)$/.test(path),
   );
 }
+
+test('repository contains no tracked JavaScript source',()=>{
+  const tracked=execFileSync('git',['ls-files','-z'],{cwd:root,encoding:'utf8'})
+    .split('\0')
+    .filter(Boolean);
+  const javascript=tracked.filter(path=>/\.(?:c|m)?js$|\.jsx$/.test(path));
+  assert.deepEqual(javascript,[],'JavaScript source is forbidden; use TypeScript');
+});
 
 test('active surfaces use self-application terminology consistently',()=>{
   const legacyTerm=['dog','food'].join('');
