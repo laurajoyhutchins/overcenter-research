@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {existsSync,readFileSync} from 'node:fs';
 import test from 'node:test';
 
 const advance=readFileSync(
@@ -15,10 +15,29 @@ const submit=readFileSync(
   'utf8',
 );
 
-test('project.advance is a project-scoped trusted rerun command',()=>{
+test('reasoning-agent interface exposes semantic project commands',()=>{
   assert.match(advance,/^name: Overcenter command · project\.advance/m);
-  assert.match(advance,/push:\n\s+branches: \[main\]/);
   assert.match(advance,/command:\n\s+name: project\.advance/);
+  assert.match(submit,/^name: Overcenter command · agent\.submit/m);
+  assert.match(submit,/command:\n\s+name: agent\.submit/);
+
+  for (const removed of [
+    '../.github/workflows/agent-ingress.yml',
+    '../.github/workflows/agent-request-signal.yml',
+    '../bin/github-agent-ingress.ts',
+    '../bin/github-agent-submit.ts',
+    '../bin/github-agent-publish-response.ts',
+  ]) {
+    assert.equal(
+      existsSync(new URL(removed,import.meta.url)),
+      false,
+      `legacy manual agent surface remains: ${removed}`,
+    );
+  }
+});
+
+test('project.advance is a project-scoped trusted rerun command',()=>{
+  assert.match(advance,/push:\n\s+branches: \[main\]/);
   assert.match(advance,/if: \$\{\{ github\.run_attempt == 1 \}\}[\s\S]*state: available/);
   assert.match(advance,/COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.sha \}\}/);
   assert.match(
@@ -32,16 +51,14 @@ test('project.advance is a project-scoped trusted rerun command',()=>{
   assert.match(advance,/overcenter-work-packet-\$\{\{ steps\.invoke\.outputs\.run_id \}\}/);
 });
 
-test('candidate publication is inert until trusted agent.submit is rerun',()=>{
-  assert.match(signal,/^name: Overcenter agent candidate signal/m);
+test('candidate transport stays internal and inert until agent.submit is invoked',()=>{
+  assert.match(signal,/^name: Overcenter internal · candidate handoff/m);
   assert.match(signal,/overcenter\/candidate\/\*\*/);
   assert.match(signal,/permissions: \{\}/);
   assert.doesNotMatch(signal,/contents:\s*write|actions:\s*write/);
 
-  assert.match(submit,/^name: Overcenter command · agent\.submit/m);
   assert.match(submit,/workflow_run:/);
-  assert.match(submit,/workflows: \[Overcenter agent candidate signal\]/);
-  assert.match(submit,/command:\n\s+name: agent\.submit/);
+  assert.match(submit,/workflows: \[Overcenter internal · candidate handoff\]/);
   assert.match(submit,/github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
   assert.match(submit,/github\.event\.workflow_run\.actor\.login == github\.repository_owner/);
   assert.match(submit,/startsWith\(github\.event\.workflow_run\.head_branch, 'overcenter\/candidate\/'\)/);

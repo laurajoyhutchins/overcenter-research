@@ -2,7 +2,7 @@ name: Overcenter command · agent.submit
 
 on:
   workflow_run:
-    workflows: [Overcenter agent candidate signal]
+    workflows: [Overcenter internal · candidate handoff]
     types: [completed]
 
 permissions: {}
@@ -38,7 +38,6 @@ jobs:
             echo
             echo '- command: `agent.submit`'
             echo "- candidate SHA: `$CANDIDATE_SHA`"
-            echo "- candidate ref: `$CANDIDATE_REF`"
             echo "- implementation SHA: `$COMMAND_IMPLEMENTATION_SHA`"
             echo '- state: available'
             echo
@@ -59,7 +58,7 @@ jobs:
         with:
           node-version-file: '.node-version'
 
-      - name: Validate inert candidate transport
+      - name: Validate candidate transport
         if: ${{ github.run_attempt > 1 }}
         shell: bash
         run: |

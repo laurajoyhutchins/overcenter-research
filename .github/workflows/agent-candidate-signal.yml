@@ -1,4 +1,4 @@
-name: Overcenter agent candidate signal
+name: Overcenter internal · candidate handoff
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions: {}
 
 jobs:
   signal:
-    name: Unprivileged candidate signal
+    name: Internal candidate handoff
     runs-on: ubuntu-slim
     timeout-minutes: 1
     steps:
