@@ -1,0 +1,28 @@
+{
+  "schema": "overcenter-graph-patch-v1",
+  "definitions": [
+    {
+      "id": "627841bdffc9419b5654dcc9186ae14585b384f8c967fe9c7d46d1d99b7dc4a7",
+      "definition": {
+        "dependencies": [],
+        "packet": {},
+        "postcondition": {
+          "verifier": "github-commit-status/v2",
+          "provider": "github",
+          "repository_id": 1354872053,
+          "repository_full_name": "laurajoyhutchins/overcenter-research",
+          "commit_sha": "633ce722db43b055914e2744e3f864f85598ab56",
+          "context": "overcenter/conflict-guard/35794321350/1/unordered/Build",
+          "expected_state": "success"
+        }
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "node_id": "guard-35794321350-1-unordered-alpha",
+      "definition_id": "627841bdffc9419b5654dcc9186ae14585b384f8c967fe9c7d46d1d99b7dc4a7"
+    }
+  ],
+  "retire": []
+}
