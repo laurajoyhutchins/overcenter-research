@@ -65,7 +65,7 @@ The preregistered artifact-count gates are:
 - at least 5 AI patches whose bytes differ from the corresponding human patch; and
 - at least 2 exact unsuccessful or regressive AI patches.
 
-The repository now contains enough candidate artifacts to test those gates mechanically. This is **not yet execution admission**.
+The frozen corpus satisfies the artifact gates and exact-base hosted preflight. Execution admission is recorded below.
 
 Before a variant enters confirmatory statistics:
 
@@ -79,7 +79,7 @@ A candidate that fails exact application is excluded from the executable corpus 
 
 ### Hosted preflight evidence
 
-The frozen corpus passed exact-base hosted preflight in GitHub Actions run `35692049450` at revision `ce1dddb8d2c70ffc6b7104f455283f3532799e53`.
+The frozen corpus passed exact-base hosted preflight in GitHub Actions run `35692172396` at revision `f236cb5c155d7258d75f6b4277aee6c0739ddc0d`.
 
 The content-bound evidence snapshot records:
 
@@ -204,6 +204,22 @@ The real historical Flask executions are intentionally separate from ordinary fa
 `.github/workflows/code-graph-verification-confirmatory.yml` is manual-only. It resolves each official SWE-bench instance image to an immutable Docker RepoDigest, verifies the image's `/testbed` commit against `corpus.json`, runs one held-out-test base suite per Flask case, then runs every candidate variant for that case with container networking disabled.
 
 The 11 cases fan out in parallel. Base outcomes are reused within each case, reducing the full-suite oracle workload from 42 runs to 32. The aggregation job accepts results only when they match exact preflight admission and lets `summarize.py` evaluate the preregistered gates.
+
+## Confirmatory result — 2026-09-22
+
+The v1 hypothesis was **falsified**.
+
+```text
+affected-test recall: 0.851175   (required >= 0.99)
+selected fraction:    0.569511   (required <= 0.30)
+missed regressions:   50         (required 0)
+precision:            0.083504
+reduction:            0.430489
+```
+
+All three preregistered gates failed. The complete result and immutable environment digests are recorded in `results/2026-09-22-confirmatory.json` and `results/2026-09-22-confirmatory.md`.
+
+The failures point to deterministic representation work rather than an inference boundary: decorator-aware changed-symbol attribution, Click/Flask registration edges, patched syntax/import blast-radius handling, and more precise qualified call resolution. Any follow-up must reuse the same frozen corpus and thresholds.
 
 ## Interpretation
 

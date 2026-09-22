@@ -1,0 +1,152 @@
+{
+  "schema": "overcenter-code-graph-verification-confirmatory-result/v1",
+  "date": "2026-09-22",
+  "corpus_sha256": "ab603d5839bf8d76eb5b1836612cf2200f1cb2ea0d232cfd1a32aa13aa2fc53e",
+  "thresholds": {
+    "recall_min": 0.99,
+    "selected_fraction_max": 0.3,
+    "missed_regressions_max": 0
+  },
+  "execution": {
+    "run_id": 35693710320,
+    "revision": "1aaeadeccbfb6f78a0f317960ffa8ccc98c126f6",
+    "admission_job_id": 106635901035,
+    "aggregate_job_id": 106636449649,
+    "summary_artifact_id": 10678913301,
+    "summary_artifact_sha256": "41d5ba0cc8027885699cf57013211d84bc92120f1af7241f172bc441fd83ae54"
+  },
+  "replication": {
+    "run_id": 35693741253,
+    "revision": "4c629e09858e354adbd9acb73eb8da8123dd6bca",
+    "aggregate_job_id": 106636889008,
+    "summary_artifact_id": 10679815533,
+    "summary_artifact_sha256": "6ebf1be1e7e9a11ad3d4614f2af66f7b095c6e8b6fe5e8517aa9230de862d8da",
+    "metric_level_match": true
+  },
+  "excluded_infrastructure_attempts": [
+    {
+      "run_id": 35693066664,
+      "reason": "runner incorrectly treated the SWE-bench image HEAD as source authority; four cases stopped before testing"
+    },
+    {
+      "run_id": 35693434810,
+      "reason": "runner incorrectly treated a candidate-induced pytest collection abort as missing-JUnit infrastructure failure; 10 of 11 cases completed"
+    }
+  ],
+  "raw_runs": 21,
+  "effective_observations": 19,
+  "totals": {
+    "universe": 6855,
+    "affected": 383,
+    "regressions": 357,
+    "predicted": 3904,
+    "caught": 326,
+    "missed": 57,
+    "missed_regressions": 50
+  },
+  "metrics": {
+    "recall": 0.8511749347258486,
+    "precision": 0.08350409836065574,
+    "selected_fraction": 0.5695113056163384,
+    "reduction": 0.43048869438366155
+  },
+  "gates": {
+    "recall": false,
+    "selected_fraction": false,
+    "missed_regressions": false
+  },
+  "hypothesis_survived": false,
+  "environments": {
+    "pallets__flask-4045": "swebench/sweb.eval.x86_64.pallets_1776_flask-4045@sha256:1425b0801ddf4b2607e552e56516cce3d389bab0a3ce06f58e6fa6a7835c703c",
+    "pallets__flask-4074": "swebench/sweb.eval.x86_64.pallets_1776_flask-4074@sha256:1e3045bfde746fc8de1b23b8320cdbe2e863bb93cb379ab1d662b508a367b313",
+    "pallets__flask-4160": "swebench/sweb.eval.x86_64.pallets_1776_flask-4160@sha256:9d2640d4752dd0afc6a300e49d0bb6bc46524f5ea94c777457c5fbb2630ecb62",
+    "pallets__flask-4169": "swebench/sweb.eval.x86_64.pallets_1776_flask-4169@sha256:ca90fa0d2d33ad6b6a8049fb3a24cae651c195e79184b1a969e0340fb47d8a39",
+    "pallets__flask-4544": "swebench/sweb.eval.x86_64.pallets_1776_flask-4544@sha256:3fd9a96e1cfe8dc7b38777859fa8c65a19bc8c058867851a3dae4a886d33b47e",
+    "pallets__flask-4575": "swebench/sweb.eval.x86_64.pallets_1776_flask-4575@sha256:48e7b711cb511fae4f8dd5e16185970a3c0157a3ebb77b48580cd0eb158e284c",
+    "pallets__flask-4642": "swebench/sweb.eval.x86_64.pallets_1776_flask-4642@sha256:4fb3f5843fd36d1c3032bbe2a529be4bfc53a769813e4691f47c0ad3b5810df2",
+    "pallets__flask-4935": "swebench/sweb.eval.x86_64.pallets_1776_flask-4935@sha256:193fc57b6093440e008ab8cdb8b0d8d2adbeddf88ced88199fe993f0f45214d6",
+    "pallets__flask-4992": "swebench/sweb.eval.x86_64.pallets_1776_flask-4992@sha256:bb1460876a7bc667f71b46aac744dd6f6d7f5f66e79902461cf76c6f8c4f7150",
+    "pallets__flask-5014": "swebench/sweb.eval.x86_64.pallets_1776_flask-5014@sha256:bde4fbdafa36141d4396944da88ec37aabdef612ed36920090675bccd0ca5d72",
+    "pallets__flask-5063": "swebench/sweb.eval.x86_64.pallets_1776_flask-5063@sha256:05369549db34553599f6f96d65ee9c75173c02d9285d283422f6b6e49f0b8df2"
+  },
+  "diagnostic_observations": [
+    {
+      "case": "pallets__flask-4544",
+      "variant": "human-gold",
+      "changed_symbols": [
+        "src/flask/cli.py::<module>"
+      ],
+      "affected": [
+        "tests/test_cli.py::test_run_cert_path"
+      ],
+      "counts": {
+        "affected": 1,
+        "caught": 0,
+        "missed": 1,
+        "missed_regressions": 0,
+        "predicted": 171,
+        "universe": 363
+      },
+      "diagnosis": "The edit is on a click.option decorator line preceding run_command; v1 attributes decorator-line changes to module scope instead of the decorated callable."
+    },
+    {
+      "case": "pallets__flask-5063",
+      "variant": "human-gold",
+      "changed_symbols": [
+        "src/flask/cli.py::routes_command"
+      ],
+      "affected": [
+        "tests/test_cli.py::TestRoutes::test_host",
+        "tests/test_cli.py::TestRoutes::test_subdomain"
+      ],
+      "counts": {
+        "affected": 2,
+        "caught": 0,
+        "missed": 2,
+        "missed_regressions": 0,
+        "predicted": 0,
+        "universe": 362
+      },
+      "diagnosis": "Tests reach routes_command through Click command registration and runner.invoke dispatch, a framework edge absent from the ordinary AST call graph."
+    },
+    {
+      "case": "pallets__flask-5063",
+      "variant": "ai-qwen32-direct",
+      "changed_symbols": [
+        "src/flask/cli.py::find_app_by_string"
+      ],
+      "collection_aborted": true,
+      "counts": {
+        "affected": 362,
+        "caught": 308,
+        "missed": 54,
+        "regressions": 355,
+        "missed_regressions": 50,
+        "predicted": 308,
+        "universe": 362
+      },
+      "diagnosis": "The patch is syntactically invalid. Importing Flask fails during pytest collection, creating an import/parse blast radius that a base-tree callable reachability graph does not model."
+    },
+    {
+      "case": "pallets__flask-4992",
+      "variant": "ai-qwen32-direct",
+      "counts": {
+        "affected": 2,
+        "caught": 2,
+        "missed": 0,
+        "regressions": 2,
+        "missed_regressions": 0,
+        "predicted": 3,
+        "universe": 364
+      },
+      "diagnosis": "A localized direct dependency case where v1 performed well: 100% recall with only 0.82% of the verification universe selected."
+    }
+  ],
+  "next_deterministic_representation_changes": [
+    "Include decorator spans in changed-symbol attribution.",
+    "Add framework registration/dispatch edges for Click and Flask CLI commands.",
+    "Preflight patched Python syntax and model module-import blast radius when a changed module cannot load.",
+    "Replace simple-name call fanout with qualified/import-aware resolution to reduce the 46-86% selected fractions seen in many correct cases.",
+    "Re-run the same frozen corpus and thresholds; do not tune the corpus or gates after observing v1."
+  ]
+}

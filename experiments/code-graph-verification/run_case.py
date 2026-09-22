@@ -63,7 +63,17 @@ def resolve_image_digest(image: str) -> str:
     return (matching or digests)[0]
 
 
-def container_base_revision(image_digest: str) -> str:
+def container_source_probe(image_digest: str, base_commit: str) -> dict[str, str]:
+    script = "\n".join(
+        [
+            "set -euo pipefail",
+            "cd /testbed",
+            'printf "initial=%s\\n" "$(git rev-parse HEAD)"',
+            f"git cat-file -e {base_commit}^{{commit}}",
+            f"git reset --hard {base_commit} >/dev/null",
+            'printf "reset=%s\\n" "$(git rev-parse HEAD)"',
+        ]
+    )
     result = run(
         [
             "docker",
@@ -75,10 +85,19 @@ def container_base_revision(image_digest: str) -> str:
             "/bin/bash",
             image_digest,
             "-lc",
-            "git -C /testbed rev-parse HEAD",
+            script,
         ]
     )
-    return result.stdout.strip()
+    values = dict(
+        line.split("=", 1)
+        for line in result.stdout.splitlines()
+        if "=" in line
+    )
+    if values.get("reset") != base_commit:
+        raise RuntimeError(
+            f"container could not reset exactly to {base_commit}: {values}"
+        )
+    return values
 
 
 def container_test(
@@ -86,6 +105,7 @@ def container_test(
     image_digest: str,
     experiment_dir: Path,
     result_dir: Path,
+    base_commit: str,
     patches: list[str],
     stem: str,
 ) -> int:
@@ -103,6 +123,9 @@ def container_test(
         [
             "set -euo pipefail",
             "cd /testbed",
+            f"git cat-file -e {base_commit}^{{commit}}",
+            f"git reset --hard {base_commit} >/dev/null",
+            f'test "$(git rev-parse HEAD)" = "{base_commit}"',
             *apply,
             'PYTHON=/opt/miniconda3/envs/testbed/bin/python',
             'if [ ! -x "$PYTHON" ]; then PYTHON="$(command -v python)"; fi',
@@ -114,7 +137,15 @@ def container_test(
             'status="${PIPESTATUS[0]}"',
             "set -e",
             f'printf "%s\\n" "$status" > /results/{stem}.exit',
-            f'test -f /results/{stem}.xml',
+            f'if [ ! -f /results/{stem}.xml ]; then',
+            (
+                f'  printf "%s\\n" '
+                f'\'<testsuites><testsuite name="pytest-session-aborted" '
+                f'tests="0" failures="0" errors="1"/></testsuites>\' '
+                f'> /results/{stem}.xml'
+            ),
+            f'  touch /results/{stem}.junit-synthesized',
+            "fi",
             "exit 0",
         ]
     )
@@ -158,12 +189,7 @@ def main() -> None:
 
     image = image_name(case["id"])
     digest = resolve_image_digest(image)
-    observed_base = container_base_revision(digest)
-    if observed_base != case["base_commit"]:
-        raise SystemExit(
-            f"SWE-bench image base mismatch for {case['id']}: "
-            f"expected {case['base_commit']}, observed {observed_base}"
-        )
+    source_probe = container_source_probe(digest, case["base_commit"])
 
     test_patch = case["test_patch"]
     base_dir = out / "_base"
@@ -171,9 +197,14 @@ def main() -> None:
         image_digest=digest,
         experiment_dir=HERE,
         result_dir=base_dir,
+        base_commit=case["base_commit"],
         patches=[test_patch],
         stem="base",
     )
+    if (base_dir / "base.junit-synthesized").exists():
+        raise RuntimeError(
+            f"base suite for {case['id']} aborted before producing JUnit"
+        )
 
     (out / "case.json").write_text(
         json.dumps(
@@ -183,7 +214,8 @@ def main() -> None:
                 "base_commit": case["base_commit"],
                 "image_tag": image,
                 "environment_id": digest,
-                "observed_image_base_commit": observed_base,
+                "image_initial_head": source_probe["initial"],
+                "source_reset_commit": source_probe["reset"],
                 "base_pytest_exit": base_exit,
                 "docker_version": run(["docker", "--version"]).stdout.strip(),
             },
@@ -250,9 +282,13 @@ def main() -> None:
                     image_digest=digest,
                     experiment_dir=HERE,
                     result_dir=variant_dir,
+                    base_commit=case["base_commit"],
                     patches=[test_patch, variant["patch"]],
                     stem="patched",
                 )
+                patched_junit_synthesized = (
+                    variant_dir / "patched.junit-synthesized"
+                ).exists()
 
                 shutil.copy2(base_dir / "base.xml", variant_dir / "base.xml")
                 shutil.copy2(base_dir / "base.log", variant_dir / "base.log")
@@ -269,6 +305,7 @@ def main() -> None:
                     "image_tag": image,
                     "base_pytest_exit": base_exit,
                     "patched_pytest_exit": patched_exit,
+                    "patched_junit_synthesized": patched_junit_synthesized,
                     "frontier": str(frontier),
                 }
                 (variant_dir / "run.json").write_text(

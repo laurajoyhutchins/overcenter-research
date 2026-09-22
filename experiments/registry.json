@@ -833,7 +833,7 @@
       "directory": "experiments/code-graph-verification",
       "readme": "experiments/code-graph-verification/README.md",
       "question": "Can a mechanically derived static code graph predict the verification consequences of the complete SWE-bench Flask slice and exact human/AI patches while eliminating most irrelevant test execution?",
-      "claim": "For the fixed 11-instance SWE-bench Flask slice, exact patch artifacts are admitted only after exact-base preflight; the v1 static graph is then tested against 0.99 affected-test recall, a 0.30 selected-test-fraction ceiling, and a zero-missed-regression safety guard.",
+      "claim": "On the frozen 11-instance Flask corpus, v1 failed all preregistered gates: pooled affected-test recall was 0.851175, selected fraction was 0.569511, and 50 regressions were missed. The observed failures expose decorator attribution, framework dispatch, import/parse blast-radius, and simple-name fanout gaps.",
       "contrast": "Run the full verification universe for every change, or ask a reasoning agent to guess which tests matter.",
       "reproduce": {
         "tier": "toolchain",
@@ -853,27 +853,25 @@
         "Once execution-admitted, pooled recall is at least 0.99, selected fraction is at most 0.30, and no previously passing regression is missed."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
+        "evaluated_revision": "1aaeadeccbfb6f78a0f317960ffa8ccc98c126f6",
         "artifacts": [
-          "experiments/code-graph-verification/corpus.json",
-          "experiments/code-graph-verification/contract.test.mjs",
-          "experiments/code-graph-verification/frontier.py",
-          "experiments/code-graph-verification/preflight.py",
-          "experiments/code-graph-verification/summarize.py",
-          "experiments/code-graph-verification/preflight-evidence.json",
-          "GitHub Actions preflight run 35692049450 at ce1dddb8d2c70ffc6b7104f455283f3532799e53",
-          "experiments/code-graph-verification/run_case.py",
-          ".github/workflows/code-graph-verification-confirmatory.yml"
+          "experiments/code-graph-verification/results/2026-09-22-confirmatory.json",
+          "experiments/code-graph-verification/results/2026-09-22-confirmatory.md",
+          "GitHub Actions confirmatory run 35693710320",
+          "GitHub Actions replication aggregation run 35693741253",
+          "Summary artifact 10678913301 (sha256 41d5ba0cc8027885699cf57013211d84bc92120f1af7241f172bc441fd83ae54)",
+          "experiments/code-graph-verification/preflight-evidence.json"
         ]
       },
-      "interpretation": "Artifact-count completion establishes only that the confirmatory corpus is large and adversarial enough to run. A positive execution result would support deterministic verification pruning for the fixed Flask slice; a negative result identifies missing graph relations or insufficient pruning.",
+      "interpretation": "The v1 static graph is not safe or selective enough for verification pruning on the admitted Flask distribution. The misses are concrete: decorator lines are not attributed to decorated callables, Click command dispatch is absent, and syntax/import failures have a wider blast radius than callable reachability. At the same time, simple-name fanout makes many successful frontiers too broad. These are deterministic representation problems to attack before considering inference.",
       "non_claims": [
-        "Candidate-corpus completion is evidence that the hypothesis is true.",
-        "A patch with published outcome metadata is execution-admitted before exact-base preflight.",
-        "Static reachability establishes semantic correctness.",
-        "The result generalizes to other repositories or languages.",
+        "Static verification pruning is impossible.",
+        "The observed result generalizes to other repositories or languages.",
         "AI authorship is intrinsically safer or riskier than human authorship.",
-        "The graph is authorized to replace full verification in production."
+        "The frozen thresholds should be relaxed after observing v1.",
+        "An inference layer is required to resolve the observed misses.",
+        "The v1 graph is authorized to replace full verification in production."
       ]
     }
   ]
