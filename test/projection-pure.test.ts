@@ -3,10 +3,12 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   CLAIM_SCHEMA,
-  OBLIGATION_SCHEMA,
+  GRAPH_PATCH_SCHEMA,
   RECEIPT_SCHEMA,
+  obligationDefinition,
+  obligationDefinitionId,
 } from '../src/facts.ts';
-import type { FactCommit, ObligationFact, ReceiptFact } from '../src/facts.ts';
+import type { FactCommit, GraphPatchFact, ReceiptFact } from '../src/facts.ts';
 import { obligationKey } from '../src/semantic-identity.ts';
 import { projectReceipt, replayProjection } from '../src/projection.ts';
 import type { Obligation } from '../src/model.ts';
@@ -25,15 +27,27 @@ const obligation:Obligation={
   },
 };
 
-const defined:ObligationFact={
-  schema:OBLIGATION_SCHEMA,
-  kind:'defined',
-  obligation,
-};
+function graphPatch(...obligations:Obligation[]):GraphPatchFact {
+  const definitions=new Map<string,GraphPatchFact['definitions'][number]>();
+  const bindings=obligations.map(item=>{
+    const definition=obligationDefinition(item);
+    const definitionId=obligationDefinitionId(definition);
+    definitions.set(definitionId,{id:definitionId,definition});
+    return {node_id:item.id,definition_id:definitionId};
+  });
+  return {
+    schema:GRAPH_PATCH_SCHEMA,
+    definitions:[...definitions.values()],
+    bindings,
+    retire:[],
+  };
+}
+
+const defined=graphPatch(obligation);
 
 function claimCommit(parent:string):FactCommit {
   const base=replayProjection([
-    {commit:parent,parent:null,obligation:defined},
+    {commit:parent,parent:null,graph_patch:defined},
   ]);
   const key=obligationKey(
     base.state,
@@ -60,7 +74,7 @@ test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
   const defineRecord:FactCommit={
     commit:'define-1',
     parent:null,
-    obligation:defined,
+    graph_patch:defined,
   };
   const ready=replayProjection([defineRecord]);
   assert.equal(ready.project.lifecycles.get('a')?.status,'UNREALIZED');
@@ -111,57 +125,66 @@ test('pure replay validates a graph patch after applying its complete node set',
   const projection=replayProjection([{
     commit:'patch-1',
     parent:null,
-    obligations:[
-      {schema:OBLIGATION_SCHEMA,kind:'defined',obligation:second},
-      {schema:OBLIGATION_SCHEMA,kind:'defined',obligation:first},
-    ],
+    graph_patch:graphPatch(second,first),
   }]);
 
   assert.deepEqual(
     Object.keys(projection.state.obligations).sort(),
     ['first','second'],
   );
-  assert.equal(projection.state.definition_commits.first,'patch-1');
-  assert.equal(projection.state.definition_commits.second,'patch-1');
+  const firstDefinition=projection.state.definition_ids.first;
+  const secondDefinition=projection.state.definition_ids.second;
+  assert.ok(firstDefinition);
+  assert.ok(secondDefinition);
+  assert.deepEqual(
+    projection.definitions[firstDefinition],
+    obligationDefinition(first),
+  );
+  assert.deepEqual(
+    projection.definitions[secondDefinition],
+    obligationDefinition(second),
+  );
   assert.equal(projection.project.lifecycles.get('first')?.status,'UNREALIZED');
   assert.equal(projection.project.lifecycles.get('second')?.status,'UNREALIZED');
 });
 
 test('replay rejects duplicate graph patch identities',()=>{
+  const definition=obligationDefinition(obligation);
+  const definitionId=obligationDefinitionId(definition);
   assert.throws(
     ()=>replayProjection([{
       commit:'patch-duplicate',
       parent:null,
-      obligations:[
-        {schema:OBLIGATION_SCHEMA,kind:'defined',obligation},
-        {schema:OBLIGATION_SCHEMA,kind:'defined',obligation},
-      ],
+      graph_patch:{
+        schema:GRAPH_PATCH_SCHEMA,
+        definitions:[{id:definitionId,definition}],
+        bindings:[
+          {node_id:'a',definition_id:definitionId},
+          {node_id:'a',definition_id:definitionId},
+        ],
+        retire:[],
+      },
     }]),
     /DUPLICATE_GRAPH_PATCH_ID:a/,
   );
 });
 
-test('replay re-derives current lifecycle before amendment validation',()=>{
+test('replay rejects graph rebinding while work is in flight',()=>{
   const defineRecord:FactCommit={
     commit:'define-1',
     parent:null,
-    obligation:defined,
+    graph_patch:defined,
   };
   const claimRecord=claimCommit('define-1');
-  const amended:ObligationFact={
-    schema:OBLIGATION_SCHEMA,
-    kind:'amended',
-    obligation:{...obligation,packet:{kind:'amended'}},
-    previous_definition_commit:'define-1',
-  };
+  const rebound=graphPatch({...obligation,packet:{kind:'rebound'}});
 
   assert.throws(
     ()=>replayProjection([
       defineRecord,
       claimRecord,
-      {commit:'amend-1',parent:'claim-1',obligation:amended},
+      {commit:'rebind-1',parent:'claim-1',graph_patch:rebound},
     ]),
-    /AMEND_WHILE_IN_FLIGHT/,
+    /GRAPH_PATCH_WHILE_IN_FLIGHT/,
   );
 });
 
@@ -169,10 +192,10 @@ test('pure replay rejects a claim whose parent is not its claimed revision',()=>
   const defineRecord:FactCommit={
     commit:'define-1',
     parent:null,
-    obligation:defined,
+    graph_patch:defined,
   };
   const claimRecord=claimCommit('define-1');
-  claimRecord.parent='different-head';
+  (claimRecord.claim as {claimed_revision:string}).claimed_revision='different-head';
 
   assert.throws(
     ()=>replayProjection([defineRecord,claimRecord]),
@@ -341,20 +364,12 @@ test('legacy v3 static-conflict history remains replayable but fail-closed',()=>
     {
       commit:'define-alpha',
       parent:null,
-      obligation:{
-        schema:OBLIGATION_SCHEMA,
-        kind:'defined',
-        obligation:alpha,
-      },
+      graph_patch:graphPatch(alpha),
     },
     {
       commit:'define-beta',
       parent:'define-alpha',
-      obligation:{
-        schema:OBLIGATION_SCHEMA,
-        kind:'defined',
-        obligation:beta,
-      },
+      graph_patch:graphPatch(beta),
     },
   ]);
 
