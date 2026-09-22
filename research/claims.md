@@ -160,9 +160,17 @@ A prior hosted workflow established the credential boundary: the worker job had 
 
 > Destruction or corruption of disposable worker-local state does not, by itself, alter authoritative project truth.
 
-**Stronger hosted claim:**
+This claim is **authority confinement**: worker assertions, local state, and even externally visible worker actions are not themselves project truth. Hosted ambient-authority run `35773715692` strengthens this boundary by deliberately granting one worker `statuses: write`: the worker changed GitHub provider state (HTTP 201), but the obligation remained `EXECUTING` until a separate trusted recovery generation independently observed and settled it.
 
-> In the demonstrated GitHub Actions boundary, the disposable worker cannot perform the provider mutation directly because GitHub does not grant that job the required write permission.
+A different claim is **effect confinement**:
+
+> In a substrate whose capability boundary is independently established, the worker can be physically prevented from performing undelegated provider mutations.
+
+The ordinary GitHub Actions disposable-worker proof demonstrates that stronger property for one concrete host boundary because GitHub does not grant the worker job `statuses: write`. The Rust confinement launcher demonstrates a physical child-process boundary on its supported Linux substrate. Neither result implies that an inner process sandbox can revoke tools or credentials already held by a parent agent environment.
+
+**Architectural invariant:**
+
+> Overcenter correctness must depend on authority confinement. Effect confinement is an optional strengthening guarantee.
 
 ### S10. Execution-generation fencing is separate from exact revision
 
