@@ -297,6 +297,13 @@ test('candidate supplemental proofs do not repeat Merge-gate deterministic cover
   }
 });
 
+test('GitHub observation proof is scoped to GitHub provider changes and exact revision checks',()=>{
+  const workflow=read('.github/workflows/github-observation-grammar.yml');
+  assert.doesNotMatch(workflow,/src\/providers\/\*\*/);
+  assert.match(workflow,/src\/providers\/github-\*\.ts/);
+  assert.match(workflow,/CHECK_REF:\s*\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+});
+
 test('live supplemental proofs do not recertify the whole repository suite',()=>{
   for (const path of [
     '.github/workflows/github-observation-grammar.yml',
