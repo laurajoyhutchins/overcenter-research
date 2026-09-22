@@ -1,0 +1,32 @@
+{
+  "schema": "overcenter-code-graph-holdout-invalid/v1",
+  "date": "2026-09-22",
+  "subject": "psf/requests",
+  "run_id": 35744157408,
+  "validity": "invalid_experiment",
+  "reason": "Preregistered test root was tests/, but the historical Requests revisions use root-level test_requests.py. The frozen graph discovered zero tests, so the predicted universe was structurally empty.",
+  "observed_diagnostic_only": {
+    "raw_runs": 16,
+    "totals": {
+      "universe": 1276,
+      "affected": 5,
+      "regressions": 1,
+      "predicted": 0,
+      "caught": 0,
+      "missed": 5,
+      "missed_regressions": 1
+    },
+    "metrics": {
+      "recall": 0,
+      "precision": 1,
+      "selected_fraction": 0,
+      "reduction": 1
+    }
+  },
+  "scientific_interpretation": "Do not treat these metrics as evidence for or against the graph hypothesis.",
+  "consequence": [
+    "Requests is contaminated and excluded from future independent confirmation.",
+    "All future holdout preflight must require a nonzero discovered test universe at every exact base revision.",
+    "The replacement Pylint holdout freezes this new admission rule before outcomes."
+  ]
+}

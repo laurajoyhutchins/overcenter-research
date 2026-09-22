@@ -1,10 +1,18 @@
 # Requests independent code-graph holdout
 
-## Purpose
+## Status: invalidated
 
-This is the fresh holdout for the repaired deterministic verification-frontier representation developed after the Flask calibration experiment.
+This attempted holdout is **not scientific evidence about graph recall**.
 
-The representation is frozen before any Requests test outcomes are inspected. Passing this holdout would therefore be independent evidence of generalization rather than another calibration result.
+The frozen graph was configured with `test_roots=["tests"]`, but these historical Requests revisions keep their test suite in root-level `test_requests.py`. The graph therefore discovered zero tests and selected zero tests for every variant. This configuration defect was only discovered after oracle outcomes existed, so Requests is contaminated and cannot be repaired and reused as independent confirmation.
+
+GitHub Actions run `35744157408` is retained as diagnostic evidence only. Its apparent pooled metrics (0% recall, 0% selected) must not be interpreted as a graph result.
+
+The failure changed experiment admission: every future holdout must prove a nonzero graph-discovered test universe at every exact base revision before oracle execution. The fresh Pylint holdout implements that invariant.
+
+## Original purpose
+
+This was intended as the fresh holdout for the repaired deterministic verification-frontier representation developed after the Flask calibration experiment.
 
 ## Frozen representation
 
@@ -52,6 +60,8 @@ The graph frontier is generated before the patched test outcome is inspected.
 
 ## Interpretation
 
-A pass would be the first independent evidence that the repaired deterministic representation generalizes beyond the Flask corpus that produced it.
+No pass/fail claim is permitted from this corpus.
 
-A failure should be preserved as evidence. Do not change the representation, candidate selection, or gates and then call the same Requests corpus confirmatory again. Any repair based on Requests failures becomes calibration and requires another fresh holdout.
+The useful result is methodological: exact patch application and frozen graph identity are insufficient admission criteria. Test discovery itself must be validated before any verification-frontier experiment can be meaningful.
+
+Requests is permanently excluded from independent confirmation for this representation because its oracle outcomes have now been observed.
