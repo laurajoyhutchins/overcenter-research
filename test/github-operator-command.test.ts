@@ -272,7 +272,12 @@ test('ambiguous certification lookup fails closed before dispatch',async()=>{
       CANDIDATE_CERTIFY_COMMAND,
       context(),
       {
-        get:async()=>({status:503,body:'provider unavailable'}),
+        get:async(_token,path)=>{
+          if (path.endsWith('/pulls/7')) {
+            return lookupWithRuns([])('token',path);
+          }
+          return {status:503,body:'provider unavailable'};
+        },
         post:async()=>{
           posts+=1;
           return {status:200,body:'{}'};
