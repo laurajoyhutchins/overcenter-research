@@ -355,6 +355,23 @@ export function analyze({root,config}){
   const reverse=new Map(production.map(u=>[u.id,new Set()]));
   for(const [u,vs] of prodEdges) for(const v of vs) reverse.get(v).add(u);
 
+  // Normalize structural breadth inside each weakly connected production
+  // component. Unrelated providers must not perturb the consequence score of
+  // an unchanged authority component merely by increasing repository size.
+  const weakEdges=new Map(production.map(u=>[u.id,new Set()]));
+  for(const [u,vs] of prodEdges){
+    for(const v of vs){
+      weakEdges.get(u).add(v);
+      weakEdges.get(v).add(u);
+    }
+  }
+  const weakComponentByUnit=new Map();
+  for(const unit of production){
+    if(weakComponentByUnit.has(unit.id)) continue;
+    const members=graphReach(unit.id,weakEdges);
+    for(const id of members) weakComponentByUnit.set(id,members);
+  }
+
   const mutationEvidenceByUnit=new Map();
   const mutationEvidenceStatus={applied:[],stale:[],missing:[]};
   if(config.mutationEvidenceFile){
@@ -433,6 +450,15 @@ export function analyze({root,config}){
   }
 
   const prodEntrypoints=production.filter(u=>u.exported);
+  const componentStats=new Map();
+  for(const members of new Set(weakComponentByUnit.values())){
+    const entrypoints=prodEntrypoints.filter(entry=>members.has(entry.id));
+    const maxDirect=Math.max(
+      0,
+      ...[...members].map(id=>(reverse.get(id)??new Set()).size),
+    );
+    componentStats.set(members,{size:members.size,entrypoints,maxDirect});
+  }
   const testEntrypoints=units.filter(u=>u.scope==='test');
   const experimentEntrypoints=units.filter(u=>u.scope==='experiment');
   const allReachCache=new Map();
@@ -444,7 +470,6 @@ export function analyze({root,config}){
 
   const latestEpoch=Number(git(root,['show','-s','--format=%ct','HEAD']));
   const blameCache=new Map();
-  const maxDirect=Math.max(0,...production.map(u=>(reverse.get(u.id)??new Set()).size));
   const requiredEvidenceTiers=config.requiredEvidenceTiers??['test','experiment'];
   const halfLifeDays=config.changeHalfLifeDays??30;
   const ln2=Math.log(2);
@@ -457,10 +482,16 @@ export function analyze({root,config}){
       if(uToSink||sinkToU) authorityInfluence.push({id:a.id,direction:uToSink&&sinkToU?'both':uToSink?'controls':'implements',recoveryClass:a.recoveryClass});
     }
     const A=authority.length?authorityInfluence.length/authority.length:0;
+    const component=weakComponentByUnit.get(u.id);
+    const componentStat=componentStats.get(component);
+    const componentBreadth=Math.max(1,componentStat.size-1);
     const dependents=[...reverseReach(u.id)].filter(x=>x!==u.id);
-    const B=normalizeLog(dependents.length,Math.max(1,production.length-1));
+    const B=normalizeLog(dependents.length,componentBreadth);
     const direct=(reverse.get(u.id)??new Set()).size;
-    const F=Math.sqrt(normalizeLog(direct,maxDirect)*Math.min(1,dependents.length/Math.max(1,production.length-1)));
+    const F=Math.sqrt(
+      normalizeLog(direct,componentStat.maxDirect)
+      *Math.min(1,dependents.length/componentBreadth),
+    );
     const I=(authorityInfluence.length?Math.max(...authorityInfluence.map(x=>x.recoveryClass)):0)/(config.maxRecoveryClass??6);
     const dominated=recovery.filter(s=>scenarioDominators.get(s.id).has(u.id)).map(s=>s.id);
     const R=recovery.length?dominated.length/recovery.length:0;
@@ -480,8 +511,10 @@ export function analyze({root,config}){
       mutationEvidenceStatus.missing.push({unit:u.id});
     }
     const E=Math.max(reachabilityGap,mutationGap);
-    const entrypoints=prodEntrypoints.filter(e=>prodReach(e.id).has(u.id));
-    const X=prodEntrypoints.length?entrypoints.length/prodEntrypoints.length:0;
+    const entrypoints=componentStat.entrypoints.filter(e=>prodReach(e.id).has(u.id));
+    const X=componentStat.entrypoints.length
+      ? entrypoints.length/componentStat.entrypoints.length
+      : 0;
     if(!blameCache.has(u.file)) blameCache.set(u.file,blameTimes(root,u.file));
     const times=blameCache.get(u.file);
     const lineWeights=[];

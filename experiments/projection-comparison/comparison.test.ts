@@ -84,7 +84,7 @@ function state(
     obligations:Object.fromEntries(
       obligations.map(work=>[work.id,structuredClone(work)]),
     ),
-    definition_commits:Object.fromEntries(
+    definition_ids:Object.fromEntries(
       obligations.map(work=>[work.id,`${revision}:${work.id}`]),
     ),
   };

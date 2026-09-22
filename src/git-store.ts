@@ -64,8 +64,7 @@ export class GitFactStore implements DurableFactStore {
     return this.revisions(head).map(commit=>{
       const files:Record<string,unknown>={};
       for (const path of [
-        'obligation.json',
-        'obligations.json',
+        'graph-patch.json',
         'claim.json',
         'execution-authority.json',
         'effect-reservation.json',

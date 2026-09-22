@@ -18,14 +18,29 @@ function withFixture(name:string,body:(f:GitKernelFixture)=>void) {
   });
 }
 
-function obligationFact(f:GitKernelFixture,commit:string) {
-  return JSON.parse(f.git(['show',`${commit}:obligation.json`])) as {
-    schema?:string;
-    obligation:Record<string,unknown>;
-    kind:string;
-    previous_definition_commit?:string;
+function boundDefinition(
+  f:GitKernelFixture,
+  commit:string,
+  nodeId:string,
+) {
+  const patch=JSON.parse(f.git(['show',`${commit}:graph-patch.json`])) as {
+    schema:string;
+    definitions:Array<{
+      id:string;
+      definition:{dependencies:unknown[];packet:unknown;postcondition:unknown};
+    }>;
+    bindings:Array<{node_id:string;definition_id:string}>;
+    retire:string[];
   };
+  const binding=patch.bindings.find(candidate=>candidate.node_id===nodeId);
+  assert.ok(binding,`missing binding for ${nodeId}`);
+  const definition=patch.definitions.find(
+    candidate=>candidate.id===binding.definition_id,
+  );
+  assert.ok(definition,`missing introduced definition for ${nodeId}`);
+  return {patch,binding,definition};
 }
+
 
 withFixture('control dependency changes executability but does not poison downstream semantic identity',f=>{
   f.defineFile('a',{content:'A1'});
@@ -35,7 +50,7 @@ withFixture('control dependency changes executability but does not poison downst
   f.settleFile('b');
   const before=f.work('b');
 
-  f.amendFile('a',{content:'A2'});
+  f.rebindFile('a',{content:'A2'});
   const after=f.work('b');
 
   assert.equal(after.status,'DONE');
@@ -49,7 +64,7 @@ withFixture('semantic dependency invalidates downstream when consumed output ide
   f.settleFile('a');
   f.settleFile('b');
 
-  f.amendFile('a',{content:'A2'});
+  f.rebindFile('a',{content:'A2'});
   f.settleFile('a');
 
   assert.equal(f.work('b').status,'READY');
@@ -63,7 +78,7 @@ withFixture('semantic dependency does not invalidate downstream when selected ou
   f.settleFile('b');
   const before=f.work('b');
 
-  f.amendFile('a',{content:'same-output',packet:{producer:'v2'}});
+  f.rebindFile('a',{content:'same-output',packet:{producer:'v2'}});
   f.settleFile('a');
   const after=f.work('b');
 
@@ -81,7 +96,7 @@ withFixture('invalidation propagation stops when an intermediary exposes the sam
   f.settleFile('c');
   const before=f.work('c');
 
-  f.amendFile('a',{content:'same-a-output',packet:{producer:'v2'}});
+  f.rebindFile('a',{content:'same-a-output',packet:{producer:'v2'}});
   f.settleFile('a');
 
   assert.equal(f.work('b').status,'DONE');
@@ -118,11 +133,10 @@ withFixture('semantic selector is part of durable edge meaning',f=>{
     }],
   });
 
-  const fact=obligationFact(f,bDefinition);
-  assert.equal(fact.schema,'overcenter-git-obligation-v3');
-  assert.equal('deps' in fact.obligation,false);
+  const fact=boundDefinition(f,bDefinition,'b');
+  assert.equal(fact.patch.schema,'overcenter-graph-patch-v1');
   assert.deepEqual(
-    (fact.obligation as {dependencies?:unknown}).dependencies,
+    fact.definition.definition.dependencies,
     [{
       kind:'semantic',
       upstream:'a',
@@ -142,11 +156,11 @@ withFixture('reclassifying control dependency as semantic cannot reuse old compl
     upstream:'a',
     consumes:{kind:'evidence' as const,selector:'settlement-receipt'},
   }];
-  const amended=f.amendFile('b',{content:'B',dependencies});
-  const fact=obligationFact(f,amended);
+  const rebound=f.rebindFile('b',{content:'B',dependencies});
+  const fact=boundDefinition(f,rebound,'b');
 
   assert.deepEqual(
-    (fact.obligation as {dependencies?:unknown}).dependencies,
+    fact.definition.definition.dependencies,
     dependencies,
   );
   assert.equal(f.work('b').status,'READY');
@@ -161,7 +175,7 @@ withFixture('rewiring a satisfied control edge does not change downstream semant
   f.settleFile('b');
   const before=f.work('b');
 
-  f.amendFile('b',{content:'B',dependencies:[controlDependency('c')]});
+  f.rebindFile('b',{content:'B',dependencies:[controlDependency('c')]});
   const after=f.work('b');
 
   assert.equal(after.status,'DONE');
@@ -177,7 +191,7 @@ withFixture('content-selected semantic dependency can reuse across equivalent pr
   f.settleFile('b');
   const before=f.work('b');
 
-  f.amendFile('b',{content:'B',dependencies:[verifiedContent('c')]});
+  f.rebindFile('b',{content:'B',dependencies:[verifiedContent('c')]});
   const after=f.work('b');
 
   assert.equal(after.status,'DONE');
@@ -216,12 +230,19 @@ withFixture('semantic edge declaration order does not change obligation identity
   f.settleFile('b');
   const before=f.work('b');
 
-  f.amendFile('b',{
-    content:'B',
+  const head=f.kernel.head()!;
+  const reconciled=f.kernel.reconcileGraph([{
+    id:'b',
     dependencies:[verifiedContent('c'),verifiedContent('a')],
-  });
-  const after=f.work('b');
+    packet:before.packet,
+    postcondition:before.postcondition,
+  }],head);
+  assert.equal(reconciled.revision,head);
+  assert.deepEqual(reconciled.added,[]);
+  assert.deepEqual(reconciled.rebound,[]);
+  assert.deepEqual(reconciled.unchanged,['b']);
 
+  const after=f.work('b');
   assert.equal(after.status,'DONE');
   assert.equal(after.run_id,before.run_id);
 });
@@ -242,14 +263,14 @@ withFixture('active exact run fences amendment even when edge semantics are othe
   f.claim('a');
 
   assert.throws(
-    ()=>f.amendFile('a',{content:'A2'}),
+    ()=>f.rebindFile('a',{content:'A2'}),
     /PROJECT_BUSY|AMEND_WHILE_IN_FLIGHT/,
   );
 });withFixture('material packet change invalidates an otherwise identical realization',f=>{
   f.defineFile('artifact',{content:'same-bytes',packet:{producer:'v1'}});
   f.settleFile('artifact');
 
-  f.amendFile('artifact',{content:'same-bytes',packet:{producer:'v2'}});
+  f.rebindFile('artifact',{content:'same-bytes',packet:{producer:'v2'}});
 
   assert.equal(f.work('artifact').status,'READY');
   assert.equal(f.work('artifact').run_id,undefined);

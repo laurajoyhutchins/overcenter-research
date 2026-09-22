@@ -356,7 +356,7 @@ test('supervisor rotates execution authority before recovering a dead worker', (
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('DONE resolution is idempotent after lost acknowledgement', () => {
+test('DONE resolution stays idempotent after the node is retired', () => {
   const f = fixture();
   try {
     const path = f.path('x');
@@ -364,6 +364,8 @@ test('DONE resolution is idempotent after lost acknowledgement', () => {
     const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     writeFileSync(path, 'yes');
     const first = f.kernel.resolve(run);
+    f.kernel.applyGraphPatch({retire:['x']},f.kernel.head()!);
+    assert.deepEqual(f.kernel.inspect(),[]);
     const second = f.kernel.resolve(run);
     assert.equal(first.disposition, 'DONE');
     assert.equal(second.settlement_commit, first.settlement_commit);
@@ -461,7 +463,7 @@ test('authority history contains no state snapshot and receipts remain factual',
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 
-test('historical receipt stays bound to the obligation generation claimed by its run', () => {
+test('historical receipt stays bound to the immutable definition claimed by its run', () => {
   const f = fixture();
   try {
     const path = f.path('generation');
@@ -477,20 +479,22 @@ test('historical receipt stays bound to the obligation generation claimed by its
     assert.equal(firstDone.disposition, 'DONE');
     assert.equal(firstDone.verified, true);
 
-    const beforeAmend = f.kernel.head()!;
-    f.kernel.amend({
-      id: 'x',
-      packet: { generation: 2 },
-      postcondition: pc(path, 'two'),
-    }, beforeAmend);
+    const beforeRebind = f.kernel.head()!;
+    f.kernel.applyGraphPatch({
+      upsert:[{
+        id: 'x',
+        packet: { generation: 2 },
+        postcondition: pc(path, 'two'),
+      }],
+    }, beforeRebind);
 
-    const amended = f.kernel.inspect()[0];
-    assert.equal(amended.status, 'READY');
-    assert.deepEqual(amended.packet, { generation: 2 });
-    assert.deepEqual(amended.postcondition, pc(path, 'two'));
+    const rebound = f.kernel.inspect()[0];
+    assert.equal(rebound.status, 'READY');
+    assert.deepEqual(rebound.packet, { generation: 2 });
+    assert.deepEqual(rebound.postcondition, pc(path, 'two'));
 
-    // This is the hostile historical-binding assertion. The old observation
-    // matches generation 1 and does not match generation 2.
+    // The historical observation remains interpreted against the exact
+    // immutable definition captured when the run was claimed.
     const oldReceipt = f.kernel.receipts(firstRun.id).at(-1)!;
     assert.equal(oldReceipt.disposition, 'DONE');
     assert.equal(oldReceipt.verified, true);
@@ -503,7 +507,7 @@ test('historical receipt stays bound to the obligation generation claimed by its
     assert.equal(secondDone.verified, true);
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
 
-    const definitionCommits = execFileSync(
+    const graphPatchCommits = execFileSync(
       'git',
       ['-C', f.repo, 'rev-list', '--reverse', 'refs/overcenter/state'],
       { encoding: 'utf8' },
@@ -511,7 +515,7 @@ test('historical receipt stays bound to the obligation generation claimed by its
       try {
         execFileSync(
           'git',
-          ['-C', f.repo, 'cat-file', '-e', `${commit}:obligation.json`],
+          ['-C', f.repo, 'cat-file', '-e', `${commit}:graph-patch.json`],
           { stdio: 'ignore' },
         );
         return true;
@@ -519,22 +523,23 @@ test('historical receipt stays bound to the obligation generation claimed by its
         return false;
       }
     });
-    assert.equal(definitionCommits.length, 2);
+    assert.equal(graphPatchCommits.length, 2);
 
-    const amendedFact = JSON.parse(
+    const patches = graphPatchCommits.map(commit=>JSON.parse(
       execFileSync(
         'git',
-        ['-C', f.repo, 'show', `${definitionCommits[1]}:obligation.json`],
+        ['-C', f.repo, 'show', `${commit}:graph-patch.json`],
         { encoding: 'utf8' },
       ),
     ) as {
-      kind: string;
-      previous_definition_commit?: string;
-      obligation: { packet: unknown };
-    };
-    assert.equal(amendedFact.kind, 'amended');
-    assert.equal(amendedFact.previous_definition_commit, definitionCommits[0]);
-    assert.deepEqual(amendedFact.obligation.packet, { generation: 2 });
+      definitions:Array<{id:string;definition:{packet:unknown}}>;
+      bindings:Array<{node_id:string;definition_id:string}>;
+    });
+    assert.deepEqual(patches[0].definitions[0].definition.packet,{generation:1});
+    assert.deepEqual(patches[1].definitions[0].definition.packet,{generation:2});
+    assert.notEqual(patches[0].definitions[0].id,patches[1].definitions[0].id);
+    assert.equal(patches[0].bindings[0].definition_id,patches[0].definitions[0].id);
+    assert.equal(patches[1].bindings[0].definition_id,patches[1].definitions[0].id);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
 });
 

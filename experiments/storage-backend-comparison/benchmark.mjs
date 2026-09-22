@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { performance } from 'node:perf_hooks';
 
 const PATHS={
-  obligation:'obligation.json',
+  graphPatch:'graph-patch.json',
   claim:'claim.json',
   execution_authority:'execution-authority.json',
   effect_reservation:'effect-reservation.json',

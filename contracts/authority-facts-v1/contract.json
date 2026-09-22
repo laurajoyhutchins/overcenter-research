@@ -24,7 +24,7 @@
     "path": "./schema.json",
     "entrypoint": "#/$defs/AuthorityFact",
     "wireDiscriminators": [
-      "overcenter-git-obligation-v3",
+      "overcenter-graph-patch-v1",
       "overcenter-git-claim-v3",
       "overcenter-git-execution-authority-v1",
       "overcenter-git-effect-reservation-v1",
@@ -47,7 +47,7 @@
   },
   "storageIndependence": {
     "logicalFiles": {
-      "obligation": "obligation.json",
+      "graphPatch": "graph-patch.json",
       "claim": "claim.json",
       "executionAuthority": "execution-authority.json",
       "effectReservation": "effect-reservation.json",
@@ -57,19 +57,18 @@
       "git",
       "sqlite"
     ],
-    "backendLocalCommitIdentity": true,
-    "legacyWirePrefix": "The persisted 'overcenter-git-*' names are historical discriminators, not a declaration that Git owns the logical fact model."
+    "backendLocalCommitIdentity": true
   },
   "openBoundaries": [
     {
-      "path": "Obligation.packet",
+      "path": "GraphPatchFact.definitions[].definition.packet",
       "role": "application-payload",
       "authoritative": true,
       "identityImpact": "included by value in obligation semantic identity",
       "closure": "intentionally-open"
     },
     {
-      "path": "Obligation.postcondition",
+      "path": "GraphPatchFact.definitions[].definition.postcondition",
       "role": "verifier-contract",
       "authoritative": true,
       "identityImpact": "included by value in obligation semantic identity",
@@ -92,16 +91,6 @@
     }
   ],
   "semanticRoles": {
-    "obligationFact": {
-      "definitionFields": [
-        "kind",
-        "obligation"
-      ],
-      "fencingFields": [
-        "previous_definition_commit"
-      ],
-      "note": "previous_definition_commit exists only for amendments."
-    },
     "claimFact": {
       "authorityBindingFields": [
         "run_id",
@@ -153,6 +142,20 @@
         "verified",
         "settlement_commit"
       ]
+    },
+    "graphPatchFact": {
+      "immutableDefinitionFields": [
+        "definitions[].id",
+        "definitions[].definition"
+      ],
+      "bindingFields": [
+        "bindings[].node_id",
+        "bindings[].definition_id"
+      ],
+      "retirementFields": [
+        "retire[]"
+      ],
+      "note": "Definitions are immutable and content-addressed. Stable node IDs are rebound or retired atomically by graph revision."
     }
   },
   "quality": [

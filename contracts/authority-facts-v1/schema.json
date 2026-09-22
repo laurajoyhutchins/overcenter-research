@@ -79,100 +79,6 @@
         }
       ]
     },
-    "Obligation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "dependencies",
-        "packet",
-        "postcondition"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[^\\u0000]+$"
-        },
-        "dependencies": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Dependency"
-          }
-        },
-        "packet": {
-          "type": "object",
-          "x-overcenter-openBoundary": true,
-          "additionalProperties": true,
-          "description": "Application-defined packet; intentionally open but authoritative by value."
-        },
-        "postcondition": {
-          "type": "object",
-          "x-overcenter-openBoundary": true,
-          "additionalProperties": true,
-          "required": [
-            "verifier"
-          ],
-          "description": "Verifier-owned postcondition contract; intentionally open here."
-        }
-      }
-    },
-    "DefinedObligationFact": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "schema",
-        "kind",
-        "obligation"
-      ],
-      "properties": {
-        "schema": {
-          "const": "overcenter-git-obligation-v3"
-        },
-        "kind": {
-          "const": "defined"
-        },
-        "obligation": {
-          "$ref": "#/$defs/Obligation"
-        }
-      }
-    },
-    "AmendedObligationFact": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "schema",
-        "kind",
-        "obligation",
-        "previous_definition_commit"
-      ],
-      "properties": {
-        "schema": {
-          "const": "overcenter-git-obligation-v3"
-        },
-        "kind": {
-          "const": "amended"
-        },
-        "obligation": {
-          "$ref": "#/$defs/Obligation"
-        },
-        "previous_definition_commit": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[^\\u0000]+$"
-        }
-      }
-    },
-    "ObligationFact": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/DefinedObligationFact"
-        },
-        {
-          "$ref": "#/$defs/AmendedObligationFact"
-        }
-      ]
-    },
     "ClaimFact": {
       "type": "object",
       "additionalProperties": false,
@@ -377,7 +283,7 @@
     "AuthorityFact": {
       "oneOf": [
         {
-          "$ref": "#/$defs/ObligationFact"
+          "$ref": "#/$defs/GraphPatchFact"
         },
         {
           "$ref": "#/$defs/ClaimFact"
@@ -395,6 +301,124 @@
     },
     "CurrentObservationPayload": {
       "$ref": "../observation-evidence-v1/schema.json#/$defs/SettlementObservation"
+    },
+    "ObligationDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependencies",
+        "packet",
+        "postcondition"
+      ],
+      "properties": {
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Dependency"
+          }
+        },
+        "packet": {
+          "type": "object",
+          "x-overcenter-openBoundary": true,
+          "additionalProperties": true,
+          "description": "Application-defined packet; intentionally open but authoritative by value."
+        },
+        "postcondition": {
+          "type": "object",
+          "x-overcenter-openBoundary": true,
+          "additionalProperties": true,
+          "required": [
+            "verifier"
+          ],
+          "description": "Verifier-owned postcondition contract; intentionally open here."
+        }
+      }
+    },
+    "DefinitionFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "definition"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "definition": {
+          "$ref": "#/$defs/ObligationDefinition"
+        }
+      }
+    },
+    "BindingFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "definition_id"
+      ],
+      "properties": {
+        "node_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000]+$"
+        },
+        "definition_id": {
+          "$ref": "#/$defs/Sha256Hex"
+        }
+      }
+    },
+    "GraphPatchFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "definitions",
+        "bindings",
+        "retire"
+      ],
+      "properties": {
+        "schema": {
+          "const": "overcenter-graph-patch-v1"
+        },
+        "definitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DefinitionFact"
+          }
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BindingFact"
+          }
+        },
+        "retire": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$"
+          },
+          "uniqueItems": true
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "bindings": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "retire": {
+              "minItems": 1
+            }
+          }
+        }
+      ]
     }
   }
 }

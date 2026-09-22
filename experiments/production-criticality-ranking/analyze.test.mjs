@@ -95,6 +95,42 @@ test('ranks only production callables and derives structural authority/evidence 
 });
 
 
+test('disconnected production components cannot perturb existing consequence scores',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-component-invariance-'));
+  write(root,'src/core.ts',`export function settle(){ return helper(); }\nfunction helper(){ return 1; }\nexport function recover(){ return settle(); }\nexport function low(){ return 0; }\n`);
+  write(root,'test/core.test.ts',`import {settle} from '../src/core.ts';\nexport function regression(){ return settle(); }\n`);
+  git(root,['init','-q']);git(root,['config','user.email','test@example.com']);git(root,['config','user.name','Test']);git(root,['add','.']);git(root,['commit','-qm','baseline'],{'GIT_AUTHOR_DATE':'2026-09-01T00:00:00Z','GIT_COMMITTER_DATE':'2026-09-01T00:00:00Z'});
+  const config={
+    requiredEvidenceTiers:['test'],
+    graphQuality:{minimumResolution:{production:0,test:0},failOnCriticalUnresolved:true},
+    authorityClasses:[{id:'settlement',sink:{file:'src/core.ts',name:'settle'},recoveryClass:5}],
+    recoveryScenarios:[{id:'recover-settle',entry:{file:'src/core.ts',name:'recover'},terminal:{file:'src/core.ts',name:'settle'}}],
+    requiredCalibrationPairs:[{id:'settle-over-low',higher:{file:'src/core.ts',name:'settle'},lower:{file:'src/core.ts',name:'low'}}],
+    diagnosticCalibrationPairs:[],
+  };
+  const before=analyze({root,config});
+  const beforeByName=new Map(
+    before.ranking
+      .filter(unit=>unit.file==='src/core.ts')
+      .map(unit=>[unit.qualifiedName,{score:unit.consequenceScore,B:unit.vector.B,F:unit.vector.F,X:unit.vector.X}]),
+  );
+
+  write(root,'src/unrelated.ts',`export function unrelated(){ return leaf(); }\nfunction leaf(){ return 1; }\n`);
+  git(root,['add','.']);
+  git(root,['commit','-qm','disconnected provider'],{'GIT_AUTHOR_DATE':'2026-09-02T00:00:00Z','GIT_COMMITTER_DATE':'2026-09-02T00:00:00Z'});
+  const after=analyze({root,config});
+  const afterByName=new Map(
+    after.ranking
+      .filter(unit=>unit.file==='src/core.ts')
+      .map(unit=>[unit.qualifiedName,{score:unit.consequenceScore,B:unit.vector.B,F:unit.vector.F,X:unit.vector.X}]),
+  );
+
+  assert.deepEqual(afterByName,beforeByName);
+  assert.equal(before.calibration.required.failed,0);
+  assert.equal(after.calibration.required.failed,0);
+});
+
+
 test('fails closed when the static graph becomes blind at critical callables or below configured floors',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'criticality-graph-'));
   write(root,'src/core.ts',`export function settle(){ const runtime:any={invoke:()=>1}; return runtime.invoke(); }\nexport function recover(){ return settle(); }\n`);

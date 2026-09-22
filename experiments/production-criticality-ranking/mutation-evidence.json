@@ -60,10 +60,10 @@
     {
       "id": "done-candidate-reuse",
       "source_run": {
-        "revision": "4f5dd43e9881ea850fbf6eba5896b382c1994135",
-        "workflow_run_id": 35653679467,
-        "mutation_report_sha256": "sha256:ead38c81c201d693e614af17a8889a0b038ca0c7442a4b8d41868dcf2522a129",
-        "artifact_digest": "sha256:7473d0cdf0e1cb8784ff5047e5d2b04ba536738ab9aa78cb24b77813ec54298c"
+        "revision": "b810355fce5af360119e954c87c04bffe56d03b4",
+        "workflow_run_id": 35674658670,
+        "mutation_report_sha256": "sha256:5cfa71a8dea90a79bc5795e7293a712f318bfb0a3a6be2963ac2407f45fb3786",
+        "artifact_digest": "sha256:23b39b0c5dd679b87a2489a1073df8b07d6487fe681627c227dd04318b4251fc"
       },
       "source_blobs": {
         "src/projector.ts": "11c5f3a0fcb86497f2189e96646e5728d57698ba"
@@ -75,22 +75,22 @@
         }
       ],
       "total": 111,
-      "killed": 55,
-      "survived": 56,
+      "killed": 77,
+      "survived": 29,
       "no_coverage": 0,
-      "timeout_or_error": 0,
-      "mutation_score": 0.4954954954954955
+      "timeout_or_error": 5,
+      "mutation_score": 0.6936936936936937
     },
     {
       "id": "effect-reservation",
       "source_run": {
-        "revision": "51937d53639ea8aafbb646519d543f368f46a9d5",
-        "workflow_run_id": 35652087715,
-        "mutation_report_sha256": "sha256:a7cd1222db4c704fc60a0f4a9246e2bf16c2c01b7ad112d7dd506152ca5d447d",
-        "artifact_digest": "sha256:447d92dff90a95e0376d345d2dc617a2ccea26af87fec05ed8290321505e15a5"
+        "revision": "b810355fce5af360119e954c87c04bffe56d03b4",
+        "workflow_run_id": 35674658670,
+        "mutation_report_sha256": "sha256:5cfa71a8dea90a79bc5795e7293a712f318bfb0a3a6be2963ac2407f45fb3786",
+        "artifact_digest": "sha256:23b39b0c5dd679b87a2489a1073df8b07d6487fe681627c227dd04318b4251fc"
       },
       "source_blobs": {
-        "src/kernel-core.ts": "d269dce4cb45daf5df2a5fea109df595f98296d1"
+        "src/kernel-core.ts": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5"
       },
       "selectors": [
         {
@@ -108,13 +108,13 @@
     {
       "id": "settlement",
       "source_run": {
-        "revision": "51937d53639ea8aafbb646519d543f368f46a9d5",
-        "workflow_run_id": 35652087715,
-        "mutation_report_sha256": "sha256:a7cd1222db4c704fc60a0f4a9246e2bf16c2c01b7ad112d7dd506152ca5d447d",
-        "artifact_digest": "sha256:447d92dff90a95e0376d345d2dc617a2ccea26af87fec05ed8290321505e15a5"
+        "revision": "b810355fce5af360119e954c87c04bffe56d03b4",
+        "workflow_run_id": 35674658670,
+        "mutation_report_sha256": "sha256:5cfa71a8dea90a79bc5795e7293a712f318bfb0a3a6be2963ac2407f45fb3786",
+        "artifact_digest": "sha256:23b39b0c5dd679b87a2489a1073df8b07d6487fe681627c227dd04318b4251fc"
       },
       "source_blobs": {
-        "src/kernel-core.ts": "d269dce4cb45daf5df2a5fea109df595f98296d1"
+        "src/kernel-core.ts": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5"
       },
       "selectors": [
         {
@@ -156,13 +156,13 @@
     {
       "id": "verification-and-absence",
       "source_run": {
-        "revision": "8249edc2190fc23134c55636d0d7c7f48e37ff6f",
-        "workflow_run_id": 35667705981,
-        "mutation_report_sha256": "sha256:fe227a3358e05d2eedd5d3ebdf78d147bd59a118ebfece247c029784c3c09dde",
-        "artifact_digest": "sha256:d102b8aad62c7cec458232f72e6969923406d0bc51bc5763e3bfa6432b6c619d"
+        "revision": "b897019ca5e497850aac29dfc13c323d28a64963",
+        "workflow_run_id": 35674301466,
+        "mutation_report_sha256": "sha256:cb85579131a8f73a80c5b4cef7cc9120ee3692ce7ec816b911cfe82e7ed7fddd",
+        "artifact_digest": "sha256:57cbea070c9aff0a7b83d1bbfe0ef910ea1c4a63d840bd800d0aee3c418dfa8e"
       },
       "source_blobs": {
-        "src/observation.ts": "537410074f4f03c3da7ef8c45e179b80fb6056bf"
+        "src/observation.ts": "7696e90f429f80879e6c6581e00d643d3c6cc2f7"
       },
       "selectors": [
         {
