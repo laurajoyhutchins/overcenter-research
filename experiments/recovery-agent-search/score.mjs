@@ -44,16 +44,16 @@ function deterministicProposal(packet) {
   if (legalPayee) fields.resource='merchant:'+slug(legalPayee[1]);
 
   const fullName=note.match(/\b([A-Z][a-z]+) ([A-Z][a-z]+)\b/);
-  const emailDomain=note.match(/@([a-z0-9.-]+)\b/i);
-  if (fullName && emailDomain && /first\.last/i.test(note)) {
-    const address=`${fullName[1].toLowerCase()}.${fullName[2].toLowerCase()}@${emailDomain[1].toLowerCase()}`;
+  const atDomain=note.match(/\bat ([a-z0-9.-]+)\b/i);
+  if (fullName && atDomain && /first initial plus surname/i.test(note)) {
+    const address=`${fullName[1][0].toLowerCase()}${fullName[2].toLowerCase()}@${atDomain[1].toLowerCase()}`;
     if (operation==='mail.send') fields.resource='recipient:'+address;
     if (operation==='iam.grant') fields.principal='user:'+address;
   }
 
-  const contractorDomain=note.match(/from ([a-z0-9.-]+)\.\s+Contractor principals use first\.last@\1/i);
+  const contractorDomain=note.match(/from ([a-z0-9.-]+).*first initial plus surname plus -ext at \1/is);
   if (fullName && contractorDomain && operation==='iam.grant') {
-    fields.principal=`user:${fullName[1].toLowerCase()}.${fullName[2].toLowerCase()}@${contractorDomain[1].toLowerCase()}`;
+    fields.principal=`user:${fullName[1][0].toLowerCase()}${fullName[2].toLowerCase()}-ext@${contractorDomain[1].toLowerCase()}`;
   }
 
   const dataset=note.match(/\b(finance_\d{4})\b/i);
