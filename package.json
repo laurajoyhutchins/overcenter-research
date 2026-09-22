@@ -62,6 +62,8 @@
     "experiment:scheduler-bottleneck": "node --experimental-strip-types experiments/scheduler-bottleneck/experiment.mjs",
     "bench:frontier-prioritization": "OVERCENTER_FRONTIER_STRESS=1 node --test --test-name-pattern='optional connected stress boundary' experiments/frontier-prioritization/frontier-prioritization.test.mjs",
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
-    "test:code-graph-verification": "node --test experiments/code-graph-verification/contract.test.mjs"
+    "test:code-graph-verification": "node --test experiments/code-graph-verification/contract.test.mjs",
+    "experiment:code-graph-preflight": "python3 experiments/code-graph-verification/preflight.py",
+    "experiment:code-graph-summarize": "python3 experiments/code-graph-verification/summarize.py"
   }
 }
