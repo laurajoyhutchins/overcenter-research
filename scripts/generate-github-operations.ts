@@ -158,7 +158,7 @@ const generated=[
   '// GENERATED FILE. DO NOT EDIT.',
   `// Source: github/rest-api-description@${GITHUB_OPENAPI_SOURCE_COMMIT}`,
   `// SHA-256: ${GITHUB_OPENAPI_SHA256}`,
-  "import type { GithubObservationOperation } from './github-openapi.ts';",
+  "import type { GithubObservationOperation } from './openapi.ts';",
   '',
   ...operations.flatMap(([,name,operation])=>[
     `export const ${name}:GithubObservationOperation=${JSON.stringify(operation)};`,
