@@ -1,6 +1,11 @@
 name: Code graph verification confirmatory run
 
 on:
+  push:
+    branches:
+      - run/code-graph-confirmatory-f236cb5c
+    paths:
+      - .github/workflows/code-graph-verification-confirmatory.yml
   workflow_dispatch:
     inputs:
       confirm:
@@ -19,7 +24,7 @@ concurrency:
 jobs:
   admission:
     name: Freeze execution admission
-    if: ${{ inputs.confirm }}
+    if: ${{ github.event_name == 'push' || inputs.confirm }}
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     outputs:
