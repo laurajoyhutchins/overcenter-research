@@ -62,6 +62,7 @@
     "bench:frontier-prioritization": "OVERCENTER_FRONTIER_STRESS=1 node --experimental-strip-types --test --test-name-pattern='optional connected stress boundary' experiments/frontier-prioritization/frontier-prioritization.test.ts",
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
     "test:attempt-unification": "node --experimental-strip-types --test experiments/attempt-unification/attempt-unification.test.ts",
-    "test:ambient-authority-boundary": "node --experimental-strip-types --test experiments/ambient-authority-boundary/ambient-authority-boundary.test.ts"
+    "test:ambient-authority-boundary": "node --experimental-strip-types --test experiments/ambient-authority-boundary/ambient-authority-boundary.test.ts",
+    "proof:worker-client": "bash src/execution/worker-client/proof.sh"
   }
 }
