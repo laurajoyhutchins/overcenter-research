@@ -304,17 +304,7 @@ export class KernelCore {
         throw new Error('STALE_EXECUTION_GENERATION');
       }
       const lifecycle=project.lifecycles.get(run.obligation_id);
-      const prior=history.receiptsByRun.get(run.id);
-      const resumedAfterJudgment=
-        lifecycle?.run?.id===run.id
-        && lifecycle.status==='WAITING'
-        && prior?.kind==='judgment-required'
-        && prior.disposition==='WAITING'
-        && run.execution_generation>prior.execution_generation;
-      if (
-        lifecycle?.run?.id!==run.id
-        || (lifecycle.status!=='EXECUTING' && !resumedAfterJudgment)
-      ) {
+      if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
         throw new Error('RUN_NOT_EXECUTING');
       }
       if (!mutationAdmitted({
@@ -393,6 +383,44 @@ export class KernelCore {
       if (settled) return settled;
     }
     throw new Error('RECONCILE_VERIFIED_CONTENTION_EXHAUSTED');
+  }
+
+  async reconcileWaitingIfVerified(
+    runId:string,
+    diagnostic:Data={},
+  ):Promise<Receipt|null> {
+    const head=this.#requireHead();
+    const {history,project}=this.#historicalProjection(head);
+    const run=history.runs.get(runId);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    const lifecycle=project.lifecycles.get(run.obligation_id);
+    if (lifecycle?.run?.id!==runId || lifecycle.status!=='WAITING') {
+      throw new Error('RUN_NOT_WAITING');
+    }
+
+    const observed=await this.#observeAsync(run.obligation.postcondition);
+    if (!observationVerified(run.obligation.postcondition,observed)) {
+      return null;
+    }
+
+    const permit=this.acquireExecution(runId);
+    const candidate=this.#resolutionCandidate(permit);
+    if ('receipt' in candidate) return candidate.receipt;
+    const confirmed=await this.#observeAsync(candidate.work.postcondition);
+    if (!observationVerified(candidate.work.postcondition,confirmed)) {
+      this.deferForJudgment(permit,{
+        ...diagnostic,
+        reconciliation:'verification-changed-before-settlement',
+      });
+      return null;
+    }
+    for (let attempt=0;attempt<16;attempt+=1) {
+      const current=attempt===0 ? candidate : this.#resolutionCandidate(permit);
+      if ('receipt' in current) return current.receipt;
+      const settled=this.#commitObservation(current,confirmed,diagnostic);
+      if (settled) return settled;
+    }
+    throw new Error('RECONCILE_WAITING_CONTENTION_EXHAUSTED');
   }
 
   deferForJudgment(permit:ExecutionPermit,diagnostic:Data={}):Receipt {
