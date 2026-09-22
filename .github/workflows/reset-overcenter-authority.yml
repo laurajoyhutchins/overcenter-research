@@ -1,0 +1,46 @@
+name: Reset legacy Overcenter authority proof history
+
+on:
+  push:
+    branches:
+      - maintenance/reset-overcenter-state-proof-history
+    paths:
+      - .github/workflows/reset-overcenter-authority.yml
+
+permissions: {}
+
+jobs:
+  reset:
+    name: Reset exact legacy authority head
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions:
+      contents: write
+    env:
+      AUTHORITY_REF: refs/overcenter/state
+      EXPECTED_HEAD: 942b804396659cb4df5cff6d3984bc1a5278c565
+      CLEAN_ROOT: 16d71b6fb0c172b49c6ce54aa889dccbc011ecd3
+    steps:
+      - name: Check out maintenance code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reset only the exact archived proof authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          observed="$(git ls-remote origin "$AUTHORITY_REF" | awk '{print $1}')"
+          test "$observed" = "$EXPECTED_HEAD"
+          git fetch --no-tags origin "+$AUTHORITY_REF:$AUTHORITY_REF"
+          test "$(git rev-parse "$AUTHORITY_REF")" = "$EXPECTED_HEAD"
+          test "$(git rev-list --parents -n1 "$CLEAN_ROOT" | wc -w)" -eq 1
+          git push --porcelain             --force-with-lease="$AUTHORITY_REF:$EXPECTED_HEAD"             origin "$CLEAN_ROOT:$AUTHORITY_REF"
+
+      - name: Verify exact reset
+        shell: bash
+        run: |
+          set -euo pipefail
+          observed="$(git ls-remote origin "$AUTHORITY_REF" | awk '{print $1}')"
+          test "$observed" = "$CLEAN_ROOT"
