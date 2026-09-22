@@ -32,6 +32,10 @@ def main():
     parser.add_argument("--case", required=True)
     parser.add_argument("--variant", required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument(
+        "--environment-id",
+        help="Immutable execution environment identity, such as a container digest.",
+    )
     args = parser.parse_args()
 
     manifest = json.loads((HERE / "corpus.json").read_text(encoding="utf-8"))
@@ -98,6 +102,7 @@ def main():
                         "base_worktree": str(base),
                         "patched_worktree": str(patched),
                         "frontier": str(frontier),
+                        "environment_id": args.environment_id,
                     },
                     indent=2,
                     sort_keys=True,
