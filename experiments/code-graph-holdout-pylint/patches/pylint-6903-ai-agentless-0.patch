@@ -1,0 +1,24 @@
+diff --git a/pylint/lint/run.py b/pylint/lint/run.py
+index aabf0aa..105731a 100644
+--- a/pylint/lint/run.py
++++ b/pylint/lint/run.py
+@@ -57,8 +57,8 @@ def _query_cpu() -> int | None:
+         with open("/sys/fs/cgroup/cpu/cpu.shares", encoding="utf-8") as file:
+             cpu_shares = int(file.read().rstrip())
+         # For AWS, gives correct value * 1024.
+-        avail_cpu = int(cpu_shares / 1024)
+-    return avail_cpu
++        avail_cpu = max(1, int(cpu_shares / 1024))
++    return max(1, avail_cpu)
+ 
+ 
+ def _cpu_count() -> int:
+@@ -182,7 +182,7 @@ group are mutually exclusive.",
+                 )
+                 linter.set_option("jobs", 1)
+             elif linter.config.jobs == 0:
+-                linter.config.jobs = _cpu_count()
++                linter.config.jobs = max(1, _cpu_count())
+ 
+         if self._output:
+             try:

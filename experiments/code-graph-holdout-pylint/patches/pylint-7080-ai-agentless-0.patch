@@ -1,0 +1,23 @@
+diff --git a/pylint/config/config_file_parser.py b/pylint/config/config_file_parser.py
+index 289b372..bbfe5eb 100644
+--- a/pylint/config/config_file_parser.py
++++ b/pylint/config/config_file_parser.py
+@@ -83,13 +83,16 @@ class _ConfigurationFileParser:
+         except KeyError:
+             return {}, []
+ 
+-        config_content: dict[str, str] = {}
++        config_content: dict[str, Any] = {}
+         options: list[str] = []
+         for opt, values in sections_values.items():
+             if isinstance(values, dict):
+                 for config, value in values.items():
+                     value = _parse_rich_type_value(value)
+-                    config_content[config] = value
++                    if config == "ignore-paths":
++                        config_content["ignore_paths"] = value  # Ensure ignore-paths is correctly mapped
++                    else:
++                        config_content[config] = value
+                     options += [f"--{config}", value]
+             else:
+                 values = _parse_rich_type_value(values)

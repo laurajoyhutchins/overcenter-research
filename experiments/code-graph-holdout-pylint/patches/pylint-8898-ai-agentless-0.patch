@@ -1,0 +1,30 @@
+diff --git a/pylint/config/argument.py b/pylint/config/argument.py
+index 58062ab..0577b75 100644
+--- a/pylint/config/argument.py
++++ b/pylint/config/argument.py
+@@ -114,8 +114,23 @@ def _regex_transformer(value: str) -> Pattern[str]:
+ def _regexp_csv_transfomer(value: str) -> Sequence[Pattern[str]]:
+     """Transforms a comma separated list of regular expressions."""
+     patterns: list[Pattern[str]] = []
+-    for pattern in _csv_transformer(value):
+-        patterns.append(_regex_transformer(pattern))
++    in_braces = False
++    current_pattern = []
++    
++    for char in value:
++        if char == ',' and not in_braces:
++            patterns.append(_regex_transformer(''.join(current_pattern)))
++            current_pattern = []
++        else:
++            current_pattern.append(char)
++            if char in {'{', '('}:
++                in_braces = True
++            elif char in {'}', ')'}:
++                in_braces = False
++
++    if current_pattern:
++        patterns.append(_regex_transformer(''.join(current_pattern)))
++
+     return patterns
+ 
+ 
