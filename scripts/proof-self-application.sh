@@ -27,7 +27,7 @@ else
   (
     cd src/execution/executor
     CGO_ENABLED=0 go build -trimpath -buildvcs=false \
-      -o ../.overcenter-build/overcenter-executor \
+      -o ../../../.overcenter-build/overcenter-executor \
       ./cmd/overcenter-executor
   )
 fi
