@@ -64,6 +64,7 @@
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
     "test:code-graph-verification": "node --test experiments/code-graph-verification/contract.test.mjs",
     "experiment:code-graph-preflight": "python3 experiments/code-graph-verification/preflight.py",
-    "experiment:code-graph-summarize": "python3 experiments/code-graph-verification/summarize.py"
+    "experiment:code-graph-summarize": "python3 experiments/code-graph-verification/summarize.py",
+    "experiment:code-graph-run-case": "python3 experiments/code-graph-verification/run_case.py"
   }
 }

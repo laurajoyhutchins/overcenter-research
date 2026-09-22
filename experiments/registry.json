@@ -861,7 +861,9 @@
           "experiments/code-graph-verification/preflight.py",
           "experiments/code-graph-verification/summarize.py",
           "experiments/code-graph-verification/preflight-evidence.json",
-          "GitHub Actions preflight run 35692049450 at ce1dddb8d2c70ffc6b7104f455283f3532799e53"
+          "GitHub Actions preflight run 35692049450 at ce1dddb8d2c70ffc6b7104f455283f3532799e53",
+          "experiments/code-graph-verification/run_case.py",
+          ".github/workflows/code-graph-verification-confirmatory.yml"
         ]
       },
       "interpretation": "Artifact-count completion establishes only that the confirmatory corpus is large and adversarial enough to run. A positive execution result would support deterministic verification pruning for the fixed Flask slice; a negative result identifies missing graph relations or insufficient pruning.",

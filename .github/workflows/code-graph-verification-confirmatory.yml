@@ -1,0 +1,171 @@
+name: Code graph verification confirmatory run
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Run all execution-admitted Flask variants
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-graph-verification-confirmatory-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  admission:
+    name: Freeze execution admission
+    if: ${{ inputs.confirm }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      cases: ${{ steps.plan.outputs.cases }}
+    steps:
+      - name: Check out exact experiment revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up repository Node version
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Verify deterministic experiment contract
+        run: npm run test:code-graph-verification
+
+      - name: Fetch Flask history
+        run: git clone --filter=blob:none https://github.com/pallets/flask.git /tmp/flask
+
+      - name: Re-prove exact execution admission
+        run: |
+          npm run experiment:code-graph-preflight -- \
+            --flask-repo /tmp/flask \
+            --out "$RUNNER_TEMP/code-graph-preflight.json" \
+            --require-admission
+
+      - name: Derive fixed case matrix
+        id: plan
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          corpus = json.load(open(
+              "experiments/code-graph-verification/corpus.json",
+              encoding="utf-8",
+          ))
+          cases = [case["id"] for case in corpus["cases"]]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("cases=" + json.dumps(cases, separators=(",", ":")) + "\n")
+          PY
+
+      - name: Preserve preflight evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: code-graph-preflight
+          path: ${{ runner.temp }}/code-graph-preflight.json
+          if-no-files-found: error
+          retention-days: 30
+
+  cases:
+    name: ${{ matrix.case }}
+    needs: admission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 11
+      matrix:
+        case: ${{ fromJSON(needs.admission.outputs.cases) }}
+    steps:
+      - name: Check out exact experiment revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Fetch Flask history
+        run: git clone --filter=blob:none https://github.com/pallets/flask.git /tmp/flask
+
+      - name: Run case against immutable SWE-bench image
+        run: |
+          python3 experiments/code-graph-verification/run_case.py \
+            --flask-repo /tmp/flask \
+            --case "${{ matrix.case }}" \
+            --out "$RUNNER_TEMP/results"
+
+      - name: Preserve case evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: code-graph-case-${{ matrix.case }}
+          path: ${{ runner.temp }}/results
+          if-no-files-found: error
+          retention-days: 30
+
+  aggregate:
+    name: Aggregate preregistered verdict
+    needs: [admission, cases]
+    if: ${{ always() && needs.admission.result == 'success' && needs.cases.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check out exact experiment revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Restore preflight evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: code-graph-preflight
+          path: ${{ runner.temp }}/preflight
+
+      - name: Restore all case evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: code-graph-case-*
+          path: ${{ runner.temp }}/results
+          merge-multiple: true
+
+      - name: Compute pooled verdict
+        run: |
+          npm run experiment:code-graph-summarize -- \
+            --results "$RUNNER_TEMP/results" \
+            --preflight "$RUNNER_TEMP/preflight/code-graph-preflight.json" \
+            --out "$RUNNER_TEMP/code-graph-summary.json"
+
+      - name: Publish verdict summary
+        env:
+          SUMMARY: ${{ runner.temp }}/code-graph-summary.json
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          report = json.load(open(os.environ["SUMMARY"], encoding="utf-8"))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("## Code graph verification\n\n")
+              out.write(f"- confirmatory: **{report['confirmatory']}**\n")
+              out.write(f"- raw runs: {report['raw_runs']}\n")
+              out.write(f"- effective observations: {report['effective_observations']}\n")
+              out.write(f"- recall: {report['metrics']['recall']:.6f}\n")
+              out.write(
+                  f"- selected fraction: "
+                  f"{report['metrics']['selected_fraction']:.6f}\n"
+              )
+              out.write(
+                  f"- missed regressions: "
+                  f"{report['totals']['missed_regressions']}\n"
+              )
+              out.write(
+                  f"- hypothesis survived preregistered gates: "
+                  f"**{report['hypothesis_survived']}**\n"
+              )
+          PY
+
+      - name: Preserve pooled evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: code-graph-confirmatory-summary
+          path: ${{ runner.temp }}/code-graph-summary.json
+          if-no-files-found: error
+          retention-days: 30

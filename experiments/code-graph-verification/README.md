@@ -199,6 +199,12 @@ Preflight performs exact-base `git apply --check`, rejects candidate patches tha
 
 The real historical Flask executions are intentionally separate from ordinary fast CI. Their immutable environment identity and full result artifacts are evidence, not ambient developer state.
 
+### Hosted confirmatory execution
+
+`.github/workflows/code-graph-verification-confirmatory.yml` is manual-only. It resolves each official SWE-bench instance image to an immutable Docker RepoDigest, verifies the image's `/testbed` commit against `corpus.json`, runs one held-out-test base suite per Flask case, then runs every candidate variant for that case with container networking disabled.
+
+The 11 cases fan out in parallel. Base outcomes are reused within each case, reducing the full-suite oracle workload from 42 runs to 32. The aggregation job accepts results only when they match exact preflight admission and lets `summarize.py` evaluate the preregistered gates.
+
 ## Interpretation
 
 A positive confirmatory result would support a narrow claim: static reachability is good enough to prune a large fraction of verification work for the admitted Flask change distribution.
