@@ -36,7 +36,7 @@
     "generatedDefinitions": {
       "SettlementObservation": {
         "source": "./settlement-observation.typebox.ts",
-        "generator": "../../scripts/generate-settlement-observation.mjs",
+        "generator": "../../scripts/generate-settlement-observation.ts",
         "toolchain": "typebox==1.3.34; typescript==7.0.2 for static proof",
         "outputs": [
           "./schema.json#/$defs/SettlementObservation",

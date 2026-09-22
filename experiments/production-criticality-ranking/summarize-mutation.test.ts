@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {summarize} from './summarize-mutation.mjs';
+import {summarize} from './summarize-mutation.ts';
 
 test('attributes mutants only to semantic probe ranges',()=>{
   const report={files:{

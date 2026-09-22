@@ -8,7 +8,7 @@ This historical control demonstrates exact revision fencing, observation-based s
 
 ## Run
 ```sh
-node --test experiments/sqlite-baseline/kernel.test.js
+node --experimental-strip-types --test experiments/sqlite-baseline/kernel.test.ts
 ```
 
 ## Evidence

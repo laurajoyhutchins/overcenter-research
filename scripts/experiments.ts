@@ -39,4 +39,4 @@ if(cmd==='verify')verify();
 else if(cmd==='list')list();
 else if(cmd==='run'&&arg==='--all-deterministic'){verify();for(const e of entries.filter(e=>e.kind==='experiment'&&e.reproduce.tier==='deterministic'))runOne(e);}
 else if(cmd==='run'&&arg){verify();runOne(entries.find(e=>e.id===arg));}
-else{console.error('usage: experiments.mjs verify | list | run <id> | run --all-deterministic');process.exit(2);}
+else{console.error('usage: experiments.ts verify | list | run <id> | run --all-deterministic');process.exit(2);}

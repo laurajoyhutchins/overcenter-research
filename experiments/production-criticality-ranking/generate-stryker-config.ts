@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import {resolveMutationProbes,mutatePatterns} from './resolve-mutation-probes.mjs';
+import {resolveMutationProbes,mutatePatterns} from './resolve-mutation-probes.ts';
 
 const resolved=resolveMutationProbes(process.cwd());
 const requestedProbeIds=(process.env.MUTATION_PROBE??'')
@@ -21,7 +21,7 @@ const testFiles=[...new Set(selected.probes.flatMap(probe=>probe.tests??[]))];
 if(testFiles.length===0) throw new Error('selected mutation probes have no tests');
 const testCommand=`node --experimental-strip-types --test ${testFiles.join(' ')}`;
 
-export default {
+const config={
   mutate: mutatePatterns(selected),
   testRunner: 'command',
   commandRunner: {
@@ -41,3 +41,6 @@ export default {
     break: null,
   },
 };
+
+const output=process.argv[2]??'mutation-stryker-config.json';
+fs.writeFileSync(output,JSON.stringify(config,null,2)+'\n');

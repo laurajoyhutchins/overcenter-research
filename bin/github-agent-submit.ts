@@ -12,11 +12,11 @@ import {
   buildAssignment,
   encodeAssignment,
   validateCandidate,
-} from '../src/assignment-capsule.mjs';
+} from '../src/assignment-capsule.ts';
 import {GitOvercenterKernel} from '../src/git-kernel.ts';
 
 const DEFAULT_AUTHORITY_REF='refs/overcenter/agent-ingress';
-const TASK_PATH='experiments/assignment-capsule/fixture-task.mjs';
+const TASK_PATH='experiments/assignment-capsule/fixture-task.ts';
 const INPUT_PATH='experiments/assignment-capsule/fixture-input.txt';
 
 function required(name:string):string {
@@ -75,7 +75,7 @@ const sourceSha=String(assigned.packet.source_sha??'').toLowerCase();
 if (!/^[0-9a-f]{40,64}$/.test(sourceSha)) throw new Error('SUBMIT_SOURCE_SHA_INVALID');
 
 const assignment=buildAssignment(assigned,[
-  assignmentFile('task.mjs',gitBytes(sourceSha,TASK_PATH)),
+  assignmentFile('task.ts',gitBytes(sourceSha,TASK_PATH)),
   assignmentFile('input.txt',gitBytes(sourceSha,INPUT_PATH)),
 ]);
 const assignmentBytes=encodeAssignment(assignment);

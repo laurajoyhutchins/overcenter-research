@@ -5,8 +5,8 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 
-import {mutationEvidenceSources} from './mutation-evidence.mjs';
-import {verifyMutationEvidence} from './verify-mutation-evidence.mjs';
+import {mutationEvidenceSources} from './mutation-evidence.ts';
+import {verifyMutationEvidence} from './verify-mutation-evidence.ts';
 
 const workflowPath='.github/workflows/production-criticality-mutation-probe.yml';
 

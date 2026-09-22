@@ -11,7 +11,7 @@ import {
   MUTATION_WORKFLOW,
   changedMutationProbeIds,
   selectMutationProbe,
-} from './select-mutation-probe.mjs';
+} from './select-mutation-probe.ts';
 
 const select=(changed,eventName='pull_request',options={})=>
   selectMutationProbe({eventName,changed,...options});
@@ -111,8 +111,8 @@ test('explicit probe-config changes run only the changed probes',()=>{
 
 test('mutation-engine mechanics still force the broad probe',()=>{
   for(const file of [
-    'experiments/production-criticality-ranking/resolve-mutation-probes.mjs',
-    'experiments/production-criticality-ranking/stryker.config.mjs',
+    'experiments/production-criticality-ranking/resolve-mutation-probes.ts',
+    'experiments/production-criticality-ranking/generate-stryker-config.ts',
     'experiments/production-criticality-ranking/summarize-mutation.mjs',
     'experiments/production-criticality-ranking/summarize-mutation.test.mjs',
   ]){
@@ -167,7 +167,7 @@ test('configured source changes take precedence over plumbing smoke selection',(
 
 test('evidence-verifier-only changes leave mutation execution skipped',()=>{
   assert.deepEqual(select([
-    'experiments/production-criticality-ranking/verify-mutation-evidence.mjs',
+    'experiments/production-criticality-ranking/verify-mutation-evidence.ts',
     'experiments/production-criticality-ranking/mutation-evidence.json',
   ]),{
     runProbe:false,

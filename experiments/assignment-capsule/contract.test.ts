@@ -11,7 +11,7 @@ import {
   materializeAssignment,
   validateAssignment,
   validateCandidate,
-} from '../../src/assignment-capsule.mjs';
+} from '../../src/assignment-capsule.ts';
 
 function work() {
   return {
@@ -21,8 +21,8 @@ function work() {
       schema:'overcenter-agent-task/v1',
       kind:'pure-candidate',
       source_sha:'1'.repeat(40),
-      command:['node','task.mjs','input.txt','result.txt'],
-      required_paths:['task.mjs','input.txt'],
+      command:['node','--experimental-strip-types','task.ts','input.txt','result.txt'],
+      required_paths:['task.ts','input.txt'],
       output_path:'result.txt',
     },
     postcondition:{verifier:'file-content-equals/v1',path:'/tmp/result.txt',content:'done\n'},
@@ -35,7 +35,7 @@ function work() {
 }
 
 const files=()=>[
-  assignmentFile('task.mjs',Buffer.from('process.exit(0)\n')),
+  assignmentFile('task.ts',Buffer.from('process.exit(0)\n')),
   assignmentFile('input.txt',Buffer.from('payload\n')),
 ];
 
@@ -64,7 +64,7 @@ test('materialization recreates only declared bytes',()=>{
     const assignment=buildAssignment(work(),files());
     materializeAssignment(assignment,root);
     assert.equal(readFileSync(join(root,'input.txt'),'utf8'),'payload\n');
-    assert.equal(readFileSync(join(root,'task.mjs'),'utf8'),'process.exit(0)\n');
+    assert.equal(readFileSync(join(root,'task.ts'),'utf8'),'process.exit(0)\n');
   } finally {
     rmSync(root,{recursive:true,force:true});
   }

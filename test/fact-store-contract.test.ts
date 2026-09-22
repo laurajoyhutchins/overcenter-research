@@ -154,7 +154,7 @@ test('SQLite serializes simultaneous writers and admits exactly one same-head CA
   store.close();
 
   const fixture=fileURLToPath(
-    new URL('./fixtures/sqlite-contender.mjs',import.meta.url),
+    new URL('./fixtures/sqlite-contender.ts',import.meta.url),
   );
   const contenders=Array.from({length:8},(_,index)=>
     new Promise<string|null>((resolve,reject)=>{

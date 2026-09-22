@@ -9,7 +9,7 @@ import {
   MUTATION_EVIDENCE_SCHEMA,
   mutationEvidenceSources,
   reconcileMutationEvidence,
-} from './mutation-evidence.mjs';
+} from './mutation-evidence.ts';
 
 const git=(root,args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
 const source=(run,revision,artifact='sha256:'+'a'.repeat(64))=>({

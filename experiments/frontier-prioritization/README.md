@@ -203,7 +203,7 @@ AI belongs only after deterministic possibilities are exhausted or the missing i
 No network, model, randomness, or external dependency is required. The larger corpus uses a fixed `XorShift32(0xC0FFEE)` generator.
 
 ```sh
-node --test experiments/frontier-prioritization/frontier-prioritization.test.mjs
+node --experimental-strip-types --test experiments/frontier-prioritization/frontier-prioritization.test.ts
 ```
 
 ## Success criteria

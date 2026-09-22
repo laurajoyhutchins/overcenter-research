@@ -51,7 +51,7 @@ Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/su
 The repository began with two storage experiments:
 
 ```text
-experiments/sqlite-baseline/kernel.js
+experiments/sqlite-baseline/kernel.ts
         ↓
 prove the smallest local state machine
 
