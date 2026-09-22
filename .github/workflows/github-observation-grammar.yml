@@ -18,7 +18,7 @@ on:
       - src/semantics.ts
       - src/github-authority-command.ts
       - src/provider-observation/**
-      - src/providers/**
+      - src/providers/github-*.ts
       - scripts/generate-github-operations.ts
       - bin/github-authority.ts
       - test/provider-observation.test.ts
@@ -42,7 +42,7 @@ on:
       - src/semantics.ts
       - src/github-authority-command.ts
       - src/provider-observation/**
-      - src/providers/**
+      - src/providers/github-*.ts
       - scripts/generate-github-operations.ts
       - bin/github-authority.ts
       - test/provider-observation.test.ts
@@ -135,7 +135,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ github.head_ref || github.ref_name }}
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          CHECK_REF: main
+          CHECK_REF: ${{ github.event.pull_request.head.sha || github.sha }}
           STATUS_REF: b91ac6c4e64f72b83c6a8d8caa78e9482037a2d1
           BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
           VOLATILE_CHECK_REF: ${{ github.sha }}
