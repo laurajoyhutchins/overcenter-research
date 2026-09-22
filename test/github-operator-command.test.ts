@@ -57,8 +57,27 @@ function providerRun(
   };
 }
 
-function lookupWithRuns(runs:ReturnType<typeof providerRun>[]) {
+function lookupWithRuns(
+  runs:ReturnType<typeof providerRun>[],
+  current:{
+    headSha?:string;
+    baseSha?:string;
+    headRepository?:string;
+  }={},
+) {
   return async(_token:string,path:string)=>{
+    if (path.endsWith('/pulls/7')) {
+      return {
+        status:200,
+        body:JSON.stringify({
+          head:{
+            sha:current.headSha??SHA,
+            repo:{full_name:current.headRepository??'acme/widget'},
+          },
+          base:{sha:current.baseSha??BASE},
+        }),
+      };
+    }
     if (path.includes('/actions/runs?')) {
       return {
         status:200,
@@ -175,6 +194,43 @@ test('candidate.certify prefers completed success over a newer active duplicate'
   );
   assert.equal(receipt.result_mode,'reused');
   assert.equal(receipt.certification_run_id,4999);
+});
+
+test('candidate.certify fails closed when the live pull request moved',async()=>{
+  let posts=0;
+  await assert.rejects(
+    executeGithubOperatorCommand(
+      'token',
+      CANDIDATE_CERTIFY_COMMAND,
+      context(),
+      {
+        get:lookupWithRuns([],{baseSha:'f'.repeat(40)}),
+        post:async()=>{
+          posts+=1;
+          return {status:200,body:'{}'};
+        },
+      },
+    ),
+    /GITHUB_OPERATOR_SUBJECT_MOVED/,
+  );
+  assert.equal(posts,0);
+
+  await assert.rejects(
+    executeGithubOperatorCommand(
+      'token',
+      CANDIDATE_CERTIFY_COMMAND,
+      context(),
+      {
+        get:lookupWithRuns([],{headSha:'e'.repeat(40)}),
+        post:async()=>{
+          posts+=1;
+          return {status:200,body:'{}'};
+        },
+      },
+    ),
+    /GITHUB_OPERATOR_SUBJECT_MOVED/,
+  );
+  assert.equal(posts,0);
 });
 
 test('failed, stale-base, or unrelated runs do not suppress fresh certification',async()=>{

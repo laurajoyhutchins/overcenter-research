@@ -278,6 +278,60 @@ async function findReusableCertification(
   return null;
 }
 
+async function assertCurrentPullCoordinates(
+  token:string,
+  context:GithubOperatorCommandContext,
+  get:GithubWorkflowRunsGet,
+):Promise<void> {
+  const [owner,repo]=context.repository_full_name.split('/');
+  const response=await get(
+    token,
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${context.pull_number}`,
+  );
+  if (response.status!==200) {
+    throw new Error(`GITHUB_OPERATOR_PULL_READBACK_FAILED:${response.status}:${response.body}`);
+  }
+  let decoded:unknown;
+  try {
+    decoded=JSON.parse(response.body);
+  } catch {
+    throw new Error('GITHUB_OPERATOR_PULL_READBACK_INVALID:json');
+  }
+  if (!decoded || typeof decoded!=='object' || Array.isArray(decoded)) {
+    throw new Error('GITHUB_OPERATOR_PULL_READBACK_INVALID:object');
+  }
+  const pull=decoded as Record<string,unknown>;
+  const head=pull.head;
+  const base=pull.base;
+  if (
+    !head || typeof head!=='object' || Array.isArray(head)
+    || !base || typeof base!=='object' || Array.isArray(base)
+  ) {
+    throw new Error('GITHUB_OPERATOR_PULL_READBACK_INVALID:coordinates');
+  }
+  const headRecord=head as Record<string,unknown>;
+  const baseRecord=base as Record<string,unknown>;
+  const headRepo=headRecord.repo;
+  const headRepositoryFullName=
+    headRepo && typeof headRepo==='object' && !Array.isArray(headRepo)
+      ? (headRepo as Record<string,unknown>).full_name
+      : null;
+  if (
+    typeof headRecord.sha!=='string'
+    || typeof baseRecord.sha!=='string'
+    || typeof headRepositoryFullName!=='string'
+  ) {
+    throw new Error('GITHUB_OPERATOR_PULL_READBACK_INVALID:identity');
+  }
+  if (
+    headRecord.sha.toLowerCase()!==context.source_sha.toLowerCase()
+    || baseRecord.sha.toLowerCase()!==context.base_sha.toLowerCase()
+    || headRepositoryFullName!==context.head_repository_full_name
+  ) {
+    throw new Error('GITHUB_OPERATOR_SUBJECT_MOVED');
+  }
+}
+
 function buildCommandReceipt(
   command:GithubOperatorCommand,
   context:GithubOperatorCommandContext,
@@ -322,6 +376,7 @@ export async function executeGithubOperatorCommand(
 ):Promise<GithubOperatorCommandReceipt> {
   if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
   const request=buildGithubOperatorDispatch(command,context);
+  await assertCurrentPullCoordinates(token,context,get);
   const reusable=await findReusableCertification(token,context,get);
   if (reusable) {
     return buildCommandReceipt(command,context,'reused',reusable);

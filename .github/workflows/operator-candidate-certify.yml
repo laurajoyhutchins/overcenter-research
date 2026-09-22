@@ -20,6 +20,7 @@ jobs:
     permissions:
       actions: write
       contents: read
+      pull-requests: read
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}

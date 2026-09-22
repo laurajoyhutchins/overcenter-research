@@ -63,7 +63,7 @@ The command derives all subject coordinates from the original pull-request event
 
 It derives the command implementation identity separately from the pull request's exact base SHA.
 
-It accepts no free-form command payload.
+It accepts no free-form command payload. On invocation, it first reads the live pull request and requires the current head SHA, base SHA, and head repository to still equal the captured anchor coordinates; a stale rerun fails closed before any certification lookup or dispatch.
 
 On invocation, the trusted adapter first reads Merge-gate workflow runs for the exact captured head SHA and requires the provider-visible run title to encode the exact captured head and base coordinates. The run title is deterministically derived from `workflow_dispatch` inputs by `merge-gate.yml`. The adapter reuses a successful exact-coordinate run, or an active one already converging on the same head/base pair. Failed, cancelled, stale-head, stale-base, pull-request, or other-workflow runs are not reusable. If no reusable realization exists, it dispatches `merge-gate.yml` with both `source_sha` and `base_sha`. A moved head or changed base therefore cannot silently inherit certification.
 
