@@ -198,6 +198,17 @@ export function validateJudgmentSearchCandidate(
   return {query:proposal.query,reason:proposal.reason};
 }
 
+export function runJudgmentSearch(
+  input:RecoveryCaseView,
+  state:RecoveryState,
+  value:unknown,
+  search:(query:string)=>RecoveryEvidence,
+):RecoveryState {
+  const candidate=validateJudgmentSearchCandidate(input,state,value);
+  const evidence=search(candidate.query);
+  return admitRecoveryEvidence(state,evidence);
+}
+
 export function deterministicRecover(input:RecoveryCaseView):RecoveryState {
   let state=initialState();
 
