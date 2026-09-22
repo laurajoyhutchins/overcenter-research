@@ -1,0 +1,264 @@
+name: Recovery agent refinement Codex replication
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/workflows/recovery-agent-refinement-codex.yml'
+
+permissions: {}
+
+concurrency:
+  group: recovery-agent-refinement-codex-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+  CODEX_MODEL: gpt-5.6-sol
+  CODEX_EFFORT: medium
+
+jobs:
+  observe:
+    name: Trusted search - reproduce cardinality-only assignment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      prompt_sha256: ${{ steps.packet.outputs.prompt_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify deterministic contracts at exact source revision
+        run: |
+          npm run test:recovery-agent-search
+          npm run test:recovery-agent-refinement
+      - name: Build byte-scoped cardinality-only assignment
+        id: packet
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/recovery-agent-refinement-codex-assignment"
+          mkdir -p "$root"
+          node experiments/recovery-agent-refinement/observe.mjs \
+            experiments/recovery-agent-refinement/round-one-candidate.json \
+            "$root/observations.json"
+          cp experiments/recovery-agent-search/proposal.schema.json "$root/proposal.schema.json"
+          PACKETS=experiments/recovery-agent-search/packets.json OBS="$root/observations.json" node - <<'NODE' > "$root/prompt.md"
+          const fs=require('node:fs');
+          const packets=JSON.parse(fs.readFileSync(process.env.PACKETS,'utf8'));
+          const observations=JSON.parse(fs.readFileSync(process.env.OBS,'utf8'));
+          const lines=[
+            'You are an untrusted recovery-search reasoner in the second and final round of an Overcenter experiment.',
+            '',
+            'Trusted software executed your prior read-only search proposals and returned only search cardinality.',
+            'You still do not know the authoritative records, whether a unique record is the intended effect, or what actually happened.',
+            'Return exactly one replacement proposal for every case.',
+            '',
+            'Allowed field names: '+packets.query_contract.allowed_fields.join(', '),
+            'Allowed operations: '+packets.query_contract.allowed_operations.join(', '),
+            'Conventions:',
+            ...packets.query_contract.conventions.map(x=>'- '+x),
+            '',
+            'Cardinality meanings:',
+            '- zero: the prior query matched no authoritative records.',
+            '- one: the prior query matched exactly one authoritative record. This is NOT settlement evidence.',
+            '- many: the prior query matched more than one authoritative record.',
+            '- not-searched: no admissible search was executed.',
+            '',
+            'Rules:',
+            '- This is the final refinement round. There is no third query.',
+            '- You may retain, widen, narrow, replace, or abandon the prior search hypothesis.',
+            '- Never assert certainty, outcome, provider state, provider record identity, settlement, or retry.',
+            '- Use only the public packet, provider conventions, prior proposal, and cardinality shown below.',
+            '- If authoritative recovery is impossible, choose unresolved.',
+            '',
+            'Recovery packets:',
+            JSON.stringify(packets.cases,null,2),
+            '',
+            'Round-one sanitized observations:',
+            JSON.stringify(observations.observations,null,2),
+          ];
+          process.stdout.write(lines.join('\n')+'\n');
+          NODE
+          grep -q '"cardinality"' "$root/prompt.md"
+          ! grep -Eq 'matched_record|effect_digest|expected_effect_digest|"certainty"|"resolved"|"reason"|"outcome"' "$root/prompt.md"
+          prompt_sha256="$(sha256sum "$root/prompt.md" | cut -d' ' -f1)"
+          echo "prompt_sha256=$prompt_sha256" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recovery-agent-refinement-codex-assignment
+          path: ${{ runner.temp }}/recovery-agent-refinement-codex-assignment
+          if-no-files-found: error
+          retention-days: 1
+
+  codex:
+    name: Untrusted Codex reasoner - refine searches
+    needs: observe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: recovery-agent-refinement-codex-assignment
+          path: ${{ runner.temp }}/recovery-agent-refinement-codex-assignment
+      - name: Verify assignment and create empty inference workspace
+        env:
+          EXPECTED_PROMPT_SHA256: ${{ needs.observe.outputs.prompt_sha256 }}
+        run: |
+          set -euo pipefail
+          source_root="$RUNNER_TEMP/recovery-agent-refinement-codex-assignment"
+          sandbox_root="$RUNNER_TEMP/recovery-agent-refinement-codex"
+          test "$(sha256sum "$source_root/prompt.md" | cut -d' ' -f1)" = "$EXPECTED_PROMPT_SHA256"
+          test ! -e "$source_root/oracle.json"
+          mkdir -p "$sandbox_root/input" "$sandbox_root/out" "$sandbox_root/work"
+          cp "$source_root/prompt.md" "$sandbox_root/input/prompt.md"
+          cp "$source_root/proposal.schema.json" "$sandbox_root/input/proposal.schema.json"
+          sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-codex
+          sudo chown -R root:root "$sandbox_root/input"
+          sudo chmod -R a+rX,u-w,g-w,o-w "$sandbox_root/input"
+          sudo chown -R overcenter-codex:overcenter-codex "$sandbox_root/out" "$sandbox_root/work"
+          chmod 700 "$sandbox_root/out" "$sandbox_root/work"
+          test -z "$(find "$sandbox_root/work" -mindepth 1 -print -quit)"
+      - name: Run final oracle-blind Codex refinement inference
+        id: codex
+        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ runner.temp }}/recovery-agent-refinement-codex/input/prompt.md
+          output-schema-file: ${{ runner.temp }}/recovery-agent-refinement-codex/input/proposal.schema.json
+          output-file: ${{ runner.temp }}/recovery-agent-refinement-codex/out/candidate.json
+          working-directory: ${{ runner.temp }}/recovery-agent-refinement-codex/work
+          model: ${{ env.CODEX_MODEL }}
+          effort: ${{ env.CODEX_EFFORT }}
+          permission-profile: ":read-only"
+          safety-strategy: unprivileged-user
+          codex-user: overcenter-codex
+          allow-users: ${{ github.repository_owner }}
+      - name: Bind Codex candidate and provenance
+        env:
+          EXPECTED_PROMPT_SHA256: ${{ needs.observe.outputs.prompt_sha256 }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/recovery-agent-refinement-codex"
+          candidate="$root/out/candidate.json"
+          test -s "$candidate"
+          test -z "$(find "$root/work" -mindepth 1 -print -quit)"
+          candidate_sha256="$(sha256sum "$candidate" | cut -d' ' -f1)"
+          CANDIDATE_SHA256="$candidate_sha256" node - <<'NODE' > "$root/out/provenance.json"
+          const provenance={
+            schema:'overcenter-recovery-search-model-provenance/v1',
+            provider:'openai',
+            model_id:process.env.CODEX_MODEL,
+            reasoning_effort:process.env.CODEX_EFFORT,
+            transport:'openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e',
+            credential_source:'github-actions-secret-via-codex-action-proxy',
+            prompt_sha256:process.env.EXPECTED_PROMPT_SHA256,
+            candidate_sha256:process.env.CANDIDATE_SHA256,
+            repository_credentials_present:false,
+            checkout_readable_during_inference:false,
+            overcenter_authority_present:false,
+            provider_mutation_authority_present:false,
+            input_scope:'public-recovery-packets-prior-proposal-cardinality-and-proposal-schema-only',
+          };
+          process.stdout.write(JSON.stringify(provenance,null,2)+'\n');
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recovery-agent-refinement-codex-candidate
+          path: |
+            ${{ runner.temp }}/recovery-agent-refinement-codex/out/candidate.json
+            ${{ runner.temp }}/recovery-agent-refinement-codex/out/provenance.json
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    name: Trusted benchmark - score Codex replication
+    needs: [observe, codex]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: recovery-agent-refinement-codex-candidate
+          path: ${{ runner.temp }}/codex-round-two
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: recovery-agent-refinement-codex-assignment
+          path: ${{ runner.temp }}/codex-assignment
+      - name: Re-run deterministic contracts at exact source revision
+        run: |
+          npm run test:recovery-agent-search
+          npm run test:recovery-agent-refinement
+      - name: Verify Codex provenance and cardinality-only surface
+        env:
+          EXPECTED_PROMPT_SHA256: ${{ needs.observe.outputs.prompt_sha256 }}
+        run: |
+          PROVENANCE="$RUNNER_TEMP/codex-round-two/provenance.json" node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync(process.env.PROVENANCE,'utf8'));
+          if (p.provider!=='openai') throw new Error('RECOVERY_CODEX_PROVIDER_MISMATCH');
+          if (p.model_id!==process.env.CODEX_MODEL) throw new Error('RECOVERY_CODEX_MODEL_MISMATCH');
+          if (p.reasoning_effort!==process.env.CODEX_EFFORT) throw new Error('RECOVERY_CODEX_EFFORT_MISMATCH');
+          if (p.prompt_sha256!==process.env.EXPECTED_PROMPT_SHA256) throw new Error('RECOVERY_CODEX_PROMPT_MISMATCH');
+          if (p.repository_credentials_present!==false) throw new Error('RECOVERY_CODEX_REPOSITORY_CREDENTIALS');
+          if (p.checkout_readable_during_inference!==false) throw new Error('RECOVERY_CODEX_CHECKOUT_READABLE');
+          if (p.overcenter_authority_present!==false) throw new Error('RECOVERY_CODEX_AUTHORITY_PRESENT');
+          if (p.provider_mutation_authority_present!==false) throw new Error('RECOVERY_CODEX_MUTATION_AUTHORITY_PRESENT');
+          NODE
+          prompt="$RUNNER_TEMP/codex-assignment/prompt.md"
+          test "$(sha256sum "$prompt" | cut -d' ' -f1)" = "$EXPECTED_PROMPT_SHA256"
+          grep -q '"cardinality"' "$prompt"
+          ! grep -Eq 'matched_record|effect_digest|expected_effect_digest|"certainty"|"resolved"|"reason"|"outcome"' "$prompt"
+      - name: Score cumulative two-round recovery through trusted oracle
+        run: |
+          set -euo pipefail
+          node experiments/recovery-agent-refinement/score.mjs \
+            experiments/recovery-agent-refinement/round-one-candidate.json \
+            "$RUNNER_TEMP/codex-round-two/candidate.json" \
+            "$RUNNER_TEMP/recovery-agent-refinement-codex-result.json"
+      - name: Publish Codex replication summary
+        run: |
+          RESULT="$RUNNER_TEMP/recovery-agent-refinement-codex-result.json" node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync(process.env.RESULT,'utf8'));
+          console.log('## Recovery agent refinement — Codex provider replication');
+          console.log('');
+          console.log('- model: '+process.env.CODEX_MODEL+' / '+process.env.CODEX_EFFORT);
+          console.log('- deterministic baseline: '+r.deterministic_baseline_resolved+'/'+r.recoverable_cases);
+          console.log('- frozen round one: '+r.round_one_resolved+'/'+r.recoverable_cases);
+          console.log('- Codex round two alone: '+r.round_two_resolved+'/'+r.recoverable_cases);
+          console.log('- cumulative two round: '+r.cumulative_two_round_resolved+'/'+r.recoverable_cases);
+          console.log('- refinement gain: '+(r.refinement_gain>=0?'+':'')+r.refinement_gain);
+          console.log('- baseline gain: '+(r.baseline_gain>=0?'+':'')+r.baseline_gain);
+          console.log('- false certainty: '+r.false_certainty);
+          console.log('- permanent-uncertainty violations: '+r.permanent_uncertainty_violations);
+          console.log('- mechanism supported on this provider: '+r.mechanism_supported);
+          console.log('- role supported on this provider: '+r.role_supported);
+          console.log('');
+          console.log('This is a provider replication, not completion of the Gemini-free preregistered treatment.');
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recovery-agent-refinement-codex-result
+          path: |
+            ${{ runner.temp }}/recovery-agent-refinement-codex-result.json
+            ${{ runner.temp }}/codex-round-two/provenance.json
+            ${{ runner.temp }}/codex-assignment/observations.json
+          if-no-files-found: error
+          retention-days: 30
