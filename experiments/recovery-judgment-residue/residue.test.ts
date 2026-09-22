@@ -83,3 +83,39 @@ test('authoritative search evidence, not the model candidate, controls certainty
     /NON_AUTHORITATIVE_CERTAINTY_NOT_ADMISSIBLE/,
   );
 });
+
+
+test('trusted search runner is the only bridge from model parameters to certainty',()=>{
+  assert.equal(typeof (gate as any).runJudgmentSearch,'function');
+
+  const candidate={
+    query:'operation=iam.serviceAccounts.create principal=serviceAccount:canary-deployer label=violet-sunrise',
+    reason:'The incident describes the canary deploy identity and retained request label.',
+  };
+
+  const noHit=(gate as any).runJudgmentSearch(
+    judgmentCase,
+    judgmentState(),
+    candidate,
+    ()=>({
+      authority:'authoritative',
+      certainty:'uncertain',
+      evidence_id:'audit-search:no-hit',
+    }),
+  );
+  assert.equal(noHit.status,'JUDGMENT_REQUIRED');
+  assert.equal(noHit.certainty,'uncertain');
+
+  const exact=(gate as any).runJudgmentSearch(
+    judgmentCase,
+    judgmentState(),
+    candidate,
+    ()=>({
+      authority:'authoritative',
+      certainty:'present',
+      evidence_id:'audit:event-8841',
+    }),
+  );
+  assert.equal(exact.status,'RESOLVED');
+  assert.equal(exact.certainty,'present');
+});
