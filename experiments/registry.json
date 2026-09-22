@@ -425,14 +425,14 @@
         "The hosted over-capable job still observes the obligation as EXECUTING after its provider mutation, and a separate contents-write/statuses-read recovery job is required to settle DONE."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "8b12eb1f4da309223af2b255eb1f59389dffda8a",
         "artifacts": [
-          "experiments/ambient-authority-boundary/ambient-authority-boundary.test.ts",
-          ".github/workflows/ambient-authority-boundary.yml"
-        ],
-        "pending_reason": "The deterministic and hosted boundaries are preregistered; exact-revision CI and hosted workflow evidence have not yet been recorded."
+          "GitHub Actions run 35773715692: deterministic witness passed; controlled worker provider write returned HTTP 403; over-capable worker received the identical packet digest and provider write returned HTTP 201 while Overcenter remained EXECUTING; trusted recovery generation 2 independently observed the provider state and settled DONE.",
+          "experiments/ambient-authority-boundary/ambient-authority-boundary.test.ts"
+        ]
       },
-      "interpretation": "A positive deterministic and hosted result would separate two boundaries that are easy to conflate: project-truth authority can remain outside an uncontrolled worker substrate, while physical prevention of provider effects cannot be claimed if that substrate already gives the agent a bypass capability.",
+      "interpretation": "The bounded deterministic and hosted results separate effect confinement from project-truth authority. A host-provided provider capability can bypass the worker's intended effect boundary, but that capability did not grant authority to settle Overcenter state: after the foreign worker's successful GitHub status mutation, the obligation remained EXECUTING until a separate trusted recovery job independently read back provider truth and settled the original run.",
       "non_claims": [
         "The hosted GitHub permission model represents every third-party agent sandbox or tool surface.",
         "An uncontrolled substrate with consequential ambient provider credentials is safe for arbitrary execution.",
@@ -444,8 +444,8 @@
         "note": "The authority/effect split and acceptance criteria were recorded before the experiment's exact-revision CI result."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The boundary is preregistered; the deterministic witness has not yet been accepted at an exact revision."
+        "state": "supported",
+        "summary": "An uncontrolled substrate can bypass physical effect confinement through ambient provider authority without thereby gaining Overcenter settlement authority."
       }
     },
     {
