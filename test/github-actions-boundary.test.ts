@@ -129,7 +129,7 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
-    /PR preflight only; invoke candidate\.certify to publish the required exact-head Merge gate/,
+    /PR preflight only; invoke candidate\.certify to publish Overcenter's exact-head Merge gate/,
     'ordinary pull_request runs must direct operators to the semantic certification command',
   );
   assert.doesNotMatch(

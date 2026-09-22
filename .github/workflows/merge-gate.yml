@@ -46,7 +46,7 @@ jobs:
 
           case "$EVENT_NAME" in
             pull_request)
-              echo "PR preflight only; invoke candidate.certify to publish the required exact-head Merge gate."
+              echo "PR preflight only; invoke candidate.certify to publish Overcenter's exact-head Merge gate."
               ;;
             workflow_dispatch)
               test -n "$REQUESTED_SOURCE_SHA"
