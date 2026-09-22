@@ -73,8 +73,9 @@ jobs:
       - name: Publish command receipt
         if: ${{ github.run_attempt > 1 && always() }}
         env:
-          DISPATCHED_RUN_ID: ${{ steps.invoke.outputs.dispatched_run_id }}
-          DISPATCHED_HTML_URL: ${{ steps.invoke.outputs.dispatched_html_url }}
+          RESULT_MODE: ${{ steps.invoke.outputs.result_mode }}
+          CERTIFICATION_RUN_ID: ${{ steps.invoke.outputs.certification_run_id }}
+          CERTIFICATION_HTML_URL: ${{ steps.invoke.outputs.certification_html_url }}
           RECEIPT_DIGEST: ${{ steps.invoke.outputs.receipt_digest }}
         run: |
           {
@@ -83,9 +84,10 @@ jobs:
             echo '- command: `candidate.certify`'
             echo "- source SHA: `$SOURCE_SHA`"
             echo "- command attempt: `$RUN_ATTEMPT`"
-            echo "- dispatched run ID: `${DISPATCHED_RUN_ID:-none}`"
+            echo "- result mode: `${RESULT_MODE:-none}`"
+            echo "- certification run ID: `${CERTIFICATION_RUN_ID:-none}`"
             echo "- receipt digest: `${RECEIPT_DIGEST:-none}`"
-            if [ -n "${DISPATCHED_HTML_URL:-}" ]; then
-              echo "- dispatched run: $DISPATCHED_HTML_URL"
+            if [ -n "${CERTIFICATION_HTML_URL:-}" ]; then
+              echo "- certification run: $CERTIFICATION_HTML_URL"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

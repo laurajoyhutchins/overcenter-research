@@ -1,7 +1,7 @@
 import {canonicalDigest} from './digest.ts';
 import {GITHUB_API_VERSION} from './providers/github-contract.ts';
 
-export const GITHUB_OPERATOR_COMMAND_SCHEMA='overcenter-github-operator-command/v1' as const;
+export const GITHUB_OPERATOR_COMMAND_SCHEMA='overcenter-github-operator-command/v2' as const;
 export const CANDIDATE_CERTIFY_COMMAND='candidate.certify' as const;
 
 export type GithubOperatorCommand=typeof CANDIDATE_CERTIFY_COMMAND;
@@ -28,6 +28,11 @@ export type GithubWorkflowDispatchPost=(
   body:GithubWorkflowDispatchBody,
 )=>Promise<{status:number;body:string}>;
 
+export type GithubWorkflowRunsGet=(
+  token:string,
+  path:string,
+)=>Promise<{status:number;body:string}>;
+
 export interface GithubOperatorCommandReceipt {
   schema:typeof GITHUB_OPERATOR_COMMAND_SCHEMA;
   command:GithubOperatorCommand;
@@ -39,10 +44,11 @@ export interface GithubOperatorCommandReceipt {
   ref:string;
   command_run_id:number;
   command_run_attempt:number;
-  dispatched_workflow:'merge-gate.yml';
-  dispatched_run_id:number;
-  dispatched_run_url:string;
-  dispatched_html_url:string;
+  certification_workflow:'merge-gate.yml';
+  result_mode:'dispatched'|'reused';
+  certification_run_id:number;
+  certification_run_url:string;
+  certification_html_url:string;
   receipt_digest:string;
 }
 
@@ -116,6 +122,21 @@ async function githubPost(
   return {status:response.status,body:await response.text()};
 }
 
+async function githubGet(
+  token:string,
+  path:string,
+):Promise<{status:number;body:string}> {
+  const response=await fetch(`https://api.github.com${path}`,{
+    method:'GET',
+    headers:{
+      Authorization:`Bearer ${token}`,
+      Accept:'application/vnd.github+json',
+      'X-GitHub-Api-Version':GITHUB_API_VERSION,
+    },
+  });
+  return {status:response.status,body:await response.text()};
+}
+
 function responseString(value:unknown,name:string):string {
   if (typeof value!=='string' || !value) {
     throw new Error(`GITHUB_OPERATOR_DISPATCH_RESPONSE_INVALID:${name}`);
@@ -123,14 +144,150 @@ function responseString(value:unknown,name:string):string {
   return value;
 }
 
+interface ReusableCertificationRun {
+  id:number;
+  url:string;
+  html_url:string;
+  status:string;
+  conclusion:string|null;
+}
+
+const ACTIVE_WORKFLOW_RUN_STATUSES=new Set([
+  'requested',
+  'queued',
+  'in_progress',
+  'waiting',
+  'pending',
+]);
+
+function reusableCertificationRun(
+  value:unknown,
+  context:GithubOperatorCommandContext,
+):ReusableCertificationRun|null {
+  if (!value || typeof value!=='object') return null;
+  const run=value as Record<string,unknown>;
+  if (run.path!=='.github/workflows/merge-gate.yml') return null;
+  if (run.event!=='workflow_dispatch') return null;
+  if (
+    typeof run.head_sha!=='string'
+    || run.head_sha.toLowerCase()!==context.source_sha.toLowerCase()
+  ) return null;
+
+  if (typeof run.status!=='string') {
+    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:status');
+  }
+  const conclusion=run.conclusion===null?null:
+    typeof run.conclusion==='string'?run.conclusion:
+      (()=>{throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:conclusion');})();
+  const reusable=run.status==='completed'
+    ? conclusion==='success'
+    : ACTIVE_WORKFLOW_RUN_STATUSES.has(run.status);
+  if (!reusable) return null;
+
+  const id=Number(run.id);
+  positiveInteger(id,'certification_run_id');
+  if (typeof run.url!=='string' || !run.url) {
+    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:url');
+  }
+  if (typeof run.html_url!=='string' || !run.html_url) {
+    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:html_url');
+  }
+  const expectedRunUrl=`https://api.github.com/repos/${context.repository_full_name}/actions/runs/${id}`;
+  const expectedHtmlUrl=`https://github.com/${context.repository_full_name}/actions/runs/${id}`;
+  if (run.url!==expectedRunUrl || run.html_url!==expectedHtmlUrl) {
+    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_IDENTITY_MISMATCH');
+  }
+  return {
+    id,
+    url:run.url,
+    html_url:run.html_url,
+    status:run.status,
+    conclusion,
+  };
+}
+
+async function findReusableCertification(
+  token:string,
+  context:GithubOperatorCommandContext,
+  get:GithubWorkflowRunsGet,
+):Promise<ReusableCertificationRun|null> {
+  const [owner,repo]=context.repository_full_name.split('/');
+  const path=`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/runs?head_sha=${encodeURIComponent(context.source_sha.toLowerCase())}&event=workflow_dispatch&per_page=100`;
+  const response=await get(token,path);
+  if (response.status!==200) {
+    throw new Error(`GITHUB_OPERATOR_CERTIFICATION_LOOKUP_FAILED:${response.status}:${response.body}`);
+  }
+  let decoded:unknown;
+  try {
+    decoded=JSON.parse(response.body);
+  } catch {
+    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:json');
+  }
+  if (!decoded || typeof decoded!=='object') {
+    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:object');
+  }
+  const workflowRuns=(decoded as Record<string,unknown>).workflow_runs;
+  if (!Array.isArray(workflowRuns)) {
+    throw new Error('GITHUB_OPERATOR_CERTIFICATION_LOOKUP_RESPONSE_INVALID:workflow_runs');
+  }
+  const reusable=workflowRuns
+    .map(run=>reusableCertificationRun(run,context))
+    .filter((run):run is ReusableCertificationRun=>run!==null);
+  const successful=reusable
+    .filter(run=>run.status==='completed' && run.conclusion==='success')
+    .sort((a,b)=>b.id-a.id);
+  if (successful.length) return successful[0];
+  return reusable.sort((a,b)=>b.id-a.id)[0]??null;
+}
+
+function buildCommandReceipt(
+  command:GithubOperatorCommand,
+  context:GithubOperatorCommandContext,
+  resultMode:'dispatched'|'reused',
+  run:{id:number;url:string;html_url:string},
+):GithubOperatorCommandReceipt {
+  const base={
+    schema:GITHUB_OPERATOR_COMMAND_SCHEMA,
+    command,
+    transport:'github-actions-job-rerun' as const,
+    repository_id:context.repository_id,
+    repository_full_name:context.repository_full_name,
+    pull_number:context.pull_number,
+    source_sha:context.source_sha.toLowerCase(),
+    ref:context.ref,
+    command_run_id:context.command_run_id,
+    command_run_attempt:context.command_run_attempt,
+    certification_workflow:'merge-gate.yml' as const,
+    result_mode:resultMode,
+    certification_run_id:run.id,
+    certification_run_url:run.url,
+    certification_html_url:run.html_url,
+  };
+  return {
+    ...base,
+    receipt_digest:canonicalDigest(base),
+  };
+}
+
 export async function executeGithubOperatorCommand(
   token:string,
   command:GithubOperatorCommand,
   context:GithubOperatorCommandContext,
-  {post=githubPost}:{post?:GithubWorkflowDispatchPost}={},
+  {
+    get=githubGet,
+    post=githubPost,
+  }:{
+    get?:GithubWorkflowRunsGet;
+    post?:GithubWorkflowDispatchPost;
+  }={},
 ):Promise<GithubOperatorCommandReceipt> {
   if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
   const request=buildGithubOperatorDispatch(command,context);
+  const reusable=await findReusableCertification(token,context,get);
+  if (reusable) {
+    return buildCommandReceipt(command,context,'reused',reusable);
+  }
+
   const response=await post(token,request.path,request.body);
   if (response.status!==200) {
     throw new Error(`GITHUB_OPERATOR_DISPATCH_FAILED:${response.status}:${response.body}`);
@@ -157,24 +314,9 @@ export async function executeGithubOperatorCommand(
     throw new Error('GITHUB_OPERATOR_DISPATCH_RESPONSE_IDENTITY_MISMATCH');
   }
 
-  const base={
-    schema:GITHUB_OPERATOR_COMMAND_SCHEMA,
-    command,
-    transport:'github-actions-job-rerun' as const,
-    repository_id:context.repository_id,
-    repository_full_name:context.repository_full_name,
-    pull_number:context.pull_number,
-    source_sha:context.source_sha.toLowerCase(),
-    ref:context.ref,
-    command_run_id:context.command_run_id,
-    command_run_attempt:context.command_run_attempt,
-    dispatched_workflow:'merge-gate.yml' as const,
-    dispatched_run_id:dispatchedRunId,
-    dispatched_run_url:dispatchedRunUrl,
-    dispatched_html_url:dispatchedHtmlUrl,
-  };
-  return {
-    ...base,
-    receipt_digest:canonicalDigest(base),
-  };
+  return buildCommandReceipt(command,context,'dispatched',{
+    id:dispatchedRunId,
+    url:dispatchedRunUrl,
+    html_url:dispatchedHtmlUrl,
+  });
 }

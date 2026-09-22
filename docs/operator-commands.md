@@ -26,11 +26,11 @@ A command has three distinct identities:
 
 1. **Semantic command** — a stable name such as `candidate.certify`.
 2. **Command invocation** — the GitHub workflow run ID and rerun attempt that requested it.
-3. **Provider result** — the concrete workflow run created by the command.
+3. **Provider result** — the concrete certification workflow run selected by the command, whether reused or newly dispatched.
 
 The rerun is transport only. GitHub Actions YAML does not define what `candidate.certify` means. `src/github-operator-command.ts` owns that mapping and returns a typed receipt.
 
-The current receipt schema is `overcenter-github-operator-command/v1`. Schema versions live in explicit metadata; ordinary command names remain stable.
+The current receipt schema is `overcenter-github-operator-command/v2`. Schema versions live in explicit metadata; ordinary command names remain stable.
 
 ## Trusted anchor model
 
@@ -64,7 +64,7 @@ It derives the command implementation identity separately from the pull request'
 
 It accepts no free-form command payload.
 
-On invocation, the trusted adapter dispatches `merge-gate.yml` for the captured branch ref and passes the captured head SHA as `source_sha`. The merge gate independently requires the dispatched run's actual source SHA to equal that requested SHA. A moved branch therefore fails closed rather than silently certifying newer code.
+On invocation, the trusted adapter first reads Merge-gate workflow runs for the exact captured head SHA. It reuses a successful exact-head `workflow_dispatch` run, or an active one already converging on that same SHA. Failed, cancelled, stale-head, pull-request, or other-workflow runs are not reusable. If no reusable realization exists, it dispatches `merge-gate.yml` for the captured branch ref and passes the captured head SHA as `source_sha`. The merge gate independently requires the dispatched run's actual source SHA to equal that requested SHA. A moved branch therefore fails closed rather than silently certifying newer code. If the readback itself is unavailable or malformed, the command fails closed instead of risking a duplicate dispatch.
 
 `candidate.certify` is the merge-certification path for pull requests. Ordinary `opened`, `synchronize`, and `reopened` runs publish a cheap `PR preflight`; they do not publish a `Merge gate`. The merge-certification context therefore remains absent until this command dispatches exact-head candidate evidence. Overcenter's merge policy requires observing a successful command-dispatched `Merge gate` for the exact current head before merging. Do not use Draft → Ready transitions as command transport. Ready-for-review remains available to supplemental proof workflows, but it is not merge certification and may fan out additional runner work.
 
@@ -72,7 +72,7 @@ PR and command-dispatch runs for the same source SHA share a Merge-gate concurre
 
 GitHub branch-protection and ruleset configuration is a separate enforcement layer. This contract does not assume those repository settings require the `Merge gate`; GitHub's generic `mergeable` or `clean` state is not evidence of Overcenter certification.
 
-GitHub Cloud's workflow-dispatch response provides the new workflow run ID and URLs. The command receipt verifies those URLs against the repository and run ID, then records them with a canonical receipt digest. This is a transport receipt, not durable Overcenter settlement. Successful dispatch is not equivalent to successful candidate evidence; callers must observe the dispatched run separately.
+The receipt records `result_mode` (`reused` or `dispatched`) plus the exact certification run ID and URLs, verifies those URLs against the repository and run identity, and binds the result with a canonical receipt digest. This is a transport receipt, not durable Overcenter settlement. Selecting or dispatching a run is not equivalent to successful candidate evidence; callers must observe the certification run separately.
 
 ## Authority and permissions
 

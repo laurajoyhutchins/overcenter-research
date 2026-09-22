@@ -49,9 +49,10 @@ if (output) {
   for (const [key,value] of Object.entries({
     command:receipt.command,
     source_sha:receipt.source_sha,
-    dispatched_run_id:receipt.dispatched_run_id,
-    dispatched_run_url:receipt.dispatched_run_url,
-    dispatched_html_url:receipt.dispatched_html_url,
+    result_mode:receipt.result_mode,
+    certification_run_id:receipt.certification_run_id,
+    certification_run_url:receipt.certification_run_url,
+    certification_html_url:receipt.certification_html_url,
     receipt_digest:receipt.receipt_digest,
   })) {
     appendFileSync(output,`${key}=${String(value)}\n`);
