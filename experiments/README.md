@@ -6,6 +6,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 
 ## Experiment index
 
+- `attempt-unification/` - proves execution fencing and unresolved mutation identity require distinct recovery clocks; tests the rejected Claim + Attempt collapse.
 - `assignment-capsule/` - exact Overcenter claim plus self-contained task-byte delivery to a no-checkout worker and trusted settlement.
 - `sqlite-baseline/` - original SQLite-backed baseline.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
