@@ -145,13 +145,15 @@ test('project.advance runs deterministic work then stops before authorization-ga
       ['WAITING'],
     );
 
+    const waitingAuthority=result.authority_revision;
     const repeated=await advanceProject(f.kernel,{executeEffect:f.execute});
     assert.equal(repeated.outcome,'AGENT_EXECUTION_REQUIRED');
+    assert.equal(repeated.authority_revision,waitingAuthority);
     assert.equal(f.provider.has('overcenter/authorize'),false);
     assert.deepEqual(
       f.kernel.receipts(waitingRun).map(receipt=>receipt.disposition),
       ['WAITING'],
-      'unsatisfied readback must not turn WAITING into recovery',
+      'unsatisfied readback must not mutate or turn WAITING into recovery',
     );
 
     const executed=await executeWaitingWork(f.kernel,{executeEffect:f.execute});
