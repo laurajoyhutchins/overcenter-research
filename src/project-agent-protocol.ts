@@ -15,6 +15,7 @@ import {
   buildAssignment,
   encodeAssignment,
   validateCandidate,
+  validPath,
 } from './assignment-capsule.ts';
 import {canonicalDigest} from './digest.ts';
 import {GitOvercenterKernel} from './git-kernel.ts';
@@ -146,9 +147,9 @@ function gitBytes(repo:string,commit:string,path:string):Buffer {
   );
 }
 
-function validateAgentPacket(work:Work):{
+function prepareAgentPacket(repo:string,work:Work):{
   sourceSha:string;
-  requiredPaths:string[];
+  files:ReturnType<typeof assignmentFile>[];
 } {
   const packet=work.packet;
   if (
@@ -163,32 +164,49 @@ function validateAgentPacket(work:Work):{
     throw new Error('PROJECT_ADVANCE_PACKET_SOURCE_INVALID');
   }
   if (
+    !Array.isArray(packet.command)
+    || packet.command.length===0
+    || packet.command.some(part=>typeof part!=='string' || part.length===0)
+  ) {
+    throw new Error('PROJECT_ADVANCE_COMMAND_INVALID');
+  }
+  if (
     !Array.isArray(packet.required_paths)
     || packet.required_paths.length===0
-    || packet.required_paths.some(path=>typeof path!=='string')
+    || packet.required_paths.some(path=>typeof path!=='string' || !validPath(path))
   ) {
     throw new Error('PROJECT_ADVANCE_REQUIRED_PATHS_INVALID');
   }
-  return {sourceSha,requiredPaths:packet.required_paths as string[]};
-}
+  const requiredPaths=packet.required_paths as string[];
+  if (new Set(requiredPaths).size!==requiredPaths.length) {
+    throw new Error('PROJECT_ADVANCE_REQUIRED_PATHS_DUPLICATE');
+  }
+  if (typeof packet.output_path!=='string' || !validPath(packet.output_path)) {
+    throw new Error('PROJECT_ADVANCE_OUTPUT_PATH_INVALID');
+  }
 
-function agentAssignment(repo:string,work:Work):{
-  bytes:Buffer;
-  source_sha:string;
-} {
-  const {sourceSha,requiredPaths}=validateAgentPacket(work);
-  const assignment=buildAssignment(
-    work,
-    requiredPaths.map(path=>assignmentFile(
+  return {
+    sourceSha,
+    files:requiredPaths.map(path=>assignmentFile(
       path,
       gitBytes(repo,sourceSha,path),
     )),
-  );
+  };
+}
+
+function agentAssignment(
+  work:Work,
+  prepared:{sourceSha:string;files:ReturnType<typeof assignmentFile>[]},
+):{
+  bytes:Buffer;
+  source_sha:string;
+} {
+  const assignment=buildAssignment(work,prepared.files);
   const bytes=encodeAssignment(assignment);
   if (bytes.includes(Buffer.from('execution_capability'))) {
     throw new Error('PROJECT_ADVANCE_PACKET_LEAKED_EXECUTION_CAPABILITY');
   }
-  return {bytes,source_sha:sourceSha};
+  return {bytes,source_sha:prepared.sourceSha};
 }
 
 function visibleState(work:Work[]):ProjectVisibleState {
@@ -255,12 +273,12 @@ export function advanceProjectForAgent(
 
     // The operator command does not ask the reasoning agent to choose work.
     // It only accepts a frontier item that is already an agent-shaped packet.
-    validateAgentPacket(ready);
+    const prepared=prepareAgentPacket(repo,ready);
 
     try {
       const permit=kernel.claim(ready.id,ready.revision);
       const claimed=kernel.claimedWork(permit.id);
-      const assignment=agentAssignment(repo,claimed);
+      const assignment=agentAssignment(claimed,prepared);
       const authorityHead=kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
 
@@ -340,7 +358,7 @@ export function submitProjectAgentCandidate(
   if (!kernel.head()) throw new Error('AGENT_SUBMIT_AUTHORITY_MISSING');
 
   const assigned=kernel.claimedWork(raw.run_id);
-  const rebuilt=agentAssignment(repo,assigned);
+  const rebuilt=agentAssignment(assigned,prepareAgentPacket(repo,assigned));
   const candidate=validateCandidate(raw,JSON.parse(rebuilt.bytes.toString('utf8')),rebuilt.bytes);
 
   const priorDone=kernel.receipts(candidate.run_id)
