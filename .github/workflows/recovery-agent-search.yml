@@ -18,6 +18,13 @@ concurrency:
 
 env:
   SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+  AI_SDK_VERSION: 7.0.107
+  AI_SDK_GOOGLE_VERSION: 4.0.76
+  GCP_IDENTITY_PROJECT_ID: project-6b810532-a302-48dc-b56
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/380435294892/locations/global/workloadIdentityPools/github-reasoning/providers/overcenter-research
+  GCP_API_KEY_READER_SERVICE_ACCOUNT: oc-reasoning-key-reader@project-6b810532-a302-48dc-b56.iam.gserviceaccount.com
+  GEMINI_KEY_ID: overcenter-google-free
+  GEMINI_FREE_PROJECT_ID: ${{ vars.GEMINI_FREE_PROJECT_ID }}
 
 jobs:
   prepare:
@@ -27,7 +34,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      packet_sha256: ${{ steps.packet.outputs.packet_sha256 }}
+      prompt_sha256: ${{ steps.packet.outputs.prompt_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -42,25 +49,19 @@ jobs:
         id: packet
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/recovery-agent-assignment"
-          cp experiments/recovery-agent-search/packets.json "$RUNNER_TEMP/recovery-agent-assignment/packets.json"
-          node - <<'NODE' > "$RUNNER_TEMP/recovery-agent-assignment/prompt.md"
+          root="$RUNNER_TEMP/recovery-agent-assignment"
+          mkdir -p "$root"
+          cp experiments/recovery-agent-search/proposal.schema.json "$root/proposal.schema.json"
+          cp experiments/recovery-agent-search/google-free-candidate.ts "$root/google-free-candidate.ts"
+          node - <<'NODE' > "$root/prompt.md"
           const fs=require('node:fs');
           const packets=JSON.parse(fs.readFileSync('experiments/recovery-agent-search/packets.json','utf8'));
           const lines=[
             'You are an untrusted recovery-search reasoner in an Overcenter experiment.',
             '',
-            'Your job is only to synthesize search parameters that trusted software may later execute.',
+            'Your only job is to synthesize search parameters that trusted software may later execute.',
             'You do not know the authoritative audit corpus and you cannot settle, retry, or assert what happened.',
-            '',
-            'Read packets.json. For every case emit exactly one proposal in recovery/candidate.json.',
-            '',
-            'Output envelope:',
-            '{"schema":"overcenter-recovery-search-proposals/v1","proposals":[...]}',
-            '',
-            'Allowed proposal shapes:',
-            '{"case_id":"CASE","kind":"search","fields":{"operation":"...","resource":"..."}}',
-            '{"case_id":"CASE","kind":"unresolved"}',
+            'Return exactly one proposal for every case in the packet below.',
             '',
             'Allowed field names: '+packets.query_contract.allowed_fields.join(', '),
             'Allowed operations: '+packets.query_contract.allowed_operations.join(', '),
@@ -68,16 +69,18 @@ jobs:
             ...packets.query_contract.conventions.map(x=>'- '+x),
             '',
             'Rules:',
-            '- Never include certainty, outcome, state, provider record IDs, retry instructions, or explanation fields.',
-            '- Use only information in packets.json plus ordinary reasoning over its prose.',
-            '- Prefer enough search fields to isolate the intended effect, not broad guesses.',
-            '- If the packet says authoritative recovery is impossible, emit unresolved.',
-            '- Write valid JSON only to recovery/candidate.json.',
+            '- Never assert certainty, outcome, provider state, provider record identity, or a retry.',
+            '- Use ordinary reasoning over the packet prose to synthesize provider search fields.',
+            '- Prefer enough fields to isolate the intended effect rather than broad guesses.',
+            '- If the packet says authoritative recovery is impossible, choose unresolved.',
+            '',
+            'Recovery packets:',
+            JSON.stringify(packets.cases,null,2),
           ];
           process.stdout.write(lines.join('\n')+'\n');
           NODE
-          packet_sha256="$(sha256sum "$RUNNER_TEMP/recovery-agent-assignment/packets.json" | cut -d' ' -f1)"
-          echo "packet_sha256=$packet_sha256" >> "$GITHUB_OUTPUT"
+          prompt_sha256="$(sha256sum "$root/prompt.md" | cut -d' ' -f1)"
+          echo "prompt_sha256=$prompt_sha256" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: recovery-agent-assignment
@@ -86,57 +89,144 @@ jobs:
           retention-days: 1
 
   worker:
-    name: Untrusted reasoning agent - propose searches
+    name: Untrusted Google-free reasoner - propose searches
     needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    permissions: {}
+    permissions:
+      id-token: write
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: recovery-agent-assignment
-          path: recovery
-      - name: Verify public packet and create synthetic workspace
-        env:
-          EXPECTED_PACKET_SHA256: ${{ needs.prepare.outputs.packet_sha256 }}
-        run: |
-          set -euo pipefail
-          test "$(sha256sum recovery/packets.json | cut -d' ' -f1)" = "$EXPECTED_PACKET_SHA256"
-          test ! -e recovery/oracle.json
-          git init -q
-          git config user.name overcenter-recovery-fixture
-          git config user.email actions@users.noreply.github.com
-          git add recovery/packets.json recovery/prompt.md
-          git commit -qm "recovery search fixture"
-          sudo useradd --create-home --shell /bin/bash overcenter-recovery-agent
-          sudo chown -R overcenter-recovery-agent:overcenter-recovery-agent "$GITHUB_WORKSPACE"
-          sudo chown -R root:root "$GITHUB_WORKSPACE/.git"
-          sudo chmod -R a-w "$GITHUB_WORKSPACE/.git"
-      - name: Run recovery reasoning worker
-        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12 / v1 on 2026-09-20
+          path: ${{ runner.temp }}/recovery-agent-assignment
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: recovery/prompt.md
-          permission-profile: ":workspace"
-          safety-strategy: unprivileged-user
-          codex-user: overcenter-recovery-agent
-          allow-users: ${{ github.repository_owner }}
-      - name: Materialize proposal bytes only
+          node-version: 22.16.0
+      - name: Verify public assignment and free-project coordinate
+        env:
+          EXPECTED_PROMPT_SHA256: ${{ needs.prepare.outputs.prompt_sha256 }}
         run: |
           set -euo pipefail
-          sudo chown -R "$USER":"$USER" "$GITHUB_WORKSPACE"
-          chmod -R u+w "$GITHUB_WORKSPACE/.git"
-          test ! -e recovery/oracle.json
-          if [ ! -f recovery/candidate.json ]; then
-            printf '%s\n' '{"schema":"overcenter-recovery-search-proposals/v1","proposals":[]}' > recovery/candidate.json
+          root="$RUNNER_TEMP/recovery-agent-assignment"
+          test "$(sha256sum "$root/prompt.md" | cut -d' ' -f1)" = "$EXPECTED_PROMPT_SHA256"
+          test ! -e "$root/oracle.json"
+          test -n "$GEMINI_FREE_PROJECT_ID"
+          [[ "$GEMINI_FREE_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]]
+      - id: google-auth
+        name: Exchange GitHub OIDC for short-lived Google credentials
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_IDENTITY_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_API_KEY_READER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 300s
+          create_credentials_file: false
+          export_environment_variables: false
+      - id: free-project
+        name: Prove Gemini project is still unbilled
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/recovery-google-free"
+          mkdir -p "$root"
+          curl --fail-with-body --silent --show-error             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             "https://cloudbilling.googleapis.com/v1/projects/$GEMINI_FREE_PROJECT_ID/billingInfo"             -o "$root/billing.json"
+          BILLING="$root/billing.json" node - <<'NODE'
+          const fs=require('node:fs');
+          const billing=JSON.parse(fs.readFileSync(process.env.BILLING,'utf8'));
+          if (billing.billingEnabled!==false) throw new Error('GEMINI_PROJECT_BILLING_ENABLED');
+          NODE
+          curl --fail-with-body --silent --show-error             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             "https://cloudresourcemanager.googleapis.com/v1/projects/$GEMINI_FREE_PROJECT_ID"             -o "$root/project.json"
+          PROJECT="$root/project.json" KEY_ID="$GEMINI_KEY_ID" node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs=require('node:fs');
+          const project=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));
+          const number=String(project.projectNumber||'');
+          if (!/^[0-9]+$/.test(number)) throw new Error('GEMINI_PROJECT_NUMBER_INVALID');
+          console.log('project_number='+number);
+          console.log('key_resource=projects/'+number+'/locations/global/keys/'+process.env.KEY_ID);
+          NODE
+      - name: Prepare byte-scoped AI SDK runtime
+        run: |
+          set -euo pipefail
+          source_root="$RUNNER_TEMP/recovery-agent-assignment"
+          root="$RUNNER_TEMP/recovery-google-free"
+          sandbox_root=/opt/overcenter-recovery-google-free
+          mkdir -p "$root/runtime" "$root/input" "$root/out"
+          cp "$source_root/google-free-candidate.ts" "$root/runtime/google-free-candidate.ts"
+          cp "$source_root/prompt.md" "$root/input/prompt.md"
+          cp "$source_root/proposal.schema.json" "$root/input/proposal.schema.json"
+          npm install --prefix "$root/runtime" --ignore-scripts --no-package-lock --no-save             "ai@$AI_SDK_VERSION" "@ai-sdk/google@$AI_SDK_GOOGLE_VERSION"
+          npm --prefix "$root/runtime" ls --depth=0 ai @ai-sdk/google
+          sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
+          sudo rm -rf "$sandbox_root"
+          sudo install -d -o root -g root -m 0711 "$sandbox_root"
+          sudo mv "$root/runtime" "$sandbox_root/runtime"
+          sudo mv "$root/input" "$sandbox_root/input"
+          sudo chown -R root:root "$sandbox_root/runtime" "$sandbox_root/input"
+          sudo chmod -R a+rX,u-w,g-w,o-w "$sandbox_root/runtime" "$sandbox_root/input"
+          sudo install -d -o overcenter-model -g overcenter-model -m 0700 "$sandbox_root/out" "$sandbox_root/home"
+          rm -rf "$GITHUB_WORKSPACE"
+          mkdir -m 0700 "$GITHUB_WORKSPACE"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
+      - name: Resolve Gemini auth key from Google API Keys
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          GEMINI_API_KEY_RESOURCE: ${{ steps.free-project.outputs.key_resource }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/recovery-google-free"
+          [[ "$GEMINI_API_KEY_RESOURCE" =~ ^projects/[0-9]+/locations/global/keys/overcenter-google-free$ ]]
+          key_http="$(curl --silent --show-error -o "$root/key-response.json" -w '%{http_code}'             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             -H "x-goog-user-project: $GEMINI_FREE_PROJECT_ID"             "https://apikeys.googleapis.com/v2/$GEMINI_API_KEY_RESOURCE/keyString")"
+          if [[ "$key_http" != "200" ]]; then
+            cat "$root/key-response.json" >&2
+            exit 1
           fi
-          mkdir -p "$RUNNER_TEMP/recovery-agent-candidate"
-          cp recovery/candidate.json "$RUNNER_TEMP/recovery-agent-candidate/candidate.json"
-          sha256sum "$RUNNER_TEMP/recovery-agent-candidate/candidate.json"
+          RESPONSE="$root/key-response.json" KEY="$root/gemini-api-key" node - <<'NODE'
+          const fs=require('node:fs');
+          const response=JSON.parse(fs.readFileSync(process.env.RESPONSE,'utf8'));
+          if (typeof response.keyString!=='string' || response.keyString.length<8) {
+            throw new Error('GEMINI_API_KEY_STRING_MISSING');
+          }
+          fs.writeFileSync(process.env.KEY,response.keyString,{mode:0o600,flag:'wx'});
+          NODE
+          rm -f "$root/key-response.json"
+          echo "::add-mask::$(cat "$root/gemini-api-key")"
+      - name: Run oracle-blind Google-free inference
+        run: |
+          set -euo pipefail
+          test -z "${GITHUB_TOKEN:-}"
+          root="$RUNNER_TEMP/recovery-google-free"
+          sandbox_root=/opt/overcenter-recovery-google-free
+          test -s "$root/gemini-api-key"
+          model_uid="$(id -u overcenter-model)"
+          model_gid="$(id -g overcenter-model)"
+          runner_uid="$(id -u)"
+          runner_gid="$(id -g)"
+          node_bin="$(readlink -f "$(command -v node)")"
+          sudo -u overcenter-model test -r "$sandbox_root/runtime/google-free-candidate.ts"
+          sudo -u overcenter-model test -r "$sandbox_root/input/prompt.md"
+          sudo -u overcenter-model test -r "$sandbox_root/input/proposal.schema.json"
+          test ! -e "$sandbox_root/input/oracle.json"
+          gemini_key="$(cat "$root/gemini-api-key")"
+          cleanup() {
+            rm -f "$root/gemini-api-key"
+            unset gemini_key
+          }
+          trap cleanup EXIT
+          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$sandbox_root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               OVERCENTER_REASONING_BILLING_PROJECT_ID="$GEMINI_FREE_PROJECT_ID"               OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE=google-cloud-billing-api               OVERCENTER_REASONING_BILLING_ENABLED=false               "$node_bin" --experimental-strip-types                 "$sandbox_root/runtime/google-free-candidate.ts"                 --prompt "$sandbox_root/input/prompt.md"                 --schema "$sandbox_root/input/proposal.schema.json"                 --candidate "$sandbox_root/out/candidate.json"                 --provenance "$sandbox_root/out/provenance.json"
+          sudo install -o "$runner_uid" -g "$runner_gid" -m 0600 "$sandbox_root/out/candidate.json" "$root/out/candidate.json"
+          sudo install -o "$runner_uid" -g "$runner_gid" -m 0600 "$sandbox_root/out/provenance.json" "$root/out/provenance.json"
+          cleanup
+          trap - EXIT
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: recovery-agent-candidate
-          path: ${{ runner.temp }}/recovery-agent-candidate/candidate.json
+          path: |
+            ${{ runner.temp }}/recovery-google-free/out/candidate.json
+            ${{ runner.temp }}/recovery-google-free/out/provenance.json
           if-no-files-found: error
           retention-days: 1
 
@@ -161,6 +251,21 @@ jobs:
           path: ${{ runner.temp }}/recovery-agent-candidate
       - name: Re-run deterministic contract at exact source revision
         run: npm run test:recovery-agent-search
+      - name: Verify reasoning provenance
+        run: |
+          PROVENANCE="$RUNNER_TEMP/recovery-agent-candidate/provenance.json" node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync(process.env.PROVENANCE,'utf8'));
+          if (p.provider!=='google.generative-ai') throw new Error('RECOVERY_AGENT_PROVIDER_MISMATCH');
+          if (p.model_id!=='gemini-3.8-flash') throw new Error('RECOVERY_AGENT_MODEL_MISMATCH');
+          if (p.credential_source!=='gcp-api-keys-via-github-oidc') throw new Error('RECOVERY_AGENT_CREDENTIAL_MISMATCH');
+          if (p.billing_project_id!==process.env.GEMINI_FREE_PROJECT_ID) throw new Error('RECOVERY_AGENT_BILLING_PROJECT_MISMATCH');
+          if (p.billing_enabled!==false) throw new Error('RECOVERY_AGENT_BILLING_ENABLED');
+          if (p.repository_credentials_present!==false) throw new Error('RECOVERY_AGENT_REPOSITORY_CREDENTIALS');
+          if (p.checkout_readable_during_inference!==false) throw new Error('RECOVERY_AGENT_CHECKOUT_READABLE');
+          if (p.overcenter_authority_present!==false) throw new Error('RECOVERY_AGENT_AUTHORITY_PRESENT');
+          if (p.provider_mutation_authority_present!==false) throw new Error('RECOVERY_AGENT_MUTATION_AUTHORITY_PRESENT');
+          NODE
       - name: Score untrusted proposal through trusted oracle
         run: |
           set -euo pipefail
@@ -183,6 +288,8 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: recovery-agent-search-result
-          path: ${{ runner.temp }}/recovery-agent-result.json
+          path: |
+            ${{ runner.temp }}/recovery-agent-result.json
+            ${{ runner.temp }}/recovery-agent-candidate/provenance.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
