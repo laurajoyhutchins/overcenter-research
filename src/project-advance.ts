@@ -241,8 +241,7 @@ export async function advanceProject(
     const waiting=singleInFlight(kernel,'WAITING');
     if (waiting) {
       if (!waiting.run_id) throw new Error('PROJECT_ADVANCE_WAITING_RUN_MISSING');
-      const permit=kernel.acquireExecution(waiting.run_id);
-      const settled=await kernel.reconcileIfVerified(permit,{
+      const settled=await kernel.reconcileWaitingIfVerified(waiting.run_id,{
         source:'project.advance:waiting-reconcile',
       });
       if (settled?.disposition==='DONE' || settled?.disposition==='READY') {
