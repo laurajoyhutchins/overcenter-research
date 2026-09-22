@@ -26,6 +26,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `projection-comparison/` - mutable lifecycle versus TypeScript, status-free SQL, and Datalog over one normalized projection contract.
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
 - `frontier-prioritization/` - exhaustive and sampled proof that apparently ambiguous READY-frontier priority can be resolved or verified deterministically before AI escalation.
+- `code-graph-verification/` - preregistered Flask experiment testing whether deterministic static reachability can predict changed verification outcomes across exact human and AI patches.
 - `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
 
