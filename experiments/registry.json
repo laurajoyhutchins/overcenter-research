@@ -878,6 +878,47 @@
       ]
     },
     {
+      "id": "tree-evidence-derivation",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/tree-evidence-derivation",
+      "readme": "experiments/tree-evidence-derivation/README.md",
+      "question": "Can tree/toolchain-bound candidate evidence be safely applied to an identical-content merge without relabeling it as merge-revision execution evidence?",
+      "claim": "A strict derivation can keep reusable tree evidence revision-free, bind its successful candidate provenance, prove exact content-preserving merge applicability, and require fresh revision evidence for the merge SHA.",
+      "contrast": "Treat successful exact-head evidence as if it executed on the merge commit merely because the Git trees match.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:tree-evidence-derivation"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "No network or provider credentials required"
+      ],
+      "success_criteria": [
+        "Reusable tree evidence rejects revision-bound fields.",
+        "Candidate provenance must bind a successful run to the exact tree-evidence digest.",
+        "Proof contract and proof environment must match policy.",
+        "Merge parents must be exactly [certified base, certified head].",
+        "Merge Git tree and independently recomputed source-tree digest must match the inherited evidence.",
+        "Fresh exact-lineage and self-application evidence must name the merge SHA."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          ".github/workflows/tree-evidence-derivation.yml",
+          "experiments/tree-evidence-derivation/tree-evidence-derivation.ts",
+          "experiments/tree-evidence-derivation/tree-evidence-derivation.test.ts"
+        ]
+      },
+      "interpretation": "A positive result establishes the derivation contract shape required before tree evidence can be reused across a content-preserving merge. It does not itself alter live certification.",
+      "non_claims": [
+        "Workflow runs currently emit durable tree-evidence receipts.",
+        "Provider/live evidence is tree-bound.",
+        "Revision-bound self-application evidence is reusable across SHAs.",
+        "The live Merge gate may skip post-merge tree evidence yet."
+      ]
+    },
+    {
       "id": "two-effect-concurrency",
       "kind": "experiment",
       "status": "maintained",
