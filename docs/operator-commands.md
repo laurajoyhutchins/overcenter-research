@@ -63,7 +63,7 @@ That includes ordinary developer mechanics such as inspecting GitHub objects, cr
 
 A Laura's Dev Tools mutation creates provider state. Overcenter may later observe that state, but it must independently establish the exact identity, admissibility, authorization, and postcondition required for settlement.
 
-The Dev Tools App identity, installation, bot actor, webhook hook, or token is therefore provider capability/provenance rather than Overcenter semantic authority. See [ADR-0009](./adr/0009-separate-github-developer-capability.md).
+The Dev Tools App identity, installation, bot actor, webhook hook, or token is provider capability/provenance rather than Overcenter semantic authority. Overcenter does not use that App for routine runtime observation: repository-local `project.advance` and `project.submit` run with GitHub Actions' native `github.token`, and provider operations use ordinary scoped bearer credentials. The former App-backed webhook status mirror has been removed. See [ADR-0009](./adr/0009-separate-github-developer-capability.md).
 
 ## Pull-request certification
 

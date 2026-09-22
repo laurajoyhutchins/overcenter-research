@@ -17,7 +17,7 @@ Overcenter continues to expose semantic project intent rather than GitHub choreo
 
 Developer tools may cause real GitHub state changes. Overcenter may subsequently observe those changes through its ordinary provider observation machinery, but it must establish the relevant exact identity, admissibility, authorization, and postcondition independently before project truth changes.
 
-When an Overcenter trusted effect genuinely requires GitHub mutation authority, that authority must be explicitly granted to the exact execution attempt and supplied through a least-privilege credential boundary. If a GitHub App identity is needed for such effects, it must be a narrow Overcenter-specific identity rather than Laura's Dev Tools.
+Overcenter does not require or use a GitHub App for routine operation. Repository-local commands use GitHub Actions' native `github.token`, and provider code accepts ordinary bearer credentials rather than an App identity. Any GitHub mutation authority required by a trusted effect is granted to the exact execution attempt through those ordinary scoped credentials.
 
 ## Evidence
 
@@ -27,10 +27,11 @@ The GitHub provider implementation already separates several concerns:
 
 - certified reads bind observations to exact repository/object coordinates and a pinned provider contract;
 - effect execution checks an Overcenter execution permit before performing provider mutation;
-- webhook reconciliation binds delivery continuity to a concrete hook and installation;
+- the normal operator workflows use GitHub Actions' native `github.token` rather than an App credential;
+- provider reads and trusted effects accept generic bearer credentials;
 - settlement remains a project-authority decision rather than a provider-API response.
 
-The webhook implementation currently names its hook/installation tuple `GithubWebhookAuthority`. Under this decision those coordinates are transport provenance and continuity identity, not semantic authority to settle Overcenter work. The name predates this ADR and may be mechanically corrected separately once all callers and evidence fixtures can be updated without weakening the existing continuity checks.
+The former App-specific webhook delivery mirror was removed rather than retained as an optional path. Its additional credential, persistence, reconciliation, and trust surface was not needed for the current routine operation model. GitHub status verification now uses the same certified provider-read path as other ordinary observations.
 
 ## What remains outside this decision
 
@@ -38,7 +39,7 @@ This ADR does not:
 
 - expose a generic GitHub request primitive as an Overcenter command;
 - make broad developer mutations safe merely because they use Laura's Dev Tools;
-- require Overcenter to use a GitHub App when a narrower credential mechanism is sufficient;
+- require Overcenter to use a GitHub App for routine operation;
 - change the exact-revision, effect-permit, observation, recovery, or settlement rules;
 - claim that a GitHub status, check, workflow result, comment, branch, or other provider fact is authoritative without its own admitted verification semantics.
 
@@ -72,11 +73,13 @@ Rejected. A credential able to freely create an observed provider fact must not 
 
 - The developer-facing GitHub MCP should live outside the Overcenter command surface, preferably in its own repository.
 - Laura's Dev Tools may have broader GitHub permissions than Overcenter, because its permissions do not confer Overcenter semantic authority.
+- Routine Overcenter operation must remain GitHub-App-independent. Native Actions credentials or another ordinary scoped bearer token are sufficient for the standard path.
+- There is no App-specific webhook delivery or status-mirror runtime path in the supported implementation.
 - Overcenter-specific GitHub mutation credentials should be introduced only for explicit trusted effects and kept least-privilege.
 - Provider observations must continue to bind exact provider identity and evidence independently of which developer tool may have caused the observed state.
 - Existing provider code may share low-level GitHub schemas or mechanics with developer tooling, but the developer tool surface must not become an Overcenter public API by import accident.
-- Names that call transport provenance "authority" should be corrected when doing so preserves the exact existing checks.
+- Reintroducing GitHub App-specific runtime machinery requires new evidence that it provides a property the ordinary scoped-token path cannot provide more simply.
 
 ## Revisit when
 
-Revisit this decision if GitHub introduces a materially stronger delegated-capability mechanism that can safely combine broad developer tooling with per-effect least-privilege authority without sharing ambient credentials, or if Overcenter no longer requires any privileged GitHub mutation identity at all.
+Revisit this decision only if a concrete requirement demonstrates that ordinary scoped GitHub credentials cannot provide a needed property and a GitHub App path can provide it without becoming a routine-operation dependency.

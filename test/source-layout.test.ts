@@ -44,3 +44,13 @@ test('native execution implementations live beneath the execution namespace',()=
   assert.equal(existsSync('executor'),false);
   assert.equal(existsSync('runtime'),false);
 });
+
+test('GitHub provider has no App-specific runtime path',()=>{
+  for (const path of [
+    'src/providers/github/app-webhook-deliveries.ts',
+    'src/providers/github/status-webhook.ts',
+    'src/providers/github/status-mirror-sqlite.ts',
+  ]) {
+    assert.equal(existsSync(path),false,`GitHub App runtime coupling returned: ${path}`);
+  }
+});
