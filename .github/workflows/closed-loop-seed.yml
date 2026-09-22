@@ -1,0 +1,36 @@
+name: Seed hosted closed-loop witness
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'experiments/closed-loop-actions/seed.json'
+
+permissions: {}
+
+jobs:
+  seed:
+    name: Seed witness obligation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: write
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      REPOSITORY_ID: ${{ github.repository_id }}
+      REPOSITORY_FULL_NAME: ${{ github.repository }}
+    steps:
+      - name: Check out exact trusted seed
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Use pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Reconcile witness definition
+        run: node --experimental-strip-types bin/seed-closed-loop-witness.ts
