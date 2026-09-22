@@ -34,7 +34,7 @@ jobs:
           def git(*args: str) -> str:
               return subprocess.check_output(["git", *args], text=True).strip()
 
-          base = git("rev-parse", "HEAD^")
+          base = git("merge-base", "HEAD", "origin/main")
           diff = subprocess.check_output(
               ["git", "diff", "--name-status", "-M", base, "HEAD", "--", "src"],
               text=True,
