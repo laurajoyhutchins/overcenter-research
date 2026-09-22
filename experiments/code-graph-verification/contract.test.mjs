@@ -6,28 +6,80 @@ import test from 'node:test';
 const root = new URL('.', import.meta.url);
 const corpus = JSON.parse(readFileSync(new URL('corpus.json', root), 'utf8'));
 
-test('corpus has exact human and AI variants for every admitted case', () => {
+function patchBytes(relativePath) {
+  const text = readFileSync(new URL(relativePath, root), 'utf8');
+  assert.ok(text.startsWith('diff --git '), relativePath + ' is not an exact patch artifact');
+  return text;
+}
+
+test('full Flask candidate corpus satisfies preregistered artifact admission', () => {
   assert.equal(corpus.schema, 'overcenter-code-graph-verification-corpus/v1');
-  assert.ok(corpus.cases.length >= 2);
+  assert.equal(corpus.benchmark_slice.dataset, 'SWE-bench/SWE-bench');
+  assert.equal(corpus.benchmark_slice.filter.repo, 'pallets/flask');
+  assert.equal(corpus.benchmark_slice.expected_instances, 11);
+  assert.equal(corpus.cases.length, 11);
+
   assert.equal(corpus.primary_thresholds.recall_min, 0.99);
   assert.equal(corpus.primary_thresholds.selected_fraction_max, 0.30);
   assert.equal(corpus.primary_thresholds.missed_regressions_max, 0);
 
+  let human = 0;
+  let ai = 0;
+  let nonidenticalAi = 0;
+  let unsuccessfulOrRegressiveAi = 0;
+  let unresolvedOrErrorAi = 0;
+
   for (const c of corpus.cases) {
     assert.match(c.base_commit, /^[0-9a-f]{40}$/);
-    assert.ok(readFileSync(new URL(c.test_patch, root), 'utf8').startsWith('diff --git '));
-    const kinds = new Set(c.variants.map(v => v.authorship));
-    assert.ok(kinds.has('human'), c.id + ' lacks a human variant');
-    assert.ok(kinds.has('ai'), c.id + ' lacks an AI variant');
+    patchBytes(c.test_patch);
+
+    const humans = c.variants.filter(v => v.primary && v.authorship === 'human');
+    assert.equal(humans.length, 1, c.id + ' must have exactly one primary human gold patch');
+    assert.equal(humans[0].id, 'human-gold');
+
+    const humanBytes = patchBytes(humans[0].patch);
+    human += 1;
 
     for (const v of c.variants) {
       assert.equal(v.primary, true);
-      assert.ok(v.patch);
       assert.ok(v.provenance?.source);
       assert.ok(v.equivalence_group);
-      assert.ok(readFileSync(new URL(v.patch, root), 'utf8').startsWith('diff --git '));
+
+      const bytes = patchBytes(v.patch);
+      if (v.authorship !== 'ai') continue;
+
+      ai += 1;
+      if (bytes !== humanBytes) nonidenticalAi += 1;
+
+      const state = v.evaluation?.state;
+      const regressed = (v.evaluation?.pass_to_pass_failure ?? 0) > 0;
+      if (state === 'unresolved' || regressed) unsuccessfulOrRegressiveAi += 1;
+      if (state === 'unresolved' || state === 'error') unresolvedOrErrorAi += 1;
     }
   }
+
+  const admission = corpus.confirmatory_admission;
+  assert.ok(human >= admission.human_exact_patches_min, {human, admission});
+  assert.ok(ai >= admission.ai_exact_patches_min, {ai, admission});
+  assert.ok(
+    nonidenticalAi >= admission.ai_nonidentical_to_human_min,
+    {nonidenticalAi, admission},
+  );
+  assert.ok(
+    unsuccessfulOrRegressiveAi >= admission.ai_unsuccessful_or_regressive_exact_patches_min,
+    {unsuccessfulOrRegressiveAi, admission},
+  );
+
+  assert.equal(admission.current_candidate_counts.human_exact_patches, human);
+  assert.equal(admission.current_candidate_counts.ai_exact_patches, ai);
+  assert.equal(
+    admission.current_candidate_counts.ai_with_reported_unresolved_or_error_outcome,
+    unresolvedOrErrorAi,
+  );
+  assert.equal(
+    admission.state,
+    'candidate_corpus_complete_pending_patch_preflight_and_execution',
+  );
 });
 
 test('static frontier predictor distinguishes affected and unrelated tests', () => {
@@ -41,6 +93,25 @@ test('static frontier predictor distinguishes affected and unrelated tests', () 
   const report = JSON.parse(result.stdout.trim().split('\n').at(-1));
   assert.equal(report.score.recall, 1);
   assert.equal(report.score.reduction, 0.5);
+});
+
+test('known regression-bearing AI variants remain explicit adversarial cases', () => {
+  const byId = new Map(corpus.cases.map(c => [c.id, c]));
+
+  for (const [id, minimumRegressions] of [
+    ['pallets__flask-4992', 2],
+    ['pallets__flask-5063', 54],
+  ]) {
+    const c = byId.get(id);
+    assert.ok(c, id + ' missing');
+    const variant = c.variants.find(v => v.id === 'ai-qwen32-direct');
+    assert.ok(variant, id + ' qwen32 adversarial patch missing');
+    assert.equal(variant.evaluation.state, 'unresolved');
+    assert.ok(
+      variant.evaluation.pass_to_pass_failure >= minimumRegressions,
+      id + ' lost its recorded regression evidence',
+    );
+  }
 });
 
 test('unreproducible AI outcomes stay outside the primary corpus', () => {
