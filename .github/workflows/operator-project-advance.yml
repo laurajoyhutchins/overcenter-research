@@ -28,7 +28,7 @@ jobs:
             echo '## Overcenter command'
             echo
             echo '- command: `project.advance`'
-            echo "- implementation SHA: `$COMMAND_IMPLEMENTATION_SHA`"
+            echo "- implementation SHA: $COMMAND_IMPLEMENTATION_SHA"
             echo '- state: available'
             echo
             echo 'Rerun this job to ask Overcenter to advance the authoritative project.'
@@ -86,12 +86,12 @@ jobs:
             echo '## Overcenter command receipt'
             echo
             echo '- command: `project.advance`'
-            echo "- command attempt: `$RUN_ATTEMPT`"
-            echo "- state: `${STATE:-failed}`"
-            echo "- authority head: `${AUTHORITY_HEAD:-none}`"
-            echo "- obligation: `${OBLIGATION_ID:-none}`"
-            echo "- run: `${RUN_ID:-none}`"
-            echo "- assignment digest: `${ASSIGNMENT_SHA256:-none}`"
-            echo "- candidate branch: `${CANDIDATE_BRANCH:-none}`"
-            echo "- receipt digest: `${RECEIPT_DIGEST:-none}`"
+            echo "- command attempt: $RUN_ATTEMPT"
+            echo "- state: ${STATE:-failed}"
+            echo "- authority head: ${AUTHORITY_HEAD:-none}"
+            echo "- obligation: ${OBLIGATION_ID:-none}"
+            echo "- run: ${RUN_ID:-none}"
+            echo "- assignment digest: ${ASSIGNMENT_SHA256:-none}"
+            echo "- candidate branch: ${CANDIDATE_BRANCH:-none}"
+            echo "- receipt digest: ${RECEIPT_DIGEST:-none}"
           } >> "$GITHUB_STEP_SUMMARY"
