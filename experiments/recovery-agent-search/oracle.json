@@ -1,0 +1,210 @@
+{
+  "schema": "overcenter-recovery-search-oracle/v1",
+  "cases": [
+    {
+      "id": "exact-litware",
+      "recoverable": true,
+      "expected_effect_digest": "effect:exact-litware"
+    },
+    {
+      "id": "northwind-payment",
+      "recoverable": true,
+      "expected_effect_digest": "effect:northwind-payment"
+    },
+    {
+      "id": "analytics-preview-vm",
+      "recoverable": true,
+      "expected_effect_digest": "effect:analytics-preview-vm"
+    },
+    {
+      "id": "acme-kim-mail",
+      "recoverable": true,
+      "expected_effect_digest": "effect:acme-kim-mail"
+    },
+    {
+      "id": "checkout-east-canary",
+      "recoverable": true,
+      "expected_effect_digest": "effect:checkout-east-canary"
+    },
+    {
+      "id": "contoso-eu-archive",
+      "recoverable": true,
+      "expected_effect_digest": "effect:contoso-eu-archive"
+    },
+    {
+      "id": "maya-finance-access",
+      "recoverable": true,
+      "expected_effect_digest": "effect:maya-finance-access"
+    },
+    {
+      "id": "missing-physical-receipt",
+      "recoverable": false,
+      "expected_effect_digest": null
+    }
+  ],
+  "records": [
+    {
+      "id": "audit-001",
+      "effect_digest": "effect:exact-litware",
+      "effect_state": "present",
+      "fields": {
+        "operation": "payment.capture",
+        "resource": "merchant:litware",
+        "actor": "svc:billing-reconcile",
+        "amount": "91.00"
+      }
+    },
+    {
+      "id": "audit-002",
+      "effect_digest": "effect:northwind-payment",
+      "effect_state": "present",
+      "fields": {
+        "operation": "payment.capture",
+        "resource": "merchant:northwind-traders",
+        "actor": "svc:billing-reconcile",
+        "amount": "184.27"
+      }
+    },
+    {
+      "id": "audit-003",
+      "effect_digest": "distractor:northwind-logistics",
+      "effect_state": "present",
+      "fields": {
+        "operation": "payment.capture",
+        "resource": "merchant:northwind-logistics",
+        "actor": "svc:billing-reconcile",
+        "amount": "184.27"
+      }
+    },
+    {
+      "id": "audit-004",
+      "effect_digest": "effect:analytics-preview-vm",
+      "effect_state": "present",
+      "fields": {
+        "operation": "compute.instances.insert",
+        "resource": "vm:analytics-preview-03",
+        "actor": "svc:analytics-deployer",
+        "region": "us-west1"
+      }
+    },
+    {
+      "id": "audit-005",
+      "effect_digest": "distractor:analytics-preview-02",
+      "effect_state": "present",
+      "fields": {
+        "operation": "compute.instances.insert",
+        "resource": "vm:analytics-preview-02",
+        "actor": "svc:analytics-deployer",
+        "region": "us-west1"
+      }
+    },
+    {
+      "id": "audit-006",
+      "effect_digest": "distractor:analytics-preview-04",
+      "effect_state": "present",
+      "fields": {
+        "operation": "compute.instances.insert",
+        "resource": "vm:analytics-preview-04",
+        "actor": "svc:analytics-deployer",
+        "region": "us-west1"
+      }
+    },
+    {
+      "id": "audit-007",
+      "effect_digest": "effect:acme-kim-mail",
+      "effect_state": "present",
+      "fields": {
+        "operation": "mail.send",
+        "resource": "recipient:klee@acme.example",
+        "actor": "svc:account-notifier"
+      }
+    },
+    {
+      "id": "audit-008",
+      "effect_digest": "distractor:acme-kim-ops",
+      "effect_state": "present",
+      "fields": {
+        "operation": "mail.send",
+        "resource": "recipient:kim.ops@acme.example",
+        "actor": "svc:account-notifier"
+      }
+    },
+    {
+      "id": "audit-009",
+      "effect_digest": "effect:checkout-east-canary",
+      "effect_state": "present",
+      "fields": {
+        "operation": "deploy.release",
+        "resource": "service:checkout-api-canary-e1",
+        "actor": "svc:release-controller",
+        "region": "us-east1",
+        "artifact": "7f3d9a"
+      }
+    },
+    {
+      "id": "audit-010",
+      "effect_digest": "distractor:checkout-west-canary",
+      "effect_state": "present",
+      "fields": {
+        "operation": "deploy.release",
+        "resource": "service:checkout-api-canary-w1",
+        "actor": "svc:release-controller",
+        "region": "us-west1",
+        "artifact": "7f3d9a"
+      }
+    },
+    {
+      "id": "audit-011",
+      "effect_digest": "effect:contoso-eu-archive",
+      "effect_state": "present",
+      "fields": {
+        "operation": "storage.objects.create",
+        "resource": "bucket:contoso-invoices-eu-primary",
+        "actor": "svc:close-archive"
+      }
+    },
+    {
+      "id": "audit-012",
+      "effect_digest": "distractor:contoso-eu-backup",
+      "effect_state": "present",
+      "fields": {
+        "operation": "storage.objects.create",
+        "resource": "bucket:contoso-invoices-eu-backup",
+        "actor": "svc:close-archive"
+      }
+    },
+    {
+      "id": "audit-013",
+      "effect_digest": "effect:maya-finance-access",
+      "effect_state": "present",
+      "fields": {
+        "operation": "iam.grant",
+        "resource": "dataset:finance_2026",
+        "principal": "user:mchen-ext@vendor.example",
+        "actor": "svc:access-broker"
+      }
+    },
+    {
+      "id": "audit-014",
+      "effect_digest": "distractor:maya-chen-internal",
+      "effect_state": "present",
+      "fields": {
+        "operation": "iam.grant",
+        "resource": "dataset:finance_2026",
+        "principal": "user:maya.chen@example.internal",
+        "actor": "svc:access-broker"
+      }
+    },
+    {
+      "id": "audit-015",
+      "effect_digest": "distractor:finance-other-contractor",
+      "effect_state": "present",
+      "fields": {
+        "operation": "iam.grant",
+        "resource": "dataset:finance_2026",
+        "principal": "user:rpatel-ext@vendor.example",
+        "actor": "svc:access-broker"
+      }
+    }
+  ]
+}
