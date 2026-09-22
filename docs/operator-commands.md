@@ -1,6 +1,6 @@
 # Operator commands
 
-Overcenter exposes semantic commands, not execution choreography.
+Overcenter exposes semantic intent, not execution choreography.
 
 For a reasoning agent, the interface is:
 
@@ -57,30 +57,39 @@ The GitHub transport may use refs, workflow events, artifacts, and reruns intern
 
 ## Pull-request certification
 
-`candidate.certify` is a separate repository-maintenance command. It is not part of the reasoning-agent work protocol.
+Pull-request certification is CI behavior, not a separate Overcenter command.
 
-For a same-repository pull request, rerunning the single `candidate.certify` job dispatches the exact-head Merge gate. The command derives repository, pull request, source SHA, branch ref, workflow-run identity, and rerun attempt from the trusted GitHub event. It accepts no free-form payload.
+A new PR head gets a cheap Merge gate attempt with the `Certify candidate` evidence job. Rerunning that existing job is the explicit request to spend the full exact-head evidence suite. The rerun keeps the original PR event identity, and the evidence workflow checks out and verifies that exact source SHA before running candidate-only proofs.
 
-The Merge gate independently verifies that the dispatched run still refers to the requested exact source SHA. Successful command dispatch is transport evidence, not proof that candidate verification succeeded.
+```text
+PR head
+  |
+  +--> attempt 1: cheap preflight
+  |
+  +--> rerun Certify candidate
+             |
+             v
+       full exact-head evidence
+             |
+             v
+          Merge gate
+```
+
+There is no dispatch adapter, command receipt, or second workflow run whose only purpose is to ask for certification.
 
 ## Trusted command anchors
 
-Each semantic command has one small workflow with one rerunnable command job.
-
-The first run is inert and advertises command availability. Rerunning the job invokes the command. Privileged command code is always taken from trusted repository state, never from untrusted candidate bytes.
-
-Current commands:
+The remaining semantic command workflows are:
 
 | Command | Meaning |
 | --- | --- |
 | `project.advance` | Let Overcenter make progress and return reasoning work only when needed. |
 | `agent.submit` | Validate and settle a candidate produced from an assigned packet. |
-| `candidate.certify` | Certify an exact pull-request head for merge. |
 
 The internal candidate handoff workflow has no write authority. It exists only to materialize a trusted `agent.submit` command anchor and is not part of the operator surface.
 
 ## Extension rule
 
-Add a command only when it represents a stable semantic intent.
+Add a command only when it represents stable semantic intent that cannot already be expressed by an existing authoritative transition.
 
-Do not expose CRUD, arbitrary REST, arbitrary workflows, free-form JSON commands, graph selection, claim mechanics, or recovery bookkeeping. If the caller can derive or coordinate it mechanically, Overcenter should own it instead.
+Do not expose CRUD, arbitrary REST, arbitrary workflows, free-form JSON commands, graph selection, claim mechanics, recovery bookkeeping, or transport wrappers. If the caller can derive or coordinate it mechanically, Overcenter should own it instead.

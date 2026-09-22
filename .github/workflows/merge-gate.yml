@@ -6,38 +6,31 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      source_sha:
-        description: Exact source SHA expected at the selected ref
-        required: true
-        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: merge-gate-${{ github.event.pull_request.head.sha || inputs.source_sha || github.sha }}
+  group: merge-gate-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
   evidence:
-    name: Evidence
+    name: Certify candidate
     uses: ./.github/workflows/tests.yml
     with:
-      expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+      expensive: ${{ github.event_name == 'push' || github.run_attempt > 1 }}
 
   gate:
-    name: ${{ github.event_name == 'pull_request' && 'PR preflight' || 'Merge gate' }}
+    name: ${{ github.event_name == 'pull_request' && github.run_attempt == 1 && 'PR preflight' || 'Merge gate' }}
     if: ${{ always() }}
     needs: evidence
     runs-on: ubuntu-slim
     timeout-minutes: 1
     env:
       EVENT_NAME: ${{ github.event_name }}
-      EVENT_ACTION: ${{ github.event.action || '' }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      REQUESTED_SOURCE_SHA: ${{ inputs.source_sha || '' }}
       EVIDENCE_RESULT: ${{ needs.evidence.result }}
     steps:
       - name: Require an exact-head candidate before merge
@@ -46,11 +39,11 @@ jobs:
 
           case "$EVENT_NAME" in
             pull_request)
-              echo "PR preflight only; invoke candidate.certify to publish Overcenter's exact-head Merge gate."
-              ;;
-            workflow_dispatch)
-              test -n "$REQUESTED_SOURCE_SHA"
-              test "$REQUESTED_SOURCE_SHA" = "$SOURCE_SHA"
+              if [ "$RUN_ATTEMPT" -eq 1 ]; then
+                echo "PR preflight only; rerun Certify candidate to spend exact-head merge evidence."
+              else
+                test "$RUN_ATTEMPT" -gt 1
+              fi
               ;;
             push)
               ;;
@@ -64,6 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           printf 'source_sha=%s\n' "$SOURCE_SHA"
+          printf 'run_attempt=%s\n' "$RUN_ATTEMPT"
           printf 'evidence=%s\n' "$EVIDENCE_RESULT"
           test "$EVIDENCE_RESULT" = success
 
@@ -71,11 +65,11 @@ jobs:
         if: ${{ always() }}
         run: |
           {
-            if [ "$EVENT_NAME" = pull_request ]; then
+            if [ "$EVENT_NAME" = pull_request ] && [ "$RUN_ATTEMPT" -eq 1 ]; then
               echo '## PR preflight'
               echo
               echo '- merge certification: not requested'
-              echo '- next action: invoke `candidate.certify` for this exact head'
+              echo '- next action: rerun Certify candidate for this exact head'
             else
               echo '## Merge gate'
               echo
@@ -83,7 +77,6 @@ jobs:
             fi
             echo "- source SHA: $SOURCE_SHA"
             echo "- event: $EVENT_NAME"
-            echo "- action: ${EVENT_ACTION:-none}"
-            echo "- requested source SHA: ${REQUESTED_SOURCE_SHA:-not supplied}"
+            echo "- run attempt: $RUN_ATTEMPT"
             echo "- Evidence: $EVIDENCE_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"

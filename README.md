@@ -198,7 +198,6 @@ Important entry points:
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
 - [`src/providers/github-status-effect.ts`](./src/providers/github-status-effect.ts) - narrow production GitHub commit-status mutation path: authority-derived coordinates, certified repository identity, reservation-before-POST.
-- [`src/github-operator-command.ts`](./src/github-operator-command.ts) - narrow semantic operator-command adapter: exact PR-head identity in, attributable GitHub workflow-run receipt out.
 - [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
 - [`src/computation-runner.ts`](./src/computation-runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
 - [`src/go-executor-client.ts`](./src/go-executor-client.ts) - Unix-socket client for an isolated physical executor.
@@ -237,7 +236,7 @@ The reasoning-agent interface is deliberately small:
 project.advance -> work packet -> reasoning -> agent.submit
 ```
 
-[Operator commands](./docs/operator-commands.md) hide frontier selection, claims, leases, authority coordinates, transport refs, and settlement mechanics behind those two semantic operations. The reasoner receives work only when judgment is required and never declares its own success. `candidate.certify` is separate repository-maintenance machinery for exact-head pull-request certification, not part of the agent work protocol.
+[Operator commands](./docs/operator-commands.md) hide frontier selection, claims, leases, authority coordinates, transport refs, and settlement mechanics behind those two semantic operations. The reasoner receives work only when judgment is required and never declares its own success. Pull-request certification is CI behavior: rerun the existing `Certify candidate` job on the PR's Merge gate to spend the full exact-head evidence suite.
 
 Requirements:
 

@@ -14,10 +14,6 @@ const evidenceWorkflow = readFileSync(
   new URL('../.github/workflows/tests.yml', import.meta.url),
   'utf8',
 );
-const operatorCommands = readFileSync(
-  new URL('../.github/workflows/operator-candidate-certify.yml', import.meta.url),
-  'utf8',
-);
 const candidateOnlyWorkflowPaths = [
   '../.github/workflows/assignment-capsule-proof.yml',
   '../.github/workflows/conflicting-effect.yml',
@@ -104,33 +100,28 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
-    /expensive: \$\{\{ github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch' \}\}/,
-    'only push and exact-head operator dispatch may spend canonical candidate evidence',
+    /expensive: \$\{\{ github\.event_name == 'push' \|\| github\.run_attempt > 1 \}\}/,
+    'only main push or an explicit rerun may spend canonical candidate evidence',
+  );
+  assert.doesNotMatch(
+    mergeGate,
+    /workflow_dispatch:/,
+    'merge certification must not require a second dispatch surface',
   );
   assert.match(
     mergeGate,
-    /source_sha:/,
-    'manual candidate dispatch must carry the exact expected source SHA',
+    /group: merge-gate-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
+    'all attempts for one exact PR head must share one concurrency key',
   );
   assert.match(
     mergeGate,
-    /group: merge-gate-\$\{\{ github\.event\.pull_request\.head\.sha \|\| inputs\.source_sha \|\| github\.sha \}\}/,
-    'same-head PR and command-dispatch certification must share one concurrency key',
+    /name: \$\{\{ github\.event_name == 'pull_request' && github\.run_attempt == 1 && 'PR preflight' \|\| 'Merge gate' \}\}/,
+    'attempt one is preflight and a rerun becomes the exact-head Merge gate',
   );
   assert.match(
     mergeGate,
-    /test "\$REQUESTED_SOURCE_SHA" = "\$SOURCE_SHA"/,
-    'manual candidate dispatch must fail closed when the selected ref moved',
-  );
-  assert.match(
-    mergeGate,
-    /name: \$\{\{ github\.event_name == 'pull_request' && 'PR preflight' \|\| 'Merge gate' \}\}/,
-    'ordinary PR checks and exact-head merge certification must have distinct check names',
-  );
-  assert.match(
-    mergeGate,
-    /PR preflight only; invoke candidate\.certify to publish Overcenter's exact-head Merge gate/,
-    'ordinary pull_request runs must direct operators to the semantic certification command',
+    /PR preflight only; rerun Certify candidate to spend exact-head merge evidence/,
+    'ordinary PR runs must expose the existing evidence job as the certification gesture',
   );
   assert.doesNotMatch(
     mergeGate,
@@ -175,60 +166,3 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
   }
 });
 
-test('operator commands expose isolated trusted rerun anchors without a public command mailbox', () => {
-  assert.match(
-    eventBlock(operatorCommands, 'pull_request_target'),
-    /types: \[opened, synchronize, reopened, edited\]/,
-    'operator commands must materialize for new heads and main-base retargets',
-  );
-  assert.doesNotMatch(
-    operatorCommands,
-    /issue_comment:|pull_request_review:|label:/,
-    'operator commands must not use public discussion or labels as transport',
-  );
-  assert.match(
-    operatorCommands,
-    /github\.event\.action != 'edited' \|\| github\.event\.changes\.base\.ref\.from != null/,
-    'edited events must materialize command anchors only for base-branch changes',
-  );
-  assert.match(
-    operatorCommands,
-    /^name: Overcenter command · candidate\.certify/m,
-    'one workflow must represent one stable semantic command',
-  );
-  assert.match(
-    operatorCommands,
-    /command:\n\s+name: candidate\.certify/,
-    'the command workflow must expose one rerunnable command job',
-  );
-  assert.match(
-    operatorCommands,
-    /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
-    'cross-repository PR heads must not acquire command authority',
-  );
-  assert.match(
-    operatorCommands,
-    /permissions:\n\s+actions: write\n\s+contents: read/,
-    'the command anchor may write Actions state but not repository content',
-  );
-  assert.match(
-    operatorCommands,
-    /if: \$\{\{ github\.run_attempt == 1 \}\}[\s\S]*state: available/,
-    'the first command run must advertise availability without invoking',
-  );
-  assert.match(
-    operatorCommands,
-    /COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/,
-    'privileged command code must be pinned to the trusted base revision',
-  );
-  assert.match(
-    operatorCommands,
-    /Check out trusted command implementation[\s\S]*ref: \$\{\{ env\.COMMAND_IMPLEMENTATION_SHA \}\}/,
-    'invocation must never execute pull-request source with the write token',
-  );
-  assert.match(
-    operatorCommands,
-    /github-operator-command\.ts candidate\.certify/,
-    'workflow YAML must delegate command semantics to deterministic software',
-  );
-});
