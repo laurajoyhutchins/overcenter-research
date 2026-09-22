@@ -6,6 +6,7 @@ on:
       - run/code-graph-confirmatory-f236cb5c
     paths:
       - .github/workflows/code-graph-verification-confirmatory.yml
+      - experiments/code-graph-verification/run_case.py
   workflow_dispatch:
     inputs:
       confirm:
