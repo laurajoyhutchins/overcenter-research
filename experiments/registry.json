@@ -426,13 +426,13 @@
       ],
       "evidence": {
         "status": "evaluated",
-        "evaluated_revision": "8b12eb1f4da309223af2b255eb1f59389dffda8a",
+        "evaluated_revision": "7982eb745f6c12cc99053e7e7673ebafb7c05a6c",
         "artifacts": [
-          "GitHub Actions run 35773715692: deterministic witness passed; controlled worker provider write returned HTTP 403; over-capable worker received the identical packet digest and provider write returned HTTP 201 while Overcenter remained EXECUTING; trusted recovery generation 2 independently observed the provider state and settled DONE.",
-          "experiments/ambient-authority-boundary/ambient-authority-boundary.test.ts"
+          "GitHub Actions run 35773933844: trusted authority, controlled worker, ambient-capability worker, and trusted readback/settlement jobs all passed at the exact evaluated revision.",
+          "GitHub Actions run 35773934727: exact-head Merge gate passed."
         ]
       },
-      "interpretation": "The bounded deterministic and hosted results separate effect confinement from project-truth authority. A host-provided provider capability can bypass the worker's intended effect boundary, but that capability did not grant authority to settle Overcenter state: after the foreign worker's successful GitHub status mutation, the obligation remained EXECUTING until a separate trusted recovery job independently read back provider truth and settled the original run.",
+      "interpretation": "The experiment separates physical effect confinement from project-truth authority. Overcenter cannot claim to prevent external effects when a surrounding substrate independently grants the agent a consequential provider capability, but the worker still cannot make those effects authoritative project truth without trusted verification and settlement.",
       "non_claims": [
         "The hosted GitHub permission model represents every third-party agent sandbox or tool surface.",
         "An uncontrolled substrate with consequential ambient provider credentials is safe for arbitrary execution.",
@@ -445,7 +445,7 @@
       },
       "outcome": {
         "state": "supported",
-        "summary": "An uncontrolled substrate can bypass physical effect confinement through ambient provider authority without thereby gaining Overcenter settlement authority."
+        "summary": "The hosted proof shows that an uncontrolled worker with an ambient provider-write capability can bypass physical effect confinement, but cannot advance Overcenter project truth: authoritative state remains unchanged until trusted readback and settlement run."
       }
     },
     {
