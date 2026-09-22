@@ -69,6 +69,12 @@ test('candidate transport stays internal and inert until project.submit is invok
   assert.doesNotMatch(submit,/issue_comment:|pull_request_review:|workflow_dispatch:/);
 });
 
+test('semantic operator commands do not spend their budget on package-manager caching',()=>{
+  for (const source of [advance,submit]) {
+    assert.match(source,/package-manager-cache: false/);
+  }
+});
+
 test('operator command workflows stay bounded to one-minute jobs',()=>{
   for (const source of [advance,signal,submit]) {
     assert.match(source,/timeout-minutes: 1/);
