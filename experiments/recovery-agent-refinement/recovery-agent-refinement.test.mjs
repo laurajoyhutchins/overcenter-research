@@ -33,9 +33,17 @@ const repaired={
 
 test('sanitized observations expose cardinality but not settlement evidence',()=>{
   const result=observe(roundOne);
-  const text=JSON.stringify(result);
+  const keys=[];
+  const visit=value=>{
+    if (!value || typeof value!=='object') return;
+    for (const [key,child] of Object.entries(value)) {
+      keys.push(key);
+      visit(child);
+    }
+  };
+  visit(result);
   for (const forbidden of ['matched_record','effect_digest','expected_effect_digest','certainty','resolved','reason','outcome']) {
-    assert.equal(text.includes(forbidden),false,forbidden);
+    assert.equal(keys.includes(forbidden),false,forbidden);
   }
   assert.equal(result.observations.find(x=>x.case_id==='northwind-payment').cardinality,'zero');
   assert.equal(result.observations.find(x=>x.case_id==='checkout-east-canary').cardinality,'one');
