@@ -8,8 +8,8 @@ on:
       - .github/workflows/ambient-authority-boundary.yml
       - experiments/ambient-authority-boundary/**
       - experiments/proof-environment.ts
-      - src/git-kernel.ts
-      - src/providers/github-status-effect.ts
+      - src/storage/git-kernel.ts
+      - src/providers/github/status-effect.ts
 
 permissions: {}
 

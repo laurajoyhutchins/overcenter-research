@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {dirname,join} from 'node:path';
 
-import {OvercenterKernel} from '../../src/kernel.ts';
+import {OvercenterKernel} from '../../src/authority/kernel.ts';
 
 const ASSIGNMENT_SCHEMA='overcenter-codex-closed-loop-assignment/v1';
 const CANDIDATE_SCHEMA='overcenter-codex-closed-loop-candidate/v1';

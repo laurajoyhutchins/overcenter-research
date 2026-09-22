@@ -6,7 +6,7 @@ import {
   reusableRealization,
   verifyRealizationCandidate,
   type RealizationContract,
-} from '../src/realization.ts';
+} from '../src/authority/realization.ts';
 
 const OUTPUT='compiled artifact bytes';
 

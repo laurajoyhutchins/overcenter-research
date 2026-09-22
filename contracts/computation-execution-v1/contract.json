@@ -123,7 +123,7 @@
     },
     {
       "type": "typescript-validator",
-      "path": "../../src/computation-execution.ts"
+      "path": "../../src/execution/protocol.ts"
     },
     {
       "type": "go-validator",
@@ -131,7 +131,7 @@
     },
     {
       "type": "executor-attestation",
-      "path": "../../src/go-executor-client.ts"
+      "path": "../../src/execution/go-client.ts"
     },
     {
       "type": "executor-attestation",

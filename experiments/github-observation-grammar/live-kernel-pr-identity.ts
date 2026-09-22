@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { observeCertifiedGithubPullRequestIdentity } from '../../src/providers/github-certified-pr.ts';
+import { observeCertifiedGithubPullRequestIdentity } from '../../src/providers/github/certified-pr.ts';
 
 const token=process.env.GITHUB_TOKEN;
 if (!token) throw new Error('GITHUB_TOKEN_REQUIRED');

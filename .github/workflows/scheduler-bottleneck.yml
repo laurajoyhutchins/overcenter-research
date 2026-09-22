@@ -7,12 +7,12 @@ on:
     paths:
       - .github/workflows/scheduler-bottleneck.yml
       - experiments/scheduler-bottleneck/**
-      - src/sqlite-store.ts
-      - src/kernel.ts
-      - src/kernel-core.ts
-      - src/projection.ts
-      - src/projector.ts
-      - src/facts.ts
+      - src/storage/sqlite.ts
+      - src/authority/kernel.ts
+      - src/authority/engine.ts
+      - src/authority/replay.ts
+      - src/authority/project-state.ts
+      - src/authority/facts.ts
       - package.json
 
 permissions:

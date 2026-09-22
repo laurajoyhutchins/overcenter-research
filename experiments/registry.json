@@ -699,7 +699,7 @@
       "environment": [
         "Node.js from .node-version",
         "LinkML 1.11.1",
-        "Current production observation-evidence-v1 schema, src/model.ts, and src/observation.ts."
+        "Current production observation-evidence-v1 schema, src/model.ts, and src/observation/observe.ts."
       ],
       "success_criteria": [
         "Current production field vocabulary and requiredness agree before mutation.",

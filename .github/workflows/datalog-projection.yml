@@ -8,7 +8,7 @@ on:
       - 'src/lifecycle.ts'
       - 'src/eligibility.ts'
       - 'src/model.ts'
-      - 'src/facts.ts'
+      - 'src/authority/facts.ts'
       - '.github/workflows/datalog-projection.yml'
   push:
     branches:
@@ -18,7 +18,7 @@ on:
       - 'src/lifecycle.ts'
       - 'src/eligibility.ts'
       - 'src/model.ts'
-      - 'src/facts.ts'
+      - 'src/authority/facts.ts'
       - '.github/workflows/datalog-projection.yml'
   workflow_dispatch:
 

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { observePostcondition } from '../../src/observation.ts';
+import { observePostcondition } from '../../src/observation/observe.ts';
 import {
   GITHUB_OPENAPI_SHA256,
-} from '../../src/providers/github-certified-status.ts';
+} from '../../src/providers/github/certified-status.ts';
 
 const token=process.env.GITHUB_TOKEN;
 if (!token) throw new Error('GITHUB_TOKEN_REQUIRED');

@@ -4,9 +4,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
 
-const sourceUrl = new URL('../../src/git-kernel.ts', import.meta.url).href;
+const sourceUrl = new URL('../../src/storage/git-kernel.ts', import.meta.url).href;
 const pc = (path: string, content: string) => ({
   verifier: 'file-content-equals/v1' as const,
   path,

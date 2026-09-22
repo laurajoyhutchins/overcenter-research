@@ -57,9 +57,9 @@
   },
   "governance": {
     "structureAuthority": "./schema.json",
-    "providerEnvelopeValidator": "../../src/provider-observation/observation.ts",
-    "settlementEnvelopeValidator": "../../src/observation.ts",
-    "absenceEnvelopeValidator": "../../src/evidence.ts",
+    "providerEnvelopeValidator": "../../src/observation/provider.ts",
+    "settlementEnvelopeValidator": "../../src/observation/observe.ts",
+    "absenceEnvelopeValidator": "../../src/observation/evidence.ts",
     "conflictPolicy": "machine-readable-structure-wins",
     "generatedOutputIsNotVerifiedOutput": true,
     "settlementObservationStructureSource": "./settlement-observation.typebox.ts"
@@ -131,12 +131,12 @@
     {
       "kind": "local-file-enoent/v1",
       "matcher": "localFileEnoentEvidenceMatches",
-      "source": "../../src/evidence.ts"
+      "source": "../../src/observation/evidence.ts"
     },
     {
       "kind": "kubernetes-complete-list-absence/v1",
       "matcher": "kubernetesConfigMapAbsenceEvidenceMatches",
-      "source": "../../src/providers/kubernetes-configmap.ts"
+      "source": "../../src/providers/kubernetes/configmap.ts"
     }
   ],
   "quality": [
@@ -173,19 +173,19 @@
     },
     {
       "type": "provider-envelope-validator",
-      "path": "../../src/provider-observation/observation.ts"
+      "path": "../../src/observation/provider.ts"
     },
     {
       "type": "settlement-envelope-validator",
-      "path": "../../src/observation.ts"
+      "path": "../../src/observation/observe.ts"
     },
     {
       "type": "absence-envelope-validator",
-      "path": "../../src/evidence.ts"
+      "path": "../../src/observation/evidence.ts"
     },
     {
       "type": "kubernetes-absence-matcher",
-      "path": "../../src/providers/kubernetes-configmap.ts"
+      "path": "../../src/providers/kubernetes/configmap.ts"
     }
   ]
 }

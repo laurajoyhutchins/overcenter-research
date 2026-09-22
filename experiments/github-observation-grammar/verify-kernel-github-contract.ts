@@ -1,28 +1,28 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import type { ResponseFieldSpec } from '../../src/provider-observation/response-slice.ts';
+import type { ResponseFieldSpec } from '../../src/observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
-} from '../../src/providers/github-contract.ts';
+} from '../../src/providers/github/contract.ts';
 import {
   GITHUB_REPOSITORY_OPERATION,
   GITHUB_COMMIT_STATUSES_OPERATION,
   GITHUB_REF_OPERATION,
   GITHUB_PULL_REQUEST_OPERATION,
-} from '../../src/providers/github-operations.generated.ts';
+} from '../../src/providers/github/operations.generated.ts';
 import {
   deriveGithubObservationOperation,
   type GithubObservationOperation,
   type GithubOpenApiDocument,
-} from '../../src/providers/github-openapi.ts';
+} from '../../src/providers/github/openapi.ts';
 import {
   GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
   GITHUB_PULL_REQUEST_RESPONSE_SLICE,
   GITHUB_REF_RESPONSE_SLICE,
   GITHUB_REPOSITORY_RESPONSE_SLICE,
-} from '../../src/providers/github-semantics.ts';
+} from '../../src/providers/github/semantics.ts';
 
 const schemaPath=process.argv[2];
 if (!schemaPath) throw new Error('usage: verify-kernel-github-contract.ts <openapi.json>');

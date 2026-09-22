@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import test from 'node:test';
 
-import {observationVerified,observePostcondition,observePostconditionAsync} from '../src/observation.ts';
+import {observationVerified,observePostcondition,observePostconditionAsync} from '../src/observation/observe.ts';
 import {
   certifyGithubStatusWebhook,
   GithubStatusMirror,
   type GithubWebhookAuthority,
   type GithubWebhookDeliveryLister,
-} from '../src/providers/github-status-webhook.ts';
+} from '../src/providers/github/status-webhook.ts';
 
 const SECRET='test-webhook-secret';
 const SHA='a'.repeat(40);

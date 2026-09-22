@@ -5,8 +5,8 @@ on:
     types: [ready_for_review]
     paths:
       - 'experiments/projection-comparison/**'
-      - 'src/projector.ts'
-      - 'src/semantic-identity.ts'
+      - 'src/authority/project-state.ts'
+      - 'src/graph/identity.ts'
       - '.github/workflows/projection-comparison.yml'
   workflow_dispatch:
 

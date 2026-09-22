@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
-import { runCoreLoop } from '../src/kernel-core.ts';
+import { GitOvercenterKernel } from '../src/storage/git-kernel.ts';
+import { runCoreLoop } from '../src/authority/engine.ts';
 
 const root = mkdtempSync(join(tmpdir(), 'overcenter-git-demo-'));
 const repo = join(root, 'state.git');

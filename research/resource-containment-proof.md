@@ -25,7 +25,7 @@ An unrelated stale leaf is therefore not a valid termination or evidence target.
 
 **Witnesses**
 
-- implementation: `src/confined-executor.ts`, `runtime/overcenter-exec/resource.rs`;
+- implementation: `src/execution/confined-executor.ts`, `runtime/overcenter-exec/resource.rs`;
 - formal: `formal/ResourceContainment.tla` invariant `ExactLeafAuthority`;
 - negative control: `formal/BrokenResourceIdentity.cfg`;
 - hostile proof: an unrelated stale leaf survives another launch untouched.
@@ -56,7 +56,7 @@ Evidence sampled before `populated=0` is operational telemetry, not final attemp
 
 **Witnesses**
 
-- implementation: finalization in `src/confined-executor.ts`;
+- implementation: finalization in `src/execution/confined-executor.ts`;
 - formal: `FinalEvidenceSafety` and `RemovalSafety`;
 - negative control: `formal/BrokenResourceEarlyEvidence.cfg`;
 - hostile proof: timeout/output termination and descendant cleanup leave no attempt leaf behind.
@@ -83,7 +83,7 @@ A supervisor crash may leave a bounded orphan leaf. This layer does not guess wh
 
 **Witnesses**
 
-- deterministic parent-contract validation in `src/confined-executor.ts`;
+- deterministic parent-contract validation in `src/execution/confined-executor.ts`;
 - real delegated hierarchy constructed by `runtime/overcenter-exec/proof.sh`;
 - kernel enforcement probes for PID exhaustion, CPU throttling, and memory OOM.
 
@@ -133,7 +133,7 @@ Cleanup failure is an execution failure, never silent success.
 
 **Witnesses**
 
-- `src/execution-manifest.ts` and `runtime/overcenter-exec/manifest.rs`;
+- `src/execution/manifest.ts` and `runtime/overcenter-exec/manifest.rs`;
 - deterministic output-ceiling and invalid-parent tests;
 - real supervisor timeout/output-overflow proof under cgroup v2.
 

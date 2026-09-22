@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { State } from '../src/facts.ts';
+import type { State } from '../src/authority/facts.ts';
 import {
   buildStaticEffectIndex,
   staticEffectConflict,
   validateAdmission,
-} from '../src/admission.ts';
-import { dependsOn } from '../src/graph.ts';
+} from '../src/authority/admission.ts';
+import { dependsOn } from '../src/graph/topology.ts';
 import { effectSemantics } from '../src/semantics.ts';
 
 const fileObligation=(id:string,dependencies:Obligation['dependencies']=[]):Obligation=>({

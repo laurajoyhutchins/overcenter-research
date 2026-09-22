@@ -4,18 +4,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { OvercenterKernel } from '../../src/kernel.ts';
+import { OvercenterKernel } from '../../src/authority/kernel.ts';
 import {
   GITHUB_COMMIT_STATUS_EFFECT,
   performGithubCommitStatusEffect,
   type GithubStatusPost,
-} from '../../src/providers/github-status-effect.ts';
+} from '../../src/providers/github/status-effect.ts';
 import {
   githubGet,
   githubGetAsync,
   type GithubJsonGet,
   type GithubJsonGetAsync,
-} from '../../src/providers/github-rest.ts';
+} from '../../src/providers/github/rest.ts';
 
 type Mode='mock'|'live';
 type Phase='idle'|'effect'|'settlement';

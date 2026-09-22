@@ -8,17 +8,17 @@ import test from 'node:test';
 
 import {
   staticEffectConflict,
-} from '../src/admission.ts';
-import type { State } from '../src/facts.ts';
-import { validateGraph } from '../src/graph.ts';
-import { OvercenterKernel } from '../src/kernel.ts';
+} from '../src/authority/admission.ts';
+import type { State } from '../src/authority/facts.ts';
+import { validateGraph } from '../src/graph/topology.ts';
+import { OvercenterKernel } from '../src/authority/kernel.ts';
 import type {
   Dependency,
   Obligation,
   Postcondition,
 } from '../src/model.ts';
 import { effectSemantics } from '../src/semantics.ts';
-import { effectReservationAuthorityError, executionAuthorityAdvanceError, mutationAdmitted, projectExecutionAuthority, receiptAuthorityError } from '../src/transaction-admission.ts';
+import { effectReservationAuthorityError, executionAuthorityAdvanceError, mutationAdmitted, projectExecutionAuthority, receiptAuthorityError } from '../src/authority/transaction-admission.ts';
 
 const oracleBin=process.env.LEAN_ORACLE_BIN;
 const oracleSha=process.env.LEAN_ORACLE_SHA;

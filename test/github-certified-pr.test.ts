@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   observeCertifiedGithubPullRequestIdentity,
-} from '../src/providers/github-certified-pr.ts';
-import type { GithubJsonGet } from '../src/providers/github-rest.ts';
+} from '../src/providers/github/certified-pr.ts';
+import type { GithubJsonGet } from '../src/providers/github/rest.ts';
 
 const HEAD='a'.repeat(40);
 const BASE='b'.repeat(40);

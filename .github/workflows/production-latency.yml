@@ -8,16 +8,16 @@ on:
     paths:
       - .github/workflows/production-latency.yml
       - experiments/production-latency/**
-      - src/providers/github-status-effect.ts
-      - src/providers/github-rest.ts
-      - src/providers/github-certified-observation.ts
-      - src/providers/github-certified-repository.ts
-      - src/observation.ts
-      - src/kernel-core.ts
-      - src/computation-runner.ts
-      - src/providers/github-certified-status.ts
-      - src/providers/github-semantics.ts
-      - src/providers/github-operations.generated.ts
+      - src/providers/github/status-effect.ts
+      - src/providers/github/rest.ts
+      - src/providers/github/certified-observation.ts
+      - src/providers/github/certified-repository.ts
+      - src/observation/observe.ts
+      - src/authority/engine.ts
+      - src/execution/runner.ts
+      - src/providers/github/certified-status.ts
+      - src/providers/github/semantics.ts
+      - src/providers/github/operations.generated.ts
       - package.json
       - experiments/registry.json
   pull_request:
@@ -25,16 +25,16 @@ on:
     paths:
       - .github/workflows/production-latency.yml
       - experiments/production-latency/**
-      - src/providers/github-status-effect.ts
-      - src/providers/github-rest.ts
-      - src/providers/github-certified-observation.ts
-      - src/providers/github-certified-repository.ts
-      - src/observation.ts
-      - src/kernel-core.ts
-      - src/computation-runner.ts
-      - src/providers/github-certified-status.ts
-      - src/providers/github-semantics.ts
-      - src/providers/github-operations.generated.ts
+      - src/providers/github/status-effect.ts
+      - src/providers/github/rest.ts
+      - src/providers/github/certified-observation.ts
+      - src/providers/github/certified-repository.ts
+      - src/observation/observe.ts
+      - src/authority/engine.ts
+      - src/execution/runner.ts
+      - src/providers/github/certified-status.ts
+      - src/providers/github/semantics.ts
+      - src/providers/github/operations.generated.ts
       - package.json
       - experiments/registry.json
 

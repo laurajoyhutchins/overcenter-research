@@ -4,13 +4,13 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { canonicalDigest } from '../../src/digest.ts';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
 import type { KubernetesConfigMapExistsPostcondition } from '../../src/model.ts';
 import {
   KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
   type KubernetesListConfigMaps,
-} from '../../src/providers/kubernetes-configmap.ts';
-import type { SchemaResolver, StructuralOperation } from '../../src/provider-observation/response-slice.ts';
+} from '../../src/providers/kubernetes/configmap.ts';
+import type { SchemaResolver, StructuralOperation } from '../../src/observation/response-slice.ts';
 
 const namespace='overcenter-core-proof';
 const target='target';

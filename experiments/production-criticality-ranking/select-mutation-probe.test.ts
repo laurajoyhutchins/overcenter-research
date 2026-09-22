@@ -35,15 +35,15 @@ test('configured source files derive their probe selection from the config',()=>
     runProbe:true,
     mutationProbe:'digest-foundation',
   });
-  assert.deepEqual(select(['src/projector.ts']),{
+  assert.deepEqual(select(['src/authority/project-state.ts']),{
     runProbe:true,
     mutationProbe:'done-candidate-reuse',
   });
-  assert.deepEqual(select(['src/kernel-core.ts']),{
+  assert.deepEqual(select(['src/authority/engine.ts']),{
     runProbe:true,
     mutationProbe:'effect-reservation,settlement',
   });
-  assert.deepEqual(select(['src/transaction-admission.ts']),{
+  assert.deepEqual(select(['src/authority/transaction-admission.ts']),{
     runProbe:true,
     mutationProbe:'execution-fence',
   });
@@ -71,8 +71,8 @@ test('configured tests derive their probe selection from the config',()=>{
 
 test('independent targeted regions compose in config order',()=>{
   assert.deepEqual(select([
-    'src/observation.ts',
-    'src/semantic-identity.ts',
+    'src/observation/observe.ts',
+    'src/graph/identity.ts',
   ]),{
     runProbe:true,
     mutationProbe:'semantic-identity,verification-and-absence',
@@ -151,14 +151,14 @@ test('workflow and evidence plumbing use one end-to-end smoke probe',()=>{
 test('configured source changes take precedence over plumbing smoke selection',()=>{
   assert.deepEqual(select([
     MUTATION_WORKFLOW,
-    'src/observation.ts',
+    'src/observation/observe.ts',
   ]),{
     runProbe:true,
     mutationProbe:'verification-and-absence',
   });
   assert.deepEqual(select([
     MUTATION_SELECTOR,
-    'src/kernel-core.ts',
+    'src/authority/engine.ts',
   ]),{
     runProbe:true,
     mutationProbe:'effect-reservation,settlement',

@@ -1,11 +1,11 @@
 import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
 import {
   GITHUB_COMMIT_STATUS_EFFECT,
   performGithubCommitStatusEffect,
-} from '../../src/providers/github-status-effect.ts';
+} from '../../src/providers/github/status-effect.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -51,7 +51,7 @@ if (summary) {
   appendFileSync(summary, [
     '## Trusted effect broker',
     '',
-    `- Used production provider effect \`src/providers/github-status-effect.ts\` for obligation \`${work.id}\`.`,
+    `- Used production provider effect \`src/providers/github/status-effect.ts\` for obligation \`${work.id}\`.`,
     '- Consumed no worker-declared provider coordinates or effect intent.',
     `- Acquired execution generation \`${permit.execution_generation}\`.`,
     '- Certified repository identity before reserving mutation authority.',

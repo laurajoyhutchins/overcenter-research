@@ -1,4 +1,4 @@
-import { githubResponseSlice } from '../../src/providers/github-semantics.ts';
+import { githubResponseSlice } from '../../src/providers/github/semantics.ts';
 import type { ResponseFieldSpec } from '../provider-observation/response-slice.ts';
 
 function extend(

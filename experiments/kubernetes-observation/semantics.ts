@@ -1,5 +1,5 @@
 import type { RawObservation } from './observation.ts';
-import { KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE } from '../../src/providers/kubernetes-configmap.ts';
+import { KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE } from '../../src/providers/kubernetes/configmap.ts';
 import {
   structurallyCertifiedFor,
   type CertifiedObservation,

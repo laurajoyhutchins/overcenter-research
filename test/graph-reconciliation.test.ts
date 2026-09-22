@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { State } from '../src/facts.ts';
+import type { State } from '../src/authority/facts.ts';
 import {
   normalizeObligation,
   obligationDefinition,
   obligationDefinitionId,
-} from '../src/facts.ts';
-import { planGraphReconciliation } from '../src/graph-reconciliation.ts';
+} from '../src/authority/facts.ts';
+import { planGraphReconciliation } from '../src/graph/reconciliation.ts';
 
 const pc=(path:string,content:string)=>({
   verifier:'file-content-equals/v1' as const,

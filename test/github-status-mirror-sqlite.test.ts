@@ -9,12 +9,12 @@ import test from 'node:test';
 import {
   createGithubAppWebhookDeliveryLister,
   type GithubAppWebhookHttpGet,
-} from '../src/providers/github-app-webhook-deliveries.ts';
+} from '../src/providers/github/app-webhook-deliveries.ts';
 import {
   certifyGithubStatusWebhook,
   type GithubWebhookAuthority,
-} from '../src/providers/github-status-webhook.ts';
-import {SqliteGithubStatusMirror} from '../src/providers/github-status-mirror-sqlite.ts';
+} from '../src/providers/github/status-webhook.ts';
+import {SqliteGithubStatusMirror} from '../src/providers/github/status-mirror-sqlite.ts';
 
 const SECRET='mirror-secret';
 const SHA='a'.repeat(40);

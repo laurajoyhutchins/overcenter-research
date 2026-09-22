@@ -18,13 +18,13 @@ import {
   type Receipt,
   type ReceiptFact,
   type State,
-} from '../../src/facts.ts';
-import { localFileEnoentEvidence } from '../../src/evidence.ts';
-import { obligationKey } from '../../src/semantic-identity.ts';
-import { deriveProjectProjection } from '../../src/projector.ts';
+} from '../../src/authority/facts.ts';
+import { localFileEnoentEvidence } from '../../src/observation/evidence.ts';
+import { obligationKey } from '../../src/graph/identity.ts';
+import { deriveProjectProjection } from '../../src/authority/project-state.ts';
 import {
   projectReceipt,
-} from '../../src/projection.ts';
+} from '../../src/authority/replay.ts';
 import type {
   Dependency,
   Obligation,

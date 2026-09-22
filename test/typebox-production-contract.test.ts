@@ -7,8 +7,8 @@ import {
   assertSupportedStructuralSchema,
   structurallyMatches,
 } from '../src/structural-schema.ts';
-import {localFileEnoentEvidence} from '../src/evidence.ts';
-import {validateObservationEnvelope} from '../src/observation.ts';
+import {localFileEnoentEvidence} from '../src/observation/evidence.ts';
+import {validateObservationEnvelope} from '../src/observation/observe.ts';
 
 const document=JSON.parse(
   readFileSync('contracts/observation-evidence-v1/schema.json','utf8'),

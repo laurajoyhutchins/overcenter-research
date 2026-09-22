@@ -4,9 +4,9 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
 
-const source = new URL('../../src/git-kernel.ts', import.meta.url).href;
+const source = new URL('../../src/storage/git-kernel.ts', import.meta.url).href;
 
 function bare(root: string, name = 'state.git', args: string[] = []) {
   const repo = join(root, name);

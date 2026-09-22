@@ -14,7 +14,7 @@ import {randomUUID} from 'node:crypto';
 import {
   PRODUCTION_COMPUTATION_CONTAINMENT,
   productionDockerIsolationArgs,
-} from '../src/production-containment.ts';
+} from '../src/execution/containment.ts';
 
 function option(name:string):string|null {
   const index=process.argv.indexOf(name);
