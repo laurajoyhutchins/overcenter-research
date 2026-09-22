@@ -1,0 +1,7 @@
+{
+  "schema": "overcenter-closed-loop-seed/v1",
+  "obligation_id": "github-actions-agent-authorization-witness",
+  "execution_policy": "agent-authorization/v1",
+  "effect_contract": "github-commit-status/set-from-postcondition/v1",
+  "status_context": "overcenter/closed-loop-witness"
+}
