@@ -18,7 +18,7 @@ The relevant shape is independently maintained in three places:
 ```text
 contracts/observation-evidence-v1/schema.json
 src/model.ts :: Observation
-src/observation.ts :: validateObservationEnvelope()
+src/observation/observe.ts :: validateObservationEnvelope()
 ```
 
 Those three manifestations are frozen as `baseline-schema.json`,

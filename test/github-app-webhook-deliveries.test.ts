@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   createGithubAppWebhookDeliveryLister,
   type GithubAppWebhookHttpGet,
-} from '../src/providers/github-app-webhook-deliveries.ts';
+} from '../src/providers/github/app-webhook-deliveries.ts';
 
 const JWT='app-jwt';
 const HOOK=9001;

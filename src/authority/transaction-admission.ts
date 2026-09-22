@@ -1,5 +1,5 @@
 import type { EffectReservationFact, ExecutionAuthorityFact, ReceiptFact } from './facts.ts';
-import type { ExecutionPermit, Run } from './model.ts';
+import type { ExecutionPermit, Run } from '../model.ts';
 
 export interface ExecutionAuthorityProjection {
   current_authority:boolean;

@@ -6,17 +6,17 @@ import type {
   Observation,
   Postcondition,
   Run,
-} from './model.ts';
+} from '../model.ts';
 import {
   validateObservationEnvelope,
   validatePostcondition,
-} from './observation.ts';
-import { canonicalDigest } from './digest.ts';
+} from '../observation/observe.ts';
+import { canonicalDigest } from '../digest.ts';
 import {
   assertExactKeys as exactKeys,
   assertNonEmptyString as nonEmptyString,
   isData as data,
-} from './validation.ts';
+} from '../validation.ts';
 
 export const GRAPH_PATCH_SCHEMA='overcenter-graph-patch-v1' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;

@@ -1,20 +1,20 @@
-import { canonicalDigest } from '../digest.ts';
+import { canonicalDigest } from '../../digest.ts';
 import {
   ABSENCE_EVIDENCE_SCHEMA,
   validateAbsenceEvidenceEnvelope,
-} from '../evidence.ts';
+} from '../../observation/evidence.ts';
 import type {
   AbsenceEvidenceCertificate,
   KubernetesConfigMapExistsPostcondition,
-} from '../model.ts';
-import type { ProviderObservation } from '../provider-observation/observation.ts';
-import { asData as data, hasExactKeys as exactKeys } from '../validation.ts';
+} from '../../model.ts';
+import type { ProviderObservation } from '../../observation/provider.ts';
+import { asData as data, hasExactKeys as exactKeys } from '../../validation.ts';
 import {
   validateObservationSlice,
   type ResponseFieldSpec,
   type SchemaResolver,
   type StructuralOperation,
-} from '../provider-observation/response-slice.ts';
+} from '../../observation/response-slice.ts';
 
 export const KUBERNETES_CONFIGMAP_LIST_OPERATION_ID='listCoreV1NamespacedConfigMap' as const;
 export const KUBERNETES_COMPLETE_LIST_ABSENCE='kubernetes-complete-list-absence/v1' as const;

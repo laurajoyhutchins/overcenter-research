@@ -2,7 +2,7 @@ import type {
   Data,
   ExecutionPermit,
   Work,
-} from './model.ts';
+} from '../model.ts';
 import {
   COMPUTATION_EVIDENCE_SCHEMA,
   assertComputationEvidenceFor,
@@ -11,11 +11,11 @@ import {
   type ComputationAttemptEvidenceV1,
   type ComputationExecutionV1,
   type ProcessSpecV1,
-} from './computation-execution.ts';
+} from './protocol.ts';
 import {
   KernelCore,
   type Receipt,
-} from './kernel-core.ts';
+} from '../authority/engine.ts';
 
 export const REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA='overcenter-replay-safe-test-computation-v1' as const;
 export const COMPUTATION_ATTEMPT_SUMMARY_SCHEMA='overcenter-computation-attempt-summary-v1' as const;

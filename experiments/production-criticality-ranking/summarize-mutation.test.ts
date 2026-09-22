@@ -9,13 +9,13 @@ test('attributes mutants only to semantic probe ranges',()=>{
       {id:'2',status:'Survived',location:{start:{line:19},end:{line:19}}},
       {id:'3',status:'Killed',location:{start:{line:30},end:{line:30}}},
     ]},
-    'src/kernel-core.ts':{mutants:[
+    'src/authority/engine.ts':{mutants:[
       {id:'4',status:'NoCoverage',location:{start:{line:450},end:{line:450}}},
     ]},
   }};
   const resolved={probes:[
     {id:'digest-foundation',ranges:[{file:'src/digest.ts',start:3,end:20}]},
-    {id:'execution-fence',ranges:[{file:'src/kernel-core.ts',start:446,end:462}]},
+    {id:'execution-fence',ranges:[{file:'src/authority/engine.ts',start:446,end:462}]},
   ]};
   const rows=summarize(report,resolved);
   const digest=rows.find(r=>r.id==='digest-foundation');

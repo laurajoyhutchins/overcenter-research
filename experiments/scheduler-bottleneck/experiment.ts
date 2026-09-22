@@ -11,13 +11,13 @@ import {
   normalizeObligation,
   obligationDefinition,
   obligationDefinitionId,
-} from '../../src/facts.ts';
-import { validateAdmission } from '../../src/admission.ts';
-import { dependsOn, validateGraph } from '../../src/graph.ts';
-import { OvercenterKernel } from '../../src/kernel.ts';
-import { replayProjection } from '../../src/projection.ts';
+} from '../../src/authority/facts.ts';
+import { validateAdmission } from '../../src/authority/admission.ts';
+import { dependsOn, validateGraph } from '../../src/graph/topology.ts';
+import { OvercenterKernel } from '../../src/authority/kernel.ts';
+import { replayProjection } from '../../src/authority/replay.ts';
 import { effectSemantics, settlementSemantics } from '../../src/semantics.ts';
-import { SqliteFactStore } from '../../src/sqlite-store.ts';
+import { SqliteFactStore } from '../../src/storage/sqlite.ts';
 
 const here=fileURLToPath(import.meta.url);
 const HISTORY_COUNTS=[10,100,1000,5000];

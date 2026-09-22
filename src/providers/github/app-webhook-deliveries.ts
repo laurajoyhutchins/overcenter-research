@@ -1,8 +1,8 @@
-import {GITHUB_API_VERSION} from './github-contract.ts';
+import {GITHUB_API_VERSION} from './contract.ts';
 import type {
   GithubWebhookDeliveryListPage,
   GithubWebhookDeliveryLister,
-} from './github-status-webhook.ts';
+} from './status-webhook.ts';
 
 export interface GithubAppWebhookHttpResponse {
   status:number;

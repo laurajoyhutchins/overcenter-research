@@ -1,12 +1,12 @@
 import {copyFileSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {dirname,join} from 'node:path';
 
-import {OvercenterKernel} from '../../src/kernel.ts';
+import {OvercenterKernel} from '../../src/authority/kernel.ts';
 import {
   assignmentFile,
   buildAssignment,
   encodeAssignment,
-} from '../../src/assignment-capsule.ts';
+} from '../../src/execution/assignment-capsule.ts';
 
 function required(name:string):string {
   const value=process.env[name];
@@ -72,7 +72,7 @@ try {
   }
 
   writeFileSync(join(capsuleDir,'assignment.json'),encoded);
-  copyFileSync(new URL('../../src/assignment-capsule.ts',import.meta.url),join(capsuleDir,'assignment-capsule.ts'));
+  copyFileSync(new URL('../../src/execution/assignment-capsule.ts',import.meta.url),join(capsuleDir,'assignment-capsule.ts'));
 
   console.log(JSON.stringify({
     obligation_id:obligationId,

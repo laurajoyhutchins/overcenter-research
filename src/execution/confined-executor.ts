@@ -6,7 +6,7 @@ import {
   renderExecutionManifest,
   type ExecutionManifestInput,
   type RenderedExecutionManifest,
-} from './execution-manifest.ts';
+} from './manifest.ts';
 
 export interface ConfinedWorkerLaunch {
   launcher:string;

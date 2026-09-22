@@ -11,7 +11,7 @@ import {
   materializeAssignment,
   validateAssignment,
   validateCandidate,
-} from '../../src/assignment-capsule.ts';
+} from '../../src/execution/assignment-capsule.ts';
 
 function work() {
   return {

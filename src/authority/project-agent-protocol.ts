@@ -15,10 +15,10 @@ import {
   encodeAssignment,
   validateCandidate,
   validPath,
-} from './assignment-capsule.ts';
-import {canonicalDigest} from './digest.ts';
-import {GitOvercenterKernel} from './git-kernel.ts';
-import type {Work} from './model.ts';
+} from '../execution/assignment-capsule.ts';
+import {canonicalDigest} from '../digest.ts';
+import {GitOvercenterKernel} from '../storage/git-kernel.ts';
+import type {Work} from '../model.ts';
 
 export const PROJECT_ADVANCE_RECEIPT_SCHEMA='overcenter-project-advance/v1' as const;
 export const PROJECT_SUBMIT_RECEIPT_SCHEMA='overcenter-project-submit/v1' as const;

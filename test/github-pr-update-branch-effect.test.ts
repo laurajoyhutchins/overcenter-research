@@ -4,18 +4,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { OvercenterKernel } from '../src/kernel.ts';
+import { OvercenterKernel } from '../src/authority/kernel.ts';
 import type { Postcondition } from '../src/model.ts';
 import {
   observationVerified,
   observePostcondition,
   observePostconditionAsync,
-} from '../src/observation.ts';
+} from '../src/observation/observe.ts';
 import {
   GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
   performGithubPullRequestUpdateBranchEffect,
   type GithubUpdateBranchPut,
-} from '../src/providers/github-pr-update-branch-effect.ts';
+} from '../src/providers/github/pr-update-branch-effect.ts';
 
 const HEAD='a'.repeat(40);
 const BASE='b'.repeat(40);

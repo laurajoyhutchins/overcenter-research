@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { posix as path } from 'node:path';
-import type { ExecutionPermit } from './model.ts';
+import type { ExecutionPermit } from '../model.ts';
 
 export const COMPUTATION_EXECUTION_SCHEMA='overcenter-computation-execution-v1' as const;
 export const PROCESS_SPEC_SCHEMA='overcenter-process-spec-v1' as const;

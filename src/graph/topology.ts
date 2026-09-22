@@ -1,5 +1,5 @@
-import type { Obligation } from './model.ts';
-import type { State } from './facts.ts';
+import type { Obligation } from '../model.ts';
+import type { State } from '../authority/facts.ts';
 
 export interface GraphIndex {
   upstreams:ReadonlyMap<string,readonly string[]>;

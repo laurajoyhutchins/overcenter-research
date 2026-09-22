@@ -1,7 +1,7 @@
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {dirname} from 'node:path';
 
-import {OvercenterKernel} from '../../src/kernel.ts';
+import {OvercenterKernel} from '../../src/authority/kernel.ts';
 
 const ASSIGNMENT_SCHEMA='overcenter-codex-closed-loop-assignment/v1';
 const TASK_SCHEMA='overcenter-codex-closed-loop-task/v1';

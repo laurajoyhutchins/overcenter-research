@@ -7,7 +7,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
-import { canonicalDigest } from './digest.ts';
+import { canonicalDigest } from '../digest.ts';
 
 interface SourceTreeFileEntry {
   path:string;

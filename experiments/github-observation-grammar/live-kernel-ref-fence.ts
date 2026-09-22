@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { observeCertifiedGithubRefFence } from '../../src/providers/github-certified-ref.ts';
+import { observeCertifiedGithubRefFence } from '../../src/providers/github/certified-ref.ts';
 
 const token=process.env.GITHUB_TOKEN;
 if (!token) throw new Error('GITHUB_TOKEN_REQUIRED');

@@ -1,4 +1,4 @@
-import { SqliteFactStore } from '../../src/sqlite-store.ts';
+import { SqliteFactStore } from '../../src/storage/sqlite.ts';
 
 const [database,expectedHead,label]=process.argv.slice(2);
 if (!database || !expectedHead || !label) {

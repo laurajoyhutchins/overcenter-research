@@ -38,15 +38,15 @@
         "artifact_digest": "sha256:973b3cec21aca10effee50c1a20a5f4b10dbf3ba6bc7c82b833c9b112b9a4cab"
       },
       "source_blobs": {
-        "src/semantic-identity.ts": "e86c460c34d292105b4160d23744d806a04337c6"
+        "src/graph/identity.ts": "e86c460c34d292105b4160d23744d806a04337c6"
       },
       "selectors": [
         {
-          "file": "src/semantic-identity.ts",
+          "file": "src/graph/identity.ts",
           "qualifiedName": "semanticDependencyIdentity"
         },
         {
-          "file": "src/semantic-identity.ts",
+          "file": "src/graph/identity.ts",
           "qualifiedName": "obligationKey"
         }
       ],
@@ -66,11 +66,11 @@
         "artifact_digest": "sha256:e3565397011110986b68b27b9b5c6c0959d5d0538e3c9c3bcebdbadc908d6e37"
       },
       "source_blobs": {
-        "src/projector.ts": "95b795ba41c39f2be0f2849c11cf96e7b30918c5"
+        "src/authority/project-state.ts": "95b795ba41c39f2be0f2849c11cf96e7b30918c5"
       },
       "selectors": [
         {
-          "file": "src/projector.ts",
+          "file": "src/authority/project-state.ts",
           "qualifiedName": "deriveRealizationRelations"
         }
       ],
@@ -90,11 +90,11 @@
         "artifact_digest": "sha256:e3565397011110986b68b27b9b5c6c0959d5d0538e3c9c3bcebdbadc908d6e37"
       },
       "source_blobs": {
-        "src/kernel-core.ts": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5"
+        "src/authority/engine.ts": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5"
       },
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "qualifiedName": "KernelCore.beginEffect"
         }
       ],
@@ -114,11 +114,11 @@
         "artifact_digest": "sha256:e3565397011110986b68b27b9b5c6c0959d5d0538e3c9c3bcebdbadc908d6e37"
       },
       "source_blobs": {
-        "src/kernel-core.ts": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5"
+        "src/authority/engine.ts": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5"
       },
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "qualifiedName": "KernelCore.resolve"
         }
       ],
@@ -138,11 +138,11 @@
         "mutation_report_sha256": "sha256:0b467d40e44bea35d0d8d50b74e6c09ea5e498db9d79d341ea2a910ab0b0e2da"
       },
       "source_blobs": {
-        "src/kernel-core.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
+        "src/authority/engine.ts": "fce1c788b58ee792a8c6d7575da91a2cea958305"
       },
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "qualifiedName": "KernelCore.#requireExecutionPermit"
         }
       ],
@@ -162,19 +162,19 @@
         "artifact_digest": "sha256:57cbea070c9aff0a7b83d1bbfe0ef910ea1c4a63d840bd800d0aee3c418dfa8e"
       },
       "source_blobs": {
-        "src/observation.ts": "7696e90f429f80879e6c6581e00d643d3c6cc2f7"
+        "src/observation/observe.ts": "7696e90f429f80879e6c6581e00d643d3c6cc2f7"
       },
       "selectors": [
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "qualifiedName": "authoritativeAbsenceEvidence"
         },
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "qualifiedName": "observationAuthoritativelyAbsent"
         },
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "qualifiedName": "observationVerified"
         }
       ],

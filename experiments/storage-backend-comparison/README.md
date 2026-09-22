@@ -20,7 +20,7 @@ The SQLite side deliberately does **not** store mutable lifecycle status. Projec
 
 ### Git current path
 
-The Git side mirrors `src/git-store.ts`:
+The Git side mirrors `src/storage/git-store.ts`:
 
 1. `hash-object -w --stdin`
 2. `mktree`

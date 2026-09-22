@@ -41,7 +41,7 @@
   "governance": {
     "structureAuthority": "./schema.json",
     "semanticsAuthority": "./contract.json and ./README.md",
-    "replayAuthority": "../../src/projection.ts",
+    "replayAuthority": "../../src/authority/replay.ts",
     "conflictPolicy": "machine-readable-structure-wins",
     "generatedOutputIsNotVerifiedOutput": true
   },
@@ -192,15 +192,15 @@
     },
     {
       "type": "runtime-validator",
-      "path": "../../src/facts.ts"
+      "path": "../../src/authority/facts.ts"
     },
     {
       "type": "replay-semantics",
-      "path": "../../src/projection.ts"
+      "path": "../../src/authority/replay.ts"
     },
     {
       "type": "storage-interface",
-      "path": "../../src/fact-store.ts"
+      "path": "../../src/authority/store.ts"
     }
   ],
   "extensions": {}

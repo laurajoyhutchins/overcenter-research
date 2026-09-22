@@ -38,7 +38,7 @@ There is deliberately no manifest-file pathname in the production launcher contr
 
 ## Manifest contract
 
-The manifest grammar is deliberately small and strict. `src/execution-manifest.ts` is the canonical emitter and `src/confined-executor.ts` is the trusted transport.
+The manifest grammar is deliberately small and strict. `src/execution/manifest.ts` is the canonical emitter and `src/execution/confined-executor.ts` is the trusted transport.
 
 ```text
 OVERCENTER_EXEC_V1

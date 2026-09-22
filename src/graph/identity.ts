@@ -1,15 +1,15 @@
-import type { Obligation } from './model.ts';
+import type { Obligation } from '../model.ts';
 import type {
   Receipt,
   State,
-} from './facts.ts';
-import type { Lifecycle } from './projector.ts';
-import { canonicalDigest } from './digest.ts';
-import { verifiedContentIdentity } from './semantics.ts';
+} from '../authority/facts.ts';
+import type { Lifecycle } from '../authority/project-state.ts';
+import { canonicalDigest } from '../digest.ts';
+import { verifiedContentIdentity } from '../semantics.ts';
 import {
   semanticDependencySelection,
   type SemanticDependency,
-} from './semantic-dependency.ts';
+} from './dependencies.ts';
 
 function semanticDependencyIdentity(
   state:State,

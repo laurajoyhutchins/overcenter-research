@@ -1,8 +1,8 @@
-import type { Obligation } from './model.ts';
+import type { Obligation } from '../model.ts';
 import {
   authoritativeAbsenceEvidence,
   observationVerified,
-} from './observation.ts';
+} from '../observation/observe.ts';
 import {
   emptyState,
   validateClaimFact,
@@ -27,14 +27,14 @@ import type {
 import {
   dependencyUpstreams,
   validateGraph,
-} from './graph.ts';
-import { settlementSemantics } from './semantics.ts';
+} from '../graph/topology.ts';
+import { settlementSemantics } from '../semantics.ts';
 import { effectReservationAuthorityError, executionAuthorityAdvanceError, receiptAuthorityError } from './transaction-admission.ts';
 import {
   deriveProjectProjection,
   hasInFlight,
   type ProjectProjection as WorkProjection,
-} from './projector.ts';
+} from './project-state.ts';
 
 export interface HistoryProjection {
   runs:Map<string,HistoricalRun>;

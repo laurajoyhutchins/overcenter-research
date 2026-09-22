@@ -1,10 +1,10 @@
-import type { Obligation } from './model.ts';
-import type { ObligationInput, State } from './facts.ts';
+import type { Obligation } from '../model.ts';
+import type { ObligationInput, State } from '../authority/facts.ts';
 import {
   normalizeObligation,
   obligationDefinition,
   obligationDefinitionId,
-} from './facts.ts';
+} from '../authority/facts.ts';
 
 export interface GraphReconciliationPlan {
   upsert:Obligation[];

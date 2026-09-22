@@ -1,17 +1,17 @@
 import type {
   CertifiedGithubPullRequestIdentityResult,
   GithubPullRequestExpectedIdentity,
-} from './providers/github-certified-pr.ts';
+} from './certified-pr.ts';
 import {
   observeCertifiedGithubPullRequestIdentity,
-} from './providers/github-certified-pr.ts';
+} from './certified-pr.ts';
 import type {
   CertifiedGithubRefFenceResult,
-} from './providers/github-certified-ref.ts';
+} from './certified-ref.ts';
 import {
   observeCertifiedGithubRefFence,
-} from './providers/github-certified-ref.ts';
-import type { GithubJsonGet } from './providers/github-rest.ts';
+} from './certified-ref.ts';
+import type { GithubJsonGet } from './rest.ts';
 
 export type GithubAuthorityState='CURRENT'|'STALE'|'INDETERMINATE';
 

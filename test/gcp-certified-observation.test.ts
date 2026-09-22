@@ -4,12 +4,12 @@ import test from 'node:test';
 import {
   observeCertifiedGcpRead200,
   type GcpObservationOperation,
-} from '../src/providers/gcp-certified-observation.ts';
+} from '../src/providers/gcp/certified-observation.ts';
 import {
   assertGcpAuthorityHost,
   type GcpJsonGet,
-} from '../src/providers/gcp-rest.ts';
-import { projectResponseSlice } from '../src/provider-observation/response-slice.ts';
+} from '../src/providers/gcp/rest.ts';
+import { projectResponseSlice } from '../src/observation/response-slice.ts';
 
 const SERVICE_FIELDS=[
   {path:'name'},

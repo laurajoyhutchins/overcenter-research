@@ -1,18 +1,18 @@
-import type { ProviderObservation } from '../provider-observation/observation.ts';
+import type { ProviderObservation } from '../../observation/provider.ts';
 import {
   validateObservationSlice,
   type CertifiedObservation,
   type ResponseFieldSpec,
-} from '../provider-observation/response-slice.ts';
+} from '../../observation/response-slice.ts';
 import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
-} from './github-contract.ts';
+} from './contract.ts';
 import type {
   GithubObservationOperation,
   MaterializedGithubOperationRequest,
-} from './github-openapi.ts';
-import type { GithubJsonGet } from './github-rest.ts';
+} from './openapi.ts';
+import type { GithubJsonGet } from './rest.ts';
 
 interface GithubObservationRequest {
   method:'GET';

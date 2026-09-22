@@ -2,7 +2,7 @@ import {
   materializeGithubOperationRequest,
   type GithubObservationOperation,
   type MaterializedGithubOperationRequest,
-} from './github-openapi.ts';
+} from './openapi.ts';
 
 export interface GithubPageRead<T,E extends object> {
   members:readonly T[];

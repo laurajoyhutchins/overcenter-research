@@ -21,11 +21,11 @@
       "id": "semantic-identity",
       "selectors": [
         {
-          "file": "src/semantic-identity.ts",
+          "file": "src/graph/identity.ts",
           "name": "semanticDependencyIdentity"
         },
         {
-          "file": "src/semantic-identity.ts",
+          "file": "src/graph/identity.ts",
           "name": "obligationKey"
         }
       ],
@@ -38,7 +38,7 @@
       "id": "done-candidate-reuse",
       "selectors": [
         {
-          "file": "src/projector.ts",
+          "file": "src/authority/project-state.ts",
           "name": "deriveRealizationRelations"
         }
       ],
@@ -50,7 +50,7 @@
       "id": "effect-reservation",
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "qualifiedName": "KernelCore.beginEffect"
         }
       ],
@@ -64,7 +64,7 @@
       "id": "settlement",
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "qualifiedName": "KernelCore.resolve"
         }
       ],
@@ -78,7 +78,7 @@
       "id": "execution-fence",
       "selectors": [
         {
-          "file": "src/transaction-admission.ts",
+          "file": "src/authority/transaction-admission.ts",
           "name": "projectExecutionAuthority"
         }
       ],
@@ -90,15 +90,15 @@
       "id": "verification-and-absence",
       "selectors": [
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "name": "authoritativeAbsenceEvidence"
         },
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "name": "observationAuthoritativelyAbsent"
         },
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "name": "observationVerified"
         }
       ],

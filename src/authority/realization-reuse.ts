@@ -1,7 +1,7 @@
 import type {
   Observation,
   Postcondition,
-} from './model.ts';
+} from '../model.ts';
 import type {
   HistoricalRun,
   Receipt,
@@ -10,7 +10,7 @@ import type {
 import {
   authoritativeAbsenceEvidence,
   observationVerified,
-} from './observation.ts';
+} from '../observation/observe.ts';
 
 export type CurrentRealizationJudgment =
   | {

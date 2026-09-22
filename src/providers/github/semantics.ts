@@ -1,4 +1,4 @@
-import type { ResponseFieldSpec } from '../provider-observation/response-slice.ts';
+import type { ResponseFieldSpec } from '../../observation/response-slice.ts';
 
 export type GithubRepositoryReadPermission=
   |'actions:read'

@@ -1,16 +1,16 @@
-import type { ProviderObservation } from '../provider-observation/observation.ts';
+import type { ProviderObservation } from '../../observation/provider.ts';
 import {
   validateObservationSlice,
   type CertifiedObservation,
   type ResponseFieldSpec,
   type SchemaResolver,
   type StructuralOperation,
-} from '../provider-observation/response-slice.ts';
+} from '../../observation/response-slice.ts';
 import {
   assertGcpAuthorityHost,
   gcpGet,
   type GcpJsonGet,
-} from './gcp-rest.ts';
+} from './rest.ts';
 
 export interface GcpObservationOperation extends StructuralOperation {
   provider:'gcp';

@@ -22,15 +22,15 @@ import {
   validateComputationExecution,
   validateProcessSpec,
   type ProcessSpecV1,
-} from '../src/computation-execution.ts';
+} from '../src/execution/protocol.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
   resumeTestComputation,
   runReadyTestComputation,
-} from '../src/computation-runner.ts';
-import { GitOvercenterKernel } from '../src/git-kernel.ts';
-import { runCoreLoop } from '../src/kernel-core.ts';
-import { GoExecutorClient } from '../src/go-executor-client.ts';
+} from '../src/execution/runner.ts';
+import { GitOvercenterKernel } from '../src/storage/git-kernel.ts';
+import { runCoreLoop } from '../src/authority/engine.ts';
+import { GoExecutorClient } from '../src/execution/go-client.ts';
 import type { ExecutionPermit } from '../src/model.ts';
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
@@ -1285,7 +1285,7 @@ test('completion evidence releases server capacity before replacement work is ad
 });
 
 test('test computation runner cannot open the provider effect boundary',()=>{
-  const source=readFileSync(join(repoRoot,'src/computation-runner.ts'),'utf8');
+  const source=readFileSync(join(repoRoot,'src/execution/runner.ts'),'utf8');
   for (const forbidden of [
     /beginEffect/,
     /performEffect/,

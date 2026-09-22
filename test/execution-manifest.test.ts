@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { sha256 } from '../src/digest.ts';
-import { runConfinedWorker } from '../src/confined-executor.ts';
-import { renderExecutionManifest } from '../src/execution-manifest.ts';
+import { runConfinedWorker } from '../src/execution/confined-executor.ts';
+import { renderExecutionManifest } from '../src/execution/manifest.ts';
 
 const base={
   task_id:'task-7',

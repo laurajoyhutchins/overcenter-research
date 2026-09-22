@@ -1,8 +1,8 @@
-import type { KernelCore } from '../kernel-core.ts';
-import type { ExecutionPermit } from '../model.ts';
-import { GITHUB_API_VERSION } from './github-contract.ts';
-import { observeCertifiedGithubPullRequestIdentity } from './github-certified-pr.ts';
-import { githubGetAsync, runGithubReadObserverAsync, type GithubJsonGetAsync } from './github-rest.ts';
+import type { KernelCore } from '../../authority/engine.ts';
+import type { ExecutionPermit } from '../../model.ts';
+import { GITHUB_API_VERSION } from './contract.ts';
+import { observeCertifiedGithubPullRequestIdentity } from './certified-pr.ts';
+import { githubGetAsync, runGithubReadObserverAsync, type GithubJsonGetAsync } from './rest.ts';
 
 export const GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT =
   'github-pull-request/update-branch' as const;

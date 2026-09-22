@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 
-import { GITHUB_API_VERSION } from './github-contract.ts';
+import { GITHUB_API_VERSION } from './contract.ts';
 
 export type GithubJsonGet=(token:string,path:string)=>unknown;
 export type GithubJsonGetAsync=(token:string,path:string)=>unknown|Promise<unknown>;

@@ -3,7 +3,7 @@ import {appendFileSync} from 'node:fs';
 import {
   advanceProjectForAgent,
   type ProjectCommandContext,
-} from '../src/project-agent-protocol.ts';
+} from '../src/authority/project-agent-protocol.ts';
 
 function required(name:string):string {
   const value=process.env[name];

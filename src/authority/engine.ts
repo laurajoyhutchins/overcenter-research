@@ -10,12 +10,12 @@ import type {
   Postcondition,
   Run,
   Work,
-} from './model.ts';
-import type { DurableFactStore } from './fact-store.ts';
+} from '../model.ts';
+import type { DurableFactStore } from './store.ts';
 import {
   observePostcondition, observePostconditionAsync,
   type ObservationContext,
-} from './observation.ts';
+} from '../observation/observe.ts';
 import {
   CLAIM_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
@@ -44,15 +44,15 @@ import {
   explainProjectWork,
   hasInFlight,
   type ProjectExplanation,
-} from './projector.ts';
-import { deriveCurrentRealizationJudgments } from './realization-admissibility.ts';
+} from './project-state.ts';
+import { deriveCurrentRealizationJudgments } from './realization-reuse.ts';
 import {
   projectReceipt,
   replayProjection,
-} from './projection.ts';
-import type { Projection } from './projection.ts';
+} from './replay.ts';
+import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
-import { planGraphReconciliation } from './graph-reconciliation.ts';
+import { planGraphReconciliation } from '../graph/reconciliation.ts';
 
 export type { Receipt } from './facts.ts';
 

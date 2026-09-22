@@ -2,29 +2,29 @@ import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
-} from './github-contract.ts';
+} from './contract.ts';
 import {
   GITHUB_COMBINED_COMMIT_STATUS_OPERATION,
   GITHUB_COMMIT_STATUSES_OPERATION,
-} from './github-operations.generated.ts';
-import { materializeGithubOperationRequest } from './github-openapi.ts';
-import { scanGithubPageCollection } from './github-page-collection.ts';
+} from './operations.generated.ts';
+import { materializeGithubOperationRequest } from './openapi.ts';
+import { scanGithubPageCollection } from './page-collection.ts';
 import {
   GITHUB_COMBINED_COMMIT_STATUS_RESPONSE_SLICE,
   GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
-} from './github-semantics.ts';
+} from './semantics.ts';
 import {
   githubRepositoryCoordinate,
   observeCertifiedGithubRepository,
   type CertifiedGithubRepositoryEvidence,
-} from './github-certified-repository.ts';
-import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
+} from './certified-repository.ts';
+import { observeCertifiedGithubRead200 } from './certified-observation.ts';
 import {
   githubGet,
   githubStatusContextKey,
   sameGithubObjectId,
   type GithubJsonGet,
-} from './github-rest.ts';
+} from './rest.ts';
 
 export interface CertifiedGithubStatusPageEvidence {
   page:number;
@@ -371,14 +371,14 @@ export function observeCertifiedGithubCommitStatus(
 export {
   GITHUB_COMBINED_COMMIT_STATUS_OPERATION,
   GITHUB_COMMIT_STATUSES_OPERATION,
-} from './github-operations.generated.ts';
+} from './operations.generated.ts';
 export {
   GITHUB_COMBINED_COMMIT_STATUS_RESPONSE_SLICE,
   GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
-} from './github-semantics.ts';
+} from './semantics.ts';
 export {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
-} from './github-contract.ts';
-export type { GithubJsonGet } from './github-rest.ts';
+} from './contract.ts';
+export type { GithubJsonGet } from './rest.ts';

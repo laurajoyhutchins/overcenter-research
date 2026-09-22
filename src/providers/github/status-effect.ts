@@ -1,12 +1,12 @@
-import type { KernelCore } from '../kernel-core.ts';
-import type { ExecutionPermit } from '../model.ts';
-import { GITHUB_API_VERSION } from './github-contract.ts';
-import { observeCertifiedGithubRepository } from './github-certified-repository.ts';
+import type { KernelCore } from '../../authority/engine.ts';
+import type { ExecutionPermit } from '../../model.ts';
+import { GITHUB_API_VERSION } from './contract.ts';
+import { observeCertifiedGithubRepository } from './certified-repository.ts';
 import {
   githubGetAsync,
   runGithubReadObserverAsync,
   type GithubJsonGetAsync,
-} from './github-rest.ts';
+} from './rest.ts';
 
 export const GITHUB_COMMIT_STATUS_EFFECT =
   'github-commit-status/set-from-postcondition/v1' as const;

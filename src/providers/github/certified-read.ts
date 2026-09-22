@@ -2,22 +2,22 @@ import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
-} from './github-contract.ts';
-import { GITHUB_OBSERVATION_OPERATIONS } from './github-operations.generated.ts';
-import { materializeGithubOperationRequest } from './github-openapi.ts';
+} from './contract.ts';
+import { GITHUB_OBSERVATION_OPERATIONS } from './operations.generated.ts';
+import { materializeGithubOperationRequest } from './openapi.ts';
 import {
   GITHUB_OPERATION_SEMANTICS,
   type GithubRepositoryReadPermission,
   type GithubSemanticOperationName,
-} from './github-semantics.ts';
+} from './semantics.ts';
 import {
   githubRepositoryCoordinate,
   observeCertifiedGithubRepository,
   type CertifiedGithubRepositoryEvidence,
-} from './github-certified-repository.ts';
-import { projectResponseSlice } from '../provider-observation/response-slice.ts';
-import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
-import { githubGet,type GithubJsonGet } from './github-rest.ts';
+} from './certified-repository.ts';
+import { projectResponseSlice } from '../../observation/response-slice.ts';
+import { observeCertifiedGithubRead200 } from './certified-observation.ts';
+import { githubGet,type GithubJsonGet } from './rest.ts';
 
 export type GithubGenericSemanticOperationName=Exclude<GithubSemanticOperationName,'repository'>;
 

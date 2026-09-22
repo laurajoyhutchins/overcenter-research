@@ -1,10 +1,10 @@
-import { canonicalDigest } from '../digest.ts';
-import { projectResponseSlice } from '../provider-observation/response-slice.ts';
+import { canonicalDigest } from '../../digest.ts';
+import { projectResponseSlice } from '../../observation/response-slice.ts';
 import {
   observeCertifiedGcpRead200,
   type GcpObservationOperation,
-} from './gcp-certified-observation.ts';
-import type { GcpJsonGet } from './gcp-rest.ts';
+} from './certified-observation.ts';
+import type { GcpJsonGet } from './rest.ts';
 
 const CLOUD_SQL_INSTANCE_SCHEMA={
   type:'object',

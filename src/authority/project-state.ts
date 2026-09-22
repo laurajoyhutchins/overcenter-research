@@ -3,21 +3,21 @@ import type {
   Run,
   Work,
   WorkStatus,
-} from './model.ts';
+} from '../model.ts';
 import type {
   HistoricalRun,
   Receipt,
   State,
 } from './facts.ts';
-import { dependencyUpstreams } from './graph.ts';
+import { dependencyUpstreams } from '../graph/topology.ts';
 import {
   buildStaticEffectIndex,
   staticEffectConflict,
   type StaticEffectConflict,
   type StaticEffectIndex,
 } from './admission.ts';
-import { obligationKey } from './semantic-identity.ts';
-import type { CurrentRealizationJudgment } from './realization-admissibility.ts';
+import { obligationKey } from '../graph/identity.ts';
+import type { CurrentRealizationJudgment } from './realization-reuse.ts';
 
 export type RealizationStatus =
   | 'UNREALIZED'

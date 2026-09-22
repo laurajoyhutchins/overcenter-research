@@ -1,4 +1,4 @@
-import type { Dependency } from './model.ts';
+import type { Dependency } from '../model.ts';
 
 export type SemanticDependency=Extract<Dependency,{kind:'semantic'}>;
 

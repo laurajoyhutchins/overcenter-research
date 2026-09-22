@@ -1,11 +1,11 @@
 import { DatabaseSync } from 'node:sqlite';
 
-import { canonicalDigest } from './digest.ts';
+import { canonicalDigest } from '../digest.ts';
 import {
   factCommitFromFiles,
   type DurableFactStore,
-} from './fact-store.ts';
-import type { FactCommit } from './facts.ts';
+} from '../authority/store.ts';
+import type { FactCommit } from '../authority/facts.ts';
 
 const COMMIT_SCHEMA='overcenter-sqlite-fact-commit-v1' as const;
 const SCHEMA_BUSY_RETRIES=4;

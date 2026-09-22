@@ -6,12 +6,12 @@ import {
   type HistoricalRun,
   type Receipt,
   type State,
-} from '../src/facts.ts';
+} from '../src/authority/facts.ts';
 import type { Obligation } from '../src/model.ts';
 import {
   deriveProjectProjection,
   explainProjectWork,
-} from '../src/projector.ts';
+} from '../src/authority/project-state.ts';
 
 const a:Obligation={
   id:'a',

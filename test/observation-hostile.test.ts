@@ -5,7 +5,7 @@ import { canonicalDigest, sha256 } from '../src/digest.ts';
 import {
   ABSENCE_EVIDENCE_SCHEMA,
   localFileEnoentEvidence,
-} from '../src/evidence.ts';
+} from '../src/observation/evidence.ts';
 import type {
   AbsenceEvidenceCertificate,
   GitHubCommitStatusPostcondition,
@@ -17,11 +17,11 @@ import {
   authoritativeAbsenceEvidence,
   observationAuthoritativelyAbsent,
   observationVerified,
-} from '../src/observation.ts';
+} from '../src/observation/observe.ts';
 import {
   KUBERNETES_COMPLETE_LIST_ABSENCE,
   KUBERNETES_CONFIGMAP_LIST_OPERATION_ID,
-} from '../src/providers/kubernetes-configmap.ts';
+} from '../src/providers/kubernetes/configmap.ts';
 
 type FilePostcondition=Extract<
   Postcondition,

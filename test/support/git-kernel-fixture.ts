@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
 import type { Dependency, ExecutionPermit, Work } from '../../src/model.ts';
 
 const STATE_REF='refs/overcenter/state';

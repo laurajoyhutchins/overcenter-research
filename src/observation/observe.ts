@@ -5,23 +5,23 @@ import type {
   AbsenceEvidenceCertificate,
   Observation,
   Postcondition,
-} from './model.ts';
+} from '../model.ts';
 import {
   localFileEnoentEvidence,
   localFileEnoentEvidenceMatches,
   validateAbsenceEvidenceEnvelope,
 } from './evidence.ts';
-import {SettlementObservationSchema} from './generated/settlement-observation-schema.ts';
+import {SettlementObservationSchema} from '../generated/settlement-observation-schema.ts';
 import {
   assertSupportedStructuralSchema,
   structurallyMatches,
-} from './structural-schema.ts';
+} from '../structural-schema.ts';
 import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
-} from './providers/github-certified-status.ts';
-import { observeCertifiedGithubPullRequestIdentity } from './providers/github-certified-pr.ts';
-import { observeCertifiedGithubCommitAncestry } from './providers/github-certified-ancestry.ts';
+} from '../providers/github/certified-status.ts';
+import { observeCertifiedGithubPullRequestIdentity } from '../providers/github/certified-pr.ts';
+import { observeCertifiedGithubCommitAncestry } from '../providers/github/certified-ancestry.ts';
 import {
   githubGet,
   githubGetAsync,
@@ -29,13 +29,13 @@ import {
   sameGithubObjectId,
   runGithubReadObserverAsync,
   type GithubJsonGetAsync,
-} from './providers/github-rest.ts';
-import type { GithubStatusMirror } from './providers/github-status-webhook.ts';
+} from '../providers/github/rest.ts';
+import type { GithubStatusMirror } from '../providers/github/status-webhook.ts';
 import {
   kubernetesConfigMapAbsenceEvidenceMatches,
   observeCertifiedKubernetesConfigMap,
   type KubernetesListConfigMaps,
-} from './providers/kubernetes-configmap.ts';
+} from '../providers/kubernetes/configmap.ts';
 
 export interface ObservationContext {
   githubToken: string | null;

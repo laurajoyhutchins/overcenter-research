@@ -1,6 +1,6 @@
 import {DatabaseSync} from 'node:sqlite';
 
-import {canonicalDigest} from '../digest.ts';
+import {canonicalDigest} from '../../digest.ts';
 import {
   GithubStatusMirror,
   type CertifiedGithubStatusWebhookFact,
@@ -10,7 +10,7 @@ import {
   type GithubWebhookAuthority,
   type GithubWebhookDeliveryLister,
   type GithubWebhookDeliverySummary,
-} from './github-status-webhook.ts';
+} from './status-webhook.ts';
 
 interface FactRow {
   sequence:number|bigint;

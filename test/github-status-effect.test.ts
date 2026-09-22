@@ -4,13 +4,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { OvercenterKernel } from '../src/kernel.ts';
+import { OvercenterKernel } from '../src/authority/kernel.ts';
 import {
   GITHUB_COMMIT_STATUS_EFFECT,
   performGithubCommitStatusEffect,
   type GithubStatusPost,
-} from '../src/providers/github-status-effect.ts';
-import type { GithubJsonGet } from '../src/providers/github-rest.ts';
+} from '../src/providers/github/status-effect.ts';
+import type { GithubJsonGet } from '../src/providers/github/rest.ts';
 
 const COMMIT='a'.repeat(40);
 

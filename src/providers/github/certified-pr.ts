@@ -2,22 +2,22 @@ import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
-} from './github-contract.ts';
-import { GITHUB_PULL_REQUEST_OPERATION } from './github-operations.generated.ts';
-import { materializeGithubOperationRequest } from './github-openapi.ts';
-import { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './github-semantics.ts';
+} from './contract.ts';
+import { GITHUB_PULL_REQUEST_OPERATION } from './operations.generated.ts';
+import { materializeGithubOperationRequest } from './openapi.ts';
+import { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './semantics.ts';
 import {
   observeCertifiedGithubRepository,
   type CertifiedGithubRepositoryEvidence,
-} from './github-certified-repository.ts';
-import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
+} from './certified-repository.ts';
+import { observeCertifiedGithubRead200 } from './certified-observation.ts';
 import {
   GithubAsyncReadRequired,
   githubGet,
   isGithubObjectId,
   sameGithubObjectId,
   type GithubJsonGet,
-} from './github-rest.ts';
+} from './rest.ts';
 
 export interface GithubPullRequestExpectedIdentity {
   node_id:string;
@@ -189,5 +189,5 @@ export function observeCertifiedGithubPullRequestIdentity(
   }
 }
 
-export { GITHUB_PULL_REQUEST_OPERATION } from './github-operations.generated.ts';
-export { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './github-semantics.ts';
+export { GITHUB_PULL_REQUEST_OPERATION } from './operations.generated.ts';
+export { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './semantics.ts';

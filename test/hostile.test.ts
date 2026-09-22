@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { projectExecutionAuthority } from '../src/transaction-admission.ts';
+import { projectExecutionAuthority } from '../src/authority/transaction-admission.ts';
 
 import './semantic-identity-hostile.test.ts';
 import './observation-hostile.test.ts';

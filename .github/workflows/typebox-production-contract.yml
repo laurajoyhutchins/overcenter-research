@@ -11,7 +11,7 @@ on:
       - 'src/generated/settlement-observation-schema.ts'
       - 'src/structural-schema.ts'
       - 'src/model.ts'
-      - 'src/observation.ts'
+      - 'src/observation/observe.ts'
       - 'scripts/generate-settlement-observation.ts'
       - 'test/typebox-production-contract.test.ts'
       - 'test/typebox-production-contract.static.ts'

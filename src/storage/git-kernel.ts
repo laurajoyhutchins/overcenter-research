@@ -2,9 +2,9 @@ import { GitFactStore } from './git-store.ts';
 import {
   KernelCore,
   type KernelOptions,
-} from './kernel-core.ts';
+} from '../authority/engine.ts';
 
-export type { Receipt } from './kernel-core.ts';
+export type { Receipt } from '../authority/engine.ts';
 
 const STATE_REF='refs/overcenter/state';
 

@@ -7,12 +7,12 @@ import {
   RECEIPT_SCHEMA,
   obligationDefinition,
   obligationDefinitionId,
-} from '../src/facts.ts';
-import type { FactCommit, GraphPatchFact, ReceiptFact } from '../src/facts.ts';
-import { obligationKey } from '../src/semantic-identity.ts';
-import { projectReceipt, replayProjection } from '../src/projection.ts';
+} from '../src/authority/facts.ts';
+import type { FactCommit, GraphPatchFact, ReceiptFact } from '../src/authority/facts.ts';
+import { obligationKey } from '../src/graph/identity.ts';
+import { projectReceipt, replayProjection } from '../src/authority/replay.ts';
 import type { Obligation } from '../src/model.ts';
-import { localFileEnoentEvidence } from '../src/evidence.ts';
+import { localFileEnoentEvidence } from '../src/observation/evidence.ts';
 
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 

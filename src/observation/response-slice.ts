@@ -3,7 +3,7 @@ import {
   type ProviderObservation,
   type ProviderObservationValidationOptions,
   type ProviderStructuralValidation,
-} from './observation.ts';
+} from './provider.ts';
 
 export interface ResponseFieldSpec {
   path: string;

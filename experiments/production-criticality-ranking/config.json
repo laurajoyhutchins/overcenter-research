@@ -10,7 +10,7 @@
     {
       "id": "realization-reuse",
       "sink": {
-        "file": "src/realization-admissibility.ts",
+        "file": "src/authority/realization-reuse.ts",
         "name": "deriveCurrentRealizationJudgments"
       },
       "recoveryClass": 3
@@ -18,7 +18,7 @@
     {
       "id": "semantic-identity",
       "sink": {
-        "file": "src/semantic-identity.ts",
+        "file": "src/graph/identity.ts",
         "name": "obligationKey"
       },
       "recoveryClass": 4
@@ -26,7 +26,7 @@
     {
       "id": "project-truth-projection",
       "sink": {
-        "file": "src/projector.ts",
+        "file": "src/authority/project-state.ts",
         "name": "deriveProjectProjection"
       },
       "recoveryClass": 4
@@ -34,7 +34,7 @@
     {
       "id": "observation-verification",
       "sink": {
-        "file": "src/observation.ts",
+        "file": "src/observation/observe.ts",
         "name": "observationVerified"
       },
       "recoveryClass": 4
@@ -42,7 +42,7 @@
     {
       "id": "authoritative-absence",
       "sink": {
-        "file": "src/observation.ts",
+        "file": "src/observation/observe.ts",
         "name": "observationAuthoritativelyAbsent"
       },
       "recoveryClass": 4
@@ -50,7 +50,7 @@
     {
       "id": "claim-authority",
       "sink": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.claim"
       },
       "recoveryClass": 3
@@ -58,7 +58,7 @@
     {
       "id": "execution-authority",
       "sink": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.acquireExecution"
       },
       "recoveryClass": 4
@@ -66,7 +66,7 @@
     {
       "id": "effect-reservation",
       "sink": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.beginEffect"
       },
       "recoveryClass": 5
@@ -74,7 +74,7 @@
     {
       "id": "settlement",
       "sink": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.resolveAsync"
       },
       "recoveryClass": 5
@@ -82,7 +82,7 @@
     {
       "id": "interrupted-execution-recovery",
       "sink": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.recoverInterrupted"
       },
       "recoveryClass": 5
@@ -92,33 +92,33 @@
     {
       "id": "effect-error-recovery",
       "entry": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "name": "runCoreLoop"
       },
       "terminal": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.recoverInterrupted"
       }
     },
     {
       "id": "ordinary-resolution",
       "entry": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "name": "runCoreLoop"
       },
       "terminal": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.resolveAsync"
       }
     },
     {
       "id": "explicit-reconciliation",
       "entry": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.reconcile"
       },
       "terminal": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.resolve"
       }
     }
@@ -157,7 +157,7 @@
     "criticalCallbackBoundaries": [
       {
         "caller": {
-          "file": "src/realization-admissibility.ts",
+          "file": "src/authority/realization-reuse.ts",
           "name": "deriveCurrentRealizationJudgments"
         },
         "parameter": "observe",
@@ -165,7 +165,7 @@
       },
       {
         "caller": {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "name": "runCoreLoop"
         },
         "parameter": "preflight",
@@ -173,7 +173,7 @@
       },
       {
         "caller": {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "name": "runCoreLoop"
         },
         "parameter": "effect",
@@ -185,11 +185,11 @@
     {
       "id": "reuse-over-identity",
       "higher": {
-        "file": "src/projector.ts",
+        "file": "src/authority/project-state.ts",
         "name": "deriveRealizationRelations"
       },
       "lower": {
-        "file": "src/semantic-identity.ts",
+        "file": "src/graph/identity.ts",
         "name": "obligationKey"
       },
       "rationale": "Prior human ranking put DONE-candidate reuse above semantic identity; the callable-level proxy is the projection function containing DONE-candidate selection."
@@ -199,11 +199,11 @@
     {
       "id": "identity-over-settlement",
       "higher": {
-        "file": "src/semantic-identity.ts",
+        "file": "src/graph/identity.ts",
         "name": "obligationKey"
       },
       "lower": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.resolveAsync"
       },
       "rationale": "Prior human ranking put obligation/verifier identity above the normal production settlement boundary, now KernelCore.resolveAsync."
@@ -211,11 +211,11 @@
     {
       "id": "settlement-over-absence",
       "higher": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.resolveAsync"
       },
       "lower": {
-        "file": "src/observation.ts",
+        "file": "src/observation/observe.ts",
         "name": "observationAuthoritativelyAbsent"
       },
       "rationale": "Prior human ranking put normal production settlement above authoritative absence."
@@ -223,11 +223,11 @@
     {
       "id": "verification-over-absence",
       "higher": {
-        "file": "src/observation.ts",
+        "file": "src/observation/observe.ts",
         "name": "observationVerified"
       },
       "lower": {
-        "file": "src/observation.ts",
+        "file": "src/observation/observe.ts",
         "name": "observationAuthoritativelyAbsent"
       },
       "rationale": "Prior human ranking put the verified predicate above authoritative absence."
@@ -235,11 +235,11 @@
     {
       "id": "execution-fence-over-reservation",
       "higher": {
-        "file": "src/transaction-admission.ts",
+        "file": "src/authority/transaction-admission.ts",
         "name": "projectExecutionAuthority"
       },
       "lower": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.beginEffect"
       },
       "rationale": "Execution fencing should outrank durable reservation; the fencing unit is now the pure exact run/permit authority projection used by every execution-permit guard."
@@ -247,11 +247,11 @@
     {
       "id": "projection-over-explanation",
       "higher": {
-        "file": "src/projector.ts",
+        "file": "src/authority/project-state.ts",
         "name": "deriveProjectProjection"
       },
       "lower": {
-        "file": "src/projector.ts",
+        "file": "src/authority/project-state.ts",
         "name": "explainProjectWork"
       },
       "rationale": "Project truth should outrank explanatory rendering."
@@ -259,11 +259,11 @@
     {
       "id": "settlement-over-formatting",
       "higher": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "qualifiedName": "KernelCore.resolveAsync"
       },
       "lower": {
-        "file": "src/kernel-core.ts",
+        "file": "src/authority/engine.ts",
         "name": "errorMessage"
       },
       "rationale": "Proof-bearing normal production settlement should outrank error-string plumbing."

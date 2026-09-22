@@ -1,8 +1,8 @@
-import { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
-import { materializeGithubOperationRequest } from './github-openapi.ts';
-import { observeCertifiedGithubRead200 } from './github-certified-observation.ts';
-import { GITHUB_REPOSITORY_RESPONSE_SLICE } from './github-semantics.ts';
-import { githubGet, type GithubJsonGet } from './github-rest.ts';
+import { GITHUB_REPOSITORY_OPERATION } from './operations.generated.ts';
+import { materializeGithubOperationRequest } from './openapi.ts';
+import { observeCertifiedGithubRead200 } from './certified-observation.ts';
+import { GITHUB_REPOSITORY_RESPONSE_SLICE } from './semantics.ts';
+import { githubGet, type GithubJsonGet } from './rest.ts';
 
 export interface RepositoryIdentityFact {
   kind:'repository-identity';
@@ -105,8 +105,8 @@ export {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
-} from './github-contract.ts';
-export { GITHUB_REPOSITORY_OPERATION } from './github-operations.generated.ts';
-export { GITHUB_REPOSITORY_RESPONSE_SLICE } from './github-semantics.ts';
-export type { GithubObservationOperation } from './github-openapi.ts';
-export type { GithubJsonGet } from './github-rest.ts';
+} from './contract.ts';
+export { GITHUB_REPOSITORY_OPERATION } from './operations.generated.ts';
+export { GITHUB_REPOSITORY_RESPONSE_SLICE } from './semantics.ts';
+export type { GithubObservationOperation } from './openapi.ts';
+export type { GithubJsonGet } from './rest.ts';

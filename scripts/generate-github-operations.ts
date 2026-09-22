@@ -4,16 +4,16 @@ import {
   GITHUB_API_VERSION,
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
-} from '../src/providers/github-contract.ts';
+} from '../src/providers/github/contract.ts';
 import {
   deriveGithubObservationOperation,
   type GithubOpenApiDocument,
   type JsonObject,
-} from '../src/providers/github-openapi.ts';
-import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github-semantics.ts';
+} from '../src/providers/github/openapi.ts';
+import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github/semantics.ts';
 
 const schemaPath=process.argv[2];
-const outputPath=process.argv[3]??'src/providers/github-operations.generated.ts';
+const outputPath=process.argv[3]??'src/providers/github/operations.generated.ts';
 if (!schemaPath) throw new Error('usage: generate-github-operations.ts <api.github.com.json> [output.ts]');
 
 const source=readFileSync(schemaPath,'utf8');

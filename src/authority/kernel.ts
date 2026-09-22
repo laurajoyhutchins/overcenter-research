@@ -2,15 +2,15 @@ import {
   KernelCore,
   runCoreLoop,
   type KernelOptions,
-} from './kernel-core.ts';
-import { SqliteFactStore } from './sqlite-store.ts';
+} from './engine.ts';
+import { SqliteFactStore } from '../storage/sqlite.ts';
 
-export type { Receipt } from './kernel-core.ts';
+export type { Receipt } from './engine.ts';
 export type {
   GraphPatchInput,
   GraphReconciliationResult,
   KernelOptions,
-} from './kernel-core.ts';
+} from './engine.ts';
 
 export class OvercenterKernel extends KernelCore {
   readonly path:string;

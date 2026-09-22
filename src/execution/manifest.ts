@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { sha256 } from './digest.ts';
+import { sha256 } from '../digest.ts';
 
 export interface ExecutionManifestInput {
   task_id:string;

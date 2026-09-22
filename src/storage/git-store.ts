@@ -3,8 +3,8 @@ import { execFileSync } from 'node:child_process';
 import {
   factCommitFromFiles,
   type DurableFactStore,
-} from './fact-store.ts';
-import type { FactCommit } from './facts.ts';
+} from '../authority/store.ts';
+import type { FactCommit } from '../authority/facts.ts';
 
 interface GitResult {
   ok: boolean;

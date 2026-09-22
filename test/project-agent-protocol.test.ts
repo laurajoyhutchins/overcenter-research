@@ -12,11 +12,11 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
 
-import {GitOvercenterKernel} from '../src/git-kernel.ts';
+import {GitOvercenterKernel} from '../src/storage/git-kernel.ts';
 import {
   advanceProjectForAgent,
   submitProjectCandidate,
-} from '../src/project-agent-protocol.ts';
+} from '../src/authority/project-agent-protocol.ts';
 
 const AUTHORITY_REF='refs/overcenter/test-project-agent';
 

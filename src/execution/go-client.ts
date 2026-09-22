@@ -12,7 +12,7 @@ import {
   type ComputationAttemptEvidenceV1,
   type ComputationExecutionV1,
   type ExecutorCommandV1,
-} from './computation-execution.ts';
+} from './protocol.ts';
 
 interface PendingExecution {
   execution:ComputationExecutionV1;

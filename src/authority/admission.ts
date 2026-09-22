@@ -2,14 +2,14 @@ import type { State } from './facts.ts';
 import {
   buildGraphIndex,
   type GraphIndex,
-} from './graph.ts';
+} from '../graph/topology.ts';
 import {
   effectSemantics,
   settlementSemantics,
   verifiedContentIdentity,
   type EffectSemantics,
-} from './semantics.ts';
-import { semanticDependencySelection } from './semantic-dependency.ts';
+} from '../semantics.ts';
+import { semanticDependencySelection } from '../graph/dependencies.ts';
 
 function validateSemanticEdges(state:State):void {
   for (const obligation of Object.values(state.obligations)) {

@@ -1,5 +1,5 @@
-import type { AbsenceEvidenceCertificate } from './model.ts';
-import { hasExactKeys as exactKeys, isData } from './validation.ts';
+import type { AbsenceEvidenceCertificate } from '../model.ts';
+import { hasExactKeys as exactKeys, isData } from '../validation.ts';
 
 export const ABSENCE_EVIDENCE_SCHEMA='overcenter-absence-evidence-v1' as const;
 export const LOCAL_FILE_ENOENT_EVIDENCE='local-file-enoent/v1' as const;

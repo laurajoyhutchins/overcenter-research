@@ -8,10 +8,10 @@ import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-import type { DurableFactStore } from '../src/fact-store.ts';
-import type { FactCommit } from '../src/facts.ts';
-import { GitFactStore } from '../src/git-store.ts';
-import { SqliteFactStore } from '../src/sqlite-store.ts';
+import type { DurableFactStore } from '../src/authority/store.ts';
+import type { FactCommit } from '../src/authority/facts.ts';
+import { GitFactStore } from '../src/storage/git-store.ts';
+import { SqliteFactStore } from '../src/storage/sqlite.ts';
 
 function normalized(history:FactCommit[]) {
   const ids=new Map(

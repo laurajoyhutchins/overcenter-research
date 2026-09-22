@@ -4,8 +4,8 @@ import {
   executeGithubAuthorityCommand,
   githubAuthorityExitCode,
   parseGithubAuthorityCommand,
-} from '../src/github-authority-command.ts';
-import type { GithubJsonGet } from '../src/providers/github-rest.ts';
+} from '../src/providers/github/authority-command.ts';
+import type { GithubJsonGet } from '../src/providers/github/rest.ts';
 
 const HEAD='a'.repeat(40);
 const BASE='b'.repeat(40);

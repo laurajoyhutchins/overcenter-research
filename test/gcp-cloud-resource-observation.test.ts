@@ -4,12 +4,12 @@ import test from 'node:test';
 import {
   GCP_CLOUD_RUN_SERVICE_SCHEMA_SHA256,
   observeCertifiedGcpCloudRunService,
-} from '../src/providers/gcp-cloud-run-service.ts';
+} from '../src/providers/gcp/cloud-run-service.ts';
 import {
   GCP_CLOUD_SQL_INSTANCE_SCHEMA_SHA256,
   observeCertifiedGcpCloudSqlInstance,
-} from '../src/providers/gcp-cloud-sql-instance.ts';
-import type { GcpJsonGet } from '../src/providers/gcp-rest.ts';
+} from '../src/providers/gcp/cloud-sql-instance.ts';
+import type { GcpJsonGet } from '../src/providers/gcp/rest.ts';
 
 const runCoordinate={
   project:'demo-project',

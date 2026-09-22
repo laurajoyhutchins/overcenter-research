@@ -5,15 +5,15 @@ import {
   RECEIPT_SCHEMA,
   type Receipt,
   type State,
-} from '../src/facts.ts';
+} from '../src/authority/facts.ts';
 import { canonicalDigest, sha256 } from '../src/digest.ts';
 import type {
   Dependency,
   Obligation,
   Run,
 } from '../src/model.ts';
-import type { Lifecycle } from '../src/projector.ts';
-import { obligationKey } from '../src/semantic-identity.ts';
+import type { Lifecycle } from '../src/authority/project-state.ts';
+import { obligationKey } from '../src/graph/identity.ts';
 
 const run=(obligationId:string):Run=>({
   id:`run-${obligationId}`,
