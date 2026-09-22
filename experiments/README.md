@@ -7,6 +7,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 ## Experiment index
 
 - `assignment-capsule/` - exact Overcenter claim plus self-contained task-byte delivery to a no-checkout worker and trusted settlement.
+- `attempt-unification/` - falsifies the single recovery-clock simplification and proves authority fencing and unresolved mutation identity require distinct temporal dimensions.
 - `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
 - `sqlite-baseline/` - original SQLite-backed baseline.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
