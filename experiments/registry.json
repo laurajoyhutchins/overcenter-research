@@ -598,7 +598,8 @@
           "PR #234: candidate run 35691651230 and post-merge run 35691877235 demonstrate identical certified-head/merge trees with distinct revision-bound evidence.",
           "GitHub Actions run 35737829413: exact-head candidate certification and Merge gate passed at d273dc057a0199935025bd568e90aa6d9bb24fe0."
         ],
-        "evaluated_revision": "d273dc057a0199935025bd568e90aa6d9bb24fe0"
+        "evaluated_revision": "d273dc057a0199935025bd568e90aa6d9bb24fe0",
+        "status": "evaluated"
       },
       "interpretation": "A positive result falsifies direct exact-evidence substitution under the current revision-bound execution identity while preserving a narrower deterministic content-preserving merge witness.",
       "non_claims": [
@@ -606,7 +607,15 @@
         "Current candidate evidence may be relabeled as merge-commit evidence.",
         "The live Merge gate should skip post-merge proof.",
         "Squash, rebase, octopus, or content-changing merges satisfy the witness."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The identical-tree two-parent merge relation and direct evidence-substitution hypothesis were fixed before the deterministic/hosted witness was evaluated."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "Identical content is provable, but direct substitution of exact-head candidate evidence is falsified because current execution context and trusted attestations remain bound to source_sha."
+      }
     },
     {
       "id": "production-criticality-ranking",
