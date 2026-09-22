@@ -108,6 +108,12 @@ function externalCallBoundary(expression,checker,projectFiles){
   };
   return visit(expression);
 }
+function unresolvedPropertyCallBoundary(expression,internalCallableNames){
+  if(!ts.isPropertyAccessExpression(expression)) return null;
+  const name=propName(expression.name);
+  if(!name || internalCallableNames.has(name)) return null;
+  return `unresolved-external-method:${name}`;
+}
 function bindingContainsIdentifier(name,target){
   if(ts.isIdentifier(name)) return name.text===target;
   if(ts.isObjectBindingPattern(name)||ts.isArrayBindingPattern(name)){
@@ -240,6 +246,8 @@ export function analyze({root,config}){
     visit(sf);
   }
 
+  const internalCallableNames=new Set(units.map(unit=>unit.name));
+
   const configuredCriticalSelectors=[
     ...config.authorityClasses.map(a=>a.sink),
     ...config.recoveryScenarios.flatMap(s=>[s.entry,s.terminal]),
@@ -323,7 +331,9 @@ export function analyze({root,config}){
               bump(caller,'externalCalls');
             }
           } else {
-            const externalBoundary=externalCallBoundary(node.expression,checker,files);
+            const externalBoundary=
+              externalCallBoundary(node.expression,checker,files)
+              ?? unresolvedPropertyCallBoundary(node.expression,internalCallableNames);
             if(externalBoundary){
               externalCalls++;
               bump(caller,'externalCalls');
