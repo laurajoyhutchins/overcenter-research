@@ -216,7 +216,7 @@ function spec(
   return {
     schema:PROCESS_SPEC_SCHEMA,
     executable:process.execPath,
-    argv:['--experimental-strip-types',fixture,mode,arg,pidFile],
+    argv:['--no-warnings','--experimental-strip-types',fixture,mode,arg,pidFile],
     cwd:'.',
     env,
     timeout_ms:timeoutMs,

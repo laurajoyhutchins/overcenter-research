@@ -78,7 +78,7 @@ jobs:
 
       - name: Prove evidence machinery
         run: |
-          node --test \
+          node --experimental-strip-types --test \
             experiments/production-criticality-ranking/mutation-evidence.test.ts \
             experiments/production-criticality-ranking/verify-mutation-evidence.test.ts
       - name: Bind checked-in evidence to authoritative artifacts
