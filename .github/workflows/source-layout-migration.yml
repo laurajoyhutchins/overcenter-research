@@ -215,6 +215,9 @@ jobs:
           print(f"rewrote {len(set(changed))} files")
           PY
 
+      - name: Remove one-shot migration workflow from candidate tree
+        run: git rm .github/workflows/source-layout-migration.yml
+
       - name: Verify source layout
         run: |
           node --experimental-strip-types --test test/source-layout.test.ts
@@ -223,7 +226,6 @@ jobs:
       - name: Commit repaired layout
         shell: bash
         run: |
-          git rm .github/workflows/source-layout-migration.yml
           git add -A
           if git diff --cached --quiet; then
             echo "No migration changes to commit" >&2
