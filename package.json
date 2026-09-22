@@ -26,7 +26,7 @@
     "proof:live": "bash scripts/proof-live.sh",
     "test:kubernetes-observation": "node --experimental-strip-types --test experiments/kubernetes-observation/kubernetes-observation.test.ts",
     "test:provider-observation": "node --experimental-strip-types --test experiments/provider-observation/response-slice.test.ts",
-    "github:authority": "node --experimental-strip-types bin/github-authority.ts",
+    "github:authority": "node --experimental-strip-types src/cli/github-authority.ts",
     "test:kubernetes-core": "node --experimental-strip-types --test test/kubernetes-core-verifier.test.ts",
     "test:github-contract": "node --experimental-strip-types --test test/github-openapi-contract.test.ts test/github-certified-read.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts",
     "test:lisp-semantics": "node --experimental-strip-types --test experiments/lisp-semantics/lisp-semantics.test.ts",
