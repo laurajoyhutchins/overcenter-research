@@ -364,6 +364,7 @@ def build_graph(repo: Path, source_roots: list[str], test_roots: list[str]):
     edges: dict[str, set[str]] = {sid: set() for sid in symbols}
     unresolved: dict[str, set[str]] = defaultdict(set)
     command_targets: dict[str, set[str]] = defaultdict(set)
+    bounded_attribute_fallback_edges = 0
 
     for sid, symbol in symbols.items():
         node = nodes[sid]
@@ -377,16 +378,40 @@ def build_graph(repo: Path, source_roots: list[str], test_roots: list[str]):
                 if name:
                     command_targets[name].add(sid)
 
+    def resolve_export(
+        module: str,
+        name: str,
+        seen: set[tuple[str, str]] | None = None,
+    ) -> set[str]:
+        key = (module, name)
+        seen = set() if seen is None else seen
+        if key in seen:
+            return set()
+        seen.add(key)
+
+        direct = top_by_module.get(key)
+        if direct:
+            return {direct}
+
+        path = path_by_module.get(module)
+        if path is None:
+            return set()
+
+        targets: set[str] = set()
+        for ref in resolved_imports.get(path, {}).get(name, []):
+            if ref.symbol is not None:
+                targets.update(resolve_export(ref.module, ref.symbol, seen))
+        return targets
+
     def imported_symbol_targets(path: str, name: str) -> set[str]:
         targets: set[str] = set()
         for ref in resolved_imports.get(path, {}).get(name, []):
             if ref.symbol is not None:
-                target = top_by_module.get((ref.module, ref.symbol))
-                if target:
-                    targets.add(target)
+                targets.update(resolve_export(ref.module, ref.symbol))
         return targets
 
     def resolve_call(symbol: Symbol, call: ast.Call) -> set[str]:
+        nonlocal bounded_attribute_fallback_edges
         target = call.func
         parts = dotted_name(target)
         if not parts:
@@ -428,8 +453,8 @@ def build_graph(repo: Path, source_roots: list[str], test_roots: list[str]):
 
         for ref in resolved_imports.get(symbol.path, {}).get(first, []):
             if ref.symbol is not None:
-                imported = top_by_module.get((ref.module, ref.symbol))
-                if imported:
+                imported_targets = resolve_export(ref.module, ref.symbol)
+                for imported in imported_targets:
                     # Calling a method on an imported callable/class still
                     # depends on the imported object itself.
                     resolved.add(imported)
@@ -446,9 +471,7 @@ def build_graph(repo: Path, source_roots: list[str], test_roots: list[str]):
             module_parts = ref.module.split(".") if ref.module else []
             suffix = parts[1:-1]
             candidate_module = ".".join([*module_parts, *suffix])
-            direct = top_by_module.get((candidate_module, attr))
-            if direct:
-                resolved.add(direct)
+            resolved.update(resolve_export(candidate_module, attr))
 
         if not resolved and len(parts) == 2:
             class_symbol = top_by_module.get((symbol.module, first))
@@ -459,6 +482,18 @@ def build_graph(repo: Path, source_roots: list[str], test_roots: list[str]):
                 )
                 if method in symbols:
                     resolved.add(method)
+
+        if not resolved:
+            fallback = {
+                candidate
+                for candidate in by_simple.get(attr, set())
+                if under(symbols[candidate].path, source_roots)
+            }
+            # Preserve bounded uncertainty instead of restoring v1's
+            # unbounded attribute-name fanout.
+            if 0 < len(fallback) <= 3:
+                resolved.update(fallback)
+                bounded_attribute_fallback_edges += len(fallback)
 
         return resolved
 
@@ -505,6 +540,7 @@ def build_graph(repo: Path, source_roots: list[str], test_roots: list[str]):
         "unresolved": unresolved,
         "parse_errors": parse_errors,
         "click_dispatch_edges": click_dispatch_edges,
+        "bounded_attribute_fallback_edges": bounded_attribute_fallback_edges,
     }
 
 
@@ -706,6 +742,9 @@ def predict(
             "base_parse_errors": len(graph["parse_errors"]),
             "patched_changed_file_parse_errors": len(parse_failures),
             "click_dispatch_edges": graph["click_dispatch_edges"],
+            "bounded_attribute_fallback_edges": graph[
+                "bounded_attribute_fallback_edges"
+            ],
             "import_blast_tests": len(blast),
         },
         "diagnostics": {
@@ -900,6 +939,101 @@ def self_test() -> None:
         report = predict(root, patch, ["src"], ["tests"])
         assert report["selected_tests"] == ["tests/test_cli.py::test_routes"], report
         assert report["metrics"]["click_dispatch_edges"] >= 1, report
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(root, "src/pkg/__init__.py", "from .thing import Thing\n")
+        write(
+            root,
+            "src/pkg/thing.py",
+            "class Thing:\n"
+            "    def __init__(self):\n"
+            "        self.value = 1\n",
+        )
+        write(
+            root,
+            "tests/test_reexport.py",
+            "import pkg\n\n"
+            "def test_thing():\n"
+            "    assert pkg.Thing().value == 1\n",
+        )
+        patch = root / "reexport.patch"
+        patch.write_text(
+            "diff --git a/src/pkg/thing.py b/src/pkg/thing.py\n"
+            "--- a/src/pkg/thing.py\n"
+            "+++ b/src/pkg/thing.py\n"
+            "@@ -2,2 +2,2 @@\n"
+            "     def __init__(self):\n"
+            "-        self.value = 1\n"
+            "+        self.value = 2\n",
+            encoding="utf-8",
+        )
+        report = predict(root, patch, ["src"], ["tests"])
+        assert report["selected_tests"] == [
+            "tests/test_reexport.py::test_thing"
+        ], report
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(
+            root,
+            "src/config.py",
+            "class Config:\n"
+            "    def from_file(self):\n"
+            "        return 1\n",
+        )
+        write(
+            root,
+            "tests/test_config.py",
+            "def test_config(app):\n"
+            "    assert app.config.from_file() == 1\n",
+        )
+        patch = root / "attribute.patch"
+        patch.write_text(
+            "diff --git a/src/config.py b/src/config.py\n"
+            "--- a/src/config.py\n"
+            "+++ b/src/config.py\n"
+            "@@ -2,2 +2,2 @@\n"
+            "     def from_file(self):\n"
+            "-        return 1\n"
+            "+        return 2\n",
+            encoding="utf-8",
+        )
+        report = predict(root, patch, ["src"], ["tests"])
+        assert report["selected_tests"] == [
+            "tests/test_config.py::test_config"
+        ], report
+        assert report["metrics"]["bounded_attribute_fallback_edges"] >= 1, report
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for index in range(4):
+            write(
+                root,
+                f"src/mod{index}.py",
+                f"class C{index}:\n"
+                "    def touch(self):\n"
+                f"        return {index}\n",
+            )
+        write(
+            root,
+            "tests/test_ambiguous.py",
+            "def test_touch(obj):\n"
+            "    assert obj.touch() is not None\n",
+        )
+        patch = root / "ambiguous.patch"
+        patch.write_text(
+            "diff --git a/src/mod0.py b/src/mod0.py\n"
+            "--- a/src/mod0.py\n"
+            "+++ b/src/mod0.py\n"
+            "@@ -2,2 +2,2 @@\n"
+            "     def touch(self):\n"
+            "-        return 0\n"
+            "+        return 99\n",
+            encoding="utf-8",
+        )
+        report = predict(root, patch, ["src"], ["tests"])
+        assert report["selected_tests"] == [], report
 
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory) / "base"
