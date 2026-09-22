@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -43,6 +43,7 @@ import {
   productionDockerIsolationArgs,
   productionExecutorArgs,
 } from '../src/production-containment.ts';
+import {copyRepositorySource} from './support/repository-source.ts';
 
 const image=process.env.OVERCENTER_EXECUTOR_IMAGE;
 if (!image) {
@@ -51,18 +52,8 @@ if (!image) {
 
 const repoRoot=fileURLToPath(new URL('../',import.meta.url));
 const scratch=mkdtempSync(join(tmpdir(),'overcenter-isolated-test-workload-'));
-const sourceRevision=execFileSync('git',['-C',repoRoot,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
 const sourceRoot=join(scratch,'source');
-mkdirSync(sourceRoot,{recursive:true});
-const sourceArchive=execFileSync(
-  'git',
-  ['-C',repoRoot,'archive','--format=tar',sourceRevision],
-  {maxBuffer:64*1024*1024},
-);
-const sourceExtract=spawnSync('tar',['-xf','-','-C',sourceRoot],{input:sourceArchive});
-if (sourceExtract.status!==0) {
-  throw new Error(`source snapshot extraction failed: ${sourceExtract.stderr?.toString('utf8')??''}`);
-}
+copyRepositorySource(sourceRoot,repoRoot);
 const dockerLabel=`overcenter.computation-test=${process.pid}`;
 const containerProfile=PRODUCTION_COMPUTATION_CONTAINMENT;
 let sequence=0;
@@ -76,7 +67,6 @@ function executionContextSha256(mountedSourceRoot=sourceRoot):string {
   return hashExecutionContext({
     schema:'overcenter-test-execution-context-v1',
     image_id:imageId,
-    source_revision:sourceRevision,
     source_tree_sha256:sourceTreeSha256(mountedSourceRoot),
     containment:containerProfile,
   });
