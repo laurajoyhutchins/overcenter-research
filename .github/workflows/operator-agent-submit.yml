@@ -37,8 +37,8 @@ jobs:
             echo '## Overcenter command'
             echo
             echo '- command: `agent.submit`'
-            echo "- candidate SHA: `$CANDIDATE_SHA`"
-            echo "- implementation SHA: `$COMMAND_IMPLEMENTATION_SHA`"
+            echo "- candidate SHA: $CANDIDATE_SHA"
+            echo "- implementation SHA: $COMMAND_IMPLEMENTATION_SHA"
             echo '- state: available'
             echo
             echo 'Rerun this job to ask Overcenter to validate and settle this exact candidate.'
@@ -118,14 +118,14 @@ jobs:
             echo '## Overcenter command receipt'
             echo
             echo '- command: `agent.submit`'
-            echo "- command attempt: `$RUN_ATTEMPT`"
-            echo "- candidate SHA: `$CANDIDATE_SHA`"
-            echo "- disposition: `${DISPOSITION:-failed}`"
-            echo "- verified: `${VERIFIED:-false}`"
-            echo "- authority head: `${AUTHORITY_HEAD:-none}`"
-            echo "- obligation: `${OBLIGATION_ID:-none}`"
-            echo "- run: `${RUN_ID:-none}`"
-            echo "- settlement commit: `${SETTLEMENT_COMMIT:-none}`"
-            echo "- replay: `${ALREADY_SETTLED:-false}`"
-            echo "- receipt digest: `${RECEIPT_DIGEST:-none}`"
+            echo "- command attempt: $RUN_ATTEMPT"
+            echo "- candidate SHA: $CANDIDATE_SHA"
+            echo "- disposition: ${DISPOSITION:-failed}"
+            echo "- verified: ${VERIFIED:-false}"
+            echo "- authority head: ${AUTHORITY_HEAD:-none}"
+            echo "- obligation: ${OBLIGATION_ID:-none}"
+            echo "- run: ${RUN_ID:-none}"
+            echo "- settlement commit: ${SETTLEMENT_COMMIT:-none}"
+            echo "- replay: ${ALREADY_SETTLED:-false}"
+            echo "- receipt digest: ${RECEIPT_DIGEST:-none}"
           } >> "$GITHUB_STEP_SUMMARY"
