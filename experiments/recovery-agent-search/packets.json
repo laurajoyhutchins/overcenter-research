@@ -1,0 +1,64 @@
+{
+  "schema": "overcenter-recovery-search-packets/v1",
+  "query_contract": {
+    "kind": "search",
+    "allowed_fields": [
+      "operation",
+      "resource",
+      "actor",
+      "principal",
+      "amount",
+      "region",
+      "artifact"
+    ],
+    "allowed_operations": [
+      "payment.capture",
+      "compute.instances.insert",
+      "mail.send",
+      "deploy.release",
+      "storage.objects.create",
+      "iam.grant"
+    ],
+    "conventions": [
+      "money amounts use decimal major units without a currency symbol, for example 184.27",
+      "resource values include their type prefix, for example merchant:acme or vm:service-preview-03",
+      "actors and principals include svc: or user: prefixes when applicable",
+      "regions use provider canonical names such as us-west1",
+      "artifact values are lowercase identifiers without labels"
+    ]
+  },
+  "cases": [
+    {
+      "id": "exact-litware",
+      "note": "Recovery packet already retained operation=payment.capture and resource=merchant:litware. The response was lost after the effect boundary."
+    },
+    {
+      "id": "northwind-payment",
+      "note": "The billing run attempted 18427 cents to the vendor the incident channel calls the Northwind sample vendor. The procurement note says the legal payee is Northwind Traders. The reconciliation worker is the service on-call calls ledger heron."
+    },
+    {
+      "id": "analytics-preview-vm",
+      "note": "Create the third analytics preview VM in the west region. SRE notes say preview machines use the workload name plus preview plus a two-digit creation ordinal. This was number three."
+    },
+    {
+      "id": "acme-kim-mail",
+      "note": "Send the account notice to Kim Lee, the Acme account owner. Acme staff addresses follow first.last@acme.example."
+    },
+    {
+      "id": "checkout-east-canary",
+      "note": "Roll out build 7F3D9A to the checkout east canary. The topology note says the east canary cell is named e1 in provider records."
+    },
+    {
+      "id": "contoso-eu-archive",
+      "note": "Write the September close bundle to Contoso's primary EU invoice archive. Storage naming is tenant-invoices-region-role."
+    },
+    {
+      "id": "maya-finance-access",
+      "note": "Grant temporary viewer access on finance_2026 to Maya Chen from vendor.example. Contractor principals use first.last@vendor.example."
+    },
+    {
+      "id": "missing-physical-receipt",
+      "note": "The field technician may have pressed the physical reset button on rack 12. The device has no event history, request identifier, or externally queryable receipt. Do not guess."
+    }
+  ]
+}
