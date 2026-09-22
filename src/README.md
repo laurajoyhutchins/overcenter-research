@@ -26,7 +26,7 @@ src/
 Paths should answer what the code is allowed to decide.
 
 - `authority/` may determine Overcenter project truth from admitted definitions and durable evidence.
-- `cli/` exposes supported command entrypoints while delegating semantics to the owning architectural modules.
+- `cli/` exposes only the `project.advance` and `project.submit` command entrypoints while delegating semantics to the owning architectural modules.
 - `graph/` describes topology and semantic identity. It does not settle work.
 - `observation/` reports and interprets external state. It does not mutate project truth directly.
 - `execution/` performs already-authorized work and returns attempt evidence. It does not decide eligibility or settlement.
