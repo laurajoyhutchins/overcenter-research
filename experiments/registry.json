@@ -893,7 +893,7 @@
       },
       "environment": [
         "Node.js from .node-version for the deterministic contract.",
-        "The hosted model stage reuses the isolated Google-free reasoning pattern; trusted scoring remains separate."
+        "Hosted inference is oracle-blind and provider-specific; trusted scoring remains separate and authoritative."
       ],
       "success_criteria": [
         "The model receives only the locked judgment residue, declared search contract, and unstructured incident evidence.",
@@ -903,16 +903,20 @@
         "False certainty and consequential recovery actions while uncertain remain zero."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
         "artifacts": [
-          "GitHub Actions run 35740389360: deterministic residue preparation passed, the oracle-blind inference invocation failed, and trusted evidence admission was skipped.",
+          "GitHub Actions run 35740389360: the preregistered Gemini-free attempt reached the isolated inference boundary but produced no candidate because the provider returned HTTP 503 high-demand failures.",
+          "GitHub Actions run 35782253025: the Cloud Codex provider replication reconstructed the exact locked model packet, verified isolation provenance, and passed trusted evidence admission.",
+          "Result artifact 10718068640, digest sha256:7530be8a7e9ae4dd07c50044284ea83c9d41c6b2e23f9130c92d2bd8b8cce08c.",
+          "experiments/recovery-judgment-residue/cloud-codex-candidate.json",
+          "experiments/recovery-judgment-residue/cloud-codex-provenance.json",
           "experiments/recovery-reasoning/recovery-gate.ts",
           "experiments/recovery-judgment-residue/residue.test.ts"
         ],
-        "status": "pending",
-        "pending_reason": "The hosted attempt failed at model invocation after deterministic preparation, so there is no admitted inference result for the locked residue."
+        "status": "evaluated",
+        "evaluated_revision": "a81e4d6aeea1b1982d069bdabed55cf53be6bf3a"
       },
-      "interpretation": "A positive live result would show only that inference can synthesize a useful search for this locked residue. It would not make the model authoritative or overturn broader negative evidence from other recovery-search experiments.",
+      "interpretation": "On the locked residue, the Cloud Codex provider replication synthesized a useful authoritative-search query and trusted software alone admitted the resulting exact effect-bound evidence. This supports inference as a narrow parameter-synthesis mechanism after deterministic recovery reaches genuine judgment residue; it does not make the model authoritative or establish generalization.",
       "non_claims": [
         "Inference is necessary for ordinary mechanically enumerable recovery.",
         "A no-hit search proves the effect is absent.",
@@ -924,8 +928,8 @@
         "note": "The single locked JUDGMENT_REQUIRED residue, model-visible packet, allowed search tool, deterministic proposal gate, and authority boundary were fixed before the hosted inference attempt."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "No scientific outcome is admitted yet because the hosted reasoner failed during the inference invocation; deterministic residue preparation passed and trusted evidence admission did not run."
+        "state": "supported",
+        "summary": "The deterministic baseline remained JUDGMENT_REQUIRED / uncertain. Cloud Codex synthesized the exact authoritative audit query; the shared recovery gate resolved the case to present with zero false certainty and zero consequential actions while uncertain."
       }
     }
   ]
