@@ -14,7 +14,7 @@ project.advance
            reasoning
               |
               v
-          agent.submit
+          project.submit
               |
               v
         verified receipt
@@ -32,7 +32,7 @@ The result is either current project state or an immutable work packet when reas
 
 A reasoning agent does not select or claim its own work.
 
-## `agent.submit`
+## `project.submit`
 
 Return the candidate produced from a work packet.
 
@@ -53,7 +53,7 @@ The following are implementation details and are not supported agent operations:
 - manually settling receipts;
 - invoking arbitrary GitHub REST endpoints or workflow names.
 
-The GitHub transport may use refs, workflow events, artifacts, and reruns internally. Those mechanics are deliberately hidden behind `project.advance` and `agent.submit`.
+The GitHub transport may use refs, workflow events, artifacts, and reruns internally. Those mechanics are deliberately hidden behind `project.advance` and `project.submit`.
 
 ## Pull-request certification
 
@@ -84,9 +84,9 @@ The remaining semantic command workflows are:
 | Command | Meaning |
 | --- | --- |
 | `project.advance` | Let Overcenter make progress and return reasoning work only when needed. |
-| `agent.submit` | Validate and settle a candidate produced from an assigned packet. |
+| `project.submit` | Validate and settle a candidate produced from an assigned packet. |
 
-The internal candidate handoff workflow has no write authority. It exists only to materialize a trusted `agent.submit` command anchor and is not part of the operator surface.
+The internal candidate handoff workflow has no write authority. It exists only to materialize a trusted `project.submit` command anchor and is not part of the operator surface.
 
 ## Extension rule
 
