@@ -38,23 +38,23 @@
     },
     {
       "id": "analytics-preview-vm",
-      "note": "Create the third analytics preview VM in the west region. SRE notes say preview machines use the workload name plus preview plus a two-digit creation ordinal. This was number three."
+      "note": "Create the machine the incident calls the third analytics preview VM in the west region. The inventory note says this preview fleet is numbered from 01 upward and the provider stem is analytics-preview."
     },
     {
       "id": "acme-kim-mail",
-      "note": "Send the account notice to Kim Lee, the Acme account owner. Acme staff addresses follow first.last@acme.example."
+      "note": "Send the account notice to Kim Lee, the Acme account owner. The CRM handbook says Acme mailboxes use first initial plus surname at acme.example."
     },
     {
       "id": "checkout-east-canary",
-      "note": "Roll out build 7F3D9A to the checkout east canary. The topology note says the east canary cell is named e1 in provider records."
+      "note": "Roll out build 7F3D9A to the checkout east canary. The topology note says provider records call that cell e1 and use checkout-api-canary as the service stem."
     },
     {
       "id": "contoso-eu-archive",
-      "note": "Write the September close bundle to Contoso's primary EU invoice archive. Storage naming is tenant-invoices-region-role."
+      "note": "Write the September close bundle to Contoso's primary EU invoice archive. The storage handbook says invoice archive names carry tenant, invoices, region, and role; the on-call note identifies tenant Contoso, region eu, role primary."
     },
     {
       "id": "maya-finance-access",
-      "note": "Grant temporary viewer access on finance_2026 to Maya Chen from vendor.example. Contractor principals use first.last@vendor.example."
+      "note": "Grant temporary viewer access on finance_2026 to Maya Chen from vendor.example. The contractor roster says vendor.example principals use first initial plus surname plus -ext at vendor.example."
     },
     {
       "id": "missing-physical-receipt",
