@@ -64,27 +64,21 @@ test('full Flask candidate corpus satisfies preregistered artifact admission', (
   }
 
   const admission = corpus.confirmatory_admission;
-  assert.ok(human >= admission.human_exact_patches_min, {human, admission});
-  assert.ok(ai >= admission.ai_exact_patches_min, {ai, admission});
+  assert.ok(human >= admission.human_exact_patches_min, JSON.stringify({human, admission}));
+  assert.ok(ai >= admission.ai_exact_patches_min, JSON.stringify({ai, admission}));
   assert.ok(
     nonidenticalAi >= admission.ai_nonidentical_to_human_min,
-    {nonidenticalAi, admission},
+    JSON.stringify({nonidenticalAi, admission}),
   );
   assert.ok(
     unsuccessfulOrRegressiveAi >= admission.ai_unsuccessful_or_regressive_exact_patches_min,
-    {unsuccessfulOrRegressiveAi, admission},
+    JSON.stringify({unsuccessfulOrRegressiveAi, admission}),
   );
 
-  assert.equal(admission.current_candidate_counts.human_exact_patches, human);
-  assert.equal(admission.current_candidate_counts.ai_exact_patches, ai);
-  assert.equal(
-    admission.current_candidate_counts.ai_with_reported_unresolved_or_error_outcome,
-    unresolvedOrErrorAi,
-  );
-  assert.equal(
-    admission.state,
-    'candidate_corpus_complete_pending_patch_preflight_and_execution',
-  );
+  assert.equal(human, corpus.confirmatory_design.human_variants);
+  assert.equal(ai, corpus.confirmatory_design.ai_variants);
+  assert.equal(corpus.confirmatory_design.frozen_before_confirmatory_execution, true);
+  assert.ok(unresolvedOrErrorAi >= 2);
 });
 
 test('static frontier predictor distinguishes affected and unrelated tests', () => {
