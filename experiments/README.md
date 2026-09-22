@@ -20,6 +20,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
+- `git-metadata-independence/` - prove deterministic regression suites run from source bytes with no ambient Git worktree identity.
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
 - `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.

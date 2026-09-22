@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
 import {
   existsSync,
   readFileSync,
@@ -11,6 +10,7 @@ import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 
 import {GITHUB_API_VERSION} from '../src/providers/github-contract.ts';
+import {repositorySourceFiles} from './support/repository-source.ts';
 import {
   PRODUCTION_COMPUTATION_CONTAINMENT,
   productionDockerIsolationArgs,
@@ -43,11 +43,9 @@ function executableConfigFiles():string[] {
   );
 }
 
-test('repository contains no tracked JavaScript source',()=>{
-  const tracked=execFileSync('git',['ls-files','-z'],{cwd:root,encoding:'utf8'})
-    .split('\0')
-    .filter(Boolean);
-  const javascript=tracked.filter(path=>/\.(?:c|m)?js$|\.jsx$/.test(path));
+test('repository source tree contains no JavaScript source',()=>{
+  const javascript=repositorySourceFiles(root)
+    .filter(path=>/\.(?:c|m)?js$|\.jsx$/.test(path));
   assert.deepEqual(javascript,[],'JavaScript source is forbidden; use TypeScript');
 });
 

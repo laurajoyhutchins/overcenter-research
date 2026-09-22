@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
-import {execFileSync,spawnSync} from 'node:child_process';
+import {execFileSync} from 'node:child_process';
 import {mkdirSync,mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
+
+import {copyRepositorySource} from './support/repository-source.ts';
 
 function run(cwd:string,env:Record<string,string>,capsule:string,receipt:string):Record<string,unknown> {
   execFileSync(
@@ -19,10 +21,7 @@ test('duplicate GitHub request reconstructs the same exact claim',()=>{
   try {
     const remote=join(root,'remote.git');
     const work=join(root,'work');
-    mkdirSync(work);
-    const archive=execFileSync('git',['archive','--format=tar','HEAD'],{maxBuffer:64*1024*1024});
-    const extracted=spawnSync('tar',['-xf','-','-C',work],{input:archive});
-    assert.equal(extracted.status,0,extracted.stderr?.toString('utf8'));
+    copyRepositorySource(work);
 
     execFileSync('git',['-C',work,'init','--initial-branch=main'],{stdio:'ignore'});
     execFileSync('git',['-C',work,'config','user.name','Overcenter Test'],{stdio:'ignore'});
@@ -62,10 +61,7 @@ test('candidate submit settles once and replays the same verified receipt',()=>{
   try {
     const remote=join(root,'remote.git');
     const work=join(root,'work');
-    mkdirSync(work);
-    const archive=execFileSync('git',['archive','--format=tar','HEAD'],{maxBuffer:64*1024*1024});
-    const extracted=spawnSync('tar',['-xf','-','-C',work],{input:archive});
-    assert.equal(extracted.status,0,extracted.stderr?.toString('utf8'));
+    copyRepositorySource(work);
 
     execFileSync('git',['-C',work,'init','--initial-branch=main'],{stdio:'ignore'});
     execFileSync('git',['-C',work,'config','user.name','Overcenter Test'],{stdio:'ignore'});

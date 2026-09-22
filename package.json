@@ -61,6 +61,7 @@
     "bench:production-latency:live": "node --experimental-strip-types experiments/production-latency/benchmark.ts --live --iterations 3",
     "experiment:scheduler-bottleneck": "node --experimental-strip-types experiments/scheduler-bottleneck/experiment.ts",
     "bench:frontier-prioritization": "OVERCENTER_FRONTIER_STRESS=1 node --experimental-strip-types --test --test-name-pattern='optional connected stress boundary' experiments/frontier-prioritization/frontier-prioritization.test.ts",
-    "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts"
+    "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
+    "test:git-metadata-independence": "node --experimental-strip-types experiments/git-metadata-independence/experiment.ts"
   }
 }

@@ -1,0 +1,32 @@
+name: Git-metadata independence proof
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/git-metadata-independence.yml'
+      - 'test/support/repository-source.ts'
+      - 'test/config-contract.test.ts'
+      - 'test/github-agent-ingress.test.ts'
+      - 'experiments/git-metadata-independence/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Prove regression suites need no ambient Git identity
+        run: npm run test:git-metadata-independence
