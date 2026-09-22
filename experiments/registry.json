@@ -744,7 +744,7 @@
       "directory": "experiments/recovery-agent-refinement",
       "readme": "experiments/recovery-agent-refinement/README.md",
       "question": "Can one bounded round of cardinality-only read-only query refinement improve recovery yield after a one-shot reasoning search fails, without granting settlement or mutation authority?",
-      "claim": "On the frozen recovery-agent-search corpus, two fresh oracle-blind inference rounds are separated by trusted cardinality-only search feedback; cumulative scoring preserves first-round effect-bound recoveries while all provider records, effect identity, settlement, mutation, and oracle authority remain trusted.",
+      "claim": "On the frozen recovery-agent-search corpus, the exact negative #237 model candidate is reused as round one. Trusted software exposes only cardinality feedback to one fresh oracle-blind refinement call, while provider records, effect identity, settlement, mutation, and oracle authority remain trusted.",
       "contrast": "Tune the one-shot prompt after observing its misses, expose matching records or effect-binding results to the model, allow an open-ended tool loop, or let the model settle or retry effects.",
       "reproduce": {
         "tier": "hosted",
@@ -754,12 +754,12 @@
         "Node.js from .node-version for the deterministic observer, cumulative scorer, and contract tests.",
         "The exact packets, oracle, proposal schema, deterministic baseline, and effect-binding scorer inherited from recovery-agent-search.",
         "GitHub Actions ubuntu-24.04 for the hosted two-round comparison.",
-        "Google-free inference authenticated through the dedicated GitHub OIDC reasoning identity into the billing-disabled Gemini project.",
+        "One fresh Google-free refinement inference authenticated through the dedicated GitHub OIDC reasoning identity into the billing-disabled Gemini project.",
         "Neither reasoning invocation receives a repository checkout, GitHub token, hidden oracle, Overcenter authority, provider mutation credential, execution permit, or settlement capability."
       ],
       "success_criteria": [
         "The inherited deterministic baseline remains fixed at 4 of 7 recoverable cases.",
-        "Round two receives only original public inputs, its normalized prior proposal, and zero/one/many/not-searched cardinality feedback.",
+        "The exact #237 candidate and provenance are byte-bound to their retained hosted artifact before refinement. Round two receives only original public inputs, the normalized frozen proposal, and zero/one/many/not-searched cardinality feedback.",
         "Model-visible feedback contains no matching records, record IDs, effect digests, certainty, outcomes, or settlement decisions.",
         "Each case receives at most two model-authored search proposals and no consequential mutation or retry.",
         "Cumulative scoring counts a case recovered only when trusted exact-effect binding succeeds in at least one round.",
@@ -770,6 +770,9 @@
         "state": "pending",
         "artifacts": [
           ".github/workflows/autonomy-sandbox-google-free.yml",
+          "experiments/recovery-agent-refinement/round-one-candidate.json",
+          "experiments/recovery-agent-refinement/round-one-provenance.json",
+          "experiments/recovery-agent-refinement/round-one-source.json",
           "experiments/recovery-agent-refinement/observe.mjs",
           "experiments/recovery-agent-refinement/score.mjs",
           "experiments/recovery-agent-refinement/recovery-agent-refinement.test.mjs",
@@ -778,7 +781,7 @@
           "experiments/recovery-agent-search/proposal.schema.json"
         ]
       },
-      "interpretation": "A positive refinement gain supports one bounded read-only refinement step as a mechanism on this known corpus. Inference earns this narrow recovery role only if cumulative two-round recovery also exceeds the locked 4/7 deterministic baseline with safety intact. Because the mechanism was designed after inspecting the predecessor misses, generalization requires a later held-out corpus.",
+      "interpretation": "A positive refinement gain supports one bounded read-only refinement step over the exact failed #237 candidate. Inference earns this narrow recovery role only if cumulative two-round recovery exceeds the locked 4/7 deterministic baseline with safety intact. Because the mechanism was designed after inspecting the predecessor misses, generalization requires a later held-out corpus.",
       "non_claims": [
         "An open-ended agent tool loop is safe or necessary.",
         "A cardinality-one search hit is settlement evidence.",
