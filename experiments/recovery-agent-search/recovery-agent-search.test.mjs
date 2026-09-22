@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import {evaluate} from './score.mjs';
 
 const perfect={
@@ -79,4 +80,17 @@ test('a unique but wrong audit hit cannot become settlement evidence',()=>{
   assert.equal(item.agent.result.certainty,'uncertain');
   assert.equal(item.agent.result.reason,'EFFECT_BINDING_MISMATCH');
   assert.equal(result.false_certainty,0);
+});
+
+test('hosted reasoning worker cannot read the repository or hidden oracle',()=>{
+  const workflow=readFileSync(
+    new URL('../../.github/workflows/recovery-agent-search.yml',import.meta.url),
+    'utf8',
+  );
+  const worker=workflow.match(/\n  worker:[\s\S]*?\n  verify:/)?.[0]??'';
+  assert.match(worker,/permissions: \{\}/);
+  assert.doesNotMatch(worker,/actions\/checkout@/);
+  assert.match(worker,/openai\/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e/);
+  assert.match(worker,/test ! -e recovery\/oracle\.json/);
+  assert.doesNotMatch(worker,/name: recovery-agent-oracle/);
 });
