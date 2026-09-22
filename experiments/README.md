@@ -7,6 +7,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 ## Experiment index
 
 - `assignment-capsule/` - exact Overcenter claim plus self-contained task-byte delivery to a no-checkout worker and trusted settlement.
+- `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
 - `sqlite-baseline/` - original SQLite-backed baseline.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
 - `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.
@@ -31,7 +32,19 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 
 ## Experiment contract
 
-Maintained experiments are registered in [`registry.json`](./registry.json). The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, exact evidence identity, interpretation, and non-claims must be explicit.
+Maintained experiments are registered in [`registry.json`](./registry.json). The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, design provenance, outcome, exact revision-bound evidence, interpretation, and non-claims must be explicit.
+
+The contract deliberately separates three questions that older entries used to blur:
+
+```text
+design provenance       outcome                 evidence
+preregistered           pending                 pending
+retrospective           supported               or
+mixed                   falsified               evaluated @ exact SHA
+unknown                  mixed / inconclusive
+```
+
+A retrospectively documented experiment can still be useful evidence, but its maintained criteria are not represented as preregistered. A falsified hypothesis is a valid experiment outcome. Evaluated evidence always names the exact revision that was run; the registry does not call old evidence "current" merely because maintainers still consider the conclusion relevant.
 
 ```sh
 npm run experiments:list
