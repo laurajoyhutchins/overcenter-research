@@ -137,7 +137,15 @@ def container_test(
             'status="${PIPESTATUS[0]}"',
             "set -e",
             f'printf "%s\\n" "$status" > /results/{stem}.exit',
-            f'test -f /results/{stem}.xml',
+            f'if [ ! -f /results/{stem}.xml ]; then',
+            (
+                f'  printf "%s\\n" '
+                f'\'<testsuites><testsuite name="pytest-session-aborted" '
+                f'tests="0" failures="0" errors="1"/></testsuites>\' '
+                f'> /results/{stem}.xml'
+            ),
+            f'  touch /results/{stem}.junit-synthesized',
+            "fi",
             "exit 0",
         ]
     )
@@ -193,6 +201,10 @@ def main() -> None:
         patches=[test_patch],
         stem="base",
     )
+    if (base_dir / "base.junit-synthesized").exists():
+        raise RuntimeError(
+            f"base suite for {case['id']} aborted before producing JUnit"
+        )
 
     (out / "case.json").write_text(
         json.dumps(
@@ -274,6 +286,9 @@ def main() -> None:
                     patches=[test_patch, variant["patch"]],
                     stem="patched",
                 )
+                patched_junit_synthesized = (
+                    variant_dir / "patched.junit-synthesized"
+                ).exists()
 
                 shutil.copy2(base_dir / "base.xml", variant_dir / "base.xml")
                 shutil.copy2(base_dir / "base.log", variant_dir / "base.log")
@@ -290,6 +305,7 @@ def main() -> None:
                     "image_tag": image,
                     "base_pytest_exit": base_exit,
                     "patched_pytest_exit": patched_exit,
+                    "patched_junit_synthesized": patched_junit_synthesized,
                     "frontier": str(frontier),
                 }
                 (variant_dir / "run.json").write_text(
