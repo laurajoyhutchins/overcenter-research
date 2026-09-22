@@ -1,0 +1,132 @@
+name: Overcenter command · agent.submit
+
+on:
+  workflow_run:
+    workflows: [Overcenter agent candidate signal]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: overcenter-command-agent-submit-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  command:
+    name: agent.submit
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      startsWith(github.event.workflow_run.head_branch, 'overcenter/candidate/') &&
+      github.event.workflow_run.actor.login == github.repository_owner
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions:
+      contents: write
+    env:
+      COMMAND_IMPLEMENTATION_SHA: ${{ github.sha }}
+      CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+      CANDIDATE_REF: ${{ github.event.workflow_run.head_branch }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
+    steps:
+      - name: Advertise command
+        if: ${{ github.run_attempt == 1 }}
+        run: |
+          {
+            echo '## Overcenter command'
+            echo
+            echo '- command: `agent.submit`'
+            echo "- candidate SHA: `$CANDIDATE_SHA`"
+            echo "- candidate ref: `$CANDIDATE_REF`"
+            echo "- implementation SHA: `$COMMAND_IMPLEMENTATION_SHA`"
+            echo '- state: available'
+            echo
+            echo 'Rerun this job to ask Overcenter to validate and settle this exact candidate.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check out trusted command implementation
+        if: ${{ github.run_attempt > 1 }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.COMMAND_IMPLEMENTATION_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Validate inert candidate transport
+        if: ${{ github.run_attempt > 1 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin             "refs/heads/$CANDIDATE_REF:refs/overcenter/candidate-input"
+          test "$(git rev-parse refs/overcenter/candidate-input)" = "$CANDIDATE_SHA"
+          test "$(git rev-list --parents -n1 "$CANDIDATE_SHA" | wc -w)" -eq 2
+          changed="$(git diff-tree --no-commit-id --name-only -r "$CANDIDATE_SHA")"
+          test "$changed" = ".overcenter/candidate.json"
+          branch_run_id="${CANDIDATE_REF#overcenter/candidate/}"
+          candidate_run_id="$(git show "$CANDIDATE_SHA:.overcenter/candidate.json" | node -e '
+            let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{
+              const value=JSON.parse(s);
+              if (typeof value.run_id!=="string" || !value.run_id) process.exit(2);
+              process.stdout.write(value.run_id);
+            });
+          ')"
+          test "$branch_run_id" = "$candidate_run_id"
+
+      - name: Use pinned Node.js
+        if: ${{ github.run_attempt > 1 }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Invoke agent.submit
+        if: ${{ github.run_attempt > 1 }}
+        id: invoke
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          OVERCENTER_COMMAND_REPOSITORY_ID: ${{ github.repository_id }}
+          OVERCENTER_COMMAND_REPOSITORY: ${{ github.repository }}
+          OVERCENTER_COMMAND_SOURCE_SHA: ${{ env.COMMAND_IMPLEMENTATION_SHA }}
+          OVERCENTER_COMMAND_RUN_ID: ${{ github.run_id }}
+          OVERCENTER_COMMAND_RUN_ATTEMPT: ${{ github.run_attempt }}
+          OVERCENTER_CANDIDATE_SHA: ${{ env.CANDIDATE_SHA }}
+          OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
+          OVERCENTER_PROJECT_REMOTE: origin
+        run: node --experimental-strip-types bin/github-agent-submit-command.ts --receipt response/receipt.json
+
+      - name: Publish settlement receipt
+        if: ${{ github.run_attempt > 1 && steps.invoke.outputs.run_id != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-agent-submit-${{ steps.invoke.outputs.run_id }}
+          path: response/receipt.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish command receipt
+        if: ${{ github.run_attempt > 1 && always() }}
+        env:
+          DISPOSITION: ${{ steps.invoke.outputs.disposition }}
+          VERIFIED: ${{ steps.invoke.outputs.verified }}
+          AUTHORITY_HEAD: ${{ steps.invoke.outputs.authority_head }}
+          OBLIGATION_ID: ${{ steps.invoke.outputs.obligation_id }}
+          RUN_ID: ${{ steps.invoke.outputs.run_id }}
+          SETTLEMENT_COMMIT: ${{ steps.invoke.outputs.settlement_commit }}
+          ALREADY_SETTLED: ${{ steps.invoke.outputs.already_settled }}
+          RECEIPT_DIGEST: ${{ steps.invoke.outputs.receipt_digest }}
+        run: |
+          {
+            echo '## Overcenter command receipt'
+            echo
+            echo '- command: `agent.submit`'
+            echo "- command attempt: `$RUN_ATTEMPT`"
+            echo "- candidate SHA: `$CANDIDATE_SHA`"
+            echo "- disposition: `${DISPOSITION:-failed}`"
+            echo "- verified: `${VERIFIED:-false}`"
+            echo "- authority head: `${AUTHORITY_HEAD:-none}`"
+            echo "- obligation: `${OBLIGATION_ID:-none}`"
+            echo "- run: `${RUN_ID:-none}`"
+            echo "- settlement commit: `${SETTLEMENT_COMMIT:-none}`"
+            echo "- replay: `${ALREADY_SETTLED:-false}`"
+            echo "- receipt digest: `${RECEIPT_DIGEST:-none}`"
+          } >> "$GITHUB_STEP_SUMMARY"
