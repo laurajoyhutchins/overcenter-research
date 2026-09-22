@@ -74,7 +74,7 @@ These are deliberately the kind of successful agent patterns that should later b
 
 ## Hosted comparison
 
-The hosted workflow gives a real Codex reasoning worker the public packet artifact in a synthetic workspace with no repository checkout. The worker emits only proposal bytes.
+The hosted workflow gives a real Google Gemini reasoning worker only the public prompt and proposal schema in a byte-scoped runtime with no repository checkout. The worker emits only proposal bytes.
 
 A separate trusted job checks out the exact experiment revision, loads the hidden oracle, validates every proposal, executes the synthetic authoritative search, and scores the result.
 
@@ -109,7 +109,7 @@ Deterministic contract and oracle:
 npm run test:recovery-agent-search
 ```
 
-The real-model comparison runs in GitHub Actions through `.github/workflows/recovery-agent-search.yml`.
+The real-model comparison runs in GitHub Actions through `.github/workflows/recovery-agent-search.yml` using the already-proven billing-disabled Google-free OIDC path.
 
 ## Interpretation
 
