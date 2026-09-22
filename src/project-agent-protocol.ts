@@ -146,9 +146,9 @@ function gitBytes(repo:string,commit:string,path:string):Buffer {
   );
 }
 
-function agentAssignment(repo:string,work:Work):{
-  bytes:Buffer;
-  source_sha:string;
+function validateAgentPacket(work:Work):{
+  sourceSha:string;
+  requiredPaths:string[];
 } {
   const packet=work.packet;
   if (
@@ -169,12 +169,19 @@ function agentAssignment(repo:string,work:Work):{
   ) {
     throw new Error('PROJECT_ADVANCE_REQUIRED_PATHS_INVALID');
   }
+  return {sourceSha,requiredPaths:packet.required_paths as string[]};
+}
 
+function agentAssignment(repo:string,work:Work):{
+  bytes:Buffer;
+  source_sha:string;
+} {
+  const {sourceSha,requiredPaths}=validateAgentPacket(work);
   const assignment=buildAssignment(
     work,
-    packet.required_paths.map(path=>assignmentFile(
-      path as string,
-      gitBytes(repo,sourceSha,path as string),
+    requiredPaths.map(path=>assignmentFile(
+      path,
+      gitBytes(repo,sourceSha,path),
     )),
   );
   const bytes=encodeAssignment(assignment);
@@ -248,7 +255,7 @@ export function advanceProjectForAgent(
 
     // The operator command does not ask the reasoning agent to choose work.
     // It only accepts a frontier item that is already an agent-shaped packet.
-    agentAssignment(repo,ready);
+    validateAgentPacket(ready);
 
     try {
       const permit=kernel.claim(ready.id,ready.revision);
