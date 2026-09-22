@@ -1,0 +1,84 @@
+name: Code graph verification preflight
+
+on:
+  push:
+    branches:
+      - experiment/flask-code-graph-verification
+    paths:
+      - experiments/code-graph-verification/**
+      - package.json
+      - .github/workflows/code-graph-verification-preflight.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-graph-verification-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Exact corpus preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check out exact experiment revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up repository Node version
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Verify deterministic experiment contract
+        run: npm run test:code-graph-verification
+
+      - name: Fetch Flask history
+        run: git clone --filter=blob:none https://github.com/pallets/flask.git /tmp/flask
+
+      - name: Require exact-base corpus admission
+        run: |
+          npm run experiment:code-graph-preflight -- \
+            --flask-repo /tmp/flask \
+            --out "$RUNNER_TEMP/code-graph-preflight.json" \
+            --require-admission
+
+      - name: Publish preflight summary
+        if: always()
+        env:
+          PREFLIGHT: ${{ runner.temp }}/code-graph-preflight.json
+        run: |
+          if [ ! -f "$PREFLIGHT" ]; then
+            echo "## Code graph preflight" >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "No preflight artifact was produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import json
+          import os
+
+          path = os.environ["PREFLIGHT"]
+          report = json.load(open(path, encoding="utf-8"))
+          counts = report["counts"]
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("## Code graph preflight\n\n")
+              out.write(f"- corpus SHA-256: `{report['corpus_sha256']}`\n")
+              out.write(f"- execution admission: **{report['execution_admission']}**\n")
+              for key, value in counts.items():
+                  out.write(f"- {key}: {value}\n")
+
+              excluded = [
+                  (case["id"], variant["id"], variant["exclusion_reason"])
+                  for case in report["cases"]
+                  for variant in case["variants"]
+                  if not variant["admitted"]
+              ]
+              if excluded:
+                  out.write("\n### Excluded variants\n\n")
+                  for case_id, variant_id, reason in excluded:
+                      out.write(f"- `{case_id}/{variant_id}`: {reason}\n")
+          PY
