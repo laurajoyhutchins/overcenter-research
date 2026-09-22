@@ -11,7 +11,7 @@ const signal=readFileSync(
   'utf8',
 );
 const submit=readFileSync(
-  new URL('../.github/workflows/operator-agent-submit.yml',import.meta.url),
+  new URL('../.github/workflows/operator-project-submit.yml',import.meta.url),
   'utf8',
 );
 
@@ -51,7 +51,7 @@ test('project.advance is a project-scoped trusted rerun command',()=>{
   assert.match(advance,/overcenter-work-packet-\$\{\{ steps\.invoke\.outputs\.run_id \}\}/);
 });
 
-test('candidate transport stays internal and inert until agent.submit is invoked',()=>{
+test('candidate transport stays internal and inert until project.submit is invoked',()=>{
   assert.match(signal,/^name: Overcenter internal · candidate handoff/m);
   assert.match(signal,/overcenter\/candidate\/\*\*/);
   assert.match(signal,/permissions: \{\}/);
