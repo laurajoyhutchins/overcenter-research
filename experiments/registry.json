@@ -397,6 +397,58 @@
       }
     },
     {
+      "id": "ambient-authority-boundary",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/ambient-authority-boundary",
+      "readme": "experiments/ambient-authority-boundary/README.md",
+      "question": "If an agent arrives inside a sandbox whose ambient capabilities Overcenter does not control, which guarantees remain substrate-independent?",
+      "claim": "For the bounded witness, extra ambient provider authority can bypass physical effect confinement but cannot by itself advance Overcenter project truth when execution permits, verification, and settlement authority remain outside the worker.",
+      "contrast": "Treat an inner worker sandbox as sufficient to neutralize capabilities already held by the surrounding agent substrate.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:ambient-authority-boundary"
+      },
+      "environment": [
+        "Node.js from .node-version and Git for the deterministic authority fixture.",
+        "GitHub Actions ubuntu-24.04 for the hosted permission-boundary proof.",
+        "The hosted control job receives contents:read only; the over-capable job receives the same source/work packet plus statuses:write while retaining contents:read."
+      ],
+      "success_criteria": [
+        "Both arms receive byte-identical task packets and begin from the same EXECUTING authority state.",
+        "The controlled arm, which receives no ambient provider-write capability, cannot produce the external effect.",
+        "The over-capable arm can produce the external effect through its host-provided capability even though the work packet is unchanged.",
+        "A worker-declared DONE/verified result in either arm does not change authoritative project state.",
+        "After the over-capable worker mutates external truth, authoritative state remains EXECUTING until trusted verification and settlement run.",
+        "Trusted verification may settle the original run DONE from the independently observed matching postcondition.",
+        "In the hosted proof, the controlled job's direct GitHub status mutation is rejected while the over-capable job's direct mutation succeeds using the host-provided token.",
+        "The hosted over-capable job still observes the obligation as EXECUTING after its provider mutation, and a separate contents-write/statuses-read recovery job is required to settle DONE."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "7982eb745f6c12cc99053e7e7673ebafb7c05a6c",
+        "artifacts": [
+          "GitHub Actions run 35773933844: trusted authority, controlled worker, ambient-capability worker, and trusted readback/settlement jobs all passed at the exact evaluated revision.",
+          "GitHub Actions run 35773934727: exact-head Merge gate passed."
+        ]
+      },
+      "interpretation": "The experiment separates physical effect confinement from project-truth authority. Overcenter cannot claim to prevent external effects when a surrounding substrate independently grants the agent a consequential provider capability, but the worker still cannot make those effects authoritative project truth without trusted verification and settlement.",
+      "non_claims": [
+        "The hosted GitHub permission model represents every third-party agent sandbox or tool surface.",
+        "An uncontrolled substrate with consequential ambient provider credentials is safe for arbitrary execution.",
+        "Rust confinement can revoke capabilities held by the parent agent or by the hosting platform.",
+        "Independent readback makes an unauthorized external effect acceptable merely because its postcondition later matches."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The authority/effect split and acceptance criteria were recorded before the experiment's exact-revision CI result."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The hosted proof shows that an uncontrolled worker with an ambient provider-write capability can bypass physical effect confinement, but cannot advance Overcenter project truth: authoritative state remains unchanged until trusted readback and settlement run."
+      }
+    },
+    {
       "id": "eventually-consistent-readback",
       "kind": "experiment",
       "status": "maintained",
