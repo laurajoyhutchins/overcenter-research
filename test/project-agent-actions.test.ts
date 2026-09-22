@@ -69,6 +69,13 @@ test('candidate transport stays internal and inert until project.submit is invok
   assert.doesNotMatch(submit,/issue_comment:|pull_request_review:|workflow_dispatch:/);
 });
 
+test('routine operator commands require no GitHub App credential',()=>{
+  for (const source of [advance,submit]) {
+    assert.match(source,/GITHUB_TOKEN: \$\\{\\{ github\\.token \\}\\}/);
+    assert.doesNotMatch(source,/GITHUB_APP|APP_ID|PRIVATE_KEY|INSTALLATION_ID/i);
+  }
+});
+
 test('semantic operator commands do not spend their budget on package-manager caching',()=>{
   for (const source of [advance,submit]) {
     assert.match(source,/package-manager-cache: false/);
