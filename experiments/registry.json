@@ -1,6 +1,6 @@
 {
-  "schema": "overcenter-experiment-registry/v1",
-  "standard": "Maintained experiments must be explainable and reproducible from repository state alone.",
+  "schema": "overcenter-experiment-registry/v2",
+  "standard": "Maintained experiments must make design provenance, bounded acceptance criteria, outcome, reproducibility, and exact revision-bound evidence explicit.",
   "entries": [
     {
       "id": "assignment-capsule",
@@ -28,10 +28,10 @@
         "Trusted reconstruction and independent observation settle the same run DONE."
       ],
       "evidence": {
-        "state": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "00acffaf713032a0f8eb9603d6ffc9b0b969ebef",
         "artifacts": [
-          ".github/workflows/assignment-capsule-proof.yml",
-          "Hosted runs 35488588703 and 35488740731 previously passed end to end; exact current-head proof reruns on every PR update."
+          "GitHub Actions run 35488740731: exact-head hosted assignment capsule proof; deterministic contract, no-checkout worker, isolated network namespace, damaged-assignment controls, and trusted settlement all passed."
         ]
       },
       "interpretation": "A positive result proves byte-complete assignment plumbing for the bounded workload; it does not make the worker authoritative for success or imply arbitrary toolchain portability.",
@@ -40,7 +40,15 @@
         "This is a general artifact distribution or confidential payload service.",
         "Arbitrary provider mutation is authorized by the worker capsule.",
         "Every future obligation already fits this proof packet."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The boundary and fail-closed criteria were committed on the experiment branch before the hosted proof result; later exact-head runs confirm the same bounded contract."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Exact claimed work and task bytes were delivered to a no-checkout, no-network worker and independently settled by trusted authority."
+      }
     },
     {
       "id": "bounded-graph-exhaustion",
@@ -67,7 +75,7 @@
         "After a same-output packet amendment and resettlement, verified-content consumers may reuse historical realizations while settlement-receipt consumers invalidate because settlement identity changed."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
@@ -79,7 +87,15 @@
         "Provider behavior, liveness, or the transaction/recovery protocol is covered by this graph-state exhaustion.",
         "The full typed/state space has been quotient-canonicalized by graph isomorphism.",
         "Future edge kinds or lifecycle states inherit this evidence without extending the generator and reference model."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The bounded graph/state space agrees with independent reachability, lifecycle, and semantic-invalidation reference relations over the declared bounds."
+      }
     },
     {
       "id": "codex-closed-loop",
@@ -109,10 +125,11 @@
         "GitHub readback reports the exact trusted-publisher commit on the expected base as an open draft PR."
       ],
       "evidence": {
-        "state": "pending",
+        "status": "pending",
         "artifacts": [
           ".github/workflows/codex-closed-loop.yml"
-        ]
+        ],
+        "pending_reason": "The deterministic boundary is implemented, but accepted hosted Codex execution evidence under the maintained integration path has not yet been recorded."
       },
       "interpretation": "A positive result establishes the bounded reasoning-worker transaction boundary. It supports using Codex as a disposable implementation worker, not as authority for project truth or provider mutation.",
       "non_claims": [
@@ -121,7 +138,15 @@
         "The worker is trusted because the candidate passed.",
         "GitHub itself is authoritative project state.",
         "The witness pull request should be merged."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The worker/trusted-authority boundary and acceptance criteria are recorded while the hosted closed-loop outcome remains pending."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The deterministic contract is maintained, but the hosted reasoning-worker transaction has not yet produced accepted evidence under the current integration boundary."
+      }
     },
     {
       "id": "conflicting-effect",
@@ -147,7 +172,7 @@
         "After the later write changes the mutable coordinate, final verification distinguishes alpha's historical settlement from beta's current realization truth rather than reporting both postconditions currently DONE."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "570e776aadb131589c9a47309d923e06b476e436",
         "artifacts": [
           "GitHub Actions run 35465653746: full ordered conflict proof including corrected final current-truth verification."
@@ -159,7 +184,15 @@
         "Identical desired writes have identical provider histories or side effects.",
         "The GitHub commit-status conflict relation generalizes unchanged to arbitrary providers.",
         "Two historically settled incompatible postconditions remain simultaneously true in current mutable provider state."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Known incompatible writes to one canonical GitHub status coordinate require ordering, and later mutable truth is correctly separated from historical settlement."
+      }
     },
     {
       "id": "current-realization-admissibility",
@@ -187,7 +220,7 @@
         "Restoring desired reality makes the original historical realization admissible again without writing a new settlement."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
@@ -199,7 +232,15 @@
         "Provider-specific observation and verification correctness is proved by the projector experiment.",
         "Historical settlements are erased when they become currently inadmissible.",
         "The experiment provides an eventual-progress or replay-liveness guarantee."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Fresh authoritative judgment can preserve, withdraw, or leave historical realization reuse indeterminate without lifecycle repair writes."
+      }
     },
     {
       "id": "datalog-projection",
@@ -227,7 +268,7 @@
         "Control and semantic dependencies retain their distinct roles: both gate execution, while only semantic dependencies participate in current semantic identity."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403296"
@@ -239,7 +280,15 @@
         "Soufflé should become a production runtime dependency.",
         "Datalog owns provider interpretation, canonical hashing, conflict admission, execution fencing, mutation ordering, or CAS.",
         "Agreement on the bounded corpus proves universal equivalence between the TypeScript and Datalog implementations."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The modeled public project projection can be recomputed relationally from durable facts plus current semantic judgments without stored lifecycle input."
+      }
     },
     {
       "id": "disposable-agent",
@@ -267,7 +316,7 @@
         "The hosted path settles from independent GitHub readback through the production status-effect boundary rather than trusting the original worker's success assertion."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403293"
@@ -279,7 +328,15 @@
         "GitHub repository-scoped statuses:write is coordinate-scoped least privilege.",
         "Fresh recovery is guaranteed to regain liveness.",
         "Worker disposability makes worker assertions authoritative for settlement."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "A fresh worker can reconstruct and settle the same unresolved run from durable authority after the original worker disappears."
+      }
     },
     {
       "id": "eventually-consistent-readback",
@@ -305,7 +362,7 @@
         "A later authoritative matching read may settle the original run DONE without replaying the effect."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
@@ -317,7 +374,15 @@
         "Every provider can furnish authoritative absence evidence.",
         "A negative provider read is generally safe evidence of non-occurrence.",
         "The experiment proves liveness once a mutation outcome becomes uncertain."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Stale or negative non-authoritative readback remains recovery-bound and does not authorize blind replay."
+      }
     },
     {
       "id": "git-stress",
@@ -345,7 +410,7 @@
         "Multi-process contention preserves exact compare-and-swap semantics and a single winning authority transition."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
@@ -357,7 +422,15 @@
         "Arbitrary network or distributed filesystems provide the same locking and durability behavior.",
         "The stress cases prove provider semantics or project liveness.",
         "Passing the bounded stress suite proves all Git implementations and object-store failure modes safe."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The Git reference backend preserves the tested fail-closed and single-winner authority properties across the exercised Git adversaries."
+      }
     },
     {
       "id": "github-object-transport",
@@ -384,7 +457,7 @@
         "Authoritative GitHub readback confirms the published result independently of the worker's local claim."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "570e776aadb131589c9a47309d923e06b476e436",
         "artifacts": [
           "GitHub Actions run 35465653729: materialize, no-checkout execute, publish, and authoritative readback all passed."
@@ -396,7 +469,15 @@
         "GitHub provides provider-native coordinate-scoped authorization for the worker.",
         "The manifest proves arbitrary task closure or toolchain completeness.",
         "A worker's candidate output becomes project truth without trusted publication and readback."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Manifest-bound bytes, no-checkout execution, permission-separated publication, and independent readback make the bounded worker transport independently checkable."
+      }
     },
     {
       "id": "github-observation-grammar",
@@ -423,7 +504,7 @@
         "The hosted proof exercises the generated observation grammar against live GitHub data at the exact evaluated revision."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403282"
@@ -435,7 +516,15 @@
         "OpenAPI structural validity proves that GitHub's returned facts are semantically truthful.",
         "Every GitHub endpoint can share one semantic projection.",
         "Schema generation replaces provider-specific verification logic."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Schema-derived structural legality plus explicit semantic projection covers the tested GitHub observation slices without conflating shape with meaning."
+      }
     },
     {
       "id": "kubernetes-observation",
@@ -462,10 +551,10 @@
         "Delete/recreate UID changes are detected as a new provider object rather than reuse of the prior identity."
       ],
       "evidence": {
-        "state": "historical",
-        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "status": "evaluated",
+        "evaluated_revision": "c7ce05a82da451d2f2911ebf56f012bd227c79ec",
         "artifacts": [
-          "Deterministic semantics on current main; live provider workflow is separately dispatchable."
+          "GitHub Actions run 35650473150: deterministic Kubernetes semantics and live Kubernetes provider proof both passed at the exact evaluated revision."
         ]
       },
       "interpretation": "The ConfigMap slice demonstrates that the generic observation/certificate boundary can accommodate a second provider with object identity, snapshot completeness, and stream-continuity semantics materially different from GitHub.",
@@ -474,7 +563,15 @@
         "Kubernetes watch or list operations guarantee application liveness.",
         "The experiment proves a provider-generic adapter for arbitrary external systems.",
         "Historical deterministic semantics constitute a current live-provider proof."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The ConfigMap slice demonstrates UID/resourceVersion identity, complete LIST absence, and WATCH continuity through the generic observation/certificate boundary."
+      }
     },
     {
       "id": "linkml-contract-refactor",
@@ -502,10 +599,10 @@
         "The faithful stock-LinkML architecture is measured as 3 independently maintained authored manifestations, not 2."
       ],
       "evidence": {
-        "state": "current",
-        "evaluated_revision": "fc99ed6e44f4b07f07a72d689b2d4caed5919be8",
+        "status": "evaluated",
+        "evaluated_revision": "67006ff0ccb2a3e119fa44b541984bd08f201607",
         "artifacts": [
-          "GitHub Actions run 35485610531: 6/6 exact-head tests passed against current production; the experiment caught and removed stale github-commit-status/v1 vocabulary, preserved JSON Schema semantics, demonstrated stock TypeScript enum widening, and retained the faithful 3 -> 3 manifestation result."
+          "GitHub Actions run 35485857395: final corrected exact-head LinkML contract-refactor experiment passed; expected faithful result remained 3 -> 3 with stock TypeScript enum widening explicit."
         ]
       },
       "interpretation": "A positive result supports LinkML as the structural source for the tested JSON Schema slice, not as the source of Overcenter's narrow TypeScript domain types.",
@@ -515,7 +612,15 @@
         "Stock LinkML TypeScript preserves Overcenter enum narrowing.",
         "A custom LinkML TypeScript template would be simpler than handwritten TypeScript.",
         "LinkML owns verifier semantics, settlement authority, or evidence meaning."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The initial refactor question preceded execution, while observed stock-TypeScript enum widening and the corrected faithful 3-to-3 manifestation result informed the maintained acceptance contract."
+      },
+      "outcome": {
+        "state": "mixed",
+        "summary": "LinkML preserves the tested JSON structural contract after corrections, but stock TypeScript generation widens enum-valued fields and does not reduce the faithful authored manifestation count below three."
+      }
     },
     {
       "id": "linkml-ontology",
@@ -543,10 +648,10 @@
         "A semantic-key mismatch remains structurally valid in LinkML and is rejected by an independent Overcenter semantic check."
       ],
       "evidence": {
-        "state": "current",
-        "evaluated_revision": "0f7758293653e3d07a82e096d73b87186cf90d6b",
+        "status": "evaluated",
+        "evaluated_revision": "4e13415a5e40c37401d3f2e6d24c119a65de897b",
         "artifacts": [
-          "GitHub Actions run 35484865636: corrected exact-head LinkML ontology experiment passed 5/5; scalar fidelity, projection behavior, and the semantic-boundary negative control all passed."
+          "GitHub Actions run 35485448763: rebased final exact-head LinkML ontology experiment passed."
         ]
       },
       "interpretation": "A positive result supports LinkML only as structural vocabulary/projection tooling; semantic authority remains in deterministic Overcenter mechanisms.",
@@ -555,7 +660,15 @@
         "LinkML belongs in the production runtime.",
         "Generated TypeScript is a runtime validator.",
         "Every generator preserves every source constraint."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The ontology question preceded execution, while early projection defects were corrected and the maintained criteria describe the corrected exact-head experiment rather than untouched first-pass preregistration."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The corrected representative LinkML slice projects the tested structural model faithfully while leaving semantic identity as an explicit external invariant."
+      }
     },
     {
       "id": "lisp-semantics",
@@ -583,7 +696,7 @@
         "The candidate prevents the targeted projection drift while keeping execution authority, settlement authority, and trusted enforcement outside the declarative language."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
@@ -595,7 +708,15 @@
         "A Lisp runtime belongs in the production trusted computing base.",
         "The declarative source owns execution, provider mutation, or settlement authority.",
         "The tiny compiler proves all future semantic projections coherent."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "A single declarative semantic-role source prevents the targeted projection-drift seam in the hostile evolution while keeping execution and settlement outside the language."
+      }
     },
     {
       "id": "frontier-prioritization",
@@ -630,9 +751,10 @@
         "A fixed connected 80-node, 50-objective stress case remains exactly solvable within 248 bounded search states."
       ],
       "evidence": {
-        "state": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "c7ce05a82da451d2f2911ebf56f012bd227c79ec",
         "artifacts": [
-          "experiments/frontier-prioritization/frontier-prioritization.test.ts"
+          "Merge gate run 35650473557: exact-head Evidence / Experiment and formal evidence ran the adversarial experiment proof lane including frontier-prioritization and passed."
         ]
       },
       "interpretation": "Multiple READY nodes are not themselves an AI prioritization problem. The cheap structural policy settles every exhaustive reachable small-graph frontier and 99.28% of the larger fixed sample; exact verification settles the residuals. The exact fallback can itself be compressed aggressively: kernelization removes dominated/forced structure, objective-interaction decomposition makes independent objective components additive, and branch-and-bound collapses many connected cases. The controlling difficulty is the size and overlap of the remaining interacting objective kernel, not raw graph size. Exceeding a deterministic budget still calls first for stronger deterministic optimization or decomposition, not automatic AI escalation. Heavier exact solvers and parameterized decomposition are explicitly future research rather than acceptance criteria for this experiment.",
@@ -645,7 +767,15 @@
         "A heuristic result should be trusted without deterministic verification.",
         "No software-engineering task ever requires AI judgment.",
         "Pseudo-Boolean, SAT, CP-SAT, MILP, incremental, or treewidth-aware solvers are required for the current experiment."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "Exploratory deterministic results informed the maintained heuristic and solver ladder. The fixed corpora and exact-oracle checks are reproducible, but the headline thresholds and optimized representation are not claimed as untouched preregistration."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Across the maintained bounded corpora, cheap deterministic prioritization plus exact closure verification resolves or certifies the modeled READY-frontier choices before AI escalation."
+      }
     },
     {
       "id": "production-criticality-ranking",
@@ -658,7 +788,7 @@
       "contrast": "Periodically repeat a human ranking exercise or rely on generic complexity/hotspot metrics alone.",
       "reproduce": {
         "tier": "toolchain",
-        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --experimental-strip-types --test experiments/production-criticality-ranking/analyze.test.ts && node --experimental-strip-types experiments/production-criticality-ranking/analyze.ts --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
+        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --experimental-strip-types --test experiments/production-criticality-ranking/analyze.test.ts && node --experimental-strip-types experiments/production-criticality-ranking/analyze.ts --config experiments/production-criticality-ranking/config.json --json /tmp/criticality.json --markdown /tmp/criticality.md"
       },
       "environment": [
         "Node.js from .node-version",
@@ -668,27 +798,34 @@
       "success_criteria": [
         "Only production callables under src/ enter the ranked population.",
         "Configured authority and recovery selectors resolve exactly once.",
-        "The static graph is informative and unresolved internal calls are reported.",
-        "At least 80% of the initial pairwise calibration judgments agree.",
-        "Every surprising rank decomposes into quantitative vector components and graph evidence."
+        "Internal static-call resolution remains informative; unresolved internal/unknown calls are reported, and critical callback-boundary exemptions fail closed when stale or malformed.",
+        "Every named required calibration regression remains satisfied while known model mismatches remain explicit diagnostics rather than consuming a percentage budget.",
+        "Every surprising rank decomposes into quantitative vector components and graph evidence.",
+        "Deleting generated reports and recomputing at the same revision produces the same result."
       ],
       "evidence": {
-        "state": "current",
-        "evaluated_revision": "737736d4bc799ceaa23190da1d2ff818507d2852",
+        "status": "evaluated",
+        "evaluated_revision": "515a771257ca0ac21cede5410144be5e02da4f7b",
         "artifacts": [
-          "PR #111",
-          "Production criticality ranking run 35480506420 at 737736d4bc799ceaa23190da1d2ff818507d2852",
-          "Criticality mutation probe run 35471986995 at 13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
-          "experiments/production-criticality-ranking/mutation-evidence.json"
+          "GitHub Actions run 35673456200: production criticality ranking passed after component-local normalization made unchanged authority components invariant to disconnected production code.",
+          "experiments/production-criticality-ranking/mutation-evidence.json: exact-blob-bound hostile-case evidence; stale probes fail closed to a full evidence gap."
         ]
       },
-      "interpretation": "A production-only callable graph can derive a reproducible consequence order and a separate engineering-attention order from quantitative facts. At evaluated revision 737736d4bc799ceaa23190da1d2ff818507d2852 the production graph ranks 299 callables, resolves 84.5% of internal/unknown production calls, and agrees with 6/7 prior pairwise judgments. The lone reuse-over-identity disagreement remains evidence that callable granularity cannot represent every branch-level semantic claim. Exact-blob mutation evidence materially improves E, all 7 probes apply with 0 stale at the evaluated revision, and stale mutation evidence fails closed.",
+      "interpretation": "The maintained ranking provides reproducible consequence and engineering-attention orders from revision-bound graph and evidence facts. Component-local normalization prevents unrelated disconnected code from perturbing unchanged authority components. Required calibration regressions remain explicit, branch-level/callable-granularity mismatches remain diagnostics, and mutation evidence is exact-blob-bound so stale probes fail closed rather than silently transferring.",
       "non_claims": [
         "Callable boundaries are the final semantic unit.",
         "Static test reachability is equivalent to hostile-case evidence.",
         "Exported-entrypoint reachability is equivalent to production telemetry.",
         "The current weighting equation is uniquely correct."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "Prior human pairwise judgments predate the analyzer, but callable granularity, ranking policy, component normalization, and mutation-evidence handling evolved in response to observed disagreements and gaps."
+      },
+      "outcome": {
+        "state": "mixed",
+        "summary": "The ranking is reproducible and useful for consequence/attention ordering, while callable granularity and hostile-case evidence remain explicit model limitations rather than hidden calibration errors."
+      }
     },
     {
       "id": "production-latency",
@@ -714,7 +851,7 @@
         "Provider-facing I/O and local Overcenter work are reported separately."
       ],
       "evidence": {
-        "state": "historical",
+        "status": "evaluated",
         "evaluated_revision": "e103e0d8442f55cb7d4c55e49104c676d5c8f95b",
         "artifacts": [
           "GitHub Actions run 35540143115: 25-sample deterministic baseline and 3-sample live GitHub decomposition passed with production source unchanged.",
@@ -728,7 +865,15 @@
         "GitHub rate limits permit arbitrary transaction throughput.",
         "Recovery-path latency matches successful-path latency.",
         "Other providers have the same latency profile."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The transaction boundary and timing buckets were fixed for the hosted measurement, while the numeric latency result is observational rather than a preregistered performance threshold."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The benchmark separates Overcenter-local correctness work from provider-facing latency for the bounded successful GitHub status transaction."
+      }
     },
     {
       "id": "projection-comparison",
@@ -756,7 +901,7 @@
         "The status-free SQLite control preserves the reconstruction and zero-status-write properties, isolating the architectural result from any anti-SQLite or pro-Datalog explanation."
       ],
       "evidence": {
-        "state": "historical",
+        "status": "evaluated",
         "evaluated_revision": "d1cb01b9a553513961029a92b652e2c43426c729",
         "artifacts": [
           "GitHub Actions run 35424249863"
@@ -769,7 +914,15 @@
         "All event-sourced materialized views are equivalent to authoritative mutable lifecycle.",
         "Derived projection eliminates coordination requirements at mutation boundaries.",
         "The experiment establishes a production winner among TypeScript, status-free SQL, and Datalog."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Derived TypeScript, SQL, and Datalog projections reconstruct without lifecycle repair writes; the mutable authoritative-lifecycle control becomes stale and requires repair."
+      }
     },
     {
       "id": "provider-observation",
@@ -805,7 +958,7 @@
         "The interpretation distinguishes storage scan, semantic replay, combined scheduler read, and authority-write serialization."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "eee41cac304acffa453c6e37883153a6498fea24",
         "artifacts": [
           "GitHub Actions run 35540980827"
@@ -817,7 +970,15 @@
         "Synthetic flat obligation definitions represent every project graph.",
         "SQLite provides distributed HA.",
         "The experiment itself authorizes a production optimization."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The decomposition question was fixed after an earlier scaling result exposed the bottleneck, while the numeric diagnosis is an observed benchmark result rather than a preregistered threshold."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The measured current scheduler bottleneck is repeated reconstruction/projection above SQLite rather than bare SQLite authority-write capacity."
+      }
     },
     {
       "id": "sqlite-baseline",
@@ -843,7 +1004,7 @@
         "An uncertain prior effect is not blindly replayed merely because execution was interrupted."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
@@ -855,7 +1016,15 @@
         "The local SQLite state machine proves distributed coordination semantics.",
         "The baseline covers later provider-specific, graph, or physical-confinement guarantees.",
         "The experiment guarantees eventual recovery or completion."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The historical compact SQLite control demonstrates exact fencing, observation settlement, interruption recovery, and no blind replay."
+      }
     },
     {
       "id": "storage-backend-comparison",
@@ -884,7 +1053,7 @@
         "The benchmark reports current Git replay, batched Git replay, Git per-fact write cost, and append-only SQLite cost separately so the hot-path conclusion is not inferred from one aggregate timing."
       ],
       "evidence": {
-        "state": "historical",
+        "status": "evaluated",
         "evaluated_revision": "7b5cac8e4ad67a093b63ad74e5fb1c84d89a679e",
         "artifacts": [
           "experiments/storage-backend-comparison/results/2026-09-19.md"
@@ -897,7 +1066,15 @@
         "Backend-local commit identities replace semantic obligation identity.",
         "The benchmark proves production-scale throughput or latency under every workload.",
         "Git has no useful role outside the frequent durable-fact hot path."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The tested append-only SQLite path preserves the required immutable-history/CAS/crash-prefix properties without Git's per-fact hot-path write cost."
+      }
     },
     {
       "id": "two-effect-concurrency",
@@ -923,7 +1100,7 @@
         "Authority serialization orders durable commits without requiring physical serialization of independent external effects."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403309"
@@ -935,7 +1112,15 @@
         "Arbitrary provider histories commute.",
         "The experiment proves scheduler fairness or N-way scalability.",
         "Serialized authority commits impose no throughput limit at larger scale."
-      ]
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Independent external effects can overlap while their durable settlements serialize through one CAS authority coordinate with exact claim identity."
+      }
     }
   ]
 }
