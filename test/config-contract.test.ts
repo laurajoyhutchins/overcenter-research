@@ -181,6 +181,26 @@ test('PR CI critical paths fail closed within three minutes',()=>{
       jobs:['command'],
     },
     {
+      path:'.github/workflows/operator-project-advance.yml',
+      jobs:['command'],
+    },
+    {
+      path:'.github/workflows/operator-work-execute.yml',
+      jobs:['command'],
+    },
+    {
+      path:'.github/workflows/project-advance.yml',
+      jobs:['advance'],
+    },
+    {
+      path:'.github/workflows/work-execute.yml',
+      jobs:['execute'],
+    },
+    {
+      path:'.github/workflows/closed-loop-seed.yml',
+      jobs:['seed'],
+    },
+    {
       path:'.github/workflows/assignment-capsule-proof.yml',
       jobs:['assign','execute','settle'],
     },
@@ -203,6 +223,11 @@ test('PR CI critical paths fail closed within three minutes',()=>{
     ['.github/workflows/self-application.yml','self-evidence',2],
     ['.github/workflows/merge-gate.yml','gate',1],
     ['.github/workflows/operator-candidate-certify.yml','command',1],
+    ['.github/workflows/operator-project-advance.yml','command',1],
+    ['.github/workflows/operator-work-execute.yml','command',1],
+    ['.github/workflows/project-advance.yml','advance',2],
+    ['.github/workflows/work-execute.yml','execute',2],
+    ['.github/workflows/closed-loop-seed.yml','seed',2],
     ['.github/workflows/assignment-capsule-proof.yml','assign',1],
     ['.github/workflows/assignment-capsule-proof.yml','execute',1],
     ['.github/workflows/assignment-capsule-proof.yml','settle',1],
