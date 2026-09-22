@@ -450,3 +450,20 @@ test('production launchers do not restate containment policy literals',()=>{
     }
   }
 });
+
+
+test('operator summaries never execute Markdown backticks in double-quoted shell strings',()=>{
+  for (const path of [
+    '.github/workflows/operator-project-advance.yml',
+    '.github/workflows/operator-project-submit.yml',
+  ]) {
+    for (const line of read(path).split('\n')) {
+      if (!/^\s*echo\s+"/.test(line)) continue;
+      assert.equal(
+        line.includes('`'),
+        false,
+        `${path} contains shell-interpreted Markdown backticks: ${line.trim()}`,
+      );
+    }
+  }
+});
