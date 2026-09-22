@@ -1,5 +1,10 @@
 name: Pylint code graph holdout confirmatory
 on:
+  push:
+    branches:
+      - run/pylint-code-graph-holdout-02a1de3e
+    paths:
+      - .github/workflows/code-graph-holdout-pylint-confirmatory.yml
   workflow_dispatch:
     inputs:
       confirm:
@@ -14,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   admission:
-    if: ${{ inputs.confirm }}
+    if: ${{ github.event_name == 'push' || inputs.confirm }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
