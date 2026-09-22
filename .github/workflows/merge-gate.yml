@@ -2,7 +2,7 @@ name: Merge gate
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
@@ -25,7 +25,7 @@ jobs:
     name: Evidence
     uses: ./.github/workflows/tests.yml
     with:
-      expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
+      expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
   gate:
     name: Merge gate
@@ -46,10 +46,8 @@ jobs:
 
           case "$EVENT_NAME" in
             pull_request)
-              if [ "$EVENT_ACTION" != ready_for_review ]; then
-                echo "::error::Exact-head candidate evidence is required. Mark this PR draft, then Ready for review to certify the current head."
-                exit 1
-              fi
+              echo "::error::Exact-head candidate evidence is required. Invoke the Overcenter candidate.certify command for this exact PR head."
+              exit 1
               ;;
             workflow_dispatch)
               test -n "$REQUESTED_SOURCE_SHA"

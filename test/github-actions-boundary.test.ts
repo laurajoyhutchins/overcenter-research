@@ -94,13 +94,18 @@ test('active hosted proof contains no legacy commit-status effect intent', () =>
 test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   assert.match(
     eventBlock(mergeGate, 'pull_request'),
-    /types: \[opened, synchronize, reopened, ready_for_review\]/,
-    'merge gate must observe the exact Ready for review candidate transition',
+    /types: \[opened, synchronize, reopened\]/,
+    'ordinary PR transitions must stay cheap and non-certifying',
+  );
+  assert.doesNotMatch(
+    mergeGate,
+    /github\.event_name == 'pull_request' && github\.event\.action == 'ready_for_review'/,
+    'Ready for review must not be a merge-certification capability',
   );
   assert.match(
     mergeGate,
-    /github\.event_name == 'pull_request' && github\.event\.action == 'ready_for_review'/,
-    'expensive merge-gate jobs must require the candidate transition on pull requests',
+    /expensive: \$\{\{ github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch' \}\}/,
+    'only push and exact-head operator dispatch may spend canonical candidate evidence',
   );
   assert.match(
     mergeGate,
@@ -114,8 +119,8 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
-    /Exact-head candidate evidence is required[\s\S]*?Ready for review[\s\S]*?exit 1/,
-    'ordinary pull_request runs must remain non-mergeable until candidate evidence runs',
+    /Exact-head candidate evidence is required[\s\S]*?candidate\.certify[\s\S]*?exit 1/,
+    'ordinary pull_request runs must direct operators to the semantic certification command',
   );
   assert.match(
     evidenceWorkflow,

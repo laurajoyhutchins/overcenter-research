@@ -64,6 +64,8 @@ It accepts no free-form command payload.
 
 On invocation, the trusted adapter dispatches `merge-gate.yml` for the captured branch ref and passes the captured head SHA as `source_sha`. The merge gate independently requires the dispatched run's actual source SHA to equal that requested SHA. A moved branch therefore fails closed rather than silently certifying newer code.
 
+`candidate.certify` is the merge-certification path for pull requests. Ordinary `opened`, `synchronize`, and `reopened` Merge-gate runs stay cheap and deliberately non-mergeable until this command dispatches exact-head candidate evidence. Do not use Draft → Ready transitions as command transport. Ready-for-review remains available to supplemental proof workflows, but it is not merge certification and may fan out additional runner work.
+
 GitHub Cloud's workflow-dispatch response provides the new workflow run ID and URLs. The command receipt verifies those URLs against the repository and run ID, then records them with a canonical receipt digest. This is a transport receipt, not durable Overcenter settlement. Successful dispatch is not equivalent to successful candidate evidence; callers must observe the dispatched run separately.
 
 ## Authority and permissions
