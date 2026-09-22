@@ -1,6 +1,15 @@
 {
   "schema": "overcenter-code-graph-verification-corpus/v1",
   "repository": "pallets/flask",
+  "benchmark_slice": {
+    "dataset": "SWE-bench/SWE-bench",
+    "split": "test",
+    "filter": {
+      "repo": "pallets/flask"
+    },
+    "expected_instances": 11,
+    "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl"
+  },
   "primary_thresholds": {
     "recall_min": 0.99,
     "selected_fraction_max": 0.3,
@@ -10,12 +19,19 @@
     "human_exact_patches_min": 10,
     "ai_exact_patches_min": 10,
     "ai_nonidentical_to_human_min": 5,
-    "ai_unsuccessful_or_regressive_exact_patches_min": 2
+    "ai_unsuccessful_or_regressive_exact_patches_min": 2,
+    "current_candidate_counts": {
+      "human_exact_patches": 11,
+      "ai_exact_patches": 10,
+      "ai_with_reported_unresolved_or_error_outcome": 7
+    },
+    "state": "candidate_corpus_complete_pending_patch_preflight_and_execution"
   },
   "cases": [
     {
       "id": "pallets__flask-4045",
       "base_commit": "d8c37f43724cd9fb0870f77877b7c4c7e38a19e0",
+      "version": "2.0",
       "test_patch": "patches/flask-4045-tests.patch",
       "variants": [
         {
@@ -23,28 +39,306 @@
           "authorship": "human",
           "primary": true,
           "patch": "patches/flask-4045-human.patch",
+          "equivalence_group": "pallets__flask-4045-gold",
           "provenance": {
-            "source": "pallets/flask commit 7c5261407dae61679c268b44c63d73909c3fe652",
-            "artifact_kind": "exact_git_commit_source_diff"
-          },
-          "equivalence_group": "pallets__flask-4045-gold-source-edit"
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
         },
         {
           "id": "ai-loope-final",
           "authorship": "ai",
           "primary": true,
           "patch": "patches/flask-4045-ai-loope.patch",
+          "equivalence_group": "pallets__flask-4045-gold",
           "provenance": {
             "source": "mateaix/loope benchmarks/results/swebench-flask-4045.patch",
             "artifact_kind": "exact_published_model_patch"
+          }
+        },
+        {
+          "id": "ai-claude-opus",
+          "authorship": "ai",
+          "primary": true,
+          "patch": "patches/flask-4045-ai-claude-opus.patch",
+          "equivalence_group": "pallets__flask-4045-claude-constructor-shape",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_opus.jsonl",
+            "model": "claude-opus",
+            "artifact_kind": "exact_published_model_patch"
           },
-          "equivalence_group": "pallets__flask-4045-gold-source-edit"
+          "evaluation": {
+            "state": "unresolved",
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify configs/models/claude-opus.opus2.json"
+          }
+        },
+        {
+          "id": "ai-claude-haiku",
+          "authorship": "ai",
+          "primary": true,
+          "patch": "patches/flask-4045-ai-claude-haiku.patch",
+          "equivalence_group": "pallets__flask-4045-claude-haiku-shape",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_haiku.jsonl",
+            "model": "claude-haiku",
+            "artifact_kind": "exact_published_model_patch"
+          },
+          "evaluation": {
+            "state": "resolved",
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify configs/models/claude-haiku.haiku2.json"
+          }
+        },
+        {
+          "id": "ai-claude-sonnet",
+          "authorship": "ai",
+          "primary": true,
+          "patch": "patches/flask-4045-ai-claude-sonnet.patch",
+          "equivalence_group": "pallets__flask-4045-claude-constructor-shape",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_sonnet.jsonl",
+            "model": "claude-sonnet",
+            "artifact_kind": "exact_published_model_patch"
+          },
+          "evaluation": {
+            "state": "unresolved",
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify configs/models/claude-sonnet.sonnet2.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-4074",
+      "base_commit": "a541c2ac8b05c2b23e11bd8540088fce1abc2373",
+      "version": "2.0",
+      "test_patch": "patches/flask-4074-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-4074-human.patch",
+          "equivalence_group": "pallets__flask-4074-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        },
+        {
+          "id": "ai-claude-opus",
+          "authorship": "ai",
+          "primary": true,
+          "patch": "patches/flask-4074-ai-claude-opus.patch",
+          "equivalence_group": "pallets__flask-4074-claude-registration-shape",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_opus.jsonl",
+            "model": "claude-opus",
+            "artifact_kind": "exact_published_model_patch"
+          },
+          "evaluation": {
+            "state": "error",
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify configs/models/claude-opus.opus2.json"
+          }
+        },
+        {
+          "id": "ai-claude-haiku",
+          "authorship": "ai",
+          "primary": true,
+          "patch": "patches/flask-4074-ai-claude-haiku.patch",
+          "equivalence_group": "pallets__flask-4074-claude-registration-shape",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_haiku.jsonl",
+            "model": "claude-haiku",
+            "artifact_kind": "exact_published_model_patch"
+          },
+          "evaluation": {
+            "state": "error",
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify configs/models/claude-haiku.haiku2.json"
+          }
+        },
+        {
+          "id": "ai-claude-sonnet",
+          "authorship": "ai",
+          "primary": true,
+          "patch": "patches/flask-4074-ai-claude-sonnet.patch",
+          "equivalence_group": "pallets__flask-4074-claude-registration-shape",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_sonnet.jsonl",
+            "model": "claude-sonnet",
+            "artifact_kind": "exact_published_model_patch"
+          },
+          "evaluation": {
+            "state": "error",
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify configs/models/claude-sonnet.sonnet2.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-4160",
+      "base_commit": "06cf349bb8b69d9946c3a6a64d32eb552cc7c28b",
+      "version": "2.0",
+      "test_patch": "patches/flask-4160-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-4160-human.patch",
+          "equivalence_group": "pallets__flask-4160-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-4169",
+      "base_commit": "66d9d4fa8d07dd50e4cb3036a9ae5f92c4693b84",
+      "version": "2.0",
+      "test_patch": "patches/flask-4169-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-4169-human.patch",
+          "equivalence_group": "pallets__flask-4169-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-4544",
+      "base_commit": "dba2be9311d2abfd1b973c6bb578f416ee771fda",
+      "version": "2.1",
+      "test_patch": "patches/flask-4544-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-4544-human.patch",
+          "equivalence_group": "pallets__flask-4544-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-4575",
+      "base_commit": "bd56d19b167822a9a23e2e9e2a07ccccc36baa8d",
+      "version": "2.2",
+      "test_patch": "patches/flask-4575-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-4575-human.patch",
+          "equivalence_group": "pallets__flask-4575-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-4642",
+      "base_commit": "97298e06fe19298c3ff9d2e0ed9ba70bb3fda2c8",
+      "version": "2.2",
+      "test_patch": "patches/flask-4642-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-4642-human.patch",
+          "equivalence_group": "pallets__flask-4642-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-4935",
+      "base_commit": "fa1ee7066807c21256e90089731c548b313394d2",
+      "version": "2.3",
+      "test_patch": "patches/flask-4935-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-4935-human.patch",
+          "equivalence_group": "pallets__flask-4935-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-4992",
+      "base_commit": "4c288bc97ea371817199908d0d9b12de9dae327e",
+      "version": "2.3",
+      "test_patch": "patches/flask-4992-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-4992-human.patch",
+          "equivalence_group": "pallets__flask-4992-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        },
+        {
+          "id": "ai-qwen32-direct",
+          "authorship": "ai",
+          "primary": true,
+          "patch": "patches/flask-4992-ai-qwen32-direct.patch",
+          "equivalence_group": "pallets__flask-4992-qwen32-direct-shape",
+          "provenance": {
+            "source": "r12habh/lightweight-llm-code-agent-failure-analysis results/swebench_300/final_predictions_qwen32b_direct.repaired.jsonl",
+            "model": "qwen2.5-coder-32b-instruct-awq__direct",
+            "artifact_kind": "exact_published_model_patch"
+          },
+          "evaluation": {
+            "state": "unresolved",
+            "source": "r12habh/lightweight-llm-code-agent-failure-analysis logs/docker_harness_summaries/qwen32b_300_direct_repaired/qwen2.5-coder-32b-instruct-awq__direct/pallets__flask-4992/report.json",
+            "fail_to_pass_success": 0,
+            "fail_to_pass_failure": 1,
+            "pass_to_pass_success": 16,
+            "pass_to_pass_failure": 2
+          }
         }
       ]
     },
     {
       "id": "pallets__flask-5014",
       "base_commit": "7ee9ceb71e868944a46e1ff00b506772a53a4f1d",
+      "version": "2.3",
       "test_patch": "patches/flask-5014-tests.patch",
       "variants": [
         {
@@ -52,23 +346,65 @@
           "authorship": "human",
           "primary": true,
           "patch": "patches/flask-5014-human.patch",
+          "equivalence_group": "pallets__flask-5014-gold",
           "provenance": {
-            "source": "pallets/flask commit b8b410014d85f9861acc87c5f21c9a55a42d09c9",
-            "artifact_kind": "exact_git_commit_source_diff"
-          },
-          "equivalence_group": "pallets__flask-5014-gold-source-edit"
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
         },
         {
           "id": "ai-dm-deepseek",
           "authorship": "ai",
           "primary": true,
           "patch": "patches/flask-5014-ai-dm-deepseek.patch",
+          "equivalence_group": "pallets__flask-5014-gold",
           "provenance": {
             "source": "hwfengcs/DM-Code-Agent bench_reports/swebench-verified-crossrepo-50-predictions-20260806.jsonl",
             "model": "dm-agent-deepseek",
+            "artifact_kind": "exact_published_model_patch",
+            "generator_status": "success"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pallets__flask-5063",
+      "base_commit": "182ce3dd15dfa3537391c3efaf9c3ff407d134d4",
+      "version": "2.3",
+      "test_patch": "patches/flask-5063-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "primary": true,
+          "patch": "patches/flask-5063-human.patch",
+          "equivalence_group": "pallets__flask-5063-gold",
+          "provenance": {
+            "source": "Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_flask.jsonl",
+            "upstream_dataset": "SWE-bench/SWE-bench",
+            "artifact_kind": "exact_gold_patch"
+          }
+        },
+        {
+          "id": "ai-qwen32-direct",
+          "authorship": "ai",
+          "primary": true,
+          "patch": "patches/flask-5063-ai-qwen32-direct.patch",
+          "equivalence_group": "pallets__flask-5063-qwen32-direct-shape",
+          "provenance": {
+            "source": "r12habh/lightweight-llm-code-agent-failure-analysis results/swebench_300/final_predictions_qwen32b_direct.repaired.jsonl",
+            "model": "qwen2.5-coder-32b-instruct-awq__direct",
             "artifact_kind": "exact_published_model_patch"
           },
-          "equivalence_group": "pallets__flask-5014-gold-source-edit"
+          "evaluation": {
+            "state": "unresolved",
+            "source": "r12habh/lightweight-llm-code-agent-failure-analysis logs/docker_harness_summaries/qwen32b_300_direct_repaired/qwen2.5-coder-32b-instruct-awq__direct/pallets__flask-5063/report.json",
+            "fail_to_pass_success": 0,
+            "fail_to_pass_failure": 2,
+            "pass_to_pass_success": 0,
+            "pass_to_pass_failure": 54
+          }
         }
       ]
     }

@@ -1,0 +1,83 @@
+diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
+index 88883ba7..2ef5eae6 100644
+--- a/src/flask/blueprints.py
++++ b/src/flask/blueprints.py
+@@ -67,6 +67,7 @@ class BlueprintSetupState:
+         #: blueprint.
+         self.url_prefix = url_prefix
+ 
++        self.name = self.options.get("name", self.blueprint.name)
+         self.name_prefix = self.options.get("name_prefix", "")
+ 
+         #: A dictionary with URL defaults that is added to each and every
+@@ -98,7 +99,7 @@ class BlueprintSetupState:
+             defaults = dict(defaults, **options.pop("defaults"))
+         self.app.add_url_rule(
+             rule,
+-            f"{self.name_prefix}{self.blueprint.name}.{endpoint}",
++            f"{self.name_prefix}{self.name}.{endpoint}",
+             view_func,
+             defaults=defaults,
+             **options,
+@@ -269,21 +270,22 @@ class Blueprint(Scaffold):
+         :param first_registration: Whether this is the first time this
+             blueprint has been registered on the application.
+         """
++        self._got_registered_once = True
++        name = options.get("name", self.name)
+         first_registration = False
+ 
+-        if self.name in app.blueprints:
+-            assert app.blueprints[self.name] is self, (
++        if name in app.blueprints:
++            assert app.blueprints[name] is self, (
+                 "A name collision occurred between blueprints"
+-                f" {self!r} and {app.blueprints[self.name]!r}."
+-                f" Both share the same name {self.name!r}."
++                f" {self!r} and {app.blueprints[name]!r}."
++                f" Both share the same name {name!r}."
+                 f" Blueprints that are created on the fly need unique"
+                 f" names."
+             )
+         else:
+-            app.blueprints[self.name] = self
++            app.blueprints[name] = self
+             first_registration = True
+ 
+-        self._got_registered_once = True
+         state = self.make_setup_state(app, options, first_registration)
+ 
+         if self.has_static_folder:
+@@ -298,12 +300,12 @@ class Blueprint(Scaffold):
+ 
+             def extend(bp_dict, parent_dict):
+                 for key, values in bp_dict.items():
+-                    key = self.name if key is None else f"{self.name}.{key}"
++                    key = name if key is None else f"{name}.{key}"
+ 
+                     parent_dict[key].extend(values)
+ 
+             for key, value in self.error_handler_spec.items():
+-                key = self.name if key is None else f"{self.name}.{key}"
++                key = name if key is None else f"{name}.{key}"
+                 value = defaultdict(
+                     dict,
+                     {
+@@ -337,7 +339,7 @@ class Blueprint(Scaffold):
+             if cli_resolved_group is None:
+                 app.cli.commands.update(self.cli.commands)
+             elif cli_resolved_group is _sentinel:
+-                self.cli.name = self.name
++                self.cli.name = name
+                 app.cli.add_command(self.cli)
+             else:
+                 self.cli.name = cli_resolved_group
+@@ -357,7 +359,7 @@ class Blueprint(Scaffold):
+             else:
+                 bp_options["url_prefix"] = state.url_prefix
+ 
+-            bp_options["name_prefix"] = options.get("name_prefix", "") + self.name + "."
++            bp_options["name_prefix"] = options.get("name_prefix", "") + name + "."
+             blueprint.register(app, bp_options)
+ 
+     def add_url_rule(
