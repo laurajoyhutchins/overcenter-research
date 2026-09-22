@@ -21,9 +21,9 @@ import {GitOvercenterKernel} from './git-kernel.ts';
 import type {Work} from './model.ts';
 
 export const PROJECT_ADVANCE_RECEIPT_SCHEMA='overcenter-project-advance/v1' as const;
-export const AGENT_SUBMIT_RECEIPT_SCHEMA='overcenter-agent-submit/v1' as const;
+export const PROJECT_SUBMIT_RECEIPT_SCHEMA='overcenter-project-submit/v1' as const;
 export const PROJECT_ADVANCE_COMMAND='project.advance' as const;
-export const AGENT_SUBMIT_COMMAND='agent.submit' as const;
+export const PROJECT_SUBMIT_COMMAND='project.submit' as const;
 
 type ProjectVisibleState=
   | 'READY'
@@ -63,13 +63,13 @@ export interface ProjectAdvanceReceipt {
   receipt_digest:string;
 }
 
-export interface AgentSubmitContext extends ProjectCommandContext {
+export interface ProjectSubmitContext extends ProjectCommandContext {
   candidate_sha:string;
 }
 
-export interface AgentSubmitReceipt {
-  schema:typeof AGENT_SUBMIT_RECEIPT_SCHEMA;
-  command:typeof AGENT_SUBMIT_COMMAND;
+export interface ProjectSubmitReceipt {
+  schema:typeof PROJECT_SUBMIT_RECEIPT_SCHEMA;
+  command:typeof PROJECT_SUBMIT_COMMAND;
   transport:'github-actions-job-rerun';
   repository_id:number;
   repository_full_name:string;
@@ -323,30 +323,30 @@ function safeLocalObservationRoot(path:string):string {
   const target=resolve(path);
   const root=dirname(target);
   if (root==='/tmp' || dirname(root)!=='/tmp') {
-    throw new Error('AGENT_SUBMIT_LOCAL_POSTCONDITION_UNSAFE');
+    throw new Error('PROJECT_SUBMIT_LOCAL_POSTCONDITION_UNSAFE');
   }
   return root;
 }
 
-export function submitProjectAgentCandidate(
+export function submitProjectCandidate(
   repo:string,
-  context:AgentSubmitContext,
+  context:ProjectSubmitContext,
   {
     authorityRef=DEFAULT_AUTHORITY_REF,
     remote=DEFAULT_REMOTE,
     githubToken=null,
     candidatePath=DEFAULT_CANDIDATE_PATH,
   }:SubmitOptions={},
-):AgentSubmitReceipt {
+):ProjectSubmitReceipt {
   validateCommandContext(context);
   const candidateSha=context.candidate_sha.toLowerCase();
   if (!/^[0-9a-f]{40}$/i.test(candidateSha)) {
-    throw new Error('AGENT_SUBMIT_CANDIDATE_SHA_INVALID');
+    throw new Error('PROJECT_SUBMIT_CANDIDATE_SHA_INVALID');
   }
 
   const raw=JSON.parse(gitBytes(repo,candidateSha,candidatePath).toString('utf8'));
   if (!record(raw) || typeof raw.run_id!=='string') {
-    throw new Error('AGENT_SUBMIT_CANDIDATE_RUN_INVALID');
+    throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_INVALID');
   }
 
   const kernel=new GitOvercenterKernel(repo,{
@@ -354,7 +354,7 @@ export function submitProjectAgentCandidate(
     remote,
     githubToken,
   });
-  if (!kernel.head()) throw new Error('AGENT_SUBMIT_AUTHORITY_MISSING');
+  if (!kernel.head()) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
 
   const assigned=kernel.claimedWork(raw.run_id);
   const rebuilt=agentAssignment(assigned,prepareAgentPacket(repo,assigned));
@@ -373,13 +373,13 @@ export function submitProjectAgentCandidate(
       || diagnostic.assignment_sha256!==candidate.assignment_sha256
       || diagnostic.output_sha256!==candidate.output_sha256
     ) {
-      throw new Error('AGENT_SUBMIT_SETTLED_OUTPUT_MISMATCH');
+      throw new Error('PROJECT_SUBMIT_SETTLED_OUTPUT_MISMATCH');
     }
     const authorityHead=kernel.head();
-    if (!authorityHead) throw new Error('AGENT_SUBMIT_AUTHORITY_MISSING');
+    if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
     return withDigest({
-      schema:AGENT_SUBMIT_RECEIPT_SCHEMA,
-      command:AGENT_SUBMIT_COMMAND,
+      schema:PROJECT_SUBMIT_RECEIPT_SCHEMA,
+      command:PROJECT_SUBMIT_COMMAND,
       transport:'github-actions-job-rerun' as const,
       repository_id:context.repository_id,
       repository_full_name:context.repository_full_name,
@@ -403,10 +403,10 @@ export function submitProjectAgentCandidate(
 
   const current=kernel.inspect().find(work=>work.id===assigned.id);
   if (!current || current.run_id!==candidate.run_id) {
-    throw new Error('AGENT_SUBMIT_AUTHORITY_RUN_MISMATCH');
+    throw new Error('PROJECT_SUBMIT_AUTHORITY_RUN_MISMATCH');
   }
   if (!['EXECUTING','RECOVERY_REQUIRED'].includes(current.status)) {
-    throw new Error(`AGENT_SUBMIT_RUN_NOT_SETTLEABLE:${current.status}`);
+    throw new Error(`PROJECT_SUBMIT_RUN_NOT_SETTLEABLE:${current.status}`);
   }
 
   const postcondition=assigned.postcondition;
@@ -415,7 +415,7 @@ export function submitProjectAgentCandidate(
     || typeof postcondition.path!=='string'
     || typeof postcondition.content!=='string'
   ) {
-    throw new Error('AGENT_SUBMIT_POSTCONDITION_UNSUPPORTED');
+    throw new Error('PROJECT_SUBMIT_POSTCONDITION_UNSUPPORTED');
   }
 
   const root=safeLocalObservationRoot(postcondition.path);
@@ -423,7 +423,7 @@ export function submitProjectAgentCandidate(
   mkdirSync(root,{recursive:true});
   const output=Buffer.from(candidate.output_base64,'base64');
   if (sha256(output)!==candidate.output_sha256) {
-    throw new Error('AGENT_SUBMIT_OUTPUT_DIGEST_MISMATCH');
+    throw new Error('PROJECT_SUBMIT_OUTPUT_DIGEST_MISMATCH');
   }
   writeFileSync(postcondition.path,output,{flag:'wx'});
 
@@ -435,7 +435,7 @@ export function submitProjectAgentCandidate(
   });
   const before=settlementKernel.inspect().find(work=>work.id===assigned.id);
   if (!before || before.run_id!==candidate.run_id) {
-    throw new Error('AGENT_SUBMIT_AUTHORITY_RUN_MISMATCH');
+    throw new Error('PROJECT_SUBMIT_AUTHORITY_RUN_MISMATCH');
   }
 
   const permit=settlementKernel.acquireExecution(candidate.run_id);
@@ -447,14 +447,14 @@ export function submitProjectAgentCandidate(
     },
   });
   if (settled.disposition!=='DONE' || settled.verified!==true) {
-    throw new Error(`AGENT_SUBMIT_CANDIDATE_NOT_VERIFIED:${settled.disposition}`);
+    throw new Error(`PROJECT_SUBMIT_CANDIDATE_NOT_VERIFIED:${settled.disposition}`);
   }
 
   const authorityHead=settlementKernel.head();
-  if (!authorityHead) throw new Error('AGENT_SUBMIT_AUTHORITY_MISSING');
+  if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
   return withDigest({
-    schema:AGENT_SUBMIT_RECEIPT_SCHEMA,
-    command:AGENT_SUBMIT_COMMAND,
+    schema:PROJECT_SUBMIT_RECEIPT_SCHEMA,
+    command:PROJECT_SUBMIT_COMMAND,
     transport:'github-actions-job-rerun' as const,
     repository_id:context.repository_id,
     repository_full_name:context.repository_full_name,
