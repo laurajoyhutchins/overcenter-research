@@ -397,6 +397,54 @@
       }
     },
     {
+      "id": "ambient-authority-boundary",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/ambient-authority-boundary",
+      "readme": "experiments/ambient-authority-boundary/README.md",
+      "question": "If an agent arrives inside a sandbox whose ambient capabilities Overcenter does not control, which guarantees remain substrate-independent?",
+      "claim": "For the bounded witness, extra ambient provider authority can bypass physical effect confinement but cannot by itself advance Overcenter project truth when execution permits, verification, and settlement authority remain outside the worker.",
+      "contrast": "Treat an inner worker sandbox as sufficient to neutralize capabilities already held by the surrounding agent substrate.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:ambient-authority-boundary"
+      },
+      "environment": [
+        "Node.js from .node-version and Git for the deterministic authority fixture.",
+        "No network or real provider credential is required; the provider-write capability is modeled explicitly as an ambient host tool."
+      ],
+      "success_criteria": [
+        "Both arms receive byte-identical task packets and begin from the same EXECUTING authority state.",
+        "The controlled arm, which receives no ambient provider-write capability, cannot produce the external effect.",
+        "The over-capable arm can produce the external effect through its host-provided capability even though the work packet is unchanged.",
+        "A worker-declared DONE/verified result in either arm does not change authoritative project state.",
+        "After the over-capable worker mutates external truth, authoritative state remains EXECUTING until trusted verification and settlement run.",
+        "Trusted verification may settle the original run DONE from the independently observed matching postcondition."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "experiments/ambient-authority-boundary/ambient-authority-boundary.test.ts"
+        ],
+        "pending_reason": "The experiment is preregistered on its implementation branch; exact-revision CI evidence has not yet been recorded."
+      },
+      "interpretation": "A positive result would separate two boundaries that are easy to conflate: project-truth authority can remain outside an uncontrolled worker substrate, while physical prevention of provider effects cannot be claimed if that substrate already gives the agent a bypass capability.",
+      "non_claims": [
+        "The deterministic ambient-tool fixture is a physical sandbox or a substitute for a hosted substrate proof.",
+        "An uncontrolled substrate with consequential ambient provider credentials is safe for arbitrary execution.",
+        "Rust confinement can revoke capabilities held by the parent agent or by the hosting platform.",
+        "Independent readback makes an unauthorized external effect acceptable merely because its postcondition later matches."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The authority/effect split and acceptance criteria were recorded before the experiment's exact-revision CI result."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The boundary is preregistered; the deterministic witness has not yet been accepted at an exact revision."
+      }
+    },
+    {
       "id": "eventually-consistent-readback",
       "kind": "experiment",
       "status": "maintained",

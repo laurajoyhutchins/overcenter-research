@@ -11,6 +11,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
 - `sqlite-baseline/` - original SQLite-backed baseline.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
+- `ambient-authority-boundary/` - separates substrate-owned provider capability from Overcenter project-truth authority.
 - `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.
 - `conflicting-effect/` - provider-coordinate conflict, ordering, and commutativity.
 - `eventually-consistent-readback/` - hostile stale or negative provider readback and the no-blind-replay rule.
