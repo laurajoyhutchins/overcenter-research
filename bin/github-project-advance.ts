@@ -40,6 +40,7 @@ const context:ProjectCommandContext={
 
 const receipt=advanceProjectForAgent(process.cwd(),context,{
   outputDir,
+  workerClientPath:required('OVERCENTER_WORKER_CLIENT'),
   authorityRef:process.env.OVERCENTER_PROJECT_AUTHORITY_REF,
   remote:process.env.OVERCENTER_PROJECT_REMOTE,
   githubToken:process.env.GITHUB_TOKEN??null,
