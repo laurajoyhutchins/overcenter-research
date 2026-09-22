@@ -1,0 +1,17 @@
+name: Overcenter agent candidate signal
+
+on:
+  push:
+    branches:
+      - 'overcenter/candidate/**'
+
+permissions: {}
+
+jobs:
+  signal:
+    name: Unprivileged candidate signal
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    steps:
+      - name: Emit no authority
+        run: 'true'
