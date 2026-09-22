@@ -857,7 +857,9 @@
         "artifacts": [
           "experiments/code-graph-verification/corpus.json",
           "experiments/code-graph-verification/contract.test.mjs",
-          "experiments/code-graph-verification/frontier.py"
+          "experiments/code-graph-verification/frontier.py",
+          "experiments/code-graph-verification/preflight.py",
+          "experiments/code-graph-verification/summarize.py"
         ]
       },
       "interpretation": "Artifact-count completion establishes only that the confirmatory corpus is large and adversarial enough to run. A positive execution result would support deterministic verification pruning for the fixed Flask slice; a negative result identifies missing graph relations or insufficient pruning.",
