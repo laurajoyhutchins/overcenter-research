@@ -60,13 +60,13 @@
     {
       "id": "done-candidate-reuse",
       "source_run": {
-        "revision": "b810355fce5af360119e954c87c04bffe56d03b4",
-        "workflow_run_id": 35674658670,
-        "mutation_report_sha256": "sha256:5cfa71a8dea90a79bc5795e7293a712f318bfb0a3a6be2963ac2407f45fb3786",
-        "artifact_digest": "sha256:23b39b0c5dd679b87a2489a1073df8b07d6487fe681627c227dd04318b4251fc"
+        "revision": "4fe5f9253c2660a15cb05bdf7d6d068cd1dc5e45",
+        "workflow_run_id": 35756734733,
+        "mutation_report_sha256": "sha256:d3fddba156c7631e01fd732bf1d974b7ae68547a432ad777847dbe101176d516",
+        "artifact_digest": "sha256:e3565397011110986b68b27b9b5c6c0959d5d0538e3c9c3bcebdbadc908d6e37"
       },
       "source_blobs": {
-        "src/projector.ts": "11c5f3a0fcb86497f2189e96646e5728d57698ba"
+        "src/projector.ts": "95b795ba41c39f2be0f2849c11cf96e7b30918c5"
       },
       "selectors": [
         {
@@ -74,20 +74,20 @@
           "qualifiedName": "deriveRealizationRelations"
         }
       ],
-      "total": 111,
-      "killed": 77,
-      "survived": 29,
+      "total": 121,
+      "killed": 86,
+      "survived": 30,
       "no_coverage": 0,
       "timeout_or_error": 5,
-      "mutation_score": 0.6936936936936937
+      "mutation_score": 0.7107438016528925
     },
     {
       "id": "effect-reservation",
       "source_run": {
-        "revision": "b810355fce5af360119e954c87c04bffe56d03b4",
-        "workflow_run_id": 35674658670,
-        "mutation_report_sha256": "sha256:5cfa71a8dea90a79bc5795e7293a712f318bfb0a3a6be2963ac2407f45fb3786",
-        "artifact_digest": "sha256:23b39b0c5dd679b87a2489a1073df8b07d6487fe681627c227dd04318b4251fc"
+        "revision": "4fe5f9253c2660a15cb05bdf7d6d068cd1dc5e45",
+        "workflow_run_id": 35756734733,
+        "mutation_report_sha256": "sha256:d3fddba156c7631e01fd732bf1d974b7ae68547a432ad777847dbe101176d516",
+        "artifact_digest": "sha256:e3565397011110986b68b27b9b5c6c0959d5d0538e3c9c3bcebdbadc908d6e37"
       },
       "source_blobs": {
         "src/kernel-core.ts": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5"
@@ -99,19 +99,19 @@
         }
       ],
       "total": 40,
-      "killed": 25,
-      "survived": 12,
+      "killed": 30,
+      "survived": 7,
       "no_coverage": 0,
       "timeout_or_error": 3,
-      "mutation_score": 0.625
+      "mutation_score": 0.75
     },
     {
       "id": "settlement",
       "source_run": {
-        "revision": "b810355fce5af360119e954c87c04bffe56d03b4",
-        "workflow_run_id": 35674658670,
-        "mutation_report_sha256": "sha256:5cfa71a8dea90a79bc5795e7293a712f318bfb0a3a6be2963ac2407f45fb3786",
-        "artifact_digest": "sha256:23b39b0c5dd679b87a2489a1073df8b07d6487fe681627c227dd04318b4251fc"
+        "revision": "4fe5f9253c2660a15cb05bdf7d6d068cd1dc5e45",
+        "workflow_run_id": 35756734733,
+        "mutation_report_sha256": "sha256:d3fddba156c7631e01fd732bf1d974b7ae68547a432ad777847dbe101176d516",
+        "artifact_digest": "sha256:e3565397011110986b68b27b9b5c6c0959d5d0538e3c9c3bcebdbadc908d6e37"
       },
       "source_blobs": {
         "src/kernel-core.ts": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5"
