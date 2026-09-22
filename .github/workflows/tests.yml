@@ -8,10 +8,40 @@ on:
         required: false
         type: boolean
         default: false
+      source_sha:
+        description: Exact source revision under evidence
+        required: false
+        type: string
+        default: ''
+      base_sha:
+        description: Exact candidate base revision for reusable tree evidence
+        required: false
+        type: string
+        default: ''
+      emit_tree_evidence:
+        description: Emit reusable tree evidence after complete candidate success
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       expensive:
         description: Run candidate-only adversarial, formal, production, and self-application evidence
+        required: false
+        type: boolean
+        default: false
+      source_sha:
+        description: Exact source revision under evidence
+        required: false
+        type: string
+        default: ''
+      base_sha:
+        description: Exact candidate base revision for reusable tree evidence
+        required: false
+        type: string
+        default: ''
+      emit_tree_evidence:
+        description: Emit reusable tree evidence after complete candidate success
         required: false
         type: boolean
         default: false
@@ -25,7 +55,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     env:
-      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SOURCE_SHA: ${{ inputs.source_sha || github.event.pull_request.head.sha || github.sha }}
+      BASE_SHA: ${{ inputs.base_sha || github.event.pull_request.base.sha || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -117,3 +148,23 @@ jobs:
             echo '### Report'
             sed 's/^/    /' "$report"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Emit reusable candidate tree evidence
+        if: ${{ inputs.emit_tree_evidence }}
+        run: |
+          set -euo pipefail
+          test -n "$BASE_SHA"
+          out="$RUNNER_TEMP/overcenter-tree-evidence/candidate-tree-evidence.json"
+          node --experimental-strip-types bin/tree-evidence.ts emit-candidate \
+            --source-sha "$SOURCE_SHA" \
+            --base-sha "$BASE_SHA" \
+            --run-id "${{ github.run_id }}" \
+            --out "$out"
+      - name: Upload reusable candidate tree evidence
+        if: ${{ inputs.emit_tree_evidence }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-tree-evidence
+          path: ${{ runner.temp }}/overcenter-tree-evidence/candidate-tree-evidence.json
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,82 @@
+name: Tree evidence artifact protocol
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tree-evidence-artifact.yml'
+      - 'src/tree-evidence.ts'
+      - 'src/tree-evidence-runtime.ts'
+      - 'bin/tree-evidence.ts'
+      - 'test/tree-evidence-runtime.test.ts'
+      - 'experiments/tree-evidence-derivation/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify production tree-evidence runtime
+        run: npm run test:tree-evidence-runtime
+      - name: Emit candidate artifact
+        run: |
+          node --experimental-strip-types bin/tree-evidence.ts emit-candidate \
+            --source-sha "${{ github.event.pull_request.head.sha }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
+            --run-id "${{ github.run_id }}" \
+            --out "$RUNNER_TEMP/tree-evidence/candidate-tree-evidence.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-tree-evidence
+          path: ${{ runner.temp }}/tree-evidence/candidate-tree-evidence.json
+          if-no-files-found: error
+
+  derive:
+    needs: emit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: overcenter-tree-evidence
+          path: ${{ runner.temp }}/tree-evidence
+      - name: Derive artifact onto an identical-content synthetic merge
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          tree="$(git rev-parse "$HEAD_SHA^{tree}")"
+          merge_sha="$(
+            printf '%s\n' 'tree-evidence protocol merge' |
+              git -c user.name=Overcenter -c user.email=overcenter@example.invalid \
+                commit-tree "$tree" -p "$BASE_SHA" -p "$HEAD_SHA"
+          )"
+          node --experimental-strip-types bin/tree-evidence.ts derive \
+            --artifact "$RUNNER_TEMP/tree-evidence/candidate-tree-evidence.json" \
+            --merge-sha "$merge_sha" \
+            --candidate-run-id "${{ github.run_id }}" \
+            --out "$RUNNER_TEMP/tree-evidence/applicability.json"
+          test -s "$RUNNER_TEMP/tree-evidence/applicability.json"

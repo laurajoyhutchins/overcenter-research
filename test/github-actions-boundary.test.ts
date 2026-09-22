@@ -114,6 +114,21 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
+    /base_sha:/,
+    'manual candidate dispatch must carry the exact certified base SHA',
+  );
+  assert.match(
+    evidenceWorkflow,
+    /emit_tree_evidence:/,
+    'candidate evidence must expose an explicit reusable-tree-evidence capability',
+  );
+  assert.match(
+    evidenceWorkflow,
+    /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/,
+    'candidate tree evidence must persist through one immutable artifact implementation',
+  );
+  assert.match(
+    mergeGate,
     /group: merge-gate-\$\{\{ github\.event\.pull_request\.head\.sha \|\| inputs\.source_sha \|\| github\.sha \}\}/,
     'same-head PR and command-dispatch certification must share one concurrency key',
   );

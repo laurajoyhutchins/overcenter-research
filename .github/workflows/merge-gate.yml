@@ -12,6 +12,10 @@ on:
         description: Exact source SHA expected at the selected ref
         required: true
         type: string
+      base_sha:
+        description: Exact base SHA whose candidate relation is being certified
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -26,6 +30,9 @@ jobs:
     uses: ./.github/workflows/tests.yml
     with:
       expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+      source_sha: ${{ github.event.pull_request.head.sha || inputs.source_sha || github.sha }}
+      base_sha: ${{ github.event.pull_request.base.sha || inputs.base_sha || '' }}
+      emit_tree_evidence: ${{ github.event_name == 'workflow_dispatch' }}
 
   gate:
     name: ${{ github.event_name == 'pull_request' && 'PR preflight' || 'Merge gate' }}
@@ -38,6 +45,7 @@ jobs:
       EVENT_ACTION: ${{ github.event.action || '' }}
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       REQUESTED_SOURCE_SHA: ${{ inputs.source_sha || '' }}
+      REQUESTED_BASE_SHA: ${{ inputs.base_sha || '' }}
       EVIDENCE_RESULT: ${{ needs.evidence.result }}
     steps:
       - name: Require an exact-head candidate before merge
@@ -50,6 +58,7 @@ jobs:
               ;;
             workflow_dispatch)
               test -n "$REQUESTED_SOURCE_SHA"
+              test -n "$REQUESTED_BASE_SHA"
               test "$REQUESTED_SOURCE_SHA" = "$SOURCE_SHA"
               ;;
             push)
@@ -85,5 +94,6 @@ jobs:
             echo "- event: $EVENT_NAME"
             echo "- action: ${EVENT_ACTION:-none}"
             echo "- requested source SHA: ${REQUESTED_SOURCE_SHA:-not supplied}"
+            echo "- requested base SHA: ${REQUESTED_BASE_SHA:-not supplied}"
             echo "- Evidence: $EVIDENCE_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"

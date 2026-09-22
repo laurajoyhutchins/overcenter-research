@@ -111,6 +111,15 @@ export function createCandidateTreeEvidenceArtifact({
   baseSha:string;
   runId:number;
 }):CandidateTreeEvidenceArtifact {
+  if (!/^[0-9a-f]{40}$/u.test(sourceSha)) {
+    throw new Error('TREE_EVIDENCE_SOURCE_SHA_INVALID');
+  }
+  if (!/^[0-9a-f]{40}$/u.test(baseSha)) {
+    throw new Error('TREE_EVIDENCE_BASE_SHA_INVALID');
+  }
+  if (!Number.isSafeInteger(runId) || runId<=0) {
+    throw new Error('TREE_EVIDENCE_RUN_ID_INVALID');
+  }
   const current=execFileSync(
     'git',
     ['-C',root,'rev-parse','HEAD'],

@@ -1,0 +1,101 @@
+name: Tree evidence reuse shadow
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  derive-and-rebind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Locate reusable candidate tree evidence
+        id: locate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r -a parents <<<"$(git show -s --format=%P "$SOURCE_SHA")"
+          if [ "${#parents[@]}" -ne 2 ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node --experimental-strip-types bin/tree-evidence.ts locate-candidate \
+            --candidate-sha "${parents[1]}"
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        if: ${{ steps.locate.outputs.available == 'true' }}
+        with:
+          name: overcenter-tree-evidence
+          path: ${{ runner.temp }}/tree-evidence
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.locate.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Derive candidate tree evidence onto merge revision
+        if: ${{ steps.locate.outputs.available == 'true' }}
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          node --experimental-strip-types bin/tree-evidence.ts derive \
+            --artifact "$RUNNER_TEMP/tree-evidence/candidate-tree-evidence.json" \
+            --merge-sha "$SOURCE_SHA" \
+            --candidate-run-id "${{ steps.locate.outputs.run_id }}" \
+            --out "$RUNNER_TEMP/tree-evidence/applicability.json"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        if: ${{ steps.locate.outputs.available == 'true' }}
+        with:
+          go-version-file: '.go-version'
+          cache: false
+      - name: Run fresh revision-bound self-application
+        if: ${{ steps.locate.outputs.available == 'true' }}
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          OVERCENTER_REUSE_EXECUTOR: '0'
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/tree-evidence/self-application.json"
+          image="overcenter-tree-evidence-shadow:${{ github.run_id }}"
+          bash scripts/proof-self-application.sh "$SOURCE_SHA" "$image" "$report"
+      - name: Admit derived tree evidence with fresh revision evidence
+        if: ${{ steps.locate.outputs.available == 'true' }}
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          node --experimental-strip-types bin/tree-evidence.ts admit \
+            --applicability "$RUNNER_TEMP/tree-evidence/applicability.json" \
+            --source-sha "$SOURCE_SHA" \
+            --out "$RUNNER_TEMP/tree-evidence/merge-evidence-bundle.json"
+          {
+            echo '## Tree-evidence reuse shadow'
+            echo
+            echo "- source SHA: `$SOURCE_SHA`"
+            echo "- candidate run: `${{ steps.locate.outputs.run_id }}`"
+            echo '- result: derived tree evidence + fresh revision evidence admitted'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Report no reusable candidate evidence
+        if: ${{ steps.locate.outputs.available != 'true' }}
+        run: |
+          {
+            echo '## Tree-evidence reuse shadow'
+            echo
+            echo '- reusable candidate artifact: not available'
+            echo '- authoritative Merge gate remains unchanged'
+          } >> "$GITHUB_STEP_SUMMARY"
