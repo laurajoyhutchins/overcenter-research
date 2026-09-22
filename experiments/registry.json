@@ -966,11 +966,11 @@
         "state": "pending",
         "status": "pending",
         "artifacts": [
-          ".github/workflows/code-graph-holdout-pylint-preflight.yml",
+          "GitHub Actions run 35758321816 at 6cce20ac010529a752c48bf986ed7f7335a3a909: frozen-contract preflight passed; all 8 exact bases had nonzero graph-discovered test universes (743-848 tests) and execution_admission=true.",
           ".github/workflows/code-graph-holdout-pylint-confirmatory.yml",
           "experiments/code-graph-holdout-pylint/corpus.json"
         ],
-        "pending_reason": "The fresh Pylint holdout is preregistered and admitted only after the new nonzero-test-universe preflight; confirmatory oracle evidence has not yet been accepted."
+        "pending_reason": "The fresh Pylint holdout has passed exact admission preflight, including nonzero test discovery at all eight historical bases, but the manual confirmatory oracle workflow has not yet produced an accepted pooled verdict."
       },
       "interpretation": "A clean pass would independently support generalization of the repaired representation beyond the Flask calibration corpus. Any failure must be preserved; repairing the representation from Pylint failures would convert Pylint into calibration and require another fresh holdout.",
       "non_claims": [
