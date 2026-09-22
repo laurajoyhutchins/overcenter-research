@@ -1,0 +1,73 @@
+{
+  "schema": "overcenter-recovery-reasoning-corpus/v1",
+  "cases": [
+    {
+      "id": "idempotency-record-present",
+      "truth": "present",
+      "recoverability": "mechanical",
+      "actions": [
+        {"id": "lookup-idempotency-record", "cost": 1, "authority": "authoritative", "certainty": "present", "requires": []}
+      ]
+    },
+    {
+      "id": "complete-history-absence",
+      "truth": "absent",
+      "recoverability": "mechanical",
+      "actions": [
+        {"id": "scan-complete-provider-history", "cost": 4, "authority": "authoritative", "certainty": "absent", "requires": []}
+      ]
+    },
+    {
+      "id": "stale-negative-then-audit",
+      "truth": "present",
+      "recoverability": "mechanical",
+      "actions": [
+        {"id": "cached-read", "cost": 1, "authority": "advisory", "certainty": "absent", "requires": []},
+        {"id": "audit-log-by-request-id", "cost": 3, "authority": "authoritative", "certainty": "present", "requires": []}
+      ]
+    },
+    {
+      "id": "contradictory-advisory-evidence",
+      "truth": "absent",
+      "recoverability": "mechanical",
+      "actions": [
+        {"id": "replica-a", "cost": 1, "authority": "advisory", "certainty": "present", "requires": []},
+        {"id": "replica-b", "cost": 1, "authority": "advisory", "certainty": "absent", "requires": []},
+        {"id": "canonical-transaction-read", "cost": 2, "authority": "authoritative", "certainty": "absent", "requires": []}
+      ]
+    },
+    {
+      "id": "two-hop-provider-identity",
+      "truth": "present",
+      "recoverability": "mechanical",
+      "actions": [
+        {"id": "discover-provider-object-id", "cost": 1, "authority": "advisory", "certainty": "uncertain", "requires": []},
+        {"id": "lookup-provider-object", "cost": 2, "authority": "authoritative", "certainty": "present", "requires": ["discover-provider-object-id"]}
+      ]
+    },
+    {
+      "id": "provider-destroyed-history",
+      "truth": "present",
+      "recoverability": "none",
+      "actions": [
+        {"id": "eventually-consistent-read", "cost": 1, "authority": "advisory", "certainty": "absent", "requires": []}
+      ]
+    },
+    {
+      "id": "unsafe-retry-is-only-temptation",
+      "truth": "absent",
+      "recoverability": "none",
+      "actions": []
+    },
+    {
+      "id": "unstructured-audit-query",
+      "truth": "present",
+      "recoverability": "judgment",
+      "actions": [],
+      "judgment": {
+        "reason": "The authoritative audit service is queryable, but the useful query parameters must be synthesized from unstructured incident evidence rather than enumerated by the adapter.",
+        "future_tool": "search-authoritative-audit"
+      }
+    }
+  ]
+}
