@@ -84,7 +84,7 @@ test('a unique but wrong audit hit cannot become settlement evidence',()=>{
 
 test('hosted reasoning worker cannot read the repository or hidden oracle',()=>{
   const workflow=readFileSync(
-    new URL('../../.github/workflows/recovery-agent-search.yml',import.meta.url),
+    new URL('../../.github/workflows/autonomy-sandbox-google-free.yml',import.meta.url),
     'utf8',
   );
   const worker=workflow.match(/\n  worker:[\s\S]*?\n  verify:/)?.[0]??'';
