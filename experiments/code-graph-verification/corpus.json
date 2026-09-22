@@ -62,7 +62,7 @@
           "authorship": "ai",
           "primary": true,
           "patch": "patches/flask-4045-ai-claude-opus.patch",
-          "equivalence_group": "pallets__flask-4045-claude-constructor-shape",
+          "equivalence_group": "pallets__flask-4045-ai-claude-opus",
           "provenance": {
             "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_opus.jsonl",
             "model": "claude-opus",
@@ -78,7 +78,7 @@
           "authorship": "ai",
           "primary": true,
           "patch": "patches/flask-4045-ai-claude-haiku.patch",
-          "equivalence_group": "pallets__flask-4045-claude-haiku-shape",
+          "equivalence_group": "pallets__flask-4045-ai-claude-haiku",
           "provenance": {
             "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_haiku.jsonl",
             "model": "claude-haiku",
@@ -94,7 +94,7 @@
           "authorship": "ai",
           "primary": true,
           "patch": "patches/flask-4045-ai-claude-sonnet.patch",
-          "equivalence_group": "pallets__flask-4045-claude-constructor-shape",
+          "equivalence_group": "pallets__flask-4045-ai-claude-sonnet",
           "provenance": {
             "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_sonnet.jsonl",
             "model": "claude-sonnet",
@@ -130,7 +130,7 @@
           "authorship": "ai",
           "primary": true,
           "patch": "patches/flask-4074-ai-claude-opus.patch",
-          "equivalence_group": "pallets__flask-4074-claude-registration-shape",
+          "equivalence_group": "pallets__flask-4074-ai-claude-opus",
           "provenance": {
             "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_opus.jsonl",
             "model": "claude-opus",
@@ -146,7 +146,7 @@
           "authorship": "ai",
           "primary": true,
           "patch": "patches/flask-4074-ai-claude-haiku.patch",
-          "equivalence_group": "pallets__flask-4074-claude-registration-shape",
+          "equivalence_group": "pallets__flask-4074-ai-claude-haiku",
           "provenance": {
             "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_haiku.jsonl",
             "model": "claude-haiku",
@@ -162,7 +162,7 @@
           "authorship": "ai",
           "primary": true,
           "patch": "patches/flask-4074-ai-claude-sonnet.patch",
-          "equivalence_group": "pallets__flask-4074-claude-registration-shape",
+          "equivalence_group": "pallets__flask-4074-ai-claude-sonnet",
           "provenance": {
             "source": "Red-Hat-AI-Innovation-Team/SWE-benchify output/predictions_sonnet.jsonl",
             "model": "claude-sonnet",
