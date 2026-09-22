@@ -2,7 +2,6 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {
   mkdirSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
