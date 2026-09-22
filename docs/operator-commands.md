@@ -24,7 +24,7 @@ command receipt
 
 A command has three distinct identities:
 
-1. **Semantic command** — a stable name such as `candidate.certify`.
+1. **Semantic command** — a stable name such as `candidate.certify`, `project.advance`, or `agent.submit`.
 2. **Command invocation** — the GitHub workflow run ID and rerun attempt that requested it.
 3. **Provider result** — the concrete workflow run created by the command.
 
@@ -36,9 +36,9 @@ The current receipt schema is `overcenter-github-operator-command/v1`. Schema ve
 
 Each semantic command gets its own tiny workflow and exactly one rerunnable job. This is deliberate: rerunning an entire command workflow can invoke only that command.
 
-Command workflows use `pull_request_target`, so the privileged command implementation comes from the trusted base repository rather than from the pull request being acted on. A command may inspect the pull-request event, but it must never execute pull-request source while holding provider write authority.
+PR-scoped command workflows use `pull_request_target`, so privileged command code comes from the trusted base repository rather than from the pull request being acted on. Project-scoped commands anchor to an exact trusted `main` workflow run. Candidate-return commands are materialized by a `workflow_run` handoff from an unprivileged candidate signal, then execute only trusted default-branch command code. A command may inspect untrusted subject bytes, but it must never execute them while holding provider write authority.
 
-The first workflow attempt is inert. It only advertises the command and the exact subject SHA. A rerun is the invocation.
+The first workflow attempt is inert. It only advertises the command and its exact subject or implementation identity. A rerun is the invocation.
 
 When a stacked pull request is retargeted to `main`, a base-branch edit materializes the same inert command anchor for the unchanged head. Ordinary title or body edits do not create command runs.
 
@@ -74,9 +74,57 @@ GitHub branch-protection and ruleset configuration is a separate enforcement lay
 
 GitHub Cloud's workflow-dispatch response provides the new workflow run ID and URLs. The command receipt verifies those URLs against the repository and run ID, then records them with a canonical receipt digest. This is a transport receipt, not durable Overcenter settlement. Successful dispatch is not equivalent to successful candidate evidence; callers must observe the dispatched run separately.
 
+
+## project.advance and agent.submit
+
+Reasoning agents should interact with Overcenter at the same boundary as the maintained model experiments: ask the project to advance, receive a bounded work packet only when judgment is required, return candidate bytes, and let Overcenter verify and settle independently.
+
+```text
+reasoning agent
+      |
+      | rerun project.advance
+      v
+Overcenter authority
+      |
+      | reconcile + select frontier + exact claim
+      v
+AGENT_EXECUTION_REQUIRED
+      |
+      | immutable assignment artifact
+      v
+reasoning agent
+      |
+      | inert candidate bytes
+      v
+agent.submit
+      |
+      | independent validation + observation
+      v
+settlement receipt
+```
+
+`project.advance` does not accept an obligation ID, selector, priority, lease coordinate, or free-form request. Overcenter derives the executable frontier and chooses the work itself. The command refuses unsupported packet kinds before claiming them; a reasoning agent is not a fallback executor for deterministic provider operations.
+
+When the selected frontier item is an `overcenter-agent-task/v1` `pure-candidate` packet, Overcenter atomically claims the exact work revision and publishes an `overcenter-work-packet-<run_id>` artifact containing:
+
+- `assignment.json`, with the exact claimed work identity and all required task bytes;
+- `receipt.json`, with the authority head, run identity, claimed revision, assignment digest, and deterministic candidate return branch.
+
+The packet deliberately excludes the execution capability. The reasoning agent cannot settle its own run.
+
+Candidate return uses Git only as inert byte transport. The agent creates the receipt-named `overcenter/candidate/<run_id>` branch and changes exactly `.overcenter/candidate.json`. The unprivileged `Overcenter agent candidate signal` workflow has no repository authority. Its completion materializes a trusted `agent.submit` command anchor. Rerunning that one job validates the exact candidate commit, reconstructs the original assignment from authoritative run identity, checks the assignment/run/revision/output bindings, obtains fresh execution authority, observes the postcondition independently, and settles only if verification succeeds.
+
+This keeps the semantic interaction model provider-neutral:
+
+```text
+project.advance -> work packet -> reasoning -> candidate -> agent.submit
+```
+
+Gemini, ChatGPT, Codex, Claude, or another disposable reasoner can occupy the middle box without changing the authority protocol. Transport details may differ, but the agent never selects its own work, claims authority, or declares itself successful.
+
 ## Authority and permissions
 
-The workflow default is no permissions. The single `candidate.certify` job receives only:
+The workflow default is no permissions. `candidate.certify` receives only:
 
 ```yaml
 actions: write
@@ -84,6 +132,8 @@ contents: read
 ```
 
 The command is unavailable for cross-repository pull-request heads. On invocation, repository contents are checked out only from the exact trusted base SHA, with persisted checkout credentials disabled.
+
+`project.advance` and `agent.submit` require `contents: write` only because the Git-backed Overcenter authority is a compare-and-swap ref in the repository. Their first attempts are inert; reruns execute exact trusted command code. The candidate signal itself has `permissions: {}` and cannot mutate repository or Overcenter authority.
 
 The command surface does not use issue comments, pull-request comments, reviews, labels, commits, or branch mutations as transport.
 

@@ -1,0 +1,97 @@
+name: Overcenter command · project.advance
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: overcenter-command-project-advance
+  cancel-in-progress: false
+
+jobs:
+  command:
+    name: project.advance
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions:
+      contents: write
+    env:
+      COMMAND_IMPLEMENTATION_SHA: ${{ github.sha }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
+    steps:
+      - name: Advertise command
+        if: ${{ github.run_attempt == 1 }}
+        run: |
+          {
+            echo '## Overcenter command'
+            echo
+            echo '- command: `project.advance`'
+            echo "- implementation SHA: `$COMMAND_IMPLEMENTATION_SHA`"
+            echo '- state: available'
+            echo
+            echo 'Rerun this job to ask Overcenter to advance the authoritative project.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check out trusted command implementation
+        if: ${{ github.run_attempt > 1 }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.COMMAND_IMPLEMENTATION_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Use pinned Node.js
+        if: ${{ github.run_attempt > 1 }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Invoke project.advance
+        if: ${{ github.run_attempt > 1 }}
+        id: invoke
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          OVERCENTER_COMMAND_REPOSITORY_ID: ${{ github.repository_id }}
+          OVERCENTER_COMMAND_REPOSITORY: ${{ github.repository }}
+          OVERCENTER_COMMAND_SOURCE_SHA: ${{ env.COMMAND_IMPLEMENTATION_SHA }}
+          OVERCENTER_COMMAND_RUN_ID: ${{ github.run_id }}
+          OVERCENTER_COMMAND_RUN_ATTEMPT: ${{ github.run_attempt }}
+          OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
+          OVERCENTER_PROJECT_REMOTE: origin
+        run: node --experimental-strip-types bin/github-project-advance.ts --output-dir response
+
+      - name: Publish agent work packet
+        if: ${{ github.run_attempt > 1 && steps.invoke.outputs.state == 'AGENT_EXECUTION_REQUIRED' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-work-packet-${{ steps.invoke.outputs.run_id }}
+          path: response
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish command receipt
+        if: ${{ github.run_attempt > 1 && always() }}
+        env:
+          STATE: ${{ steps.invoke.outputs.state }}
+          AUTHORITY_HEAD: ${{ steps.invoke.outputs.authority_head }}
+          OBLIGATION_ID: ${{ steps.invoke.outputs.obligation_id }}
+          RUN_ID: ${{ steps.invoke.outputs.run_id }}
+          ASSIGNMENT_SHA256: ${{ steps.invoke.outputs.assignment_sha256 }}
+          CANDIDATE_BRANCH: ${{ steps.invoke.outputs.candidate_branch }}
+          RECEIPT_DIGEST: ${{ steps.invoke.outputs.receipt_digest }}
+        run: |
+          {
+            echo '## Overcenter command receipt'
+            echo
+            echo '- command: `project.advance`'
+            echo "- command attempt: `$RUN_ATTEMPT`"
+            echo "- state: `${STATE:-failed}`"
+            echo "- authority head: `${AUTHORITY_HEAD:-none}`"
+            echo "- obligation: `${OBLIGATION_ID:-none}`"
+            echo "- run: `${RUN_ID:-none}`"
+            echo "- assignment digest: `${ASSIGNMENT_SHA256:-none}`"
+            echo "- candidate branch: `${CANDIDATE_BRANCH:-none}`"
+            echo "- receipt digest: `${RECEIPT_DIGEST:-none}`"
+          } >> "$GITHUB_STEP_SUMMARY"
