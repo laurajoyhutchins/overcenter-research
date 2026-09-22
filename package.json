@@ -62,6 +62,7 @@
     "experiment:scheduler-bottleneck": "node --experimental-strip-types experiments/scheduler-bottleneck/experiment.mjs",
     "bench:frontier-prioritization": "OVERCENTER_FRONTIER_STRESS=1 node --test --test-name-pattern='optional connected stress boundary' experiments/frontier-prioritization/frontier-prioritization.test.mjs",
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
-    "test:recovery-reasoning": "node --experimental-strip-types --test experiments/recovery-reasoning/recovery-reasoning.test.ts"
+    "test:recovery-reasoning": "node --experimental-strip-types --test experiments/recovery-reasoning/recovery-reasoning.test.ts",
+    "test:recovery-judgment-residue": "node --experimental-strip-types --test experiments/recovery-judgment-residue/residue.test.ts"
   }
 }
