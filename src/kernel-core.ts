@@ -304,7 +304,17 @@ export class KernelCore {
         throw new Error('STALE_EXECUTION_GENERATION');
       }
       const lifecycle=project.lifecycles.get(run.obligation_id);
-      if (lifecycle?.run?.id!==run.id || lifecycle.status!=='EXECUTING') {
+      const prior=history.receiptsByRun.get(run.id);
+      const resumedAfterJudgment=
+        lifecycle?.run?.id===run.id
+        && lifecycle.status==='WAITING'
+        && prior?.kind==='judgment-required'
+        && prior.disposition==='WAITING'
+        && run.execution_generation>prior.execution_generation;
+      if (
+        lifecycle?.run?.id!==run.id
+        || (lifecycle.status!=='EXECUTING' && !resumedAfterJudgment)
+      ) {
         throw new Error('RUN_NOT_EXECUTING');
       }
       if (!mutationAdmitted({
