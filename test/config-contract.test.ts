@@ -234,7 +234,7 @@ test('self-application receives exact source bytes without checkout credentials'
   assert.match(proofScript,/--image "\$image"/);
   assert.doesNotMatch(workflow,/OVERCENTER_SELF_APPLICATION_IMAGE/);
 
-  const selfApplication=read('bin/self-application-evidence.ts');
+  const selfApplication=read('scripts/self-application-evidence.ts');
   assert.match(selfApplication,/const image=option\('--image'\)/);
   assert.doesNotMatch(selfApplication,/process\.env\.OVERCENTER_SELF_APPLICATION_IMAGE/);
   assert.match(selfApplication,/git',[\s\S]*?'archive','--format=tar',sourceSha/);
@@ -367,7 +367,7 @@ test('GitHub object transport runs only when its mechanism or fixtures change',(
 });
 
 test('production self-application proves mechanism without duplicating exhaustive evidence',()=>{
-  const selfApplication=read('bin/self-application-evidence.ts');
+  const selfApplication=read('scripts/self-application-evidence.ts');
   assert.match(selfApplication,/test\/digest-pure\.test\.ts/);
   assert.match(selfApplication,/npmCli,'run','test:bounded-graph'/);
   assert.match(selfApplication,/workload_scope:'representative-self-application-witness'/);
@@ -440,7 +440,7 @@ test('production launchers do not restate containment policy literals',()=>{
     '--task-gid=65532',
   ];
   for (const path of [
-    'bin/self-application-evidence.ts',
+    'scripts/self-application-evidence.ts',
     'test/computation-container.test.ts',
     'scripts/proof-production.sh',
   ]) {

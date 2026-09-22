@@ -61,7 +61,7 @@ jobs:
           OVERCENTER_COMMAND_RUN_ATTEMPT: ${{ github.run_attempt }}
           OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
           OVERCENTER_PROJECT_REMOTE: origin
-        run: node --experimental-strip-types bin/github-project-advance.ts --output-dir response
+        run: node --experimental-strip-types src/cli/github-project-advance.ts --output-dir response
 
       - name: Publish agent work packet
         if: ${{ github.run_attempt > 1 && steps.invoke.outputs.state == 'AGENT_EXECUTION_REQUIRED' }}

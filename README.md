@@ -166,11 +166,10 @@ The safety claim is narrower: an uncertain or even locally hostile worker does n
 ## Repository map
 
 ```text
-src/          reusable reference mechanism and trusted executor client
+src/          all production implementation, including operator CLIs and native execution
 contracts/    versioned machine-readable data contracts
-src/execution/executor/     Go physical computation executor
-runtime/      narrow native execution/confinement substrates
-test/         focused invariants of that mechanism
+test/         focused invariants of production mechanisms
+scripts/      repository tooling and proof/evidence entrypoints
 experiments/  executable empirical and adversarial proofs
 formal/       machine-checked safety model and negative controls
 research/     prior art, synthesis, claims, and design arguments
@@ -181,6 +180,7 @@ examples/     small runnable demonstrations
 
 Important entry points:
 
+- [`src/cli/`](./src/cli/) - supported command-line entrypoints for semantic operator commands and narrow authority tooling.
 - [`src/authority/kernel.ts`](./src/authority/kernel.ts) - production SQLite-backed kernel entry point.
 - [`src/authority/engine.ts`](./src/authority/engine.ts) - storage-neutral transaction, recovery, and settlement policy.
 - [`src/authority/store.ts`](./src/authority/store.ts) - minimal durable-fact authority contract.
