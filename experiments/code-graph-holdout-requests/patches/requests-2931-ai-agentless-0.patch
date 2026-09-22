@@ -1,0 +1,22 @@
+diff --git a/requests/models.py b/requests/models.py
+index 85fd980..0c9dff8 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -399,7 +399,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+         """Prepares the given HTTP headers."""
+ 
+         if headers:
+-            self.headers = CaseInsensitiveDict((to_native_string(name), value) for name, value in headers.items())
++            self.headers = CaseInsensitiveDict((to_native_string(name), to_native_string(value) if isinstance(value, str) else value) for name, value in headers.items())
+         else:
+             self.headers = CaseInsensitiveDict()
+ 
+@@ -445,7 +445,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+             else:
+                 if data:
+                     body = self._encode_params(data)
+-                    if isinstance(data, basestring) or hasattr(data, 'read'):
++                    if isinstance(data, (basestring, bytes)) or hasattr(data, 'read'):
+                         content_type = None
+                     else:
+                         content_type = 'application/x-www-form-urlencoded'

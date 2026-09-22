@@ -1,0 +1,252 @@
+{
+  "schema": "overcenter-code-graph-holdout-corpus/v1",
+  "question": "Does the frozen repaired deterministic Python code graph generalize to an unseen psf/requests holdout without representation changes?",
+  "subject": {
+    "repository": "psf/requests",
+    "instance_source": "SWE-bench full test fixture via Red-Hat-AI-Innovation-Team/SWE-benchify/tests/fixtures/swebench_requests.jsonl",
+    "ai_patch_source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches",
+    "selection_rule": "Use every psf/requests directory in the named AI patch corpus and exactly dedup_patch_0.jsonl from each directory. Pair with the corresponding SWE-bench human gold and held-out test patch. Selection is independent of model outcome."
+  },
+  "representation": {
+    "frontier_path": "experiments/code-graph-verification/frontier.py",
+    "frontier_git_blob_sha": "d504fbdc575d520cb2360cf223eb5ff960db8e98",
+    "score_path": "experiments/code-graph-verification/score.py",
+    "score_git_blob_sha": "3fc6acb019c4dada4eea3972abd3736303ac9502",
+    "source_roots": [
+      "requests"
+    ],
+    "test_roots": [
+      "tests"
+    ],
+    "bounded_attribute_candidate_limit": 3,
+    "frozen_before_holdout_outcomes": true
+  },
+  "primary_thresholds": {
+    "recall_min": 0.99,
+    "selected_fraction_max": 0.3,
+    "missed_regressions_max": 0
+  },
+  "execution_admission": {
+    "human_exact_patches": 8,
+    "ai_exact_patches": 8,
+    "ai_nonidentical_to_human_exact_patches": 8
+  },
+  "cases": [
+    {
+      "id": "psf__requests-1142",
+      "base_commit": "22623bd8c265b78b161542663ee980738441c307",
+      "test_patch": "patches/requests-1142-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/requests-1142-human.patch",
+          "equivalence_group": "psf__requests-1142-human",
+          "provenance": {
+            "source": "SWE-bench/SWE-bench human gold patch via Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_requests.jsonl"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/requests-1142-ai-agentless-0.patch",
+          "equivalence_group": "psf__requests-1142-ai-agentless-0",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/psf__requests-1142/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every psf/requests directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "psf__requests-1724",
+      "base_commit": "1ba83c47ce7b177efe90d5f51f7760680f72eda0",
+      "test_patch": "patches/requests-1724-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/requests-1724-human.patch",
+          "equivalence_group": "psf__requests-1724-human",
+          "provenance": {
+            "source": "SWE-bench/SWE-bench human gold patch via Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_requests.jsonl"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/requests-1724-ai-agentless-0.patch",
+          "equivalence_group": "psf__requests-1724-ai-agentless-0",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/psf__requests-1724/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every psf/requests directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "psf__requests-1766",
+      "base_commit": "847735553aeda6e6633f2b32e14ba14ba86887a4",
+      "test_patch": "patches/requests-1766-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/requests-1766-human.patch",
+          "equivalence_group": "psf__requests-1766-human",
+          "provenance": {
+            "source": "SWE-bench/SWE-bench human gold patch via Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_requests.jsonl"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/requests-1766-ai-agentless-0.patch",
+          "equivalence_group": "psf__requests-1766-ai-agentless-0",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/psf__requests-1766/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every psf/requests directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "psf__requests-1921",
+      "base_commit": "3c88e520da24ae6f736929a750876e7654accc3d",
+      "test_patch": "patches/requests-1921-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/requests-1921-human.patch",
+          "equivalence_group": "psf__requests-1921-human",
+          "provenance": {
+            "source": "SWE-bench/SWE-bench human gold patch via Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_requests.jsonl"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/requests-1921-ai-agentless-0.patch",
+          "equivalence_group": "psf__requests-1921-ai-agentless-0",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/psf__requests-1921/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every psf/requests directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "psf__requests-2317",
+      "base_commit": "091991be0da19de9108dbe5e3752917fea3d7fdc",
+      "test_patch": "patches/requests-2317-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/requests-2317-human.patch",
+          "equivalence_group": "psf__requests-2317-human",
+          "provenance": {
+            "source": "SWE-bench/SWE-bench human gold patch via Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_requests.jsonl"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/requests-2317-ai-agentless-0.patch",
+          "equivalence_group": "psf__requests-2317-ai-agentless-0",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/psf__requests-2317/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every psf/requests directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "psf__requests-2931",
+      "base_commit": "5f7a3a74aab1625c2bb65f643197ee885e3da576",
+      "test_patch": "patches/requests-2931-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/requests-2931-human.patch",
+          "equivalence_group": "psf__requests-2931-human",
+          "provenance": {
+            "source": "SWE-bench/SWE-bench human gold patch via Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_requests.jsonl"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/requests-2931-ai-agentless-0.patch",
+          "equivalence_group": "psf__requests-2931-ai-agentless-0",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/psf__requests-2931/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every psf/requests directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "psf__requests-5414",
+      "base_commit": "39d0fdd9096f7dceccbc8f82e1eda7dd64717a8e",
+      "test_patch": "patches/requests-5414-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/requests-5414-human.patch",
+          "equivalence_group": "psf__requests-5414-human",
+          "provenance": {
+            "source": "SWE-bench/SWE-bench human gold patch via Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_requests.jsonl"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/requests-5414-ai-agentless-0.patch",
+          "equivalence_group": "psf__requests-5414-ai-agentless-0",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/psf__requests-5414/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every psf/requests directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    },
+    {
+      "id": "psf__requests-6028",
+      "base_commit": "0192aac24123735b3eaf9b08df46429bb770c283",
+      "test_patch": "patches/requests-6028-tests.patch",
+      "variants": [
+        {
+          "id": "human-gold",
+          "authorship": "human",
+          "patch": "patches/requests-6028-human.patch",
+          "equivalence_group": "psf__requests-6028-human",
+          "provenance": {
+            "source": "SWE-bench/SWE-bench human gold patch via Red-Hat-AI-Innovation-Team/SWE-benchify tests/fixtures/swebench_requests.jsonl"
+          }
+        },
+        {
+          "id": "ai-agentless-0",
+          "authorship": "ai",
+          "patch": "patches/requests-6028-ai-agentless-0.patch",
+          "equivalence_group": "psf__requests-6028-ai-agentless-0",
+          "provenance": {
+            "source": "IBM/Issue-Test-Localizer/results_logs/patch_ranking_logs/all_patches/verified_gpt4o_all_unique_patches/psf__requests-6028/dedup_patch_0.jsonl",
+            "model_name_or_path": "agentless",
+            "selection_rule": "dedup_patch_0 from every psf/requests directory in verified_gpt4o_all_unique_patches; no outcome metadata consulted"
+          }
+        }
+      ]
+    }
+  ]
+}

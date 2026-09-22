@@ -1,0 +1,15 @@
+diff --git a/requests/models.py b/requests/models.py
+index 0d0af12..6097fab 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -391,6 +391,10 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+         """Prepares the given HTTP headers."""
+ 
+         if headers:
++            # Remove headers that have None as their value
++            headers = {k: v for k, v in headers.items() if v is not None}
++            # Remove headers that have None as their value
++            headers = {k: v for k, v in headers.items() if v is not None}
+             self.headers = CaseInsensitiveDict((to_native_string(name), value) for name, value in headers.items())
+         else:
+             self.headers = CaseInsensitiveDict()

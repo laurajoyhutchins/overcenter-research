@@ -67,6 +67,10 @@
     "experiment:code-graph-summarize": "python3 experiments/code-graph-verification/summarize.py",
     "experiment:code-graph-run-case": "python3 experiments/code-graph-verification/run_case.py",
     "experiment:code-graph-rescore": "python3 experiments/code-graph-verification/rescore.py",
-    "experiment:code-graph-replay-frontiers": "python3 experiments/code-graph-verification/replay_frontiers.py"
+    "experiment:code-graph-replay-frontiers": "python3 experiments/code-graph-verification/replay_frontiers.py",
+    "test:code-graph-holdout-requests": "node --test experiments/code-graph-holdout-requests/contract.test.mjs",
+    "experiment:code-graph-holdout-requests-preflight": "python3 experiments/code-graph-holdout-requests/preflight.py",
+    "experiment:code-graph-holdout-requests-run-case": "python3 experiments/code-graph-holdout-requests/run_case.py",
+    "experiment:code-graph-holdout-requests-summarize": "python3 experiments/code-graph-holdout-requests/summarize.py"
   }
 }
