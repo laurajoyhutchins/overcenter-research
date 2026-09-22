@@ -1,0 +1,71 @@
+name: Overcenter work execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact trusted default-branch revision
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  execute:
+    name: Execute authorized work
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: write
+      statuses: write
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Require exact trusted source
+        run: |
+          set -euo pipefail
+          test "$GITHUB_SHA" = "$SOURCE_SHA"
+
+      - name: Check out exact trusted implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Use pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Execute predeclared authorized effect
+        id: execute
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types bin/github-work-execute.ts \
+            --output "$RUNNER_TEMP/work-execute.json"
+
+      - name: Upload exact settlement result
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-work-execute-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-execute.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish execution summary
+        env:
+          OUTCOME: ${{ steps.execute.outputs.outcome }}
+          AUTHORITY_REVISION: ${{ steps.execute.outputs.authority_revision }}
+          OBLIGATION_ID: ${{ steps.execute.outputs.obligation_id }}
+          RUN_ID: ${{ steps.execute.outputs.run_id }}
+        run: |
+          {
+            echo '## Overcenter work.execute'
+            echo
+            echo "- outcome: `$OUTCOME`"
+            echo "- authority revision: `$AUTHORITY_REVISION`"
+            echo "- obligation: `$OBLIGATION_ID`"
+            echo "- run: `$RUN_ID`"
+          } >> "$GITHUB_STEP_SUMMARY"
