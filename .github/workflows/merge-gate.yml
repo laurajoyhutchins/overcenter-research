@@ -28,7 +28,7 @@ jobs:
       expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
   gate:
-    name: Merge gate
+    name: ${{ github.event_name == 'pull_request' && 'PR preflight' || 'Merge gate' }}
     if: ${{ always() }}
     needs: evidence
     runs-on: ubuntu-slim
@@ -46,8 +46,7 @@ jobs:
 
           case "$EVENT_NAME" in
             pull_request)
-              echo "::error::Exact-head candidate evidence is required. Invoke the Overcenter candidate.certify command for this exact PR head."
-              exit 1
+              echo "PR preflight only; invoke candidate.certify to publish the required exact-head Merge gate."
               ;;
             workflow_dispatch)
               test -n "$REQUESTED_SOURCE_SHA"
@@ -61,7 +60,7 @@ jobs:
               ;;
           esac
 
-      - name: Require candidate evidence for one source revision
+      - name: Require evidence for this execution mode
         run: |
           set -euo pipefail
           printf 'source_sha=%s\n' "$SOURCE_SHA"
@@ -72,8 +71,16 @@ jobs:
         if: ${{ always() }}
         run: |
           {
-            echo '## Merge gate'
-            echo
+            if [ "$EVENT_NAME" = pull_request ]; then
+              echo '## PR preflight'
+              echo
+              echo '- merge certification: not requested'
+              echo '- next action: invoke `candidate.certify` for this exact head'
+            else
+              echo '## Merge gate'
+              echo
+              echo '- merge certification: exact-head candidate'
+            fi
             echo "- source SHA: $SOURCE_SHA"
             echo "- event: $EVENT_NAME"
             echo "- action: ${EVENT_ACTION:-none}"

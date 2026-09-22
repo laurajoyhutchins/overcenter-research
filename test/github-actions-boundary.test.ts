@@ -124,8 +124,18 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
-    /Exact-head candidate evidence is required[\s\S]*?candidate\.certify[\s\S]*?exit 1/,
+    /name: \$\{\{ github\.event_name == 'pull_request' && 'PR preflight' \|\| 'Merge gate' \}\}/,
+    'ordinary PR checks and exact-head merge certification must have distinct check names',
+  );
+  assert.match(
+    mergeGate,
+    /PR preflight only; invoke candidate\.certify to publish the required exact-head Merge gate/,
     'ordinary pull_request runs must direct operators to the semantic certification command',
+  );
+  assert.doesNotMatch(
+    mergeGate,
+    /pull_request\)[\s\S]{0,220}exit 1/,
+    'ordinary PR preflight must not leave a stale failed Merge gate on the certified SHA',
   );
   assert.match(
     evidenceWorkflow,
