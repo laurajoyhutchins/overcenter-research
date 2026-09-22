@@ -2,7 +2,7 @@ name: Merge gate
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: merge-gate-${{ github.event.pull_request.number || inputs.source_sha || github.ref }}
+  group: merge-gate-${{ github.event.pull_request.head.sha || inputs.source_sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -25,10 +25,10 @@ jobs:
     name: Evidence
     uses: ./.github/workflows/tests.yml
     with:
-      expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review') }}
+      expensive: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
   gate:
-    name: Merge gate
+    name: ${{ github.event_name == 'pull_request' && 'PR preflight' || 'Merge gate' }}
     if: ${{ always() }}
     needs: evidence
     runs-on: ubuntu-slim
@@ -46,10 +46,7 @@ jobs:
 
           case "$EVENT_NAME" in
             pull_request)
-              if [ "$EVENT_ACTION" != ready_for_review ]; then
-                echo "::error::Exact-head candidate evidence is required. Mark this PR draft, then Ready for review to certify the current head."
-                exit 1
-              fi
+              echo "PR preflight only; invoke candidate.certify to publish Overcenter's exact-head Merge gate."
               ;;
             workflow_dispatch)
               test -n "$REQUESTED_SOURCE_SHA"
@@ -63,7 +60,7 @@ jobs:
               ;;
           esac
 
-      - name: Require candidate evidence for one source revision
+      - name: Require evidence for this execution mode
         run: |
           set -euo pipefail
           printf 'source_sha=%s\n' "$SOURCE_SHA"
@@ -74,8 +71,16 @@ jobs:
         if: ${{ always() }}
         run: |
           {
-            echo '## Merge gate'
-            echo
+            if [ "$EVENT_NAME" = pull_request ]; then
+              echo '## PR preflight'
+              echo
+              echo '- merge certification: not requested'
+              echo '- next action: invoke `candidate.certify` for this exact head'
+            else
+              echo '## Merge gate'
+              echo
+              echo '- merge certification: exact-head candidate'
+            fi
             echo "- source SHA: $SOURCE_SHA"
             echo "- event: $EVENT_NAME"
             echo "- action: ${EVENT_ACTION:-none}"

@@ -94,13 +94,18 @@ test('active hosted proof contains no legacy commit-status effect intent', () =>
 test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   assert.match(
     eventBlock(mergeGate, 'pull_request'),
-    /types: \[opened, synchronize, reopened, ready_for_review\]/,
-    'merge gate must observe the exact Ready for review candidate transition',
+    /types: \[opened, synchronize, reopened\]/,
+    'ordinary PR transitions must stay cheap and non-certifying',
+  );
+  assert.doesNotMatch(
+    mergeGate,
+    /github\.event_name == 'pull_request' && github\.event\.action == 'ready_for_review'/,
+    'Ready for review must not be a merge-certification capability',
   );
   assert.match(
     mergeGate,
-    /github\.event_name == 'pull_request' && github\.event\.action == 'ready_for_review'/,
-    'expensive merge-gate jobs must require the candidate transition on pull requests',
+    /expensive: \$\{\{ github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch' \}\}/,
+    'only push and exact-head operator dispatch may spend canonical candidate evidence',
   );
   assert.match(
     mergeGate,
@@ -109,13 +114,28 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   assert.match(
     mergeGate,
+    /group: merge-gate-\$\{\{ github\.event\.pull_request\.head\.sha \|\| inputs\.source_sha \|\| github\.sha \}\}/,
+    'same-head PR and command-dispatch certification must share one concurrency key',
+  );
+  assert.match(
+    mergeGate,
     /test "\$REQUESTED_SOURCE_SHA" = "\$SOURCE_SHA"/,
     'manual candidate dispatch must fail closed when the selected ref moved',
   );
   assert.match(
     mergeGate,
-    /Exact-head candidate evidence is required[\s\S]*?Ready for review[\s\S]*?exit 1/,
-    'ordinary pull_request runs must remain non-mergeable until candidate evidence runs',
+    /name: \$\{\{ github\.event_name == 'pull_request' && 'PR preflight' \|\| 'Merge gate' \}\}/,
+    'ordinary PR checks and exact-head merge certification must have distinct check names',
+  );
+  assert.match(
+    mergeGate,
+    /PR preflight only; invoke candidate\.certify to publish Overcenter's exact-head Merge gate/,
+    'ordinary pull_request runs must direct operators to the semantic certification command',
+  );
+  assert.doesNotMatch(
+    mergeGate,
+    /pull_request\)[\s\S]{0,220}exit 1/,
+    'ordinary PR preflight must not leave a stale failed Merge gate on the certified SHA',
   );
   assert.match(
     evidenceWorkflow,
@@ -158,13 +178,18 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
 test('operator commands expose isolated trusted rerun anchors without a public command mailbox', () => {
   assert.match(
     eventBlock(operatorCommands, 'pull_request_target'),
-    /types: \[opened, synchronize, reopened\]/,
-    'operator commands must materialize once per PR head from trusted base code',
+    /types: \[opened, synchronize, reopened, edited\]/,
+    'operator commands must materialize for new heads and main-base retargets',
   );
   assert.doesNotMatch(
     operatorCommands,
     /issue_comment:|pull_request_review:|label:/,
     'operator commands must not use public discussion or labels as transport',
+  );
+  assert.match(
+    operatorCommands,
+    /github\.event\.action != 'edited' \|\| github\.event\.changes\.base\.ref\.from != null/,
+    'edited events must materialize command anchors only for base-branch changes',
   );
   assert.match(
     operatorCommands,

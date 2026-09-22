@@ -3,7 +3,7 @@ name: Overcenter command · candidate.certify
 on:
   pull_request_target:
     branches: [main]
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
 
 permissions: {}
 
@@ -14,7 +14,7 @@ concurrency:
 jobs:
   command:
     name: candidate.certify
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && (github.event.action != 'edited' || github.event.changes.base.ref.from != null) }}
     runs-on: ubuntu-slim
     timeout-minutes: 1
     permissions:
