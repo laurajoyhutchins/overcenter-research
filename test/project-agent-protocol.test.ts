@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -66,6 +67,12 @@ function commandContext(sourceSha:string,runId=9001) {
   };
 }
 
+function workerClientFixture(root:string):string {
+  const path=join(root,'native-overcenter');
+  writeFileSync(path,Buffer.from([0x7f,0x45,0x4c,0x46,0x00,0x01,0x02,0x03]));
+  return path;
+}
+
 function defineAgentWork(
   work:string,
   sourceSha:string,
@@ -100,7 +107,12 @@ test('project.advance selects and claims real READY work, then emits a bounded p
     const receipt=advanceProjectForAgent(
       f.work,
       commandContext(f.sourceSha),
-      {outputDir,authorityRef:AUTHORITY_REF,remote:'origin'},
+      {
+        outputDir,
+        workerClientPath:workerClientFixture(f.root),
+        authorityRef:AUTHORITY_REF,
+        remote:'origin',
+      },
     );
 
     assert.equal(receipt.state,'AGENT_EXECUTION_REQUIRED');
@@ -120,6 +132,12 @@ test('project.advance selects and claims real READY work, then emits a bounded p
     assert.deepEqual(
       assignment.files.map((file:{path:string})=>file.path),
       ['task.mjs','input.txt'],
+    );
+    const workerClient=join(outputDir,'overcenter');
+    assert.ok((statSync(workerClient).mode & 0o111)!==0);
+    assert.deepEqual(
+      readFileSync(workerClient),
+      Buffer.from([0x7f,0x45,0x4c,0x46,0x00,0x01,0x02,0x03]),
     );
 
     const current=new GitOvercenterKernel(
@@ -181,7 +199,12 @@ test('project.submit validates exact packet identity and settles independently',
     const acquired=advanceProjectForAgent(
       f.work,
       commandContext(f.sourceSha),
-      {outputDir,authorityRef:AUTHORITY_REF,remote:'origin'},
+      {
+        outputDir,
+        workerClientPath:workerClientFixture(f.root),
+        authorityRef:AUTHORITY_REF,
+        remote:'origin',
+      },
     );
     assert.equal(acquired.state,'AGENT_EXECUTION_REQUIRED');
     assert.ok(acquired.run_id);
