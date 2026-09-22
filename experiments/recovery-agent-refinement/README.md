@@ -8,6 +8,8 @@ When a one-shot recovery-search hypothesis fails, can one bounded round of read-
 
 This experiment is stacked directly on `recovery-agent-search` at its frozen negative head `88c90ab73fdc49facbb48b014cd543c65d22b2a0`.
 
+Round one is not sampled again. The exact candidate bytes from hosted run `35694479360` are frozen in `round-one-candidate.json`, with original model provenance and artifact coordinates retained alongside them.
+
 It deliberately reuses that experiment's:
 
 - locked public recovery packets;
@@ -23,7 +25,7 @@ The corpus is not changed after inspecting the one-shot misses.
 
 The reasoning worker gets at most two search attempts per case.
 
-Round 1 is the same oracle-blind search proposal used by the one-shot experiment.
+Round 1 is the exact frozen oracle-blind candidate produced by the one-shot experiment.
 
 Trusted software executes each admissible query against the hidden oracle and returns only a sanitized cardinality observation:
 
@@ -32,7 +34,7 @@ Trusted software executes each admissible query against the hidden oracle and re
 - `many`: more than one authoritative record matched;
 - `not-searched`: the worker proposed `unresolved`.
 
-Round 2 is a fresh inference invocation. It receives only:
+Round 2 is the experiment's only fresh inference invocation. It receives only:
 
 - the original public packet;
 - the provider vocabulary and query conventions;
@@ -71,7 +73,8 @@ A cardinality of `one` is **not** settlement evidence.
 - recoverable cases: 7
 - deterministic baseline: 4/7
 - permanently unknowable controls: 1
-- inference rounds: exactly 2 maximum per case
+- fresh inference rounds: exactly 1
+- total model-authored proposals considered per case: at most 2, counting the frozen #237 proposal
 - trusted search executions: at most 2 per case
 - mutation attempts: 0
 - settlement operations exposed to the model: 0
@@ -118,4 +121,4 @@ Deterministic contract:
 npm run test:recovery-agent-refinement
 ```
 
-The real-model comparison extends the already-admitted Google-free reasoning workflow at `.github/workflows/autonomy-sandbox-google-free.yml`, reusing the one-shot worker as round one before trusted cardinality feedback and one final refinement call.
+The real-model comparison extends the already-admitted Google-free reasoning workflow at `.github/workflows/autonomy-sandbox-google-free.yml`. The workflow verifies the frozen #237 candidate, computes cardinality-only feedback in trusted code, and spends one fresh inference call on the final refinement.
