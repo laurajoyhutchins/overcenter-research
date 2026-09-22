@@ -1,4 +1,4 @@
-import {copyFileSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {dirname,join} from 'node:path';
 
 import {OvercenterKernel} from '../../src/authority/kernel.ts';
@@ -72,7 +72,6 @@ try {
   }
 
   writeFileSync(join(capsuleDir,'assignment.json'),encoded);
-  copyFileSync(new URL('../../src/execution/assignment-capsule.ts',import.meta.url),join(capsuleDir,'assignment-capsule.ts'));
 
   console.log(JSON.stringify({
     obligation_id:obligationId,
