@@ -71,7 +71,7 @@ test('candidate transport stays internal and inert until project.submit is invok
 
 test('routine operator commands require no GitHub App credential',()=>{
   for (const source of [advance,submit]) {
-    assert.match(source,/GITHUB_TOKEN: \$\\{\\{ github\\.token \\}\\}/);
+    assert.ok(source.includes('GITHUB_TOKEN: ${{ github.token }}'));
     assert.doesNotMatch(source,/GITHUB_APP|APP_ID|PRIVATE_KEY|INSTALLATION_ID/i);
   }
 });
