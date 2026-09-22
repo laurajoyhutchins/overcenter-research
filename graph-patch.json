@@ -2,7 +2,7 @@
   "schema": "overcenter-graph-patch-v1",
   "definitions": [
     {
-      "id": "60477e1175bf407303e8e1a8d3b9f13366c04b8eabf3cd0223a1710090ddb4ba",
+      "id": "477d0de31a04b35842870d5388e4c0fa1fb3f39b7d5589c715260c3d713d4503",
       "definition": {
         "dependencies": [],
         "packet": {},
@@ -12,7 +12,7 @@
           "repository_id": 1354872053,
           "repository_full_name": "laurajoyhutchins/overcenter-research",
           "commit_sha": "7bbf708108b4b4618642cb4da4d1df4a4012be75",
-          "context": "overcenter/conflict-guard/35682593911/1/unordered/Build",
+          "context": "overcenter/conflict-guard/35682593911/1/ordered",
           "expected_state": "success"
         }
       }
@@ -20,8 +20,8 @@
   ],
   "bindings": [
     {
-      "node_id": "guard-35682593911-1-unordered-alpha",
-      "definition_id": "60477e1175bf407303e8e1a8d3b9f13366c04b8eabf3cd0223a1710090ddb4ba"
+      "node_id": "guard-35682593911-1-ordered-alpha",
+      "definition_id": "477d0de31a04b35842870d5388e4c0fa1fb3f39b7d5589c715260c3d713d4503"
     }
   ],
   "retire": []
