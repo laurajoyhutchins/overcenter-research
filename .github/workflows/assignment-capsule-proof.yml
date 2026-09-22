@@ -8,6 +8,7 @@ on:
       - '.github/workflows/assignment-capsule-proof.yml'
       - 'experiments/assignment-capsule/**'
       - 'src/**'
+      - 'rust-toolchain.toml'
       - 'package.json'
       - '.node-version'
   workflow_dispatch:
@@ -38,6 +39,14 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal --no-self-update
+          test "$(rustc --version | awk '{print $2}')" = "$channel"
       - name: Deterministic assignment contract
         run: npm run test:assignment-capsule
       - name: Claim one real obligation and package every task byte
@@ -48,6 +57,7 @@ jobs:
           mkdir -p authority transport
           node --experimental-strip-types experiments/assignment-capsule/prepare.ts \
             authority/overcenter.sqlite capsule
+          src/execution/worker-client/build.sh capsule/overcenter
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
             -cf transport/assignment-capsule.tar -C capsule .
           capsule_sha256="$(sha256sum transport/assignment-capsule.tar | cut -d' ' -f1)"
@@ -106,12 +116,12 @@ jobs:
           fs.writeFileSync('transport/capsule/altered.json',JSON.stringify(altered));
           NODE
 
-          if node --experimental-strip-types transport/capsule/assignment-capsule.ts run \
+          if transport/capsule/overcenter run \
             transport/capsule/missing.json "$RUNNER_TEMP/missing-work" "$RUNNER_TEMP/missing-candidate.json"; then
             echo '::error::missing assignment byte was accepted'
             exit 1
           fi
-          if node --experimental-strip-types transport/capsule/assignment-capsule.ts run \
+          if transport/capsule/overcenter run \
             transport/capsule/altered.json "$RUNNER_TEMP/altered-work" "$RUNNER_TEMP/altered-candidate.json"; then
             echo '::error::altered assignment byte was accepted'
             exit 1
@@ -120,7 +130,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/empty-home"
           sudo /usr/bin/unshare --net --fork /usr/bin/env -i \
             PATH="$PATH" HOME="$RUNNER_TEMP/empty-home" \
-            node --experimental-strip-types transport/capsule/assignment-capsule.ts run \
+            transport/capsule/overcenter run \
             transport/capsule/assignment.json "$RUNNER_TEMP/assignment-work" "$RUNNER_TEMP/candidate.json"
           mkdir candidate
           cp "$RUNNER_TEMP/candidate.json" candidate/candidate.json
