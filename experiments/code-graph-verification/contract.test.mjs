@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 
 const root = new URL('.', import.meta.url);
-const corpus = JSON.parse(readFileSync(new URL('corpus.json', root), 'utf8'));
+const corpusText = readFileSync(new URL('corpus.json', root), 'utf8');
+const corpus = JSON.parse(corpusText);
 
 function patchBytes(relativePath) {
   const text = readFileSync(new URL(relativePath, root), 'utf8');
@@ -131,4 +133,28 @@ test('experiment lifecycle scripts parse and expose help without side effects', 
     );
     assert.equal(result.status, 0, name + ': ' + (result.stderr || result.stdout));
   }
+});
+
+
+test('hosted preflight evidence is bound to the current corpus bytes', () => {
+  const evidence = JSON.parse(
+    readFileSync(new URL('preflight-evidence.json', root), 'utf8'),
+  );
+  const digest = createHash('sha256').update(corpusText).digest('hex');
+
+  assert.equal(
+    evidence.schema,
+    'overcenter-code-graph-verification-preflight-evidence/v1',
+  );
+  assert.match(evidence.evaluated_revision, /^[0-9a-f]{40}$/);
+  assert.ok(Number.isInteger(evidence.workflow_run_id));
+  assert.ok(Number.isInteger(evidence.workflow_job_id));
+  assert.equal(evidence.corpus_sha256, digest);
+  assert.equal(evidence.execution_admission, true);
+  assert.deepEqual(evidence.counts, {
+    human_exact_apply: 11,
+    ai_exact_apply: 10,
+    ai_nonidentical_to_human_exact_apply: 10,
+    ai_unsuccessful_or_regressive_exact_apply: 4,
+  });
 });
