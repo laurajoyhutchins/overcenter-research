@@ -65,6 +65,7 @@
     "test:code-graph-verification": "node --test experiments/code-graph-verification/contract.test.mjs",
     "experiment:code-graph-preflight": "python3 experiments/code-graph-verification/preflight.py",
     "experiment:code-graph-summarize": "python3 experiments/code-graph-verification/summarize.py",
-    "experiment:code-graph-run-case": "python3 experiments/code-graph-verification/run_case.py"
+    "experiment:code-graph-run-case": "python3 experiments/code-graph-verification/run_case.py",
+    "experiment:code-graph-rescore": "python3 experiments/code-graph-verification/rescore.py"
   }
 }
