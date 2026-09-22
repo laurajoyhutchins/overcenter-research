@@ -591,12 +591,14 @@
         "Revision-bound trusted attestation bytes differ between the certified head and merge commit."
       ],
       "evidence": {
-        "state": "pending",
+        "state": "current",
         "artifacts": [
           "experiments/merge-evidence-substitution/merge-evidence-substitution.test.ts",
           "experiments/merge-evidence-substitution/results/2026-09-22.md",
-          "PR #234: candidate run 35691651230 and post-merge run 35691877235 demonstrate identical certified-head/merge trees with distinct revision-bound evidence."
-        ]
+          "PR #234: candidate run 35691651230 and post-merge run 35691877235 demonstrate identical certified-head/merge trees with distinct revision-bound evidence.",
+          "GitHub Actions run 35737829413: exact-head candidate certification and Merge gate passed at d273dc057a0199935025bd568e90aa6d9bb24fe0."
+        ],
+        "evaluated_revision": "d273dc057a0199935025bd568e90aa6d9bb24fe0"
       },
       "interpretation": "A positive result falsifies direct exact-evidence substitution under the current revision-bound execution identity while preserving a narrower deterministic content-preserving merge witness.",
       "non_claims": [
