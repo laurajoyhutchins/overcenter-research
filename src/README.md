@@ -8,8 +8,9 @@ src/
 ├── graph/          dependency topology and semantic identity
 ├── observation/    external-state observation and evidence interpretation
 ├── execution/      authorized computation, confinement, and executor transport
-│   ├── executor/   Go physical computation executor
-│   └── confinement/ Rust native worker-confinement substrate
+│   ├── executor/      Go physical computation executor
+│   ├── confinement/   Rust native worker-confinement substrate
+│   └── worker-client/ portable untrusted assignment client
 ├── storage/        durable fact-store implementations
 ├── providers/      provider-specific API and resource semantics
 ├── generated/      checked generated runtime artifacts
