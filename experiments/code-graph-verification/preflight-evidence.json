@@ -1,0 +1,15 @@
+{
+  "schema": "overcenter-code-graph-verification-preflight-evidence/v1",
+  "evaluated_revision": "ce1dddb8d2c70ffc6b7104f455283f3532799e53",
+  "workflow_run_id": 35692049450,
+  "workflow_job_id": 106630958708,
+  "corpus_sha256": "ab603d5839bf8d76eb5b1836612cf2200f1cb2ea0d232cfd1a32aa13aa2fc53e",
+  "git_version": "git version 2.55.0",
+  "execution_admission": true,
+  "counts": {
+    "human_exact_apply": 11,
+    "ai_exact_apply": 10,
+    "ai_nonidentical_to_human_exact_apply": 10,
+    "ai_unsuccessful_or_regressive_exact_apply": 4
+  }
+}
