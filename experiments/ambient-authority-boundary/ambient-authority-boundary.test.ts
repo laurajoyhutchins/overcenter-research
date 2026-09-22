@@ -105,10 +105,10 @@ test('ambient provider authority bypasses effect confinement but not Overcenter 
     assert.equal(controlled.kernel.inspect()[0].status, 'EXECUTING');
     assert.equal(overCapable.kernel.inspect()[0].status, 'EXECUTING');
 
-    // The controlled arm has no matching external truth, so trusted resolution
-    // fails closed rather than accepting the worker's declaration.
+    // The controlled arm has authoritative absence, so trusted resolution may
+    // release the work back to READY. It still must not accept the worker's DONE.
     const controlledResolution = controlled.kernel.resolve(controlled.run);
-    assert.equal(controlledResolution.disposition, 'RECOVERY_REQUIRED');
+    assert.equal(controlledResolution.disposition, 'READY');
     assert.equal(controlledResolution.verified, false);
 
     // The foreign substrate did change external reality, but only trusted
