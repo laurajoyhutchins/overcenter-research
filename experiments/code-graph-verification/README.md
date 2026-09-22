@@ -112,6 +112,7 @@ python3 experiments/code-graph-verification/prepare.py \
   --flask-repo /path/to/flask \
   --case pallets__flask-5014 \
   --variant human-gold \
+  --environment-id sha256:<immutable-container-or-environment-digest> \
   --out /tmp/cgv-5014-human
 ```
 
@@ -161,7 +162,25 @@ npm run test:code-graph-verification
 
 It checks the fixed 11-case slice, artifact-count admission, patch-file presence, adversarial outcome provenance, thresholds, and a synthetic negative control where only one of two tests reaches the changed function.
 
-The real historical Flask executions are intentionally separate from ordinary fast CI. Their environment identity and full result artifacts are evidence, not ambient developer state.
+The experiment lifecycle is also software-owned:
+
+```sh
+npm run experiment:code-graph-preflight -- \
+  --flask-repo /path/to/flask \
+  --out /tmp/code-graph-preflight.json \
+  --require-admission
+
+# prepare + execute + score every admitted variant into one results root
+
+npm run experiment:code-graph-summarize -- \
+  --results /tmp/code-graph-results \
+  --preflight /tmp/code-graph-preflight.json \
+  --out /tmp/code-graph-summary.json
+```
+
+Preflight performs exact-base `git apply --check`, rejects candidate patches that modify the held-out test namespace, and computes execution-admitted corpus counts. The summarizer requires the result set to match preflight exactly, validates declared equivalence groups, performs all pooled arithmetic, and evaluates the preregistered gates.
+
+The real historical Flask executions are intentionally separate from ordinary fast CI. Their immutable environment identity and full result artifacts are evidence, not ambient developer state.
 
 ## Interpretation
 
