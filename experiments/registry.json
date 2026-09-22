@@ -691,6 +691,51 @@
       "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
     },
     {
+      "id": "recovery-agent-search",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/recovery-agent-search",
+      "readme": "experiments/recovery-agent-search/README.md",
+      "question": "After deterministic recovery exhausts mechanically enumerable safe actions, can a reasoning agent add recovery yield by synthesizing search hypotheses over unstructured evidence without becoming execution or settlement authority?",
+      "claim": "The locked benchmark compares a nontrivial deterministic recovery-search baseline with a real reasoning worker under one deterministic validator; the worker sees only public packets and may emit search parameters or unresolved, while hidden authoritative records and exact effect binding remain trusted.",
+      "contrast": "Invoke inference before deterministic normalization is exhausted, or let the reasoning worker read the oracle, retry the effect, select provider truth, or settle its own proposal.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:recovery-agent-search"
+      },
+      "environment": [
+        "Node.js from .node-version for the deterministic baseline, validator, and scorer.",
+        "GitHub Actions ubuntu-24.04 for the hosted comparison.",
+        "OPENAI_API_KEY GitHub Actions secret used only by the pinned Codex action.",
+        "The reasoning job has no repository checkout or GitHub permissions and receives only the public packet artifact."
+      ],
+      "success_criteria": [
+        "The deterministic baseline remains fixed at 4 of 7 recoverable cases on the locked corpus.",
+        "The reasoning worker receives no hidden oracle, repository checkout, provider mutation credential, execution permit, or settlement capability.",
+        "Every agent proposal is validated against the closed search-proposal schema before trusted search.",
+        "A unique search hit settles only when trusted server-side effect identity matches the expected effect.",
+        "False certainty remains zero and the permanently unknowable control never resolves.",
+        "The hosted result reports agent recovery yield and delta even when the agent does not beat the baseline."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          ".github/workflows/recovery-agent-search.yml",
+          "experiments/recovery-agent-search/packets.json",
+          "experiments/recovery-agent-search/oracle.json",
+          "experiments/recovery-agent-search/score.mjs"
+        ]
+      },
+      "interpretation": "A positive recovery delta would support inference as a narrow search-hypothesis generator after deterministic recovery is exhausted. It would not authorize agent settlement. Repeated successful transformations should be candidates for deterministic promotion. A zero or negative delta is evidence against spending inference on this recovery slice.",
+      "non_claims": [
+        "Inference is necessary for all RECOVERY_REQUIRED states.",
+        "The model is authoritative for present, absent, DONE, or retry decisions.",
+        "The synthetic audit corpus represents every provider.",
+        "A model win makes the successful transformations permanently agent-owned.",
+        "The worker can safely perform provider mutations."
+      ]
+    },
+    {
       "id": "recovery-reasoning",
       "kind": "experiment",
       "status": "maintained",
