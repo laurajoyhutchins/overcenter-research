@@ -125,7 +125,7 @@ test('unreproducible AI outcomes stay outside the primary corpus', () => {
 
 
 test('experiment lifecycle scripts parse and expose help without side effects', () => {
-  for (const name of ['prepare.py', 'preflight.py', 'run_case.py', 'score.py', 'summarize.py']) {
+  for (const name of ['prepare.py', 'preflight.py', 'replay_frontiers.py', 'rescore.py', 'run_case.py', 'score.py', 'summarize.py']) {
     const result = spawnSync(
       'python3',
       [new URL(name, root).pathname, '--help'],
