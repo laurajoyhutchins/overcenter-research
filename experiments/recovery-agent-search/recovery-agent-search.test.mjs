@@ -88,9 +88,22 @@ test('hosted reasoning worker cannot read the repository or hidden oracle',()=>{
     'utf8',
   );
   const worker=workflow.match(/\n  worker:[\s\S]*?\n  verify:/)?.[0]??'';
-  assert.match(worker,/permissions: \{\}/);
+  assert.match(worker,/permissions:\n      id-token: write/);
   assert.doesNotMatch(worker,/actions\/checkout@/);
-  assert.match(worker,/openai\/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e/);
-  assert.match(worker,/test ! -e recovery\/oracle\.json/);
+  assert.match(worker,/google-github-actions\/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093/);
+  assert.doesNotMatch(worker,/openai\/codex-action@/);
+  assert.match(worker,/test ! -e "\$sandbox_root\/input\/oracle\.json"/);
+  assert.match(worker,/\/usr\/bin\/env -i/);
+  assert.match(worker,/test -z "\$\(find "\$GITHUB_WORKSPACE"/);
   assert.doesNotMatch(worker,/name: recovery-agent-oracle/);
+});
+
+test('model output schema covers exactly the locked packet identities',()=>{
+  const packets=JSON.parse(readFileSync(new URL('./packets.json',import.meta.url),'utf8'));
+  const schema=JSON.parse(readFileSync(new URL('./proposal.schema.json',import.meta.url),'utf8'));
+  const expected=packets.cases.map(item=>item.id).sort();
+  const variants=schema.properties.proposals.items.oneOf;
+  for (const variant of variants) {
+    assert.deepEqual([...variant.properties.case_id.enum].sort(),expected);
+  }
 });
