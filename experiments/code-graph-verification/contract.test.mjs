@@ -9,9 +9,13 @@ const corpus = JSON.parse(readFileSync(new URL('corpus.json', root), 'utf8'));
 test('corpus has exact human and AI variants for every admitted case', () => {
   assert.equal(corpus.schema, 'overcenter-code-graph-verification-corpus/v1');
   assert.ok(corpus.cases.length >= 2);
+  assert.equal(corpus.primary_thresholds.recall_min, 0.99);
+  assert.equal(corpus.primary_thresholds.selected_fraction_max, 0.30);
+  assert.equal(corpus.primary_thresholds.missed_regressions_max, 0);
 
   for (const c of corpus.cases) {
     assert.match(c.base_commit, /^[0-9a-f]{40}$/);
+    assert.ok(readFileSync(new URL(c.test_patch, root), 'utf8').startsWith('diff --git '));
     const kinds = new Set(c.variants.map(v => v.authorship));
     assert.ok(kinds.has('human'), c.id + ' lacks a human variant');
     assert.ok(kinds.has('ai'), c.id + ' lacks an AI variant');
@@ -20,6 +24,8 @@ test('corpus has exact human and AI variants for every admitted case', () => {
       assert.equal(v.primary, true);
       assert.ok(v.patch);
       assert.ok(v.provenance?.source);
+      assert.ok(v.equivalence_group);
+      assert.ok(readFileSync(new URL(v.patch, root), 'utf8').startsWith('diff --git '));
     }
   }
 });
