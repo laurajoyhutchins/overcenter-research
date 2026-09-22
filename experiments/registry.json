@@ -51,6 +51,64 @@
       }
     },
     {
+      "id": "attempt-unification",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/attempt-unification",
+      "readme": "experiments/attempt-unification/README.md",
+      "question": "Can ClaimFact, ExecutionAuthorityFact, and EffectReservationFact safely collapse to Claim + Attempt while actually reducing machinery and preserving performance?",
+      "claim": "In the bounded recovery model, one Attempt clock cannot simultaneously rotate to fence stale workers and remain stable to represent an unresolved external mutation. A safe Claim + Attempt representation therefore recreates the missing dimension as execute/recover purpose plus unresolved-effect identity, preserving safety and throughput but not reducing writes or source surface.",
+      "contrast": "Keep semantic claim ownership, execution/recovery fencing, and unresolved external-effect reservation as distinct state dimensions.",
+      "design": {
+        "provenance": "mixed",
+        "note": "The simplification hypothesis and acceptance thresholds were fixed before hosted confirmation, while the candidate shape was informed by prior production-code inspection and exploratory local modeling."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "The safe collapse preserved safety and met the performance bound but grew the bounded authority model from 88 to 107 SLOC (+21.6%) with unchanged representative durable-write counts. Both smaller single-clock variants fail: rotating the clock admits a successor while the prior external mutation remains unresolved; preserving it fails to fence stale authority."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:attempt-unification"
+      },
+      "environment": [
+        "Node.js from .node-version for the executable differential.",
+        "Pinned Lean semantic oracle revision 39bd16a317bc2155a17b6674a5050adaf4295c90 for the universal two-clock necessity theorem.",
+        "No provider credential, database, or model is required for the deterministic experiment."
+      ],
+      "success_criteria": [
+        "The safe candidate rejects stale authority after recovery fencing.",
+        "Recovery-only authority cannot execute a second unresolved external effect.",
+        "Replay-safe computation still requires proof that the prior containment domain terminated.",
+        "Representative durable-write counts are no worse than the legacy-shaped reference.",
+        "The safe candidate is smaller than the legacy-shaped reference by at least 5% SLOC for the proposed simplification to be supported.",
+        "If one Attempt clock rotates on recovery, the negative control demonstrates duplicate external-effect eligibility unless unresolved-effect state is tracked separately.",
+        "If one Attempt clock is preserved across recovery to retain mutation identity, the negative control demonstrates that stale execution authority remains accepted.",
+        "Median in-process effect-recovery transition time remains within 1.25x of the legacy-shaped reference over seven 200,000-transaction samples.",
+        "The pinned Lean oracle proves for arbitrary epoch types that authority rotation plus mutation-epoch persistence contradicts a single clock that remains aliased before and after recovery."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "ed6d23365f540c90f61a6ecd97fa448728d0251a",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35757238433, rerun attempt 2: exact-head candidate evidence PASS",
+          "authority-model-sloc: legacy 88, safe candidate 107, unsafe candidate 33",
+          "effect-recovery-throughput: 200000 iterations, legacy median 20.043804 ms, candidate median 15.031002 ms, ratio 0.749908",
+          "TLA+ transition kernel and resource-containment negative controls behaved as expected in run 35757238433",
+          "Production Rust worker confinement boundary PASS in run 35757238433",
+          "Pinned Lean oracle 39bd16a317bc2155a17b6674a5050adaf4295c90: single_clock_recovery_impossible and recovery_requires_distinct_clock_dimension",
+          "Proof PR #253 exact theorem head: Lean build and leanchecker declaration replay PASS"
+        ]
+      },
+      "interpretation": "The negative result is about temporal factorization, not naming: claim lifetime, authority epoch, and mutation-uncertainty lifetime are not coextensive. A safe simplification must preserve those dimensions while reducing surrounding choreography rather than aliasing them into one clock.",
+      "non_claims": [
+        "The in-process transition benchmark represents provider I/O, SQLite latency, or native executor overhead.",
+        "The Go computation executor should be retained or removed.",
+        "The present production implementation is globally minimal.",
+        "No alternative representation can reduce code while preserving the same independent temporal dimensions."
+      ]
+    },
+    {
       "id": "bounded-graph-exhaustion",
       "kind": "experiment",
       "status": "maintained",
