@@ -28,6 +28,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `frontier-prioritization/` - exhaustive and sampled proof that apparently ambiguous READY-frontier priority can be resolved or verified deterministically before AI escalation.
 - `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
+- `recovery-reasoning/` - ambiguous-effect recovery frontier: deterministic safe observation search before judgment/inference, with false-certainty and permanent-uncertainty controls.
 
 ## Experiment contract
 
