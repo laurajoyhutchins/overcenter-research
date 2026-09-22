@@ -1,9 +1,8 @@
-import {appendFileSync,mkdirSync,writeFileSync} from 'node:fs';
-import {dirname} from 'node:path';
+import {appendFileSync} from 'node:fs';
 
 import {
-  submitProjectCandidate,
-  type ProjectSubmitContext,
+  advanceProjectForAgent,
+  type ProjectCommandContext,
 } from '../authority/project-agent-protocol.ts';
 
 function required(name:string):string {
@@ -26,39 +25,38 @@ function option(name:string):string|null {
   return value;
 }
 
-const receiptPath=option('--receipt');
-if (!receiptPath) {
-  throw new Error('usage: github-project-submit.ts --receipt <path>');
+const outputDir=option('--output-dir');
+if (!outputDir) {
+  throw new Error('usage: project-advance.ts --output-dir <dir>');
 }
 
-const context:ProjectSubmitContext={
+const context:ProjectCommandContext={
   repository_id:positiveInteger('OVERCENTER_COMMAND_REPOSITORY_ID'),
   repository_full_name:required('OVERCENTER_COMMAND_REPOSITORY'),
   command_source_sha:required('OVERCENTER_COMMAND_SOURCE_SHA'),
   command_run_id:positiveInteger('OVERCENTER_COMMAND_RUN_ID'),
   command_run_attempt:positiveInteger('OVERCENTER_COMMAND_RUN_ATTEMPT'),
-  candidate_sha:required('OVERCENTER_CANDIDATE_SHA'),
 };
 
-const receipt=submitProjectCandidate(process.cwd(),context,{
+const receipt=advanceProjectForAgent(process.cwd(),context,{
+  outputDir,
   authorityRef:process.env.OVERCENTER_PROJECT_AUTHORITY_REF,
   remote:process.env.OVERCENTER_PROJECT_REMOTE,
   githubToken:process.env.GITHUB_TOKEN??null,
 });
-mkdirSync(dirname(receiptPath),{recursive:true});
-writeFileSync(receiptPath,`${JSON.stringify(receipt,null,2)}\n`);
 console.log(JSON.stringify(receipt,null,2));
 
 const output=process.env.GITHUB_OUTPUT;
 if (output) {
   for (const [key,value] of Object.entries({
-    disposition:receipt.disposition,
-    verified:String(receipt.verified),
+    state:receipt.state,
     authority_head:receipt.authority_head,
-    obligation_id:receipt.obligation_id,
-    run_id:receipt.run_id,
-    settlement_commit:receipt.settlement_commit??'',
-    already_settled:String(receipt.already_settled),
+    obligation_id:receipt.obligation_id??'',
+    run_id:receipt.run_id??'',
+    claimed_revision:receipt.claimed_revision??'',
+    assignment_sha256:receipt.assignment_sha256??'',
+    candidate_branch:receipt.candidate_branch??'',
+    candidate_branch_base_sha:receipt.candidate_branch_base_sha??'',
     receipt_digest:receipt.receipt_digest,
   })) {
     appendFileSync(output,`${key}=${String(value)}\n`);

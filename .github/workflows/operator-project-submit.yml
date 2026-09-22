@@ -92,7 +92,7 @@ jobs:
           OVERCENTER_CANDIDATE_SHA: ${{ env.CANDIDATE_SHA }}
           OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
           OVERCENTER_PROJECT_REMOTE: origin
-        run: node --experimental-strip-types src/cli/github-project-submit.ts --receipt response/receipt.json
+        run: node --experimental-strip-types src/cli/project-submit.ts --receipt response/receipt.json
 
       - name: Publish settlement receipt
         if: ${{ github.run_attempt > 1 && steps.invoke.outputs.run_id != '' }}
