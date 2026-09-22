@@ -1,14 +1,6 @@
-name: Recovery judgment residue experiment
+name: Recovery judgment residue Gemini reproduction
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - 'experiments/recovery-judgment-residue/**'
-      - 'experiments/recovery-reasoning/recovery-gate.ts'
-      - '.github/workflows/autonomy-sandbox-google-free.yml'
-      - 'package.json'
-      - 'experiments/registry.json'
   workflow_dispatch:
 
 permissions: {}

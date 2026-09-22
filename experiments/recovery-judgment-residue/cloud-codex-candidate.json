@@ -1,0 +1,1 @@
+{"query":"operation=iam.serviceAccounts.create principal=serviceAccount:canary-deployer label=violet-sunrise","reason":"Search the authoritative audit using the canonical identity-creation operation, the canary deployer principal derived from the stated service-account convention, and the exact retained request label."}

@@ -1,0 +1,31 @@
+{
+  "schema": "overcenter-recovery-judgment-cloud-codex-provenance/v1",
+  "provider": "openai-codex-cloud",
+  "model_id": "cloud-environment-default-not-exposed-by-github-connector",
+  "transport": "chatgpt-codex-connector-github-issue",
+  "experiment_source_sha": "24041015883297825fb4c186e7c9187ecccf354f",
+  "treatment_prompt_sha256": "102f8d1e375e1431158eb12b44e3c46fbec9f987a33b5a475cb8b4d0795dfaf1",
+  "candidate_sha256": "9d656404394cb7490ef9d1f2e1ca1918ece9d8722f1c748cf8277413a7a9c453",
+  "isolation": {
+    "probe_request_comment_id": 5783804996,
+    "probe_response_comment_id": 5783815240,
+    "checkout_head": "fdd7a1cf9d6877b3137e3e2000617e0afbc5f01e",
+    "visible_refs": [
+      "refs/heads/work"
+    ],
+    "fixture_exists": false,
+    "residue_exists": false,
+    "schema_exists": false
+  },
+  "treatment": {
+    "request_comment_id": 5783827149,
+    "response_comment_id": 5783835381,
+    "task_url": "https://chatgpt.com/s/cd_6ab2e831b6cc81919a6543107051c9ff",
+    "repository_mutation_requested": false,
+    "repository_reads_requested": false,
+    "network_access_requested": false,
+    "authority_present": false,
+    "provider_mutation_authority_present": false
+  },
+  "interpretation": "Provider replication for the preregistered residue experiment. It does not retroactively complete the unavailable Gemini invocation."
+}
