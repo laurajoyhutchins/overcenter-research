@@ -769,7 +769,7 @@
       "evidence": {
         "state": "pending",
         "artifacts": [
-          ".github/workflows/recovery-agent-refinement.yml",
+          ".github/workflows/autonomy-sandbox-google-free.yml",
           "experiments/recovery-agent-refinement/observe.mjs",
           "experiments/recovery-agent-refinement/score.mjs",
           "experiments/recovery-agent-refinement/recovery-agent-refinement.test.mjs",
