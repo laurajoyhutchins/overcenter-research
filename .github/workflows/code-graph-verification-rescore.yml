@@ -1,0 +1,85 @@
+name: Code graph verification evidence rescore
+
+on:
+  push:
+    branches:
+      - run/code-graph-rescore-coordinates
+    paths:
+      - .github/workflows/code-graph-verification-rescore.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  rescore:
+    name: Rescore ${{ matrix.source_run }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        source_run:
+          - 35693710320
+          - 35739887949
+    steps:
+      - name: Check out scorer revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Restore source preflight
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: code-graph-preflight
+          path: ${{ runner.temp }}/preflight
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.source_run }}
+
+      - name: Restore source case evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: code-graph-case-*
+          path: ${{ runner.temp }}/results
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.source_run }}
+
+      - name: Recompute score coordinates
+        run: |
+          npm run experiment:code-graph-rescore -- \
+            --results "$RUNNER_TEMP/results"
+
+      - name: Recompute pooled verdict
+        run: |
+          npm run experiment:code-graph-summarize -- \
+            --results "$RUNNER_TEMP/results" \
+            --preflight "$RUNNER_TEMP/preflight/code-graph-preflight.json" \
+            --out "$RUNNER_TEMP/code-graph-summary.json"
+
+      - name: Publish summary
+        env:
+          SUMMARY: ${{ runner.temp }}/code-graph-summary.json
+          SOURCE_RUN: ${{ matrix.source_run }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          report = json.load(open(os.environ["SUMMARY"], encoding="utf-8"))
+          print(json.dumps({
+              "source_run": int(os.environ["SOURCE_RUN"]),
+              "raw_runs": report["raw_runs"],
+              "effective_observations": report["effective_observations"],
+              "totals": report["totals"],
+              "metrics": report["metrics"],
+              "gates": report["gates"],
+              "hypothesis_survived": report["hypothesis_survived"],
+          }, sort_keys=True))
+          PY
+
+      - name: Preserve rescored summary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: code-graph-rescored-${{ matrix.source_run }}
+          path: ${{ runner.temp }}/code-graph-summary.json
+          if-no-files-found: error
+          retention-days: 30
