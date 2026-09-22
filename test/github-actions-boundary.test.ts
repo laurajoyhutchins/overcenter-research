@@ -14,6 +14,10 @@ const evidenceWorkflow = readFileSync(
   new URL('../.github/workflows/tests.yml', import.meta.url),
   'utf8',
 );
+const operatorCommands = readFileSync(
+  new URL('../.github/workflows/operator-candidate-certify.yml', import.meta.url),
+  'utf8',
+);
 const candidateOnlyWorkflowPaths = [
   '../.github/workflows/assignment-capsule-proof.yml',
   '../.github/workflows/conflicting-effect.yml',
@@ -149,4 +153,57 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
       `${path} must not run expensive work on synchronize`,
     );
   }
+});
+
+test('operator commands expose isolated trusted rerun anchors without a public command mailbox', () => {
+  assert.match(
+    eventBlock(operatorCommands, 'pull_request_target'),
+    /types: \[opened, synchronize, reopened\]/,
+    'operator commands must materialize once per PR head from trusted base code',
+  );
+  assert.doesNotMatch(
+    operatorCommands,
+    /issue_comment:|pull_request_review:|label:/,
+    'operator commands must not use public discussion or labels as transport',
+  );
+  assert.match(
+    operatorCommands,
+    /^name: Overcenter command · candidate\.certify/m,
+    'one workflow must represent one stable semantic command',
+  );
+  assert.match(
+    operatorCommands,
+    /command:\n\s+name: candidate\.certify/,
+    'the command workflow must expose one rerunnable command job',
+  );
+  assert.match(
+    operatorCommands,
+    /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
+    'cross-repository PR heads must not acquire command authority',
+  );
+  assert.match(
+    operatorCommands,
+    /permissions:\n\s+actions: write\n\s+contents: read/,
+    'the command anchor may write Actions state but not repository content',
+  );
+  assert.match(
+    operatorCommands,
+    /if: \$\{\{ github\.run_attempt == 1 \}\}[\s\S]*state: available/,
+    'the first command run must advertise availability without invoking',
+  );
+  assert.match(
+    operatorCommands,
+    /COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/,
+    'privileged command code must be pinned to the trusted base revision',
+  );
+  assert.match(
+    operatorCommands,
+    /Check out trusted command implementation[\s\S]*ref: \$\{\{ env\.COMMAND_IMPLEMENTATION_SHA \}\}/,
+    'invocation must never execute pull-request source with the write token',
+  );
+  assert.match(
+    operatorCommands,
+    /github-operator-command\.ts candidate\.certify/,
+    'workflow YAML must delegate command semantics to deterministic software',
+  );
 });

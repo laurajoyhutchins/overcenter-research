@@ -175,6 +175,7 @@ Important entry points:
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
 - [`src/providers/github-status-effect.ts`](./src/providers/github-status-effect.ts) - narrow production GitHub commit-status mutation path: authority-derived coordinates, certified repository identity, reservation-before-POST.
+- [`src/github-operator-command.ts`](./src/github-operator-command.ts) - narrow semantic operator-command adapter: exact PR-head identity in, attributable GitHub workflow-run receipt out.
 - [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
 - [`src/computation-runner.ts`](./src/computation-runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
 - [`src/go-executor-client.ts`](./src/go-executor-client.ts) - Unix-socket client for an isolated physical executor.
@@ -204,6 +205,10 @@ The command name states what kind of evidence a green check supports:
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
 `.github/workflows/tests.yml` enforces the first three tiers on every pull request and every push to `main`. The live tier remains separate because it exercises real provider boundaries and permissions.
+
+### Operator commands
+
+For environments that can rerun GitHub Actions jobs but cannot expose a custom Overcenter tool, [operator commands](./docs/operator-commands.md) provide a narrow semantic control surface. The first command is `candidate.certify`: every same-repository PR head exposes a trusted `Overcenter command · candidate.certify` workflow with one inert `candidate.certify` job, and rerunning that job dispatches the exact-SHA Merge gate and returns the resulting workflow-run identity. Rerun is transport only; command semantics live in deterministic TypeScript, not in comments, labels, or arbitrary workflow inputs.
 
 Requirements:
 
