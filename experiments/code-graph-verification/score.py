@@ -69,7 +69,7 @@ def main():
     regressions = {
         test
         for test in universe
-        if base.get(test) == "pass" and patched.get(test) not in {"pass", "skip"}
+        if base.get(test) == "pass" and patched.get(test) != "pass"
     }
     caught = predicted & affected
     missed = affected - predicted
