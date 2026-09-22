@@ -825,6 +825,48 @@
       "non_claims": [
         "Anything outside the documented experiment boundary."
       ]
+    },
+    {
+      "id": "code-graph-verification",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/code-graph-verification",
+      "readme": "experiments/code-graph-verification/README.md",
+      "question": "Can a mechanically derived static code graph predict the verification consequences of real human and AI Flask changes while eliminating most irrelevant test execution?",
+      "claim": "For the preregistered admitted Flask corpus, the v1 static graph is tested against a 0.99 affected-test recall threshold, a 0.30 selected-test-fraction ceiling, and a zero-missed-regression safety guard.",
+      "contrast": "Run the full verification universe for every change, or ask a reasoning agent to guess which tests matter.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:code-graph-verification"
+      },
+      "environment": [
+        "Node.js from .node-version for the repository contract.",
+        "Python 3.11+ with only the standard library for the deterministic graph predictor.",
+        "Git plus exact pallets/flask history for real corpus materialization; confirmatory outcomes additionally require an immutable recorded test-environment identity."
+      ],
+      "success_criteria": [
+        "The registered corpus contains exact human and AI patch artifacts with explicit provenance.",
+        "The deterministic negative control selects the affected test and excludes an unrelated test.",
+        "Non-pinned AI outcomes cannot enter primary statistics.",
+        "A confirmatory verdict is prohibited until the README corpus-admission criteria are satisfied.",
+        "Once admitted, pooled recall is at least 0.99, selected fraction is at most 0.30, and no previously passing regression is missed."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          "experiments/code-graph-verification/corpus.json",
+          "experiments/code-graph-verification/contract.test.mjs",
+          "experiments/code-graph-verification/frontier.py"
+        ]
+      },
+      "interpretation": "A positive confirmatory result would support deterministic verification pruning for the admitted Flask change distribution; a negative result identifies missing graph relations or insufficient pruning.",
+      "non_claims": [
+        "The two-case pilot is confirmatory evidence.",
+        "Static reachability establishes semantic correctness.",
+        "The result generalizes to other repositories or languages.",
+        "AI authorship is intrinsically safer or riskier than human authorship.",
+        "The graph is authorized to replace full verification in production."
+      ]
     }
   ]
 }
