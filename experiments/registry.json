@@ -1439,8 +1439,8 @@
         "Explicit unsafe casts or malicious trusted code are prevented."
       ],
       "design": {
-        "provenance": "confirmatory",
-        "note": "The corrected design and success criteria were fixed against current main before this confirmatory run. Earlier prototype evidence exposed legitimate historical reconstruction and low-level reservation consumers, which this treatment preserves."
+        "provenance": "mixed",
+        "note": "Confirmatory current-main criteria were fixed before this run, but the corrected treatment incorporates lessons from an earlier prototype that exposed legitimate historical reconstruction and low-level reservation consumers."
       },
       "outcome": {
         "state": "pending",
