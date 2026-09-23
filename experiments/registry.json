@@ -2195,6 +2195,471 @@
         "state": "falsified",
         "summary": "The original automatic capture-promotion hypothesis remains falsified: historical minima alone retained 0% recovery on an unseen route. Follow-on trials isolate the repair: one covered helper route restored 100% recovery; guarded promotion inside an independent mutation-route inventory achieved 94.12% capture-class reduction with 100% recovery and zero false certainty. Generic RECOVERY_REQUIRED minimization collapsed to an empty witness, and shadow sampling showed long rare-route discovery tails."
       }
+    },
+    {
+      "id": "merkle-execution-receipts",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/merkle-execution-receipts",
+      "readme": "experiments/merkle-execution-receipts/README.md",
+      "question": "Can a content-addressed causal receipt DAG preserve the current exact-coordinate GitHub commit-status settlement semantics while mechanically detecting corrupted, incomplete, misbound, rolled-back, or falsely terminal evidence?",
+      "claim": "A Merkleized sidecar receipt for the modeled GitHub commit-status path can derive terminal historical disposition from causal proof closure, detect byte corruption and missing dependencies, reject same-tree evidence bound to the wrong source SHA, detect rollback when checked against an independently signed latest-root checkpoint, reconstruct DONE without a lifecycle cache, and refuse DONE when a timed-out mutation lacks authoritative readback.",
+      "contrast": "Keep the current flat durable receipt facts and backend commit ancestry as the only evidence structure, without a content-addressed causal proof object or independent latest-root checkpoint.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:merkle-execution-receipts"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "The experiment is a sidecar model over the production GitHub commit-status effect contract; it does not replace or mutate production receipt-v5 semantics.",
+        "No provider credential or live GitHub mutation is required; the provider effect, authoritative readback, timeout, and exact-SHA cases are modeled deterministically.",
+        "Ed25519 checkpoint signatures use Node.js built-in crypto with an ephemeral experiment keypair.",
+        "Timing and byte-size measurements are observational feasibility metrics and are not success gates in this first experiment."
+      ],
+      "success_criteria": [
+        "Changing one stored observation byte without changing its content address is rejected by closure verification.",
+        "Removing one causally required object is rejected as an incomplete proof rather than projected as DONE.",
+        "Verification bound to source SHA A cannot settle source SHA B even when A and B intentionally share the same tree digest.",
+        "An internally valid older settlement root is rejected when it conflicts with an independently signed latest-root checkpoint.",
+        "Deleting the mutable lifecycle cache and replaying only the receipt DAG reconstructs the same historical DONE disposition.",
+        "A timed-out provider mutation with no authoritative readback derives RECOVERY_REQUIRED, and a forged DONE settlement over that evidence is rejected.",
+        "The experiment emits deterministic object-count and byte-size measurements plus hosted build/validation latency observations for the sidecar representation.",
+        "No hostile case produces a false DONE."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "6cb1029a67adce44aa43b515aad85082882b64dc",
+        "artifacts": [
+          "GitHub Actions run 35820353901, job 107050661910: Merkle receipt hostile-case experiment PASS.",
+          "All 7 tests passed with zero false DONE outcomes across corruption, missing dependency, exact-SHA misbinding, signed-checkpoint rollback, cache-free reconstruction, and timeout ambiguity controls.",
+          "Hosted sidecar metrics: 8 objects, 3,149 canonical Merkle-closure bytes versus 1,659 equivalent flat bytes (1.898x); build p50 73.231 us; closure + semantic validation p50 43.478 us."
+        ]
+      },
+      "interpretation": "A passing result would justify prototyping content-addressed causal receipts as an optional durable evidence representation and measuring integration cost against real receipt-v5 facts. It would not establish that Merkle integrity makes provider observations truthful or that syscall/network record-replay is solved.",
+      "non_claims": [
+        "Hash integrity is a substitute for authoritative provider observation, verifier semantics, execution authority, or settlement fencing.",
+        "Possession of a historically valid settlement DAG proves mutable external reality still satisfies the obligation now.",
+        "The signed checkpoint design is a complete production anti-rollback service, key-management scheme, transparency log, or consensus protocol.",
+        "Modeled causal replay is equivalent to deterministic process, syscall, filesystem, clock, randomness, or network replay.",
+        "The first feasibility benchmark proves end-to-end production transaction latency, storage amplification, distributed throughput, or garbage-collection behavior.",
+        "Production receipt-v5, SQLite authority, or current project projection should be replaced on the basis of this experiment alone."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Question, six hostile cases, false-DONE criterion, anti-rollback requirement, reconstruction criterion, and non-claims were recorded before the first hosted execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 6cb1029a67adce44aa43b515aad85082882b64dc, all preregistered hostile cases passed with zero false DONE. The naive eight-object Merkle sidecar cost 1.898x the equivalent flat bytes while measuring 73.231 us median construction and 43.478 us median closure plus semantic validation on the hosted runner."
+      }
+    },
+    {
+      "id": "merkle-receipt-v5-dedup",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/merkle-receipt-v5-dedup",
+      "readme": "experiments/merkle-receipt-v5-dedup/README.md",
+      "question": "Can content-addressed factoring of actual receipt-v5 facts preserve production settlement semantics and amortize its storage overhead when many consequential executions share definition and authoritative observation evidence?",
+      "claim": "Across 128 actual GitHub commit-status executions produced through the production kernel and effect adapter, a Merkle sidecar can losslessly reconstruct every receipt-v5 fact, produce exactly the same projectReceipt disposition and verified result, and use no more canonical bytes than the current flat representation once shared definition and observation evidence are deduplicated.",
+      "contrast": "Store the immutable obligation definition once and retain each production receipt-v5 fact flat, including repeated authoritative observation evidence inside every receipt.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:merkle-receipt-v5-dedup"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "Receipts are generated by OvercenterKernel plus performGithubCommitStatusEffect, using deterministic in-process GitHub GET/POST doubles with the production adapter and verifier semantics.",
+        "Each corpus member uses an isolated SQLite authority store so provider-coordinate reuse cannot be suppressed by graph conflict semantics; the receipt objects themselves are production receipt-v5 outputs.",
+        "All 128 executions share one obligation definition and byte-identical authoritative GitHub observation evidence, while run IDs, authority revisions, claim commits, and settlements remain independently generated.",
+        "Canonical byte accounting includes the shared production obligation definition once, all flat receipt-v5 facts for the baseline, and every unique Merkle object plus the root index for the treatment.",
+        "Timing observations are descriptive and are not a success gate."
+      ],
+      "success_criteria": [
+        "All 128 generated receipts have schema overcenter-git-receipt-v5 and settle DONE through production projectReceipt semantics.",
+        "Round-tripping every receipt through the Merkle sidecar reconstructs a byte-equivalent canonical receipt-v5 fact.",
+        "Replaying every reconstructed fact through production projectReceipt yields the same disposition and verified value as the original receipt.",
+        "The 128-receipt Merkle corpus, including root-index bytes, is no larger than the flat baseline consisting of one shared obligation definition plus all 128 flat receipt-v5 facts.",
+        "The experiment reports byte ratios at corpus sizes 1, 8, 32, 64, and 128 and identifies the first measured crossover point, if any.",
+        "Changing one reconstructed receipt to reference another run's execution object is rejected by semantic reconstruction or produces no false DONE.",
+        "No semantic mismatch or false DONE occurs."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "56378d1250b28441a246f3058b7e0fe5c5bd8eab",
+        "artifacts": [
+          "GitHub Actions run 35821293168, job 107053492723: initial treatment failed the cross-run substitution negative control, demonstrating that content-addressed integrity alone did not authorize a newly constructed settlement root.",
+          "GitHub Actions run 35821692372, job 107054704870: corrected authority-bound treatment PASS at exact revision 56378d1250b28441a246f3058b7e0fe5c5bd8eab.",
+          "128 actual production receipt-v5 outputs round-tripped canonically with 0 semantic mismatches and 0 false DONE outcomes.",
+          "Byte ratios Merkle/flat were 1.316x at 1 receipt, 0.615x at 8, 0.528x at 32, 0.514x at 64, and 0.506x at 128; first measured crossover was 8 receipts.",
+          "At 128 receipts the content-addressed corpus contained 259 unique objects, including 1 shared definition and 1 shared observation. Hosted p50 encode was 125.525 us and reconstruct + projectReceipt was 151.954 us."
+        ]
+      },
+      "interpretation": "The useful result is two-part: content addressing can substantially reduce repeated receipt evidence at corpus scale, but only when an accepted root is still bound to settlement authority. Hash closure provides integrity and deduplication; the existing settlement_commit remains the authority that says which root counts. This justifies a read-only prototype against the durable fact store, not replacement of receipt-v5 or SQLite authority.",
+      "non_claims": [
+        "The sidecar is a production replacement for receipt-v5 or the SQLite fact store.",
+        "Repeated provider observations may always be shared safely across different times, mutable resources, or verifier semantics.",
+        "The isolated-store corpus measures production database page, index, WAL, object-store, garbage-collection, or network costs.",
+        "Byte savings at 128 receipts imply savings for workloads with low evidence repetition.",
+        "Deterministic provider doubles are equivalent to a live GitHub mutation/readback proof.",
+        "Historical DONE establishes current admissibility for mutable external state."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The corpus, semantic parity requirements, cross-run negative control, byte accounting, and <=1.0x threshold were preregistered. The first run exposed an omitted use of existing settlement_commit authority in the treatment harness; the correction binds root acceptance to that authority without changing criteria or thresholds."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The pure hash-consistent treatment was falsified by the first cross-run substitution control, but the smallest authority-bound correction passed all unchanged criteria. At exact revision 56378d1250b28441a246f3058b7e0fe5c5bd8eab, 128 production receipt-v5 facts round-tripped with exact projectReceipt parity, zero false DONE, and the Merkle/flat byte ratio crossed below 1.0 by 8 receipts and reached 0.506x at 128."
+      }
+    },
+    {
+      "id": "merkle-evidence-leaves",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/merkle-evidence-leaves",
+      "readme": "experiments/merkle-evidence-leaves/README.md",
+      "question": "Can Overcenter obtain most of the Merkle receipt deduplication benefit by keeping the existing content-addressed authority spine and externalizing only repeated certified evidence into a content-addressed leaf store?",
+      "claim": "Across 128 production GitHub status receipts read back from the authoritative SQLite fact store, replacing only inline observed evidence with a SHA-256 evidence reference can preserve exact receipt-v5/projectReceipt semantics, retain existing commit-level identity binding, and use at most 0.56x the flat canonical bytes at 128 receipts while requiring only one shared evidence object for this corpus.",
+      "contrast": "Use the full authority-bound receipt DAG treatment, which measured 0.506x flat bytes at 128 receipts but created 259 Merkle objects and required an explicit settlement-root authority binding.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:merkle-evidence-leaves"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "Each receipt is generated through OvercenterKernel and performGithubCommitStatusEffect, then read back through SqliteFactStore.history at the exact authoritative head.",
+        "SqliteFactStore.history performs its existing sequence, parent, and canonical commit-digest validation before the evidence-leaf transform sees the history.",
+        "The treatment is read-only and in-memory: production receipt-v5, SQLite schema, settlement, and replay code are not modified.",
+        "All receipts share byte-identical certified observation evidence to exercise a legitimate reusable-evidence case.",
+        "The full-DAG 0.506x result at 128 receipts is prior evidence and is used to preregister a <=0.56x simplicity-adjusted storage threshold."
+      ],
+      "success_criteria": [
+        "All 128 receipt facts are obtained from validated SqliteFactStore.history and are production overcenter-git-receipt-v5 DONE receipts.",
+        "Hydrating every evidence reference reconstructs a canonically identical receipt-v5 fact and production projectReceipt returns the original disposition and verified result.",
+        "At 128 receipts the externalized-evidence representation is no more than 0.56x the fair flat baseline bytes.",
+        "The experiment reports byte ratios at 1, 8, 32, 64, and 128 receipts.",
+        "Exactly one content-addressed evidence leaf is stored for the 128-receipt corpus.",
+        "Tampering with the evidence bytes under an existing digest is detected before projectReceipt.",
+        "Changing receipt run identity changes the existing SQLite-style outer commit digest, demonstrating that the authority spine still binds per-run identity without a second Merkle execution object.",
+        "Missing evidence cannot project DONE, and no false DONE occurs."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "1ad6c4f97d698f3e194b5e8ec74bf4050084bf14",
+        "artifacts": [
+          "GitHub Actions run 35822020117, job 107055707500: existing authority spine + Merkle evidence leaves PASS.",
+          "128 receipt-v5 facts were generated through the production kernel/effect adapter, read back through validated SqliteFactStore.history, hydrated from evidence references, and replayed with 0 semantic mismatches and 0 false DONE outcomes.",
+          "Merkle-evidence-leaf/flat byte ratios were 1.053x at 1 receipt, 0.402x at 8, 0.322x at 32, 0.308x at 64, and 0.302x at 128.",
+          "The 128-receipt corpus stored exactly one shared evidence object; evidence tamper and missing-evidence controls were rejected, and changing run identity changed the SQLite-style outer commit digest.",
+          "The same workflow reran the full authority-bound receipt DAG at 0.506x flat bytes for 128 receipts, providing a same-host comparison."
+        ]
+      },
+      "interpretation": "The evidence favors a smaller architecture than a second receipt DAG. Overcenter's SQLite/Git fact history already supplies the authoritative content-addressed outer spine; reusable certified observations and future execution-trace payloads can be content-addressed leaves referenced by ordinary settlement facts. This preserves existing settlement authority and exact run/revision binding while gaining tamper detection, deduplication, and independently retrievable evidence.",
+      "non_claims": [
+        "Every observation is safe to deduplicate merely because its bytes match; verifier/subject/snapshot provenance remains part of the evidence bytes.",
+        "The production SQLite schema should be changed on the strength of this single corpus.",
+        "Canonical JSON bytes equal physical SQLite or object-store bytes.",
+        "Commit-level content addressing replaces authoritative observation or current-realization admissibility.",
+        "Evidence leaves provide process/syscall/network record-replay.",
+        "Backend-local authority identities become portable across SQLite and Git."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The leaf-only architecture, authoritative-history readback requirement, 128-receipt corpus, <=0.56x storage threshold, tamper/missing controls, and outer-commit identity control were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 1ad6c4f97d698f3e194b5e8ec74bf4050084bf14, the leaf-only treatment preserved exact receipt-v5/projectReceipt semantics with zero false DONE, used one shared evidence object, and reached 0.302x flat bytes at 128 receipts. On the same hosted run, the fuller receipt DAG used 0.506x, so retaining the existing authority spine and Merkleizing only repeated evidence was both simpler and materially smaller for this corpus."
+      }
+    },
+    {
+      "id": "evidence-cas-break-even",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/evidence-cas-break-even",
+      "readme": "experiments/evidence-cas-break-even/README.md",
+      "question": "Across realistic replay-evidence sizes and reuse rates, when does content-addressed evidence externalization beat inline receipt storage, and what recovery/GC costs does that indirection introduce?",
+      "claim": "Evidence CAS is not a universal storage win: zero-reuse evidence will remain larger than inline storage, while increasing payload size and reuse will produce measurable crossover curves. A deterministic group-cost policy that externalizes only when refs plus one stored object are smaller than repeated inline payloads will never exceed flat canonical bytes across the preregistered matrix and will preserve exact receipt-v5 semantics.",
+      "contrast": "Always externalize every evidence payload into CAS regardless of size or reuse, or always keep all evidence inline.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-cas-break-even"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "A corpus of 128 actual production GitHub receipt-v5 identities is generated once through OvercenterKernel and performGithubCommitStatusEffect.",
+        "Execution-trace diagnostics are schema-valid non-semantic receipt-v5 data layered onto those production identities, validated by validateReceiptFact and replayed through production projectReceipt.",
+        "Trace payload sizes are 1 KiB, 16 KiB, 256 KiB, and 1 MiB; reuse fractions are 0%, 25%, 50%, 75%, and 100% with deterministic exact-byte traces.",
+        "Logical storage accounting uses canonical JSON bytes for inline receipts, reference receipts, and unique CAS objects. File-system lookup and GC measurements use a temporary local directory CAS on the hosted runner.",
+        "Physical database pages, remote object-store billing, compression, and network RTT are outside this experiment."
+      ],
+      "success_criteria": [
+        "Every hydrated externalized receipt is canonically identical to its inline receipt-v5 fact and production projectReceipt preserves disposition and verified result with zero false DONE.",
+        "Universal externalization is larger than inline storage at 0% reuse for every preregistered payload size, establishing the no-reuse negative control.",
+        "At 100% reuse, universal externalization is smaller than inline storage for every preregistered payload size.",
+        "The experiment reports universal CAS byte ratios for every payload-size/reuse cell and the first measured reuse crossover for each payload size.",
+        "A deterministic exact-cost policy that externalizes a digest group only when reference receipts plus one CAS object are smaller than that group's inline receipts never exceeds flat canonical bytes in any matrix cell.",
+        "For a 256 KiB, 50%-reuse representative corpus, file-backed CAS lookup verifies the requested digest on every read and reports p50/p95 lookup latency.",
+        "A mark-and-sweep GC control over the representative corpus deletes all injected orphan objects, deletes no live object, and reports reclaimed bytes and sweep latency.",
+        "Cold recovery bandwidth for the representative corpus is reported as reference bytes plus unique evidence bytes; warm recovery bandwidth after evidence caching is reported as reference bytes only."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "9bf7dc83d36700c022dcbf1af2a77ff873809cb2",
+        "artifacts": [
+          "GitHub Actions run 35823476017, job 107060113122: evidence CAS break-even matrix PASS.",
+          "All 20 payload/reuse cells preserved receipt-v5/projectReceipt semantics with 0 semantic mismatches and 0 false DONE.",
+          "Universal CAS ratios at 0% reuse were >1 for every payload: 1.0167x (1 KiB), 1.0029x (16 KiB), 1.0002x (256 KiB), 1.0001x (1 MiB).",
+          "The first sampled universal-CAS crossover was 25% reuse for every payload size. At 50% reuse ratios were 0.8498x, 0.5608x, 0.5043x, and 0.5011x as payload size increased.",
+          "The exact-cost selective policy never exceeded flat bytes; at 0% reuse it externalized zero groups, and at 25% reuse it externalized only the 32 repeated groups while leaving singleton groups inline.",
+          "Representative 256 KiB / 50%-reuse file CAS: verified lookup p50 2429.117 us, p95 5060.002 us; cold recovery 17,063,250 bytes vs 33,837,074 flat; warm recovery 282,514 bytes; GC deleted 16/16 orphans, reclaimed 4,195,184 bytes, and took 718.197 us."
+        ]
+      },
+      "interpretation": "Evidence CAS should be infrastructure, not a mandatory receipt representation. The dominant decision variable in this matrix is whether exact evidence bytes repeat; payload size mainly controls how large the win becomes. A deterministic cost comparison per digest group avoids a guessed global threshold: keep singleton evidence inline when externalization is more expensive, and externalize repeated evidence when one CAS object plus references is smaller. Large unique traces may still merit CAS for operational reasons, but that is not a storage optimization and should be justified separately.",
+      "non_claims": [
+        "The matrix represents the empirical distribution of production Overcenter replay traces.",
+        "Local filesystem latency predicts remote object-store latency.",
+        "Canonical-byte savings equal physical SQLite, Git, compressed object-store, or network billing savings.",
+        "Repeated evidence is semantically reusable unless its complete provenance-bearing bytes are identical.",
+        "GC of evidence objects is safe without tracing all authoritative receipt references.",
+        "Evidence CAS replaces authoritative observation, settlement authority, or current-realization checks."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Payload sizes, reuse fractions, 128-receipt corpus, zero-reuse and full-reuse controls, exact-cost selective policy, representative lookup/GC case, and reported recovery bandwidth metrics were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 9bf7dc83d36700c022dcbf1af2a77ff873809cb2, universal evidence CAS was confirmed to be a small storage loss at zero reuse and a substantial win once evidence repeated. Across the preregistered matrix, the first sampled universal crossover was 25% reuse for every payload size, while the exact-cost selective policy never exceeded flat storage because it kept singleton groups inline. The 256 KiB/50%-reuse file-backed control halved cold recovery bytes, reduced warm recovery to reference-only bytes, verified every lookup digest, and swept all injected orphans without deleting live evidence."
+      }
+    },
+    {
+      "id": "evidence-cas-group-threshold",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/evidence-cas-group-threshold",
+      "readme": "experiments/evidence-cas-group-threshold/README.md",
+      "question": "For one exact evidence digest group, what payload size and repetition count make externalization cheaper than keeping the same evidence inline?",
+      "claim": "There is no useful corpus-level reuse percentage threshold. The local break-even is a deterministic function of exact encoded payload bytes, exact reference overhead, and group multiplicity; a per-group byte comparison can therefore make the externalization decision without global tuning.",
+      "contrast": "Choose a fixed payload threshold, a fixed corpus reuse percentage, or always externalize duplicates.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-cas-group-threshold"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "Sixteen production GitHub receipt-v5 identities are generated through OvercenterKernel and performGithubCommitStatusEffect.",
+        "One identical schema-valid execution-trace diagnostic is applied to groups of 1, 2, 3, 4, 8, or 16 receipt identities.",
+        "Trace payload targets are 32, 64, 128, 256, 512, 1024, 4096, and 16384 bytes.",
+        "Costs are exact canonical JSON bytes of complete inline receipt-v5 facts versus complete reference receipts plus one CAS trace object.",
+        "No compression, filesystem allocation, remote object-store metadata, or network pricing is included."
+      ],
+      "success_criteria": [
+        "Every externalized group hydrates to canonically identical receipt-v5 facts and production projectReceipt semantics with zero false DONE.",
+        "Multiplicity 1 is never cheaper to externalize for any preregistered payload size.",
+        "The experiment reports exact inline and CAS bytes plus CAS/inline ratio for every payload-size/multiplicity cell.",
+        "The experiment reports the minimum winning multiplicity for each payload size and the minimum winning payload size for each multiplicity.",
+        "The exact-cost decision externalize iff CAS bytes < inline bytes agrees with the measured winner in every cell."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "6d799ca7308dc722873f62d63f911fcd280e4613",
+        "artifacts": [
+          "GitHub Actions run 35823837095, job 107061194775: exact evidence CAS group threshold PASS.",
+          "All 48 payload-size/multiplicity cells preserved exact receipt-v5 reconstruction and projectReceipt semantics with 0 semantic mismatches and 0 false DONE.",
+          "Multiplicity 1 lost for every payload size, as preregistered.",
+          "Minimum winning multiplicity: 3 copies for 32-byte traces; 2 copies for every trace size from 64 bytes through 16 KiB.",
+          "Minimum winning payload for a duplicate pair was 64 bytes; with 3 or more copies, even the 32-byte trace won.",
+          "Representative duplicate-pair ratios: 0.9976x at 64 B, 0.9839x at 128 B, 0.9588x at 256 B, 0.8497x at 1 KiB, and 0.5608x at 16 KiB."
+        ]
+      },
+      "interpretation": "For normal provenance-bearing evidence, which is already larger than tens of bytes, duplicate count is effectively the storage switch: keep a singleton inline, externalize on the second identical occurrence. The exact byte-cost comparison should remain the authoritative implementation because it is schema-robust and costs almost nothing, but the observed mental model is simpler: duplicate evidence belongs in CAS; unique evidence does not gain storage efficiency from CAS.",
+      "non_claims": [
+        "Canonical byte break-even captures latency, remote request pricing, compression, retention tiers, or operational recovery value.",
+        "Identical bytes imply evidence is semantically reusable outside its complete provenance envelope.",
+        "The measured boundary is immutable if the reference schema changes.",
+        "This experiment justifies changing receipt-v5 persistence."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Payload sizes, multiplicities, production receipt identities, canonical-byte accounting, and reported minimum-winning boundaries were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 6d799ca7308dc722873f62d63f911fcd280e4613, the local break-even surface was simple: singleton evidence was always cheaper inline; two identical copies were enough to justify CAS at 64 bytes and above; the 32-byte case required three copies. The exact-cost rule matched every measured winner and preserved production receipt semantics."
+      }
+    },
+    {
+      "id": "evidence-cas-local-backend",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/evidence-cas-local-backend",
+      "readme": "experiments/evidence-cas-local-backend/README.md",
+      "question": "For a local evidence CAS, should Overcenter default to immutable files addressed by SHA-256 or a SQLite BLOB table keyed by the same digest?",
+      "claim": "Both local backends can provide idempotent deduplicating puts and verified reads without changing evidence identity, but their operational costs will differ: filesystem CAS should reclaim physical bytes immediately on sweep, while SQLite requires compaction to return deleted BLOB space to the filesystem.",
+      "contrast": "Choose a backend from architectural taste without measuring duplicate puts, verified reads, durable reopen, and garbage-collection behavior for replay-sized objects.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-cas-local-backend"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "Evidence identity is SHA-256 over exact canonical evidence bytes and is identical across both backends.",
+        "The corpus contains 64 unique 256 KiB trace objects and 16 unique 1 MiB trace objects; every object is inserted twice to exercise deduplication.",
+        "Filesystem CAS stores one immutable file per digest. SQLite uses WAL, synchronous=FULL, and a WITHOUT ROWID table keyed by digest.",
+        "Verified reads recompute SHA-256 before returning bytes.",
+        "GC deletes every second object; SQLite physical size is measured after DELETE/checkpoint and again after VACUUM.",
+        "Absolute timings are host-dependent and are reported descriptively, not as pass/fail thresholds."
+      ],
+      "success_criteria": [
+        "Both backends contain exactly 80 objects after inserting the 80 unique objects twice.",
+        "Every verified read returns byte-identical evidence and rejects digest mismatch.",
+        "After close/reopen, every retained object remains verifiable in both backends.",
+        "Deleting every second object removes exactly 40 objects from each backend without deleting a retained object.",
+        "The experiment reports first-put, duplicate-put, and verified-read p50/p95 latency for each backend.",
+        "The experiment reports logical live bytes, filesystem physical bytes, SQLite physical bytes before GC, after DELETE/checkpoint, and after VACUUM.",
+        "No evidence identity changes across backends."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "455bcdcd0614598009bbda2644ae2c3b99f6e086",
+        "artifacts": [
+          "GitHub Actions run 35824174675, job 107062210160: local evidence CAS backend comparison PASS.",
+          "Both filesystem and SQLite deduplicated 80 unique objects inserted twice, verified every digest, survived reopen, and retained exactly 40 live objects after the 50% sweep.",
+          "Filesystem p50 first put 164.797 us, duplicate put 20.739 us, verified read 269.773 us; SQLite p50 first put 1375.188 us, duplicate put 641.338 us, verified read 1259.822 us.",
+          "Filesystem physical bytes fell from 33,554,432 to 16,777,216 immediately after deleting half the objects. SQLite stayed at 33,710,080 after DELETE + checkpoint and fell to 16,904,192 only after VACUUM.",
+          "Filesystem sweep took 1,725.281 us. SQLite batched DELETE took 28,763.78 us and VACUUM took 89,015.077 us."
+        ]
+      },
+      "interpretation": "Use an immutable filesystem CAS as the local evidence-byte default, while keeping the EvidenceRef identity and store interface backend-neutral. SQLite remains appropriate for authoritative metadata and indices, but large immutable trace bytes do not benefit from being BLOBs in the authority database. Before promoting the filesystem backend, atomic publication and crash/concurrent-writer behavior must be proved.",
+      "non_claims": [
+        "Local filesystem or SQLite latency predicts cloud object-store latency.",
+        "SQLite is a distributed evidence store.",
+        "Filesystem atomicity provides multi-object transactions.",
+        "Physical-byte measurements include filesystem metadata or remote-storage billing.",
+        "This experiment changes durable authority or receipt-v5."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Object sizes/counts, duplicate-put pass, verified-read requirement, 50% GC sweep, reopen control, and SQLite VACUUM comparison were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 455bcdcd0614598009bbda2644ae2c3b99f6e086, both backends preserved backend-neutral SHA-256 evidence identity, but the filesystem CAS was materially faster for puts/verified reads and reclaimed deleted object bytes immediately. SQLite retained freed pages until VACUUM and added substantial write/read/compaction cost for these replay-sized blobs."
+      }
+    },
+    {
+      "id": "evidence-cas-atomic-publish",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/evidence-cas-atomic-publish",
+      "readme": "experiments/evidence-cas-atomic-publish/README.md",
+      "question": "Can a filesystem evidence CAS publish immutable digest-named objects crash-safely and race-safely without accepting partial or corrupt content?",
+      "claim": "A same-filesystem temp-write + fsync + atomic hard-link publish protocol can ensure that a digest pathname is either absent or contains complete verified bytes, tolerate concurrent duplicate writers, surface a corrupt preexisting target, and leave only safely sweepable temp files after crashes.",
+      "contrast": "Write evidence directly to the final digest path and treat EEXIST as successful deduplication without verifying the existing object.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-cas-atomic-publish"
+      },
+      "environment": [
+        "Linux GitHub-hosted runner with Node.js from .node-version.",
+        "Experiment files are TypeScript executed with Node experimental type stripping; no JavaScript source is added.",
+        "Evidence objects are 256 KiB exact byte strings addressed by raw SHA-256.",
+        "The publisher writes a unique temp file in the target directory, fsyncs it, hard-links it atomically to the digest pathname, fsyncs the directory, then removes the temp file.",
+        "Crash injection uses SIGKILL in a child process after temp fsync or after durable link publication.",
+        "Concurrent duplicate publication launches eight child processes for the same bytes."
+      ],
+      "success_criteria": [
+        "SIGKILL after temp fsync leaves no final digest pathname and at most an abandoned temp file containing complete bytes.",
+        "SIGKILL after link plus directory fsync leaves a complete digest-verifiable final object; any abandoned temp file is removable without affecting the final object.",
+        "Eight concurrent writers of identical bytes all terminate successfully with exactly one final object and no incorrect bytes.",
+        "A preexisting corrupt file at the correct digest pathname causes publication to fail explicitly rather than being accepted as deduplication.",
+        "A normal duplicate put verifies the existing object and returns without rewriting it.",
+        "Sweeping stale temp files removes abandoned temps without removing the published object.",
+        "Closing and reopening the store still returns byte-identical digest-verified evidence.",
+        "The experiment reports normal first-put, duplicate-put, and verified-read latency for the hardened publisher."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "3b9758dfd4e01e26c0e3e7504e31ce747cc6a0db",
+        "artifacts": [
+          "GitHub Actions run 35824626596, job 107063576774: atomic evidence CAS publication PASS.",
+          "SIGKILL after temp fsync left no final object and one complete sweepable temp; SIGKILL after hard-link + directory fsync left one valid final object plus one sweepable temp.",
+          "Eight concurrent duplicate writers all succeeded with exactly one verified final object.",
+          "A deliberately truncated preexisting final object was rejected rather than accepted as deduplication; false accepts 0.",
+          "Hardened 256 KiB publisher timings on the hosted runner: first-put p50 1157.76 us, p95 2112.502 us; duplicate-put p50 471.165 us; verified-read p50 436.42 us."
+        ]
+      },
+      "interpretation": "Promote the atomic filesystem CAS as a small backend-neutral evidence-store implementation, but do not yet change receipt-v5. Evidence identity should remain SHA-256 over exact bytes; authoritative facts may later reference those bytes through an explicit schema change after dual-write/readback migration evidence.",
+      "non_claims": [
+        "A local filesystem CAS is a distributed evidence service.",
+        "Directory fsync semantics are identical on every operating system or network filesystem.",
+        "SIGKILL injection enumerates every kernel/filesystem failure mode.",
+        "Temp sweeping is safe without an age threshold while live publishers may exist.",
+        "Atomic evidence publication changes settlement authority or receipt semantics."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Two crash phases, eight-writer race, corrupt-preexisting negative control, stale-temp sweep, reopen verification, and latency reporting were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 3b9758dfd4e01e26c0e3e7504e31ce747cc6a0db, same-directory temp/fsync/hard-link/directory-fsync publication survived both injected crash windows, an eight-writer duplicate race, reopen, and corrupt-target controls with zero false accepts. The durability fsyncs increased first-put latency to about 1.16 ms p50 for 256 KiB objects, still competitive with the measured SQLite BLOB path."
+      }
+    },
+    {
+      "id": "evidence-reference-publication",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/evidence-reference-publication",
+      "readme": "experiments/evidence-reference-publication/README.md",
+      "question": "Can immutable evidence bytes and authoritative references be persisted safely without a distributed transaction by requiring durable evidence publication before authority append?",
+      "claim": "Evidence-first publication makes every inter-store crash state recoverable: a crash before authority append leaves only collectible evidence, a crash after authority append leaves a reference to already durable evidence, and concurrent writers preserve exactly one authority winner while losing evidence remains collectible.",
+      "contrast": "Append an authoritative reference before evidence durability, or attempt to coordinate filesystem evidence and SQLite authority with an unnecessary cross-store transaction.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-reference-publication"
+      },
+      "environment": [
+        "Linux GitHub-hosted runner with Node.js from .node-version and the current TypeScript checker.",
+        "The production FileEvidenceStore is used for evidence publication and production SqliteFactStore for the authoritative append-only chain.",
+        "Reference facts are experiment-only files inside the existing SQLite fact commit; no production receipt schema is changed.",
+        "Crash injection uses SIGKILL after durable evidence publication or immediately after authority append returns.",
+        "The concurrent case launches two writers with different 256 KiB evidence payloads from the same expected authority head."
+      ],
+      "success_criteria": [
+        "SIGKILL after evidence publication but before authority append leaves the authority head unchanged, authority history valid, and one collectible unreferenced evidence object.",
+        "SIGKILL immediately after authority append leaves a valid advanced authority history whose reference resolves to digest-verified evidence.",
+        "Two concurrent writers from one expected head produce exactly one authoritative commit while both evidence publications remain safe.",
+        "After tracing authoritative references, garbage collection removes losing/unreferenced evidence and preserves referenced evidence.",
+        "Deleting referenced evidence after authority append makes evidence resolution fail closed while the authority history remains internally valid.",
+        "No tested state yields an authoritative reference that was created before the referenced evidence was durably published."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "eea803191db2eeec4a93807ab810c8d8a1ba88b6",
+        "artifacts": [
+          "GitHub Actions run 35886719419, job 107268618049: exact-head checkout, repository typecheck, experiment contract, and evidence-first publication experiment passed.",
+          "Hosted result: crash before authority = orphan-only; crash after authority = durable-reference-to-durable-evidence; concurrent authority winners = 1; losing evidence collectible = true; missing referenced evidence = fail-closed; invalid histories = 0.",
+          "Merge-gate run 35886719976, candidate-evidence job 107268620466: lint, repository typecheck, experiment contract, and full deterministic regression passed on the same exact revision."
+        ]
+      },
+      "interpretation": "A passing result would establish the write ordering needed for a receipt reference migration without a cross-store transaction. Evidence-store GC must remain authority-aware and live above the byte store because only authority knows reachability.",
+      "non_claims": [
+        "Experiment-only evidence-ref.json is a production receipt schema.",
+        "Referenced evidence can never be lost after publication due to disk or operator failure.",
+        "A local filesystem evidence store provides distributed replication.",
+        "Garbage collection may ignore in-flight publishers or temp-file age.",
+        "Historical receipt-v5 replay is migrated by this experiment."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Crash phases, concurrent-writer case, authority-history validation, missing-evidence control, and authority-derived orphan collection were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision eea803191db2eeec4a93807ab810c8d8a1ba88b6, hosted SIGKILL crash windows, same-head concurrent writers, authority-derived orphan collection, referenced-evidence deletion, repository typecheck, and deterministic regression all passed. The bounded evidence-first ordering claim is supported without introducing a cross-store transaction."
+      }
     }
   ]
 }
