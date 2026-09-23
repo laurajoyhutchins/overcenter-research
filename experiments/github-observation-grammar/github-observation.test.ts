@@ -6,7 +6,7 @@ import {
   GITHUB_ISSUE_OPERATION,
   GITHUB_OBSERVATION_OPERATIONS,
   GITHUB_REF_OPERATION,
-} from '../../src/providers/github/operations.generated.ts';
+} from '../../generated/github-operations.ts';
 import { materializeGithubOperationRequest } from '../../src/providers/github/openapi.ts';
 import { observeCertifiedGithubPullRequestIdentity } from '../../src/providers/github/certified-pr.ts';
 import { observeCertifiedGithubRefFence } from './certified-ref.ts';
