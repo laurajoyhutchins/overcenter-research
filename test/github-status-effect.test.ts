@@ -12,6 +12,7 @@ import {
   performGithubCommitStatusEffect,
   type GithubStatusPost,
 } from '../src/providers/github/status-effect.ts';
+import { GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED } from '../src/effect-adapter.ts';
 import type { GithubJsonGet } from '../src/providers/github/rest.ts';
 
 const COMMIT = 'a'.repeat(40);
@@ -283,6 +284,15 @@ test('fresh HTTPS failure before secureConnect releases only the exact reservati
     assert.equal(receipts[0]?.kind, 'effect-not-dispatched');
     assert.equal(receipts[0]?.disposition, 'READY');
 
+    const reopened = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+    try {
+      assert.equal(reopened.hasUnresolvedEffect(first.id), false);
+      assert.equal(reopened.inspect()[0]?.status, 'READY');
+      assert.equal(reopened.receipts(first.id)[0]?.kind, 'effect-not-dispatched');
+    } finally {
+      reopened.close();
+    }
+
     const retryWork = kernel.deriveReadyWork();
     assert.ok(retryWork);
     const second = kernel.claim(retryWork.id, retryWork.revision);
@@ -335,4 +345,29 @@ test('HTTP 502 keeps the GitHub status reservation unresolved', async () => {
     async () => ({ status: 502, body: 'bad gateway' }),
     /GITHUB_STATUS_MUTATION_FAILED:502/,
   );
+});
+
+test('the admitted NOT_DISPATCHED token cannot release a reservation without a transport-minted witness', () => {
+  const root = mkdtempSync(join(tmpdir(), 'github-status-witness-forgery-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+
+  try {
+    const run = define(kernel);
+    const authority = kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT);
+    kernel.beginEffect(run);
+
+    assert.throws(
+      () =>
+        kernel.releaseEffectReservation(
+          authority,
+          GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED as never,
+        ),
+      /EFFECT_RELEASE_EVIDENCE_PROVENANCE_INVALID/,
+    );
+    assert.equal(kernel.hasUnresolvedEffect(run.id), true);
+    assert.equal(kernel.inspect()[0]?.status, 'EXECUTING');
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 });
