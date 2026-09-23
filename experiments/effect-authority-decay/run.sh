@@ -73,7 +73,7 @@ baseline_verifier_sites="$(count_literal "$tmp/baseline" 'work.postcondition.ver
 treatment_verifier_sites="$(count_literal "$repo_root" 'work.postcondition.verifier!==' "${providers[@]}")"
 baseline_raw_effect_calls="$(count_literal "$tmp/baseline" 'performEffect(permit' "${providers[@]}")"
 treatment_raw_effect_calls="$(count_literal "$repo_root" 'performEffect(permit' "${providers[@]}")"
-central_mints="$(grep -Fc 'authorizeEffect<E extends string' "$repo_root/src/authority/engine.ts" || true)"
+central_mints="$(grep -Fc 'authorizeEffect<' "$repo_root/src/authority/engine.ts" || true)"
 
 printf 'sloc baseline=%s treatment=%s delta=%+d (historical metric; not a maintenance gate)\n'   "$baseline_sloc" "$treatment_sloc" "$((treatment_sloc-baseline_sloc))"
 printf 'provider_claimedWork_calls baseline=%s treatment=%s\n'   "$baseline_claimed_work" "$treatment_claimed_work"

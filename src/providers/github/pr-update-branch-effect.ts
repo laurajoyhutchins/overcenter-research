@@ -52,11 +52,7 @@ export async function performGithubPullRequestUpdateBranchEffect(
   previous_head_sha: string;
 }> {
   if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
-  const authority = kernel.authorizeEffect(
-    permit,
-    GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
-    'github-pull-request-branch-updated/v1',
-  );
+  const authority = kernel.authorizeEffect(permit, GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT);
   const p = authority.postcondition;
   const identity = await runGithubReadObserverAsync(
     token,

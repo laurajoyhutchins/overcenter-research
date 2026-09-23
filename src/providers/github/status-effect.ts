@@ -60,11 +60,7 @@ export async function performGithubCommitStatusEffect(
 }> {
   if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
 
-  const authority = kernel.authorizeEffect(
-    permit,
-    GITHUB_COMMIT_STATUS_EFFECT,
-    'github-commit-status/v2',
-  );
+  const authority = kernel.authorizeEffect(permit, GITHUB_COMMIT_STATUS_EFFECT);
   const p = authority.postcondition;
   const repository = await runGithubReadObserverAsync(
     token,
