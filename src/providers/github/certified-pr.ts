@@ -3,7 +3,7 @@ import {
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './contract.ts';
-import { GITHUB_PULL_REQUEST_OPERATION } from './operations.generated.ts';
+import { GITHUB_PULL_REQUEST_OPERATION } from '../../../generated/github-operations.ts';
 import { materializeGithubOperationRequest } from './openapi.ts';
 import { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './semantics.ts';
 import {
@@ -189,5 +189,5 @@ export function observeCertifiedGithubPullRequestIdentity(
   }
 }
 
-export { GITHUB_PULL_REQUEST_OPERATION } from './operations.generated.ts';
+export { GITHUB_PULL_REQUEST_OPERATION } from '../../../generated/github-operations.ts';
 export { GITHUB_PULL_REQUEST_RESPONSE_SLICE } from './semantics.ts';
