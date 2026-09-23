@@ -352,3 +352,40 @@ This supports the narrower mechanism under test: within a separately certified r
 
 The result does **not** authorize the learned expression for production settlement or retry. Admission still requires binding the proof to exact execution identity, durable reservation, route-topology version/identity, and a trusted completeness claim for each semantic monitor predicate.
 
+
+## T8: authority-bound learned recovery certificate
+
+This trial is preregistered before hosted execution.
+
+T7 showed that a learned positive proof can reproduce the deterministic verifier. T8 asks whether such a proof can be packaged so that success for one execution cannot be replayed or substituted into another.
+
+The prototype mints a recovery certificate only after a positive proof succeeds. The certificate is bound to:
+
+- run ID;
+- obligation ID;
+- claimed revision;
+- claim commit;
+- obligation semantic key;
+- execution generation;
+- execution-authority commit;
+- durable effect-reservation commit;
+- exact effect route;
+- mutation-topology digest;
+- admitted learned-proof digest; and
+- exact witness digest.
+
+The consumer additionally treats the certificate as single-use.
+
+### Hostile cases
+
+Minting must reject mismatched execution identity, stale generation/authority, different reservation, route substitution, topology substitution, missing generation termination, missing monitor completeness, and observed effect transmission.
+
+Consumption must reject mutation of every bound field, substitution of an unadmitted learned proof, reuse of the same certificate, a different but semantically equivalent witness, and topology drift.
+
+A module-local unforgeable token plus private runtime bindings is used so a structurally similar JavaScript object cannot stand in for a minted certificate.
+
+### Falsification
+
+The treatment is falsified if any hostile substitution reaches the simulated retry consumer, if a certificate survives a topology or proof-policy change, if the same certificate can be consumed twice, or if missing completeness can contribute a positive recovery atom.
+
+This remains an architectural experiment. The real `KernelCore` settlement/retry path is not changed by T8.

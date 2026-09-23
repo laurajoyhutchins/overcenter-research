@@ -2,6 +2,9 @@ name: Automatic witness minimization experiment
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/witness-minimization-20260923
 
 permissions:
   contents: read
@@ -64,4 +67,14 @@ jobs:
             echo '## Learned positive recovery proof'
             echo
             sed 's/^/    /' "$RUNNER_TEMP/witness-proof-learning.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Bind learned proof to recovery authority
+        run: |
+          set -euo pipefail
+          npm run test:witness-recovery-certificate | tee "$RUNNER_TEMP/witness-recovery-certificate.txt"
+          {
+            echo
+            echo '## Authority-bound recovery certificate'
+            echo
+            sed 's/^/    /' "$RUNNER_TEMP/witness-recovery-certificate.txt"
           } >> "$GITHUB_STEP_SUMMARY"
