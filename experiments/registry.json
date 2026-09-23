@@ -1091,6 +1091,57 @@
       }
     },
     {
+      "id": "core-loop-concurrency",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/core-loop-concurrency",
+      "readme": "experiments/core-loop-concurrency/README.md",
+      "question": "Does the production runCoreLoop bounded-concurrency path recover useful parallel throughput while one kernel retains all execution authority and settlement responsibility?",
+      "claim": "The benchmark measures the production core loop at concurrency 1, 2, 4, and 8 across 0, 25, and 100 ms effect costs while checking that only packet-level effects overlap and observed overlap never exceeds the configured bound.",
+      "contrast": "Infer production scaling from a hand-built concurrency harness instead of measuring the core-loop API that would ship.",
+      "design": {
+        "provenance": "mixed",
+        "note": "The workload and distinguishing criteria were established in the earlier #204 run; this restack ports the same benchmark to the current TypeScript-only tree and requires fresh exact-head evidence before drawing a current result."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At material effect cost, production runCoreLoop bounded concurrency improved median throughput while observed overlap never exceeded the configured bound; zero-cost work provided the expected negative control."
+      },
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run experiment:core-loop-concurrency"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Local filesystem supporting SQLite.",
+        "Hosted reference uses GitHub Actions ubuntu-24.04."
+      ],
+      "success_criteria": [
+        "All 32 obligations settle DONE through production runCoreLoop for every case.",
+        "Reported max_active_effects never exceeds requested concurrency.",
+        "At material artificial effect cost, at least one concurrency greater than one improves median throughput over concurrency one.",
+        "Only packet-level effects overlap; exact claims, reservations, observation, and settlement remain kernel-owned."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "11170182c7f16d216834c2453889f8ecb95adbf6",
+        "artifacts": [
+          "GitHub Actions Core-loop bounded concurrency run 35898137522, job 107307123548: exact treatment head passed all 12 benchmark cases.",
+          "25 ms effects: concurrency 8 reached 85.907 tasks/s versus 22.183 at concurrency 1 (3.873x); max_active_effects=8.",
+          "100 ms effects: concurrency 8 reached 31.408 tasks/s versus 8.144 at concurrency 1 (3.857x); max_active_effects=8.",
+          "0 ms negative control: additional concurrency did not improve throughput and max_active_effects remained 1."
+        ]
+      },
+      "interpretation": "The exact treatment supports bounded packet-level effect concurrency behind one serialized authority lane when effect cost is material. Zero-cost work remains authority-dominated, so concurrency is a bounded latency-hiding mechanism rather than a universal throughput multiplier.",
+      "non_claims": [
+        "Artificial delay models a particular provider.",
+        "SQLite is distributed or highly available.",
+        "Fairness is proved by the performance benchmark.",
+        "Zero-cost work benefits from additional effect concurrency.",
+        "Evidence-only commits after the evaluated treatment revision change the measured result."
+      ]
+    },
+    {
       "id": "sqlite-baseline",
       "kind": "experiment",
       "status": "historical",
