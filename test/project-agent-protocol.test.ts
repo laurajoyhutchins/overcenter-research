@@ -132,8 +132,10 @@ test('checked-in project intent is source-agnostic until trusted compilation', (
   const sourceSha = 'a'.repeat(40);
   const desired = compileProjectIntent(raw, sourceSha);
   assert.equal(desired.length, 1);
-  assert.equal(desired[0].id, 'live-agent-loop-witness');
-  assert.equal(desired[0].packet.source_sha, sourceSha);
+  const compiled = desired[0];
+  assert.ok(compiled);
+  assert.equal(compiled.id, 'live-agent-loop-witness');
+  assert.equal(compiled.packet.source_sha, sourceSha);
 });
 
 test('project.advance reconciles trusted project intent before frontier selection', () => {
