@@ -41,9 +41,7 @@ import type {
 import { validateAdmission } from './admission.ts';
 import {
   deriveProjectProjection,
-  explainProjectWork,
   hasInFlight,
-  type ProjectExplanation,
 } from './project-state.ts';
 import { deriveCurrentRealizationJudgments } from './realization-reuse.ts';
 import {
@@ -196,10 +194,6 @@ export class KernelCore {
     return this.#currentProjection(head).project.readyWork;
   }
 
-  explain(id:string):ProjectExplanation {
-    const head=this.#requireHead();
-    return explainProjectWork(this.#currentProjection(head).project,id);
-  }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {
     const head=this.#requireHead();
