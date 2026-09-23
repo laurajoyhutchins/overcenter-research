@@ -27,7 +27,7 @@ Terminal == s.work \in {"Done", "Escalated"}
 Init ==
     s = [
         workerUp |-> [w \in Workers |-> TRUE],
-        crashedOnce |-> [w \in Workers |-> FALSE],
+        primaryCrashed |-> FALSE,
         leaseOwner |-> NoWorker,
         leaseLive |-> FALSE,
         fence |-> 0,
@@ -62,18 +62,13 @@ StartOrRetry(w) ==
         !.attempts = @ + 1
     ]
 
-Crash(w) ==
-    /\ s.workerUp[w]
-    /\ ~s.crashedOnce[w]
+CrashPrimary ==
+    /\ ~s.primaryCrashed
+    /\ s.workerUp[W1]
     /\ s' = [s EXCEPT
-        !.workerUp = [s.workerUp EXCEPT ![w] = FALSE],
-        !.crashedOnce = [s.crashedOnce EXCEPT ![w] = TRUE]
+        !.workerUp = [s.workerUp EXCEPT ![W1] = FALSE],
+        !.primaryCrashed = TRUE
     ]
-
-Wake(w) ==
-    /\ ~s.workerUp[w]
-    /\ s.crashedOnce[w]
-    /\ s' = [s EXCEPT !.workerUp = [s.workerUp EXCEPT ![w] = TRUE]]
 
 ReapDeadLease ==
     /\ EnableDeadLeaseReaping
@@ -104,6 +99,7 @@ ObserveProvider ==
 AdvanceAfterObservation ==
     /\ s.work = "Recovery"
     /\ s.leaseLive
+    /\ s.leaseOwner # NoWorker
     /\ s.workerUp[s.leaseOwner]
     /\ s.observation \in {"Present", "Absent"}
     /\ (s.observation = "Present" \/ s.attempts = MaxAttempts)
@@ -111,13 +107,11 @@ AdvanceAfterObservation ==
 
 AcquireAny == \E w \in Workers : Acquire(w)
 StartAny == \E w \in Workers : StartOrRetry(w)
-WakeAny == \E w \in Workers : Wake(w)
 
 Next ==
     \/ AcquireAny
     \/ StartAny
-    \/ \E w \in Workers : Crash(w)
-    \/ WakeAny
+    \/ CrashPrimary
     \/ ReapDeadLease
     \/ ResolveProvider
     \/ ObserveProvider
@@ -129,7 +123,6 @@ Spec ==
     /\ [][Next]_vars
     /\ WF_vars(AcquireAny)
     /\ WF_vars(StartAny)
-    /\ WF_vars(WakeAny)
     /\ WF_vars(ReapDeadLease)
     /\ WF_vars(ResolveProvider)
     /\ WF_vars(ObserveProvider)
@@ -137,7 +130,7 @@ Spec ==
 
 TypeOK ==
     /\ s.workerUp \in [Workers -> BOOLEAN]
-    /\ s.crashedOnce \in [Workers -> BOOLEAN]
+    /\ s.primaryCrashed \in BOOLEAN
     /\ s.leaseOwner \in Workers \cup {NoWorker}
     /\ s.leaseLive \in BOOLEAN
     /\ s.fence \in 0..MaxFence
