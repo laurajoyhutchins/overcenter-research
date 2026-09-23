@@ -83,4 +83,28 @@ This experiment does not establish:
 
 ## Result
 
-Pending exact-head hosted evaluation. The design, world grammar, witness pair, durable fingerprint, and negative controls are fixed before the first execution.
+**Falsified.** Exact revision `0c3345e26bad2666bf93255398766ae58b6383b1` was evaluated in GitHub Actions Merge gate run `35926875405`, rerun attempt 2, candidate-evidence job `107404540300`.
+
+All ten preregistered worlds executed through the production update-branch adapter and fresh SQLite recovery. They collapsed to two durable equivalence classes, with one class containing different physical retry decisions.
+
+The preregistered witness was observed exactly:
+
+- `put-fails-before-dispatch` is physically safe to retry;
+- `dispatch-present-throw-old` is not safe to blindly retry;
+- both retained an unresolved reservation;
+- both blocked a second provider PUT;
+- both recorded interruption as `RECOVERY_REQUIRED`;
+- authoritative PR readback in both worlds reported `mutation_certainty: absent` because the old head was visible;
+- both reconciliation and final project status remained `RECOVERY_REQUIRED`.
+
+The shared durable receipt sequence was an `execution-terminated` receipt followed by an `observation` receipt with `certainty: absent`; neither receipt authorized replay or reservation release.
+
+Safety held throughout the bounded corpus: no duplicate provider PUT escaped and no false `DONE` was observed. The three preregistered unsafe controls were all killed: retry on any throw, retry from old-head absence, and trust HTTP 202 without authoritative updated-head readback.
+
+The same exact-head candidate passed repository lint and TypeScript checking, experiment-contract validation, the standing adapter-diagnosability check, all maintained deterministic experiments, TLA+, the production computation-boundary proof, and self-application.
+
+### Interpretation
+
+The update-branch adapter is safe but intentionally non-diagnosing at this boundary. Authoritative old-head readback proves the branch update is not currently visible; it does **not** prove that an already-dispatched asynchronous request is terminally unable to apply.
+
+This independently supports keeping both replay and reservation release forbidden for update-branch. It also earns a second real-adapter input for the static diagnosability tool: generic PUT transport failure / old-head absence should remain ambiguous unless a future experiment establishes a trusted transport or provider-terminal observation.
