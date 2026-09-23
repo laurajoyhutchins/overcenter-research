@@ -1368,10 +1368,12 @@
         "No hostile case produces a false DONE."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "Preregistered before the first hosted run of the Merkle receipt sidecar.",
+        "status": "evaluated",
+        "evaluated_revision": "6cb1029a67adce44aa43b515aad85082882b64dc",
         "artifacts": [
-          "Pending first hosted exact-head experiment run."
+          "GitHub Actions run 35820353901, job 107050661910: Merkle receipt hostile-case experiment PASS.",
+          "All 7 tests passed with zero false DONE outcomes across corruption, missing dependency, exact-SHA misbinding, signed-checkpoint rollback, cache-free reconstruction, and timeout ambiguity controls.",
+          "Hosted sidecar metrics: 8 objects, 3,149 canonical Merkle-closure bytes versus 1,659 equivalent flat bytes (1.898x); build p50 73.231 us; closure + semantic validation p50 43.478 us."
         ]
       },
       "interpretation": "A passing result would justify prototyping content-addressed causal receipts as an optional durable evidence representation and measuring integration cost against real receipt-v5 facts. It would not establish that Merkle integrity makes provider observations truthful or that syscall/network record-replay is solved.",
@@ -1388,8 +1390,8 @@
         "note": "Question, six hostile cases, false-DONE criterion, anti-rollback requirement, reconstruction criterion, and non-claims were recorded before the first hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first exact-head hosted run."
+        "state": "supported",
+        "summary": "At exact revision 6cb1029a67adce44aa43b515aad85082882b64dc, all preregistered hostile cases passed with zero false DONE. The naive eight-object Merkle sidecar cost 1.898x the equivalent flat bytes while measuring 73.231 us median construction and 43.478 us median closure plus semantic validation on the hosted runner."
       }
     }
   ]

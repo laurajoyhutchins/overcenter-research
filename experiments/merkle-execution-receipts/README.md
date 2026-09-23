@@ -96,3 +96,34 @@ receipt-v5 representation should be replaced.
 ```sh
 npm run test:merkle-execution-receipts
 ```
+
+## First hosted result
+
+Exact evaluated revision:
+
+```text
+6cb1029a67adce44aa43b515aad85082882b64dc
+```
+
+GitHub Actions run `35820353901`, job `107050661910` passed all seven tests.
+
+```text
+hostile cases                         PASS
+false DONE                               0
+Merkle objects                           8
+Merkle closure bytes                  3149
+equivalent flat bytes                 1659
+byte ratio                           1.898x
+build p50                            73.231 us
+closure + semantic validation p50   43.478 us
+```
+
+The safety hypothesis survived this bounded model. The first cost signal is also
+clear: the deliberately naive per-execution representation is nearly twice the
+flat byte size. CPU cost is small in this in-memory hosted measurement, but that
+does not yet include durable object-store I/O, checkpoint persistence, garbage
+collection, or network/provider latency.
+
+The next useful question is therefore not whether hashing works. It is whether
+shared causal objects and real receipt-v5 integration amortize the storage cost
+enough to justify using this representation at the durable evidence boundary.
