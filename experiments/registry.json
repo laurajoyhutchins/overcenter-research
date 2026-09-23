@@ -1601,6 +1601,115 @@
         "state": "supported",
         "summary": "At exact revision 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, the fresh-socket HTTPS treatment emitted NOT_DISPATCHED only for failures before TLS secureConnect, kept post-connect failure UNKNOWN when the peer had already observed 172 decrypted HTTP bytes, and returned ACKNOWLEDGED on HTTP 201. No peer-observed application-byte case was misclassified as NOT_DISPATCHED."
       }
+    },
+    {
+      "id": "generated-effect-protocol",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/generated-effect-protocol",
+      "readme": "experiments/generated-effect-protocol/README.md",
+      "question": "Can one small declarative effect protocol generate the boring mechanics of Overcenter provider adapters while an independently implemented checker still detects generator corruption?",
+      "claim": "For the two current GitHub effects, mechanically knowable adapter protocol facts can be authored once and compiled into executable TypeScript while a source-independent checker detects selected semantic generator corruptions and preserves fail-closed unknown-response handling.",
+      "contrast": "Hand-maintain effect identity, request serialization, validators, response classifiers, state transitions, replay capabilities, and test expectations as independently editable adapter logic.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:generated-effect-protocol"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "No network, provider credential, database, or external solver is required."
+      ],
+      "success_criteria": [
+        "One protocol description generates validator, serializer, response classifier, transition function, outcome projection, and capability metadata for both current GitHub effects.",
+        "Both clean generated adapters agree with the independently interpreted contract.",
+        "All eight injected semantic corruptions are detected by the independent checker.",
+        "The checker has no source dependency on compiler.ts or generateAdapterSource.",
+        "Generation is deterministic.",
+        "Neither current effect acquires retry safety by omission; unknown responses remain RECOVERY_REQUIRED."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "834af20c303b002d1063e88fc079c192d93efd98",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35888259675, rerun attempt 2, candidate-evidence job 107274535725: exact-head deterministic experiment PASS.",
+          "Generated effect protocol harness: 13/13 checks passed for the two current GitHub effects.",
+          "Independent checker detected all 8 injected semantic generator-output corruptions: accepted status, HTTP method, path binding, body binding, verifier identity, unknown-response transition, replay capability, and validator-enum widening.",
+          "Both effects retained an empty retry-safe status set; unknown provider responses remained effect-unknown -> RECOVERY_REQUIRED.",
+          "The same candidate run passed lint, TypeScript typecheck, experiment-contract validation, TLA+ proof, production computation-boundary proof, and exact-revision self-application."
+        ]
+      },
+      "interpretation": "The bounded generator/checker mechanism is viable: one declarative source produced both GitHub mechanical adapters and an independently implemented checker detected all eight selected corruptions. The follow-on production differential later falsified immediate adoption as a simplification, so this mechanism is retained as exact-revision evidence rather than maintained runtime scaffolding.",
+      "non_claims": [
+        "Arbitrary provider APIs fit the experiment vocabulary.",
+        "HTTP response codes alone prove whether an external mutation occurred.",
+        "Provider-specific authoritative observation can be generated safely.",
+        "The current handwritten production adapters should be deleted before a production differential exists.",
+        "A larger adapter DSL would remain simpler than handwritten TypeScript."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The architectural hypothesis preceded implementation, but an exploratory local dry run was used while shaping the hostile controls. Exact-head repository evidence is evaluated separately rather than described as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 834af20c303b002d1063e88fc079c192d93efd98, one small declarative protocol generated validator, serializer, classifier, transitions, outcome projection, and capability metadata for both current GitHub effects; the separately implemented checker accepted both clean adapters and detected all eight selected corruptions, while unknown responses remained fail-closed."
+      }
+    },
+    {
+      "id": "generated-effect-production-differential",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/generated-effect-production-differential",
+      "readme": "experiments/generated-effect-production-differential/README.md",
+      "question": "Can the generated GitHub commit-status protocol replace the mechanically knowable portion of the current handwritten production adapter without changing behavior, while reducing authored semantic surface now or at the marginal third adapter?",
+      "claim": "The generated mechanical protocol is behaviorally equivalent to the handwritten commit-status adapter across the bounded hostile corpus, and its authored-surface economics justify the abstraction: one-adapter introduction cost does not exceed the current handwritten status adapter plus its capability entry, while a third adapter costs fewer lexical tokens declaratively than as an equivalent handwritten mechanical implementation.",
+      "contrast": "Keep the current handwritten production adapter mechanics and capability facts, adding future adapters as handwritten validator/serializer/classifier/outcome modules.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:generated-effect-production-differential"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Pinned TypeScript dev dependency for lexical-token measurement.",
+        "Production SQLite authority kernel and production GitHub commit-status adapter with injected provider transport; no network or provider credential is required."
+      ],
+      "success_criteria": [
+        "Generated and handwritten commit-status arms agree exactly across all 16 declared scenarios on provider reads, mutation method/path/body, reservation-before-provider-call state, returned outcome or error text, and unresolved-effect state.",
+        "Generated response classification agrees with the handwritten production rule for HTTP 200, 201, 202, 400, 409, 422, 500, 502, and 503.",
+        "The independent checker accepts both the generated and handwritten implementations of the synthetic third mechanical adapter.",
+        "The one-adapter introduction token count, defined as candidate wrapper plus shared compiler plus one commit-status protocol entry, is no greater than the current handwritten production commit-status adapter plus its capability entry.",
+        "The synthetic third adapter's declarative protocol entry has fewer lexical tokens than its equivalent handwritten mechanical adapter.",
+        "No production source file is modified by the experiment."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "9614079e875bc39c28e87b2fb85685af9eb7e50d",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35892459282, rerun attempt 2, candidate-evidence job 107288701401: candidate-regressions step PASS and generated-effect-production-differential reported 20/20 checks passing.",
+          "All 16 handwritten-versus-generated production commit-status scenarios agreed exactly on provider reads, mutation method/path/body, reservation timing, outcome/error text, and unresolved-effect state.",
+          "Generated response classification agreed with the handwritten production rule across HTTP 200, 201, 202, 400, 409, 422, 500, 502, and 503.",
+          "The independently implemented checker accepted both generated and handwritten forms of the synthetic third mechanical adapter.",
+          "Authored-surface metrics: handwritten status adapter plus capability entry 236 lexical tokens; generated introduction 1254 tokens; introduction ratio 5.313559322033898.",
+          "Marginal third-adapter metrics: handwritten mechanical adapter 449 lexical tokens; declarative protocol entry 178 tokens; marginal ratio 0.39643652561247217.",
+          "The same candidate run passed lint, TypeScript typecheck, experiment-contract validation, TLA+, and the production computation-boundary proof. The later self-application step failed because its execution capsule did not contain the measurement-only @typescript/typescript6 compatibility dependency; that post-experiment integration failure motivated removing the completed experiment scaffolding from the maintained head."
+        ]
+      },
+      "interpretation": "Generation preserved the bounded production behavior and improves marginal adapter economics, but it is not currently a simplification. The shared compiler and wrapper cost more than five times the handwritten status mechanism at the first adoption point. Do not migrate the production adapter on this evidence; reconsider only if enough mechanically similar effects accumulate or a materially smaller generator can meet the same independent-checker boundary.",
+      "non_claims": [
+        "Provider-specific authoritative observation can be generated.",
+        "The synthetic GitHub issue-comment effect should become a production Overcenter effect.",
+        "Lexical token count is a complete measure of cognitive or maintenance complexity.",
+        "A different protocol representation or generator cannot cross the break-even point.",
+        "Behavioral equivalence on the bounded corpus proves universal equivalence."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The 16-case differential corpus, exact compared observations, lexical-token metric, one-adapter non-growth threshold, and marginal-third-adapter threshold were committed before hosted execution. Early hosted attempts exposed only harness defects: formatter drift and reliance on the TypeScript 7 package for a compiler API it does not provide. The accepted measurement used the TypeScript 6 compatibility API without changing the corpus, metric definition, or thresholds."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "Behavioral equivalence was supported, and a third adapter was cheaper declaratively (178 versus 449 tokens, 0.396x), but introducing the generator for the current production status adapter required 1254 tokens versus 236 handwritten tokens (5.314x). The preregistered immediate-simplification claim therefore failed."
+      }
     }
   ]
 }
