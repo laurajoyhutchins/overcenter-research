@@ -150,3 +150,114 @@ The guarded-promotion result is only useful if the mutation-route envelope can b
 This is intentionally only a bounded structural audit, not a proof of arbitrary runtime I/O completeness. Dynamic native calls, generated code, shell indirection, or mutation mechanisms not represented by the scanned syntax remain non-claims.
 
 The useful result is whether the current production slice already has a mechanically enumerable mutation boundary that can serve as the certified envelope for learned witness minimization.
+
+## Follow-on trial results
+
+Hosted follow-on matrix: run `35821496326` at exact preregistered revision `d35c8e0208c68a8c6627ae93df17a73f02890db4`.
+
+### T1: route exposure, not repetition, controls recovery
+
+| Safe helper traces in training | Helper recovery retained |
+| ---: | ---: |
+| 0 | 0% |
+| 1 | 100% |
+| 2 | 100% |
+| 4 | 100% |
+| 8 | 100% |
+| 16 | 100% |
+
+One valid safe-retry proof from the previously unseen route was sufficient to retain that route's recovery capability in this model. More samples did not improve the result. The relevant missing variable was structural route coverage rather than repeated evidence from an already-covered route.
+
+### T2: minimal witnesses are non-unique
+
+Across 500 independently shuffled safe main-route traces:
+
+- 258 minimized to `monitor-main-a + reservation + route + terminated`;
+- 242 minimized to the equivalent `monitor-main-b + reservation + route + terminated`;
+- their literal intersection was only `reservation + route + terminated`, which is insufficient for safe retry;
+- their union retained both equivalent monitor capabilities.
+
+Therefore neither “take one minimum” nor “intersect all minima” is a sound way to infer a future capture contract. Equivalent proof alternatives need an explicit semantic representation.
+
+### T3: fail-closed dispositions are degenerate minimization targets
+
+Fifty committed helper traces were minimized while preserving only the label `RECOVERY_REQUIRED`.
+
+Mean minimized witness size: **0 observations**.
+
+Because `RECOVERY_REQUIRED` is the verifier's default when evidence is missing, an empty trace preserves the label. The useful target for minimization must therefore be a positive proposition such as “this complete observation domain proves that no effect-bearing transmission occurred,” not a generic lifecycle state.
+
+### T4: independently guarded promotion works
+
+Adding the unseen helper monitor from an independently supplied complete mutation-route inventory produced:
+
+- 6 retained capture classes out of 102;
+- **94.12% capture-class reduction**;
+- **100% recovery retention** across both routes;
+- **0 false certainty**.
+
+This supports a narrower architecture than the original learning claim: machine minimization can aggressively delete observations *inside a separately certified mutation envelope*.
+
+### T5: shadow sampling is a backstop, not a completeness proof
+
+For a hidden route occurring in 1% of executions, expected geometric discovery latency was:
+
+| Broad shadow rate | Route-novelty median / p95 | Safe-witness median / p95 |
+| ---: | ---: | ---: |
+| 0.1% | 69,315 / 299,572 executions | 138,630 / 599,145 |
+| 0.5% | 13,863 / 59,914 | 27,726 / 119,828 |
+| 1% | 6,932 / 29,956 | 13,863 / 59,914 |
+| 5% | 1,386 / 5,990 | 2,773 / 11,982 |
+| 10% | 693 / 2,995 | 1,386 / 5,990 |
+
+Sampling can detect drift eventually, but rare routes multiplied by low shadow rates create long blind intervals. Structural route enumeration is materially stronger.
+
+## Production source-boundary audit result
+
+Hosted audit: run `35821658065` at exact preregistered revision `48e67d48208105a47a2dbe35a8bd4bc5c8ed0402`.
+
+The bounded static audit scanned 61 repository-owned TypeScript source files and found:
+
+```text
+network_or_process_sites=9
+mutation_http_candidates=2
+mutation_candidate=src/providers/github/pr-update-branch-effect.ts:22:PUT
+mutation_candidate=src/providers/github/status-effect.ts:32:POST
+perform_effect_sites=3
+perform_effect_site=src/authority/engine.ts:330
+perform_effect_site=src/providers/github/pr-update-branch-effect.ts:86
+perform_effect_site=src/providers/github/status-effect.ts:102
+mutation_candidates_outside_perform_effect_files=0
+```
+
+Within the syntax covered by this audit, the current production slice already has a mechanically enumerable mutation boundary: the two detected provider mutation sites both pass through `KernelCore.performEffect`.
+
+This is not a proof that arbitrary runtime I/O cannot bypass the boundary. It is evidence that the present architecture is unusually favorable to deriving a complete effect-route inventory from trusted software structure rather than learning that inventory statistically from historical traces.
+
+## Revised model
+
+The experiments now support this division:
+
+```text
+trusted mutation-route inventory
+          │
+          ▼
+broad complete observation envelope
+          │
+          ▼
+execution + positive recovery proof
+          │
+          ▼
+automatic witness minimization
+          │
+          ├── compact durable witness
+          │
+          └── candidate narrower instrumentation
+                         │
+                         ▼
+              admitted only if envelope
+              completeness is preserved
+```
+
+Historical witness minimization may optimize evidence and instrumentation. It must not be the source of authority for deciding which mutation routes exist.
+

@@ -1427,10 +1427,17 @@
           "Frozen learned capture contract: monitor-main-a, monitor-main-b, reservation, route, terminated.",
           "Held-out ordinary route: 100.00% deterministic recovery retention, zero false certainty.",
           "Unseen helper route: 0.00% deterministic recovery retention, zero false certainty; fail-closed verifier returned RECOVERY_REQUIRED because helper-route completeness was not captured.",
-          "Unsafe missing-monitor negative control: 50 false-certainty cases on committed helper-route executions."
+          "Unsafe missing-monitor negative control: 50 false-certainty cases on committed helper-route executions.",
+          "Follow-on matrix run 35821496326 at exact preregistered revision d35c8e0208c68a8c6627ae93df17a73f02890db4: route-exposure sweep, minimization-stability, fail-closed outcome asymmetry, guarded promotion, and shadow-discovery trials all passed their preregistered assertions.",
+          "Route exposure: 0 helper safe traces retained 0% helper recovery; 1 or more retained 100%, with zero false certainty.",
+          "Minimization stability: 500 traces split 258/242 across two equivalent 1-minimal witness shapes; literal intersection omitted both complete monitors.",
+          "Outcome asymmetry: 50 committed helper RECOVERY_REQUIRED traces minimized to 0 observations when only disposition preservation was requested.",
+          "Guarded promotion: independent helper-route inventory plus learned main-route evidence retained 6/102 capture classes (94.12% reduction), 100% recovery, zero false certainty.",
+          "Shadow sampling at a 1% hidden-route rate showed long discovery tails: at 1% broad shadow capture, route novelty median/p95 was 6,932/29,956 executions; safe-witness discovery was 13,863/59,914.",
+          "Production source-boundary audit run 35821658065 at exact preregistered revision 48e67d48208105a47a2dbe35a8bd4bc5c8ed0402: 61 src TypeScript files, 2 literal mutation-capable HTTP candidates, both in files containing kernel.performEffect; 0 scanned mutation candidates outside that boundary."
         ]
       },
-      "interpretation": "Post-hoc witness minimization is strongly supported for proof/storage reduction, but historical minimality alone is insufficient authority for narrowing future capture. Capture promotion needs an independently complete effect-route model, continued broad shadow sampling, or another mechanism that can detect previously unseen mutation channels.",
+      "interpretation": "Historical witness minimization is strongly supported for compact positive recovery proofs and can safely optimize capture inside an independently complete mutation envelope. Historical absence cannot establish that envelope. Route coverage, not repeated same-route samples, controls generalization; equivalent proofs make literal minima non-unique; generic fail-closed outcomes are degenerate minimization targets; probabilistic broad shadowing is useful for drift detection but not a completeness proof. A bounded production-source audit found the current detected mutation HTTP sites structurally fenced through KernelCore.performEffect, suggesting the envelope can presently be derived from trusted code structure.",
       "non_claims": [
         "Historical minimality proves global causal necessity.",
         "The synthetic route vocabulary represents arbitrary providers.",
@@ -1444,7 +1451,7 @@
       },
       "outcome": {
         "state": "falsified",
-        "summary": "Historical witness minimization compressed broad safe-retry proofs by 96.08% and generalized perfectly within the observed route, but the frozen learned capture contract retained 0% of broad-recorder SAFE_RETRY decisions on the unseen helper route. The fail-closed verifier preserved safety with zero false certainty, while the unsafe absence-without-completeness control produced 50 false retries."
+        "summary": "The original automatic capture-promotion hypothesis remains falsified: historical minima alone retained 0% recovery on an unseen route. Follow-on trials isolate the repair: one covered helper route restored 100% recovery; guarded promotion inside an independent mutation-route inventory achieved 94.12% capture-class reduction with 100% recovery and zero false certainty. Generic RECOVERY_REQUIRED minimization collapsed to an empty witness, and shadow sampling showed long rare-route discovery tails."
       }
     }
   ]
