@@ -36,6 +36,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - name: Verify production source budget
+        run: npm run check:source-budget
       - name: Verify experiment contracts
         run: npm run test:experiment-contract
       - name: Run deterministic regression
