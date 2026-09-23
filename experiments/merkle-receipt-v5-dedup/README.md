@@ -113,3 +113,50 @@ authority binding even when every referenced object is individually valid.
 The preregistered semantic-parity and <=1.0x-at-128 storage criteria are
 unchanged. Because the treatment was corrected after the first run, registry
 design provenance is now recorded as `mixed`.
+
+## Authority-bound hosted result
+
+The corrected treatment was evaluated at exact revision:
+
+```text
+56378d1250b28441a246f3058b7e0fe5c5bd8eab
+```
+
+GitHub Actions run `35821692372`, job `107054704870`, passed.
+
+```text
+actual receipt-v5 facts             128
+semantic mismatches                   0
+false DONE                            0
+unique Merkle objects               259
+shared definitions                    1
+shared observations                   1
+
+Merkle / flat bytes
+  1 receipt                       1.316x
+  8 receipts                      0.615x   <- first measured crossover
+ 32 receipts                      0.528x
+ 64 receipts                      0.514x
+128 receipts                      0.506x
+
+encode p50                     125.525 us
+reconstruct + project p50      151.954 us
+```
+
+The result changes the interpretation of the first experiment's 1.898x
+single-receipt overhead. The naive single-proof representation is expensive, but
+the receipt-v5-shaped content-addressed corpus amortizes quickly when immutable
+definition and certified observation bytes repeat.
+
+The more important finding is the failed predecessor run. A Merkle DAG proves
+that a root is internally consistent; it does not prove that the root is the
+one Overcenter authorized. The corrected treatment therefore preserves the
+existing boundary:
+
+```text
+Merkle closure      -> integrity + exact reconstruction + deduplication
+settlement_commit   -> authority for which root is accepted
+fresh observation   -> current admissibility for mutable external reality
+```
+
+Those are distinct responsibilities and should remain distinct.

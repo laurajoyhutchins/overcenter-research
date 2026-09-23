@@ -1425,14 +1425,17 @@
         "No semantic mismatch or false DONE occurs."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "The first hosted run at 540bc0398efe36fd32d38631836f85535a9f9ff0 exposed that the compact sidecar verified object integrity but did not bind a newly constructed settlement root back to the existing authoritative settlement_commit. The follow-on correction adds that existing authority check without changing the preregistered semantic or storage thresholds.",
+        "status": "evaluated",
+        "evaluated_revision": "56378d1250b28441a246f3058b7e0fe5c5bd8eab",
         "artifacts": [
-          "GitHub Actions run 35821293168, job 107053492723: first production receipt-v5 run FAILED only at the cross-run substitution negative control with 'Missing expected exception' after the 128-receipt storage assertion had already passed.",
-          "The failed run demonstrated that an internally valid forged root must still be rejected by settlement authority; content addressing alone is insufficient."
+          "GitHub Actions run 35821293168, job 107053492723: initial treatment failed the cross-run substitution negative control, demonstrating that content-addressed integrity alone did not authorize a newly constructed settlement root.",
+          "GitHub Actions run 35821692372, job 107054704870: corrected authority-bound treatment PASS at exact revision 56378d1250b28441a246f3058b7e0fe5c5bd8eab.",
+          "128 actual production receipt-v5 outputs round-tripped canonically with 0 semantic mismatches and 0 false DONE outcomes.",
+          "Byte ratios Merkle/flat were 1.316x at 1 receipt, 0.615x at 8, 0.528x at 32, 0.514x at 64, and 0.506x at 128; first measured crossover was 8 receipts.",
+          "At 128 receipts the content-addressed corpus contained 259 unique objects, including 1 shared definition and 1 shared observation. Hosted p50 encode was 125.525 us and reconstruct + projectReceipt was 151.954 us."
         ]
       },
-      "interpretation": "A passing result would show that the first experiment's 1.898x single-receipt penalty is not necessarily a corpus-level storage penalty when repeated evidence is factored, and would justify a read-only prototype against the durable fact store. A failure would indicate that content-addressing is primarily an integrity/recovery improvement rather than a storage simplification in the current receipt shape.",
+      "interpretation": "The useful result is two-part: content addressing can substantially reduce repeated receipt evidence at corpus scale, but only when an accepted root is still bound to settlement authority. Hash closure provides integrity and deduplication; the existing settlement_commit remains the authority that says which root counts. This justifies a read-only prototype against the durable fact store, not replacement of receipt-v5 or SQLite authority.",
       "non_claims": [
         "The sidecar is a production replacement for receipt-v5 or the SQLite fact store.",
         "Repeated provider observations may always be shared safely across different times, mutable resources, or verifier semantics.",
@@ -1446,8 +1449,8 @@
         "note": "The corpus, semantic parity requirements, cross-run negative control, byte accounting, and <=1.0x threshold were preregistered. The first run exposed an omitted use of existing settlement_commit authority in the treatment harness; the correction binds root acceptance to that authority without changing criteria or thresholds."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Initial treatment falsified pure hash-consistency as sufficient root authority; corrected authority-bound treatment awaits hosted evaluation."
+        "state": "supported",
+        "summary": "The pure hash-consistent treatment was falsified by the first cross-run substitution control, but the smallest authority-bound correction passed all unchanged criteria. At exact revision 56378d1250b28441a246f3058b7e0fe5c5bd8eab, 128 production receipt-v5 facts round-tripped with exact projectReceipt parity, zero false DONE, and the Merkle/flat byte ratio crossed below 1.0 by 8 receipts and reached 0.506x at 128."
       }
     }
   ]
