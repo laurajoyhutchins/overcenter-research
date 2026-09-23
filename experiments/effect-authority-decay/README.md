@@ -4,7 +4,7 @@
 
 Once Overcenter has established execution authority, can it preserve that fact through the trusted GitHub effect broker instead of decomposing it back into raw run/revision fields and reconstructing the same relationship in each provider?
 
-Current-main baseline: `81b350e526824ab2c397642e6761a0c860151331`.
+Evaluated baseline: `81b350e526824ab2c397642e6761a0c860151331`.
 
 This is the production-path follow-on to the earlier typed-capability work. It deliberately targets **authority decay**, not the runtime checks that establish mutable external truth.
 
@@ -102,6 +102,14 @@ The hypothesis is supported only if all of these hold:
 - same-runner local latency remains within 1.10x baseline.
 
 The final runtime fence is not eligible for deletion.
+
+## Maintenance after evaluation
+
+The SLOC and fixed-baseline latency thresholds above were acceptance criteria for the evaluated treatment, and the exact supported result remains bound to revision `04bc98a42f4db5ddc73293a713412f17127fbc68`. They are not permanent limits on unrelated future authority-engine work.
+
+Current CI keeps the safety-relevant regression criteria authoritative: the hostile runtime controls, TypeScript boundary, removal of duplicated provider authority reconstruction, provider regressions, and the single centralized authority mint. It continues to report SLOC and same-runner latency against the historical baseline for visibility, but those historical differential metrics do not veto a later change merely because the trusted engine grows or hosted-runner timing drifts.
+
+To reproduce the original experiment acceptance exactly, check out the evaluated revision. On later revisions, set `OVERCENTER_ENFORCE_HISTORICAL_EFFECT_AUTHORITY_DECAY=1` only when intentionally asking whether that later revision still satisfies the old latency gate.
 
 ## Reproduce
 
