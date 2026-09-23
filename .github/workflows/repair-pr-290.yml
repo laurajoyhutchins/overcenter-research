@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      EXPECTED_PARENT: ac0e4fa7e858a1d31b36fda7c728ca648447dbe5
+      EXPECTED_PARENT: e73c766993ae0a3b1b599e3e16e0d5ea08af3393
       MAIN_SHA: a22f91aaeee693ec9e0e648301ab74c9768a4b19
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -173,6 +173,9 @@ jobs:
       - name: Install TypeScript toolchain
         run: npm install --ignore-scripts --package-lock=false
 
+      - name: Remove one-shot repair workflow
+        run: git rm -- .github/workflows/repair-pr-290.yml
+
       - name: Verify repaired tree
         shell: bash
         run: |
@@ -187,7 +190,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git rm -- .github/workflows/repair-pr-290.yml
           git add -A
           git commit -m "chore: reconcile lint gate with current main"
           git push origin HEAD:chore/sensible-lint
