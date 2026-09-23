@@ -81,6 +81,14 @@ The correction removes only the `settle-done` consequential annotation. No state
 
 This correction is explicitly post-observation and is not counted as part of the original preregistration.
 
+### Original hosted result
+
+The preregistered treatment at exact revision `18d17e1f0aebece16caba5f21799bfef01a3d718` ran in GitHub Actions Merge gate `35929296953`, rerun attempt 2, candidate-evidence job `107412346863`.
+
+It established `diagnosable: true` and `safeDiagnosable: false` for the bounded-completion model, then failed the next assertion because the analyzer's single unsafe witness reported `settle-done` rather than `release-authority`. The unbounded-pending and production cross-check criteria did not complete and are not treated as evaluated evidence from that run.
+
+The current corrected treatment therefore has mixed provenance, as recorded in the experiment registry.
+
 ## Production cross-check
 
 The experiment also reads the current production contracts without modifying them.
