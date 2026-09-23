@@ -47,7 +47,7 @@ import {
   type ProjectExplanation,
 } from './project-state.ts';
 import { deriveCurrentRealizationJudgments } from './realization-reuse.ts';
-import { projectReceipt, replayProjection } from './replay.ts';
+import { advanceProjection, projectReceipt, replayProjection } from './replay.ts';
 import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
 import { planGraphReconciliation } from '../graph/reconciliation.ts';
@@ -84,6 +84,8 @@ export class KernelCore {
   readonly githubToken: string | null;
   readonly observationContext: ObservationContext;
   readonly #store: DurableFactStore;
+  // Reconstructible acceleration only: history(head) is still fully validated first.
+  #projectionCache: { head: string; commitCount: number; projection: Projection } | null = null;
 
   constructor(
     store: DurableFactStore,
@@ -607,7 +609,26 @@ export class KernelCore {
   }
 
   #historicalProjection(head: string): Projection {
-    return replayProjection(this.#store.history(head));
+    const commits = this.#store.history(head);
+    const cached = this.#projectionCache;
+    let projection: Projection;
+
+    if (
+      cached &&
+      cached.commitCount > 0 &&
+      cached.commitCount <= commits.length &&
+      commits[cached.commitCount - 1]?.commit === cached.head
+    ) {
+      projection = cached.projection;
+      for (const record of commits.slice(cached.commitCount)) {
+        projection = advanceProjection(projection, record);
+      }
+    } else {
+      projection = replayProjection(commits);
+    }
+
+    this.#projectionCache = { head, commitCount: commits.length, projection };
+    return projection;
   }
 
   #currentProjection(head: string): Projection {
