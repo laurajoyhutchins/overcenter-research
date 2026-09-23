@@ -28,13 +28,13 @@ The real production path is exercised:
 ```text
 ExecutionPermit
     ↓
-authorizeEffect
+current execution fence + authorizeEffect
     ↓
 EffectAuthority
     ↓
-beginEffect
+performEffect
     ↓
-durable reservation
+private durable reservation
     ↓
 fresh Node HTTPS transport
     ├─ fails before secureConnect
@@ -70,7 +70,7 @@ The schema name is stable (`overcenter-effect-release`); its numeric version is 
 - GitHub commit-status provider replay capability remains `forbidden`.
 - A successful HTTP 201 still leaves the effect reserved until independent authoritative readback settles it.
 - Provider identity is still derived and checked before mutation.
-- The final current-head authority fence remains inside `beginEffect`.
+- Minting requires current execution authority, and the final current-head authority fence is repeated inside the private reservation step immediately before mutation.
 - Unknown mutation outcomes never become automatic retries.
 
 ## Reproduce

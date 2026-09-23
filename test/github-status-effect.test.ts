@@ -73,12 +73,16 @@ test('production GitHub status effect derives provider coordinates from authorit
       assert.equal(kernel.hasUnresolvedEffect(run.id), true);
       return { status: 201, body: '{}' };
     };
-    const result = await performGithubCommitStatusEffect(kernel, run, {
-      token: 'token',
-      get,
-      post,
-      clock: () => '2026-09-20T20:00:00.000Z',
-    });
+    const result = await performGithubCommitStatusEffect(
+      kernel,
+      kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT),
+      {
+        token: 'token',
+        get,
+        post,
+        clock: () => '2026-09-20T20:00:00.000Z',
+      },
+    );
 
     assert.deepEqual(result, {
       repository_id: 42,
@@ -114,14 +118,18 @@ test('repository identity mismatch fails before reservation or mutation', async 
   try {
     const run = define(kernel);
     await assert.rejects(
-      performGithubCommitStatusEffect(kernel, run, {
-        token: 'token',
-        get: () => repository(43),
-        post: async () => {
-          posts += 1;
-          return { status: 201, body: '{}' };
+      performGithubCommitStatusEffect(
+        kernel,
+        kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT),
+        {
+          token: 'token',
+          get: () => repository(43),
+          post: async () => {
+            posts += 1;
+            return { status: 201, body: '{}' };
+          },
         },
-      }),
+      ),
       /GITHUB_REPOSITORY_IDENTITY_MISMATCH/,
     );
     assert.equal(posts, 0);
@@ -132,30 +140,16 @@ test('repository identity mismatch fails before reservation or mutation', async 
   }
 });
 
-test('missing effect grant fails before provider I/O', async () => {
+test('missing effect grant fails before provider I/O', () => {
   const root = mkdtempSync(join(tmpdir(), 'github-status-grant-'));
   const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
-  let reads = 0;
-  let posts = 0;
 
   try {
     const run = define(kernel, 'other-effect');
-    await assert.rejects(
-      performGithubCommitStatusEffect(kernel, run, {
-        token: 'token',
-        get: () => {
-          reads += 1;
-          return repository();
-        },
-        post: async () => {
-          posts += 1;
-          return { status: 201, body: '{}' };
-        },
-      }),
+    assert.throws(
+      () => kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT),
       /EFFECT_CONTRACT_NOT_AUTHORIZED/,
     );
-    assert.equal(reads, 0);
-    assert.equal(posts, 0);
     assert.equal(kernel.hasUnresolvedEffect(run.id), false);
   } finally {
     kernel.close();
@@ -171,14 +165,18 @@ test('lost broker acknowledgement survives SQLite reopen and settles from author
 
   try {
     const run = define(first);
-    await performGithubCommitStatusEffect(first, run, {
-      token: 'token',
-      get: () => repository(),
-      post: async () => {
-        providerState = 'success';
-        return { status: 201, body: '{}' };
+    await performGithubCommitStatusEffect(
+      first,
+      first.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT),
+      {
+        token: 'token',
+        get: () => repository(),
+        post: async () => {
+          providerState = 'success';
+          return { status: 201, body: '{}' };
+        },
       },
-    });
+    );
     assert.equal(first.hasUnresolvedEffect(run.id), true);
     first.close();
 

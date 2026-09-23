@@ -31,7 +31,8 @@ export async function dispatchAdmittedEffect(
 
   const github = context.github;
   if (!github) throw new Error('REGISTERED_EFFECT_DISPATCH_GITHUB_CONTEXT_REQUIRED');
-  return await performGithubCommitStatusEffect(kernel, permit, {
+  const authority = kernel.authorizeEffect(permit, GITHUB_COMMIT_STATUS_EFFECT);
+  return await performGithubCommitStatusEffect(kernel, authority, {
     token: github.token,
     ...(github.get ? { get: github.get } : {}),
     ...(github.statusPost ? { post: github.statusPost } : {}),

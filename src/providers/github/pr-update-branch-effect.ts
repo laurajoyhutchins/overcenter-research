@@ -1,5 +1,4 @@
-import type { KernelCore } from '../../authority/engine.ts';
-import type { ExecutionPermit } from '../../model.ts';
+import type { EffectAuthority, KernelCore } from '../../authority/engine.ts';
 import { GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT } from '../../effect-adapter.ts';
 import { GITHUB_API_VERSION } from './contract.ts';
 import { observeCertifiedGithubPullRequestIdentity } from './certified-pr.ts';
@@ -33,7 +32,10 @@ async function githubPut(
 
 export async function performGithubPullRequestUpdateBranchEffect(
   kernel: KernelCore,
-  permit: ExecutionPermit,
+  authority: EffectAuthority<
+    typeof GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
+    'github-pull-request-branch-updated/v1'
+  >,
   {
     token,
     get = githubGetAsync,
@@ -52,7 +54,6 @@ export async function performGithubPullRequestUpdateBranchEffect(
   previous_head_sha: string;
 }> {
   if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
-  const authority = kernel.authorizeEffect(permit, GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT);
   const p = authority.postcondition;
   const identity = await runGithubReadObserverAsync(
     token,

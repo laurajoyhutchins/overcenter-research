@@ -12,10 +12,7 @@ import {
   GITHUB_COMMIT_STATUS_EFFECT,
   GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED,
 } from '../../src/effect-adapter.ts';
-import {
-  createGithubStatusPost,
-  performGithubCommitStatusEffect,
-} from '../../src/providers/github/status-effect.ts';
+import { performGithubCommitStatusEffect } from '../../src/providers/github/status-effect.ts';
 
 const KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDZUPsn3kwMJ6PT
@@ -147,15 +144,15 @@ const results: Record<string, unknown> = {};
   const port = await listen(reset);
   try {
     const first = define(kernel);
-    const post = createGithubStatusPost({
-      baseUrl: `https://127.0.0.1:${port}`,
-      rejectUnauthorized: false,
-    });
+    const authority = kernel.authorizeEffect(first, GITHUB_COMMIT_STATUS_EFFECT);
     await assert.rejects(
-      performGithubCommitStatusEffect(kernel, first, {
+      performGithubCommitStatusEffect(kernel, authority, {
         token: 'token',
         get: () => repository(),
-        post,
+        transport: {
+          baseUrl: `https://127.0.0.1:${port}`,
+          rejectUnauthorized: false,
+        },
       }),
       /GITHUB_STATUS_MUTATION_NOT_DISPATCHED/,
     );
@@ -186,14 +183,18 @@ const results: Record<string, unknown> = {};
     });
     const successPort = await listen(success);
     try {
-      await performGithubCommitStatusEffect(kernel, second, {
-        token: 'token',
-        get: () => repository(),
-        post: createGithubStatusPost({
-          baseUrl: `https://127.0.0.1:${successPort}`,
-          rejectUnauthorized: false,
-        }),
-      });
+      await performGithubCommitStatusEffect(
+        kernel,
+        kernel.authorizeEffect(second, GITHUB_COMMIT_STATUS_EFFECT),
+        {
+          token: 'token',
+          get: () => repository(),
+          transport: {
+            baseUrl: `https://127.0.0.1:${successPort}`,
+            rejectUnauthorized: false,
+          },
+        },
+      );
       assert.ok(received.includes('"state":"success"'));
       assert.equal(kernel.hasUnresolvedEffect(second.id), true);
     } finally {
@@ -230,14 +231,18 @@ const results: Record<string, unknown> = {};
   try {
     const run = define(kernel);
     await assert.rejects(
-      performGithubCommitStatusEffect(kernel, run, {
-        token: 'token',
-        get: () => repository(),
-        post: createGithubStatusPost({
-          baseUrl: `https://127.0.0.1:${port}`,
-          rejectUnauthorized: false,
-        }),
-      }),
+      performGithubCommitStatusEffect(
+        kernel,
+        kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT),
+        {
+          token: 'token',
+          get: () => repository(),
+          transport: {
+            baseUrl: `https://127.0.0.1:${port}`,
+            rejectUnauthorized: false,
+          },
+        },
+      ),
       /GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN/,
     );
     assert.ok(peerApplicationBytes > 0);
@@ -248,19 +253,10 @@ const results: Record<string, unknown> = {};
     assert.equal(kernel.deriveReadyWork(), null);
 
     const recovery = kernel.acquireExecution(run.id);
-    let posts = 0;
-    await assert.rejects(
-      performGithubCommitStatusEffect(kernel, recovery, {
-        token: 'token',
-        get: () => repository(),
-        post: async () => {
-          posts += 1;
-          return { status: 201, body: '{}' };
-        },
-      }),
+    assert.throws(
+      () => kernel.authorizeEffect(recovery, GITHUB_COMMIT_STATUS_EFFECT),
       /RUN_NOT_EXECUTING/,
     );
-    assert.equal(posts, 0);
     assert.equal(kernel.hasUnresolvedEffect(run.id), true);
 
     results.unknown_preserved = {
@@ -294,14 +290,18 @@ const results: Record<string, unknown> = {};
   try {
     const run = define(kernel);
     await assert.rejects(
-      performGithubCommitStatusEffect(kernel, run, {
-        token: 'token',
-        get: () => repository(),
-        post: createGithubStatusPost({
-          baseUrl: `https://127.0.0.1:${port}`,
-          rejectUnauthorized: false,
-        }),
-      }),
+      performGithubCommitStatusEffect(
+        kernel,
+        kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT),
+        {
+          token: 'token',
+          get: () => repository(),
+          transport: {
+            baseUrl: `https://127.0.0.1:${port}`,
+            rejectUnauthorized: false,
+          },
+        },
+      ),
       /GITHUB_STATUS_MUTATION_FAILED:502/,
     );
     assert.ok(bodies > 0);
@@ -324,12 +324,8 @@ const results: Record<string, unknown> = {};
   const kernel = kernelAt(root);
   try {
     const run = define(kernel);
-    const authority = kernel.authorizeEffect(
-      run,
-      GITHUB_COMMIT_STATUS_EFFECT,
-      'github-commit-status/v2',
-    );
-    kernel.beginEffect(run);
+    const authority = kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT);
+    await kernel.performEffect(authority, async () => undefined);
     assert.throws(
       () => kernel.releaseEffectReservation(authority, 'forged/not-dispatched'),
       /EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED/,

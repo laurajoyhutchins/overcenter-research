@@ -56,7 +56,7 @@ function postcondition(): Extract<
     expected_base_sha: BASE,
   };
 }
-function compare(ancestor: string, descendant: string, isAncestor = true) {
+function compare(ancestor: string, _descendant: string, isAncestor = true) {
   return {
     status: isAncestor ? 'ahead' : 'diverged',
     ahead_by: 1,
@@ -98,11 +98,15 @@ test('trusted PR refresh certifies exact identity, reserves, and sends expected_
       calls.push('PUT ' + path + ' ' + body.expected_head_sha);
       return { status: 202, body: JSON.stringify({ message: 'Updating pull request branch.' }) };
     };
-    const result = await performGithubPullRequestUpdateBranchEffect(kernel, run, {
-      token: 'token',
-      get,
-      put,
-    });
+    const result = await performGithubPullRequestUpdateBranchEffect(
+      kernel,
+      kernel.authorizeEffect(run, GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT),
+      {
+        token: 'token',
+        get,
+        put,
+      },
+    );
     assert.equal(result.previous_head_sha, HEAD);
     assert.deepEqual(calls, [
       'GET /repos/acme/widget',
@@ -122,14 +126,18 @@ test('head drift fails before reservation and PUT', async () => {
   try {
     const run = define(kernel);
     await assert.rejects(
-      performGithubPullRequestUpdateBranchEffect(kernel, run, {
-        token: 'token',
-        get: async (_token, path) => (path === '/repos/acme/widget' ? repository() : pull(NEXT)),
-        put: async () => {
-          puts += 1;
-          return { status: 202, body: '{}' };
+      performGithubPullRequestUpdateBranchEffect(
+        kernel,
+        kernel.authorizeEffect(run, GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT),
+        {
+          token: 'token',
+          get: async (_token, path) => (path === '/repos/acme/widget' ? repository() : pull(NEXT)),
+          put: async () => {
+            puts += 1;
+            return { status: 202, body: '{}' };
+          },
         },
-      }),
+      ),
       /GITHUB_PR_UPDATE_BRANCH_IDENTITY_NOT_CURRENT/,
     );
     assert.equal(puts, 0);
@@ -140,29 +148,16 @@ test('head drift fails before reservation and PUT', async () => {
   }
 });
 
-test('missing semantic grant fails before provider I/O', async () => {
+test('missing semantic grant fails before provider I/O', () => {
   const root = mkdtempSync(join(tmpdir(), 'github-pr-refresh-grant-'));
   const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
-  let reads = 0,
-    puts = 0;
   try {
     const run = define(kernel, 'other-effect');
-    await assert.rejects(
-      performGithubPullRequestUpdateBranchEffect(kernel, run, {
-        token: 'token',
-        get: async () => {
-          reads += 1;
-          return repository();
-        },
-        put: async () => {
-          puts += 1;
-          return { status: 202, body: '{}' };
-        },
-      }),
+    assert.throws(
+      () => kernel.authorizeEffect(run, GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT),
       /EFFECT_CONTRACT_NOT_AUTHORIZED/,
     );
-    assert.equal(reads, 0);
-    assert.equal(puts, 0);
+    assert.equal(kernel.hasUnresolvedEffect(run.id), false);
   } finally {
     kernel.close();
     rmSync(root, { recursive: true, force: true });

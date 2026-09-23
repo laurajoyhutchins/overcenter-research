@@ -73,15 +73,17 @@ export class GitKernelFixture {
 
   settleFile(id: string): ExecutionPermit {
     const work = this.work(id);
+    const postcondition = work.postcondition;
     if (
-      work.postcondition.verifier !== 'file-content-equals/v1' &&
-      work.postcondition.verifier !== 'eventually-consistent-file-content-equals/v1'
+      postcondition.verifier !== 'file-content-equals/v1' &&
+      postcondition.verifier !== 'eventually-consistent-file-content-equals/v1'
     )
       throw new Error(`UNSUPPORTED_FILE_POSTCONDITION:${id}`);
 
     const permit = this.claim(id);
-    this.kernel.beginEffect(permit);
-    writeFileSync(work.postcondition.path, work.postcondition.content);
+    void this.kernel.performEffect(this.kernel.authorizeEffect(permit), () =>
+      writeFileSync(postcondition.path, postcondition.content),
+    );
     const receipt = this.kernel.resolve(permit);
     if (receipt.disposition !== 'DONE') {
       throw new Error(`SETTLEMENT_FAILED:${id}:${receipt.disposition}`);

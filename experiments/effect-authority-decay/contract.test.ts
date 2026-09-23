@@ -42,30 +42,16 @@ function define(kernel: OvercenterKernel) {
   return kernel.claim(work.id, work.revision);
 }
 
-test('bound authority rejects raw permit/work mismatch before provider I/O', async () => {
+test('bound authority rejects raw permit/work mismatch before provider I/O', () => {
   const root = mkdtempSync(join(tmpdir(), 'effect-authority-mismatch-'));
   const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
-  let reads = 0;
-  let posts = 0;
   try {
     const permit = define(kernel);
     const mismatched = { ...permit, obligation_id: 'wrong-obligation' };
-    await assert.rejects(
-      performGithubCommitStatusEffect(kernel, mismatched, {
-        token: 'token',
-        get: async () => {
-          reads += 1;
-          return repository();
-        },
-        post: async () => {
-          posts += 1;
-          return { status: 201, body: '{}' };
-        },
-      }),
+    assert.throws(
+      () => kernel.authorizeEffect(mismatched, GITHUB_COMMIT_STATUS_EFFECT),
       /EFFECT_AUTHORITY_RUN_MISMATCH/,
     );
-    assert.equal(reads, 0);
-    assert.equal(posts, 0);
     assert.equal(kernel.hasUnresolvedEffect(permit.id), false);
   } finally {
     kernel.close();
@@ -80,8 +66,9 @@ test('final runtime fence rejects authority superseded after binding', async () 
   let posts = 0;
   try {
     const permit = define(kernel);
+    const authority = kernel.authorizeEffect(permit, GITHUB_COMMIT_STATUS_EFFECT);
     await assert.rejects(
-      performGithubCommitStatusEffect(kernel, permit, {
+      performGithubCommitStatusEffect(kernel, authority, {
         token: 'token',
         get: async () => {
           reads += 1;

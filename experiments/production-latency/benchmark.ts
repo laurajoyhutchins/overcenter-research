@@ -211,6 +211,7 @@ async function runSample(
     const work = kernel.deriveReadyWork();
     assert.ok(work);
     const permit = kernel.claim(work.id, work.revision);
+    const authority = kernel.authorizeEffect(permit, GITHUB_COMMIT_STATUS_EFFECT);
     const authorityMs = performance.now() - authorityStarted;
 
     phase = 'effect';
@@ -224,7 +225,7 @@ async function runSample(
         identityMs += performance.now() - started;
       }
     };
-    await performGithubCommitStatusEffect(kernel, permit, {
+    await performGithubCommitStatusEffect(kernel, authority, {
       token,
       get: identityGet,
       ...(post ? { post } : {}),

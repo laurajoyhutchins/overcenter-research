@@ -1,8 +1,7 @@
 import { request as httpsRequest } from 'node:https';
 import type { LookupFunction } from 'node:net';
 
-import type { KernelCore } from '../../authority/engine.ts';
-import type { ExecutionPermit } from '../../model.ts';
+import type { EffectAuthority, KernelCore } from '../../authority/engine.ts';
 import {
   GITHUB_COMMIT_STATUS_EFFECT,
   GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED,
@@ -37,7 +36,7 @@ function transportErrorCode(error: unknown): string | null {
   const code = (error as { code?: unknown }).code;
   return typeof code === 'string' ? code : null;
 }
-export function createGithubStatusPost({
+function createGithubStatusPost({
   baseUrl = 'https://api.github.com',
   rejectUnauthorized = true,
   lookup,
@@ -115,16 +114,22 @@ const githubPost = createGithubStatusPost();
 
 export async function performGithubCommitStatusEffect(
   kernel: KernelCore,
-  permit: ExecutionPermit,
+  authority: EffectAuthority<typeof GITHUB_COMMIT_STATUS_EFFECT, 'github-commit-status/v2'>,
   {
     token,
     get = githubGetAsync,
-    post = githubPost,
+    post,
+    transport,
     clock = () => new Date().toISOString(),
   }: {
     token: string;
     get?: GithubJsonGetAsync;
     post?: GithubStatusPost;
+    transport?: {
+      baseUrl?: string;
+      rejectUnauthorized?: boolean;
+      lookup?: LookupFunction;
+    };
     clock?: () => string;
   },
 ): Promise<{
@@ -136,8 +141,8 @@ export async function performGithubCommitStatusEffect(
 }> {
   if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
 
-  const authority = kernel.authorizeEffect(permit, GITHUB_COMMIT_STATUS_EFFECT);
   const p = authority.postcondition;
+  const mutationPost = post ?? (transport ? createGithubStatusPost(transport) : githubPost);
   const repository = await runGithubReadObserverAsync(
     token,
     (syncGet) =>
@@ -160,7 +165,7 @@ export async function performGithubCommitStatusEffect(
 
   try {
     return await kernel.performEffect(authority, async () => {
-      const response = await post(token, path, body);
+      const response = await mutationPost(token, path, body);
       if (response.status !== 201) {
         throw new Error(`GITHUB_STATUS_MUTATION_FAILED:${response.status}:${response.body}`);
       }

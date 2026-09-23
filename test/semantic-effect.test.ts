@@ -11,7 +11,7 @@ import {
   type GithubCommitStatusDesired,
   type GithubCommitStatusTarget,
 } from '../src/providers/github/status-resource.ts';
-import { performGithubCommitStatusEffect } from '../src/providers/github/status-effect.ts';
+import { dispatchAdmittedEffect } from '../src/providers/effect-dispatch.ts';
 import {
   defineSemanticEffect,
   SEMANTIC_EFFECT_INTENT_SCHEMA,
@@ -101,21 +101,23 @@ test('semantic ensure drives the existing fenced GitHub mutation path without ex
     assert.ok(work);
     const permit = kernel.claim(work.id, work.revision);
 
-    await performGithubCommitStatusEffect(kernel, permit, {
-      token: 'token',
-      get: async () => ({
-        id: 42,
-        node_id: 'R_42',
-        full_name: 'acme/widget',
-        name: 'widget',
-        owner: { login: 'acme' },
-      }),
-      post: async (_token, path, body) => {
-        posts += 1;
-        assert.equal(kernel.hasUnresolvedEffect(permit.id), true);
-        assert.equal(path, `/repos/acme/widget/statuses/${COMMIT}`);
-        assert.equal(body.state, 'success');
-        return { status: 201, body: '{}' };
+    await dispatchAdmittedEffect(kernel, permit, {
+      github: {
+        token: 'token',
+        get: async () => ({
+          id: 42,
+          node_id: 'R_42',
+          full_name: 'acme/widget',
+          name: 'widget',
+          owner: { login: 'acme' },
+        }),
+        statusPost: async (_token, path, body) => {
+          posts += 1;
+          assert.equal(kernel.hasUnresolvedEffect(permit.id), true);
+          assert.equal(path, `/repos/acme/widget/statuses/${COMMIT}`);
+          assert.equal(body.state, 'success');
+          return { status: 201, body: '{}' };
+        },
       },
     });
 

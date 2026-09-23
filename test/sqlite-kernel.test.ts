@@ -476,17 +476,35 @@ test('SQLite kernel rejects every inexact execution permit identity', () => {
     kernel.initialize();
     kernel.define({ id: 'a', postcondition: pc(join(root, 'a'), 'A') });
     const run = kernel.claim('a', kernel.deriveReadyWork()!.revision);
-    for (const hostile of [
-      { ...run, obligation_id: 'other' },
-      { ...run, claimed_revision: 'stale' },
-      { ...run, claim_commit: 'stale' },
-      { ...run, obligation_key: 'stale' },
-      { ...run, execution_generation: run.execution_generation + 1 },
-      { ...run, execution_authority_commit: 'stale' },
-      { ...run, execution_capability_sha256: '0'.repeat(64) },
-      { ...run, execution_capability: 'wrong' },
+    for (const { hostile, mintError } of [
+      {
+        hostile: { ...run, obligation_id: 'other' },
+        mintError: /EFFECT_AUTHORITY_RUN_MISMATCH/,
+      },
+      {
+        hostile: { ...run, claimed_revision: 'stale' },
+        mintError: /EFFECT_AUTHORITY_RUN_MISMATCH/,
+      },
+      { hostile: { ...run, claim_commit: 'stale' }, mintError: /STALE_EXECUTION_GENERATION/ },
+      { hostile: { ...run, obligation_key: 'stale' }, mintError: /STALE_EXECUTION_GENERATION/ },
+      {
+        hostile: { ...run, execution_generation: run.execution_generation + 1 },
+        mintError: /STALE_EXECUTION_GENERATION/,
+      },
+      {
+        hostile: { ...run, execution_authority_commit: 'stale' },
+        mintError: /STALE_EXECUTION_GENERATION/,
+      },
+      {
+        hostile: { ...run, execution_capability_sha256: '0'.repeat(64) },
+        mintError: /STALE_EXECUTION_GENERATION/,
+      },
+      {
+        hostile: { ...run, execution_capability: 'wrong' },
+        mintError: /STALE_EXECUTION_GENERATION/,
+      },
     ]) {
-      assert.throws(() => kernel.beginEffect(hostile), /STALE_EXECUTION_GENERATION/);
+      assert.throws(() => kernel.authorizeEffect(hostile), mintError);
       assert.throws(() => kernel.resolve(hostile), /STALE_EXECUTION_GENERATION/);
     }
   } finally {
@@ -587,14 +605,16 @@ test('judgment receipt requires a fresh execution generation before effect resum
     assert.equal(waiting.disposition, 'WAITING');
 
     assert.throws(
-      () => kernel.beginEffect(first),
+      () => kernel.authorizeEffect(first),
       /RUN_NOT_EXECUTING/,
       'the pre-judgment capability must not cross the effect boundary',
     );
 
     const resumed = kernel.acquireExecution(first.id);
     assert.equal(resumed.execution_generation, first.execution_generation + 1);
-    assert.doesNotThrow(() => kernel.beginEffect(resumed));
+    assert.doesNotThrow(() =>
+      kernel.performEffect(kernel.authorizeEffect(resumed), () => undefined),
+    );
   } finally {
     kernel.close();
     rmSync(root, { recursive: true, force: true });

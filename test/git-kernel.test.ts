@@ -295,11 +295,12 @@ test('execution generation fences a stale permit without changing the claimed re
       second.execution_capability_sha256,
     );
 
-    assert.throws(() => f.kernel.beginEffect(first), /STALE_EXECUTION_GENERATION/);
+    assert.throws(() => f.kernel.authorizeEffect(first), /STALE_EXECUTION_GENERATION/);
     assert.throws(() => f.kernel.resolve(first), /STALE_EXECUTION_GENERATION/);
 
-    f.kernel.beginEffect(second);
-    writeFileSync(path, 'present');
+    void f.kernel.performEffect(f.kernel.authorizeEffect(second), () =>
+      writeFileSync(path, 'present'),
+    );
     const settled = f.kernel.resolve(second);
     assert.equal(settled.disposition, 'DONE');
   } finally {
@@ -314,11 +315,15 @@ test('unresolved effect reservation survives generation handoff until presence s
     f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
     const first = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
 
-    f.kernel.beginEffect(first);
-    writeFileSync(path, 'present');
+    void f.kernel.performEffect(f.kernel.authorizeEffect(first), () =>
+      writeFileSync(path, 'present'),
+    );
 
     const second = f.kernel.acquireExecution(first.id);
-    assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);
+    assert.throws(
+      () => f.kernel.performEffect(f.kernel.authorizeEffect(second), () => undefined),
+      /UNRESOLVED_EFFECT/,
+    );
     assert.throws(() => f.kernel.resolve(first), /STALE_EXECUTION_GENERATION/);
 
     const settled = f.kernel.resolve(second);
@@ -335,10 +340,13 @@ test('authoritative absence does not release an unresolved effect without adapte
     const path = f.path('reserved-absent');
     f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
     const first = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
-    f.kernel.beginEffect(first);
+    void f.kernel.performEffect(f.kernel.authorizeEffect(first), () => undefined);
 
     const second = f.kernel.acquireExecution(first.id);
-    assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);
+    assert.throws(
+      () => f.kernel.performEffect(f.kernel.authorizeEffect(second), () => undefined),
+      /UNRESOLVED_EFFECT/,
+    );
 
     const absent = f.kernel.resolve(second);
     assert.equal(absent.observed?.mutation_certainty, 'absent');

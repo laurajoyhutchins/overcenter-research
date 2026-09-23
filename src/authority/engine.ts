@@ -68,7 +68,6 @@ export interface KernelOptions {
 const effectAuthorityBrand: unique symbol = Symbol('effect-authority');
 export type EffectAuthority<E extends string, V extends Postcondition['verifier']> = {
   readonly [effectAuthorityBrand]: E;
-  readonly permit: ExecutionPermit;
   readonly postcondition: Extract<Postcondition, { verifier: V }>;
 };
 
@@ -88,6 +87,10 @@ export class KernelCore {
   readonly githubToken: string | null;
   readonly observationContext: ObservationContext;
   readonly #store: DurableFactStore;
+  readonly #effectAuthorities = new WeakMap<
+    object,
+    { permit: ExecutionPermit; effectContract: string }
+  >();
   // Reconstructible acceleration only: history(head) is still fully validated first.
   #projectionCache: { head: string; commitCount: number; projection: Projection } | null = null;
 
@@ -195,21 +198,45 @@ export class KernelCore {
     return structuredClone(work);
   }
 
-  authorizeEffect<E extends RegisteredEffectContract>(
+  authorizeEffect<E extends RegisteredEffectContract | undefined = undefined>(
     permit: ExecutionPermit,
-    effectContract: E,
-  ): EffectAuthority<E, EffectVerifier<E>> {
+    effectContract?: E,
+  ): E extends RegisteredEffectContract
+    ? EffectAuthority<E, EffectVerifier<Extract<E, RegisteredEffectContract>>>
+    : EffectAuthority<string, Postcondition['verifier']> {
     const work = this.claimedWork(permit);
-    const capabilities = effectAdapterCapabilities(effectContract)!;
-    if (work.packet.effect_contract !== effectContract)
-      throw new Error('EFFECT_CONTRACT_NOT_AUTHORIZED');
-    if (work.postcondition.verifier !== capabilities.postcondition_verifier)
-      throw new Error('EFFECT_POSTCONDITION_MISMATCH');
-    return {
-      [effectAuthorityBrand]: effectContract,
-      permit,
-      postcondition: work.postcondition as EffectAuthority<E, EffectVerifier<E>>['postcondition'],
-    };
+    const head = this.#requireHead();
+    const { history, project } = this.#historicalProjection(head);
+    const run = this.#requireExecutionPermit(history, permit);
+    const lifecycle = project.lifecycles.get(run.obligation_id);
+    if (lifecycle?.run?.id !== run.id || lifecycle.status !== 'EXECUTING') {
+      throw new Error('RUN_NOT_EXECUTING');
+    }
+    if (effectContract !== undefined) {
+      const capabilities = effectAdapterCapabilities(effectContract);
+      if (!capabilities) throw new Error('EFFECT_CONTRACT_UNREGISTERED');
+      if (work.packet.effect_contract !== effectContract)
+        throw new Error('EFFECT_CONTRACT_NOT_AUTHORIZED');
+      if (work.postcondition.verifier !== capabilities.postcondition_verifier)
+        throw new Error('EFFECT_POSTCONDITION_MISMATCH');
+    }
+
+    const authorityContract =
+      effectContract ??
+      (typeof work.packet.effect_contract === 'string'
+        ? work.packet.effect_contract
+        : 'overcenter/execution-effect');
+    const authority = Object.freeze({
+      [effectAuthorityBrand]: authorityContract,
+      postcondition: Object.freeze(structuredClone(work.postcondition)),
+    }) as EffectAuthority<string, Postcondition['verifier']>;
+    this.#effectAuthorities.set(authority, {
+      permit: structuredClone(permit),
+      effectContract: authorityContract,
+    });
+    return authority as E extends RegisteredEffectContract
+      ? EffectAuthority<E, EffectVerifier<Extract<E, RegisteredEffectContract>>>
+      : EffectAuthority<string, Postcondition['verifier']>;
   }
 
   deriveReadyWork(): Work | null {
@@ -306,7 +333,10 @@ export class KernelCore {
     throw new Error('EXECUTION_AUTHORITY_CONTENTION_EXHAUSTED');
   }
 
-  beginEffect(permit: ExecutionPermit): string {
+  #beginEffect<E extends string, V extends Postcondition['verifier']>(
+    effectAuthority: EffectAuthority<E, V>,
+  ): string {
+    const { permit } = this.#effectAuthorityBinding(effectAuthority);
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const head = this.#requireHead();
       const { history, project } = this.#historicalProjection(head);
@@ -349,12 +379,16 @@ export class KernelCore {
     throw new Error('EFFECT_RESERVATION_CONTENTION_EXHAUSTED');
   }
 
-  async performEffect<T, E extends string, V extends Postcondition['verifier']>(
+  performEffect<T, E extends string, V extends Postcondition['verifier']>(
     authority: EffectAuthority<E, V>,
     effect: () => Promise<T> | T,
   ): Promise<T> {
-    this.beginEffect(authority.permit);
-    return await effect();
+    this.#beginEffect(authority);
+    try {
+      return Promise.resolve(effect());
+    } catch (error: unknown) {
+      return Promise.reject(error);
+    }
   }
 
   releaseEffectReservation<E extends string, V extends Postcondition['verifier']>(
@@ -362,15 +396,16 @@ export class KernelCore {
     evidenceKind: string,
     diagnostic: Data = {},
   ): Receipt {
+    const { permit, effectContract } = this.#effectAuthorityBinding(authority);
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const head = this.#requireHead();
       const { history, project } = this.#historicalProjection(head);
-      const run = history.runs.get(authority.permit.id);
+      const run = history.runs.get(permit.id);
       if (!run) throw new Error('UNKNOWN_RUN');
       const projectedAuthority = projectExecutionAuthority(
         run,
-        authority.permit,
-        this.#capabilityDigest(authority.permit.execution_capability),
+        permit,
+        this.#capabilityDigest(permit.execution_capability),
       );
       if (!projectedAuthority.current_authority || !projectedAuthority.exact_revision) {
         throw new Error('STALE_EXECUTION_GENERATION');
@@ -381,7 +416,6 @@ export class KernelCore {
       }
       const reservation = history.unresolvedReservationsByRun.get(run.id);
       if (!reservation) throw new Error('NO_UNRESOLVED_EFFECT');
-      const effectContract = authority[effectAuthorityBrand];
       if (!reservedEffectReleaseSafe(run.obligation, effectContract, evidenceKind)) {
         throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
       }
@@ -733,6 +767,12 @@ export class KernelCore {
 
   #capabilityDigest(capability: string): string {
     return createHash('sha256').update(capability).digest('hex');
+  }
+
+  #effectAuthorityBinding(authority: object): { permit: ExecutionPermit; effectContract: string } {
+    const binding = this.#effectAuthorities.get(authority);
+    if (!binding) throw new Error('EFFECT_AUTHORITY_INVALID');
+    return binding;
   }
 
   #requireExecutionPermit(history: Projection['history'], permit: ExecutionPermit): HistoricalRun {

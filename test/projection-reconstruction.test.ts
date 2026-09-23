@@ -89,8 +89,9 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
       ['verify-publish', 'BLOCKED'],
     ]);
 
-    f.kernel.beginEffect(run);
-    writeFileSync(world, 'present');
+    void f.kernel.performEffect(f.kernel.authorizeEffect(run), () =>
+      writeFileSync(world, 'present'),
+    );
     assertReconstructs([
       ['publish', 'EXECUTING'],
       ['verify-publish', 'BLOCKED'],

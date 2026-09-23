@@ -138,7 +138,7 @@ test('reserved-effect absence remains recovery-required across durable replay', 
     const work = kernel.deriveReadyWork();
     assert.ok(work);
     const run = kernel.claim(work.id, work.revision);
-    kernel.beginEffect(run);
+    void kernel.performEffect(kernel.authorizeEffect(run), () => undefined);
 
     const receipt = kernel.resolve(run);
     assert.equal(receipt.observed?.mutation_certainty, 'absent');

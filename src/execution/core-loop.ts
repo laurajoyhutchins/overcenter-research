@@ -42,6 +42,7 @@ export async function runCoreLoop(
       }
       advances += 1;
 
+      let outcome: Promise<ExecuteOutcome>;
       try {
         if (preflight) {
           const decision = await preflight(work.packet);
@@ -60,18 +61,10 @@ export async function runCoreLoop(
           }
         }
 
-        // The deterministic kernel retains permit and reservation authority.
-        // Effect handlers receive packet bytes only.
-        kernel.beginEffect(run);
-      } catch (error: unknown) {
-        pendingError = { error };
-        break;
-      }
-
-      active.push({
-        work,
-        run,
-        outcome: (async () => {
+        // The deterministic kernel mints authority and reserves before the
+        // packet-only effect handler can run.
+        const authority = kernel.authorizeEffect(run);
+        outcome = kernel.performEffect(authority, async () => {
           try {
             return await effect(work.packet);
           } catch (error: unknown) {
@@ -81,8 +74,13 @@ export async function runCoreLoop(
               may_have_mutated: true,
             };
           }
-        })(),
-      });
+        });
+      } catch (error: unknown) {
+        pendingError = { error };
+        break;
+      }
+
+      active.push({ work, run, outcome });
     }
 
     let recovery: LoopResult | null = null;
