@@ -181,3 +181,47 @@ This is deliberate. A cached lifecycle label may exist in an implementation, but
 The model assumes that a `Verify` action, when it occurs, returns authoritative truth for the exact mutation coordinate. It does not prove that GitHub, a cloud provider, or any other external observer is correct.
 
 It also does not prove eventual progress. Permanent inability to establish external effect truth may permanently prevent replay or settlement. That is the intended fail-closed safety tradeoff.
+
+
+## Asynchronous effect finality and conditional liveness
+
+`AsyncEffectKernel.tla` extends the formal boundary only where the first transition model was intentionally too coarse: an outbound request may remain able to apply after Overcenter has observed the target state as absent.
+
+The model separates:
+
+```text
+absent at observation time
+        !=
+prior request is terminally unable to apply
+```
+
+It contains one original request and one retry, two fenced worker authorities, in-flight transport duplication, per-request provider deduplication, stale absence observations, settlement, and durable terminal evidence.
+
+The authoritative configuration requires all of the following:
+
+- current fenced authority for initial execution, retry, and settlement;
+- an absence observation whose prior request is already terminal before replay;
+- provider deduplication of duplicate deliveries of one request.
+
+It checks:
+
+- `AuthoritySafety`: stale authority never crosses an effect or settlement boundary;
+- `NoUnsafeReplay`: replay is never authorized from an absence observation taken while the prior request could still apply;
+- `NoDoubleExecution`: at most one semantic external effect occurs;
+- `NoFalseDone`: durable `Done` never exists without exactly one established effect.
+
+Three negative controls remove one guarantee at a time:
+
+| configuration | removed guarantee | expected result |
+| --- | --- | --- |
+| `BrokenAsyncNoTerminality.cfg` | terminality-bound absence before replay | double-effect counterexample |
+| `BrokenAsyncNoDeliveryDedupe.cfg` | provider deduplication for duplicated delivery of one request | double-effect counterexample |
+| `BrokenAsyncNoFence.cfg` | current fenced authority | stale-authority counterexample |
+
+This makes an adapter boundary explicit: Overcenter can prevent itself from authorizing a second logical attempt, but exactly-once external execution additionally depends on provider semantics such as request idempotency, conditional mutation, or proof that the predecessor request is terminal.
+
+`RecoveryLiveness.tla` is deliberately separate from the safety model. It asks a conditional liveness question under explicit fairness assumptions: if a stable successor worker remains available, provider requests eventually resolve, authoritative observations eventually occur, and enabled recovery steps are fairly scheduled, does work eventually reach either `Done` or an explicit `Escalated` terminal classification?
+
+The negative control `BrokenRecoveryNoReap.cfg` disables dead-lease reclamation while keeping a stable successor available. The expected temporal counterexample demonstrates orphaned authority: the dead owner's live lease can permanently prevent the successor from acquiring authority even though every external dependency needed for progress is available.
+
+The liveness theorem is intentionally conditional. It does not claim that Overcenter can force a provider to resolve an operation, heal a permanently unavailable external dependency, or guarantee that arbitrary projects finish.
