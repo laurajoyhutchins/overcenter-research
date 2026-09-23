@@ -198,17 +198,38 @@ export class KernelCore {
 
   explain(id:string):ProjectExplanation {
     const head=this.#requireHead();
-    return explainProjectWork(this.#currentProjection(head).project,id);
+    const historical=this.#historicalProjection(head);
+    const judgments=deriveCurrentRealizationJudgments({
+      state:historical.state,
+      runs:historical.history.runs,
+      receiptsByRun:historical.history.receiptsByRun,
+      semanticKeys:historical.project.semanticKeys,
+      observe:postcondition=>this.#observe(postcondition),
+    });
+    const project=deriveProjectProjection({
+      state:historical.state,
+      runs:historical.history.runs,
+      receiptsByRun:historical.history.receiptsByRun,
+      revision:head,
+      currentRealizationJudgments:judgments,
+    });
+    return explainProjectWork(
+      project,
+      historical.state,
+      historical.history.runs,
+      historical.history.receiptsByRun,
+      id,
+      judgments,
+    );
   }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {
     const head=this.#requireHead();
     if (head!==expectedRevision) throw new Error('STALE_REVISION');
-    const {state,project}=this.#currentProjection(head);
-    const work=state.obligations[id];
+    const {project}=this.#currentProjection(head);
+    const work=project.work.find(candidate=>candidate.id===id);
     if (!work) throw new Error(`unknown obligation: ${id}`);
-    const claimError=project.claimabilityErrors.get(id);
-    if (claimError) throw new Error(claimError);
+    if (work.status!=='READY') throw new Error(work.blocked_reason??'NOT_READY');
     const key=project.semanticKeys.get(id);
     if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
 
