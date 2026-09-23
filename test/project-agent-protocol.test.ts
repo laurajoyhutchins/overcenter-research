@@ -11,6 +11,7 @@ import {
   advanceProjectForAgent,
   submitProjectCandidate,
 } from '../src/authority/project-agent-protocol.ts';
+import { compileProjectIntent } from '../src/authority/project-intent.ts';
 
 const AUTHORITY_REF = 'refs/overcenter/test-project-agent';
 
@@ -93,6 +94,163 @@ function defineAgentWork(
   });
   return kernel;
 }
+
+function commitProjectIntent(work: string, obligations: unknown[]): string {
+  mkdirSync(join(work, '.overcenter'), { recursive: true });
+  writeFileSync(
+    join(work, '.overcenter', 'project-intent.json'),
+    `${JSON.stringify({ schema: 'overcenter-project-intent/v1', obligations }, null, 2)}\n`,
+  );
+  execFileSync('git', ['-C', work, 'add', '.overcenter/project-intent.json'], { stdio: 'ignore' });
+  execFileSync('git', ['-C', work, 'commit', '-m', 'declare project intent'], { stdio: 'ignore' });
+  execFileSync('git', ['-C', work, 'push', 'origin', 'main'], { stdio: 'ignore' });
+  return git(work, ['rev-parse', 'HEAD']);
+}
+
+function agentIntent(id: string, postconditionPath: string) {
+  return {
+    id,
+    task: {
+      command: ['node', 'task.mjs', 'input.txt', 'result.txt'],
+      required_paths: ['task.mjs', 'input.txt'],
+      output_path: 'result.txt',
+    },
+    postcondition: {
+      verifier: 'file-content-equals/v1',
+      path: postconditionPath,
+      content: 'completed:hello\n',
+    },
+  };
+}
+
+test('checked-in project intent is source-agnostic until trusted compilation', () => {
+  const raw = JSON.parse(
+    readFileSync(new URL('../.overcenter/project-intent.json', import.meta.url), 'utf8'),
+  );
+  assert.equal(JSON.stringify(raw).includes('source_sha'), false);
+
+  const sourceSha = 'a'.repeat(40);
+  const desired = compileProjectIntent(raw, sourceSha);
+  assert.equal(desired.length, 1);
+  const compiled = desired[0];
+  assert.ok(compiled);
+  assert.equal(compiled.id, 'live-agent-loop-witness');
+  assert.ok(compiled.packet);
+  assert.equal(compiled.packet.source_sha, sourceSha);
+});
+
+test('project.advance reconciles trusted project intent before frontier selection', () => {
+  const f = fixture();
+  try {
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+
+    const sourceSha = commitProjectIntent(f.work, [
+      agentIntent('intent-work', f.postconditionPath),
+    ]);
+    const outputDir = join(f.root, 'packet');
+    const receipt = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir,
+      workerClientPath: workerClientFixture(f.root),
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+
+    assert.equal(receipt.state, 'AGENT_EXECUTION_REQUIRED');
+    assert.equal(receipt.obligation_id, 'intent-work');
+    const assignment = JSON.parse(readFileSync(join(outputDir, 'assignment.json'), 'utf8'));
+    assert.equal(assignment.work.packet.source_sha, sourceSha);
+
+    const current = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
+    }).inspect();
+    assert.equal(current.length, 1);
+    assert.equal(current[0].id, 'intent-work');
+    assert.equal(current[0].status, 'EXECUTING');
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
+test('project intent is an ensure-set and does not retire unmentioned obligations', () => {
+  const f = fixture();
+  try {
+    defineAgentWork(f.work, f.sourceSha, f.postconditionPath);
+    const sourceSha = commitProjectIntent(f.work, [
+      agentIntent('intent-work', f.postconditionPath),
+    ]);
+
+    const receipt = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir: join(f.root, 'packet'),
+      workerClientPath: workerClientFixture(f.root),
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+    assert.equal(receipt.obligation_id, 'intent-work');
+
+    const current = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
+    }).inspect();
+    assert.deepEqual(
+      current.map((work) => work.id),
+      ['intent-work', 'real-frontier-work'],
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
+test('invalid trusted project intent fails before authority movement', () => {
+  const f = fixture();
+  try {
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+    const before = kernel.head();
+
+    mkdirSync(join(f.work, '.overcenter'), { recursive: true });
+    writeFileSync(
+      join(f.work, '.overcenter', 'project-intent.json'),
+      JSON.stringify({
+        schema: 'overcenter-project-intent/v1',
+        obligations: [
+          {
+            ...agentIntent('bad-intent', f.postconditionPath),
+            retire: ['something'],
+          },
+        ],
+      }),
+    );
+    execFileSync('git', ['-C', f.work, 'add', '.overcenter/project-intent.json'], {
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['-C', f.work, 'commit', '-m', 'invalid project intent'], {
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['-C', f.work, 'push', 'origin', 'main'], { stdio: 'ignore' });
+    const sourceSha = git(f.work, ['rev-parse', 'HEAD']);
+
+    assert.throws(
+      () =>
+        advanceProjectForAgent(f.work, commandContext(sourceSha), {
+          outputDir: join(f.root, 'packet'),
+          authorityRef: AUTHORITY_REF,
+          remote: 'origin',
+        }),
+      /PROJECT_INTENT_OBLIGATION_INVALID:0:UNKNOWN_FIELD:retire/,
+    );
+
+    const after = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    assert.equal(after.head(), before);
+    assert.deepEqual(after.inspect(), []);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
 
 test('project.advance selects and claims real READY work, then emits a bounded packet', () => {
   const f = fixture();

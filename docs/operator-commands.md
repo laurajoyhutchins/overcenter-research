@@ -28,6 +28,10 @@ Ask Overcenter to make progress.
 
 The caller supplies no obligation ID, selector, priority, lease, run ID, or execution plan. Overcenter owns those mechanics. It reconciles authoritative state, derives the executable frontier, chooses work, and claims the exact revision.
 
+If the exact trusted command source contains `.overcenter/project-intent.json`, `project.advance` first compiles that declarative intent into exact-source-bound agent obligations and feeds the resulting ensure-set through the kernel's ordinary graph reconciliation boundary. The intent never carries an authority revision or source SHA; those are derived by trusted software. Omitted obligations are not retired, so partial intent cannot delete unrelated project work.
+
+The file is producer input to `project.advance`, not another agent-facing command. A future deterministic or reasoning-backed graph producer can emit the same narrow contract without gaining graph-patch, claim, or settlement authority.
+
 The result is either current project state or an immutable work packet when reasoning is required. A reasoning packet contains `assignment.json`, the command receipt, and a capability-free native `overcenter` worker executable. The executable validates and materializes the assignment, runs the declared task, and emits candidate bytes bound to the exact assignment/run/revision.
 
 The worker executable carries no project-settlement or provider authority. The current published binary target is statically linked Linux x86-64; portability across trust domains is independent of adding further OS/architecture builds. It can be handed to either an Overcenter-controlled sandbox or a foreign sandbox whose ambient capabilities Overcenter cannot revoke; in the latter case Overcenter still protects project truth, but cannot prevent effects independently authorized by that host.

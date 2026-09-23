@@ -18,7 +18,7 @@ export const AGENT_TASK_PACKET_SCHEMA = 'overcenter-agent-task/v1' as const;
 
 type AssignmentMode = '100644' | '100755';
 
-export interface AssignmentTaskPacket {
+export interface AssignmentTaskPacket extends Record<string, unknown> {
   schema: typeof AGENT_TASK_PACKET_SCHEMA;
   kind: 'pure-candidate';
   source_sha: string;
@@ -97,6 +97,42 @@ function decodeBase64(value: unknown): Buffer {
   return bytes;
 }
 
+export function validateAgentTaskPacket(value: unknown): AssignmentTaskPacket {
+  if (!record(value) || value.schema !== AGENT_TASK_PACKET_SCHEMA) {
+    fail('ASSIGNMENT_PACKET_SCHEMA_MISMATCH');
+  }
+  exactKeys(
+    value,
+    ['schema', 'kind', 'source_sha', 'command', 'required_paths', 'output_path'],
+    'ASSIGNMENT_PACKET',
+  );
+  if (value.kind !== 'pure-candidate') fail('ASSIGNMENT_PACKET_KIND_INVALID');
+  if (typeof value.source_sha !== 'string' || !/^[0-9a-f]{40}$/.test(value.source_sha)) {
+    fail('ASSIGNMENT_SOURCE_SHA_INVALID');
+  }
+  if (
+    !Array.isArray(value.command) ||
+    value.command.length === 0 ||
+    !value.command.every(
+      (part: unknown): part is string => typeof part === 'string' && part.length > 0,
+    )
+  ) {
+    fail('ASSIGNMENT_COMMAND_INVALID');
+  }
+  if (
+    !Array.isArray(value.required_paths) ||
+    value.required_paths.length === 0 ||
+    !value.required_paths.every(validPath)
+  ) {
+    fail('ASSIGNMENT_REQUIRED_PATHS_INVALID');
+  }
+  if (new Set(value.required_paths).size !== value.required_paths.length) {
+    fail('ASSIGNMENT_REQUIRED_PATHS_DUPLICATE');
+  }
+  if (!validPath(value.output_path)) fail('ASSIGNMENT_OUTPUT_PATH_INVALID');
+  return value as unknown as AssignmentTaskPacket;
+}
+
 export function validateAssignment(value: unknown): Assignment {
   exactKeys(value, ['schema', 'work', 'files'], 'ASSIGNMENT');
   if (value.schema !== ASSIGNMENT_SCHEMA) fail('ASSIGNMENT_SCHEMA_MISMATCH');
@@ -117,39 +153,7 @@ export function validateAssignment(value: unknown): Assignment {
     fail('ASSIGNMENT_EXECUTION_GENERATION_INVALID');
   }
 
-  const packet = work.packet;
-  if (!record(packet) || packet.schema !== AGENT_TASK_PACKET_SCHEMA) {
-    fail('ASSIGNMENT_PACKET_SCHEMA_MISMATCH');
-  }
-  exactKeys(
-    packet,
-    ['schema', 'kind', 'source_sha', 'command', 'required_paths', 'output_path'],
-    'ASSIGNMENT_PACKET',
-  );
-  if (packet.kind !== 'pure-candidate') fail('ASSIGNMENT_PACKET_KIND_INVALID');
-  if (typeof packet.source_sha !== 'string' || !/^[0-9a-f]{40}$/.test(packet.source_sha)) {
-    fail('ASSIGNMENT_SOURCE_SHA_INVALID');
-  }
-  if (
-    !Array.isArray(packet.command) ||
-    packet.command.length === 0 ||
-    !packet.command.every(
-      (part: unknown): part is string => typeof part === 'string' && part.length > 0,
-    )
-  ) {
-    fail('ASSIGNMENT_COMMAND_INVALID');
-  }
-  if (
-    !Array.isArray(packet.required_paths) ||
-    packet.required_paths.length === 0 ||
-    !packet.required_paths.every(validPath)
-  ) {
-    fail('ASSIGNMENT_REQUIRED_PATHS_INVALID');
-  }
-  if (new Set(packet.required_paths).size !== packet.required_paths.length) {
-    fail('ASSIGNMENT_REQUIRED_PATHS_DUPLICATE');
-  }
-  if (!validPath(packet.output_path)) fail('ASSIGNMENT_OUTPUT_PATH_INVALID');
+  const packet = validateAgentTaskPacket(work.packet);
 
   if (!Array.isArray(value.files) || value.files.length === 0) fail('ASSIGNMENT_FILES_INVALID');
   const seen = new Set<string>();
