@@ -11,7 +11,7 @@ import {
   GITHUB_COMMIT_STATUSES_OPERATION,
   GITHUB_REF_OPERATION,
   GITHUB_PULL_REQUEST_OPERATION,
-} from '../../src/providers/github/operations.generated.ts';
+} from '../../generated/github-operations.ts';
 import {
   deriveGithubObservationOperation,
   type GithubObservationOperation,
