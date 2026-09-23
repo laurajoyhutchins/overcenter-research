@@ -83,6 +83,10 @@ test('broadening NOT_DISPATCHED to a possibly-mutated world blocks release', () 
   assert.equal(analysis.safeDiagnosable, false);
   assert.equal(releaseDecision(analysis), 'ambiguous-do-not-release');
   assert.equal(analysis.unsafeWitness?.action, 'release-authority');
+  assert.deepEqual(
+    analysis.unsafeWitnesses.map((witness) => witness.action),
+    ['release-authority'],
+  );
   assert.ok(analysis.nonDiagnosableWitness?.length);
   assert.ok(boundedAmbiguousObservationSequences(hostile, 12) > 0);
 });
@@ -124,7 +128,52 @@ test('a trusted distinguishing observation can make the same release point diagn
   assert.equal(analysis.diagnosable, true);
   assert.equal(analysis.safeDiagnosable, true);
   assert.equal(analysis.unsafeWitness, undefined);
+  assert.deepEqual(analysis.unsafeWitnesses, []);
   assert.equal(boundedAmbiguousObservationSequences(protocol, 12), 0);
+});
+
+test('all distinct consequential actions reachable while ambiguous get witnesses', () => {
+  const protocol: AdapterProtocol = {
+    id: 'multiple-unsafe-actions',
+    initial: 's',
+    states: [
+      { id: 's', mutation: 'not-occurred' },
+      { id: 'c', mutation: 'occurred' },
+      { id: 'n', mutation: 'not-occurred' },
+    ],
+    transitions: [
+      { from: 's', to: 'c', event: 'remote-commit' },
+      { from: 's', to: 'n', event: 'remote-no-commit' },
+      {
+        from: 'c',
+        to: 'c',
+        event: 'settle',
+        observation: 'DONE',
+        consequential: 'settle-done',
+      },
+      {
+        from: 'n',
+        to: 'n',
+        event: 'release',
+        observation: 'RELEASED',
+        consequential: 'release-authority',
+      },
+    ],
+  };
+
+  const analysis = analyzeAdapterProtocol(protocol);
+  assert.equal(analysis.diagnosable, true);
+  assert.equal(analysis.safeDiagnosable, false);
+  assert.deepEqual(
+    analysis.unsafeWitnesses.map((witness) => witness.action),
+    ['release-authority', 'settle-done'],
+  );
+  assert.equal(analysis.unsafeWitness?.action, 'release-authority');
+  assert.ok(
+    analysis.unsafeWitnesses.every(
+      (witness) => witness.pair.length === 2 && Array.isArray(witness.trace),
+    ),
+  );
 });
 
 test('malformed protocol descriptions fail before analysis', () => {
