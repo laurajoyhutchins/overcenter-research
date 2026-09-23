@@ -444,7 +444,23 @@ The strongest trust-boundary experiment deliberately lets an executor corrupt it
 - local kernel source;
 - cache.
 
-The stronger reference boundary does not give the disposable worker provider-mutation authority at all. In GitHub Actions, the worker job has repository read permission only. A separate trusted effect-broker job owns provider write permission and the execution permit.
+### Authority confinement and effect confinement
+
+Worker isolation contains two different guarantees that must not be conflated.
+
+**Authority confinement** means a worker cannot turn its own assertion, local state, or external action into authoritative project truth. The worker does not own settlement authority, reservation authority, or an `ExecutionPermit`; trusted machinery independently observes and verifies the relevant postcondition before project truth advances. This is a core correctness requirement and must hold even when Overcenter does not control the worker substrate.
+
+**Effect confinement** means a worker is physically unable to perform an undelegated external effect. This is a stronger, substrate-dependent guarantee. It is claimable only when Overcenter controls the execution boundary or can independently establish the host capability boundary. The Rust launcher can narrow the child process it launches, but it cannot revoke capabilities already held by its parent agent or supplied out-of-band by a hosting platform.
+
+> Overcenter correctness must depend on authority confinement. Effect confinement is an optional strengthening guarantee.
+
+The distinction changes substrate admission:
+
+- an uncontrolled agent substrate may still be used for reasoning or candidate production when authoritative transitions remain outside it;
+- if an obligation requires prevention of undelegated external effects, an uncontrolled substrate is inadmissible unless that effect boundary is independently established;
+- OS-level confinement of a nested subprocess is not evidence that the surrounding agent lacks host tools, provider credentials, MCP capabilities, or other ambient authority.
+
+The ordinary GitHub Actions reference boundary demonstrates effect confinement by giving the disposable worker repository read permission only while a separate trusted effect-broker job owns provider write permission and the execution permit. The ambient-authority experiment deliberately removes that stronger premise: an otherwise equivalent worker receives `statuses: write`, successfully performs the provider mutation, and Overcenter still remains `EXECUTING` until separate trusted readback and settlement. That result demonstrates authority confinement while simultaneously showing why effect confinement cannot be inferred for an uncontrolled substrate.
 
 The first production-carried provider mutation is intentionally narrower than that general architecture: `src/providers/github/status-effect.ts` supports only the explicit GitHub commit-status grant. It reconstructs the exact claimed obligation, derives the status coordinate from its `github-commit-status/v2` postcondition, certifies repository identity, and uses the kernel reservation boundary immediately before POST. The live broker job calls this implementation rather than maintaining experiment-local mutation logic.
 
