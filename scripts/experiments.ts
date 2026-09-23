@@ -90,16 +90,14 @@ function verify() {
     ids.add(e.id);
     if (dirs.has(e.directory)) fail(`duplicate directory ${e.directory}`);
     dirs.add(e.directory);
-    if (!existsSync(e.directory) || !existsSync(e.readme))
-      fail(`${e.id}: directory/README missing`);
     if (!['maintained', 'historical'].includes(e.status)) fail(`${e.id}: invalid status`);
-    if (e.kind === 'support') {
-      text(e, 'purpose');
-      continue;
-    }
     if (e.kind !== 'experiment') fail(`${e.id}: unknown kind`);
-    if (!experimentReadme.includes(`\`${e.directory.replace(/^experiments\//, '')}/\``))
-      fail(`${e.id}: missing from experiments/README.md index`);
+    if (e.status === 'maintained') {
+      if (!existsSync(e.directory) || !existsSync(e.readme))
+        fail(`${e.id}: maintained directory/README missing`);
+      if (!experimentReadme.includes(`\`${e.directory.replace(/^experiments\//, '')}/\``))
+        fail(`${e.id}: missing from experiments/README.md index`);
+    }
 
     for (const k of ['question', 'claim', 'contrast', 'interpretation']) text(e, k);
     for (const k of ['environment', 'success_criteria', 'non_claims']) strings(e, k);
@@ -158,23 +156,19 @@ function verify() {
     .sort();
   const missing = actual.filter((x) => !registered.has(x));
   if (missing.length) fail(`unregistered experiment directories: ${missing.join(', ')}`);
-  console.log(
-    `experiment contract: ${entries.filter((e) => e.kind === 'experiment').length} experiments + ${entries.filter((e) => e.kind === 'support').length} support entries verified`,
-  );
+  console.log(`experiment contract: ${entries.length} experiment records verified`);
 }
 
 function list() {
   for (const e of entries) {
-    if (e.kind === 'support') console.log(`${e.id}\tsupport\t${e.status}\t-\t${e.purpose}`);
-    else
-      console.log(
-        `${e.id}\t${e.status}\t${e.design.provenance}\t${e.outcome.state}\t${e.evidence.status}\t${e.reproduce.tier}\t${e.reproduce.local}`,
-      );
+    console.log(
+      `${e.id}\t${e.status}\t${e.design.provenance}\t${e.outcome.state}\t${e.evidence.status}\t${e.reproduce.tier}\t${e.reproduce.local}`,
+    );
   }
 }
 
 function runOne(e: ExperimentEntry | undefined): void {
-  if (!e || e.kind !== 'experiment') fail('unknown experiment');
+  if (!e) fail('unknown experiment');
   if (e.status === 'historical')
     fail(
       `${e.id}: historical evidence lives at ${e.evidence.evaluated_revision}; check out that revision and run: ${e.reproduce.local}`,

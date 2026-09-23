@@ -11,7 +11,6 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `adapter-uncertainty-exploration/` - bounded production-adapter uncertainty exploration for retry-relevant durable-state collisions.
 - `attempt-unification/` - falsifies the single recovery-clock simplification and proves authority fencing and unresolved mutation identity require distinct temporal dimensions.
 - `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
-- `sqlite-baseline/` - original SQLite-backed baseline.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
 - `ambient-authority-boundary/` - separates substrate-owned provider capability from Overcenter project-truth authority.
 - `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.
@@ -20,8 +19,6 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `current-realization-admissibility/` - fresh authoritative observation over historical DONE, including withdrawal, indeterminate blocking, and cache-free reconstruction.
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
-- `linkml-ontology/` - structural ontology audition: one LinkML model projected to JSON Schema, TypeScript, and SHACL with an explicit semantic-boundary negative control.
-- `linkml-contract-refactor/` - production-facing maintenance experiment over the real SettlementObservation structural contract.
 - `lean-semantic-oracle/` - historical exact-revision TypeScript-vs-Lean differential; executable proof retained at its evaluated revision.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
@@ -41,9 +38,9 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 
 ## Experiment contract
 
-Maintained experiments are registered in [`registry.json`](./registry.json). Historical experiments keep their README, exact evaluated revision, and reproduction command, but their executable scaffolding is not carried forward on `main`; check out the recorded revision to reproduce the result.
+Maintained and historical experiment records are registered in [`registry.json`](./registry.json). Historical entries retain their exact evaluated revision and reproduction command even when their executable directory has been retired from `main`; check out the recorded revision to reproduce the result.
 
-Maintained experiments are registered in [`registry.json`](./registry.json). The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, design provenance, outcome, exact revision-bound evidence, interpretation, and non-claims must be explicit.
+The registry is the machine-readable acceptance contract for maintained and historical evidence. The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, design provenance, outcome, exact revision-bound evidence, interpretation, and non-claims must be explicit.
 
 The contract deliberately separates three questions that older entries used to blur:
 
@@ -64,7 +61,7 @@ npm run experiments:deterministic
 npm run test:experiment-contract
 ```
 
-CI runs the contract validator through `npm test`. Every directory under `experiments/` must be registered. Shared plumbing is permitted only when explicitly classified as `kind: support`; `provider-observation/` is the current example.
+CI runs the contract validator through `npm test`. Every directory carried under `experiments/` must be registered. Maintained experiments must keep their directory and README on `main`; historical records may point only to their evaluated revision after scaffolding is retired. Reusable experiment plumbing belongs in `src/` or `test/support/`, not in a `kind: support` compatibility island.
 
 A hosted workflow is an integration harness, not the only explanation of an experiment. Hosted claims still require an experiment-local README and a deterministic contract surface wherever one exists.
 
@@ -72,20 +69,7 @@ Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/su
 
 ## Proof lineage
 
-The repository began with two storage experiments:
-
-```text
-experiments/sqlite-baseline/kernel.ts
-        ↓
-prove the smallest local state machine
-
-src/storage/git-kernel.ts
-        ↓
-ask whether durable shared authority can collapse to
-immutable Git objects + one authority ref + CAS
-```
-
-That progression is historical evidence, not the conceptual entry point for Overcenter. The current architecture is described in [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+The original standalone SQLite baseline is retained as a historical registry record at its evaluated revision rather than as executable scaffolding on `main`. The current architecture is described in [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 ### Disposable worker handoff
 

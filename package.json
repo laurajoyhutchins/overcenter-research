@@ -18,7 +18,7 @@
     "proof:local": "npm run test:experiment-contract && npm run experiments:deterministic",
     "proof:formal": "npm run test:formal",
     "proof:live": "bash scripts/proof-live.sh",
-    "test:provider-observation": "node --experimental-strip-types --test experiments/provider-observation/response-slice.test.ts",
+    "test:provider-observation": "node --experimental-strip-types --test test/provider-observation.test.ts",
     "test:kubernetes-core": "node --experimental-strip-types --test test/kubernetes-core-verifier.test.ts",
     "test:github-contract": "node --experimental-strip-types --test test/github-openapi-contract.test.ts test/github-certified-read.test.ts test/github-certified-status.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts",
     "test:computation-executor": "node --experimental-strip-types --test test/computation-executor.test.ts",

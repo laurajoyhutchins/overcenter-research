@@ -1035,14 +1035,6 @@
       }
     },
     {
-      "id": "provider-observation",
-      "kind": "support",
-      "status": "maintained",
-      "directory": "experiments/provider-observation",
-      "readme": "experiments/provider-observation/README.md",
-      "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
-    },
-    {
       "id": "scheduler-bottleneck",
       "kind": "experiment",
       "status": "historical",
