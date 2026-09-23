@@ -93,7 +93,6 @@ test('trusted dispatcher rejects unregistered effect contracts before reservatio
   }
 });
 
-
 test('trusted dispatcher routes the registered PR update effect', async () => {
   const root = mkdtempSync(join(tmpdir(), 'effect-dispatch-pr-update-'));
   const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
