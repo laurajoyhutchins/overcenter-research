@@ -49,7 +49,9 @@
     "test:effect-authority-decay": "npm run typecheck && bash experiments/effect-authority-decay/run.sh",
     "bench:effect-authority-decay": "bash experiments/effect-authority-decay/benchmark.sh",
     "test:adapter-uncertainty-exploration": "node --experimental-strip-types experiments/adapter-uncertainty-exploration/experiment.ts",
-    "test:transport-not-dispatched-evidence": "node --experimental-strip-types experiments/transport-not-dispatched-evidence/experiment.ts"
+    "test:transport-not-dispatched-evidence": "node --experimental-strip-types experiments/transport-not-dispatched-evidence/experiment.ts",
+    "lint": "bash scripts/lint.sh",
+    "format": "bash scripts/format.sh"
   },
   "devDependencies": {
     "@types/node": "22.20.4",

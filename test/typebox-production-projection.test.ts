@@ -1,57 +1,52 @@
 import assert from 'node:assert/strict';
-import {readFileSync,rmSync,writeFileSync} from 'node:fs';
-import {spawnSync} from 'node:child_process';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-const source='contracts/observation-evidence/settlement-observation.typebox.ts';
-const generator='scripts/generate-settlement-observation.ts';
-const original=readFileSync(source,'utf8');
+const source = 'contracts/observation-evidence/settlement-observation.typebox.ts';
+const generator = 'scripts/generate-settlement-observation.ts';
+const original = readFileSync(source, 'utf8');
 
-function rejected(
-  name:string,
-  mutate:(source:string)=>string,
-  needle:string,
-):void {
-  const path='contracts/observation-evidence/.settlement-observation-'+name+'.typebox.ts';
-  const changed=mutate(original);
-  assert.notEqual(changed,original,name+' mutation did not modify the source fixture');
-  writeFileSync(path,changed);
+function rejected(name: string, mutate: (source: string) => string, needle: string): void {
+  const path = 'contracts/observation-evidence/.settlement-observation-' + name + '.typebox.ts';
+  const changed = mutate(original);
+  assert.notEqual(changed, original, name + ' mutation did not modify the source fixture');
+  writeFileSync(path, changed);
   try {
-    const result=spawnSync(
+    const result = spawnSync(
       process.execPath,
-      ['--experimental-strip-types',generator,'--check','--source',path],
-      {encoding:'utf8'},
+      ['--experimental-strip-types', generator, '--check', '--source', path],
+      { encoding: 'utf8' },
     );
-    assert.notEqual(result.status,0,name+' mutation was silently accepted');
-    assert.match(result.stderr,new RegExp(needle));
+    assert.notEqual(result.status, 0, name + ' mutation was silently accepted');
+    assert.match(result.stderr, new RegExp(needle));
   } finally {
-    rmSync(path,{force:true});
+    rmSync(path, { force: true });
   }
 }
 
-test('projection fails closed on source-only structural mutations',()=>{
+test('projection fails closed on source-only structural mutations', () => {
   rejected(
     'field',
-    source=>source.replace(
-      "  observation_error:Type.Optional(Type.String()),",
-      "  observation_error:Type.Optional(Type.String()),\n  observer_generation:Type.Optional(Type.Integer()),",
-    ),
+    (source) =>
+      source.replace(
+        '  observation_error:Type.Optional(Type.String()),',
+        '  observation_error:Type.Optional(Type.String()),\n  observer_generation:Type.Optional(Type.Integer()),',
+      ),
     'observer_generation',
   );
   rejected(
     'enum',
-    source=>source.replace(
-      "  'kubernetes-configmap-exists/v1',",
-      "  'kubernetes-configmap-exists/v1',\n  'hostile-verifier/v1',",
-    ),
+    (source) =>
+      source.replace(
+        "  'kubernetes-configmap-exists/v1',",
+        "  'kubernetes-configmap-exists/v1',\n  'hostile-verifier/v1',",
+      ),
     'hostile-verifier',
   );
   rejected(
     'bound',
-    source=>source.replace(
-      '    maximum:Number.MAX_SAFE_INTEGER,',
-      '    maximum:10,',
-    ),
+    (source) => source.replace('    maximum:Number.MAX_SAFE_INTEGER,', '    maximum:10,'),
     '"maximum": 10',
   );
 });

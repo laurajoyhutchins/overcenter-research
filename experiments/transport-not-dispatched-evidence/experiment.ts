@@ -5,16 +5,16 @@ import { createServer as createTcpServer, type Server } from 'node:net';
 import { createServer as createTlsServer } from 'node:tls';
 import type { LookupFunction } from 'node:net';
 
-type Certainty='NOT_DISPATCHED'|'UNKNOWN'|'ACKNOWLEDGED';
+type Certainty = 'NOT_DISPATCHED' | 'UNKNOWN' | 'ACKNOWLEDGED';
 
 interface Attempt {
-  certainty:Certainty;
-  secure_connected:boolean;
-  response_status:number|null;
-  error_code:string|null;
+  certainty: Certainty;
+  secure_connected: boolean;
+  response_status: number | null;
+  error_code: string | null;
 }
 
-const KEY=`-----BEGIN PRIVATE KEY-----
+const KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDZUPsn3kwMJ6PT
 i3/zvSeO+co3zPmSY/wyumruYbhZ/KAUQkqtnMPCNWjXFromaPRXimfJBQxQLpn8
 zMGoT4nvgisHqRlifbAmYOSMwBY+DOemGatfELVCic2tr6kauh0MltoLmcqRuqKK
@@ -43,7 +43,7 @@ wY4MArg77xwH/sP+zgtUQx5uNzV/FH1mAA9blp8nx0MQoLOYxGWTKJEIsH7HRcSY
 T5fON6xrhaomXfgNi2x8B4EN
 -----END PRIVATE KEY-----`;
 
-const CERT=`-----BEGIN CERTIFICATE-----
+const CERT = `-----BEGIN CERTIFICATE-----
 MIIDCTCCAfGgAwIBAgIUE2nGRxty7azbIVQcHEXW4A8AA0EwDQYJKoZIhvcNAQEL
 BQAwFDESMBAGA1UEAwwJbG9jYWxob3N0MB4XDTI2MDkyMzA1NTczOFoXDTM2MDky
 MDA1NTczOFowFDESMBAGA1UEAwwJbG9jYWxob3N0MIIBIjANBgkqhkiG9w0BAQEF
@@ -63,183 +63,189 @@ OpuXda4j67y60m0rwSkg5TjdDOv4rHKM5oSqWyo9n+BYhUX2LOvPPQcN0rHo05mI
 HG8xElW6gaNx6HGDrw==
 -----END CERTIFICATE-----`;
 
-function errorCode(error:unknown):string|null {
-  if (!error || typeof error!=='object') return null;
-  const code=(error as {code?:unknown}).code;
-  return typeof code==='string'?code:null;
+function errorCode(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' ? code : null;
 }
 
-async function listen(server:Server):Promise<number> {
-  return await new Promise((resolve,reject)=>{
-    server.once('error',reject);
-    server.listen(0,'127.0.0.1',()=>{
-      server.off('error',reject);
-      const address=server.address();
-      if (!address || typeof address==='string') throw new Error('INVALID_LISTEN_ADDRESS');
+async function listen(server: Server): Promise<number> {
+  return await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('INVALID_LISTEN_ADDRESS');
       resolve(address.port);
     });
   });
 }
 
-async function close(server:Server):Promise<void> {
-  await new Promise<void>((resolve,reject)=>{
-    server.close(error=>error?reject(error):resolve());
+async function close(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
   });
 }
 
 async function postWithWitness(
-  url:string,
-  body:string,
-  lookup?:LookupFunction,
-):Promise<Attempt> {
-  return await new Promise(resolve=>{
-    let secureConnected=false;
-    let settled=false;
-    const finish=(attempt:Attempt):void=>{
+  url: string,
+  body: string,
+  lookup?: LookupFunction,
+): Promise<Attempt> {
+  return await new Promise((resolve) => {
+    let secureConnected = false;
+    let settled = false;
+    const finish = (attempt: Attempt): void => {
       if (settled) return;
-      settled=true;
+      settled = true;
       resolve(attempt);
     };
 
-    const req=httpsRequest(url,{
-      method:'POST',
-      rejectUnauthorized:false,
-      ...(lookup?{lookup}:{}),
-      headers:{
-        'content-type':'application/json',
-        'content-length':Buffer.byteLength(body),
+    const req = httpsRequest(
+      url,
+      {
+        method: 'POST',
+        rejectUnauthorized: false,
+        ...(lookup ? { lookup } : {}),
+        headers: {
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(body),
+        },
       },
-    },response=>{
-      response.resume();
-      response.once('end',()=>finish({
-        certainty:response.statusCode===201?'ACKNOWLEDGED':'UNKNOWN',
-        secure_connected:secureConnected,
-        response_status:response.statusCode??null,
-        error_code:null,
-      }));
+      (response) => {
+        response.resume();
+        response.once('end', () =>
+          finish({
+            certainty: response.statusCode === 201 ? 'ACKNOWLEDGED' : 'UNKNOWN',
+            secure_connected: secureConnected,
+            response_status: response.statusCode ?? null,
+            error_code: null,
+          }),
+        );
+      },
+    );
+
+    req.once('socket', (socket) => {
+      const tlsSocket = socket as typeof socket & { encrypted?: boolean };
+      if (tlsSocket.encrypted && !socket.connecting) secureConnected = true;
+      socket.once('secureConnect', () => {
+        secureConnected = true;
+      });
     });
 
-    req.once('socket',socket=>{
-      const tlsSocket=socket as typeof socket & {encrypted?:boolean};
-      if (tlsSocket.encrypted && !socket.connecting) secureConnected=true;
-      socket.once('secureConnect',()=>{ secureConnected=true; });
-    });
-
-    req.once('error',error=>finish({
-      certainty:secureConnected?'UNKNOWN':'NOT_DISPATCHED',
-      secure_connected:secureConnected,
-      response_status:null,
-      error_code:errorCode(error),
-    }));
+    req.once('error', (error) =>
+      finish({
+        certainty: secureConnected ? 'UNKNOWN' : 'NOT_DISPATCHED',
+        secure_connected: secureConnected,
+        response_status: null,
+        error_code: errorCode(error),
+      }),
+    );
 
     req.end(body);
   });
 }
 
-const dnsFailureLookup:LookupFunction=(_hostname,_options,callback)=>{
-  const error=Object.assign(new Error('synthetic DNS failure'),{code:'EAI_AGAIN'});
-  queueMicrotask(()=>callback(error,undefined as never,undefined as never));
+const dnsFailureLookup: LookupFunction = (_hostname, _options, callback) => {
+  const error = Object.assign(new Error('synthetic DNS failure'), { code: 'EAI_AGAIN' });
+  queueMicrotask(() => callback(error, undefined as never, undefined as never));
 };
 
-const body=JSON.stringify({state:'success',context:'overcenter/proof'});
+const body = JSON.stringify({ state: 'success', context: 'overcenter/proof' });
 
-const dnsFailure=await postWithWitness(
-  'https://github.invalid/status',
-  body,
-  dnsFailureLookup,
-);
-assert.equal(dnsFailure.certainty,'NOT_DISPATCHED');
-assert.equal(dnsFailure.secure_connected,false);
+const dnsFailure = await postWithWitness('https://github.invalid/status', body, dnsFailureLookup);
+assert.equal(dnsFailure.certainty, 'NOT_DISPATCHED');
+assert.equal(dnsFailure.secure_connected, false);
 
-let tlsHandshakePeerBytes=0;
-const handshakeReset=createTcpServer(socket=>{
-  socket.once('data',chunk=>{
-    tlsHandshakePeerBytes+=chunk.length;
+let tlsHandshakePeerBytes = 0;
+const handshakeReset = createTcpServer((socket) => {
+  socket.once('data', (chunk) => {
+    tlsHandshakePeerBytes += chunk.length;
     socket.destroy();
   });
 });
-const handshakePort=await listen(handshakeReset);
-const handshakeFailure=await postWithWitness(
-  `https://127.0.0.1:${handshakePort}/status`,
-  body,
-);
+const handshakePort = await listen(handshakeReset);
+const handshakeFailure = await postWithWitness(`https://127.0.0.1:${handshakePort}/status`, body);
 await close(handshakeReset);
-assert.equal(handshakeFailure.certainty,'NOT_DISPATCHED');
-assert.equal(handshakeFailure.secure_connected,false);
-assert.ok(tlsHandshakePeerBytes>0,'expected TLS handshake bytes to reach peer');
+assert.equal(handshakeFailure.certainty, 'NOT_DISPATCHED');
+assert.equal(handshakeFailure.secure_connected, false);
+assert.ok(tlsHandshakePeerBytes > 0, 'expected TLS handshake bytes to reach peer');
 
-let postDispatchPeerBytes=0;
-const postDispatchReset=createTlsServer({key:KEY,cert:CERT},socket=>{
-  socket.once('data',chunk=>{
-    postDispatchPeerBytes+=chunk.length;
+let postDispatchPeerBytes = 0;
+const postDispatchReset = createTlsServer({ key: KEY, cert: CERT }, (socket) => {
+  socket.once('data', (chunk) => {
+    postDispatchPeerBytes += chunk.length;
     socket.destroy();
   });
 });
-const postDispatchPort=await listen(postDispatchReset);
-const postDispatchFailure=await postWithWitness(
+const postDispatchPort = await listen(postDispatchReset);
+const postDispatchFailure = await postWithWitness(
   `https://127.0.0.1:${postDispatchPort}/status`,
   body,
 );
 await close(postDispatchReset);
-assert.equal(postDispatchFailure.certainty,'UNKNOWN');
-assert.equal(postDispatchFailure.secure_connected,true);
-assert.ok(postDispatchPeerBytes>0,'expected decrypted HTTP bytes to reach peer');
+assert.equal(postDispatchFailure.certainty, 'UNKNOWN');
+assert.equal(postDispatchFailure.secure_connected, true);
+assert.ok(postDispatchPeerBytes > 0, 'expected decrypted HTTP bytes to reach peer');
 
-let successBody='';
-const successServer=createHttpsServer({key:KEY,cert:CERT},(request,response)=>{
+let successBody = '';
+const successServer = createHttpsServer({ key: KEY, cert: CERT }, (request, response) => {
   request.setEncoding('utf8');
-  request.on('data',chunk=>{ successBody+=chunk; });
-  request.on('end',()=>{
-    response.writeHead(201,{'content-type':'application/json'});
+  request.on('data', (chunk) => {
+    successBody += chunk;
+  });
+  request.on('end', () => {
+    response.writeHead(201, { 'content-type': 'application/json' });
     response.end('{}');
   });
 });
-const successPort=await listen(successServer);
-const success=await postWithWitness(
-  `https://127.0.0.1:${successPort}/status`,
-  body,
-);
+const successPort = await listen(successServer);
+const success = await postWithWitness(`https://127.0.0.1:${successPort}/status`, body);
 await close(successServer);
-assert.equal(success.certainty,'ACKNOWLEDGED');
-assert.equal(success.secure_connected,true);
-assert.equal(success.response_status,201);
-assert.equal(successBody,body);
+assert.equal(success.certainty, 'ACKNOWLEDGED');
+assert.equal(success.secure_connected, true);
+assert.equal(success.response_status, 201);
+assert.equal(successBody, body);
 
-const unsafeErrorCodePolicyKilled=
-  postDispatchFailure.error_code!==null
-  && postDispatchPeerBytes>0;
-assert.equal(unsafeErrorCodePolicyKilled,true);
+const unsafeErrorCodePolicyKilled =
+  postDispatchFailure.error_code !== null && postDispatchPeerBytes > 0;
+assert.equal(unsafeErrorCodePolicyKilled, true);
 
-const unsafeAnyTransportErrorPolicyKilled=
-  postDispatchFailure.certainty==='UNKNOWN'
-  && postDispatchPeerBytes>0;
-assert.equal(unsafeAnyTransportErrorPolicyKilled,true);
+const unsafeAnyTransportErrorPolicyKilled =
+  postDispatchFailure.certainty === 'UNKNOWN' && postDispatchPeerBytes > 0;
+assert.equal(unsafeAnyTransportErrorPolicyKilled, true);
 
-console.log(JSON.stringify({
-  experiment:'transport-not-dispatched-evidence',
-  result:'SUPPORTED_WITH_NARROW_BOUNDARY',
-  cases:{
-    dns_failure:{
-      ...dnsFailure,
-      peer_application_bytes:0,
+console.log(
+  JSON.stringify(
+    {
+      experiment: 'transport-not-dispatched-evidence',
+      result: 'SUPPORTED_WITH_NARROW_BOUNDARY',
+      cases: {
+        dns_failure: {
+          ...dnsFailure,
+          peer_application_bytes: 0,
+        },
+        tls_handshake_reset: {
+          ...handshakeFailure,
+          peer_tls_bytes: tlsHandshakePeerBytes,
+          peer_application_bytes: 0,
+        },
+        post_secure_connect_reset: {
+          ...postDispatchFailure,
+          peer_application_bytes: postDispatchPeerBytes,
+        },
+        acknowledged_201: {
+          ...success,
+          peer_application_bytes: Buffer.byteLength(successBody),
+        },
+      },
+      invariant: 'NOT_DISPATCHED is emitted only before TLS secureConnect on a fresh socket',
+      negative_controls: {
+        infer_from_error_code_only: 'KILLED',
+        treat_any_transport_error_as_not_dispatched: 'KILLED',
+      },
     },
-    tls_handshake_reset:{
-      ...handshakeFailure,
-      peer_tls_bytes:tlsHandshakePeerBytes,
-      peer_application_bytes:0,
-    },
-    post_secure_connect_reset:{
-      ...postDispatchFailure,
-      peer_application_bytes:postDispatchPeerBytes,
-    },
-    acknowledged_201:{
-      ...success,
-      peer_application_bytes:Buffer.byteLength(successBody),
-    },
-  },
-  invariant:'NOT_DISPATCHED is emitted only before TLS secureConnect on a fresh socket',
-  negative_controls:{
-    infer_from_error_code_only:'KILLED',
-    treat_any_transport_error_as_not_dispatched:'KILLED',
-  },
-},null,2));
+    null,
+    2,
+  ),
+);

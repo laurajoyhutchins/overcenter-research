@@ -27,10 +27,13 @@ kernel.define({
 });
 
 console.log('state ref before:', kernel.head());
-console.log('before:', kernel.inspect().map(({ id, status }) => ({ id, status })));
+console.log(
+  'before:',
+  kernel.inspect().map(({ id, status }) => ({ id, status })),
+);
 
 const result = await runCoreLoop(kernel, {
-  effect: async packet => {
+  effect: async (packet) => {
     writeFileSync(String(packet.path), String(packet.content));
     return { kind: 'ok' };
   },
@@ -38,13 +41,23 @@ const result = await runCoreLoop(kernel, {
 
 console.log('loop:', result);
 console.log('state ref after:', kernel.head());
-console.log('after:', kernel.inspect().map(({ id, status }) => ({ id, status })));
-console.log('receipt commits:', kernel.receipts().map(({ obligation_id, disposition, settlement_commit }) => ({
-  obligation_id,
-  disposition,
-  settlement_commit,
-})));
+console.log(
+  'after:',
+  kernel.inspect().map(({ id, status }) => ({ id, status })),
+);
+console.log(
+  'receipt commits:',
+  kernel.receipts().map(({ obligation_id, disposition, settlement_commit }) => ({
+    obligation_id,
+    disposition,
+    settlement_commit,
+  })),
+);
 console.log('history:');
-console.log(execFileSync('git', ['-C', repo, 'log', '--reverse', '--oneline', 'refs/overcenter/state'], { encoding: 'utf8' }).trim());
+console.log(
+  execFileSync('git', ['-C', repo, 'log', '--reverse', '--oneline', 'refs/overcenter/state'], {
+    encoding: 'utf8',
+  }).trim(),
+);
 
 rmSync(root, { recursive: true, force: true });

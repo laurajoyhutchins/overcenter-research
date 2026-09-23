@@ -46,23 +46,57 @@ fn valid() -> (RunIdentity, PresentedPermit, ClaimedWork, Lifecycle, bool) {
 fn case(mask: usize) -> (RunIdentity, PresentedPermit, ClaimedWork, Lifecycle, bool) {
     let (run, mut permit, mut work, mut lifecycle, mut unresolved) = valid();
 
-    if mask & (1 << 0) != 0 { work.id += 100; }
-    if mask & (1 << 1) != 0 { work.run_id += 100; }
-    if mask & (1 << 2) != 0 { work.claimed_revision += 100; }
-    if mask & (1 << 3) != 0 { work.github_status_effect = false; }
-    if mask & (1 << 4) != 0 { work.github_status_postcondition = false; }
-    if mask & (1 << 5) != 0 { permit.id += 100; }
-    if mask & (1 << 6) != 0 { permit.obligation_id += 100; }
-    if mask & (1 << 7) != 0 { permit.execution_generation += 100; }
-    if mask & (1 << 8) != 0 { permit.execution_authority_commit += 100; }
-    if mask & (1 << 9) != 0 { permit.execution_capability_sha256 += 100; }
-    if mask & (1 << 10) != 0 { permit.presented_capability_sha256 += 100; }
-    if mask & (1 << 11) != 0 { permit.claimed_revision += 100; }
-    if mask & (1 << 12) != 0 { permit.claim_commit += 100; }
-    if mask & (1 << 13) != 0 { permit.obligation_key += 100; }
-    if mask & (1 << 14) != 0 { lifecycle.run_id += 100; }
-    if mask & (1 << 15) != 0 { lifecycle.executing = false; }
-    if mask & (1 << 16) != 0 { unresolved = true; }
+    if mask & (1 << 0) != 0 {
+        work.id += 100;
+    }
+    if mask & (1 << 1) != 0 {
+        work.run_id += 100;
+    }
+    if mask & (1 << 2) != 0 {
+        work.claimed_revision += 100;
+    }
+    if mask & (1 << 3) != 0 {
+        work.github_status_effect = false;
+    }
+    if mask & (1 << 4) != 0 {
+        work.github_status_postcondition = false;
+    }
+    if mask & (1 << 5) != 0 {
+        permit.id += 100;
+    }
+    if mask & (1 << 6) != 0 {
+        permit.obligation_id += 100;
+    }
+    if mask & (1 << 7) != 0 {
+        permit.execution_generation += 100;
+    }
+    if mask & (1 << 8) != 0 {
+        permit.execution_authority_commit += 100;
+    }
+    if mask & (1 << 9) != 0 {
+        permit.execution_capability_sha256 += 100;
+    }
+    if mask & (1 << 10) != 0 {
+        permit.presented_capability_sha256 += 100;
+    }
+    if mask & (1 << 11) != 0 {
+        permit.claimed_revision += 100;
+    }
+    if mask & (1 << 12) != 0 {
+        permit.claim_commit += 100;
+    }
+    if mask & (1 << 13) != 0 {
+        permit.obligation_key += 100;
+    }
+    if mask & (1 << 14) != 0 {
+        lifecycle.run_id += 100;
+    }
+    if mask & (1 << 15) != 0 {
+        lifecycle.executing = false;
+    }
+    if mask & (1 << 16) != 0 {
+        unresolved = true;
+    }
 
     (run, permit, work, lifecycle, unresolved)
 }
@@ -114,7 +148,8 @@ fn bench_once(iterations: usize, typed: bool) -> Duration {
                 black_box(&work),
                 black_box(&lifecycle),
                 black_box(unresolved),
-            ).unwrap();
+            )
+            .unwrap();
             effects += perform_github_status(capability, || 1usize);
         } else {
             baseline_admission(
@@ -123,7 +158,8 @@ fn bench_once(iterations: usize, typed: bool) -> Duration {
                 black_box(&work),
                 black_box(&lifecycle),
                 black_box(unresolved),
-            ).unwrap();
+            )
+            .unwrap();
             effects += black_box(1usize);
         }
     }
@@ -153,9 +189,7 @@ fn sequential_benchmark() {
     let typed_median = median(typed);
     let ratio = typed_median.as_secs_f64() / baseline_median.as_secs_f64();
 
-    println!(
-        "sequential: baseline={baseline_median:?} typed={typed_median:?} ratio={ratio:.3}"
-    );
+    println!("sequential: baseline={baseline_median:?} typed={typed_median:?} ratio={ratio:.3}");
     assert!(
         ratio <= 1.10,
         "typed sequential admission regressed >10%: ratio={ratio:.3}"
@@ -181,7 +215,8 @@ fn concurrent_once(threads: usize, per_thread: usize, typed: bool) -> Duration {
                         black_box(&work),
                         black_box(&lifecycle),
                         black_box(unresolved),
-                    ).unwrap();
+                    )
+                    .unwrap();
                     effects += perform_github_status(capability, || 1usize);
                 } else {
                     baseline_admission(
@@ -190,7 +225,8 @@ fn concurrent_once(threads: usize, per_thread: usize, typed: bool) -> Duration {
                         black_box(&work),
                         black_box(&lifecycle),
                         black_box(unresolved),
-                    ).unwrap();
+                    )
+                    .unwrap();
                     effects += black_box(1usize);
                 }
             }
@@ -249,7 +285,9 @@ fn main() {
         std::mem::size_of::<ExecutionPermit<'static, GithubCommitStatus>>(),
         0
     );
-    assert!(!std::mem::needs_drop::<ExecutionPermit<'static, GithubCommitStatus>>());
+    assert!(!std::mem::needs_drop::<
+        ExecutionPermit<'static, GithubCommitStatus>,
+    >());
     println!(
         "representation: PASS zero-sized affine capability; runtime checks remain at authority ingress"
     );

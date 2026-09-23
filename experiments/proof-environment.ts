@@ -10,6 +10,7 @@ export function githubProofStateRef(proof: string, env: Environment = process.en
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(proof)) throw new Error('GITHUB_PROOF_NAME_INVALID');
   const runId = required(env, 'GITHUB_RUN_ID');
   const attempt = required(env, 'GITHUB_RUN_ATTEMPT');
-  if (!/^\d+$/.test(runId) || !/^\d+$/.test(attempt)) throw new Error('GITHUB_PROOF_RUN_IDENTITY_INVALID');
+  if (!/^\d+$/.test(runId) || !/^\d+$/.test(attempt))
+    throw new Error('GITHUB_PROOF_RUN_IDENTITY_INVALID');
   return `refs/overcenter/proofs/${proof}/${runId}/${attempt}`;
 }

@@ -69,7 +69,9 @@ fn write_exact(path: &Path, value: &str) -> io::Result<()> {
     if observed.trim() != value {
         return Err(fail(format!(
             "cgroup write did not settle exactly for {}: requested={value:?} observed={:?}",
-            path.file_name().and_then(|name| name.to_str()).unwrap_or("<unknown>"),
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("<unknown>"),
             observed.trim(),
         )));
     }
@@ -77,7 +79,10 @@ fn write_exact(path: &Path, value: &str) -> io::Result<()> {
 }
 
 fn configure(leaf: &Path, manifest: &Manifest) -> io::Result<()> {
-    write_exact(&leaf.join("memory.max"), &manifest.memory_max_bytes.to_string())?;
+    write_exact(
+        &leaf.join("memory.max"),
+        &manifest.memory_max_bytes.to_string(),
+    )?;
     write_exact(&leaf.join("memory.swap.max"), "0")?;
     write_exact(&leaf.join("memory.oom.group"), "1")?;
     write_exact(&leaf.join("pids.max"), &manifest.pids_max.to_string())?;
@@ -94,7 +99,9 @@ fn migrate_self(leaf: &Path) -> io::Result<()> {
     fs::write(leaf.join("cgroup.procs"), pid.to_string())?;
     let members = fs::read_to_string(leaf.join("cgroup.procs"))?;
     if !members.lines().any(|member| member == pid.to_string()) {
-        return Err(fail(format!("launcher pid {pid} did not enter exact resource cgroup")));
+        return Err(fail(format!(
+            "launcher pid {pid} did not enter exact resource cgroup"
+        )));
     }
     Ok(())
 }

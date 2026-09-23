@@ -16,23 +16,23 @@ import (
 
 const (
 	ComputationExecutionSchema = "overcenter-computation-execution-v1"
-	ProcessSpecSchema           = "overcenter-process-spec-v1"
-	ComputationEvidenceSchema   = "overcenter-computation-attempt-evidence-v1"
-	ExecutorCommandSchema       = "overcenter-executor-command-v1"
+	ProcessSpecSchema          = "overcenter-process-spec-v1"
+	ComputationEvidenceSchema  = "overcenter-computation-attempt-evidence-v1"
+	ExecutorCommandSchema      = "overcenter-executor-command-v1"
 
-	maxSpecBytes      = 1024 * 1024
-	maxArgCount       = 256
-	maxArgBytes       = 32 * 1024
-	maxEnvCount       = 256
-	maxEnvValueBytes  = 128 * 1024
-	maxTimeoutMillis       = 24 * 60 * 60 * 1000
-	maxCaptureBytes        = 16 * 1024 * 1024
-	maxRunIDBytes          = 256
-	maxObligationIDBytes   = 512
-	maxRevisionBytes       = 256
+	maxSpecBytes            = 1024 * 1024
+	maxArgCount             = 256
+	maxArgBytes             = 32 * 1024
+	maxEnvCount             = 256
+	maxEnvValueBytes        = 128 * 1024
+	maxTimeoutMillis        = 24 * 60 * 60 * 1000
+	maxCaptureBytes         = 16 * 1024 * 1024
+	maxRunIDBytes           = 256
+	maxObligationIDBytes    = 512
+	maxRevisionBytes        = 256
 	maxAuthorityCommitBytes = 256
-	maxCapabilityBytes     = 4096
-	maxExecutionGeneration = 9007199254740991
+	maxCapabilityBytes      = 4096
+	maxExecutionGeneration  = 9007199254740991
 )
 
 var envKeyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)

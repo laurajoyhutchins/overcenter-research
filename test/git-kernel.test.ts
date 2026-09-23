@@ -16,7 +16,11 @@ function fixture() {
   kernel.initialize();
   return { root, repo, kernel, path: (name: string) => join(root, name) };
 }
-const pc = (path: string, content: string) => ({ verifier: 'file-content-equals/v1' as const, path, content });
+const pc = (path: string, content: string) => ({
+  verifier: 'file-content-equals/v1' as const,
+  path,
+  content,
+});
 
 test('commit SHA is the authoritative revision and claim is its child', () => {
   const f = fixture();
@@ -24,28 +28,46 @@ test('commit SHA is the authoritative revision and claim is its child', () => {
     f.kernel.define({ id: 'x', postcondition: pc(f.path('x'), 'yes') });
     const w = f.kernel.deriveReadyWork()!;
     const run = f.kernel.claim('x', w.revision);
-    const parent = execFileSync('git', ['-C', f.repo, 'rev-parse', `${run.claim_commit}^`], { encoding: 'utf8' }).trim();
+    const parent = execFileSync('git', ['-C', f.repo, 'rev-parse', `${run.claim_commit}^`], {
+      encoding: 'utf8',
+    }).trim();
     assert.equal(parent, w.revision);
     assert.equal(f.kernel.head(), run.claim_commit);
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('kernel-owned evidence drives dependency chain to DONE', async () => {
   const f = fixture();
   try {
-    const a = f.path('a'), b = f.path('b');
+    const a = f.path('a'),
+      b = f.path('b');
     f.kernel.define({ id: 'a', packet: { path: a, content: 'A' }, postcondition: pc(a, 'A') });
-    f.kernel.define({ id: 'b', dependencies: [{ kind: 'control', upstream: 'a' }], packet: { path: b, content: 'B' }, postcondition: pc(b, 'B') });
+    f.kernel.define({
+      id: 'b',
+      dependencies: [{ kind: 'control', upstream: 'a' }],
+      packet: { path: b, content: 'B' },
+      postcondition: pc(b, 'B'),
+    });
     const result = await runCoreLoop(f.kernel, {
-      effect: async packet => {
+      effect: async (packet) => {
         writeFileSync(String(packet.path), String(packet.content));
         return { kind: 'ok' };
       },
     });
     assert.equal(result.state, 'IDLE');
-    assert.deepEqual(f.kernel.inspect().map(x => [x.id, x.status]), [['a', 'DONE'], ['b', 'DONE']]);
-    assert.ok(f.kernel.receipts().every(x => x.verified));
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+    assert.deepEqual(
+      f.kernel.inspect().map((x) => [x.id, x.status]),
+      [
+        ['a', 'DONE'],
+        ['b', 'DONE'],
+      ],
+    );
+    assert.ok(f.kernel.receipts().every((x) => x.verified));
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('core loop commits an effect reservation before invoking effect handler', async () => {
@@ -65,13 +87,11 @@ test('core loop commits an effect reservation before invoking effect handler', a
         const [packet] = args;
         const head = f.kernel.head()!;
         const reservation = JSON.parse(
-          execFileSync(
-            'git',
-            ['-C', f.repo, 'show', `${head}:effect-reservation.json`],
-            { encoding: 'utf8' },
-          ),
+          execFileSync('git', ['-C', f.repo, 'show', `${head}:effect-reservation.json`], {
+            encoding: 'utf8',
+          }),
         ) as Record<string, unknown>;
-        const executing = f.kernel.inspect().find(work => work.id === 'x')!;
+        const executing = f.kernel.inspect().find((work) => work.id === 'x')!;
         assert.equal(reservation.run_id, executing.run_id);
         assert.equal(reservation.execution_generation, executing.execution_generation);
         effectObservedReservation = true;
@@ -83,7 +103,9 @@ test('core loop commits an effect reservation before invoking effect handler', a
     assert.equal(effectObservedReservation, true);
     assert.equal(result.state, 'IDLE');
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('core loop never invokes effect handler when effect reservation cannot commit', async () => {
@@ -104,7 +126,7 @@ test('core loop never invokes effect handler when effect reservation cannot comm
           writeFileSync(lock, 'held');
           return { kind: 'execute' };
         },
-        effect: async packet => {
+        effect: async (packet) => {
           executions += 1;
           writeFileSync(String(packet.path), String(packet.content));
           return { kind: 'ok' };
@@ -115,7 +137,9 @@ test('core loop never invokes effect handler when effect reservation cannot comm
 
     assert.equal(executions, 0);
     assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('preflight judgment can WAIT without opening the effect boundary', async () => {
@@ -144,21 +168,22 @@ test('preflight judgment can WAIT without opening the effect boundary', async ()
     assert.equal(executions, 0);
     assert.equal(f.kernel.inspect()[0].status, 'WAITING');
 
-    const commits = execFileSync(
-      'git',
-      ['-C', f.repo, 'rev-list', 'refs/overcenter/state'],
-      { encoding: 'utf8' },
-    ).trim().split(/\n+/).filter(Boolean);
+    const commits = execFileSync('git', ['-C', f.repo, 'rev-list', 'refs/overcenter/state'], {
+      encoding: 'utf8',
+    })
+      .trim()
+      .split(/\n+/)
+      .filter(Boolean);
     for (const commit of commits) {
-      assert.throws(
-        () => execFileSync(
-          'git',
-          ['-C', f.repo, 'cat-file', '-e', `${commit}:effect-reservation.json`],
-          { stdio: 'ignore' },
-        ),
+      assert.throws(() =>
+        execFileSync('git', ['-C', f.repo, 'cat-file', '-e', `${commit}:effect-reservation.json`], {
+          stdio: 'ignore',
+        }),
       );
     }
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('post-reservation judgment is recovery uncertainty, not WAITING', async () => {
@@ -181,10 +206,12 @@ test('post-reservation judgment is recovery uncertainty, not WAITING', async () 
     assert.equal(result.state, 'RECOVERY_REQUIRED');
     assert.equal(f.kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
     assert.deepEqual(
-      f.kernel.receipts(result.run!).map(receipt => receipt.disposition),
+      f.kernel.receipts(result.run!).map((receipt) => receipt.disposition),
       ['RECOVERY_REQUIRED'],
     );
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('wrong real effect cannot become DONE or READY', () => {
@@ -197,7 +224,9 @@ test('wrong real effect cannot become DONE or READY', () => {
     const receipt = f.kernel.resolve(run);
     assert.equal(receipt.disposition, 'RECOVERY_REQUIRED');
     assert.equal(receipt.verified, false);
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('authoritative absence alone makes work replayable', () => {
@@ -216,7 +245,9 @@ test('authoritative absence alone makes work replayable', () => {
     assert.equal('negative_evidence_authoritative' in receipt.observed!, false);
     assert.equal(receipt.disposition, 'READY');
     assert.equal(f.kernel.inspect()[0].status, 'READY');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('stale revision claim is fenced', () => {
@@ -224,7 +255,9 @@ test('stale revision claim is fenced', () => {
   try {
     f.kernel.define({ id: 'x', postcondition: pc(f.path('x'), 'yes') });
     assert.throws(() => f.kernel.claim('x', '0'.repeat(40)), /STALE_REVISION/);
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('execution generation fences a stale permit without changing the claimed revision', () => {
@@ -242,17 +275,12 @@ test('execution generation fences a stale permit without changing the claimed re
     assert.notEqual(first.execution_capability, second.execution_capability);
 
     const persistedClaim = JSON.parse(
-      execFileSync(
-        'git',
-        ['-C', f.repo, 'show', `${first.claim_commit}:claim.json`],
-        { encoding: 'utf8' },
-      ),
+      execFileSync('git', ['-C', f.repo, 'show', `${first.claim_commit}:claim.json`], {
+        encoding: 'utf8',
+      }),
     ) as Record<string, unknown>;
     assert.equal(JSON.stringify(persistedClaim).includes(first.execution_capability), false);
-    assert.equal(
-      persistedClaim.execution_capability_sha256,
-      first.execution_capability_sha256,
-    );
+    assert.equal(persistedClaim.execution_capability_sha256, first.execution_capability_sha256);
 
     const persistedAuthority = JSON.parse(
       execFileSync(
@@ -274,7 +302,9 @@ test('execution generation fences a stale permit without changing the claimed re
     writeFileSync(path, 'present');
     const settled = f.kernel.resolve(second);
     assert.equal(settled.disposition, 'DONE');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('unresolved effect reservation survives generation handoff until presence settles it', async () => {
@@ -294,7 +324,9 @@ test('unresolved effect reservation survives generation handoff until presence s
     const settled = f.kernel.resolve(second);
     assert.equal(settled.disposition, 'DONE');
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('authoritative absence does not release an unresolved effect without adapter replay proof', () => {
@@ -314,7 +346,9 @@ test('authoritative absence does not release an unresolved effect without adapte
     assert.equal(f.kernel.hasUnresolvedEffect(first.id), true);
     assert.equal(f.kernel.deriveReadyWork(), null);
     assert.equal(f.kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('interrupted exact run reconciles to DONE without replay', () => {
@@ -328,7 +362,9 @@ test('interrupted exact run reconciles to DONE without replay', () => {
     const receipt = f.kernel.reconcile(run);
     assert.equal(receipt.disposition, 'DONE');
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('supervisor rotates execution authority before recovering a dead worker', () => {
@@ -353,7 +389,9 @@ test('supervisor rotates execution authority before recovering a dead worker', (
     assert.equal(settled.disposition, 'DONE');
     assert.equal(settled.verified, true);
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('DONE resolution stays idempotent after the node is retired', () => {
@@ -364,12 +402,14 @@ test('DONE resolution stays idempotent after the node is retired', () => {
     const run = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
     writeFileSync(path, 'yes');
     const first = f.kernel.resolve(run);
-    f.kernel.applyGraphPatch({retire:['x']},f.kernel.head()!);
-    assert.deepEqual(f.kernel.inspect(),[]);
+    f.kernel.applyGraphPatch({ retire: ['x'] }, f.kernel.head()!);
+    assert.deepEqual(f.kernel.inspect(), []);
     const second = f.kernel.resolve(run);
     assert.equal(first.disposition, 'DONE');
     assert.equal(second.settlement_commit, first.settlement_commit);
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('all observational surfaces fail closed when authority is missing', () => {
@@ -380,8 +420,10 @@ test('all observational surfaces fail closed when authority is missing', () => {
     assert.throws(() => f.kernel.deriveReadyWork(), /NOT_INITIALIZED/);
     assert.throws(() => f.kernel.explain('x'), /NOT_INITIALIZED/);
     assert.throws(() => f.kernel.receipts(), /NOT_INITIALIZED/);
-    assert.throws(() => f.kernel.recoverInterrupted({id:'x'} as never), /NOT_INITIALIZED/);
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+    assert.throws(() => f.kernel.recoverInterrupted({ id: 'x' } as never), /NOT_INITIALIZED/);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('authority history contains no state snapshot and receipts remain factual', () => {
@@ -394,19 +436,18 @@ test('authority history contains no state snapshot and receipts remain factual',
     });
 
     const assertNoStateSnapshot = () => {
-      const commits = execFileSync(
-        'git',
-        ['-C', f.repo, 'rev-list', 'refs/overcenter/state'],
-        { encoding: 'utf8' },
-      ).trim().split(/\n+/).filter(Boolean);
+      const commits = execFileSync('git', ['-C', f.repo, 'rev-list', 'refs/overcenter/state'], {
+        encoding: 'utf8',
+      })
+        .trim()
+        .split(/\n+/)
+        .filter(Boolean);
 
       for (const commit of commits) {
-        assert.throws(
-          () => execFileSync(
-            'git',
-            ['-C', f.repo, 'cat-file', '-e', `${commit}:state.json`],
-            { stdio: 'ignore' },
-          ),
+        assert.throws(() =>
+          execFileSync('git', ['-C', f.repo, 'cat-file', '-e', `${commit}:state.json`], {
+            stdio: 'ignore',
+          }),
         );
       }
     };
@@ -426,11 +467,9 @@ test('authority history contains no state snapshot and receipts remain factual',
     assertNoStateSnapshot();
 
     const persistedRecovery = JSON.parse(
-      execFileSync(
-        'git',
-        ['-C', f.repo, 'show', `${recovery.settlement_commit}:receipt.json`],
-        { encoding: 'utf8' },
-      ),
+      execFileSync('git', ['-C', f.repo, 'show', `${recovery.settlement_commit}:receipt.json`], {
+        encoding: 'utf8',
+      }),
     ) as Record<string, unknown>;
     assert.equal(persistedRecovery.kind, 'execution-terminated');
     assert.equal('disposition' in persistedRecovery, false);
@@ -445,11 +484,9 @@ test('authority history contains no state snapshot and receipts remain factual',
     assertNoStateSnapshot();
 
     const persistedSettlement = JSON.parse(
-      execFileSync(
-        'git',
-        ['-C', f.repo, 'show', `${settled.settlement_commit}:receipt.json`],
-        { encoding: 'utf8' },
-      ),
+      execFileSync('git', ['-C', f.repo, 'show', `${settled.settlement_commit}:receipt.json`], {
+        encoding: 'utf8',
+      }),
     ) as {
       kind?: string;
       observed?: Record<string, unknown> | null;
@@ -460,7 +497,9 @@ test('authority history contains no state snapshot and receipts remain factual',
     assert.equal('verified' in persistedSettlement, false);
     assert.ok(persistedSettlement.observed);
     assert.equal('verified' in persistedSettlement.observed!, false);
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('historical receipt stays bound to the immutable definition claimed by its run', () => {
@@ -480,13 +519,18 @@ test('historical receipt stays bound to the immutable definition claimed by its 
     assert.equal(firstDone.verified, true);
 
     const beforeRebind = f.kernel.head()!;
-    f.kernel.applyGraphPatch({
-      upsert:[{
-        id: 'x',
-        packet: { generation: 2 },
-        postcondition: pc(path, 'two'),
-      }],
-    }, beforeRebind);
+    f.kernel.applyGraphPatch(
+      {
+        upsert: [
+          {
+            id: 'x',
+            packet: { generation: 2 },
+            postcondition: pc(path, 'two'),
+          },
+        ],
+      },
+      beforeRebind,
+    );
 
     const rebound = f.kernel.inspect()[0];
     assert.equal(rebound.status, 'READY');
@@ -511,36 +555,41 @@ test('historical receipt stays bound to the immutable definition claimed by its 
       'git',
       ['-C', f.repo, 'rev-list', '--reverse', 'refs/overcenter/state'],
       { encoding: 'utf8' },
-    ).trim().split(/\n+/).filter(Boolean).filter(commit => {
-      try {
-        execFileSync(
-          'git',
-          ['-C', f.repo, 'cat-file', '-e', `${commit}:graph-patch.json`],
-          { stdio: 'ignore' },
-        );
-        return true;
-      } catch {
-        return false;
-      }
-    });
+    )
+      .trim()
+      .split(/\n+/)
+      .filter(Boolean)
+      .filter((commit) => {
+        try {
+          execFileSync('git', ['-C', f.repo, 'cat-file', '-e', `${commit}:graph-patch.json`], {
+            stdio: 'ignore',
+          });
+          return true;
+        } catch {
+          return false;
+        }
+      });
     assert.equal(graphPatchCommits.length, 2);
 
-    const patches = graphPatchCommits.map(commit=>JSON.parse(
-      execFileSync(
-        'git',
-        ['-C', f.repo, 'show', `${commit}:graph-patch.json`],
-        { encoding: 'utf8' },
-      ),
-    ) as {
-      definitions:Array<{id:string;definition:{packet:unknown}}>;
-      bindings:Array<{node_id:string;definition_id:string}>;
-    });
-    assert.deepEqual(patches[0].definitions[0].definition.packet,{generation:1});
-    assert.deepEqual(patches[1].definitions[0].definition.packet,{generation:2});
-    assert.notEqual(patches[0].definitions[0].id,patches[1].definitions[0].id);
-    assert.equal(patches[0].bindings[0].definition_id,patches[0].definitions[0].id);
-    assert.equal(patches[1].bindings[0].definition_id,patches[1].definitions[0].id);
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+    const patches = graphPatchCommits.map(
+      (commit) =>
+        JSON.parse(
+          execFileSync('git', ['-C', f.repo, 'show', `${commit}:graph-patch.json`], {
+            encoding: 'utf8',
+          }),
+        ) as {
+          definitions: Array<{ id: string; definition: { packet: unknown } }>;
+          bindings: Array<{ node_id: string; definition_id: string }>;
+        },
+    );
+    assert.deepEqual(patches[0].definitions[0].definition.packet, { generation: 1 });
+    assert.deepEqual(patches[1].definitions[0].definition.packet, { generation: 2 });
+    assert.notEqual(patches[0].definitions[0].id, patches[1].definitions[0].id);
+    assert.equal(patches[0].bindings[0].definition_id, patches[0].definitions[0].id);
+    assert.equal(patches[1].bindings[0].definition_id, patches[1].definitions[0].id);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('projected terminal receipt remains idempotent after a retry is claimed', () => {
@@ -560,7 +609,9 @@ test('projected terminal receipt remains idempotent after a retry is claimed', (
     assert.equal(repeated.settlement_commit, replayable.settlement_commit);
     assert.equal(f.kernel.inspect()[0].run_id, secondRun.id);
     assert.equal(f.kernel.inspect()[0].status, 'EXECUTING');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
 
 test('judgment-required fact projects WAITING without persisting WAITING', () => {
@@ -580,11 +631,9 @@ test('judgment-required fact projects WAITING without persisting WAITING', () =>
     assert.equal(f.kernel.inspect()[0].status, 'WAITING');
 
     const persisted = JSON.parse(
-      execFileSync(
-        'git',
-        ['-C', f.repo, 'show', `${waiting.settlement_commit}:receipt.json`],
-        { encoding: 'utf8' },
-      ),
+      execFileSync('git', ['-C', f.repo, 'show', `${waiting.settlement_commit}:receipt.json`], {
+        encoding: 'utf8',
+      }),
     ) as Record<string, unknown>;
 
     assert.equal(persisted.kind, 'judgment-required');
@@ -596,9 +645,10 @@ test('judgment-required fact projects WAITING without persisting WAITING', () =>
     const settled = f.kernel.reconcile(run);
     assert.equal(settled.disposition, 'DONE');
     assert.equal(f.kernel.inspect()[0].status, 'DONE');
-  } finally { rmSync(f.root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
 });
-
 
 test('kernel explanation surface follows the authoritative projection', () => {
   const f = fixture();

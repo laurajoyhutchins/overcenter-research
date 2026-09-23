@@ -167,7 +167,11 @@ unsafe extern "C" {
 }
 
 fn cvt(rc: c_long) -> io::Result<c_long> {
-    if rc < 0 { Err(io::Error::last_os_error()) } else { Ok(rc) }
+    if rc < 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(rc)
+    }
 }
 
 fn ensure_unprivileged_caller() -> io::Result<()> {
@@ -222,7 +226,10 @@ fn ensure_unprivileged_caller() -> io::Result<()> {
         )
     })?;
 
-    if data.iter().any(|set| set.effective != 0 || set.permitted != 0 || set.inheritable != 0) {
+    if data
+        .iter()
+        .any(|set| set.effective != 0 || set.permitted != 0 || set.inheritable != 0)
+    {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             "refusing to launch an untrusted worker with process capabilities",
@@ -248,10 +255,16 @@ fn open_path(path: &Path, directory: bool, nofollow: bool) -> io::Result<File> {
     let raw = CString::new(path.as_os_str().as_bytes())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path contains NUL"))?;
     let mut flags = O_PATH | O_CLOEXEC;
-    if directory { flags |= O_DIRECTORY; }
-    if nofollow { flags |= O_NOFOLLOW; }
+    if directory {
+        flags |= O_DIRECTORY;
+    }
+    if nofollow {
+        flags |= O_NOFOLLOW;
+    }
     let fd = unsafe { open(raw.as_ptr(), flags) };
-    if fd < 0 { return Err(io::Error::last_os_error()); }
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
     Ok(unsafe { File::from_raw_fd(fd) })
 }
 
@@ -261,7 +274,10 @@ fn pin_workspace(manifest: &Manifest) -> io::Result<File> {
     if fd < 0 {
         return Err(io::Error::new(
             io::Error::last_os_error().kind(),
-            format!("missing exact workspace file descriptor on fd 3 for {}", manifest.workspace.display()),
+            format!(
+                "missing exact workspace file descriptor on fd 3 for {}",
+                manifest.workspace.display()
+            ),
         ));
     }
     let workspace = unsafe { File::from_raw_fd(fd) };
@@ -269,7 +285,10 @@ fn pin_workspace(manifest: &Manifest) -> io::Result<File> {
     if !metadata.is_dir() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("workspace fd 3 for {} must name a directory", manifest.workspace.display()),
+            format!(
+                "workspace fd 3 for {} must name a directory",
+                manifest.workspace.display()
+            ),
         ));
     }
     if metadata.dev() != manifest.workspace_dev || metadata.ino() != manifest.workspace_ino {
@@ -278,7 +297,10 @@ fn pin_workspace(manifest: &Manifest) -> io::Result<File> {
             format!(
                 "workspace identity changed for {}: expected ({},{}), observed ({},{})",
                 manifest.workspace.display(),
-                manifest.workspace_dev, manifest.workspace_ino, metadata.dev(), metadata.ino(),
+                manifest.workspace_dev,
+                manifest.workspace_ino,
+                metadata.dev(),
+                metadata.ino(),
             ),
         ));
     }
@@ -301,16 +323,32 @@ fn handled_fs_rights(abi: i32) -> io::Result<u64> {
     if abi < 6 {
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
-            format!("Landlock ABI {abi} is too old; ABI >= 6 is required for process-scope isolation"),
+            format!(
+                "Landlock ABI {abi} is too old; ABI >= 6 is required for process-scope isolation"
+            ),
         ));
     }
-    let mut rights = ACCESS_FS_EXECUTE | ACCESS_FS_WRITE_FILE | ACCESS_FS_READ_FILE
-        | ACCESS_FS_READ_DIR | ACCESS_FS_REMOVE_DIR | ACCESS_FS_REMOVE_FILE
-        | ACCESS_FS_MAKE_CHAR | ACCESS_FS_MAKE_DIR | ACCESS_FS_MAKE_REG
-        | ACCESS_FS_MAKE_SOCK | ACCESS_FS_MAKE_FIFO | ACCESS_FS_MAKE_BLOCK
-        | ACCESS_FS_MAKE_SYM | ACCESS_FS_REFER | ACCESS_FS_TRUNCATE;
-    if abi >= 5 { rights |= ACCESS_FS_IOCTL_DEV; }
-    if abi >= 9 { rights |= ACCESS_FS_RESOLVE_UNIX; }
+    let mut rights = ACCESS_FS_EXECUTE
+        | ACCESS_FS_WRITE_FILE
+        | ACCESS_FS_READ_FILE
+        | ACCESS_FS_READ_DIR
+        | ACCESS_FS_REMOVE_DIR
+        | ACCESS_FS_REMOVE_FILE
+        | ACCESS_FS_MAKE_CHAR
+        | ACCESS_FS_MAKE_DIR
+        | ACCESS_FS_MAKE_REG
+        | ACCESS_FS_MAKE_SOCK
+        | ACCESS_FS_MAKE_FIFO
+        | ACCESS_FS_MAKE_BLOCK
+        | ACCESS_FS_MAKE_SYM
+        | ACCESS_FS_REFER
+        | ACCESS_FS_TRUNCATE;
+    if abi >= 5 {
+        rights |= ACCESS_FS_IOCTL_DEV;
+    }
+    if abi >= 9 {
+        rights |= ACCESS_FS_RESOLVE_UNIX;
+    }
     Ok(rights)
 }
 
@@ -327,8 +365,16 @@ fn workspace_access_rights(handled_fs: u64) -> u64 {
 fn create_ruleset(abi: i32, handled_fs: u64) -> io::Result<File> {
     let attr = RulesetAttr {
         handled_access_fs: handled_fs,
-        handled_access_net: if abi >= 4 { ACCESS_NET_BIND_TCP | ACCESS_NET_CONNECT_TCP } else { 0 },
-        scoped: if abi >= 6 { SCOPE_ABSTRACT_UNIX_SOCKET | SCOPE_SIGNAL } else { 0 },
+        handled_access_net: if abi >= 4 {
+            ACCESS_NET_BIND_TCP | ACCESS_NET_CONNECT_TCP
+        } else {
+            0
+        },
+        scoped: if abi >= 6 {
+            SCOPE_ABSTRACT_UNIX_SOCKET | SCOPE_SIGNAL
+        } else {
+            0
+        },
     };
     let attr_size = if abi >= 6 {
         std::mem::size_of::<RulesetAttr>()
@@ -355,7 +401,10 @@ fn add_fd_rule(ruleset: &File, object: &File, allowed_access: u64) -> io::Result
     } else {
         allowed_access & !ACCESS_FS_READ_DIR
     };
-    let attr = PathBeneathAttr { allowed_access, parent_fd: object.as_raw_fd() };
+    let attr = PathBeneathAttr {
+        allowed_access,
+        parent_fd: object.as_raw_fd(),
+    };
     let rc = unsafe {
         syscall(
             SYS_LANDLOCK_ADD_RULE,
@@ -374,7 +423,10 @@ fn open_regular(path: &Path) -> io::Result<File> {
     if !object.metadata()?.is_file() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("execution closure path must name a regular file: {}", path.display()),
+            format!(
+                "execution closure path must name a regular file: {}",
+                path.display()
+            ),
         ));
     }
     Ok(object)
@@ -386,7 +438,10 @@ fn require_worker_immutable(object: &File, path: &Path) -> io::Result<()> {
     if metadata.uid() == euid {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            format!("execution closure object is owned by worker uid {euid}: {}", path.display()),
+            format!(
+                "execution closure object is owned by worker uid {euid}: {}",
+                path.display()
+            ),
         ));
     }
 
@@ -402,14 +457,20 @@ fn require_worker_immutable(object: &File, path: &Path) -> io::Result<()> {
     if writable == 0 {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            format!("execution closure object is writable by worker credentials: {}", path.display()),
+            format!(
+                "execution closure object is writable by worker credentials: {}",
+                path.display()
+            ),
         ));
     }
     let error = io::Error::last_os_error();
     if !matches!(error.raw_os_error(), Some(EACCES) | Some(EROFS)) {
         return Err(io::Error::new(
             error.kind(),
-            format!("cannot prove execution closure object is immutable to worker: {}: {error}", path.display()),
+            format!(
+                "cannot prove execution closure object is immutable to worker: {}: {error}",
+                path.display()
+            ),
         ));
     }
     Ok(())
@@ -442,13 +503,24 @@ fn add_runtime_rule(
 
 fn restrict_self(ruleset: &File) -> io::Result<()> {
     let rc = unsafe { prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) };
-    if rc != 0 { return Err(io::Error::last_os_error()); }
+    if rc != 0 {
+        return Err(io::Error::last_os_error());
+    }
     cvt(unsafe { syscall(SYS_LANDLOCK_RESTRICT_SELF, ruleset.as_raw_fd(), 0u32) })?;
     Ok(())
 }
 
-const fn stmt(code: u16, k: u32) -> SockFilter { SockFilter { code, jt: 0, jf: 0, k } }
-const fn jump(code: u16, k: u32, jt: u8, jf: u8) -> SockFilter { SockFilter { code, jt, jf, k } }
+const fn stmt(code: u16, k: u32) -> SockFilter {
+    SockFilter {
+        code,
+        jt: 0,
+        jf: 0,
+        k,
+    }
+}
+const fn jump(code: u16, k: u32, jt: u8, jf: u8) -> SockFilter {
+    SockFilter { code, jt, jf, k }
+}
 
 fn deny_flagged_syscall(
     filters: &mut Vec<SockFilter>,
@@ -477,13 +549,7 @@ fn install_seccomp_policy() -> io::Result<()> {
         jump(BPF_JMP_JGE_K, X32_SYSCALL_BIT, 0, 1),
         stmt(BPF_RET_K, SECCOMP_RET_KILL_PROCESS),
     ];
-    deny_flagged_syscall(
-        &mut filters,
-        SYS_MMAP,
-        SECCOMP_ARG3_LOW,
-        MAP_HUGETLB,
-        errno,
-    );
+    deny_flagged_syscall(&mut filters, SYS_MMAP, SECCOMP_ARG3_LOW, MAP_HUGETLB, errno);
     deny_flagged_syscall(
         &mut filters,
         SYS_MEMFD_CREATE,
@@ -499,9 +565,20 @@ fn install_seccomp_policy() -> io::Result<()> {
 
     let len = u16::try_from(filters.len())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "seccomp program is too large"))?;
-    let program = SockFprog { len, filter: filters.as_ptr() };
-    let rc = unsafe { prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program as *const SockFprog) };
-    if rc != 0 { return Err(io::Error::last_os_error()); }
+    let program = SockFprog {
+        len,
+        filter: filters.as_ptr(),
+    };
+    let rc = unsafe {
+        prctl(
+            PR_SET_SECCOMP,
+            SECCOMP_MODE_FILTER,
+            &program as *const SockFprog,
+        )
+    };
+    if rc != 0 {
+        return Err(io::Error::last_os_error());
+    }
     Ok(())
 }
 
@@ -519,7 +596,11 @@ pub fn execute(manifest: Manifest) -> io::Result<()> {
     let ruleset = create_ruleset(abi, handled_fs)?;
 
     add_fd_rule(&ruleset, &workspace, workspace_access_rights(handled_fs))?;
-    add_program_rule(&ruleset, &manifest.program, ACCESS_FS_READ_FILE | ACCESS_FS_EXECUTE)?;
+    add_program_rule(
+        &ruleset,
+        &manifest.program,
+        ACCESS_FS_READ_FILE | ACCESS_FS_EXECUTE,
+    )?;
     let mut runtime_seen = HashSet::new();
     for path in &manifest.runtime_read_only {
         add_runtime_rule(&ruleset, path, ACCESS_FS_READ_FILE, &mut runtime_seen)?;
@@ -554,6 +635,8 @@ pub fn execute(manifest: Manifest) -> io::Result<()> {
     );
     let mut command = Command::new(&manifest.program);
     command.args(&manifest.args).env_clear();
-    for (name, value) in &manifest.environment { command.env(name, value); }
+    for (name, value) in &manifest.environment {
+        command.env(name, value);
+    }
     Err(command.exec())
 }
