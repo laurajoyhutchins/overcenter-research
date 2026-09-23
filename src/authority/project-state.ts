@@ -365,32 +365,10 @@ export function explainProjectWork(
   }
 
   if (!semanticKey) throw new Error(`EXPLANATION_READY_WITHOUT_SEMANTIC_KEY:${obligationId}`);
-  const matching=[...runs.values()].filter(
-    run=>run.obligation_id===obligationId && run.obligation_key===semanticKey,
-  );
-  const latest=matching.at(-1);
-  const latestReceipt=latest?receiptsByRun.get(latest.id):undefined;
-  const rejected=[...matching].reverse().find(
-    run=>receiptsByRun.get(run.id)?.disposition==='DONE'
-      && currentRealizationJudgments?.get(run.id)?.state==='rejected',
-  );
   return {...base,reason:{
     kind:'claimable',
     semantic_key:semanticKey,
     dependencies:dependencyUpstreams(work).map(id=>({obligation_id:id,status:'DONE'})),
-    ...(latest && latestReceipt?.disposition==='READY'?{released_by:{
-      run_id:latest.id,
-      disposition:'READY',
-      ...(latestReceipt.settlement_commit?{settlement_commit:latestReceipt.settlement_commit}:{}),
-    }}:{}),
-    ...(rejected?{rejected_realization:{
-      run_id:rejected.id,
-      disposition:'DONE',
-      reason:'not-currently-admissible',
-      ...(receiptsByRun.get(rejected.id)?.settlement_commit
-        ? {settlement_commit:receiptsByRun.get(rejected.id)!.settlement_commit}
-        : {}),
-    }}:{}),
   }};
 }
 
