@@ -42,6 +42,9 @@ export interface HistoryProjection {
   receiptsByRun: Map<string, Receipt>;
   unresolvedReservationsByRun: Map<string, EffectReservation>;
   receipts: Receipt[];
+  currentBindingOrdinals: Map<string, number>;
+  claimOrdinalsByRun: Map<string, number>;
+  authorityOrdinal: number;
 }
 
 export interface Projection {
@@ -107,6 +110,13 @@ export function replayProjection(
     ? new Map(base.history.unresolvedReservationsByRun)
     : new Map<string, EffectReservation>();
   const receipts = base ? [...base.history.receipts] : [];
+  const currentBindingOrdinals = base
+    ? new Map(base.history.currentBindingOrdinals)
+    : new Map<string, number>();
+  const claimOrdinalsByRun = base
+    ? new Map(base.history.claimOrdinalsByRun)
+    : new Map<string, number>();
+  let authorityOrdinal = base?.history.authorityOrdinal ?? 0;
   let project =
     base?.project ??
     deriveProjectProjection({
@@ -114,6 +124,8 @@ export function replayProjection(
       runs,
       receiptsByRun,
       revision: '',
+      currentBindingOrdinals,
+      claimOrdinalsByRun,
     });
 
   const refresh = (revision: string): void => {
@@ -122,10 +134,13 @@ export function replayProjection(
       runs,
       receiptsByRun,
       revision,
+      currentBindingOrdinals,
+      claimOrdinalsByRun,
     });
   };
 
   for (const record of commits) {
+    authorityOrdinal += 1;
     let notDispatchedRelease = false;
     if (record.graph_patch != null) {
       refresh(record.parent ?? '');
@@ -145,6 +160,7 @@ export function replayProjection(
         }
         delete state.obligations[id];
         delete state.definition_ids[id];
+        currentBindingOrdinals.delete(id);
       }
 
       for (const binding of patch.bindings) {
@@ -154,6 +170,7 @@ export function replayProjection(
         }
         state.obligations[binding.node_id] = materializeObligation(binding.node_id, definition);
         state.definition_ids[binding.node_id] = binding.definition_id;
+        currentBindingOrdinals.set(binding.node_id, authorityOrdinal);
       }
 
       validateGraph(state);
@@ -191,6 +208,7 @@ export function replayProjection(
         definition_id: state.definition_ids[claim.obligation_id],
       };
       runs.set(run.id, run);
+      claimOrdinalsByRun.set(run.id, authorityOrdinal);
     }
 
     if (record.execution_authority != null) {
@@ -325,6 +343,9 @@ export function replayProjection(
       receiptsByRun,
       unresolvedReservationsByRun,
       receipts,
+      currentBindingOrdinals,
+      claimOrdinalsByRun,
+      authorityOrdinal,
     },
   };
 }
