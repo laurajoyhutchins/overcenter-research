@@ -2660,6 +2660,64 @@
         "state": "supported",
         "summary": "At exact revision eea803191db2eeec4a93807ab810c8d8a1ba88b6, hosted SIGKILL crash windows, same-head concurrent writers, authority-derived orphan collection, referenced-evidence deletion, repository typecheck, and deterministic regression all passed. The bounded evidence-first ordering claim is supported without introducing a cross-store transaction."
       }
+    },
+    {
+      "id": "github-status-not-dispatched-release",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/github-status-not-dispatched-release",
+      "readme": "experiments/github-status-not-dispatched-release/README.md",
+      "question": "Can trusted fresh-socket NOT_DISPATCHED evidence release exactly one GitHub commit-status reservation without weakening no-blind-replay?",
+      "claim": "An exact-run reservation can terminate READY only when current execution authority presents an adapter-admitted NOT_DISPATCHED evidence kind bound to that reservation.",
+      "contrast": "Leave every reserved transport failure in RECOVERY_REQUIRED, or infer replay safety from coarse transport/HTTP errors.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:github-status-not-dispatched-release"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production GitHub commit-status effect, authority kernel, durable SQLite fact store, and fresh-socket Node HTTPS transport.",
+        "Loopback TCP/TLS peers; no external GitHub mutation is required."
+      ],
+      "success_criteria": [
+        "Pre-secureConnect TLS failure atomically clears the reservation and terminates the old run READY.",
+        "Retry after a trusted release requires a new run and creates a new unresolved reservation until provider readback.",
+        "Post-secureConnect failure with peer-observed HTTP bytes retains the reservation and reaches RECOVERY_REQUIRED after interruption.",
+        "HTTP 502 retains the reservation.",
+        "Forged evidence kind cannot release a reservation.",
+        "Stale execution authority cannot release a reservation.",
+        "GitHub commit-status provider replay capability remains forbidden."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "6b238e23491792dc7a8734038b82f4741a4eae8e",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35883788255, rerun attempt 2, candidate-evidence job 107259296679: exact-head experiment, TLA+, production computation boundary, and self-application PASS.",
+          "Pre-secureConnect failure: peer_tls_bytes=349; old run READY; reservation released; retry used a distinct new run.",
+          "Successful retry HTTP 201 left the new run reservation unresolved pending authoritative readback.",
+          "Post-secureConnect reset: peer_application_bytes=377; final status RECOVERY_REQUIRED; mutation_replay_posts=0; unresolved effect retained.",
+          "HTTP 502: peer_application_bytes=97; unresolved effect retained.",
+          "Forged evidence and stale authority were both blocked with the reservation retained.",
+          "GitHub commit-status provider replay remained forbidden while reservation release was limited to the admitted trusted-not-dispatched evidence kind.",
+          "Standing effect-authority-decay workflow passed runtime authority controls, provider regressions, and same-runner latency after its historical SLOC metric was correctly scoped to its evaluated revision."
+        ]
+      },
+      "interpretation": "Support would justify a narrow production liveness improvement: terminate a single attempt READY from trusted pre-dispatch evidence while retaining provider replay as forbidden and keeping unknown outcomes recovery-required.",
+      "non_claims": [
+        "Generic provider replay safety is established.",
+        "Reused sockets, proxies, HTTP/2, or QUIC satisfy the same evidence rule.",
+        "secureConnect proves provider mutation.",
+        "Transport evidence can settle DONE.",
+        "Adapters without an explicit reservation-release capability may use this path."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The atomic release+READY design, four cases, capability separation, and falsification criteria were committed before first execution. The first treatment head was stopped by typechecking because an existing capability test fixture lacked the newly required reservation_release field; that fixture-only repair did not change the preregistered cases. An unrelated historical SLOC ceiling in the standing authority-decay regression was also corrected without changing this treatment."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 6b238e23491792dc7a8734038b82f4741a4eae8e, trusted pre-secureConnect evidence atomically released exactly one status-effect reservation and terminated the old attempt READY; retry required a new run. Post-secureConnect failure with 377 peer-observed HTTP bytes, HTTP 502, forged evidence, and stale authority all retained or protected the reservation, while provider replay remained forbidden."
+      }
     }
   ]
 }

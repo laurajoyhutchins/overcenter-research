@@ -16,6 +16,8 @@ import {
 } from '../observation/observe.ts';
 import {
   CLAIM_SCHEMA,
+  EFFECT_RELEASE_SCHEMA,
+  EFFECT_RELEASE_SCHEMA_VERSION,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
   GRAPH_PATCH_SCHEMA,
@@ -27,6 +29,7 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
+  EffectReleaseFact,
   EffectReservationFact,
   ExecutionAuthorityFact,
   GraphPatchFact,
@@ -49,6 +52,7 @@ import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
 import {
   effectAdapterCapabilities,
+  reservedEffectReleaseSafe,
   type EffectVerifier,
   type RegisteredEffectContract,
 } from '../effect-adapter.ts';
@@ -353,6 +357,71 @@ export class KernelCore {
     return await effect();
   }
 
+  releaseEffectReservation<E extends string, V extends Postcondition['verifier']>(
+    authority: EffectAuthority<E, V>,
+    evidenceKind: string,
+    diagnostic: Data = {},
+  ): Receipt {
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const head = this.#requireHead();
+      const { history, project } = this.#historicalProjection(head);
+      const run = history.runs.get(authority.permit.id);
+      if (!run) throw new Error('UNKNOWN_RUN');
+      const projectedAuthority = projectExecutionAuthority(
+        run,
+        authority.permit,
+        this.#capabilityDigest(authority.permit.execution_capability),
+      );
+      if (!projectedAuthority.current_authority || !projectedAuthority.exact_revision) {
+        throw new Error('STALE_EXECUTION_GENERATION');
+      }
+      const lifecycle = project.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id !== run.id || lifecycle.status !== 'EXECUTING') {
+        throw new Error('RUN_NOT_EXECUTING');
+      }
+      const reservation = history.unresolvedReservationsByRun.get(run.id);
+      if (!reservation) throw new Error('NO_UNRESOLVED_EFFECT');
+      const effectContract = authority[effectAuthorityBrand];
+      if (!reservedEffectReleaseSafe(run.obligation, effectContract, evidenceKind)) {
+        throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
+      }
+
+      const release: EffectReleaseFact = {
+        schema: EFFECT_RELEASE_SCHEMA,
+        schema_version: EFFECT_RELEASE_SCHEMA_VERSION,
+        run_id: run.id,
+        obligation_id: run.obligation_id,
+        execution_generation: run.execution_generation,
+        execution_authority_commit: run.execution_authority_commit,
+        reservation_commit: reservation.reservation_commit,
+        effect_contract: effectContract,
+        evidence_kind: evidenceKind,
+      };
+      const receiptFact = this.#receiptFact(
+        run,
+        run.obligation_id,
+        'effect-not-dispatched',
+        null,
+        diagnostic,
+      );
+      const commit = this.#store.append(
+        head,
+        `overcenter: release undispatched effect ${run.obligation_id} ${run.id}`,
+        {
+          'effect-release.json': release,
+          'receipt.json': receiptFact,
+        },
+      );
+      if (!commit) continue;
+      const receipt = this.#historicalProjection(commit).history.receiptsByRun.get(run.id);
+      if (!receipt || receipt.disposition !== 'READY') {
+        throw new Error('EFFECT_RELEASE_PROJECTION_FAILED');
+      }
+      return receipt;
+    }
+    throw new Error('EFFECT_RELEASE_CONTENTION_EXHAUSTED');
+  }
+
   resolve(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const candidate = this.#resolutionCandidate(permit);
@@ -454,7 +523,7 @@ export class KernelCore {
 
   receipts(runId: string | null = null): Receipt[] {
     const head = this.#requireHead();
-    const { history, project } = this.#historicalProjection(head);
+    const { history } = this.#historicalProjection(head);
     return runId
       ? history.receipts.filter((receipt) => receipt.run_id === runId)
       : history.receipts;
