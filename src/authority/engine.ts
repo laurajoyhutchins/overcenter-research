@@ -227,7 +227,7 @@ export class KernelCore {
   acquireExecution(runId: string): ExecutionPermit {
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const head = this.#requireHead();
-      const { history, project } = this.#historicalProjection(head);
+      const { history } = this.#historicalProjection(head);
       const run = history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       const prior = history.receiptsByRun.get(runId);
