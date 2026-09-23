@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer as createTcpServer, type Server } from 'node:net';
 import test from 'node:test';
 
 import { OvercenterKernel } from '../src/authority/kernel.ts';
 import {
+  createGithubStatusPost,
   GITHUB_COMMIT_STATUS_EFFECT,
   performGithubCommitStatusEffect,
   type GithubStatusPost,
@@ -13,6 +15,24 @@ import {
 import type { GithubJsonGet } from '../src/providers/github/rest.ts';
 
 const COMMIT = 'a'.repeat(40);
+
+async function listen(server: Server): Promise<number> {
+  return await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('INVALID_LISTEN_ADDRESS');
+      resolve(address.port);
+    });
+  });
+}
+
+async function closeServer(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
 
 function repository(id = 42) {
   return {
@@ -226,4 +246,93 @@ test('lost broker acknowledgement survives SQLite reopen and settles from author
     } catch {}
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('fresh HTTPS failure before secureConnect releases only the exact reservation and requires a new run', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'github-status-not-dispatched-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+  let peerTlsBytes = 0;
+  const reset = createTcpServer((socket) => {
+    socket.once('data', (chunk) => {
+      peerTlsBytes += chunk.length;
+      socket.destroy();
+    });
+  });
+  const port = await listen(reset);
+
+  try {
+    const first = define(kernel);
+    await assert.rejects(
+      performGithubCommitStatusEffect(kernel, first, {
+        token: 'token',
+        get: () => repository(),
+        post: createGithubStatusPost({
+          baseUrl: `https://127.0.0.1:${port}`,
+          rejectUnauthorized: false,
+        }),
+      }),
+      /GITHUB_STATUS_MUTATION_NOT_DISPATCHED/,
+    );
+
+    assert.ok(peerTlsBytes > 0);
+    assert.equal(kernel.hasUnresolvedEffect(first.id), false);
+    assert.equal(kernel.inspect()[0]?.status, 'READY');
+
+    const receipts = kernel.receipts(first.id);
+    assert.equal(receipts.length, 1);
+    assert.equal(receipts[0]?.kind, 'effect-not-dispatched');
+    assert.equal(receipts[0]?.disposition, 'READY');
+
+    const retryWork = kernel.deriveReadyWork();
+    assert.ok(retryWork);
+    const second = kernel.claim(retryWork.id, retryWork.revision);
+    assert.notEqual(second.id, first.id);
+    assert.equal(second.execution_generation, 1);
+  } finally {
+    await closeServer(reset);
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+async function assertReservationRemainsUnresolved(
+  post: GithubStatusPost,
+  expectedError: RegExp,
+): Promise<void> {
+  const root = mkdtempSync(join(tmpdir(), 'github-status-uncertain-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+
+  try {
+    const run = define(kernel);
+    await assert.rejects(
+      performGithubCommitStatusEffect(kernel, run, {
+        token: 'token',
+        get: () => repository(),
+        post,
+      }),
+      expectedError,
+    );
+
+    assert.equal(kernel.hasUnresolvedEffect(run.id), true);
+    const interrupted = kernel.recoverInterrupted(run, { source: 'production-regression' });
+    assert.equal(interrupted.disposition, 'RECOVERY_REQUIRED');
+    assert.equal(kernel.inspect()[0]?.status, 'RECOVERY_REQUIRED');
+    assert.equal(kernel.deriveReadyWork(), null);
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('post-dispatch transport uncertainty keeps the GitHub status reservation unresolved', async () => {
+  await assertReservationRemainsUnresolved(async () => {
+    throw new Error('GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN:ECONNRESET');
+  }, /GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN/);
+});
+
+test('HTTP 502 keeps the GitHub status reservation unresolved', async () => {
+  await assertReservationRemainsUnresolved(
+    async () => ({ status: 502, body: 'bad gateway' }),
+    /GITHUB_STATUS_MUTATION_FAILED:502/,
+  );
 });
