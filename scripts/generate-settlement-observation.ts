@@ -4,7 +4,6 @@ import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
 const schemaPath='contracts/observation-evidence-v1/schema.json';
-const generatedPath='src/generated/settlement-observation-schema.ts';
 const defaultSource='contracts/observation-evidence-v1/settlement-observation.typebox.ts';
 
 let mode='--check';
@@ -54,7 +53,6 @@ assert.ok(document.$defs?.SettlementObservation,'production SettlementObservatio
 if (mode==='--check') {
   try {
     assert.deepEqual(document.$defs.SettlementObservation,projected);
-    assert.equal(readFileSync(generatedPath,'utf8'),generated);
   } catch {
     process.stderr.write(
       'SettlementObservation projections are stale for '+sourcePath+'\n'
@@ -68,5 +66,4 @@ if (mode==='--check') {
 
 document.$defs.SettlementObservation=projected;
 writeFileSync(schemaPath,JSON.stringify(document,null,2)+'\n');
-writeFileSync(generatedPath,generated);
 console.log('Updated SettlementObservation projections from '+sourcePath);
