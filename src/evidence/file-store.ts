@@ -15,8 +15,9 @@ import {
 import { dirname, join } from 'node:path';
 
 import { evidenceRef, validateEvidenceRef, type EvidenceRef } from './reference.ts';
+import type { EvidenceStore } from './store.ts';
 
-export class FileEvidenceStore {
+export class FileEvidenceStore implements EvidenceStore {
   readonly root:string;
 
   constructor(root:string) {
