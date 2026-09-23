@@ -45,6 +45,7 @@
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
     "proof:worker-client": "bash src/execution/worker-client/proof.sh",
     "test:typed-capability-authority": "bash experiments/typed-capability-authority/run.sh",
-    "test:merkle-execution-receipts": "node --experimental-strip-types --test experiments/merkle-execution-receipts/experiment.test.ts"
+    "test:merkle-execution-receipts": "node --experimental-strip-types --test experiments/merkle-execution-receipts/experiment.test.ts",
+    "test:merkle-receipt-v5-dedup": "node --experimental-strip-types --test experiments/merkle-receipt-v5-dedup/experiment.test.ts"
   }
 }

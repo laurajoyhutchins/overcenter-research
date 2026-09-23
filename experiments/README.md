@@ -34,6 +34,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
 - `typed-capability-authority/` - preregistered Rust differential for sealed affine effect authority, compile-fail invalid states, and sequential/concurrent admission cost.
 - `merkle-execution-receipts/` - preregistered content-addressed causal receipt sidecar with corruption, misbinding, rollback, reconstruction, ambiguity, and overhead controls.
+- `merkle-receipt-v5-dedup/` - production receipt-v5 round-trip and corpus deduplication experiment over the real GitHub status effect adapter.
 
 ## Experiment contract
 

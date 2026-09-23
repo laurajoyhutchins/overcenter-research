@@ -1,0 +1,46 @@
+name: Merkle receipt-v5 dedup
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/merkle-receipt-v5-dedup.yml
+      - experiments/merkle-receipt-v5-dedup/**
+      - experiments/registry.json
+      - experiments/README.md
+      - package.json
+      - src/authority/**
+      - src/observation/**
+      - src/providers/github/**
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  merkle-receipt-v5-dedup:
+    name: Production receipt-v5 Merkle dedup experiment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Node from repository
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Experiment contract
+        run: npm run test:experiment-contract
+
+      - name: Production receipt-v5 Merkle dedup experiment
+        run: npm run test:merkle-receipt-v5-dedup
