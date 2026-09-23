@@ -249,10 +249,13 @@ test('project.advance claims source-change work and injects source SHA only into
     assert.equal(Object.hasOwn(assignment.work.packet, 'source_sha'), false);
     assert.equal(existsSync(join(outputDir, 'overcenter')), false);
 
-    const current = new GitOvercenterKernel(f.work, {
+    const reconstructed = new GitOvercenterKernel(f.work, {
       remote: 'origin',
       ref: AUTHORITY_REF,
-    }).inspect();
+    });
+    assert.ok(receipt.run_id);
+    assert.equal(reconstructed.sourceChangeSource(receipt.run_id), sourceSha);
+    const current = reconstructed.inspect();
     assert.equal(current[0]?.status, 'EXECUTING');
   } finally {
     rmSync(f.root, { recursive: true, force: true });

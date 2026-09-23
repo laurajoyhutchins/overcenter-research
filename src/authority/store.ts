@@ -20,6 +20,9 @@ export function factCommitFromFiles(
     parent,
     graph_patch: files['graph-patch.json'] ?? null,
     claim: files['claim.json'] ?? null,
+    ...(files['source-binding.json'] === undefined
+      ? {}
+      : { source_binding: files['source-binding.json'] }),
     execution_authority: files['execution-authority.json'] ?? null,
     effect_reservation: files['effect-reservation.json'] ?? null,
     effect_release: files['effect-release.json'] ?? null,

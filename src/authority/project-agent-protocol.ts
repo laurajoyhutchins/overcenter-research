@@ -338,9 +338,17 @@ export function advanceProjectForAgent(
     }
 
     try {
-      const permit = kernel.claim(ready.id, ready.revision);
+      const permit =
+        prepared.kind === 'source-change'
+          ? kernel.claimSourceChange(ready.id, ready.revision, prepared.sourceSha)
+          : kernel.claim(ready.id, ready.revision);
       const claimed = kernel.claimedWork(permit.id);
-      const assignment = agentAssignment(claimed, prepared);
+      const assignment = agentAssignment(
+        claimed,
+        prepared.kind === 'source-change'
+          ? { ...prepared, sourceSha: kernel.sourceChangeSource(permit.id) }
+          : prepared,
+      );
       const authorityHead = kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
 

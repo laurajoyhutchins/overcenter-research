@@ -3,6 +3,7 @@ import { authoritativeAbsenceEvidence, observationVerified } from '../observatio
 import {
   emptyState,
   validateClaimFact,
+  validateSourceBindingFact,
   validateEffectReleaseFact,
   validateEffectReservationFact,
   materializeObligation,
@@ -166,6 +167,19 @@ export function replayProjection(
       if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
       if (record.parent !== claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
 
+      const sourceChange = obligation.packet.kind === 'source-change';
+      const sourceBinding =
+        record.source_binding == null ? null : validateSourceBindingFact(record.source_binding);
+      if (sourceChange && !sourceBinding) throw new Error('SOURCE_CHANGE_CLAIM_WITHOUT_BINDING');
+      if (!sourceChange && sourceBinding) throw new Error('SOURCE_BINDING_FOR_NON_SOURCE_CHANGE');
+      if (
+        sourceBinding &&
+        (sourceBinding.run_id !== claim.run_id ||
+          sourceBinding.obligation_id !== claim.obligation_id)
+      ) {
+        throw new Error('SOURCE_BINDING_CLAIM_MISMATCH');
+      }
+
       refresh(record.commit);
       const current = project.lifecycles.get(claim.obligation_id);
       if (current?.status !== 'UNREALIZED') throw new Error('CLAIM_WHILE_NOT_READY');
@@ -189,6 +203,7 @@ export function replayProjection(
         execution_capability_sha256: claim.execution_capability_sha256,
         obligation: structuredClone(obligation),
         definition_id: state.definition_ids[claim.obligation_id],
+        ...(sourceBinding ? { source_sha: sourceBinding.source_sha } : {}),
       };
       runs.set(run.id, run);
     }

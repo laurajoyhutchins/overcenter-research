@@ -17,6 +17,7 @@ import {
 
 export const GRAPH_PATCH_SCHEMA = 'overcenter-graph-patch-v1' as const;
 export const CLAIM_SCHEMA = 'overcenter-git-claim-v3' as const;
+export const SOURCE_BINDING_SCHEMA = 'overcenter-source-binding/v1' as const;
 export const EXECUTION_AUTHORITY_SCHEMA = 'overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA = 'overcenter-git-effect-reservation-v1' as const;
 export const EFFECT_RELEASE_SCHEMA = 'overcenter-effect-release' as const;
@@ -65,6 +66,13 @@ export interface ClaimFact {
   claimed_revision: string;
   obligation_key: string;
   execution_capability_sha256: string;
+}
+
+export interface SourceBindingFact {
+  schema: typeof SOURCE_BINDING_SCHEMA;
+  run_id: string;
+  obligation_id: string;
+  source_sha: string;
 }
 
 export interface ExecutionAuthorityFact {
@@ -129,6 +137,7 @@ export interface Receipt extends ReceiptFact {
 export interface HistoricalRun extends Run {
   obligation: Obligation;
   definition_id: string;
+  source_sha?: string;
 }
 
 export interface FactCommit {
@@ -136,6 +145,7 @@ export interface FactCommit {
   parent: string | null;
   graph_patch?: unknown | null;
   claim?: unknown | null;
+  source_binding?: unknown | null;
   execution_authority?: unknown | null;
   effect_reservation?: unknown | null;
   effect_release?: unknown | null;
@@ -322,6 +332,23 @@ export function validateClaimFact(value: unknown): ClaimFact {
   return structuredClone(value) as unknown as ClaimFact;
 }
 
+export function validateSourceBindingFact(value: unknown): SourceBindingFact {
+  if (!data(value)) throw new Error('INVALID_SOURCE_BINDING_FACT');
+  exactKeys(
+    value,
+    ['schema', 'run_id', 'obligation_id', 'source_sha'],
+    [],
+    'INVALID_SOURCE_BINDING_FACT',
+  );
+  if (value.schema !== SOURCE_BINDING_SCHEMA) throw new Error('INVALID_SOURCE_BINDING_SCHEMA');
+  nonEmptyString(value.run_id, 'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id, 'INVALID_OBLIGATION_ID');
+  if (typeof value.source_sha !== 'string' || !/^[0-9a-f]{40}$/.test(value.source_sha)) {
+    throw new Error('INVALID_SOURCE_BINDING_SHA');
+  }
+  return structuredClone(value) as unknown as SourceBindingFact;
+}
+
 export function validateExecutionAuthorityFact(value: unknown): ExecutionAuthorityFact {
   if (!data(value)) throw new Error('INVALID_EXECUTION_AUTHORITY_FACT');
   exactKeys(
@@ -449,6 +476,7 @@ export function validateReceiptFact(value: unknown): ReceiptFact {
 export type AuthorityFact =
   | GraphPatchFact
   | ClaimFact
+  | SourceBindingFact
   | ExecutionAuthorityFact
   | EffectReservationFact
   | EffectReleaseFact
@@ -461,6 +489,8 @@ export function validateAuthorityFact(value: unknown): AuthorityFact {
       return validateGraphPatchFact(value);
     case CLAIM_SCHEMA:
       return validateClaimFact(value);
+    case SOURCE_BINDING_SCHEMA:
+      return validateSourceBindingFact(value);
     case EXECUTION_AUTHORITY_SCHEMA:
       return validateExecutionAuthorityFact(value);
     case EFFECT_RESERVATION_SCHEMA:

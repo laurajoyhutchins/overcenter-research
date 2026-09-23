@@ -22,6 +22,7 @@ import {
   EXECUTION_AUTHORITY_SCHEMA,
   GRAPH_PATCH_SCHEMA,
   RECEIPT_SCHEMA,
+  SOURCE_BINDING_SCHEMA,
   materializeObligation,
   normalizeObligation,
   obligationDefinition,
@@ -38,6 +39,7 @@ import type {
   Receipt,
   ReceiptFact,
   ReceiptKind,
+  SourceBindingFact,
 } from './facts.ts';
 import { validateAdmission } from './admission.ts';
 import {
@@ -223,42 +225,22 @@ export class KernelCore {
   }
 
   claim(id: string, expectedRevision: string): ExecutionPermit {
-    const head = this.#requireHead();
-    if (head !== expectedRevision) throw new Error('STALE_REVISION');
-    const { state, project } = this.#currentProjection(head);
-    const work = state.obligations[id];
-    if (!work) throw new Error(`unknown obligation: ${id}`);
-    const claimError = project.claimabilityErrors.get(id);
-    if (claimError) throw new Error(claimError);
-    const key = project.semanticKeys.get(id);
-    if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
+    return this.#claim(id, expectedRevision, null);
+  }
 
-    const runId = randomUUID();
-    const executionCapability = randomUUID();
-    const executionCapabilitySha256 = this.#capabilityDigest(executionCapability);
-    const claim: ClaimFact = {
-      schema: CLAIM_SCHEMA,
-      run_id: runId,
-      obligation_id: id,
-      claimed_revision: head,
-      obligation_key: key,
-      execution_capability_sha256: executionCapabilitySha256,
-    };
-    const commit = this.#store.append(head, `overcenter: claim ${id} ${runId}`, {
-      'claim.json': claim,
-    });
-    if (!commit) throw new Error('CLAIM_LOST');
-    return {
-      id: runId,
-      obligation_id: id,
-      claimed_revision: head,
-      claim_commit: commit,
-      obligation_key: key,
-      execution_generation: 1,
-      execution_authority_commit: commit,
-      execution_capability_sha256: executionCapabilitySha256,
-      execution_capability: executionCapability,
-    };
+  claimSourceChange(id: string, expectedRevision: string, sourceSha: string): ExecutionPermit {
+    const source = sourceSha.toLowerCase();
+    if (!/^[0-9a-f]{40}$/.test(source)) throw new Error('SOURCE_CHANGE_SOURCE_SHA_INVALID');
+    return this.#claim(id, expectedRevision, source);
+  }
+
+  sourceChangeSource(runId: string): string {
+    const run = this.#historicalProjection(this.#requireHead()).history.runs.get(runId);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    if (run.obligation.packet.kind !== 'source-change' || !run.source_sha) {
+      throw new Error('SOURCE_CHANGE_BINDING_MISSING');
+    }
+    return run.source_sha;
   }
 
   acquireExecution(runId: string): ExecutionPermit {
@@ -670,6 +652,59 @@ export class KernelCore {
       'receipt.json': fact,
     });
     return commit ? { ...receipt, settlement_commit: commit } : null;
+  }
+
+  #claim(id: string, expectedRevision: string, sourceSha: string | null): ExecutionPermit {
+    const head = this.#requireHead();
+    if (head !== expectedRevision) throw new Error('STALE_REVISION');
+    const { state, project } = this.#currentProjection(head);
+    const work = state.obligations[id];
+    if (!work) throw new Error(`unknown obligation: ${id}`);
+    const sourceChange = work.packet.kind === 'source-change';
+    if (sourceChange !== (sourceSha !== null)) {
+      throw new Error(
+        sourceChange ? 'SOURCE_CHANGE_REQUIRES_SOURCE_BINDING' : 'SOURCE_BINDING_NOT_ALLOWED',
+      );
+    }
+    const claimError = project.claimabilityErrors.get(id);
+    if (claimError) throw new Error(claimError);
+    const key = project.semanticKeys.get(id);
+    if (!key) throw new Error('SEMANTIC_DEPENDENCY_UNRESOLVED');
+
+    const runId = randomUUID();
+    const executionCapability = randomUUID();
+    const executionCapabilitySha256 = this.#capabilityDigest(executionCapability);
+    const claim: ClaimFact = {
+      schema: CLAIM_SCHEMA,
+      run_id: runId,
+      obligation_id: id,
+      claimed_revision: head,
+      obligation_key: key,
+      execution_capability_sha256: executionCapabilitySha256,
+    };
+    const files: Record<string, unknown> = { 'claim.json': claim };
+    if (sourceSha) {
+      const binding: SourceBindingFact = {
+        schema: SOURCE_BINDING_SCHEMA,
+        run_id: runId,
+        obligation_id: id,
+        source_sha: sourceSha,
+      };
+      files['source-binding.json'] = binding;
+    }
+    const commit = this.#store.append(head, `overcenter: claim ${id} ${runId}`, files);
+    if (!commit) throw new Error('CLAIM_LOST');
+    return {
+      id: runId,
+      obligation_id: id,
+      claimed_revision: head,
+      claim_commit: commit,
+      obligation_key: key,
+      execution_generation: 1,
+      execution_authority_commit: commit,
+      execution_capability_sha256: executionCapabilitySha256,
+      execution_capability: executionCapability,
+    };
   }
 
   #requireHead(): string {
