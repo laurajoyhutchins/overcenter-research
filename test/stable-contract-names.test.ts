@@ -65,4 +65,23 @@ test('stable contract names do not encode schema versions',()=>{
     }
   }
   assert.deepEqual(exportedVersionedTypes,[]);
+
+  const stalePathReferences:string[]=[];
+  const scanRoots=['.github','src','scripts','test','examples','experiments','contracts'];
+  const scanFiles=scanRoots.flatMap(root=>filesUnder(root))
+    .filter(path=>path!=='test/stable-contract-names.test.ts')
+    .filter(path=>/\.(?:ts|tsx|js|json|md|ya?ml|sh|toml)$/.test(path));
+  for (const path of scanFiles) {
+    const text=readFileSync(path,'utf8');
+    for (const oldPath of OLD_CONTRACT_PATHS) {
+      if (text.includes(oldPath)) stalePathReferences.push(`${path}: ${oldPath}`);
+    }
+  }
+  for (const path of ['README.md','ARCHITECTURE.md','package.json','tsconfig.json']) {
+    const text=readFileSync(path,'utf8');
+    for (const oldPath of OLD_CONTRACT_PATHS) {
+      if (text.includes(oldPath)) stalePathReferences.push(`${path}: ${oldPath}`);
+    }
+  }
+  assert.deepEqual(stalePathReferences,[]);
 });
