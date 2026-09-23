@@ -2726,55 +2726,59 @@
       "directory": "experiments/adapter-diagnosability",
       "readme": "experiments/adapter-diagnosability/README.md",
       "question": "Can a finite-state DES-style checker determine whether mutation occurrence is eventually distinguishable from non-occurrence, and whether that distinction is available before authority reuse?",
-      "claim": "For the preregistered seven-protocol corpus, a synchronized two-world product will classify recoverable versus irreducible mutation ambiguity, separate eventual from safe diagnosability, emit concrete ambiguity witnesses, and agree with an independent bounded trace oracle.",
+      "claim": "The preregistered seven-protocol synthetic corpus must classify as specified, and after that exact-head result the unchanged checker must independently recover the already-established GitHub status boundary: trusted pre-secureConnect NOT_DISPATCHED is safe for reservation release, while post-secureConnect reset and HTTP 502 remain ambiguous.",
       "contrast": "Treat every ambiguous provider failure as a runtime-only recovery problem and discover missing observations only after an execution enters RECOVERY_REQUIRED.",
-      "interpretation": "If supported, diagnosability is useful as a static research lens for effect protocols: it can prove that some ambiguity is information-theoretically unresolved and can distinguish eventual recovery from recovery before authority reuse. Promotion requires a conservative abstraction of a real adapter without changing the checker.",
+      "interpretation": "Phase 1 supports diagnosability as a static research lens. Phase 2 is the real-adapter falsifier: if the unchanged checker reproduces the independently established GitHub status recovery boundary at an exact hosted revision, diagnosability becomes a serious candidate for adapter admission tooling, while remaining outside production authority and settlement.",
       "environment": [
         "Node.js with experimental TypeScript type stripping; no network, provider credential, database, or LLM is required.",
-        "Seven finite-state protocols encode hidden mutation reality, visible observations, and optionally consequential authority transitions.",
+        "Phase 1 contains seven preregistered synthetic finite-state protocols encoding hidden mutation reality, visible observations, and optionally consequential authority transitions.",
+        "Phase 2 adds three GitHub commit-status protocol slices only after Phase 1 exact-head evaluation; the diagnoser implementation is unchanged.",
+        "The GitHub slices encode independently established fresh-HTTPS observations: trusted pre-secureConnect NOT_DISPATCHED, post-secureConnect transport UNKNOWN, and HTTP 502 after dispatch.",
         "A synchronized product permits independent unobservable transitions and synchronizes equal observable transitions.",
         "An independent brute-force trace enumerator expands complete traces to depth 12 and groups only by emitted observation sequences.",
         "The bounded-eventual-webhook fixture encodes a finite observation bound; unbounded fairness and wall-clock timing are outside this experiment."
       ],
       "success_criteria": [
-        "All seven preregistered fixtures match the documented diagnosable and safe-diagnosable classifications.",
+        "All seven original preregistered fixtures match the documented diagnosable and safe-diagnosable classifications.",
         "Every non-diagnosable fixture emits a concrete ambiguous-cycle witness.",
         "The too-late fixture is diagnosable but not safe-diagnosable and identifies release-authority while ambiguity remains.",
-        "The independent depth-12 oracle reports persistent ambiguity for all and only the three non-diagnosable fixtures.",
+        "The independent depth-12 oracle agrees with the product checker on every synthetic and GitHub protocol slice.",
         "Collapsing correlated receipt observations to one uncorrelated RECEIPT observation makes the receipt protocol non-diagnosable.",
+        "Without changing the diagnoser, the GitHub pre-secureConnect NOT_DISPATCHED slice is safe-diagnosable and derives safe-to-release.",
+        "Without changing the diagnoser, the GitHub post-secureConnect reset slice is non-diagnosable and derives ambiguous-do-not-release.",
+        "Without changing the diagnoser, the GitHub HTTP 502 slice is non-diagnosable and derives ambiguous-do-not-release.",
         "The experiment is deterministic and adds no runtime dependency."
       ],
       "non_claims": [
         "Arbitrary or infinite-state provider protocols are diagnosable by this bounded model.",
-        "The abstraction is already sound for GitHub, Kubernetes, GCP, or another real provider.",
+        "A finite abstraction is sound merely because the checker accepts it.",
+        "The GitHub encoding proves the same abstraction is sound for Kubernetes, GCP, or another provider.",
         "The checker proves wall-clock diagnosis bounds or unbounded fairness.",
         "Final resource-state equality proves that a particular mutation occurred.",
         "A separating observation is trustworthy merely because it distinguishes abstract states.",
-        "The checker is production authority or may participate in settlement."
+        "The checker is production authority, production admission policy, or settlement authority."
       ],
       "design": {
         "provenance": "preregistered",
-        "note": "The seven fixtures, expected classifications, depth-12 independent oracle, too-late safe-diagnosability distinction, and uncorrelated-receipt negative control were specified before the first execution in this conversation."
+        "note": "Phase 1's seven fixtures, expected classifications, depth-12 oracle, too-late distinction, and receipt negative control were fixed before the first Phase 1 execution. Only after Phase 1 passed exact-head hosted evaluation at 79c666d1aad67ff3c7df894f3cd509d572e4fcce were the three Phase 2 GitHub slices fixed, before their first hosted execution, from independent results at adapter-uncertainty-exploration c4c3564bb02618642fcb9d046686772f7adb8224, transport-not-dispatched-evidence 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, and github-status-not-dispatched-release 6b238e23491792dc7a8734038b82f4741a4eae8e. The diagnoser itself was not changed."
       },
       "outcome": {
-        "state": "supported",
-        "summary": "At exact revision 79c666d1aad67ff3c7df894f3cd509d572e4fcce, the hosted checker matched all seven preregistered diagnosability/safe-diagnosability classifications. The independent depth-12 trace oracle agreed on all seven, all three non-diagnosable protocols emitted ambiguity-cycle witnesses, the too-late protocol remained eventually diagnosable but exposed release-authority while ambiguous, and the uncorrelated-receipt negative control was killed."
+        "state": "pending",
+        "summary": "Phase 1 is supported at exact revision 79c666d1aad67ff3c7df894f3cd509d572e4fcce. Phase 2 now encodes the real GitHub status uncertainty boundary without changing the diagnoser; exact-head hosted evaluation of the expanded corpus is pending."
       },
       "reproduce": {
         "tier": "deterministic",
         "local": "npm run test:adapter-diagnosability"
       },
       "evidence": {
-        "status": "evaluated",
-        "evaluated_revision": "79c666d1aad67ff3c7df894f3cd509d572e4fcce",
+        "status": "pending",
         "artifacts": [
-          "GitHub Actions Merge gate run 35922140571, rerun attempt 2, candidate-evidence job 107389085625: exact-head candidate PASS at 79c666d1aad67ff3c7df894f3cd509d572e4fcce.",
-          "Hosted adapter-diagnosability result matched 7/7 preregistered classifications: undispatched, receipt, and bounded-eventual-webhook were safe-diagnosable; ambiguous-timeout, stale-get, and same-final-state were non-diagnosable; too-late was diagnosable but not safe-diagnosable.",
-          "The three non-diagnosable fixtures each retained one depth-12 ambiguous observation sequence and emitted a concrete ambiguity-cycle witness; every diagnosable fixture retained zero depth-12 ambiguous sequences.",
-          "The too-late witness identified release-authority from an ambiguous mutation/non-mutation pair before the later receipt could distinguish the worlds.",
-          "Collapsing RECEIPT_PRESENT and RECEIPT_ABSENT into one uncorrelated RECEIPT observation changed the receipt protocol to non-diagnosable, killing the preregistered negative control.",
-          "The same exact-head candidate run passed repository lint, TypeScript checking, experiment-contract verification, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application."
-        ]
+          "Phase 1: GitHub Actions Merge gate run 35922140571, rerun attempt 2, candidate-evidence job 107389085625 passed at exact revision 79c666d1aad67ff3c7df894f3cd509d572e4fcce.",
+          "Phase 1 matched 7/7 synthetic classifications; the depth-12 oracle agreed; all three non-diagnosable fixtures emitted witnesses; too-late remained diagnosable but unsafe before release-authority; the uncorrelated-receipt negative control was killed.",
+          "Independent GitHub boundary evidence: adapter-uncertainty-exploration c4c3564bb02618642fcb9d046686772f7adb8224, transport-not-dispatched-evidence 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, and github-status-not-dispatched-release 6b238e23491792dc7a8734038b82f4741a4eae8e.",
+          "Phase 2 source adds only three protocol fixtures plus derived assertions; the diagnoser functions are unchanged from the Phase 1 evaluated revision."
+        ],
+        "pending_reason": "The expanded exact-head corpus containing the three real GitHub status protocol slices has not yet completed hosted candidate certification."
       }
     }
   ]
