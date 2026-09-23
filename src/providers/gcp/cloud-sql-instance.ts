@@ -103,7 +103,17 @@ export type CertifiedGcpCloudSqlInstanceResult =
     };
 
 function segment(value: string, label: string): string {
-  if (value.length === 0 || value === '.' || value === '..' || /[\\/?#\x00-\x1f\x7f]/.test(value)) {
+  const hasControlCharacter = Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
+  if (
+    value.length === 0 ||
+    value === '.' ||
+    value === '..' ||
+    /[\\/?#]/.test(value) ||
+    hasControlCharacter
+  ) {
     throw new Error(`GCP_CLOUD_SQL_${label}_INVALID`);
   }
   return encodeURIComponent(value);
