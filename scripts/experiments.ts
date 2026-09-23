@@ -2,14 +2,79 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
-const registry=JSON.parse(readFileSync('experiments/registry.json','utf8'));
-const pkg=JSON.parse(readFileSync('package.json','utf8'));
+interface ExperimentSection extends Record<string,unknown> {
+  provenance:string;
+  note:string;
+}
+
+interface ExperimentOutcome extends Record<string,unknown> {
+  state:string;
+  summary:string;
+}
+
+interface ExperimentReproduce extends Record<string,unknown> {
+  local:string;
+  tier:string;
+}
+
+interface ExperimentEvidence extends Record<string,unknown> {
+  status:string;
+  artifacts:unknown[];
+  evaluated_revision?:string;
+  pending_reason?:string;
+}
+
+interface ExperimentEntry extends Record<string,unknown> {
+  id:string;
+  kind:string;
+  status:string;
+  directory:string;
+  readme:string;
+  purpose?:string;
+  question:string;
+  claim:string;
+  contrast:string;
+  interpretation:string;
+  environment:string[];
+  success_criteria:string[];
+  non_claims:string[];
+  design:ExperimentSection;
+  outcome:ExperimentOutcome;
+  reproduce:ExperimentReproduce;
+  evidence:ExperimentEvidence;
+}
+
+const registry=JSON.parse(
+  readFileSync('experiments/registry.json','utf8'),
+) as {schema:string;entries?:ExperimentEntry[]};
+const pkg=JSON.parse(
+  readFileSync('package.json','utf8'),
+) as {scripts?:Record<string,string>};
 const experimentReadme=readFileSync('experiments/README.md','utf8');
-const entries=registry.entries??[];
-const fail=m=>{throw new Error(`EXPERIMENT_CONTRACT: ${m}`);};
-const text=(e,k)=>{if(typeof e[k]!=='string'||!e[k].trim())fail(`${e.id}: missing ${k}`);};
-const strings=(e,k)=>{if(!Array.isArray(e[k])||!e[k].length||e[k].some(x=>typeof x!=='string'||!x.trim()))fail(`${e.id}: missing ${k}`);};
-function npmScript(e,cmd){const m=/^npm run ([^ ]+)/.exec(cmd);if(m&&!pkg.scripts?.[m[1]])fail(`${e.id}: npm script ${m[1]} does not exist`);}
+const entries:ExperimentEntry[]=registry.entries??[];
+const fail=(message:string):never=>{throw new Error(`EXPERIMENT_CONTRACT: ${message}`);};
+const text=(entry:Record<string,unknown>,key:string):void=>{
+  const value=entry[key];
+  if(typeof value!=='string'||!value.trim()) {
+    fail(`${String(entry.id)}: missing ${key}`);
+  }
+};
+const strings=(entry:Record<string,unknown>,key:string):void=>{
+  const value=entry[key];
+  if(
+    !Array.isArray(value)
+    || !value.length
+    || value.some((item:unknown)=>typeof item!=='string'||!item.trim())
+  ) {
+    fail(`${String(entry.id)}: missing ${key}`);
+  }
+};
+function npmScript(entry:ExperimentEntry,command:string):void {
+  const match=/^npm run ([^ ]+)/.exec(command);
+  if(match&&!pkg.scripts?.[match[1]]) {
+    fail(`${entry.id}: npm script ${match[1]} does not exist`);
+  }
+}
 
 function verify(){
   if(registry.schema!=='overcenter-experiment-registry/v2')fail('registry schema must be overcenter-experiment-registry/v2');
@@ -68,7 +133,7 @@ function list(){
   }
 }
 
-function runOne(e){
+function runOne(e:ExperimentEntry|undefined):void {
   if(!e||e.kind!=='experiment')fail('unknown experiment');
   if(e.status==='historical')fail(`${e.id}: historical evidence lives at ${e.evidence.evaluated_revision}; check out that revision and run: ${e.reproduce.local}`);
   console.log(`\n=== ${e.id} ===\n${e.question}\n$ ${e.reproduce.local}\n`);
