@@ -117,6 +117,7 @@ function learnRoute(route:Route,seeds:number[]):Clause{
   const alternativesMap=new Map<string,string[]>();
   for(const atoms of clauses){
     const residual=atoms.filter(atom=>!required.includes(atom)).sort();
+    if(residual.length===0) continue;
     const key=residual.join('&');
     alternativesMap.set(key,residual);
   }
