@@ -4,9 +4,12 @@ import {join} from 'node:path';
 import test from 'node:test';
 
 const OLD_CONTRACT_PATHS=[
-  'authority-facts-v1',
-  'computation-execution-v1',
-  'observation-evidence-v1',
+  'contracts/authority-facts-v1',
+  'contracts/computation-execution-v1',
+  'contracts/observation-evidence-v1',
+  '../authority-facts-v1',
+  '../computation-execution-v1',
+  '../observation-evidence-v1',
 ];
 
 function filesUnder(root:string):string[] {
