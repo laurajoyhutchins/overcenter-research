@@ -43,7 +43,7 @@ interface CombinedRepositoryEvidence {
   optional_absent_paths: string[];
 }
 
-export interface CertifiedGithubStatusEvidence {
+export interface CertifiedGithubStatusEvidence extends Record<string, unknown> {
   provider: 'github';
   api_version: string;
   schema_sha256: string;

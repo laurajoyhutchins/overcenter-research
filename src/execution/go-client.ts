@@ -9,14 +9,14 @@ import {
   validateComputationEvidence,
   validateExecutorHello,
   validateComputationExecution,
-  type ComputationAttemptEvidenceV1,
-  type ComputationExecutionV1,
-  type ExecutorCommandV1,
+  type ComputationAttemptEvidence,
+  type ComputationExecution,
+  type ExecutorCommand,
 } from './protocol.ts';
 
 interface PendingExecution {
-  execution: ComputationExecutionV1;
-  resolve: (evidence: ComputationAttemptEvidenceV1) => void;
+  execution: ComputationExecution;
+  resolve: (evidence: ComputationAttemptEvidence) => void;
   reject: (error: Error) => void;
 }
 
@@ -154,7 +154,7 @@ export class GoExecutorClient {
     if (this.#terminalError) throw this.#terminalError;
   }
 
-  async execute(execution: ComputationExecutionV1): Promise<ComputationAttemptEvidenceV1> {
+  async execute(execution: ComputationExecution): Promise<ComputationAttemptEvidence> {
     validateComputationExecution(execution);
     await this.ready();
     await this.#acquireCapacity();
@@ -171,13 +171,13 @@ export class GoExecutorClient {
 
     let resolve!: PendingExecution['resolve'];
     let reject!: PendingExecution['reject'];
-    const evidencePromise = new Promise<ComputationAttemptEvidenceV1>((res, rej) => {
+    const evidencePromise = new Promise<ComputationAttemptEvidence>((res, rej) => {
       resolve = res;
       reject = rej;
     });
     this.#pending.set(key, { execution, resolve, reject });
 
-    const command: ExecutorCommandV1 = {
+    const command: ExecutorCommand = {
       schema: EXECUTOR_COMMAND_SCHEMA,
       kind: 'execute',
       execution,
@@ -192,10 +192,10 @@ export class GoExecutorClient {
     return await evidencePromise;
   }
 
-  async cancel(execution: ComputationExecutionV1): Promise<void> {
+  async cancel(execution: ComputationExecution): Promise<void> {
     validateComputationExecution(execution);
     await this.ready();
-    const command: ExecutorCommandV1 = {
+    const command: ExecutorCommand = {
       schema: EXECUTOR_COMMAND_SCHEMA,
       kind: 'cancel',
       identity: executionIdentity(execution),
@@ -228,7 +228,7 @@ export class GoExecutorClient {
     this.#capacityWaiters.shift()?.();
   }
 
-  async #writeCommand(command: ExecutorCommandV1): Promise<void> {
+  async #writeCommand(command: ExecutorCommand): Promise<void> {
     if (this.#terminalError) throw this.#terminalError;
     const line = JSON.stringify(command) + '\n';
     if (this.#socket.write(line)) return;

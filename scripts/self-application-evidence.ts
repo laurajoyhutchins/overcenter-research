@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 import {
   PROCESS_SPEC_SCHEMA,
   assertComputationEvidenceFor,
-  type ComputationExecutionV1,
-  type ProcessSpecV1,
+  type ComputationExecution,
+  type ProcessSpec,
 } from '../src/execution/protocol.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
@@ -40,11 +40,16 @@ function option(name: string): string | null {
   return value;
 }
 
-const image = option('--image');
-if (!image) throw new Error('--image is required');
+function requiredOption(name: string): string {
+  const value = option(name);
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
 
-const sourceSha = option('--source-sha')?.toLowerCase();
-if (!sourceSha || !/^[0-9a-f]{40,64}$/.test(sourceSha)) {
+const image = requiredOption('--image');
+
+const sourceSha = requiredOption('--source-sha').toLowerCase();
+if (!/^[0-9a-f]{40,64}$/.test(sourceSha)) {
   throw new Error('--source-sha must be an exact Git object id');
 }
 const reportPath = option('--report');
@@ -104,7 +109,7 @@ function executionContextSha256(): string {
   });
 }
 
-function processSpec(tier: 'regression' | 'experiments'): ProcessSpecV1 {
+function processSpec(tier: 'regression' | 'experiments'): ProcessSpec {
   // Exhaustive repository coverage belongs to the independent Evidence
   // producer. Self-application proves the execution/settlement mechanism with
   // two small, real workloads from the exact mounted source revision instead
@@ -252,7 +257,7 @@ function attestingExecutor(
       return client.containmentId;
     },
     ready: () => client.ready(),
-    execute: async (execution: ComputationExecutionV1) => {
+    execute: async (execution: ComputationExecution) => {
       const evidence = await client.execute(execution);
       assertComputationEvidenceFor(evidence, execution);
       if (evidence.outcome === 'completed' && evidence.exit_code === 0) {

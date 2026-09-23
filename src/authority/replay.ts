@@ -11,6 +11,7 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
+  EffectReservation,
   EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
@@ -22,6 +23,7 @@ import type {
 } from './facts.ts';
 import { dependencyUpstreams, validateGraph } from '../graph/topology.ts';
 import { settlementSemantics } from '../semantics.ts';
+import { reservedEffectReplaySafe } from '../effect-adapter.ts';
 import {
   effectReservationAuthorityError,
   executionAuthorityAdvanceError,
@@ -51,6 +53,7 @@ export function projectReceipt(
   fact: ReceiptFact,
   work: Obligation,
   settlementCommit?: string,
+  unresolvedEffect = false,
 ): Receipt {
   let disposition: Receipt['disposition'];
   let verified = false;
@@ -60,11 +63,12 @@ export function projectReceipt(
     verified = observationVerified(work.postcondition, fact.observed);
     const policy = settlementSemantics(work.postcondition);
     const absenceEvidence = authoritativeAbsenceEvidence(work.postcondition, fact.observed);
-    disposition = verified
-      ? 'DONE'
-      : absenceEvidence && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind)
-        ? 'READY'
-        : 'RECOVERY_REQUIRED';
+    const acceptedAbsence =
+      absenceEvidence && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind);
+    const replaySafe =
+      !unresolvedEffect ||
+      (absenceEvidence !== null && reservedEffectReplaySafe(work, absenceEvidence));
+    disposition = verified ? 'DONE' : acceptedAbsence && replaySafe ? 'READY' : 'RECOVERY_REQUIRED';
   } else {
     if (fact.observed) throw new Error('NONOBSERVATION_RECEIPT_HAS_EVIDENCE');
     disposition = fact.kind === 'judgment-required' ? 'WAITING' : 'RECOVERY_REQUIRED';
@@ -241,7 +245,8 @@ export function replayProjection(commits: FactCommit[]): Projection {
       throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
     }
 
-    const receipt = projectReceipt(fact, run.obligation, record.commit);
+    const unresolvedEffect = unresolvedReservationsByRun.has(run.id);
+    const receipt = projectReceipt(fact, run.obligation, record.commit, unresolvedEffect);
     receiptsByRun.set(run.id, receipt);
     if (receipt.disposition === 'DONE' || receipt.disposition === 'READY') {
       unresolvedReservationsByRun.delete(run.id);

@@ -121,7 +121,11 @@ export function validateProviderObservationEnvelope(
     ['value', 'transport_error', ...outcomeExtensions],
     'PROVIDER_OBSERVATION_OUTCOME_SHAPE_INVALID',
   );
-  if (!Number.isSafeInteger(value.outcome.status) || value.outcome.status < 0) {
+  if (
+    typeof value.outcome.status !== 'number' ||
+    !Number.isSafeInteger(value.outcome.status) ||
+    value.outcome.status < 0
+  ) {
     throw new Error('PROVIDER_OBSERVATION_STATUS_INVALID');
   }
   if (!['observed', 'not-observed', 'indeterminate'].includes(String(value.outcome.visibility))) {

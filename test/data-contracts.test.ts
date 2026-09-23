@@ -30,9 +30,9 @@ import {
 import { GoExecutorClient } from '../src/execution/go-client.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const contractDir = join(root, 'contracts/computation-execution-v1');
-const authorityContractDir = join(root, 'contracts/authority-facts-v1');
-const observationContractDir = join(root, 'contracts/observation-evidence-v1');
+const contractDir = join(root, 'contracts/computation-execution');
+const authorityContractDir = join(root, 'contracts/authority-facts');
+const observationContractDir = join(root, 'contracts/observation-evidence');
 const readJson = (path: string): any => JSON.parse(readFileSync(path, 'utf8'));
 
 const contract = readJson(join(contractDir, 'contract.json'));
@@ -91,15 +91,15 @@ test('computation contract declares explicit structural authority and compatibil
 
 test('wire discriminator registry agrees with TypeScript, Go, and JSON Schema', () => {
   const defs = schema.$defs;
-  assert.equal(defs.ProcessSpecV1.properties.schema.const, PROCESS_SPEC_SCHEMA);
-  assert.equal(defs.ComputationExecutionV1.properties.schema.const, COMPUTATION_EXECUTION_SCHEMA);
-  assert.equal(defs.ExecuteCommandV1.properties.schema.const, EXECUTOR_COMMAND_SCHEMA);
-  assert.equal(defs.CancelCommandV1.properties.schema.const, EXECUTOR_COMMAND_SCHEMA);
+  assert.equal(defs.ProcessSpec.properties.schema.const, PROCESS_SPEC_SCHEMA);
+  assert.equal(defs.ComputationExecution.properties.schema.const, COMPUTATION_EXECUTION_SCHEMA);
+  assert.equal(defs.ExecuteCommand.properties.schema.const, EXECUTOR_COMMAND_SCHEMA);
+  assert.equal(defs.CancelCommand.properties.schema.const, EXECUTOR_COMMAND_SCHEMA);
   assert.equal(
-    defs.ComputationAttemptEvidenceV1.properties.schema.const,
+    defs.ComputationAttemptEvidence.properties.schema.const,
     COMPUTATION_EVIDENCE_SCHEMA,
   );
-  assert.equal(defs.ExecutorHelloV1.properties.schema.const, EXECUTOR_HELLO_SCHEMA);
+  assert.equal(defs.ExecutorHello.properties.schema.const, EXECUTOR_HELLO_SCHEMA);
 
   for (const [goName, value] of [
     ['ProcessSpecSchema', PROCESS_SPEC_SCHEMA],
@@ -142,7 +142,7 @@ test('the checked-in process-spec corpus is executable against the production va
     if (candidate.valid) {
       assert.doesNotThrow(() => validateProcessSpec(candidate.spec), candidate.name);
     } else {
-      assert.throws(() => validateProcessSpec(candidate.spec), undefined, candidate.name);
+      assert.throws(() => validateProcessSpec(candidate.spec), candidate.name);
     }
   }
 });
@@ -150,8 +150,8 @@ test('the checked-in process-spec corpus is executable against the production va
 test('semantic identity is explicit, complete, and separate from diagnostic evidence', () => {
   const execution = contract.semanticIdentity.computationExecution;
   const evidence = contract.semanticIdentity.attemptEvidence;
-  const executionRequired = new Set(schema.$defs.ComputationExecutionV1.required);
-  const evidenceRequired = new Set(schema.$defs.ComputationAttemptEvidenceV1.required);
+  const executionRequired = new Set(schema.$defs.ComputationExecution.required);
+  const evidenceRequired = new Set(schema.$defs.ComputationAttemptEvidence.required);
 
   for (const field of execution.materialFields as string[]) {
     assert.equal(executionRequired.has(field), true, 'execution identity field ' + field);
@@ -172,7 +172,7 @@ test('semantic identity is explicit, complete, and separate from diagnostic evid
   }
 
   const classified = new Set([...identity, ...result, ...diagnostic]);
-  const payloadFields = Object.keys(schema.$defs.ComputationAttemptEvidenceV1.properties).filter(
+  const payloadFields = Object.keys(schema.$defs.ComputationAttemptEvidence.properties).filter(
     (field) => field !== 'schema',
   );
   assert.deepEqual([...classified].sort(), payloadFields.sort());
@@ -244,7 +244,7 @@ test('durable authority contract preserves backend-neutral logical facts', () =>
     authoritySchema.$defs.EffectReservationFact.properties.schema.const,
     EFFECT_RESERVATION_SCHEMA,
   );
-  assert.equal(authoritySchema.$defs.ReceiptFactV5.properties.schema.const, RECEIPT_SCHEMA);
+  assert.equal(authoritySchema.$defs.ReceiptFact.properties.schema.const, RECEIPT_SCHEMA);
 });
 
 test('removed schema variants fail closed', () => {
@@ -272,14 +272,14 @@ test('authority fact conformance corpus runs against the production envelope val
     if (candidate.valid) {
       assert.doesNotThrow(() => validateAuthorityFact(candidate.fact), candidate.name);
     } else {
-      assert.throws(() => validateAuthorityFact(candidate.fact), undefined, candidate.name);
+      assert.throws(() => validateAuthorityFact(candidate.fact), candidate.name);
     }
   }
 });
 
 test('authority receipt contract excludes derived settlement truth from persisted facts', () => {
   const receipt = authorityContract.semanticRoles.receiptFact;
-  const persisted = new Set(Object.keys(authoritySchema.$defs.ReceiptFactV5.properties));
+  const persisted = new Set(Object.keys(authoritySchema.$defs.ReceiptFact.properties));
   for (const field of receipt.derivedFieldsExcluded as string[]) {
     assert.equal(persisted.has(field), false, 'derived settlement field became writable: ' + field);
   }
@@ -372,7 +372,7 @@ test('observation/evidence conformance corpus runs against production envelope v
       throw new Error('UNKNOWN_OBSERVATION_CONFORMANCE_KIND');
     };
     if (candidate.valid) assert.doesNotThrow(validate, candidate.name);
-    else assert.throws(validate, undefined, candidate.name);
+    else assert.throws(validate, candidate.name);
   }
 });
 

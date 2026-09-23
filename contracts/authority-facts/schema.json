@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://overcenter.dev/contracts/authority-facts-v1/schema.json",
-  "title": "Overcenter durable authority facts v1",
+  "$id": "https://overcenter.dev/contracts/authority-facts/schema.json",
+  "title": "Overcenter durable authority facts",
   "description": "Persisted logical fact envelopes. Shape validity is necessary but not sufficient for replay validity.",
   "$defs": {
     "Sha256Hex": {
@@ -201,7 +201,7 @@
       "additionalProperties": true,
       "description": "Non-authoritative diagnostic payload."
     },
-    "ReceiptFactV5": {
+    "ReceiptFact": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -277,9 +277,6 @@
         }
       }
     },
-    "ReceiptFact": {
-      "$ref": "#/$defs/ReceiptFactV5"
-    },
     "AuthorityFact": {
       "oneOf": [
         {
@@ -300,7 +297,7 @@
       ]
     },
     "CurrentObservationPayload": {
-      "$ref": "../observation-evidence-v1/schema.json#/$defs/SettlementObservation"
+      "$ref": "../observation-evidence/schema.json#/$defs/SettlementObservation"
     },
     "ObligationDefinition": {
       "type": "object",

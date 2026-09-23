@@ -4,11 +4,11 @@ import { spawn, spawnSync } from 'node:child_process';
 
 const [mode, arg = '', pidFile = ''] = process.argv.slice(2);
 
-function record(label, pid) {
+function record(label: string, pid: number | undefined) {
   if (pidFile) appendFileSync(pidFile, `${label}:${pid}\n`);
 }
 
-function postThenWrite(url, markerPath) {
+function postThenWrite(url: string, markerPath: string) {
   const req = request(url, { method: 'POST' }, (response) => {
     response.resume();
     response.once('end', () => {
@@ -22,7 +22,7 @@ function postThenWrite(url, markerPath) {
   req.end('effect');
 }
 
-function runNodeTest(testPath, markerPath) {
+function runNodeTest(testPath: string, markerPath: string) {
   const result = spawnSync(process.execPath, ['--experimental-strip-types', '--test', testPath], {
     stdio: 'inherit',
     env: {},

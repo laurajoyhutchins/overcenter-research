@@ -129,7 +129,7 @@ export interface ProjectProjectionInput {
   runs: Map<string, HistoricalRun>;
   receiptsByRun: Map<string, Receipt>;
   revision: string;
-  currentRealizationJudgments?: ReadonlyMap<string, CurrentRealizationJudgment>;
+  currentRealizationJudgments?: ReadonlyMap<string, CurrentRealizationJudgment> | null;
 }
 
 const IN_FLIGHT = new Set<RealizationStatus>(['EXECUTING', 'WAITING', 'RECOVERY_REQUIRED']);

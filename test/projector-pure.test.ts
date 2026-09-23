@@ -42,15 +42,20 @@ test('a valid historical realization remains DONE, not READY', () => {
     claimed_revision: 'revision-a',
     claim_commit: 'claim-a',
     obligation_key: key,
+    execution_generation: 1,
+    execution_authority_commit: 'claim-a',
+    execution_capability_sha256: '0'.repeat(64),
     obligation: work,
-    definition_commit: 'define-a',
+    definition_id: 'define-a',
   };
   const receipt: Receipt = {
-    schema: 'overcenter-git-receipt-v3',
+    schema: 'overcenter-git-receipt-v5',
     run_id: 'run-a',
     obligation_id: 'a',
     claimed_revision: 'revision-a',
     claim_commit: 'claim-a',
+    execution_generation: 1,
+    execution_authority_commit: 'claim-a',
     kind: 'observation',
     observed: {
       verifier: 'file-content-equals/v1',
@@ -92,15 +97,20 @@ test('current realization admissibility can withdraw historical DONE', () => {
     claimed_revision: 'revision-a',
     claim_commit: 'claim-a',
     obligation_key: key,
+    execution_generation: 1,
+    execution_authority_commit: 'claim-a',
+    execution_capability_sha256: '0'.repeat(64),
     obligation: work,
-    definition_commit: 'define-a',
+    definition_id: 'define-a',
   };
   const receipt: Receipt = {
-    schema: 'overcenter-git-receipt-v3',
+    schema: 'overcenter-git-receipt-v5',
     run_id: 'run-a',
     obligation_id: 'a',
     claimed_revision: 'revision-a',
     claim_commit: 'claim-a',
+    execution_generation: 1,
+    execution_authority_commit: 'claim-a',
     kind: 'observation',
     observed: {
       verifier: 'file-content-equals/v1',
@@ -156,7 +166,7 @@ test('indeterminate current realization judgment blocks replay instead of becomi
     execution_authority_commit: 'claim-a',
     execution_capability_sha256: '0'.repeat(64),
     obligation: work,
-    definition_commit: 'define-a',
+    definition_id: 'define-a',
   };
   const receipt: Receipt = {
     schema: 'overcenter-git-receipt-v5',

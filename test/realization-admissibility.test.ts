@@ -109,7 +109,7 @@ test('current judgment derivation observes only exact-key historical DONE obliga
     execution_authority_commit: 'claim-a',
     execution_capability_sha256: '0'.repeat(64),
     obligation: work,
-    definition_commit: 'define-a',
+    definition_id: 'define-a',
   };
   const receipt: Receipt = {
     schema: 'overcenter-git-receipt-v5',

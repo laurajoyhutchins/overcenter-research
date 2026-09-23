@@ -16,7 +16,7 @@ const MAX_ENV_VALUE_BYTES = 128 * 1024;
 const MAX_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 const MAX_CAPTURE_BYTES = 16 * 1024 * 1024;
 
-export interface ProcessSpecV1 {
+export interface ProcessSpec {
   schema: typeof PROCESS_SPEC_SCHEMA;
   executable: string;
   argv: string[];
@@ -27,7 +27,7 @@ export interface ProcessSpecV1 {
   stderr_max_bytes: number;
 }
 
-export interface ComputationExecutionV1 {
+export interface ComputationExecution {
   schema: typeof COMPUTATION_EXECUTION_SCHEMA;
   run_id: string;
   obligation_id: string;
@@ -40,31 +40,31 @@ export interface ComputationExecutionV1 {
   execution_spec_sha256: string;
 }
 
-export interface ExecutionIdentityV1 {
+export interface ExecutionIdentity {
   run_id: string;
   execution_generation: number;
   execution_authority_commit: string;
 }
 
-export interface ExecutorHelloV1 {
+export interface ExecutorHello {
   schema: typeof EXECUTOR_HELLO_SCHEMA;
   execution_context_sha256: string;
   containment_id: string;
 }
 
-export type ExecutorCommandV1 =
+export type ExecutorCommand =
   | {
       schema: typeof EXECUTOR_COMMAND_SCHEMA;
       kind: 'execute';
-      execution: ComputationExecutionV1;
+      execution: ComputationExecution;
     }
   | {
       schema: typeof EXECUTOR_COMMAND_SCHEMA;
       kind: 'cancel';
-      identity: ExecutionIdentityV1;
+      identity: ExecutionIdentity;
     };
 
-export interface ComputationAttemptEvidenceV1 {
+export interface ComputationAttemptEvidence {
   schema: typeof COMPUTATION_EVIDENCE_SCHEMA;
   run_id: string;
   obligation_id: string;
@@ -152,7 +152,7 @@ function assertSha256Tagged(value: unknown, name: string): asserts value is stri
   }
 }
 
-export function validateExecutorHello(value: unknown): ExecutorHelloV1 {
+export function validateExecutorHello(value: unknown): ExecutorHello {
   assertPlainObject(value, 'executor_hello');
   assertExactKeys(
     value,
@@ -187,7 +187,7 @@ function decodeCanonicalBase64(
   return bytes;
 }
 
-export function validateProcessSpec(value: unknown): ProcessSpecV1 {
+export function validateProcessSpec(value: unknown): ProcessSpec {
   assertPlainObject(value, 'process_spec');
   assertExactKeys(
     value,
@@ -260,7 +260,7 @@ export function validateProcessSpec(value: unknown): ProcessSpecV1 {
   };
 }
 
-export function encodeProcessSpec(spec: ProcessSpecV1): {
+export function encodeProcessSpec(spec: ProcessSpec): {
   bytes: Buffer;
   base64: string;
   sha256: string;
@@ -275,7 +275,7 @@ export function encodeProcessSpec(spec: ProcessSpecV1): {
   };
 }
 
-export function decodeProcessSpec(execution: ComputationExecutionV1): ProcessSpecV1 {
+export function decodeProcessSpec(execution: ComputationExecution): ProcessSpec {
   validateComputationExecution(execution);
   const bytes = decodeCanonicalBase64(execution.execution_spec_base64);
   let parsed: unknown;
@@ -287,7 +287,7 @@ export function decodeProcessSpec(execution: ComputationExecutionV1): ProcessSpe
   return validateProcessSpec(parsed);
 }
 
-export function validateComputationExecution(value: unknown): ComputationExecutionV1 {
+export function validateComputationExecution(value: unknown): ComputationExecution {
   assertPlainObject(value, 'computation_execution');
   assertExactKeys(
     value,
@@ -325,7 +325,11 @@ export function validateComputationExecution(value: unknown): ComputationExecuti
     throw new Error('EXECUTION_CAPABILITY_DIGEST_MISMATCH');
   }
 
-  const specBytes = decodeCanonicalBase64(value.execution_spec_base64);
+  if (typeof value.execution_spec_base64 !== 'string') {
+    throw new Error('EXECUTION_SPEC_BASE64_INVALID');
+  }
+  const executionSpecBase64 = value.execution_spec_base64;
+  const specBytes = decodeCanonicalBase64(executionSpecBase64);
   assertSha256Tagged(value.execution_spec_sha256, 'execution_spec_sha256');
   if (sha256Tagged(specBytes) !== value.execution_spec_sha256) {
     throw new Error('EXECUTION_SPEC_DIGEST_MISMATCH');
@@ -340,15 +344,15 @@ export function validateComputationExecution(value: unknown): ComputationExecuti
     execution_authority_commit: value.execution_authority_commit,
     execution_capability: value.execution_capability,
     execution_capability_sha256: value.execution_capability_sha256,
-    execution_spec_base64: value.execution_spec_base64,
+    execution_spec_base64: executionSpecBase64,
     execution_spec_sha256: value.execution_spec_sha256,
   };
 }
 
 export function computationExecution(
   permit: ExecutionPermit,
-  spec: ProcessSpecV1,
-): ComputationExecutionV1 {
+  spec: ProcessSpec,
+): ComputationExecution {
   const encoded = encodeProcessSpec(spec);
   return validateComputationExecution({
     schema: COMPUTATION_EXECUTION_SCHEMA,
@@ -364,7 +368,7 @@ export function computationExecution(
   });
 }
 
-export function executionIdentity(execution: ComputationExecutionV1): ExecutionIdentityV1 {
+export function executionIdentity(execution: ComputationExecution): ExecutionIdentity {
   return {
     run_id: execution.run_id,
     execution_generation: execution.execution_generation,
@@ -372,7 +376,7 @@ export function executionIdentity(execution: ComputationExecutionV1): ExecutionI
   };
 }
 
-export function executionIdentityKey(identity: ExecutionIdentityV1): string {
+export function executionIdentityKey(identity: ExecutionIdentity): string {
   return JSON.stringify([
     identity.run_id,
     identity.execution_generation,
@@ -380,7 +384,7 @@ export function executionIdentityKey(identity: ExecutionIdentityV1): string {
   ]);
 }
 
-export function validateComputationEvidence(value: unknown): ComputationAttemptEvidenceV1 {
+export function validateComputationEvidence(value: unknown): ComputationAttemptEvidence {
   assertPlainObject(value, 'computation_evidence');
   assertExactKeys(
     value,
@@ -453,7 +457,7 @@ export function validateComputationEvidence(value: unknown): ComputationAttemptE
     throw new Error('COMPUTATION_EVIDENCE_ERROR_INVALID');
   }
 
-  return value as unknown as ComputationAttemptEvidenceV1;
+  return value as unknown as ComputationAttemptEvidence;
 }
 
 function assertCapturedStreamForSpec(
@@ -480,8 +484,8 @@ function assertCapturedStreamForSpec(
 }
 
 export function assertComputationEvidenceFor(
-  evidence: ComputationAttemptEvidenceV1,
-  execution: ComputationExecutionV1,
+  evidence: ComputationAttemptEvidence,
+  execution: ComputationExecution,
 ): void {
   validateComputationEvidence(evidence);
   if (evidence.schema !== COMPUTATION_EVIDENCE_SCHEMA) {

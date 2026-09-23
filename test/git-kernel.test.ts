@@ -299,8 +299,9 @@ test('execution generation fences a stale permit without changing the claimed re
     assert.throws(() => f.kernel.resolve(first), /STALE_EXECUTION_GENERATION/);
 
     f.kernel.beginEffect(second);
-    const replayable = f.kernel.resolve(second);
-    assert.equal(replayable.disposition, 'READY');
+    writeFileSync(path, 'present');
+    const settled = f.kernel.resolve(second);
+    assert.equal(settled.disposition, 'DONE');
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
@@ -313,9 +314,8 @@ test('unresolved effect reservation survives generation handoff until presence s
     f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
     const first = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
 
-    await f.kernel.performEffect(first, async () => {
-      writeFileSync(path, 'present');
-    });
+    f.kernel.beginEffect(first);
+    writeFileSync(path, 'present');
 
     const second = f.kernel.acquireExecution(first.id);
     assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);
@@ -329,7 +329,7 @@ test('unresolved effect reservation survives generation handoff until presence s
   }
 });
 
-test('only authoritative absence releases an unresolved reservation for replay', () => {
+test('authoritative absence does not release an unresolved effect without adapter replay proof', () => {
   const f = fixture();
   try {
     const path = f.path('reserved-absent');
@@ -341,11 +341,11 @@ test('only authoritative absence releases an unresolved reservation for replay',
     assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);
 
     const absent = f.kernel.resolve(second);
-    assert.equal(absent.disposition, 'READY');
-
-    const retry = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
-    assert.equal(retry.execution_generation, 1);
-    assert.doesNotThrow(() => f.kernel.beginEffect(retry));
+    assert.equal(absent.observed?.mutation_certainty, 'absent');
+    assert.equal(absent.disposition, 'RECOVERY_REQUIRED');
+    assert.equal(f.kernel.hasUnresolvedEffect(first.id), true);
+    assert.equal(f.kernel.deriveReadyWork(), null);
+    assert.equal(f.kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }

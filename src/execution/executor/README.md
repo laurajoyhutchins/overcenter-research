@@ -109,7 +109,7 @@ Therefore the worker container is the outer containment boundary. CI deliberatel
 
 ## Wire contract
 
-See `contracts/computation-execution-v1/`.
+See `contracts/computation-execution/`.
 
 Execution-spec identity is bound to exact bytes:
 

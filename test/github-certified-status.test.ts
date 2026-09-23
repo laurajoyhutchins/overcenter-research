@@ -103,6 +103,8 @@ function receiptFor(
     obligation_id: work.id,
     claimed_revision: 'b'.repeat(40),
     claim_commit: 'c'.repeat(40),
+    execution_generation: 1,
+    execution_authority_commit: 'd'.repeat(40),
     kind: 'observation',
     observed,
     settled_at: '2026-09-18T16:02:00Z',

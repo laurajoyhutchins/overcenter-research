@@ -61,6 +61,13 @@ export interface KernelOptions {
   observationContext?: Omit<ObservationContext, 'githubToken'>;
 }
 
+const effectAuthorityBrand: unique symbol = Symbol('effect-authority');
+export type EffectAuthority<E extends string, V extends Postcondition['verifier']> = {
+  readonly [effectAuthorityBrand]: E;
+  readonly permit: ExecutionPermit;
+  readonly postcondition: Extract<Postcondition, { verifier: V }>;
+};
+
 export interface GraphPatchInput {
   upsert?: ObligationInput[];
   retire?: string[];
@@ -156,23 +163,46 @@ export class KernelCore {
     return this.#currentProjection(head).project.work;
   }
 
-  claimedWork(runId: string): Work {
-    const head = this.#requireHead();
-    const current = this.#historicalProjection(head);
-    const run = current.history.runs.get(runId);
+  claimedWork(identity: string | ExecutionPermit): Work {
+    const runId = typeof identity === 'string' ? identity : identity.id;
+    const run = this.#historicalProjection(this.#requireHead()).history.runs.get(runId);
     if (!run) throw new Error('UNKNOWN_RUN');
-    const atClaim = this.#historicalProjection(run.claim_commit);
-    const work = atClaim.project.work.find((candidate) => candidate.id === run.obligation_id);
+    const work = this.#historicalProjection(run.claim_commit).project.work.find(
+      (candidate) => candidate.id === run.obligation_id,
+    );
     if (
       !work ||
       work.status !== 'EXECUTING' ||
       work.run_id !== runId ||
       work.claimed_revision !== run.claimed_revision ||
-      work.revision !== run.claim_commit
+      work.revision !== run.claim_commit ||
+      (typeof identity !== 'string' &&
+        (identity.obligation_id !== run.obligation_id ||
+          identity.claimed_revision !== run.claimed_revision))
     ) {
-      throw new Error('CLAIMED_WORK_RECONSTRUCTION_FAILED');
+      throw new Error(
+        typeof identity === 'string'
+          ? 'CLAIMED_WORK_RECONSTRUCTION_FAILED'
+          : 'EFFECT_AUTHORITY_RUN_MISMATCH',
+      );
     }
     return structuredClone(work);
+  }
+
+  authorizeEffect<E extends string, V extends Postcondition['verifier']>(
+    permit: ExecutionPermit,
+    effectContract: E,
+    verifier: V,
+  ): EffectAuthority<E, V> {
+    const work = this.claimedWork(permit);
+    if (work.packet.effect_contract !== effectContract)
+      throw new Error('EFFECT_CONTRACT_NOT_AUTHORIZED');
+    if (work.postcondition.verifier !== verifier) throw new Error('EFFECT_POSTCONDITION_MISMATCH');
+    return {
+      [effectAuthorityBrand]: effectContract,
+      permit,
+      postcondition: work.postcondition as EffectAuthority<E, V>['postcondition'],
+    };
   }
 
   deriveReadyWork(): Work | null {
@@ -312,8 +342,11 @@ export class KernelCore {
     throw new Error('EFFECT_RESERVATION_CONTENTION_EXHAUSTED');
   }
 
-  async performEffect<T>(permit: ExecutionPermit, effect: () => Promise<T> | T): Promise<T> {
-    this.beginEffect(permit);
+  async performEffect<T, E extends string, V extends Postcondition['verifier']>(
+    authority: EffectAuthority<E, V>,
+    effect: () => Promise<T> | T,
+  ): Promise<T> {
+    this.beginEffect(authority.permit);
     return await effect();
   }
 
@@ -418,7 +451,7 @@ export class KernelCore {
 
   receipts(runId: string | null = null): Receipt[] {
     const head = this.#requireHead();
-    const { history } = this.#historicalProjection(head);
+    const { history, project } = this.#historicalProjection(head);
     return runId
       ? history.receipts.filter((receipt) => receipt.run_id === runId)
       : history.receipts;
@@ -511,11 +544,14 @@ export class KernelCore {
     return commit;
   }
 
-  #resolutionCandidate(
-    permit: ExecutionPermit,
-  ):
+  #resolutionCandidate(permit: ExecutionPermit):
     | { receipt: Receipt }
-    | { head: string; run: HistoricalRun; work: HistoricalRun['obligation'] } {
+    | {
+        head: string;
+        run: HistoricalRun;
+        work: HistoricalRun['obligation'];
+        unresolvedEffect: boolean;
+      } {
     const runId = permit.id;
     const head = this.#requireHead();
     const { state, history, project } = this.#historicalProjection(head);
@@ -537,17 +573,27 @@ export class KernelCore {
       if (prior) return { receipt: prior };
       throw new Error('NOT_RESOLVABLE');
     }
-    return { head, run, work };
+    return {
+      head,
+      run,
+      work,
+      unresolvedEffect: history.unresolvedReservationsByRun.has(runId),
+    };
   }
 
   #commitObservation(
-    candidate: { head: string; run: HistoricalRun; work: HistoricalRun['obligation'] },
+    candidate: {
+      head: string;
+      run: HistoricalRun;
+      work: HistoricalRun['obligation'];
+      unresolvedEffect: boolean;
+    },
     observed: Observation,
     diagnostic: Data,
   ): Receipt | null {
-    const { head, run, work } = candidate;
+    const { head, run, work, unresolvedEffect } = candidate;
     const fact = this.#receiptFact(run, work.id, 'observation', observed, diagnostic);
-    const receipt = projectReceipt(fact, work);
+    const receipt = projectReceipt(fact, work, undefined, unresolvedEffect);
     const commit = this.#store.append(head, `overcenter: observe ${work.id} ${run.id}`, {
       'receipt.json': fact,
     });

@@ -12,17 +12,64 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-export const ASSIGNMENT_SCHEMA = 'overcenter-agent-assignment/v1';
-export const CANDIDATE_SCHEMA = 'overcenter-agent-candidate/v1';
-export const AGENT_TASK_PACKET_SCHEMA = 'overcenter-agent-task/v1';
+export const ASSIGNMENT_SCHEMA = 'overcenter-agent-assignment/v1' as const;
+export const CANDIDATE_SCHEMA = 'overcenter-agent-candidate/v1' as const;
+export const AGENT_TASK_PACKET_SCHEMA = 'overcenter-agent-task/v1' as const;
 
-const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
-const fail = (code) => {
+type AssignmentMode = '100644' | '100755';
+
+export interface AssignmentTaskPacket {
+  schema: typeof AGENT_TASK_PACKET_SCHEMA;
+  kind: 'pure-candidate';
+  source_sha: string;
+  command: string[];
+  required_paths: string[];
+  output_path: string;
+}
+
+export interface AssignmentWork extends Record<string, unknown> {
+  id: string;
+  revision: string;
+  run_id: string;
+  claimed_revision: string;
+  status: 'EXECUTING';
+  execution_generation: number;
+  packet: AssignmentTaskPacket;
+}
+
+export interface AssignmentFile {
+  path: string;
+  mode: AssignmentMode;
+  sha256: string;
+  content_base64: string;
+}
+
+export interface Assignment {
+  schema: typeof ASSIGNMENT_SCHEMA;
+  work: AssignmentWork;
+  files: AssignmentFile[];
+}
+
+export interface Candidate {
+  schema: typeof CANDIDATE_SCHEMA;
+  assignment_sha256: string;
+  obligation_id: string;
+  run_id: string;
+  claimed_revision: string;
+  output_path: string;
+  output_sha256: string;
+  output_base64: string;
+}
+
+const sha256 = (bytes: string | Buffer | Uint8Array): string =>
+  createHash('sha256').update(bytes).digest('hex');
+function fail(code: string): never {
   throw new Error(code);
-};
-const record = (value) => !!value && typeof value === 'object' && !Array.isArray(value);
+}
+const record = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value);
 
-export function validPath(value) {
+export function validPath(value: unknown): value is string {
   if (typeof value !== 'string' || value.length === 0 || value.startsWith('/')) return false;
   if ([...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127))
     return false;
@@ -30,7 +77,11 @@ export function validPath(value) {
   return parts.every((part) => part !== '' && part !== '.' && part !== '..');
 }
 
-function exactKeys(value, required, name) {
+function exactKeys(
+  value: unknown,
+  required: readonly string[],
+  name: string,
+): asserts value is Record<string, unknown> {
   if (!record(value)) fail(`${name}_INVALID`);
   const keys = Object.keys(value).sort();
   const expected = [...required].sort();
@@ -39,81 +90,93 @@ function exactKeys(value, required, name) {
   }
 }
 
-function decodeBase64(value) {
+function decodeBase64(value: unknown): Buffer {
   if (typeof value !== 'string') fail('ASSIGNMENT_FILE_BASE64_INVALID');
   const bytes = Buffer.from(value, 'base64');
   if (bytes.toString('base64') !== value) fail('ASSIGNMENT_FILE_BASE64_INVALID');
   return bytes;
 }
 
-export function validateAssignment(value) {
+export function validateAssignment(value: unknown): Assignment {
   exactKeys(value, ['schema', 'work', 'files'], 'ASSIGNMENT');
   if (value.schema !== ASSIGNMENT_SCHEMA) fail('ASSIGNMENT_SCHEMA_MISMATCH');
+
   if (!record(value.work)) fail('ASSIGNMENT_WORK_INVALID');
   const work = value.work;
-  for (const field of ['id', 'revision', 'run_id', 'claimed_revision']) {
-    if (typeof work[field] !== 'string' || work[field].length === 0)
+  for (const field of ['id', 'revision', 'run_id', 'claimed_revision'] as const) {
+    if (typeof work[field] !== 'string' || work[field].length === 0) {
       fail(`ASSIGNMENT_WORK_${field.toUpperCase()}_INVALID`);
+    }
   }
   if (work.status !== 'EXECUTING') fail('ASSIGNMENT_WORK_NOT_EXECUTING');
-  if (!Number.isSafeInteger(work.execution_generation) || work.execution_generation < 1) {
+  if (
+    typeof work.execution_generation !== 'number' ||
+    !Number.isSafeInteger(work.execution_generation) ||
+    work.execution_generation < 1
+  ) {
     fail('ASSIGNMENT_EXECUTION_GENERATION_INVALID');
   }
-  if (!record(work.packet) || work.packet.schema !== AGENT_TASK_PACKET_SCHEMA) {
+
+  const packet = work.packet;
+  if (!record(packet) || packet.schema !== AGENT_TASK_PACKET_SCHEMA) {
     fail('ASSIGNMENT_PACKET_SCHEMA_MISMATCH');
   }
   exactKeys(
-    work.packet,
+    packet,
     ['schema', 'kind', 'source_sha', 'command', 'required_paths', 'output_path'],
     'ASSIGNMENT_PACKET',
   );
-  if (work.packet.kind !== 'pure-candidate') fail('ASSIGNMENT_PACKET_KIND_INVALID');
-  if (
-    typeof work.packet.source_sha !== 'string' ||
-    !/^[0-9a-f]{40}$/.test(work.packet.source_sha)
-  ) {
+  if (packet.kind !== 'pure-candidate') fail('ASSIGNMENT_PACKET_KIND_INVALID');
+  if (typeof packet.source_sha !== 'string' || !/^[0-9a-f]{40}$/.test(packet.source_sha)) {
     fail('ASSIGNMENT_SOURCE_SHA_INVALID');
   }
   if (
-    !Array.isArray(work.packet.command) ||
-    work.packet.command.length === 0 ||
-    work.packet.command.some((part) => typeof part !== 'string' || part.length === 0)
+    !Array.isArray(packet.command) ||
+    packet.command.length === 0 ||
+    !packet.command.every(
+      (part: unknown): part is string => typeof part === 'string' && part.length > 0,
+    )
   ) {
     fail('ASSIGNMENT_COMMAND_INVALID');
   }
   if (
-    !Array.isArray(work.packet.required_paths) ||
-    work.packet.required_paths.length === 0 ||
-    work.packet.required_paths.some((candidate) => !validPath(candidate))
+    !Array.isArray(packet.required_paths) ||
+    packet.required_paths.length === 0 ||
+    !packet.required_paths.every(validPath)
   ) {
     fail('ASSIGNMENT_REQUIRED_PATHS_INVALID');
   }
-  if (new Set(work.packet.required_paths).size !== work.packet.required_paths.length) {
+  if (new Set(packet.required_paths).size !== packet.required_paths.length) {
     fail('ASSIGNMENT_REQUIRED_PATHS_DUPLICATE');
   }
-  if (!validPath(work.packet.output_path)) fail('ASSIGNMENT_OUTPUT_PATH_INVALID');
-  if (!Array.isArray(value.files) || value.files.length === 0) fail('ASSIGNMENT_FILES_INVALID');
+  if (!validPath(packet.output_path)) fail('ASSIGNMENT_OUTPUT_PATH_INVALID');
 
-  const seen = new Set();
+  if (!Array.isArray(value.files) || value.files.length === 0) fail('ASSIGNMENT_FILES_INVALID');
+  const seen = new Set<string>();
   for (const file of value.files) {
     exactKeys(file, ['path', 'mode', 'sha256', 'content_base64'], 'ASSIGNMENT_FILE');
     if (!validPath(file.path)) fail('ASSIGNMENT_FILE_PATH_INVALID');
     if (seen.has(file.path)) fail('ASSIGNMENT_FILE_PATH_DUPLICATE');
     seen.add(file.path);
-    if (!['100644', '100755'].includes(file.mode)) fail('ASSIGNMENT_FILE_MODE_INVALID');
+    if (file.mode !== '100644' && file.mode !== '100755') fail('ASSIGNMENT_FILE_MODE_INVALID');
     if (typeof file.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(file.sha256)) {
       fail('ASSIGNMENT_FILE_SHA256_INVALID');
     }
     const bytes = decodeBase64(file.content_base64);
     if (sha256(bytes) !== file.sha256) fail('ASSIGNMENT_FILE_DIGEST_MISMATCH');
   }
-  for (const required of work.packet.required_paths) {
+  for (const required of packet.required_paths) {
     if (!seen.has(required)) fail(`ASSIGNMENT_REQUIRED_FILE_MISSING:${required}`);
   }
-  return value;
+
+  return value as unknown as Assignment;
 }
 
-export function assignmentFile(pathname, bytes, mode = '100644') {
+export function assignmentFile(
+  pathname: string,
+  bytes: string | Buffer | Uint8Array,
+  mode: AssignmentMode = '100644',
+): AssignmentFile {
   const data = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
   return {
     path: pathname,
@@ -123,7 +186,7 @@ export function assignmentFile(pathname, bytes, mode = '100644') {
   };
 }
 
-export function buildAssignment(work, files) {
+export function buildAssignment(work: unknown, files: AssignmentFile[]): Assignment {
   return validateAssignment({
     schema: ASSIGNMENT_SCHEMA,
     work: structuredClone(work),
@@ -131,13 +194,13 @@ export function buildAssignment(work, files) {
   });
 }
 
-export function encodeAssignment(assignment) {
-  validateAssignment(assignment);
-  return Buffer.from(`${JSON.stringify(assignment, null, 2)}\n`, 'utf8');
+export function encodeAssignment(assignment: unknown): Buffer {
+  const validated = validateAssignment(assignment);
+  return Buffer.from(`${JSON.stringify(validated, null, 2)}\n`, 'utf8');
 }
 
-function listFiles(root, prefix = '') {
-  const found = [];
+function listFiles(root: string, prefix = ''): string[] {
+  const found: string[] = [];
   if (!existsSync(root)) return found;
   for (const name of readdirSync(root).sort()) {
     const absolute = join(root, name);
@@ -150,30 +213,35 @@ function listFiles(root, prefix = '') {
   return found;
 }
 
-export function materializeAssignment(assignment, root) {
-  validateAssignment(assignment);
+export function materializeAssignment(assignment: unknown, root: string): string[] {
+  const validated = validateAssignment(assignment);
   mkdirSync(root, { recursive: true });
   if (readdirSync(root).length !== 0) fail('ASSIGNMENT_WORKSPACE_NOT_EMPTY');
-  for (const file of assignment.files) {
+  for (const file of validated.files) {
     const absolute = join(root, ...file.path.split('/'));
     mkdirSync(dirname(absolute), { recursive: true });
     const bytes = decodeBase64(file.content_base64);
     writeFileSync(absolute, bytes, { flag: 'wx' });
     chmodSync(absolute, file.mode === '100755' ? 0o755 : 0o644);
   }
-  const expected = assignment.files.map((file) => file.path).sort();
+  const expected = validated.files.map((file) => file.path).sort();
   const actual = listFiles(root).sort();
-  if (JSON.stringify(actual) !== JSON.stringify(expected))
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     fail('ASSIGNMENT_WORKSPACE_MEMBERSHIP_MISMATCH');
+  }
   return actual;
 }
 
-export function assignmentSha256(bytes) {
+export function assignmentSha256(bytes: string | Buffer | Uint8Array): string {
   return sha256(bytes);
 }
 
-export function validateCandidate(value, assignment, assignmentBytes) {
-  validateAssignment(assignment);
+export function validateCandidate(
+  value: unknown,
+  assignment: unknown,
+  assignmentBytes: string | Buffer | Uint8Array,
+): Candidate {
+  const validatedAssignment = validateAssignment(assignment);
   exactKeys(
     value,
     [
@@ -189,23 +257,30 @@ export function validateCandidate(value, assignment, assignmentBytes) {
     'CANDIDATE',
   );
   if (value.schema !== CANDIDATE_SCHEMA) fail('CANDIDATE_SCHEMA_MISMATCH');
-  if (value.assignment_sha256 !== assignmentSha256(assignmentBytes))
+  if (value.assignment_sha256 !== assignmentSha256(assignmentBytes)) {
     fail('CANDIDATE_ASSIGNMENT_MISMATCH');
-  if (value.obligation_id !== assignment.work.id) fail('CANDIDATE_OBLIGATION_MISMATCH');
-  if (value.run_id !== assignment.work.run_id) fail('CANDIDATE_RUN_MISMATCH');
-  if (value.claimed_revision !== assignment.work.claimed_revision)
+  }
+  if (value.obligation_id !== validatedAssignment.work.id) fail('CANDIDATE_OBLIGATION_MISMATCH');
+  if (value.run_id !== validatedAssignment.work.run_id) fail('CANDIDATE_RUN_MISMATCH');
+  if (value.claimed_revision !== validatedAssignment.work.claimed_revision) {
     fail('CANDIDATE_REVISION_MISMATCH');
-  if (value.output_path !== assignment.work.packet.output_path)
+  }
+  if (value.output_path !== validatedAssignment.work.packet.output_path) {
     fail('CANDIDATE_OUTPUT_PATH_MISMATCH');
+  }
   if (typeof value.output_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(value.output_sha256)) {
     fail('CANDIDATE_OUTPUT_SHA256_INVALID');
   }
   const bytes = decodeBase64(value.output_base64);
   if (sha256(bytes) !== value.output_sha256) fail('CANDIDATE_OUTPUT_DIGEST_MISMATCH');
-  return value;
+  return value as unknown as Candidate;
 }
 
-export function runAssignment(assignmentPath, workspace, candidatePath) {
+export function runAssignment(
+  assignmentPath: string,
+  workspace: string,
+  candidatePath: string,
+): Candidate {
   const assignmentBytes = readFileSync(assignmentPath);
   const assignment = validateAssignment(JSON.parse(assignmentBytes.toString('utf8')));
   materializeAssignment(assignment, workspace);
@@ -230,7 +305,7 @@ export function runAssignment(assignmentPath, workspace, candidatePath) {
     fail('ASSIGNMENT_OUTPUT_MISSING');
   }
   const output = readFileSync(outputFile);
-  const candidate = {
+  const candidate: Candidate = {
     schema: CANDIDATE_SCHEMA,
     assignment_sha256: assignmentSha256(assignmentBytes),
     obligation_id: assignment.work.id,

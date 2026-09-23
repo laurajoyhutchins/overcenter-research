@@ -56,7 +56,7 @@ function postcondition(): Extract<
     expected_base_sha: BASE,
   };
 }
-function compare(ancestor: string, _descendant: string, isAncestor = true) {
+function compare(ancestor: string, descendant: string, isAncestor = true) {
   return {
     status: isAncestor ? 'ahead' : 'diverged',
     ahead_by: 1,
@@ -159,7 +159,7 @@ test('missing semantic grant fails before provider I/O', async () => {
           return { status: 202, body: '{}' };
         },
       }),
-      /GITHUB_PR_UPDATE_BRANCH_EFFECT_NOT_AUTHORIZED/,
+      /EFFECT_CONTRACT_NOT_AUTHORIZED/,
     );
     assert.equal(reads, 0);
     assert.equal(puts, 0);

@@ -387,9 +387,9 @@ export async function runConfinedWorker(
     const timeout = setTimeout(() => killTree(new Error('WORKER_TIMEOUT')), timeoutMs);
     timeout.unref();
 
-    child.stdout.on('data', capture(stdout));
-    child.stderr.on('data', capture(stderr));
-    child.stdin.on('error', (error) => {
+    child.stdout!.on('data', capture(stdout));
+    child.stderr!.on('data', capture(stderr));
+    child.stdin!.on('error', (error) => {
       if (!terminalError) killTree(new Error(`WORKER_STDIN: ${error.message}`));
     });
     child.once('error', (error) => {
@@ -431,6 +431,6 @@ export async function runConfinedWorker(
     // These are the exact manifest bytes whose SHA-256 was returned above.
     // FD 3 is the already-open workspace object. FD 4 is the exact host-created
     // cgroup leaf. Rust consumes both before close_range removes them.
-    child.stdin.end(rendered.bytes, 'utf8');
+    child.stdin!.end(rendered.bytes, 'utf8');
   });
 }

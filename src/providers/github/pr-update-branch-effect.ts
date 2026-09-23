@@ -1,11 +1,11 @@
 import type { KernelCore } from '../../authority/engine.ts';
 import type { ExecutionPermit } from '../../model.ts';
+import { GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT } from '../../effect-adapter.ts';
 import { GITHUB_API_VERSION } from './contract.ts';
 import { observeCertifiedGithubPullRequestIdentity } from './certified-pr.ts';
 import { githubGetAsync, runGithubReadObserverAsync, type GithubJsonGetAsync } from './rest.ts';
 
-export const GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT =
-  'github-pull-request/update-branch' as const;
+export { GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT } from '../../effect-adapter.ts';
 
 export type GithubUpdateBranchPut = (
   token: string,
@@ -52,21 +52,12 @@ export async function performGithubPullRequestUpdateBranchEffect(
   previous_head_sha: string;
 }> {
   if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
-  const work = kernel.claimedWork(permit.id);
-  if (
-    work.id !== permit.obligation_id ||
-    work.run_id !== permit.id ||
-    work.claimed_revision !== permit.claimed_revision
-  ) {
-    throw new Error('GITHUB_PR_UPDATE_BRANCH_RUN_MISMATCH');
-  }
-  if (work.packet.effect_contract !== GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT) {
-    throw new Error('GITHUB_PR_UPDATE_BRANCH_EFFECT_NOT_AUTHORIZED');
-  }
-  if (work.postcondition.verifier !== 'github-pull-request-branch-updated/v1') {
-    throw new Error('GITHUB_PR_UPDATE_BRANCH_POSTCONDITION_MISMATCH');
-  }
-  const p = work.postcondition;
+  const authority = kernel.authorizeEffect(
+    permit,
+    GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
+    'github-pull-request-branch-updated/v1',
+  );
+  const p = authority.postcondition;
   const identity = await runGithubReadObserverAsync(
     token,
     (syncGet) =>
@@ -93,7 +84,7 @@ export async function performGithubPullRequestUpdateBranchEffect(
   if (!owner || !repo) throw new Error('GITHUB_PR_UPDATE_BRANCH_REPOSITORY_INVALID');
   const path = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${p.pull_number}/update-branch`;
 
-  return kernel.performEffect(permit, async () => {
+  return kernel.performEffect(authority, async () => {
     const response = await put(token, path, { expected_head_sha: p.expected_previous_head_sha });
     if (response.status !== 202) {
       throw new Error(`GITHUB_PR_UPDATE_BRANCH_FAILED:${response.status}:${response.body}`);

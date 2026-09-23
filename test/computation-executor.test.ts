@@ -14,7 +14,7 @@ import {
   executionIdentityKey,
   validateComputationExecution,
   validateProcessSpec,
-  type ProcessSpecV1,
+  type ProcessSpec,
 } from '../src/execution/protocol.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
@@ -212,7 +212,7 @@ function spec(
     pidFile?: string;
     timeoutMs?: number;
   } = {},
-): ProcessSpecV1 {
+): ProcessSpec {
   return {
     schema: PROCESS_SPEC_SCHEMA,
     executable: process.execPath,
@@ -259,7 +259,7 @@ async function assertDead(pids: number[]): Promise<void> {
 test('TypeScript and Go accept the same process-spec conformance corpus', () => {
   const corpus = JSON.parse(
     readFileSync(
-      join(repoRoot, 'contracts/computation-execution-v1/process-spec-conformance.json'),
+      join(repoRoot, 'contracts/computation-execution/process-spec-conformance.json'),
       'utf8',
     ),
   ) as {
@@ -437,8 +437,8 @@ test('production executor receives only explicit task environment', async () => 
     const environment = JSON.parse(
       Buffer.from(evidence.stdout_base64!, 'base64').toString('utf8'),
     ) as Record<string, string>;
-    assert.deepEqual(environment, { SAFE: 'yes' });
     assert.equal(environment.GITHUB_TOKEN, undefined);
+    assert.deepEqual(environment, { SAFE: 'yes' });
   } finally {
     await harness.close();
     delete process.env.GITHUB_TOKEN;
