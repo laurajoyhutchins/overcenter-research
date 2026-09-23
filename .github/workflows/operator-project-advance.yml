@@ -135,6 +135,7 @@ jobs:
           OBLIGATION_ID: ${{ steps.invoke.outputs.obligation_id }}
           RUN_ID: ${{ steps.invoke.outputs.run_id }}
           ASSIGNMENT_SHA256: ${{ steps.invoke.outputs.assignment_sha256 }}
+          ASSIGNMENT_KIND: ${{ steps.invoke.outputs.assignment_kind }}
           CANDIDATE_BRANCH: ${{ steps.invoke.outputs.candidate_branch }}
           RECEIPT_DIGEST: ${{ steps.invoke.outputs.receipt_digest }}
         run: |
@@ -148,6 +149,7 @@ jobs:
             echo "- obligation: ${OBLIGATION_ID:-none}"
             echo "- run: ${RUN_ID:-none}"
             echo "- assignment digest: ${ASSIGNMENT_SHA256:-none}"
+            echo "- assignment kind: ${ASSIGNMENT_KIND:-none}"
             echo "- candidate branch: ${CANDIDATE_BRANCH:-none}"
             echo "- receipt digest: ${RECEIPT_DIGEST:-none}"
           } >> "$GITHUB_STEP_SUMMARY"

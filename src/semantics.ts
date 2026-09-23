@@ -31,7 +31,8 @@ export function settlementSemantics(postcondition: Postcondition): SettlementSem
   if (
     postcondition.verifier === 'eventually-consistent-file-content-equals/v1' ||
     postcondition.verifier === 'github-commit-status/v2' ||
-    postcondition.verifier === 'github-pull-request-branch-updated/v1'
+    postcondition.verifier === 'github-pull-request-branch-updated/v1' ||
+    postcondition.verifier === 'source-change-integrated/v1'
   ) {
     return {
       verifier: postcondition.verifier,
@@ -43,6 +44,7 @@ export function settlementSemantics(postcondition: Postcondition): SettlementSem
 }
 
 export function verifiedContentIdentity(postcondition: Postcondition): string | null {
+  if (postcondition.verifier === 'source-change-integrated/v1') return null;
   if (
     postcondition.verifier === 'file-content-equals/v1' ||
     postcondition.verifier === 'eventually-consistent-file-content-equals/v1'

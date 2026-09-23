@@ -13,7 +13,8 @@ export const SettlementObservationSchema={
         "eventually-consistent-file-content-equals/v1",
         "github-commit-status/v2",
         "github-pull-request-branch-updated/v1",
-        "kubernetes-configmap-exists/v1"
+        "kubernetes-configmap-exists/v1",
+        "source-change-integrated/v1"
       ]
     },
     "mutation_certainty": {

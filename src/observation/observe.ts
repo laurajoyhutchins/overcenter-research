@@ -23,6 +23,7 @@ import {
   runGithubReadObserverAsync,
   type GithubJsonGetAsync,
 } from '../providers/github/rest.ts';
+import { validateSourceChangePostcondition } from '../execution/source-change.ts';
 import {
   kubernetesConfigMapAbsenceEvidenceMatches,
   observeCertifiedKubernetesConfigMap,
@@ -151,6 +152,10 @@ export function validatePostcondition(p: Postcondition): void {
     p.name.length > 0
   )
     return;
+  if (p?.verifier === 'source-change-integrated/v1') {
+    validateSourceChangePostcondition(p);
+    return;
+  }
   throw new Error('UNSUPPORTED_POSTCONDITION');
 }
 
@@ -374,6 +379,14 @@ function githubPullRequestBranchUpdatedEvidenceMatches(
 export function observePostcondition(p: Postcondition, context: ObservationContext): Observation {
   validatePostcondition(p);
 
+  if (p.verifier === 'source-change-integrated/v1') {
+    return {
+      verifier: p.verifier,
+      mutation_certainty: 'uncertain',
+      observation_error: 'SOURCE_CHANGE_REQUIRES_INTEGRATION_EVIDENCE',
+    };
+  }
+
   if (p.verifier === 'github-pull-request-branch-updated/v1') {
     if (!context.githubToken) {
       return githubPullRequestBranchUpdatedError(p, 'GITHUB_TOKEN_UNAVAILABLE');
@@ -591,6 +604,8 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
     throw new Error('OBSERVATION_VERIFIER_MISMATCH');
   }
 
+  if (postcondition.verifier === 'source-change-integrated/v1') return;
+
   if (
     postcondition.verifier === 'file-content-equals/v1' ||
     postcondition.verifier === 'eventually-consistent-file-content-equals/v1'
@@ -676,6 +691,8 @@ export function observationAuthoritativelyAbsent(
 export function observationVerified(postcondition: Postcondition, observed: Observation): boolean {
   assertObservationCoordinate(postcondition, observed);
   if (observed.mutation_certainty !== 'present') return false;
+
+  if (postcondition.verifier === 'source-change-integrated/v1') return false;
 
   if (
     postcondition.verifier === 'file-content-equals/v1' ||

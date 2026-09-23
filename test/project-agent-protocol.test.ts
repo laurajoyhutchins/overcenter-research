@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -123,6 +131,25 @@ function agentIntent(id: string, postconditionPath: string) {
   };
 }
 
+function sourceChangeIntent(id: string) {
+  return {
+    id,
+    task: {
+      kind: 'source-change',
+      objective: 'Seal provider mutation behind current EffectAuthority.',
+      writable_paths: ['src/authority', 'src/providers', 'test'],
+    },
+    postcondition: {
+      verifier: 'source-change-integrated/v1',
+      target_ref: 'refs/heads/main',
+      acceptance_commands: [
+        ['npm', 'run', 'typecheck'],
+        ['npm', 'run', 'test:unit'],
+      ],
+    },
+  };
+}
+
 test('checked-in project intent is source-agnostic until trusted compilation', () => {
   const raw = JSON.parse(
     readFileSync(new URL('../.overcenter/project-intent.json', import.meta.url), 'utf8'),
@@ -168,6 +195,65 @@ test('project.advance reconciles trusted project intent before frontier selectio
     assert.equal(current.length, 1);
     assert.equal(current[0].id, 'intent-work');
     assert.equal(current[0].status, 'EXECUTING');
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
+test('source-change intent keeps source revision out of semantic graph identity', () => {
+  const first = compileProjectIntent(
+    {
+      schema: 'overcenter-project-intent/v1',
+      obligations: [sourceChangeIntent('source-work')],
+    },
+    'a'.repeat(40),
+  );
+  const second = compileProjectIntent(
+    {
+      schema: 'overcenter-project-intent/v1',
+      obligations: [sourceChangeIntent('source-work')],
+    },
+    'b'.repeat(40),
+  );
+
+  assert.deepEqual(first, second);
+  const work = first[0];
+  assert.ok(work?.packet);
+  assert.equal(work.packet.kind, 'source-change');
+  assert.equal(Object.hasOwn(work.packet, 'source_sha'), false);
+});
+
+test('project.advance claims source-change work and injects source SHA only into assignment', () => {
+  const f = fixture();
+  try {
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+    const sourceSha = commitProjectIntent(f.work, [sourceChangeIntent('source-work')]);
+    const outputDir = join(f.root, 'source-packet');
+
+    const receipt = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir,
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+
+    assert.equal(receipt.state, 'AGENT_EXECUTION_REQUIRED');
+    assert.equal(receipt.obligation_id, 'source-work');
+    assert.equal(receipt.assignment_kind, 'source-change');
+    assert.equal(receipt.candidate_branch_base_sha, sourceSha);
+    const assignment = JSON.parse(readFileSync(join(outputDir, 'assignment.json'), 'utf8'));
+    assert.equal(assignment.schema, 'overcenter-source-change-assignment/v1');
+    assert.equal(assignment.source_sha, sourceSha);
+    assert.equal(assignment.work.packet.kind, 'source-change');
+    assert.equal(Object.hasOwn(assignment.work.packet, 'source_sha'), false);
+    assert.equal(existsSync(join(outputDir, 'overcenter')), false);
+
+    const current = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
+    }).inspect();
+    assert.equal(current[0]?.status, 'EXECUTING');
   } finally {
     rmSync(f.root, { recursive: true, force: true });
     rmSync(f.postconditionRoot, { recursive: true, force: true });

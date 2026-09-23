@@ -58,12 +58,19 @@ export interface KubernetesConfigMapExistsPostcondition {
   name: string;
 }
 
+export interface SourceChangeIntegratedPostcondition {
+  verifier: 'source-change-integrated/v1';
+  target_ref: string;
+  acceptance_commands: string[][];
+}
+
 export type Postcondition =
   | FileContentPostcondition
   | EventuallyConsistentFilePostcondition
   | GitHubCommitStatusPostcondition
   | GitHubPullRequestBranchUpdatedPostcondition
-  | KubernetesConfigMapExistsPostcondition;
+  | KubernetesConfigMapExistsPostcondition
+  | SourceChangeIntegratedPostcondition;
 
 export type { Observation } from '../contracts/observation-evidence/settlement-observation.typebox.ts';
 

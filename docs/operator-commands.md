@@ -28,9 +28,11 @@ Ask Overcenter to make progress.
 
 The caller supplies no obligation ID, selector, priority, lease, run ID, or execution plan. Overcenter owns those mechanics. It reconciles authoritative state, derives the executable frontier, chooses work, and claims the exact revision.
 
-If the exact trusted command source contains `.overcenter/project-intent.json`, `project.advance` first compiles that declarative intent into exact-source-bound agent obligations and feeds the resulting ensure-set through the kernel's ordinary graph reconciliation boundary. The intent never carries an authority revision or source SHA; those are derived by trusted software. Omitted obligations are not retired, so partial intent cannot delete unrelated project work.
+If the exact trusted command source contains `.overcenter/project-intent.json`, `project.advance` first compiles that declarative intent and feeds the resulting ensure-set through the kernel's ordinary graph reconciliation boundary. Pure byte-complete tasks remain exact-source-bound. Source-change tasks are different: their objective, writable paths, dependencies, and acceptance contract form stable graph identity, while the exact Git source SHA is injected only after claim into the execution assignment. Omitted obligations are not retired, so partial intent cannot delete unrelated project work.
 
 The file is producer input to `project.advance`, not another agent-facing command. A future deterministic or reasoning-backed graph producer can emit the same narrow contract without gaining graph-patch, claim, or settlement authority.
+
+A source-change task uses `kind: "source-change"`, a human-readable `objective`, and explicit `writable_paths`. Its `source-change-integrated/v1` postcondition names the target ref and deterministic acceptance commands. `project.advance` can assign this work without a native execution client because the intended executor is a reasoning worker operating on an exact source checkout. `project.submit` deliberately rejects source-change candidates until trusted current-main verification and integration are promoted; assignment support is not settlement authority.
 
 The result is either current project state or an immutable work packet when reasoning is required. A reasoning packet contains `assignment.json`, the command receipt, and a capability-free native `overcenter` worker executable. The executable validates and materializes the assignment, runs the declared task, and emits candidate bytes bound to the exact assignment/run/revision.
 

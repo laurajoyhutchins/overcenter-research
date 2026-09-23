@@ -12,6 +12,12 @@ import {
   validateCandidate,
   validPath,
 } from '../execution/assignment-capsule.ts';
+import {
+  buildSourceChangeAssignment,
+  encodeSourceChangeAssignment,
+  SOURCE_CHANGE_TASK_SCHEMA,
+  validateSourceChangeTaskPacket,
+} from '../execution/source-change.ts';
 import { canonicalDigest } from '../digest.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
 import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
@@ -55,6 +61,7 @@ export interface ProjectAdvanceReceipt {
   run_id?: string;
   claimed_revision?: string;
   assignment_sha256?: string;
+  assignment_kind?: 'pure-candidate' | 'source-change';
   candidate_branch?: string;
   candidate_branch_base_sha?: string;
   receipt_digest: string;
@@ -166,11 +173,32 @@ function desiredProjectGraph(repo: string, sourceSha: string) {
 function prepareAgentPacket(
   repo: string,
   work: Work,
-): {
-  sourceSha: string;
-  files: ReturnType<typeof assignmentFile>[];
-} {
+  commandSourceSha?: string,
+):
+  | {
+      kind: 'pure-candidate';
+      sourceSha: string;
+      files: ReturnType<typeof assignmentFile>[];
+    }
+  | {
+      kind: 'source-change';
+      sourceSha: string;
+      files: [];
+    } {
   const packet = work.packet;
+
+  if (packet.schema === SOURCE_CHANGE_TASK_SCHEMA && packet.kind === 'source-change') {
+    validateSourceChangeTaskPacket(packet);
+    const sourceSha = String(commandSourceSha ?? '').toLowerCase();
+    if (!/^[0-9a-f]{40}$/.test(sourceSha)) {
+      throw new Error('PROJECT_ADVANCE_SOURCE_CHANGE_SOURCE_INVALID');
+    }
+    if (work.postcondition.verifier !== 'source-change-integrated/v1') {
+      throw new Error('PROJECT_ADVANCE_SOURCE_CHANGE_POSTCONDITION_INVALID');
+    }
+    return { kind: 'source-change', sourceSha, files: [] };
+  }
+
   if (packet.schema !== AGENT_TASK_PACKET_SCHEMA || packet.kind !== 'pure-candidate') {
     throw new Error('PROJECT_ADVANCE_AGENT_PACKET_UNSUPPORTED');
   }
@@ -202,6 +230,7 @@ function prepareAgentPacket(
   }
 
   return {
+    kind: 'pure-candidate',
     sourceSha,
     files: requiredPaths.map((path) => assignmentFile(path, gitBytes(repo, sourceSha, path))),
   };
@@ -209,17 +238,20 @@ function prepareAgentPacket(
 
 function agentAssignment(
   work: Work,
-  prepared: { sourceSha: string; files: ReturnType<typeof assignmentFile>[] },
+  prepared: ReturnType<typeof prepareAgentPacket>,
 ): {
   bytes: Buffer;
   source_sha: string;
+  kind: 'pure-candidate' | 'source-change';
 } {
-  const assignment = buildAssignment(work, prepared.files);
-  const bytes = encodeAssignment(assignment);
+  const bytes =
+    prepared.kind === 'source-change'
+      ? encodeSourceChangeAssignment(buildSourceChangeAssignment(work, prepared.sourceSha))
+      : encodeAssignment(buildAssignment(work, prepared.files));
   if (bytes.includes(Buffer.from('execution_capability'))) {
     throw new Error('PROJECT_ADVANCE_PACKET_LEAKED_EXECUTION_CAPABILITY');
   }
-  return { bytes, source_sha: prepared.sourceSha };
+  return { bytes, source_sha: prepared.sourceSha, kind: prepared.kind };
 }
 
 function visibleState(work: Work[]): ProjectVisibleState {
@@ -293,13 +325,16 @@ export function advanceProjectForAgent(
 
     // The operator command does not ask the reasoning agent to choose work.
     // It only accepts a frontier item that is already an agent-shaped packet.
-    const prepared = prepareAgentPacket(repo, ready);
-    if (!workerClientPath) {
-      throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED');
-    }
-    const workerClient = readFileSync(workerClientPath);
-    if (workerClient.length === 0) {
-      throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_EMPTY');
+    const prepared = prepareAgentPacket(repo, ready, context.command_source_sha);
+    let workerClient: Buffer | null = null;
+    if (prepared.kind === 'pure-candidate') {
+      if (!workerClientPath) {
+        throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED');
+      }
+      workerClient = readFileSync(workerClientPath);
+      if (workerClient.length === 0) {
+        throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_EMPTY');
+      }
     }
 
     try {
@@ -312,7 +347,9 @@ export function advanceProjectForAgent(
       rmSync(outputDir, { recursive: true, force: true });
       mkdirSync(outputDir, { recursive: true });
       writeFileSync(join(outputDir, 'assignment.json'), assignment.bytes);
-      writeFileSync(join(outputDir, 'overcenter'), workerClient, { mode: 0o755 });
+      if (workerClient) {
+        writeFileSync(join(outputDir, 'overcenter'), workerClient, { mode: 0o755 });
+      }
 
       const base = {
         schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
@@ -330,6 +367,7 @@ export function advanceProjectForAgent(
         run_id: permit.id,
         claimed_revision: permit.claimed_revision,
         assignment_sha256: assignmentSha256(assignment.bytes),
+        assignment_kind: assignment.kind,
         candidate_branch: `overcenter/candidate/${permit.id}`,
         candidate_branch_base_sha: context.command_source_sha.toLowerCase(),
       };
@@ -383,6 +421,9 @@ export function submitProjectCandidate(
   if (!kernel.head()) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
 
   const assigned = kernel.claimedWork(raw.run_id);
+  if (assigned.packet.kind === 'source-change') {
+    throw new Error('PROJECT_SUBMIT_SOURCE_CHANGE_NOT_IMPLEMENTED');
+  }
   const rebuilt = agentAssignment(assigned, prepareAgentPacket(repo, assigned));
   const candidate = validateCandidate(
     raw,

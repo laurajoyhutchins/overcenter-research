@@ -11,6 +11,7 @@ export const VerifierKind = stringEnum([
   'github-commit-status/v2',
   'github-pull-request-branch-updated/v1',
   'kubernetes-configmap-exists/v1',
+  'source-change-integrated/v1',
 ] as const);
 
 export const SettlementObservation = Type.Object(

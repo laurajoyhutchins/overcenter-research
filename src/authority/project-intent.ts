@@ -2,6 +2,10 @@ import {
   AGENT_TASK_PACKET_SCHEMA,
   validateAgentTaskPacket,
 } from '../execution/assignment-capsule.ts';
+import {
+  SOURCE_CHANGE_TASK_SCHEMA,
+  validateSourceChangeTaskPacket,
+} from '../execution/source-change.ts';
 import { normalizeObligation, type ObligationInput } from './facts.ts';
 import { assertExactKeys, isData } from '../validation.ts';
 
@@ -35,21 +39,38 @@ export function compileProjectIntent(value: unknown, sourceSha: string): Obligat
     if (!isData(candidate.task)) {
       throw new Error(`PROJECT_INTENT_TASK_INVALID:${index}`);
     }
-    assertExactKeys(
-      candidate.task,
-      ['command', 'required_paths', 'output_path'],
-      [],
-      `PROJECT_INTENT_TASK_INVALID:${index}`,
-    );
-
-    const packet = validateAgentTaskPacket({
-      schema: AGENT_TASK_PACKET_SCHEMA,
-      kind: 'pure-candidate',
-      source_sha: source,
-      command: structuredClone(candidate.task.command),
-      required_paths: structuredClone(candidate.task.required_paths),
-      output_path: candidate.task.output_path,
-    });
+    const packet =
+      candidate.task.kind === 'source-change'
+        ? (() => {
+            assertExactKeys(
+              candidate.task,
+              ['kind', 'objective', 'writable_paths'],
+              [],
+              `PROJECT_INTENT_TASK_INVALID:${index}`,
+            );
+            return validateSourceChangeTaskPacket({
+              schema: SOURCE_CHANGE_TASK_SCHEMA,
+              kind: 'source-change',
+              objective: candidate.task.objective,
+              writable_paths: structuredClone(candidate.task.writable_paths),
+            });
+          })()
+        : (() => {
+            assertExactKeys(
+              candidate.task,
+              ['command', 'required_paths', 'output_path'],
+              [],
+              `PROJECT_INTENT_TASK_INVALID:${index}`,
+            );
+            return validateAgentTaskPacket({
+              schema: AGENT_TASK_PACKET_SCHEMA,
+              kind: 'pure-candidate',
+              source_sha: source,
+              command: structuredClone(candidate.task.command),
+              required_paths: structuredClone(candidate.task.required_paths),
+              output_path: candidate.task.output_path,
+            });
+          })();
 
     return normalizeObligation({
       id: candidate.id,

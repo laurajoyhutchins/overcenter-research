@@ -56,6 +56,7 @@ if (output) {
     run_id: receipt.run_id ?? '',
     claimed_revision: receipt.claimed_revision ?? '',
     assignment_sha256: receipt.assignment_sha256 ?? '',
+    assignment_kind: receipt.assignment_kind ?? '',
     candidate_branch: receipt.candidate_branch ?? '',
     candidate_branch_base_sha: receipt.candidate_branch_base_sha ?? '',
     receipt_digest: receipt.receipt_digest,
