@@ -6,7 +6,7 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 client="$tmp/overcenter"
-"$repo_root/src/execution/worker-client/build.sh" "$client" >/dev/null
+"$repo_root/native/worker-client/build.sh" "$client" >/dev/null
 node --experimental-strip-types "$repo_root/test/proof/worker-client/proof.ts" "$client"
 
 printf '\nPASS: native portable Overcenter worker client\n'
