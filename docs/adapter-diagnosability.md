@@ -29,6 +29,8 @@ A protocol description contains:
 
 The analyzer builds a synchronized product of two executions with identical observation histories. A product state is ambiguous when the two executions disagree about whether the mutation occurred.
 
+For every distinct consequential action reachable from an ambiguous product state, the analyzer retains a concrete unsafe-action witness. `unsafeWitnesses` is the complete action set for diagnostics; the legacy `unsafeWitness` is the first action in deterministic lexical order and must not be interpreted as the only hazard.
+
 A reachable cycle containing only ambiguous product states is non-diagnosable. Separately, a consequential transition reachable while the observer is still ambiguous is reported as an unsafe witness.
 
 An independent bounded trace enumerator provides a second implementation for the maintained finite cases. It is a checker cross-check, not an unbounded proof.
