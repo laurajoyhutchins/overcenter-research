@@ -129,4 +129,8 @@ check_expected_failure "AsyncEffectKernel" "BrokenAsyncNoFence.cfg" "AuthoritySa
 check_good "RecoveryLiveness" "RecoveryLiveness.cfg" "conditional recovery liveness"
 check_expected_temporal_failure "RecoveryLiveness" "BrokenRecoveryNoReap.cfg"
 
+check_good "SchedulerLiveness" "SchedulerLiveness.cfg" "conditional scheduler liveness"
+check_expected_temporal_failure "SchedulerLiveness" "BrokenSchedulerUnfair.cfg"
+check_expected_temporal_failure "SchedulerLiveness" "SchedulerFreshFlood.cfg"
+
 echo "TLA+ safety and conditional-liveness models, including all negative controls, behaved as expected."
