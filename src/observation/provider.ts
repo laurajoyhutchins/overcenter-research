@@ -21,11 +21,6 @@ export interface ProviderStructuralValidation {
   schema_sha256:string;
 }
 
-export interface ProviderRevalidationProvenance {
-  observed_at:string;
-  etag:string;
-}
-
 export interface ProviderObservation<
   Provider extends string,
   Request,
@@ -49,27 +44,18 @@ export interface ProviderObservation<
     transport_error?: string;
   } & OutcomeExtra;
   structural_validation?:ProviderStructuralValidation;
-  revalidated_from?:ProviderRevalidationProvenance;
 }
 
-export type ProviderObservationExtensionKind = 'non-empty-string';
-
 export interface ProviderObservationValidationOptions {
-  topLevelExtensions?: readonly string[];
-  requiredTopLevelExtensions?: Readonly<Record<string,ProviderObservationExtensionKind>>;
-  outcomeExtensions?: readonly string[];
+  requiredNonEmptyTopLevel?:readonly string[];
 }
 
 export function validateProviderObservationEnvelope(
   value:unknown,
-  {
-    topLevelExtensions=[],
-    requiredTopLevelExtensions={},
-    outcomeExtensions=[],
-  }:ProviderObservationValidationOptions={},
+  {requiredNonEmptyTopLevel=[]}:ProviderObservationValidationOptions={},
 ):asserts value is ProviderObservation<string,unknown,unknown> {
   if (!data(value)) throw new Error('PROVIDER_OBSERVATION_INVALID');
-  const requiredExtensionNames=Object.keys(requiredTopLevelExtensions);
+  const requiredExtensionNames=[...requiredNonEmptyTopLevel];
   exactKeys(
     value,
     [
@@ -81,16 +67,11 @@ export function validateProviderObservationEnvelope(
       'outcome',
       ...requiredExtensionNames,
     ],
-    ['structural_validation','revalidated_from',...topLevelExtensions],
+    ['structural_validation'],
     'PROVIDER_OBSERVATION_SHAPE_INVALID',
   );
-  for (const [name,kind] of Object.entries(requiredTopLevelExtensions)) {
-    if (kind==='non-empty-string') {
-      nonEmptyString(
-        value[name],
-        `PROVIDER_OBSERVATION_EXTENSION_INVALID:${name}`,
-      );
-    }
+  for (const name of requiredExtensionNames) {
+    nonEmptyString(value[name],`PROVIDER_OBSERVATION_EXTENSION_INVALID:${name}`);
   }
 
   if (!data(value.contract)) throw new Error('PROVIDER_OBSERVATION_CONTRACT_INVALID');
@@ -125,7 +106,7 @@ export function validateProviderObservationEnvelope(
   exactKeys(
     value.outcome,
     ['status','visibility'],
-    ['value','transport_error',...outcomeExtensions],
+    ['value','transport_error'],
     'PROVIDER_OBSERVATION_OUTCOME_SHAPE_INVALID',
   );
   if (!Number.isSafeInteger(value.outcome.status) || value.outcome.status<0) {
@@ -178,23 +159,4 @@ export function validateProviderObservationEnvelope(
     }
   }
 
-  if (value.revalidated_from!==undefined) {
-    if (!data(value.revalidated_from)) {
-      throw new Error('PROVIDER_OBSERVATION_REVALIDATION_INVALID');
-    }
-    exactKeys(
-      value.revalidated_from,
-      ['observed_at','etag'],
-      [],
-      'PROVIDER_OBSERVATION_REVALIDATION_SHAPE_INVALID',
-    );
-    nonEmptyString(
-      value.revalidated_from.observed_at,
-      'PROVIDER_OBSERVATION_REVALIDATION_TIME_INVALID',
-    );
-    nonEmptyString(
-      value.revalidated_from.etag,
-      'PROVIDER_OBSERVATION_REVALIDATION_ETAG_INVALID',
-    );
-  }
 }
