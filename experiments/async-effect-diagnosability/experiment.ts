@@ -62,7 +62,6 @@ function boundedCompletionProtocol(): AdapterProtocol {
         to: 'c',
         event: 'settle',
         observation: 'DONE',
-        consequential: 'settle-done',
       },
     ],
   };

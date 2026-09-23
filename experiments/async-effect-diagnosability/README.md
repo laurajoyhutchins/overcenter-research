@@ -73,6 +73,14 @@ Expected result:
 - the independent depth-12 oracle retains at least one ambiguous observation sequence;
 - derived release decision: `ambiguous-do-not-release`.
 
+## Post-observation model correction
+
+The first hosted run of this real-adapter encoding exposed an experiment-modeling mistake: the protocol labeled both positive settlement (`settle-done`) and reservation release (`release-authority`) as generic consequential actions. The unchanged checker therefore returned a valid `settle-done` unsafe witness first, which did not answer this experiment's narrower question about safe authority reuse.
+
+The correction removes only the `settle-done` consequential annotation. No state, transition, observation, bounded/unbounded liveness assumption, production cross-check, or diagnoser implementation changes. `release-authority` remains the sole consequential action because that is the preregistered safety property under test.
+
+This correction is explicitly post-observation and is not counted as part of the original preregistration.
+
 ## Production cross-check
 
 The experiment also reads the current production contracts without modifying them.
