@@ -1662,13 +1662,17 @@
         "No evidence identity changes across backends."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "Preregistered before the first hosted local evidence-CAS backend comparison.",
+        "status": "evaluated",
+        "evaluated_revision": "455bcdcd0614598009bbda2644ae2c3b99f6e086",
         "artifacts": [
-          "Pending first hosted local evidence-CAS backend run."
+          "GitHub Actions run 35824174675, job 107062210160: local evidence CAS backend comparison PASS.",
+          "Both filesystem and SQLite deduplicated 80 unique objects inserted twice, verified every digest, survived reopen, and retained exactly 40 live objects after the 50% sweep.",
+          "Filesystem p50 first put 164.797 us, duplicate put 20.739 us, verified read 269.773 us; SQLite p50 first put 1375.188 us, duplicate put 641.338 us, verified read 1259.822 us.",
+          "Filesystem physical bytes fell from 33,554,432 to 16,777,216 immediately after deleting half the objects. SQLite stayed at 33,710,080 after DELETE + checkpoint and fell to 16,904,192 only after VACUUM.",
+          "Filesystem sweep took 1,725.281 us. SQLite batched DELETE took 28,763.78 us and VACUUM took 89,015.077 us."
         ]
       },
-      "interpretation": "This experiment selects a local default only. A distributed or cloud evidence store will need the same digest/ref contract behind a different transport. If neither local backend has a decisive operational advantage, the smallest interface should permit both without allowing backend identity to leak into receipt semantics.",
+      "interpretation": "Use an immutable filesystem CAS as the local evidence-byte default, while keeping the EvidenceRef identity and store interface backend-neutral. SQLite remains appropriate for authoritative metadata and indices, but large immutable trace bytes do not benefit from being BLOBs in the authority database. Before promoting the filesystem backend, atomic publication and crash/concurrent-writer behavior must be proved.",
       "non_claims": [
         "Local filesystem or SQLite latency predicts cloud object-store latency.",
         "SQLite is a distributed evidence store.",
@@ -1681,8 +1685,8 @@
         "note": "Object sizes/counts, duplicate-put pass, verified-read requirement, 50% GC sweep, reopen control, and SQLite VACUUM comparison were fixed before the first hosted run."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first hosted local evidence-CAS backend run."
+        "state": "supported",
+        "summary": "At exact revision 455bcdcd0614598009bbda2644ae2c3b99f6e086, both backends preserved backend-neutral SHA-256 evidence identity, but the filesystem CAS was materially faster for puts/verified reads and reclaimed deleted object bytes immediately. SQLite retained freed pages until VACUUM and added substantial write/read/compaction cost for these replay-sized blobs."
       }
     }
   ]
