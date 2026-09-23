@@ -3,7 +3,7 @@ import {
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './contract.ts';
-import { GITHUB_OBSERVATION_OPERATIONS } from './operations.generated.ts';
+import { GITHUB_OBSERVATION_OPERATIONS } from '../../generated/github-operations.ts';
 import { materializeGithubOperationRequest } from './openapi.ts';
 import {
   GITHUB_OPERATION_SEMANTICS,
