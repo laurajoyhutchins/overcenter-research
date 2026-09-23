@@ -50,8 +50,9 @@ test('entire Agent A sandbox can disappear and fresh Agent B reconstructs and se
 
     writeFileSync(join(a, 'agent-cache.sqlite'), 'throw me away');
 
-    agentA.beginEffect(run);
-    writeFileSync(f.world, 'present');
+    void agentA.performEffect(agentA.authorizeEffect(run), () =>
+      writeFileSync(f.world, 'present'),
+    );
     const claimCommit = run.claim_commit;
     rmSync(a, { recursive: true, force: true });
     assert.equal(existsSync(a), false);
@@ -108,8 +109,7 @@ test('kernel-owned verifier cannot be replaced by the agent', () => {
     const k = new GitOvercenterKernel(a, { remote: 'origin' });
     const work = k.deriveReadyWork()!;
     const run = k.claim(work.id, work.revision);
-    k.beginEffect(run);
-    writeFileSync(f.world, 'wrong');
+    void k.performEffect(k.authorizeEffect(run), () => writeFileSync(f.world, 'wrong'));
     const result = k.resolve(run);
 
     assert.equal(result.disposition, 'RECOVERY_REQUIRED');
