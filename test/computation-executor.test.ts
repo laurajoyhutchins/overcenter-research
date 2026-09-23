@@ -430,8 +430,8 @@ test('production executor receives only explicit task environment',async()=>{
     const environment=JSON.parse(
       Buffer.from(evidence.stdout_base64!,'base64').toString('utf8'),
     ) as Record<string,string>;
-    assert.deepEqual(environment,{SAFE:'yes'});
     assert.equal(environment.GITHUB_TOKEN,undefined);
+    assert.deepEqual(environment,{SAFE:'yes'});
   } finally {
     await harness.close();
     delete process.env.GITHUB_TOKEN;
