@@ -33,6 +33,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
 - `typed-capability-authority/` - preregistered Rust differential for sealed affine effect authority, compile-fail invalid states, and sequential/concurrent admission cost.
+- `merkle-execution-receipts/` - preregistered content-addressed causal receipt sidecar with corruption, misbinding, rollback, reconstruction, ambiguity, and overhead controls.
 
 ## Experiment contract
 

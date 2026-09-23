@@ -1336,6 +1336,61 @@
         "state": "supported",
         "summary": "At exact revision 637d15c0f7d29cf0aec9be6afc9cfc40a8d0ea06, the typed Rust capability matched the modeled production admission decision across all 131,072 cases, rejected raw/forged/reused authority at compile time, remained zero-sized, and measured 0.949x sequential and 0.959x concurrent median admission time versus the structural baseline."
       }
+    },
+    {
+      "id": "merkle-execution-receipts",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/merkle-execution-receipts",
+      "readme": "experiments/merkle-execution-receipts/README.md",
+      "question": "Can a content-addressed causal receipt DAG preserve the current exact-coordinate GitHub commit-status settlement semantics while mechanically detecting corrupted, incomplete, misbound, rolled-back, or falsely terminal evidence?",
+      "claim": "A Merkleized sidecar receipt for the modeled GitHub commit-status path can derive terminal historical disposition from causal proof closure, detect byte corruption and missing dependencies, reject same-tree evidence bound to the wrong source SHA, detect rollback when checked against an independently signed latest-root checkpoint, reconstruct DONE without a lifecycle cache, and refuse DONE when a timed-out mutation lacks authoritative readback.",
+      "contrast": "Keep the current flat durable receipt facts and backend commit ancestry as the only evidence structure, without a content-addressed causal proof object or independent latest-root checkpoint.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:merkle-execution-receipts"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "The experiment is a sidecar model over the production GitHub commit-status effect contract; it does not replace or mutate production receipt-v5 semantics.",
+        "No provider credential or live GitHub mutation is required; the provider effect, authoritative readback, timeout, and exact-SHA cases are modeled deterministically.",
+        "Ed25519 checkpoint signatures use Node.js built-in crypto with an ephemeral experiment keypair.",
+        "Timing and byte-size measurements are observational feasibility metrics and are not success gates in this first experiment."
+      ],
+      "success_criteria": [
+        "Changing one stored observation byte without changing its content address is rejected by closure verification.",
+        "Removing one causally required object is rejected as an incomplete proof rather than projected as DONE.",
+        "Verification bound to source SHA A cannot settle source SHA B even when A and B intentionally share the same tree digest.",
+        "An internally valid older settlement root is rejected when it conflicts with an independently signed latest-root checkpoint.",
+        "Deleting the mutable lifecycle cache and replaying only the receipt DAG reconstructs the same historical DONE disposition.",
+        "A timed-out provider mutation with no authoritative readback derives RECOVERY_REQUIRED, and a forged DONE settlement over that evidence is rejected.",
+        "The experiment emits deterministic object-count and byte-size measurements plus hosted build/validation latency observations for the sidecar representation.",
+        "No hostile case produces a false DONE."
+      ],
+      "evidence": {
+        "status": "pending",
+        "pending_reason": "Preregistered before the first hosted run of the Merkle receipt sidecar.",
+        "artifacts": [
+          "Pending first hosted exact-head experiment run."
+        ]
+      },
+      "interpretation": "A passing result would justify prototyping content-addressed causal receipts as an optional durable evidence representation and measuring integration cost against real receipt-v5 facts. It would not establish that Merkle integrity makes provider observations truthful or that syscall/network record-replay is solved.",
+      "non_claims": [
+        "Hash integrity is a substitute for authoritative provider observation, verifier semantics, execution authority, or settlement fencing.",
+        "Possession of a historically valid settlement DAG proves mutable external reality still satisfies the obligation now.",
+        "The signed checkpoint design is a complete production anti-rollback service, key-management scheme, transparency log, or consensus protocol.",
+        "Modeled causal replay is equivalent to deterministic process, syscall, filesystem, clock, randomness, or network replay.",
+        "The first feasibility benchmark proves end-to-end production transaction latency, storage amplification, distributed throughput, or garbage-collection behavior.",
+        "Production receipt-v5, SQLite authority, or current project projection should be replaced on the basis of this experiment alone."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Question, six hostile cases, false-DONE criterion, anti-rollback requirement, reconstruction criterion, and non-claims were recorded before the first hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first exact-head hosted run."
+      }
     }
   ]
 }
