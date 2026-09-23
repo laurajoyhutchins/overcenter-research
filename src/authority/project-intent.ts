@@ -8,11 +8,7 @@ import { assertExactKeys, isData } from '../validation.ts';
 export const PROJECT_INTENT_SCHEMA = 'overcenter-project-intent/v1' as const;
 export const PROJECT_INTENT_PATH = '.overcenter/project-intent.json' as const;
 
-export function compileProjectIntent(value: unknown, sourceSha: string): ObligationInput[] {
-  const source = sourceSha.toLowerCase();
-  if (!/^[0-9a-f]{40}$/.test(source)) {
-    throw new Error('PROJECT_INTENT_SOURCE_SHA_INVALID');
-  }
+export function compileProjectIntent(value: unknown): ObligationInput[] {
   if (!isData(value)) throw new Error('PROJECT_INTENT_INVALID');
   assertExactKeys(value, ['schema', 'obligations'], [], 'PROJECT_INTENT_INVALID');
   if (value.schema !== PROJECT_INTENT_SCHEMA) {
@@ -45,8 +41,7 @@ export function compileProjectIntent(value: unknown, sourceSha: string): Obligat
     const packet = validateAgentTaskPacket({
       schema: AGENT_TASK_PACKET_SCHEMA,
       kind: 'pure-candidate',
-      source_sha: source,
-      command: structuredClone(candidate.task.command),
+       command: structuredClone(candidate.task.command),
       required_paths: structuredClone(candidate.task.required_paths),
       output_path: candidate.task.output_path,
     });
