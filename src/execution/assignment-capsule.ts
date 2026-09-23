@@ -63,7 +63,7 @@ export interface Candidate {
 
 const sha256=(bytes:string|Buffer|Uint8Array):string=>
   createHash('sha256').update(bytes).digest('hex');
-const fail=(code:string):never=>{throw new Error(code);};
+function fail(code:string):never { throw new Error(code); }
 const record=(value:unknown):value is Record<string,unknown> =>
   !!value && typeof value==='object' && !Array.isArray(value);
 
