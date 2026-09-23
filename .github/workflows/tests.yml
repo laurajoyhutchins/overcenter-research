@@ -56,6 +56,8 @@ jobs:
         run: npm run typecheck
       - name: Verify experiment contracts
         run: npm run test:experiment-contract
+      - name: Check adapter diagnosability
+        run: npm run check:adapter-diagnosability
       - name: Run deterministic regression
         if: ${{ !inputs.expensive }}
         run: npm run test:unit
