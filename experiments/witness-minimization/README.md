@@ -261,3 +261,53 @@ automatic witness minimization
 
 Historical witness minimization may optimize evidence and instrumentation. It must not be the source of authority for deciding which mutation routes exist.
 
+
+## T7: learned positive recovery proof prototype
+
+This trial is preregistered before hosted execution.
+
+The hypothesis is narrower than automatic capture learning: given a separately supplied mutation-route topology, automatic minimization can learn a compact **positive proof expression** for effect non-occurrence without treating raw absence as evidence.
+
+The topology declares:
+
+- route `main` has two equivalent complete monitors, A and B;
+- route `helper` has one complete monitor;
+- each monitor has an explicit completeness event and an explicit effect event.
+
+The learner receives only safe broad traces plus the deterministic positive verifier. For each route it:
+
+1. delta-minimizes raw observations while preserving the positive proposition “effect non-occurrence is proved”;
+2. converts each minimum to semantic atoms whose negative meaning is guarded by monitor completeness;
+3. computes the atoms common to every minimum;
+4. represents residual minima as alternative proof clauses rather than intersecting them away.
+
+Expected learned shape:
+
+```text
+main:
+  reservation-bound
+  & generation-terminated
+  & route:main
+  & (main-a-clear | main-b-clear)
+
+helper:
+  reservation-bound
+  & generation-terminated
+  & route:helper
+  & helper-clear
+```
+
+The generated proof is then compared with the original deterministic verifier over an exhaustive hostile Boolean table containing both physically normal and deliberately contradictory combinations of completeness and send events.
+
+### Falsification
+
+The prototype is falsified if any of the following occurs:
+
+- the learner collapses the two equivalent main monitors into a conjunction;
+- the learner omits reservation, termination, or route identity;
+- missing monitor completeness is accepted as evidence of absence;
+- a send through a complete monitor still satisfies that monitor's `clear` predicate;
+- the learned proof disagrees with the deterministic verifier on any hostile truth-table case;
+- any disagreement produces false certainty.
+
+This remains an experiment. It does not grant the learned expression settlement or retry authority.

@@ -2,6 +2,9 @@ name: Automatic witness minimization experiment
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/witness-minimization-20260923
 
 permissions:
   contents: read
@@ -54,4 +57,14 @@ jobs:
             echo '## Production mutation-boundary audit'
             echo
             sed 's/^/    /' "$RUNNER_TEMP/witness-source-boundary.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Learn positive recovery proof
+        run: |
+          set -euo pipefail
+          npm run test:witness-proof-learning | tee "$RUNNER_TEMP/witness-proof-learning.txt"
+          {
+            echo
+            echo '## Learned positive recovery proof'
+            echo
+            sed 's/^/    /' "$RUNNER_TEMP/witness-proof-learning.txt"
           } >> "$GITHUB_STEP_SUMMARY"
