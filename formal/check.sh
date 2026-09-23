@@ -53,17 +53,23 @@ run_tlc() {
 rm -rf "$FORMAL/.tlc"
 mkdir -p "$FORMAL/.tlc/logs"
 
-GOOD_LOG="$FORMAL/.tlc/logs/TransitionKernel.log"
-echo "==> checking authoritative kernel"
-if ! run_tlc "TransitionKernel" "TransitionKernel.cfg" "$GOOD_LOG"; then
-  cat "$GOOD_LOG" >&2
-  exit 1
-fi
-if ! grep -q "Model checking completed" "$GOOD_LOG"; then
-  cat "$GOOD_LOG" >&2
-  exit 1
-fi
-tail -n 8 "$GOOD_LOG"
+check_good() {
+  local module="$1"
+  local cfg="$2"
+  local label="$3"
+  local log="$FORMAL/.tlc/logs/${cfg%.cfg}.log"
+
+  echo "==> checking $label"
+  if ! run_tlc "$module" "$cfg" "$log"; then
+    cat "$log" >&2
+    exit 1
+  fi
+  if ! grep -q "Model checking completed" "$log"; then
+    cat "$log" >&2
+    exit 1
+  fi
+  tail -n 8 "$log"
+}
 
 check_expected_failure() {
   local module="$1"
@@ -85,25 +91,42 @@ check_expected_failure() {
   grep -m1 "Invariant ${invariant} is violated" "$log"
 }
 
+check_expected_temporal_failure() {
+  local module="$1"
+  local cfg="$2"
+  local log="$FORMAL/.tlc/logs/${cfg%.cfg}.log"
+
+  echo "==> checking expected temporal counterexample: $cfg"
+  if run_tlc "$module" "$cfg" "$log"; then
+    echo "expected TLC to reject $cfg" >&2
+    cat "$log" >&2
+    exit 1
+  fi
+  if ! grep -Eq "Temporal propert(y|ies).*violated|Property.*violated" "$log"; then
+    echo "TLC failed for $cfg, but not with the expected temporal-property violation" >&2
+    cat "$log" >&2
+    exit 1
+  fi
+  grep -Em1 "Temporal propert(y|ies).*violated|Property.*violated" "$log"
+}
+
+check_good "TransitionKernel" "TransitionKernel.cfg" "authoritative kernel"
 check_expected_failure "TransitionKernel" "BrokenNoFence.cfg" "MutationAuthoritySafety"
 check_expected_failure "TransitionKernel" "BrokenNoRevision.cfg" "ExactRevisionEvidence"
 check_expected_failure "TransitionKernel" "BrokenNoReplayGuard.cfg" "ReplaySafety"
 check_expected_failure "TransitionKernel" "BrokenNoReservation.cfg" "ReservationSafety"
 check_expected_failure "TransitionKernel" "BrokenNoEvidence.cfg" "NoFalseDone"
 
-RESOURCE_LOG="$FORMAL/.tlc/logs/ResourceContainment.log"
-echo "==> checking resource containment protocol"
-if ! run_tlc "ResourceContainment" "ResourceContainment.cfg" "$RESOURCE_LOG"; then
-  cat "$RESOURCE_LOG" >&2
-  exit 1
-fi
-if ! grep -q "Model checking completed" "$RESOURCE_LOG"; then
-  cat "$RESOURCE_LOG" >&2
-  exit 1
-fi
-tail -n 8 "$RESOURCE_LOG"
-
+check_good "ResourceContainment" "ResourceContainment.cfg" "resource containment protocol"
 check_expected_failure "ResourceContainment" "BrokenResourceIdentity.cfg" "ExactLeafAuthority"
 check_expected_failure "ResourceContainment" "BrokenResourceEarlyEvidence.cfg" "FinalEvidenceSafety"
 
-echo "TLA+ transition kernel and resource-containment models, including all negative controls, behaved as expected."
+check_good "AsyncEffectKernel" "AsyncEffectKernel.cfg" "asynchronous effect finality kernel"
+check_expected_failure "AsyncEffectKernel" "BrokenAsyncNoTerminality.cfg" "NoDoubleExecution"
+check_expected_failure "AsyncEffectKernel" "BrokenAsyncNoDeliveryDedupe.cfg" "NoDoubleExecution"
+check_expected_failure "AsyncEffectKernel" "BrokenAsyncNoFence.cfg" "AuthoritySafety"
+
+check_good "RecoveryLiveness" "RecoveryLiveness.cfg" "conditional recovery liveness"
+check_expected_temporal_failure "RecoveryLiveness" "BrokenRecoveryNoReap.cfg"
+
+echo "TLA+ safety and conditional-liveness models, including all negative controls, behaved as expected."
