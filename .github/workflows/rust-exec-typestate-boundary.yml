@@ -1,0 +1,52 @@
+name: Rust exec typestate boundary
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/rust-exec-typestate-boundary.yml
+      - experiments/rust-exec-typestate-boundary/**
+      - experiments/registry.json
+      - experiments/README.md
+      - package.json
+      - src/execution/confinement/**
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  experiment:
+    name: Real Rust exec typestate treatment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Node from repository
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Pinned Rust
+        run: |
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          rustup toolchain install "$channel" --profile minimal --no-self-update
+          rustup default "$channel"
+          rustc --version
+
+      - name: Experiment contract
+        run: npm run test:experiment-contract
+
+      - name: Typestate treatment measurements
+        run: npm run test:rust-exec-typestate-boundary
+
+      - name: Full production Rust confinement proof
+        run: npm run proof:rust-exec
