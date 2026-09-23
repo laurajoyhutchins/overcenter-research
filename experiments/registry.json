@@ -1340,7 +1340,7 @@
     {
       "id": "rust-exec-typestate-boundary",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/rust-exec-typestate-boundary",
       "readme": "experiments/rust-exec-typestate-boundary/README.md",
       "question": "Can a typed capability simplify the real Rust-owned overcenter-exec boundary by making premature exec unrepresentable while deleting runtime machinery without weakening confinement or materially increasing compiled footprint?",
@@ -1365,14 +1365,17 @@
         "The optimized stripped launcher binary is no more than 1% larger than baseline."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "b72cfe56020f2280746dbcaa2cacf94a866dd99b",
         "artifacts": [
-          ".github/workflows/rust-exec-typestate-boundary.yml",
-          "experiments/rust-exec-typestate-boundary/run.sh"
-        ],
-        "pending_reason": "The production treatment and acceptance criteria are preregistered before the first hosted run."
+          "GitHub Actions run 35820430558, job 107050895775: experiment executed successfully and production hostile confinement proof passed.",
+          "Compile-fail controls rejected ExecPermit forgery and reuse.",
+          "sandbox.rs nonblank SLOC: 517 baseline -> 534 treatment (+17).",
+          "Runtime guard census: 13 baseline -> 13 treatment; no dynamic proof class was removed.",
+          "Optimized stripped launcher: 461616 -> 461632 bytes; within preregistered 1% footprint bound."
+        ]
       },
-      "interpretation": "A supported result would justify retaining typestate at the production exec boundary. A falsified result would show that the dynamic checks are proofs of external Linux state rather than bookkeeping Rust types can replace, so the treatment should be reverted while retaining the negative evidence.",
+      "interpretation": "At the real overcenter-exec boundary, typestate can encode sequencing but does not replace the runtime proofs of external Linux state. Keep the straight-line production launcher; use typed capabilities only after dynamic authority has already been established where they reduce downstream misuse.",
       "non_claims": [
         "Linux cgroup, FD identity, Landlock, capability, scheduling, or seccomp state can be proven statically.",
         "The trusted TypeScript supervisor's independent runtime checks are redundant.",
@@ -1385,8 +1388,8 @@
         "note": "The real production sandbox treatment, baseline revision, hostile proof, compile-fail controls, runtime-guard census, no-SLOC-growth requirement, and <=1% binary-growth threshold were fixed before the first hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first exact-head hosted run."
+        "state": "falsified",
+        "summary": "The real production typestate treatment preserved physical confinement and compile-time exclusion with negligible binary footprint change, but increased sandbox.rs by 17 nonblank lines and removed zero of 13 runtime guard classes. The treatment was reverted."
       }
     }
   ]
