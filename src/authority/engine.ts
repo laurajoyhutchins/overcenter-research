@@ -227,7 +227,7 @@ export class KernelCore {
   acquireExecution(runId: string): ExecutionPermit {
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const head = this.#requireHead();
-      const { history } = this.#historicalProjection(head);
+      const { history, project } = this.#historicalProjection(head);
       const run = history.runs.get(runId);
       if (!run) throw new Error('UNKNOWN_RUN');
       const prior = history.receiptsByRun.get(runId);
@@ -418,7 +418,7 @@ export class KernelCore {
 
   receipts(runId: string | null = null): Receipt[] {
     const head = this.#requireHead();
-    const { history, project } = this.#historicalProjection(head);
+    const { history } = this.#historicalProjection(head);
     return runId
       ? history.receipts.filter((receipt) => receipt.run_id === runId)
       : history.receipts;
