@@ -2900,6 +2900,60 @@
         "state": "supported",
         "summary": "At exact revision 06cb8d5a27f92aa40e37c307d3da2f8f53c61e80, independent hosted controllers sharing no application database produced one exact-head claim winner, survived controller and effect-broker handoff, reconstructed one unresolved external-effect reservation, blocked replay, settled from fresh provider observation, rejected stale authority, and refused to promote a local copy when remote authority was unavailable."
       }
+    },
+    {
+      "id": "scheduler-liveness",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/scheduler-liveness",
+      "readme": "experiments/scheduler-liveness/README.md",
+      "question": "Under explicit availability and observation assumptions, does scheduler selection guarantee progress for a continuously eligible recovered obligation, and where does the current fresh-first policy cease to be starvation-free?",
+      "claim": "A fixed finite READY set should be starvation-free under the production least-recently-claimed selector; deliberately fixed-priority scheduling should admit starvation; and continual admission of never-claimed work is tested as a hostile boundary for the current fresh-first rule.",
+      "contrast": "Treat throughput or a bounded fixed-set replay test as proof of temporal liveness under all admissible workloads.",
+      "interpretation": "Exact-head formal and executable evidence agree. The production selector is starvation-free for the tested stable finite set: a preclaimed READY recovery target was selected on claim opportunity 9 with eight initially fresh contenders at simulated concurrency 1, 2, and 4. The deliberately fixed-priority selector starved the target and TLC found the corresponding temporal counterexample. More importantly, continually replenishing the never-claimed class also starved the target under the current production fresh-first selector at all tested concurrency values, and TLC independently found an infinite temporal counterexample. Therefore the broad liveness theorem is false without an additional admission assumption or stronger cross-class fairness.",
+      "environment": [
+        "Node.js from .node-version.",
+        "TLA+ Tools 1.7.4 pinned by formal/check.sh and Java 21.",
+        "Hosted reference is expected from the exact-head candidate evidence workflow on ubuntu-24.04."
+      ],
+      "success_criteria": [
+        "TLC proves TargetProgress for the fair scheduler with eventual authority restoration, eventual recovery observation, a continuously READY target, and a stable finite contender set.",
+        "TLC produces a temporal counterexample when the selector is deliberately changed to fixed-priority scheduling.",
+        "TLC produces a temporal counterexample when fresh unseen work is abstractly replenished forever under the current fresh-first policy.",
+        "The executable production-selector harness selects a preclaimed READY recovery target within a finite fixed contender set at simulated concurrency 1, 2, and 4.",
+        "The executable fixed-priority negative control leaves the same recovery target unselected for the bounded hostile trace.",
+        "The executable fresh-arrival hostile case leaves the recovery target unselected while each simulated wave replenishes enough never-claimed work to occupy every slot."
+      ],
+      "non_claims": [
+        "Throughput implies liveness.",
+        "Overcenter can force unavailable authority or missing provider observations to recover.",
+        "The current selector is fair under an unbounded stream of newly introduced obligations.",
+        "A bounded executable starvation trace by itself proves an infinite temporal property; that role belongs to the TLA+ counterexample.",
+        "Passing this experiment is sufficient to promote scheduler fairness into additional production machinery."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The assumptions, deliberate unfair-selector negative control, hostile fresh-arrival boundary, and executable follow-on were fixed before hosted execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The preregistered distinguishing result held: stable finite-set progress succeeded, while both unfair fixed priority and perpetual fresh admission produced starvation witnesses. The broader open-system liveness theorem is falsified without an extra admission assumption or stronger cross-class fairness."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:scheduler-liveness"
+      },
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "b836d087dab036480ad2f45a8a4b63905f12b39a",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35923909252, exact-head rerun job 107394794686.",
+          "Executable stable-set cases selected recovered-target on claim opportunity 9 at concurrency 1, 2, and 4 (9, 5, and 3 simulated waves respectively).",
+          "Executable fixed-priority negative control selected only hot-a for 64 steps; recovered-target was never selected.",
+          "Executable fresh-flood cases left recovered-target unselected for 16, 32, and 64 claim opportunities at concurrency 1, 2, and 4 respectively while replenishing one fresh obligation per slot per wave.",
+          "TLC accepted SchedulerLiveness.cfg and rejected BrokenSchedulerUnfair.cfg and SchedulerFreshFlood.cfg with temporal-property violations."
+        ]
+      }
     }
   ]
 }

@@ -58,7 +58,8 @@
     "test:adapter-diagnosability": "node --experimental-strip-types experiments/adapter-diagnosability/experiment.ts",
     "check:adapter-diagnosability": "node --experimental-strip-types scripts/check-adapter-diagnosability.ts",
     "test:authority-flow-analysis": "node --experimental-strip-types experiments/authority-flow-analysis/experiment.ts",
-    "test:distributed-authority-handoff": "node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts local"
+    "test:distributed-authority-handoff": "node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts local",
+    "experiment:scheduler-liveness": "node --experimental-strip-types experiments/scheduler-liveness/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",

@@ -225,3 +225,14 @@ This makes an adapter boundary explicit: Overcenter can prevent itself from auth
 The negative control `BrokenRecoveryNoReap.cfg` disables dead-lease reclamation while keeping a stable successor available. The expected temporal counterexample demonstrates orphaned authority: the dead owner's live lease can permanently prevent the successor from acquiring authority even though every external dependency needed for progress is available.
 
 The liveness theorem is intentionally conditional. It does not claim that Overcenter can force a provider to resolve an operation, heal a permanently unavailable external dependency, or guarantee that arbitrary projects finish.
+
+## Scheduler conditional liveness
+
+`SchedulerLiveness.tla` separates scheduler progress from throughput. It models a recovered target that becomes READY only after an eventually delivered authoritative observation, with authority restoration and scheduler stepping represented as explicit weak-fairness assumptions.
+
+The authoritative stable-set configuration requires `TargetProgress`: once the recovered target remains READY, it is eventually selected. Two temporal negative/boundary controls are mandatory:
+
+- `BrokenSchedulerUnfair.cfg` replaces the selector with fixed priority and must produce a starvation trace.
+- `SchedulerFreshFlood.cfg` retains the current fresh-first policy but abstracts an unbounded stream of newly introduced never-claimed work; it must produce a starvation trace if fresh priority can indefinitely dominate recovered work.
+
+The second case is intentionally not labeled a broken scheduler. It identifies an assumption boundary: fixed finite-set fairness does not by itself imply liveness for an open project whose higher-priority fresh class is replenished forever.
