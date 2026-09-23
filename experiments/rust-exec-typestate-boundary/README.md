@@ -82,3 +82,22 @@ This experiment does not claim that:
 - provider mutation authority belongs in the confinement launcher;
 - safe Rust prevents a malicious change inside the trusted `sandbox` module itself;
 - binary size alone is an end-to-end latency benchmark.
+
+
+## Result
+
+The preregistered hypothesis was **falsified** at exact treatment revision `b72cfe56020f2280746dbcaa2cacf94a866dd99b` in GitHub Actions run `35820430558`, job `107050895775`.
+
+Observed:
+
+- compile-fail controls passed: safe code could not forge `ExecPermit`, and a consumed permit could not be reused;
+- the complete production hostile confinement proof passed;
+- optimized stripped launcher size changed from **461,616 bytes** to **461,632 bytes**, effectively unchanged for the preregistered 1% footprint bound;
+- production `sandbox.rs` nonblank SLOC increased from **517** to **534** (**+17**);
+- the runtime-defense census remained **13 guard classes → 13 guard classes**.
+
+So the type-level gate successfully encoded sequencing, but it deleted no runtime proof. Every existing dynamic guard remained necessary because it establishes external Linux state: caller privilege, exact cgroup state, FD identity, Landlock state, execution-closure properties, inherited-FD closure, and seccomp installation.
+
+The production treatment was therefore reverted after evaluation. The durable conclusion is negative: **typestate is not a simplification of this boundary under the current architecture**.
+
+This result does not contradict the earlier `typed-capability-authority` experiment. That experiment showed that a type can cheaply carry already-established authority downstream. This experiment shows the complementary limit: types do not replace runtime evidence when the facts themselves live in the kernel or another external authority.
