@@ -2954,6 +2954,63 @@
           "TLC accepted SchedulerLiveness.cfg and rejected BrokenSchedulerUnfair.cfg and SchedulerFreshFlood.cfg with temporal-property violations."
         ]
       }
+    },
+    {
+      "id": "scheduler-policy-comparison",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/scheduler-policy-comparison",
+      "readme": "experiments/scheduler-policy-comparison/README.md",
+      "question": "Which deterministic replay-derived scheduler policy survives recovered-target fresh floods, fresh-target recovery pressure, and adversarial same-class arrivals without adding a mutable scheduler cursor?",
+      "claim": "A service-age policy derived from durable admission order until first claim and last-claim order thereafter should provide progress in all preregistered hostile scenarios, while fresh-first, recovered-first, and class alternation each retain a starvation mode.",
+      "contrast": "Patch the #320 fresh-vs-recovered starvation case with a class preference or alternating quota without testing same-class starvation or whether the policy remains reconstructible from durable history.",
+      "interpretation": "Exact-head executable and formal evidence agree. Current fresh-first starves both recovered work under fresh flood and an older fresh identity under adversarial same-class arrivals. Recovered-first merely reverses the cross-class starvation. Fresh/recovered class alternation fixes both cross-class cases but still starves within the fresh class. Service age is the only tested policy to provide progress in all three hostile scenarios at widths 1, 2, and 4: the recovered target is selected on opportunity 1, the fresh target under recovery pressure on opportunity 2, and the older fresh target after exactly four older obligations on opportunity 5. The independent TLA+ model proves target progress with finite older backlog plus indefinitely continuing younger admissions, and its non-monotone-age negative control produces a temporal starvation counterexample.",
+      "environment": [
+        "Node.js from .node-version.",
+        "Production deriveProjectProjection() from the stacked #320 head for the current-policy control.",
+        "TLA+ Tools 1.7.4 pinned by formal/check.sh and Java 21.",
+        "Hosted reference expected from exact-head candidate evidence on ubuntu-24.04."
+      ],
+      "success_criteria": [
+        "The current fresh-first production selector starves a recovered target under continual fresh admission and starves an older fresh target under lexicographically adversarial fresh arrivals.",
+        "Recovered-first protects the recovered target but starves a fresh target under perpetual recovered pressure.",
+        "Class alternation protects the cross-class cases but still starves an older fresh target under same-class adversarial arrivals.",
+        "Service age selects the recovered target despite continual fresh admission, selects the fresh target despite perpetual recovered pressure, and selects an older fresh target despite continual younger same-class arrivals at simulated concurrency 1, 2, and 4.",
+        "Service-age selection is reconstructed from an append-only admission/claim event history rather than a mutable scheduler cursor.",
+        "TLC proves target progress with a finite pre-existing older backlog plus infinitely continuing younger admissions.",
+        "TLC produces a temporal counterexample when the monotonic-age assumption is deliberately broken by allowing later work to mint an older service age."
+      ],
+      "non_claims": [
+        "The experiment chooses a production implementation.",
+        "The current projection already retains admission ordinal; production promotion may require carrying derived graph-patch order into the scheduler projection.",
+        "Fair scheduling can force unavailable provider observations or unavailable authority.",
+        "The tested policies imply a throughput or latency SLO.",
+        "A class-level alternation policy is identity-fair within a continuously replenished class."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The four candidate policies, three hostile scenarios, concurrency widths, service-age definition, and TLA+ monotonic-age negative control were fixed before hosted execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Service age was the only preregistered candidate to survive all cross-class and same-class starvation attacks, and the independent TLA+ model confirmed conditional liveness under monotonic admission/claim ordinals."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:scheduler-policy-comparison"
+      },
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "32ad84f3bddbc62a95207e33bc23f1a0c65f35b6",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35925767660, exact-head candidate job 107400938453.",
+          "Current fresh-first: recovered target starved under fresh flood and older fresh target starved under younger same-class arrivals at widths 1, 2, and 4; fresh target under recovery pressure selected on opportunity 1.",
+          "Recovered-first: recovered target selected on opportunity 1, but fresh target under recovery pressure and older fresh target under younger arrivals both starved at widths 1, 2, and 4.",
+          "Class alternation: cross-class targets selected on opportunities 1 and 2, but older fresh target starved under same-class younger arrivals at widths 1, 2, and 4.",
+          "Service age: recovered target selected on opportunity 1, fresh target under recovery pressure on opportunity 2, and older fresh target on opportunity 5 at widths 1, 2, and 4.",
+          "TLC accepted SchedulerServiceAge.cfg and rejected BrokenServiceAgeNonMonotone.cfg with a temporal-property violation."
+        ]
+      }
     }
   ]
 }

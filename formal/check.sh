@@ -133,4 +133,7 @@ check_good "SchedulerLiveness" "SchedulerLiveness.cfg" "conditional scheduler li
 check_expected_temporal_failure "SchedulerLiveness" "BrokenSchedulerUnfair.cfg"
 check_expected_temporal_failure "SchedulerLiveness" "SchedulerFreshFlood.cfg"
 
+check_good "SchedulerServiceAge" "SchedulerServiceAge.cfg" "service-age scheduler liveness"
+check_expected_temporal_failure "SchedulerServiceAge" "BrokenServiceAgeNonMonotone.cfg"
+
 echo "TLA+ safety and conditional-liveness models, including all negative controls, behaved as expected."
