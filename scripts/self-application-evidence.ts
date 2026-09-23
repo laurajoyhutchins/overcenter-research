@@ -350,16 +350,11 @@ try {
 
     const ready=projection.find(work=>work.status==='READY');
     if (!ready) {
-      const details=projection.map(work=>({
-        id:work.id,
-        status:work.status,
-        explanation:kernel.explain(work.id),
-      }));
-      throw new Error(`self-application stalled: ${JSON.stringify(details)}`);
+      throw new Error(`self-application stalled: ${JSON.stringify(projection)}`);
     }
     if (attempted.has(ready.id)) {
       throw new Error(
-        `self-application task remained READY after one exact attempt: ${JSON.stringify(kernel.explain(ready.id))}`,
+        `self-application task remained READY after one exact attempt: ${JSON.stringify(ready)}`,
       );
     }
     attempted.add(ready.id);
@@ -415,7 +410,7 @@ try {
         containment:executor.diagnostics(),
       })+'\n');
       throw new Error(
-        `self-application evidence did not settle DONE: ${JSON.stringify(kernel.explain(ready.id))}`,
+        `self-application evidence did not settle DONE: ${JSON.stringify(kernel.inspect().find(work=>work.id===ready.id)??ready)}`,
       );
     }
   }
