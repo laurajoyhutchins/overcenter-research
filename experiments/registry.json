@@ -1452,6 +1452,62 @@
         "state": "supported",
         "summary": "The pure hash-consistent treatment was falsified by the first cross-run substitution control, but the smallest authority-bound correction passed all unchanged criteria. At exact revision 56378d1250b28441a246f3058b7e0fe5c5bd8eab, 128 production receipt-v5 facts round-tripped with exact projectReceipt parity, zero false DONE, and the Merkle/flat byte ratio crossed below 1.0 by 8 receipts and reached 0.506x at 128."
       }
+    },
+    {
+      "id": "merkle-evidence-leaves",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/merkle-evidence-leaves",
+      "readme": "experiments/merkle-evidence-leaves/README.md",
+      "question": "Can Overcenter obtain most of the Merkle receipt deduplication benefit by keeping the existing content-addressed authority spine and externalizing only repeated certified evidence into a content-addressed leaf store?",
+      "claim": "Across 128 production GitHub status receipts read back from the authoritative SQLite fact store, replacing only inline observed evidence with a SHA-256 evidence reference can preserve exact receipt-v5/projectReceipt semantics, retain existing commit-level identity binding, and use at most 0.56x the flat canonical bytes at 128 receipts while requiring only one shared evidence object for this corpus.",
+      "contrast": "Use the full authority-bound receipt DAG treatment, which measured 0.506x flat bytes at 128 receipts but created 259 Merkle objects and required an explicit settlement-root authority binding.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:merkle-evidence-leaves"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "Each receipt is generated through OvercenterKernel and performGithubCommitStatusEffect, then read back through SqliteFactStore.history at the exact authoritative head.",
+        "SqliteFactStore.history performs its existing sequence, parent, and canonical commit-digest validation before the evidence-leaf transform sees the history.",
+        "The treatment is read-only and in-memory: production receipt-v5, SQLite schema, settlement, and replay code are not modified.",
+        "All receipts share byte-identical certified observation evidence to exercise a legitimate reusable-evidence case.",
+        "The full-DAG 0.506x result at 128 receipts is prior evidence and is used to preregister a <=0.56x simplicity-adjusted storage threshold."
+      ],
+      "success_criteria": [
+        "All 128 receipt facts are obtained from validated SqliteFactStore.history and are production overcenter-git-receipt-v5 DONE receipts.",
+        "Hydrating every evidence reference reconstructs a canonically identical receipt-v5 fact and production projectReceipt returns the original disposition and verified result.",
+        "At 128 receipts the externalized-evidence representation is no more than 0.56x the fair flat baseline bytes.",
+        "The experiment reports byte ratios at 1, 8, 32, 64, and 128 receipts.",
+        "Exactly one content-addressed evidence leaf is stored for the 128-receipt corpus.",
+        "Tampering with the evidence bytes under an existing digest is detected before projectReceipt.",
+        "Changing receipt run identity changes the existing SQLite-style outer commit digest, demonstrating that the authority spine still binds per-run identity without a second Merkle execution object.",
+        "Missing evidence cannot project DONE, and no false DONE occurs."
+      ],
+      "evidence": {
+        "status": "pending",
+        "pending_reason": "Preregistered after the full receipt-DAG result and before the first evidence-leaf hosted run.",
+        "artifacts": [
+          "Pending first hosted exact-head evidence-leaf run."
+        ]
+      },
+      "interpretation": "A passing result would favor a smaller architecture: keep the current content-addressed fact-commit authority chain and externalize only large reusable evidence payloads. A failing storage threshold would indicate that the full receipt DAG earns its extra structure even after accounting for the authority spine Overcenter already has.",
+      "non_claims": [
+        "Every observation is safe to deduplicate merely because its bytes match; verifier/subject/snapshot provenance remains part of the evidence bytes.",
+        "The production SQLite schema should be changed on the strength of this single corpus.",
+        "Canonical JSON bytes equal physical SQLite or object-store bytes.",
+        "Commit-level content addressing replaces authoritative observation or current-realization admissibility.",
+        "Evidence leaves provide process/syscall/network record-replay.",
+        "Backend-local authority identities become portable across SQLite and Git."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The leaf-only architecture, authoritative-history readback requirement, 128-receipt corpus, <=0.56x storage threshold, tamper/missing controls, and outer-commit identity control were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first exact-head hosted run."
+      }
     }
   ]
 }

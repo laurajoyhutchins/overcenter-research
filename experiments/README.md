@@ -35,6 +35,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `typed-capability-authority/` - preregistered Rust differential for sealed affine effect authority, compile-fail invalid states, and sequential/concurrent admission cost.
 - `merkle-execution-receipts/` - preregistered content-addressed causal receipt sidecar with corruption, misbinding, rollback, reconstruction, ambiguity, and overhead controls.
 - `merkle-receipt-v5-dedup/` - production receipt-v5 round-trip and corpus deduplication experiment over the real GitHub status effect adapter.
+- `merkle-evidence-leaves/` - read-only authority-history experiment that keeps the existing commit hash spine and content-addresses only reusable certified evidence.
 
 ## Experiment contract
 

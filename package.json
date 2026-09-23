@@ -46,6 +46,7 @@
     "proof:worker-client": "bash src/execution/worker-client/proof.sh",
     "test:typed-capability-authority": "bash experiments/typed-capability-authority/run.sh",
     "test:merkle-execution-receipts": "node --experimental-strip-types --test experiments/merkle-execution-receipts/experiment.test.ts",
-    "test:merkle-receipt-v5-dedup": "node --experimental-strip-types --test experiments/merkle-receipt-v5-dedup/experiment.test.ts"
+    "test:merkle-receipt-v5-dedup": "node --experimental-strip-types --test experiments/merkle-receipt-v5-dedup/experiment.test.ts",
+    "test:merkle-evidence-leaves": "node --experimental-strip-types --test experiments/merkle-evidence-leaves/experiment.test.ts"
   }
 }

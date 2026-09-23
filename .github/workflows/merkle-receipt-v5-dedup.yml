@@ -45,3 +45,6 @@ jobs:
 
       - name: Production receipt-v5 Merkle dedup experiment
         run: npm run test:merkle-receipt-v5-dedup
+
+      - name: Existing authority spine with Merkle evidence leaves
+        run: npm run test:merkle-evidence-leaves
