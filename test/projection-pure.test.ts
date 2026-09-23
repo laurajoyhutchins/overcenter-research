@@ -223,18 +223,21 @@ function absentReceipt(
         context:work.postcondition.context,
         mutation_certainty:'absent' as const,
       }
-    : {
-        verifier:work.postcondition.verifier,
-        path:work.postcondition.path,
-        mutation_certainty:'absent' as const,
-        ...(includeCertificate && work.postcondition.verifier==='file-content-equals/v1'
-          ? {
-              absence_evidence:localFileEnoentEvidence(
-                certificatePath??work.postcondition.path,
-              ),
-            }
-          : {}),
-      };
+    : work.postcondition.verifier==='file-content-equals/v1'
+      || work.postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+      ? {
+          verifier:work.postcondition.verifier,
+          path:work.postcondition.path,
+          mutation_certainty:'absent' as const,
+          ...(includeCertificate && work.postcondition.verifier==='file-content-equals/v1'
+            ? {
+                absence_evidence:localFileEnoentEvidence(
+                  certificatePath??work.postcondition.path,
+                ),
+              }
+            : {}),
+        }
+      : (()=>{throw new Error('ABSENT_RECEIPT_UNSUPPORTED_POSTCONDITION');})();
   return {
     schema:RECEIPT_SCHEMA,
     run_id:'run-absence',
