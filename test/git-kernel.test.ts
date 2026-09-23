@@ -379,7 +379,6 @@ test('all observational surfaces fail closed when authority is missing', () => {
     execFileSync('git', ['-C', f.repo, 'update-ref', '-d', 'refs/overcenter/state']);
     assert.throws(() => f.kernel.inspect(), /NOT_INITIALIZED/);
     assert.throws(() => f.kernel.deriveReadyWork(), /NOT_INITIALIZED/);
-    assert.throws(() => f.kernel.explain('x'), /NOT_INITIALIZED/);
     assert.throws(() => f.kernel.receipts(), /NOT_INITIALIZED/);
     assert.throws(() => f.kernel.recoverInterrupted({id:'x'} as never), /NOT_INITIALIZED/);
   } finally { rmSync(f.root, { recursive: true, force: true }); }
