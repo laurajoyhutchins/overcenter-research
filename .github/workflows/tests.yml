@@ -50,6 +50,10 @@ jobs:
           test "$(rustc --version | awk '{print $2}')" = "$channel"
       - name: Lint source
         run: npm run lint
+      - name: Install pinned TypeScript toolchain
+        run: npm install --ignore-scripts --package-lock=false
+      - name: Type-check repository
+        run: npm run typecheck
       - name: Verify experiment contracts
         run: npm run test:experiment-contract
       - name: Run deterministic regression
