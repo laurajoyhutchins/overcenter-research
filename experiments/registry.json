@@ -1282,6 +1282,59 @@
         "state": "supported",
         "summary": "The exact production revision 766f581c1592f7f3193b95b3d18f47f7c5b22234 passed the bounded TypeScript-vs-Lean oracle against pinned reference 39bd16a317bc2155a17b6674a5050adaf4295c90; the executable differential is now retained through exact-revision history rather than current-main CI."
       }
+    },
+    {
+      "id": "typed-capability-authority",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/typed-capability-authority",
+      "readme": "experiments/typed-capability-authority/README.md",
+      "question": "Can Rust preserve the current GitHub commit-status mutation admission semantics while making weaker authority impossible to pass to the effect primitive through safe code without materially reducing local admission performance?",
+      "claim": "A sealed, affine, zero-sized Rust execution capability can preserve the modeled production admission decision exactly while making raw, forged, and reused authority invalid at compile time with no more than a 10% median local admission regression.",
+      "contrast": "Keep the current structural execution permit plus repeated runtime proof obligations at downstream effect call sites.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:typed-capability-authority"
+      },
+      "environment": [
+        "Stable Rust compiler on Linux x86-64 for the hosted measurement.",
+        "Optimized rustc -O build with std::hint::black_box around benchmark inputs.",
+        "No network, provider credential, SQLite store, or external service is required for the modeled authority differential.",
+        "Host CPU scheduling affects absolute timing, so the benchmark alternates baseline/treatment rounds and compares medians within one process."
+      ],
+      "success_criteria": [
+        "All 131,072 modeled authority combinations produce the same admission or error class in the structural baseline and typed treatment.",
+        "Only the fully valid authority tuple crosses the modeled effect boundary.",
+        "Raw authority invocation, safe capability forgery, and reuse of a consumed capability each fail compilation for the intended type-system reason.",
+        "ExecutionPermit<GithubCommitStatus> is zero-sized and requires no drop glue.",
+        "Median optimized sequential typed admission is no more than 1.10x the structural baseline.",
+        "Median optimized concurrent typed admission is no more than 1.10x the structural baseline."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/typed-capability-authority.yml",
+          "experiments/typed-capability-authority/run.sh"
+        ],
+        "pending_reason": "The criteria are preregistered on the experiment branch before the first hosted execution."
+      },
+      "interpretation": "A passing result would justify testing the same capability representation at an actual Rust-owned mutation boundary; it would not by itself justify moving durable authority, provider observation, settlement, or graph semantics out of the TypeScript + SQLite production path.",
+      "non_claims": [
+        "Runtime generation, revision, lifecycle, unresolved-effect, or provider-contract checks can be removed from the authoritative ingress.",
+        "A capability remains valid after external authority changes without revalidation or an atomic fence.",
+        "Provider credentials become coordinate-scoped or least-privilege because the local Rust type is effect-specific.",
+        "The modeled local admission benchmark proves end-to-end transaction latency or distributed throughput.",
+        "Rust should replace the current TypeScript + SQLite authority implementation.",
+        "Safe Rust types defend against unsafe code, process compromise, or a malicious trusted provider adapter."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Question, hostile-state corpus, compile-fail controls, and 1.10x sequential/concurrent performance thresholds were recorded before the first hosted experiment run."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first exact-head hosted run."
+      }
     }
   ]
 }
