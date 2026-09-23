@@ -1,0 +1,52 @@
+name: Typed capability authority
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/typed-capability-authority.yml
+      - experiments/typed-capability-authority/**
+      - experiments/registry.json
+      - experiments/README.md
+      - package.json
+      - src/authority/engine.ts
+      - src/authority/transaction-admission.ts
+      - src/model.ts
+      - src/providers/github/status-effect.ts
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  typed-capability-authority:
+    name: Rust authority capability differential
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+
+      - name: Node from repository
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+
+      - name: Experiment contract
+        run: npm run test:experiment-contract
+
+      - name: Typed capability authority experiment
+        run: npm run test:typed-capability-authority
