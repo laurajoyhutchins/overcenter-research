@@ -146,14 +146,7 @@ export function validateSourceCandidate(
   if (!isData(value)) throw new Error('SOURCE_CANDIDATE_INVALID');
   assertExactKeys(
     value,
-    [
-      'schema',
-      'obligation_key',
-      'run_id',
-      'claimed_revision',
-      'claimed_source_sha',
-      'commit_sha',
-    ],
+    ['schema', 'obligation_key', 'run_id', 'claimed_revision', 'claimed_source_sha', 'commit_sha'],
     [],
     'SOURCE_CANDIDATE_INVALID',
   );
