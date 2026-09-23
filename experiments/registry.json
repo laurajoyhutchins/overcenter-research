@@ -1688,6 +1688,61 @@
         "state": "supported",
         "summary": "At exact revision 455bcdcd0614598009bbda2644ae2c3b99f6e086, both backends preserved backend-neutral SHA-256 evidence identity, but the filesystem CAS was materially faster for puts/verified reads and reclaimed deleted object bytes immediately. SQLite retained freed pages until VACUUM and added substantial write/read/compaction cost for these replay-sized blobs."
       }
+    },
+    {
+      "id": "evidence-cas-atomic-publish",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/evidence-cas-atomic-publish",
+      "readme": "experiments/evidence-cas-atomic-publish/README.md",
+      "question": "Can a filesystem evidence CAS publish immutable digest-named objects crash-safely and race-safely without accepting partial or corrupt content?",
+      "claim": "A same-filesystem temp-write + fsync + atomic hard-link publish protocol can ensure that a digest pathname is either absent or contains complete verified bytes, tolerate concurrent duplicate writers, surface a corrupt preexisting target, and leave only safely sweepable temp files after crashes.",
+      "contrast": "Write evidence directly to the final digest path and treat EEXIST as successful deduplication without verifying the existing object.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-cas-atomic-publish"
+      },
+      "environment": [
+        "Linux GitHub-hosted runner with Node.js from .node-version.",
+        "Experiment files are TypeScript executed with Node experimental type stripping; no JavaScript source is added.",
+        "Evidence objects are 256 KiB exact byte strings addressed by raw SHA-256.",
+        "The publisher writes a unique temp file in the target directory, fsyncs it, hard-links it atomically to the digest pathname, fsyncs the directory, then removes the temp file.",
+        "Crash injection uses SIGKILL in a child process after temp fsync or after durable link publication.",
+        "Concurrent duplicate publication launches eight child processes for the same bytes."
+      ],
+      "success_criteria": [
+        "SIGKILL after temp fsync leaves no final digest pathname and at most an abandoned temp file containing complete bytes.",
+        "SIGKILL after link plus directory fsync leaves a complete digest-verifiable final object; any abandoned temp file is removable without affecting the final object.",
+        "Eight concurrent writers of identical bytes all terminate successfully with exactly one final object and no incorrect bytes.",
+        "A preexisting corrupt file at the correct digest pathname causes publication to fail explicitly rather than being accepted as deduplication.",
+        "A normal duplicate put verifies the existing object and returns without rewriting it.",
+        "Sweeping stale temp files removes abandoned temps without removing the published object.",
+        "Closing and reopening the store still returns byte-identical digest-verified evidence.",
+        "The experiment reports normal first-put, duplicate-put, and verified-read latency for the hardened publisher."
+      ],
+      "evidence": {
+        "status": "pending",
+        "pending_reason": "Preregistered before the first hosted atomic-publication crash/concurrency run.",
+        "artifacts": [
+          "Pending first hosted atomic-publication run."
+        ]
+      },
+      "interpretation": "A passing result would justify promoting the filesystem CAS protocol into a small reusable evidence-store primitive. It would not establish distributed durability, remote replication, or cross-filesystem atomicity.",
+      "non_claims": [
+        "A local filesystem CAS is a distributed evidence service.",
+        "Directory fsync semantics are identical on every operating system or network filesystem.",
+        "SIGKILL injection enumerates every kernel/filesystem failure mode.",
+        "Temp sweeping is safe without an age threshold while live publishers may exist.",
+        "Atomic evidence publication changes settlement authority or receipt semantics."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Two crash phases, eight-writer race, corrupt-preexisting negative control, stale-temp sweep, reopen verification, and latency reporting were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first hosted atomic-publication run."
+      }
     }
   ]
 }
