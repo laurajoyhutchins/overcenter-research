@@ -54,7 +54,8 @@
     "lint": "bash scripts/lint.sh",
     "format": "bash scripts/format.sh",
     "experiment:core-loop-concurrency": "node --experimental-strip-types experiments/core-loop-concurrency/experiment.ts",
-    "test:evidence-store": "node --experimental-strip-types --test test/evidence-file-store.test.ts"
+    "test:evidence-store": "node --experimental-strip-types --test test/evidence-file-store.test.ts",
+    "test:kubernetes-configmap-effect": "node --experimental-strip-types experiments/kubernetes-configmap-effect/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",

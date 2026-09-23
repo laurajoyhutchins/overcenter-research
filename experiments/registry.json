@@ -2718,6 +2718,66 @@
         "state": "supported",
         "summary": "At exact revision 6b238e23491792dc7a8734038b82f4741a4eae8e, trusted pre-secureConnect evidence atomically released exactly one status-effect reservation and terminated the old attempt READY; retry required a new run. Post-secureConnect failure with 377 peer-observed HTTP bytes, HTTP 502, forged evidence, and stale authority all retained or protected the reservation, while provider replay remained forbidden."
       }
+    },
+    {
+      "id": "kubernetes-configmap-effect",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/kubernetes-configmap-effect",
+      "readme": "experiments/kubernetes-configmap-effect/README.md",
+      "question": "Can a second provider mutation use the existing semantic-intent, exact claim/fence, durable effect reservation, Kubernetes observation, and settlement machinery without introducing Kubernetes-shaped kernel logic?",
+      "claim": "An experiment-local ConfigMap ensure broker can reserve before PATCH, fail closed across ambiguous mutation outcomes, and settle from authoritative Kubernetes state using the existing generic kernel and existing LIST/WATCH certificate boundary.",
+      "contrast": "Add a Kubernetes mutation adapter directly to production and infer provider generality from ordinary success without testing ambiguous outcomes, identity replacement, continuity loss, or retries.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:kubernetes-configmap-effect"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production SQLite authority kernel and production Kubernetes ConfigMap LIST/WATCH certificate implementation.",
+        "Experiment-local semantic ensure and PATCH broker; Kubernetes is not added to the production semantic registry or trusted dispatcher.",
+        "Deterministic provider harness injects success, timeout-before-commit, timeout-after-commit, resourceVersion conflict, delete/recreate UID change, and broken WATCH continuity."
+      ],
+      "success_criteria": [
+        "A successful PATCH is durably reserved before mutation and reaches DONE only after authoritative provider observation.",
+        "Timeout after commit reaches RECOVERY_REQUIRED first, then settles DONE from fresh LIST without a second PATCH.",
+        "Delete/recreate after an ambiguous commit reports the replacement UID rather than preserving the original UID.",
+        "A resourceVersion conflict is not itself settlement evidence; fresh provider state determines whether the semantic ensure is satisfied.",
+        "Broken WATCH continuity cannot extend prior absence evidence.",
+        "Fresh authoritative absence with an unresolved reservation remains RECOVERY_REQUIRED and an attempted retry issues zero additional PATCHes.",
+        "The generic authority engine contains no Kubernetes-specific branch or recovery rule."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "1bcce9df74b40875797ac4f1fd4441b578da4f27",
+        "artifacts": [
+          "GitHub Actions merge-gate run 35924763601, attempt 2, candidate-evidence job 107397697533: exact-head Kubernetes ConfigMap effect experiment PASS.",
+          "Ordinary ensure issued one PATCH and settled DONE only after authoritative LIST observed uid-1 at resourceVersion 101.",
+          "Timeout-after-commit issued one PATCH total and recovered DONE from authoritative LIST without replay.",
+          "Delete/recreate changed identity from uid-1 to uid-2; settlement observed uid-2.",
+          "resourceVersion conflict was not settlement evidence; fresh provider state established the semantic ensure and settled DONE.",
+          "Broken WATCH continuity did not carry prior absence. Retry after ambiguous absence issued zero additional PATCHes, was blocked before provider I/O, and fresh absence remained RECOVERY_REQUIRED.",
+          "The experiment found zero Kubernetes-specific branches in src/authority/engine.ts.",
+          "The same candidate passed repository typechecking, deterministic regressions, TLA+, production computation-boundary proof, and self-application."
+        ]
+      },
+      "interpretation": "Support would justify promoting Kubernetes ConfigMap ensure as production provider mutation #2 through EffectAuthority and trusted dispatch while retaining no-blind-replay and provider-neutral kernel semantics.",
+      "non_claims": [
+        "A production Kubernetes credential or RBAC boundary is proven.",
+        "Transport-level dispatch certainty against a real API server is proven.",
+        "Automatic replay of Kubernetes mutations is safe.",
+        "A Kubernetes NOT_DISPATCHED reservation-release rule is established.",
+        "ConfigMap data equality, field-manager ownership, or arbitrary Kubernetes resources are covered.",
+        "Kubernetes is already a supported production mutation provider."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The five hostile cases, no-blind-retry condition, and zero-kernel-special-case criterion were fixed before hosted execution. The mutation broker remains experiment-local so a positive result does not silently become production support. The first hosted candidate reached the retry case and was blocked by RUN_NOT_EXECUTING before the expected UNRESOLVED_EFFECT fence; the oracle was widened only to accept either generic pre-provider blocker while retaining the zero-additional-PATCH success criterion."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 1bcce9df74b40875797ac4f1fd4441b578da4f27, all preregistered Kubernetes ConfigMap mutation falsifiers passed using the generic reservation and settlement machinery: ambiguous commit recovered by observation without replay, UID replacement was preserved, resourceVersion conflict deferred to fresh state, stale WATCH absence failed closed, retry performed zero provider mutations, and the kernel required no Kubernetes-specific branch."
+      }
     }
   ]
 }

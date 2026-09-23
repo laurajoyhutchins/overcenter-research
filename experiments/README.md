@@ -29,6 +29,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `current-realization-admissibility/` - fresh authoritative observation over historical DONE, including withdrawal, indeterminate blocking, and cache-free reconstruction.
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
+- `kubernetes-configmap-effect/` - second-provider mutation falsifier covering reservation, PATCH uncertainty, UID recreation, resourceVersion races, WATCH continuity, and no-blind-retry.
 - `lean-semantic-oracle/` - historical exact-revision TypeScript-vs-Lean differential; executable proof retained at its evaluated revision.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
