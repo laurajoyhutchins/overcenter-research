@@ -1710,6 +1710,169 @@
         "state": "falsified",
         "summary": "Behavioral equivalence was supported, and a third adapter was cheaper declaratively (178 versus 449 tokens, 0.396x), but introducing the generator for the current production status adapter required 1254 tokens versus 236 handwritten tokens (5.314x). The preregistered immediate-simplification claim therefore failed."
       }
+    },
+    {
+      "id": "recovery-reasoning",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/recovery-reasoning",
+      "readme": "experiments/recovery-reasoning/README.md",
+      "question": "How much liveness can deterministic recovery restore from RECOVERY_REQUIRED before inference is justified?",
+      "claim": "For the locked synthetic corpus, a least-cost deterministic search over mechanically enumerable non-consequential observations resolves every mechanically recoverable ambiguous effect with zero false certainty, while permanently unknowable cases remain unresolved and an unenumerable evidence-search case reaches an explicit judgment frontier.",
+      "contrast": "Invoke a reasoning agent immediately on every ambiguous effect, or let a recovery actor retry or assert an outcome without authority-bearing evidence.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:recovery-reasoning"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "SQLite through the production OvercenterKernel for the real RECOVERY_REQUIRED transition.",
+        "No network, provider credential, or model credential."
+      ],
+      "success_criteria": [
+        "The production kernel reaches RECOVERY_REQUIRED after an effect reservation followed by response loss and non-authoritative readback.",
+        "Every mechanically recoverable corpus case resolves through authoritative observation only.",
+        "False certainty remains zero and no consequential recovery action executes while certainty is unknown.",
+        "Permanently unknowable cases remain unresolved rather than being retried or guessed.",
+        "The locked unstructured-search case reaches JUDGMENT_REQUIRED without an asserted outcome."
+      ],
+      "evidence": {
+        "artifacts": [
+          "GitHub Actions run 35682912211: exact-head candidate evidence passed the experiment contract and deterministic regression at 88b4fd815488af85280a4d8414fbdf6d6a2c6445.",
+          "experiments/recovery-reasoning/cases.json",
+          "experiments/recovery-reasoning/recovery-reasoning.test.ts"
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "88b4fd815488af85280a4d8414fbdf6d6a2c6445"
+      },
+      "interpretation": "This establishes the deterministic recovery frontier and the safety contract for future agent proposals. It does not show that inference improves recovery. A later hosted stage must use locked judgment fixtures and compare deterministic search with agent-assisted proposal generation under the same deterministic validator.",
+      "non_claims": [
+        "The corpus represents every provider failure mode.",
+        "A judgment-frontier label proves an LLM is necessary.",
+        "Agent output is authority-bearing evidence.",
+        "Recovery must eventually regain liveness.",
+        "A consequential effect may be retried directly from RECOVERY_REQUIRED."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The locked eight-case corpus, deterministic search boundary, and expected recovery assertions were fixed before the exact-head deterministic result was accepted."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Deterministic recovery resolves all five mechanically recoverable cases, leaves two permanently unknowable cases unresolved, and sends the unstructured-search residue to JUDGMENT_REQUIRED with zero false certainty."
+      }
+    },
+    {
+      "id": "recovery-agent-search",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/recovery-agent-search",
+      "readme": "experiments/recovery-agent-search/README.md",
+      "question": "After deterministic recovery exhausts mechanically enumerable safe actions, can a reasoning agent add recovery yield by synthesizing search hypotheses over unstructured evidence without becoming execution or settlement authority?",
+      "claim": "The locked benchmark compares a nontrivial deterministic recovery-search baseline with a real reasoning worker under one deterministic validator; the worker sees only public packets and may emit search parameters or unresolved, while hidden authoritative records and exact effect binding remain trusted.",
+      "contrast": "Invoke inference before deterministic normalization is exhausted, or let the reasoning worker read the oracle, retry the effect, select provider truth, or settle its own proposal.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:recovery-agent-search"
+      },
+      "environment": [
+        "Node.js from .node-version for the deterministic baseline, validator, and scorer.",
+        "GitHub Actions ubuntu-24.04 for the hosted comparison.",
+        "Google-free inference authenticated through the dedicated GitHub OIDC reasoning identity into the billing-disabled Gemini project.",
+        "The reasoning process receives no repository checkout, GitHub token, hidden oracle, Overcenter authority, or project-provider mutation credential."
+      ],
+      "success_criteria": [
+        "The deterministic baseline remains fixed at 4 of 7 recoverable cases on the locked corpus.",
+        "The reasoning worker receives no hidden oracle, repository checkout, provider mutation credential, execution permit, or settlement capability.",
+        "Every agent proposal is validated against the closed search-proposal schema before trusted search.",
+        "A unique search hit settles only when trusted server-side effect identity matches the expected effect.",
+        "False certainty remains zero and the permanently unknowable control never resolves.",
+        "The hosted result reports agent recovery yield and delta even when the agent does not beat the baseline."
+      ],
+      "evidence": {
+        "artifacts": [
+          "GitHub Actions run 35694479360: exact-head hosted recovery-agent-search experiment completed successfully and scored the oracle-blind reasoning candidate.",
+          "Candidate artifact 10679658548 retained by the refinement experiment as the exact frozen round-one candidate.",
+          "experiments/recovery-agent-search/packets.json",
+          "experiments/recovery-agent-search/oracle.json",
+          "experiments/recovery-agent-search/proposal.schema.json"
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "88c90ab73fdc49facbb48b014cd543c65d22b2a0"
+      },
+      "interpretation": "A positive recovery delta would support inference as a narrow search-hypothesis generator after deterministic recovery is exhausted. It would not authorize agent settlement. Repeated successful transformations should be candidates for deterministic promotion. A zero or negative delta is evidence against spending inference on this recovery slice.",
+      "non_claims": [
+        "Inference is necessary for all RECOVERY_REQUIRED states.",
+        "The model is authoritative for present, absent, DONE, or retry decisions.",
+        "The synthetic audit corpus represents every provider.",
+        "A model win makes the successful transformations permanently agent-owned.",
+        "The worker can safely perform provider mutations."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The 4/7 deterministic baseline, seven recoverable cases, one permanent-uncertainty control, proposal schema, oracle isolation, and scoring boundary were frozen before the hosted reasoning result."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "The one-shot reasoning worker recovered 3/7 recoverable cases versus the locked deterministic baseline of 4/7, for a recovery delta of -1 with zero false certainty and zero permanent-uncertainty violations."
+      }
+    },
+    {
+      "id": "recovery-agent-refinement",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/recovery-agent-refinement",
+      "readme": "experiments/recovery-agent-refinement/README.md",
+      "question": "Can one bounded round of cardinality-only read-only query refinement improve recovery yield after a one-shot reasoning search fails, without granting settlement or mutation authority?",
+      "claim": "On the frozen recovery-agent-search corpus, the exact negative #237 model candidate is reused as round one. Trusted software exposes only cardinality feedback to one fresh oracle-blind refinement call, while provider records, effect identity, settlement, mutation, and oracle authority remain trusted.",
+      "contrast": "Tune the one-shot prompt after observing its misses, expose matching records or effect-binding results to the model, allow an open-ended tool loop, or let the model settle or retry effects.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:recovery-agent-refinement"
+      },
+      "environment": [
+        "Node.js from .node-version for the deterministic observer, cumulative scorer, and contract tests.",
+        "The exact packets, oracle, proposal schema, deterministic baseline, and effect-binding scorer inherited from recovery-agent-search.",
+        "GitHub Actions ubuntu-24.04 for the hosted two-round comparison.",
+        "One fresh Google-free refinement inference authenticated through the dedicated GitHub OIDC reasoning identity into the billing-disabled Gemini project.",
+        "Neither reasoning invocation receives a repository checkout, GitHub token, hidden oracle, Overcenter authority, provider mutation credential, execution permit, or settlement capability."
+      ],
+      "success_criteria": [
+        "The inherited deterministic baseline remains fixed at 4 of 7 recoverable cases.",
+        "The exact #237 candidate and provenance are byte-bound to their retained hosted artifact before refinement. Round two receives only original public inputs, the normalized frozen proposal, and zero/one/many/not-searched cardinality feedback.",
+        "Model-visible feedback contains no matching records, record IDs, effect digests, certainty, outcomes, or settlement decisions.",
+        "Each case receives at most two model-authored search proposals and no consequential mutation or retry.",
+        "Cumulative scoring counts a case recovered only when trusted exact-effect binding succeeds in at least one round.",
+        "False certainty remains zero and the permanently unknowable control never resolves.",
+        "The hosted result reports both refinement gain over its own round-one result and gain over the fixed 4/7 deterministic baseline."
+      ],
+      "evidence": {
+        "artifacts": [
+          "GitHub Actions run 35759275101: Cloud Codex provider replication completed and scored deterministic baseline 4/7, frozen round one 3/7, cumulative two-round 4/7, refinement gain +1, baseline gain 0, false certainty 0, permanent-uncertainty violations 0.",
+          "Result artifact 10709196620.",
+          "experiments/recovery-agent-refinement/cloud-codex-candidate.json",
+          "experiments/recovery-agent-refinement/cloud-codex-provenance.json"
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "643045db41ed1c912f3a46aa3ce879310391207e"
+      },
+      "interpretation": "A positive refinement gain supports one bounded read-only refinement step over the exact failed #237 candidate. Inference earns this narrow recovery role only if cumulative two-round recovery exceeds the locked 4/7 deterministic baseline with safety intact. Because the mechanism was designed after inspecting the predecessor misses, generalization requires a later held-out corpus.",
+      "non_claims": [
+        "An open-ended agent tool loop is safe or necessary.",
+        "A cardinality-one search hit is settlement evidence.",
+        "The model may inspect provider records or exact effect identity.",
+        "The result generalizes beyond the known recovery-agent-search corpus.",
+        "The worker can safely perform provider mutations or retries.",
+        "Successful refinement patterns should remain permanently agent-owned."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The bounded cardinality-only refinement mechanism was designed after inspecting the negative one-shot #237 misses. Its two-round limits and safety criteria were fixed before the Cloud Codex replication, but generalization is not claimed."
+      },
+      "outcome": {
+        "state": "mixed",
+        "summary": "One bounded refinement round improved the frozen model result from 3/7 to cumulative 4/7 (refinement gain +1) with zero false certainty, but only tied the deterministic 4/7 baseline (baseline gain 0), so refinement helped the known model failure without earning inference a recovery-yield advantage over deterministic search."
+      }
     }
   ]
 }
