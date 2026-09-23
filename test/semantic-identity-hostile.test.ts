@@ -9,6 +9,7 @@ import {
 import { canonicalDigest, sha256 } from '../src/digest.ts';
 import type {
   Dependency,
+  FileContentPostcondition,
   Obligation,
   Run,
 } from '../src/model.ts';
@@ -31,7 +32,7 @@ const fileObligation=(
   content:string,
   dependencies:Dependency[]=[],
   packet:Record<string,unknown>={},
-):Obligation=>({
+):Obligation & {postcondition:FileContentPostcondition}=>({
   id,
   dependencies,
   packet,
@@ -85,7 +86,7 @@ function fixture(
       [upstream.id]:upstream,
       [downstream.id]:downstream,
     },
-    definition_commits:{
+    definition_ids:{
       [upstream.id]:'definition-upstream',
       [downstream.id]:'definition-downstream',
     },
@@ -105,7 +106,7 @@ test('semantic identity rejects an unknown upstream before deriving any key',()=
   );
   const state:State={
     obligations:{downstream},
-    definition_commits:{downstream:'definition-downstream'},
+    definition_ids:{downstream:'definition-downstream'},
   };
 
   assert.throws(
@@ -338,7 +339,7 @@ test('semantic obligation key is order-independent but excludes control edges',(
   ]);
   const state:State={
     obligations:{a,b,downstream},
-    definition_commits:{
+    definition_ids:{
       a:'definition-a',
       b:'definition-b',
       downstream:'definition-downstream',
