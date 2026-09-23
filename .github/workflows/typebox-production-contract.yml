@@ -8,7 +8,6 @@ on:
       - 'contracts/observation-evidence-v1/schema.json'
       - 'contracts/observation-evidence-v1/contract.json'
       - 'contracts/observation-evidence-v1/README.md'
-      - 'src/generated/settlement-observation-schema.ts'
       - 'src/structural-schema.ts'
       - 'src/model.ts'
       - 'src/observation/observe.ts'
