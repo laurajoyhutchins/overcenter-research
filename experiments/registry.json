@@ -2813,7 +2813,7 @@
         "Retry-on-any-throw, retry-on-old-head-absence, and trust-HTTP-202-without-readback negative controls are killed.",
         "The hypothesis is falsified if the witness pair requires different physical retry decisions yet produces the same durable recovery fingerprint."
       ],
-      "interpretation": "A falsifying collision would establish a knowledge/liveness gap rather than a safety failure: update-branch correctly remains replay- and release-forbidden, and the result could ground a second real-adapter diagnosability case without granting runtime authority.",
+      "interpretation": "The falsifying collision establishes a bounded knowledge/liveness gap, not a safety defect. Old-head authoritative readback proves only that the asynchronous update is not currently visible; it does not establish terminal non-dispatch. Replay and reservation release should remain forbidden absent a separately proved witness, and the result can ground a second real-adapter diagnosability fixture.",
       "non_claims": [
         "Real GitHub timing or eventual-consistency distributions are measured.",
         "HTTP 502 proves that GitHub received or did not receive the request.",
@@ -2828,15 +2828,20 @@
         "note": "The ten-world grammar, asynchronous-202 treatment, durable fingerprint, definitely-undispatched versus dispatched-hidden witness pair, and three unsafe negative controls were committed before the first execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The preregistered update-branch uncertainty corpus has not yet been evaluated at a hosted exact revision."
+        "state": "falsified",
+        "summary": "At exact revision 0c3345e26bad2666bf93255398766ae58b6383b1, ten update-branch uncertainty worlds collapsed to two durable equivalence classes with one retry-safety collision: a definitely-undispatched PUT and a dispatched/physically unsafe hidden update both reconstructed to the same RECOVERY_REQUIRED state even though authoritative readback reported the old head as absent mutation."
       },
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "0c3345e26bad2666bf93255398766ae58b6383b1",
         "artifacts": [
-          "Design and executable corpus are committed before first hosted execution."
-        ],
-        "pending_reason": "Exact-head hosted evaluation has not yet completed."
+          "GitHub Actions Merge gate run 35926875405, rerun attempt 2, candidate-evidence job 107404540300: exact-head candidate PASS.",
+          "10 preregistered worlds collapsed to 2 durable equivalence classes with exactly 1 retry-safety collision.",
+          "Preregistered witness: put-fails-before-dispatch and dispatch-present-throw-old both retained an unresolved reservation, blocked duplicate PUT, recorded RECOVERY_REQUIRED interruption, observed mutation_certainty=absent from the old PR head, reconciled to RECOVERY_REQUIRED, and ended RECOVERY_REQUIRED.",
+          "No duplicate provider PUT and no false DONE were observed.",
+          "Retry-on-any-throw, retry-on-old-head-absence, and trust-HTTP-202-without-readback negative controls were all killed.",
+          "The same exact-head candidate passed repository lint, TypeScript checking, experiment-contract validation, adapter-diagnosability CI, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application."
+        ]
       }
     }
   ]
