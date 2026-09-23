@@ -40,9 +40,8 @@ try {
   kernel.define({
     id: obligationId,
     packet: {
-      schema: 'overcenter-agent-task/v1',
+      schema: 'overcenter-agent-task/v2',
       kind: 'pure-candidate',
-      source_sha: sourceSha,
       command: ['node', '--experimental-strip-types', 'task.ts', 'input.txt', 'result.txt'],
       required_paths: ['task.ts', 'input.txt'],
       output_path: 'result.txt',
@@ -56,17 +55,18 @@ try {
 
   const ready = kernel.deriveReadyWork();
   if (!ready || ready.id !== obligationId) throw new Error('ASSIGNMENT_READY_WORK_MISSING');
-  const permit = kernel.claim(ready.id, ready.revision);
+  const permit = kernel.claim(ready.id, ready.revision, { sourceRevision: sourceSha });
   const assigned = kernel.inspect().find((work) => work.id === obligationId);
   if (!assigned || assigned.status !== 'EXECUTING') throw new Error('ASSIGNMENT_NOT_EXECUTING');
   if (assigned.run_id !== permit.id) throw new Error('ASSIGNMENT_RUN_MISMATCH');
   if (assigned.claimed_revision !== permit.claimed_revision)
     throw new Error('ASSIGNMENT_REVISION_MISMATCH');
 
-  const assignment = buildAssignment(assigned, [
-    assignmentFile('task.ts', taskBytes),
-    assignmentFile('input.txt', inputBytes),
-  ]);
+  const assignment = buildAssignment(
+    assigned,
+    [assignmentFile('task.ts', taskBytes), assignmentFile('input.txt', inputBytes)],
+    sourceSha,
+  );
   const encoded = encodeAssignment(assignment);
   if (encoded.includes(Buffer.from('execution_capability'))) {
     throw new Error('ASSIGNMENT_LEAKED_EXECUTION_CAPABILITY');
