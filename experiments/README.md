@@ -6,6 +6,8 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 
 ## Experiment index
 
+- `execution-witness/` - historical bounded syscall-witness result: pre-send non-occurrence evidence safely discharged 2/4 interrupted cases with zero false certainty.
+- `witness-minimization/` - historical minimization result: post-hoc witness reduction is strong, but historical minima alone cannot define a future complete capture contract.
 - `git-metadata-independence/` - historical proof that deterministic regression/experiment evidence does not require ambient checkout identity.
 - `tree-bound-candidate-evidence/` - historical classification experiment for tree/toolchain-bound expensive candidate proofs.
 - `tree-evidence-derivation/` - historical derivation-contract proof for applying revision-free tree evidence across identical-content merges.
