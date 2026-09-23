@@ -85,6 +85,7 @@ const groupsOf=(pid:number):number[]=>{
   if (!match) throw new Error('groups unavailable for pid '+pid);
   return match[1].trim().split(/\s+/).filter(Boolean).map(value=>Number.parseInt(value,10));
 };
+if (executor.pid===undefined) throw new Error('executor pid unavailable');
 if (uidOf(executor.pid)!==0) throw new Error('executor is not root inside containment worker');
 if (uidOf(parentPid)!==Number.parseInt(taskUid,10)) throw new Error('task did not drop to configured uid');
 const taskGroups=groupsOf(parentPid);
