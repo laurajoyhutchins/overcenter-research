@@ -1,5 +1,4 @@
 name: Repair PR 290
-
 on:
   push:
     branches:
@@ -10,16 +9,16 @@ permissions:
 
 jobs:
   repair:
-    if: ${{ github.event.head_commit.message == 'ci: repair PR 290 against current main' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      EXPECTED_PARENT: 040c3fa21a79a89c2ca2ccf4953680eb13ecea9c
+      EXPECTED_PARENT: 1ed2025ea11d996a56c1b7ed13a7580b50eae356
       MAIN_SHA: 848742ebe4484ffb6bef02cd6ac08175e99f569e
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+
       - name: Fence repair inputs
         shell: bash
         run: |
@@ -27,14 +26,17 @@ jobs:
           test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
           git fetch --no-tags origin main
           test "$(git rev-parse origin/main)" = "$MAIN_SHA"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version-file: '.node-version'
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+          node-version-file: .node-version
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
-          go-version-file: '.go-version'
+          go-version-file: .go-version
           cache: false
-      - name: Install pinned Rust toolchain
+
+      - name: Install Rust formatter
         shell: bash
         run: |
           set -euo pipefail
@@ -42,7 +44,8 @@ jobs:
           test -n "$channel"
           rustup toolchain install "$channel" --profile minimal --component rustfmt --no-self-update
           test "$(rustc --version | awk '{print $2}')" = "$channel"
-      - name: Merge current main, preserving main semantics
+
+      - name: Merge current main
         shell: bash
         run: |
           set -euo pipefail
@@ -58,7 +61,8 @@ jobs:
             git rm -- "contracts/observation-evidence-v1/settlement-observation.typebox.ts"
           fi
           test -f contracts/observation-evidence/settlement-observation.typebox.ts
-      - name: Reapply quality-gate integration to current main
+
+      - name: Reapply lint integration
         shell: bash
         run: |
           set -euo pipefail
@@ -73,55 +77,54 @@ jobs:
 
           python3 <<'PY'
           from pathlib import Path
-          p = Path('.github/workflows/tests.yml')
-          s = p.read_text()
-          if '      - name: Lint source\n' not in s:
-              marker = """      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-                with:
-                  node-version-file: '.node-version'
-          """
-              insert = marker + """      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-                with:
-                  go-version-file: '.go-version'
-                  cache: false
-              - name: Install pinned Rust toolchain
-                shell: bash
-                run: |
-                  set -euo pipefail
-                  channel="$(sed -n 's/^channel = "\\([^"]*\\)"$/\\1/p' rust-toolchain.toml)"
-                  test -n "$channel"
-                  rustup toolchain install "$channel" --profile minimal --component rustfmt --no-self-update
-                  test "$(rustc --version | awk '{print $2}')" = "$channel"
-              - name: Lint source
-                run: npm run lint
-          """
-              if marker not in s:
-                  raise SystemExit('setup-node marker not found')
-              s = s.replace(marker, insert, 1)
+          import re
 
-          duplicate = """      - name: Install Go for candidate production evidence
-                if: ${{ inputs.expensive }}
-                uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-                with:
-                  go-version-file: '.go-version'
-                  cache: false
-              - name: Install pinned Rust toolchain
-                if: ${{ inputs.expensive }}
-                shell: bash
-                run: |
-                  set -euo pipefail
-                  channel="$(sed -n 's/^channel = "\\([^"]*\\)"$/\\1/p' rust-toolchain.toml)"
-                  test -n "$channel"
-                  rustup toolchain install "$channel" --profile minimal --no-self-update
-                  test "$(rustc --version | awk '{print $2}')" = "$channel"
-          """
-          s = s.replace(duplicate, '', 1)
-          p.write_text(s)
+          path = Path('.github/workflows/tests.yml')
+          text = path.read_text()
+
+          text = re.sub(
+              r"      - name: Install Go for candidate production evidence\n.*?(?=      - name: Prove production computation boundary\n)",
+              "",
+              text,
+              count=1,
+              flags=re.S,
+          )
+
+          if "      - name: Lint source\n" not in text:
+              marker = (
+                  "      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7\n"
+                  "        with:\n"
+                  "          node-version-file: '.node-version'\n"
+              )
+              insert = marker + (
+                  "      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7\n"
+                  "        with:\n"
+                  "          go-version-file: '.go-version'\n"
+                  "          cache: false\n"
+                  "      - name: Install pinned Rust toolchain\n"
+                  "        shell: bash\n"
+                  "        run: |\n"
+                  "          set -euo pipefail\n"
+                  "          channel=\"$(sed -n 's/^channel = \\\"\\([^\\\"]*\\)\\\"$/\\1/p' rust-toolchain.toml)\"\n"
+                  "          test -n \"$channel\"\n"
+                  "          rustup toolchain install \"$channel\" --profile minimal --component rustfmt --no-self-update\n"
+                  "          test \"$(rustc --version | awk '{print $2}')\" = \"$channel\"\n"
+                  "      - name: Lint source\n"
+                  "        run: npm run lint\n"
+              )
+              if marker not in text:
+                  raise SystemExit('setup-node marker not found')
+              text = text.replace(marker, insert, 1)
+
+          path.write_text(text)
           PY
+
       - name: Format reconciled source
         run: npm run format
+
       - name: Install TypeScript toolchain
         run: npm install --ignore-scripts --package-lock=false
+
       - name: Verify repaired tree
         shell: bash
         run: |
@@ -131,6 +134,7 @@ jobs:
           npm test
           test ! -e contracts/observation-evidence-v1/settlement-observation.typebox.ts
           test -e contracts/observation-evidence/settlement-observation.typebox.ts
+
       - name: Commit repaired branch
         shell: bash
         run: |
