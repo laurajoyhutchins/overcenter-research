@@ -245,9 +245,8 @@ async function runWorld(world: World): Promise<Result> {
         receipts: receiptSummary,
       });
       const observedCertainty =
-        [...fresh.receipts(run.id)]
-          .reverse()
-          .find((receipt) => receipt.observed)?.observed?.mutation_certainty ?? null;
+        [...fresh.receipts(run.id)].reverse().find((receipt) => receipt.observed)?.observed
+          ?.mutation_certainty ?? null;
 
       return {
         world,
@@ -301,9 +300,7 @@ assert.ok(
 );
 
 const preDispatch = results.find((result) => result.world.id === 'put-fails-before-dispatch');
-const dispatchedHidden = results.find(
-  (result) => result.world.id === 'dispatch-present-throw-old',
-);
+const dispatchedHidden = results.find((result) => result.world.id === 'dispatch-present-throw-old');
 assert.ok(preDispatch);
 assert.ok(dispatchedHidden);
 assert.equal(preDispatch.retry_safe_by_physics, true);
