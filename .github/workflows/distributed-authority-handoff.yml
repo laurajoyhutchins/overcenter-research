@@ -1,0 +1,199 @@
+name: Distributed authority handoff
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/distributed-authority-handoff/**'
+      - '.github/workflows/distributed-authority-handoff.yml'
+      - 'src/authority/**'
+      - 'src/storage/git-kernel.ts'
+      - 'src/storage/git-store.ts'
+      - 'src/providers/github/status-effect.ts'
+      - 'package.json'
+      - 'experiments/registry.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  statuses: write
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  AUTHORITY_REF: refs/heads/overcenter-ha-proof-${{ github.run_id }}-${{ github.run_attempt }}
+  STATUS_CONTEXT: overcenter/ha-proof/${{ github.run_id }}/${{ github.run_attempt }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    outputs:
+      initial_revision: ${{ steps.setup.outputs.initial_revision }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - name: Verify exact source revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Install runtime dependencies
+        run: npm install --ignore-scripts --package-lock=false
+      - name: Run deterministic local contract
+        run: npm run test:distributed-authority-handoff
+      - name: Initialize remote authority
+        id: setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts setup \
+            "$AUTHORITY_REF" \
+            "${{ github.repository_id }}" \
+            "${{ github.repository }}" \
+            "$SOURCE_SHA" \
+            "$STATUS_CONTEXT")"
+          echo "$result"
+          echo "initial_revision=$(jq -r .initial_revision <<<"$result")" >> "$GITHUB_OUTPUT"
+
+  contender-a:
+    needs: setup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    outputs:
+      outcome: ${{ steps.race.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Race exact READY claim
+        id: race
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          result="$(node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts race \
+            "$AUTHORITY_REF" "${{ needs.setup.outputs.initial_revision }}" a "$SOURCE_SHA")"
+          echo "$result"
+          echo "outcome=$(jq -r .outcome <<<"$result")" >> "$GITHUB_OUTPUT"
+
+  contender-b:
+    needs: setup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    outputs:
+      outcome: ${{ steps.race.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Race exact READY claim
+        id: race
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          result="$(node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts race \
+            "$AUTHORITY_REF" "${{ needs.setup.outputs.initial_revision }}" b "$SOURCE_SHA")"
+          echo "$result"
+          echo "outcome=$(jq -r .outcome <<<"$result")" >> "$GITHUB_OUTPUT"
+
+  reserve-effect:
+    needs: [setup, contender-a, contender-b]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Verify exactly one claim winner from a fresh controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          winners=0
+          test "${{ needs.contender-a.outputs.outcome }}" = "won" && winners=$((winners + 1)) || true
+          test "${{ needs.contender-b.outputs.outcome }}" = "won" && winners=$((winners + 1)) || true
+          test "$winners" -eq 1
+          node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts verify-race "$AUTHORITY_REF"
+      - name: Reserve and perform effect, then terminate without settlement
+        run: node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts reserve "$AUTHORITY_REF"
+
+  recover:
+    needs: [setup, reserve-effect]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Reconstruct, block replay, and settle from fresh observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts recover "$AUTHORITY_REF"
+
+  controls:
+    needs: [setup, recover]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Prove stale authority rejection and remote-unavailable fail-closed behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts controls \
+            "$AUTHORITY_REF" "${{ needs.setup.outputs.initial_revision }}"
+
+  cleanup:
+    if: ${{ always() }}
+    needs: [setup, contender-a, contender-b, reserve-effect, recover, controls]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - name: Remove ephemeral authority and barrier refs
+        shell: bash
+        run: |
+          set +e
+          git push --quiet origin ":$AUTHORITY_REF"
+          git push --quiet origin ":${AUTHORITY_REF}-ready-a"
+          git push --quiet origin ":${AUTHORITY_REF}-ready-b"
+          exit 0

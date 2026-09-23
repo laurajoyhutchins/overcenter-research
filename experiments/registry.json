@@ -2839,6 +2839,67 @@
         "state": "supported",
         "summary": "At exact revision 7554f069570e6501afc971adfb9d7420dae3b683, the hosted checker rejected all 16 hostile mutants, accepted all 4 safe controls and both real GitHub mutation paths, and required zero production suppressions. The result supports the bounded build-time sidecar claim, not a universal TypeScript soundness claim or production authority role."
       }
+    },
+    {
+      "id": "distributed-authority-handoff",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/distributed-authority-handoff",
+      "readme": "experiments/distributed-authority-handoff/README.md",
+      "question": "Can independent disposable controllers share authoritative Overcenter project truth without a shared application database by using immutable Git facts plus one remote exact-head CAS coordinate?",
+      "claim": "For the bounded GitHub-hosted treatment, fresh controllers with no shared local database can race on one exact READY revision, produce exactly one winning claim, survive winner and effect-broker termination, reconstruct an unresolved GitHub status reservation from remote authority, block duplicate mutation, settle from fresh provider observation, reject stale authority, and fail closed when the remote authority service is unavailable.",
+      "contrast": "Require a shared SQL authority database or allow a healthy local controller copy to become authoritative when the remote authority coordinate is unavailable.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:distributed-authority-handoff"
+      },
+      "environment": [
+        "Node.js from .node-version and the production GitOvercenterKernel/GitFactStore.",
+        "The local contract uses separate local Git repositories over one bare remote and a shared file only as the local observation fixture.",
+        "The hosted treatment uses separate GitHub Actions ubuntu-24.04 jobs, one ephemeral remote Git authority ref, and no shared application database between jobs.",
+        "The hosted effect is the production GitHub commit-status mutation path using a unique status context on the exact source SHA.",
+        "GitHub Actions provides contents:write for the ephemeral authority ref and statuses:write for the bounded provider effect."
+      ],
+      "success_criteria": [
+        "Two separate hosted contender jobs begin from the same preregistered READY revision and exactly one claim becomes authoritative.",
+        "A fresh controller reconstructs the winning run from the remote authority ref after both contender jobs terminate.",
+        "A different fresh controller rotates execution authority, durably reserves the production GitHub status effect, performs the status mutation, and terminates without settlement.",
+        "Another fresh controller reconstructs the unresolved reservation and a second effect attempt is rejected with UNRESOLVED_EFFECT before provider mutation.",
+        "The recovery controller records termination/recovery evidence, independently observes the GitHub status, and settles the same run DONE without replay.",
+        "The final authority history contains exactly one claim and one effect reservation for the obligation.",
+        "A controller using the original stale READY revision is rejected rather than creating a new claim or settlement.",
+        "After a fresh controller has fetched a valid local copy of authority, making the remote authority endpoint unreachable causes authority reads to fail closed with AUTHORITY_UNREACHABLE rather than promoting the local copy.",
+        "The local deterministic contract reproduces the single-winner, handoff, unresolved-effect, settlement, stale-revision, and authority-unreachable invariants without provider credentials."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "06cb8d5a27f92aa40e37c307d3da2f8f53c61e80",
+        "artifacts": [
+          "GitHub Actions run 35924683116: exact-head distributed authority handoff proof PASS across setup, two contender runners, fresh effect broker, fresh recovery controller, stale/unreachable controls, and cleanup.",
+          "Contender A won run b4725576-69ee-440e-98ff-c72220ed482c at claim commit 6a9fbb21e4e5fcea7c40b68d4cb081ee308d5922; contender B lost with CLAIM_LOST.",
+          "Fresh broker execution generation 2 created exactly one reservation and performed GitHub status context overcenter/ha-proof/35924683116/1; authority head ac4082d8b73c3641a99ad98bcf2cd861096c8d35.",
+          "Fresh recovery execution generation 3 blocked duplicate beginEffect, settled the same run DONE from GitHub readback, retained one claim and one reservation, and advanced authority to 90241850b7258dda7578354fed17ab89c70f48e6.",
+          "Fresh control runner rejected the original READY revision and failed closed when the remote authority endpoint was made unreachable while a valid local authority ref remained present.",
+          "The first hosted attempt exposed a local-fixture indirection bug and the second exposed a missing User-Agent in the production GitHub status transport; both were repaired without changing the preregistered authority acceptance criteria."
+        ]
+      },
+      "interpretation": "The bounded result supports the narrow architectural claim that shared application SQL is not required for this multi-controller failover path: immutable portable authority facts plus a linearizable remote head transition were sufficient. The experiment also surfaced and repaired a real live-path HTTP transport defect (missing User-Agent) before the provider effect could participate in the handoff. This does not establish an HA SLA or make Git the preferred production hot path.",
+      "non_claims": [
+        "GitHub provides an availability or latency SLA suitable for every Overcenter deployment.",
+        "The Git reference backend belongs on the production hot path at arbitrary scale.",
+        "Distributed authority is consensus-free; the remote exact-head transition still embodies an agreement primitive.",
+        "The experiment proves multi-region partition tolerance, Byzantine fault tolerance, or quorum durability.",
+        "Every provider mutation can be recovered from the same observation semantics as GitHub commit status.",
+        "A controller may continue mutating project truth while the remote authority service is unavailable."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The single-winner race, controller-death handoffs, unresolved-effect replay prohibition, stale-revision control, remote-unavailable control, and exact hosted topology were recorded before the first hosted execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 06cb8d5a27f92aa40e37c307d3da2f8f53c61e80, independent hosted controllers sharing no application database produced one exact-head claim winner, survived controller and effect-broker handoff, reconstructed one unresolved external-effect reservation, blocked replay, settled from fresh provider observation, rejected stale authority, and refused to promote a local copy when remote authority was unavailable."
+      }
     }
   ]
 }

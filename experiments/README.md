@@ -23,6 +23,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `attempt-unification/` - falsifies the single recovery-clock simplification and proves authority fencing and unresolved mutation identity require distinct temporal dimensions.
 - `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
+- `distributed-authority-handoff/` - Postgres-free multi-controller authority handoff through immutable Git facts plus one remote exact-head CAS coordinate.
 - `ambient-authority-boundary/` - separates substrate-owned provider capability from Overcenter project-truth authority.
 - `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.
 - `conflicting-effect/` - provider-coordinate conflict, ordering, and commutativity.
