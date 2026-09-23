@@ -1545,13 +1545,18 @@
         "Cold recovery bandwidth for the representative corpus is reported as reference bytes plus unique evidence bytes; warm recovery bandwidth after evidence caching is reported as reference bytes only."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "Preregistered before the first hosted break-even matrix run.",
+        "status": "evaluated",
+        "evaluated_revision": "9bf7dc83d36700c022dcbf1af2a77ff873809cb2",
         "artifacts": [
-          "Pending first hosted exact-head evidence CAS break-even run."
+          "GitHub Actions run 35823476017, job 107060113122: evidence CAS break-even matrix PASS.",
+          "All 20 payload/reuse cells preserved receipt-v5/projectReceipt semantics with 0 semantic mismatches and 0 false DONE.",
+          "Universal CAS ratios at 0% reuse were >1 for every payload: 1.0167x (1 KiB), 1.0029x (16 KiB), 1.0002x (256 KiB), 1.0001x (1 MiB).",
+          "The first sampled universal-CAS crossover was 25% reuse for every payload size. At 50% reuse ratios were 0.8498x, 0.5608x, 0.5043x, and 0.5011x as payload size increased.",
+          "The exact-cost selective policy never exceeded flat bytes; at 0% reuse it externalized zero groups, and at 25% reuse it externalized only the 32 repeated groups while leaving singleton groups inline.",
+          "Representative 256 KiB / 50%-reuse file CAS: verified lookup p50 2429.117 us, p95 5060.002 us; cold recovery 17,063,250 bytes vs 33,837,074 flat; warm recovery 282,514 bytes; GC deleted 16/16 orphans, reclaimed 4,195,184 bytes, and took 718.197 us."
         ]
       },
-      "interpretation": "The result will decide policy shape rather than whether content addressing is useful. If the exact-cost selective policy dominates or matches flat storage while universal CAS loses at low reuse, evidence CAS should be available as infrastructure but externalization should be a deterministic storage decision, not a mandatory receipt representation.",
+      "interpretation": "Evidence CAS should be infrastructure, not a mandatory receipt representation. The dominant decision variable in this matrix is whether exact evidence bytes repeat; payload size mainly controls how large the win becomes. A deterministic cost comparison per digest group avoids a guessed global threshold: keep singleton evidence inline when externalization is more expensive, and externalize repeated evidence when one CAS object plus references is smaller. Large unique traces may still merit CAS for operational reasons, but that is not a storage optimization and should be justified separately.",
       "non_claims": [
         "The matrix represents the empirical distribution of production Overcenter replay traces.",
         "Local filesystem latency predicts remote object-store latency.",
@@ -1565,8 +1570,8 @@
         "note": "Payload sizes, reuse fractions, 128-receipt corpus, zero-reuse and full-reuse controls, exact-cost selective policy, representative lookup/GC case, and reported recovery bandwidth metrics were fixed before the first hosted run."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first exact-head break-even matrix run."
+        "state": "supported",
+        "summary": "At exact revision 9bf7dc83d36700c022dcbf1af2a77ff873809cb2, universal evidence CAS was confirmed to be a small storage loss at zero reuse and a substantial win once evidence repeated. Across the preregistered matrix, the first sampled universal crossover was 25% reuse for every payload size, while the exact-cost selective policy never exceeded flat storage because it kept singleton groups inline. The 256 KiB/50%-reuse file-backed control halved cold recovery bytes, reduced warm recovery to reference-only bytes, verified every lookup digest, and swept all injected orphans without deleting live evidence."
       }
     }
   ]
