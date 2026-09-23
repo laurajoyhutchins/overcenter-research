@@ -7,7 +7,7 @@ import test from 'node:test';
 import { OvercenterKernel } from '../src/authority/kernel.ts';
 import type { Postcondition } from '../src/model.ts';
 import {
-  observationVerified,
+  observationSatisfiesPostcondition,
   observePostcondition,
   observePostconditionAsync,
 } from '../src/observation/observe.ts';
@@ -184,7 +184,7 @@ test('async postcondition proves old head and requested base are ancestors of th
     },
   });
   assert.equal(observed.mutation_certainty, 'present');
-  assert.equal(observationVerified(p, observed), true);
+  assert.equal(observationSatisfiesPostcondition(p, observed), true);
   assert.deepEqual(calls, [
     '/repos/acme/widget',
     '/repos/acme/widget/pulls/37',
@@ -208,7 +208,7 @@ test('unrelated PR head movement cannot counterfeit an update-branch realization
   });
   assert.equal(observed.mutation_certainty, 'uncertain');
   assert.equal(observed.observation_error, 'GITHUB_PR_BRANCH_UPDATE_ANCESTRY_NOT_ESTABLISHED');
-  assert.equal(observationVerified(p, observed), false);
+  assert.equal(observationSatisfiesPostcondition(p, observed), false);
 });
 
 test('later base advancement does not erase a proven exact-base realization', () => {
@@ -225,5 +225,5 @@ test('later base advancement does not erase a proven exact-base realization', ()
     },
   });
   assert.equal(observed.mutation_certainty, 'present');
-  assert.equal(observationVerified(p, observed), true);
+  assert.equal(observationSatisfiesPostcondition(p, observed), true);
 });

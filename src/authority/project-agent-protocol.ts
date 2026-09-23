@@ -436,7 +436,7 @@ export function submitProjectCandidate(
   }
 
   const permit = settlementKernel.acquireExecution(candidate.run_id);
-  const settled = settlementKernel.resolve(permit, {
+  const settled = settlementKernel.observeAndSettle(permit, {
     agent_candidate: {
       assignment_sha256: candidate.assignment_sha256,
       output_sha256: candidate.output_sha256,

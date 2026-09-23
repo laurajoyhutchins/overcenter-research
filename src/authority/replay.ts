@@ -1,5 +1,5 @@
 import type { Obligation } from '../model.ts';
-import { authoritativeAbsenceEvidence, observationVerified } from '../observation/observe.ts';
+import { authoritativeAbsenceEvidence, observationSatisfiesPostcondition } from '../observation/observe.ts';
 import {
   emptyState,
   validateClaimFact,
@@ -63,7 +63,7 @@ export function projectReceipt(
 
   if (fact.kind === 'observation') {
     if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
-    verified = observationVerified(work.postcondition, fact.observed);
+    verified = observationSatisfiesPostcondition(work.postcondition, fact.observed);
     const policy = settlementSemantics(work.postcondition);
     const absenceEvidence = authoritativeAbsenceEvidence(work.postcondition, fact.observed);
     const acceptedAbsence =

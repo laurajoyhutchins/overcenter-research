@@ -46,7 +46,7 @@ import {
   hasInFlight,
   type ProjectExplanation,
 } from './project-state.ts';
-import { deriveCurrentRealizationJudgments } from './realization-reuse.ts';
+import { deriveCurrentRealizationAdmissibility } from './realization-reuse.ts';
 import { advanceProjection, projectReceipt, replayProjection } from './replay.ts';
 import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
@@ -306,7 +306,7 @@ export class KernelCore {
     throw new Error('EXECUTION_AUTHORITY_CONTENTION_EXHAUSTED');
   }
 
-  beginEffect(permit: ExecutionPermit): string {
+  reserveEffect(permit: ExecutionPermit): string {
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const head = this.#requireHead();
       const { history, project } = this.#historicalProjection(head);
@@ -353,7 +353,7 @@ export class KernelCore {
     authority: EffectAuthority<E, V>,
     effect: () => Promise<T> | T,
   ): Promise<T> {
-    this.beginEffect(authority.permit);
+    this.reserveEffect(authority.permit);
     return await effect();
   }
 
@@ -422,32 +422,32 @@ export class KernelCore {
     throw new Error('EFFECT_RELEASE_CONTENTION_EXHAUSTED');
   }
 
-  resolve(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
+  observeAndSettle(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      const candidate = this.#resolutionCandidate(permit);
+      const candidate = this.#settlementCandidate(permit);
       if ('receipt' in candidate) return candidate.receipt;
-      const settled = this.#commitObservation(
+      const settled = this.#settleObservation(
         candidate,
         this.#observe(candidate.work.postcondition),
         diagnostic,
       );
       if (settled) return settled;
     }
-    throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
+    throw new Error('SETTLEMENT_CONTENTION_EXHAUSTED');
   }
 
-  async resolveAsync(permit: ExecutionPermit, diagnostic: Data = {}): Promise<Receipt> {
+  async observeAndSettleAsync(permit: ExecutionPermit, diagnostic: Data = {}): Promise<Receipt> {
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      const candidate = this.#resolutionCandidate(permit);
+      const candidate = this.#settlementCandidate(permit);
       if ('receipt' in candidate) return candidate.receipt;
-      const settled = this.#commitObservation(
+      const settled = this.#settleObservation(
         candidate,
         await this.#observeAsync(candidate.work.postcondition),
         diagnostic,
       );
       if (settled) return settled;
     }
-    throw new Error('RESOLVE_CONTENTION_EXHAUSTED');
+    throw new Error('SETTLEMENT_CONTENTION_EXHAUSTED');
   }
 
   deferForJudgment(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
@@ -485,7 +485,7 @@ export class KernelCore {
     throw new Error('DEFER_CONTENTION_EXHAUSTED');
   }
 
-  recoverInterrupted(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
+  recordExecutionTermination(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
     const runId = permit.id;
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const head = this.#requireHead();
@@ -515,10 +515,6 @@ export class KernelCore {
       if (commit) return { ...receipt, settlement_commit: commit };
     }
     throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
-  }
-
-  reconcile(permit: ExecutionPermit): Receipt {
-    return this.resolve(permit);
   }
 
   receipts(runId: string | null = null): Receipt[] {
@@ -616,7 +612,7 @@ export class KernelCore {
     return commit;
   }
 
-  #resolutionCandidate(permit: ExecutionPermit):
+  #settlementCandidate(permit: ExecutionPermit):
     | { receipt: Receipt }
     | {
         head: string;
@@ -653,7 +649,7 @@ export class KernelCore {
     };
   }
 
-  #commitObservation(
+  #settleObservation(
     candidate: {
       head: string;
       run: HistoricalRun;
@@ -703,7 +699,7 @@ export class KernelCore {
 
   #currentProjection(head: string): Projection {
     const historical = this.#historicalProjection(head);
-    const currentRealizationJudgments = deriveCurrentRealizationJudgments({
+    const currentRealizationAdmissibility = deriveCurrentRealizationAdmissibility({
       state: historical.state,
       runs: historical.history.runs,
       receiptsByRun: historical.history.receiptsByRun,
@@ -715,7 +711,7 @@ export class KernelCore {
       runs: historical.history.runs,
       receiptsByRun: historical.history.receiptsByRun,
       revision: head,
-      currentRealizationJudgments,
+      currentRealizationAdmissibility,
     });
     return {
       ...historical,

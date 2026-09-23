@@ -13,7 +13,7 @@ import type {
 import {
   authoritativeAbsenceEvidence,
   observationAuthoritativelyAbsent,
-  observationVerified,
+  observationSatisfiesPostcondition,
 } from '../src/observation/observe.ts';
 import {
   KUBERNETES_COMPLETE_LIST_ABSENCE,
@@ -163,10 +163,10 @@ test('file verification requires present certainty and exact content digest', ()
   ] as const) {
     const postcondition = filePostcondition(verifier);
     const matching = fileObservation(postcondition);
-    assert.equal(observationVerified(postcondition, matching), true);
+    assert.equal(observationSatisfiesPostcondition(postcondition, matching), true);
 
     assert.equal(
-      observationVerified(
+      observationSatisfiesPostcondition(
         postcondition,
         fileObservation(postcondition, { actual_sha256: '0'.repeat(64) }),
       ),
@@ -175,7 +175,7 @@ test('file verification requires present certainty and exact content digest', ()
     );
     for (const certainty of ['absent', 'uncertain'] as const) {
       assert.equal(
-        observationVerified(
+        observationSatisfiesPostcondition(
           postcondition,
           fileObservation(postcondition, { mutation_certainty: certainty }),
         ),
@@ -189,7 +189,7 @@ test('file verification requires present certainty and exact content digest', ()
 test('observation predicates fail closed on coordinate mismatch', () => {
   const file = filePostcondition('file-content-equals/v1');
   assert.throws(
-    () => observationVerified(file, fileObservation(file, { path: '/tmp/other.txt' })),
+    () => observationSatisfiesPostcondition(file, fileObservation(file, { path: '/tmp/other.txt' })),
     /OBSERVATION_COORDINATE_MISMATCH/,
   );
   assert.throws(
@@ -206,7 +206,7 @@ test('observation predicates fail closed on coordinate mismatch', () => {
   );
   assert.throws(
     () =>
-      observationVerified(file, { ...fileObservation(file), verifier: 'github-commit-status/v2' }),
+      observationSatisfiesPostcondition(file, { ...fileObservation(file), verifier: 'github-commit-status/v2' }),
     /OBSERVATION_VERIFIER_MISMATCH/,
   );
 });
@@ -290,7 +290,7 @@ test('Kubernetes absence requires a complete certificate bound to the exact obje
 
 test('Kubernetes verification requires both non-empty UID and resourceVersion', () => {
   const postcondition = kubernetesPostcondition();
-  assert.equal(observationVerified(postcondition, kubernetesObservation(postcondition)), true);
+  assert.equal(observationSatisfiesPostcondition(postcondition, kubernetesObservation(postcondition)), true);
 
   const invalid: Array<[string, Partial<Observation>]> = [
     ['missing uid', { observed_uid: undefined }],
@@ -302,7 +302,7 @@ test('Kubernetes verification requires both non-empty UID and resourceVersion', 
   ];
   for (const [name, overrides] of invalid) {
     assert.equal(
-      observationVerified(postcondition, kubernetesObservation(postcondition, overrides)),
+      observationSatisfiesPostcondition(postcondition, kubernetesObservation(postcondition, overrides)),
       false,
       name,
     );
@@ -311,16 +311,16 @@ test('Kubernetes verification requires both non-empty UID and resourceVersion', 
 
 test('GitHub status verification binds the observed state to the expected state', () => {
   const postcondition = githubPostcondition();
-  assert.equal(observationVerified(postcondition, githubObservation(postcondition)), true);
+  assert.equal(observationSatisfiesPostcondition(postcondition, githubObservation(postcondition)), true);
   assert.equal(
-    observationVerified(
+    observationSatisfiesPostcondition(
       postcondition,
       githubObservation(postcondition, { actual_state: 'failure' }),
     ),
     false,
   );
   assert.equal(
-    observationVerified(
+    observationSatisfiesPostcondition(
       postcondition,
       githubObservation(postcondition, { mutation_certainty: 'uncertain' }),
     ),

@@ -131,7 +131,7 @@ test('current realization admissibility can withdraw historical DONE', () => {
     runs: new Map([['run-a', run]]),
     receiptsByRun: new Map([['run-a', receipt]]),
     revision: 'revision-b',
-    currentRealizationJudgments: new Map([
+    currentRealizationAdmissibility: new Map([
       [
         'run-a',
         {
@@ -195,7 +195,7 @@ test('indeterminate current realization judgment blocks replay instead of becomi
     runs: new Map([['run-a', run]]),
     receiptsByRun: new Map([['run-a', receipt]]),
     revision: 'revision-b',
-    currentRealizationJudgments: new Map([
+    currentRealizationAdmissibility: new Map([
       [
         'run-a',
         {

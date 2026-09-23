@@ -6,7 +6,7 @@ import type { HistoricalRun, Receipt, State } from '../src/authority/facts.ts';
 import type { Obligation } from '../src/model.ts';
 import {
   classifyCurrentRealization,
-  deriveCurrentRealizationJudgments,
+  deriveCurrentRealizationAdmissibility,
 } from '../src/authority/realization-reuse.ts';
 
 const work: Obligation = {
@@ -127,7 +127,7 @@ test('current judgment derivation observes only exact-key historical DONE obliga
     settlement_commit: 'receipt-a',
   };
   let observations = 0;
-  const judgments = deriveCurrentRealizationJudgments({
+  const judgments = deriveCurrentRealizationAdmissibility({
     state,
     runs: new Map([[run.id, run]]),
     receiptsByRun: new Map([[run.id, receipt]]),
@@ -152,7 +152,7 @@ test('current judgment derivation observes only exact-key historical DONE obliga
   });
 
   observations = 0;
-  const changed = deriveCurrentRealizationJudgments({
+  const changed = deriveCurrentRealizationAdmissibility({
     state,
     runs: new Map([[run.id, run]]),
     receiptsByRun: new Map([[run.id, receipt]]),

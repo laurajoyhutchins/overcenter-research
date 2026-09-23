@@ -62,7 +62,7 @@ export async function runCoreLoop(
 
         // The deterministic kernel retains permit and reservation authority.
         // Effect handlers receive packet bytes only.
-        kernel.beginEffect(run);
+        kernel.reserveEffect(run);
       } catch (error: unknown) {
         pendingError = { error };
         break;
@@ -97,7 +97,7 @@ export async function runCoreLoop(
         const outcome = outcomes[index]!;
         try {
           if (outcome.kind === 'judgment-required') {
-            kernel.recoverInterrupted(run, {
+            kernel.recordExecutionTermination(run, {
               outcome,
               protocol_error: 'JUDGMENT_AFTER_EFFECT_RESERVATION',
             });
@@ -110,7 +110,7 @@ export async function runCoreLoop(
             continue;
           }
 
-          const receipt = await kernel.resolveAsync(run);
+          const receipt = await kernel.observeAndSettleAsync(run);
           if (receipt.disposition !== 'DONE' && receipt.disposition !== 'READY') {
             recovery ??= {
               state: 'RECOVERY_REQUIRED',

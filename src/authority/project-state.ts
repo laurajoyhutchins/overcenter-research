@@ -8,7 +8,7 @@ import {
   type StaticEffectIndex,
 } from './admission.ts';
 import { obligationKey } from '../graph/identity.ts';
-import type { CurrentRealizationJudgment } from './realization-reuse.ts';
+import type { CurrentRealizationAdmissibility } from './realization-reuse.ts';
 
 export type RealizationStatus =
   | 'UNREALIZED'
@@ -129,14 +129,14 @@ export interface ProjectProjectionInput {
   runs: Map<string, HistoricalRun>;
   receiptsByRun: Map<string, Receipt>;
   revision: string;
-  currentRealizationJudgments?: ReadonlyMap<string, CurrentRealizationJudgment> | null;
+  currentRealizationAdmissibility?: ReadonlyMap<string, CurrentRealizationAdmissibility> | null;
 }
 
 const IN_FLIGHT = new Set<RealizationStatus>(['EXECUTING', 'WAITING', 'RECOVERY_REQUIRED']);
 
 interface RealizationJudgmentRelation {
   run: HistoricalRun;
-  judgment: CurrentRealizationJudgment;
+  judgment: CurrentRealizationAdmissibility;
 }
 
 interface RealizationRelations {
@@ -158,7 +158,7 @@ function deriveRealizationRelations(
   state: State,
   runs: Map<string, HistoricalRun>,
   receiptsByRun: Map<string, Receipt>,
-  currentRealizationJudgments: ReadonlyMap<string, CurrentRealizationJudgment> | null,
+  currentRealizationAdmissibility: ReadonlyMap<string, CurrentRealizationAdmissibility> | null,
 ): RealizationRelations {
   const lifecycles = new Map<string, Lifecycle>();
   const semanticKeys = new Map<string, string | null>();
@@ -196,11 +196,11 @@ function deriveRealizationRelations(
         .reverse()
         .filter((run) => receiptsByRun.get(run.id)?.disposition === 'DONE');
       let done: HistoricalRun | undefined;
-      if (currentRealizationJudgments === null) {
+      if (currentRealizationAdmissibility === null) {
         done = doneCandidates[0];
       } else {
         for (const run of doneCandidates) {
-          const judgment = currentRealizationJudgments.get(run.id) ?? {
+          const judgment = currentRealizationAdmissibility.get(run.id) ?? {
             state: 'indeterminate' as const,
             reason: 'CURRENT_REALIZATION_JUDGMENT_MISSING',
           };
@@ -355,7 +355,7 @@ function deriveExplanation(
   latestMatchingRuns: Map<string, HistoricalRun>,
   receiptsByRun: Map<string, Receipt>,
   statusById: Map<string, WorkStatus>,
-  currentRealizationJudgments: ReadonlyMap<string, CurrentRealizationJudgment> | null,
+  currentRealizationAdmissibility: ReadonlyMap<string, CurrentRealizationAdmissibility> | null,
   rejectedRealizations: Map<string, RealizationJudgmentRelation>,
 ): ProjectExplanation {
   const lifecycle = lifecycles.get(obligation.id) ?? { status: 'UNREALIZED' as const };
@@ -375,7 +375,7 @@ function deriveExplanation(
         semantic_key: semanticKey,
         ...(receipt?.settlement_commit ? { settlement_commit: receipt.settlement_commit } : {}),
         admissibility_basis:
-          currentRealizationJudgments === null
+          currentRealizationAdmissibility === null
             ? 'historical-settlement'
             : 'current-semantic-judgment',
       },
@@ -538,7 +538,7 @@ export function deriveProjectProjection({
   runs,
   receiptsByRun,
   revision,
-  currentRealizationJudgments = null,
+  currentRealizationAdmissibility = null,
 }: ProjectProjectionInput): ProjectProjection {
   const {
     lifecycles,
@@ -546,7 +546,7 @@ export function deriveProjectProjection({
     latestMatchingRuns,
     rejectedRealizations,
     indeterminateRealizations,
-  } = deriveRealizationRelations(state, runs, receiptsByRun, currentRealizationJudgments);
+  } = deriveRealizationRelations(state, runs, receiptsByRun, currentRealizationAdmissibility);
   const staticEffectIndex = buildStaticEffectIndex(state);
   const claimabilityErrors = new Map<string, string | null>();
   const claimabilityById = new Map<string, Claimability>();
@@ -585,7 +585,7 @@ export function deriveProjectProjection({
         latestMatchingRuns,
         receiptsByRun,
         statusById,
-        currentRealizationJudgments,
+        currentRealizationAdmissibility,
         rejectedRealizations,
       ),
     );

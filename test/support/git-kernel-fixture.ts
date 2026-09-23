@@ -80,9 +80,9 @@ export class GitKernelFixture {
       throw new Error(`UNSUPPORTED_FILE_POSTCONDITION:${id}`);
 
     const permit = this.claim(id);
-    this.kernel.beginEffect(permit);
+    this.kernel.reserveEffect(permit);
     writeFileSync(work.postcondition.path, work.postcondition.content);
-    const receipt = this.kernel.resolve(permit);
+    const receipt = this.kernel.observeAndSettle(permit);
     if (receipt.disposition !== 'DONE') {
       throw new Error(`SETTLEMENT_FAILED:${id}:${receipt.disposition}`);
     }

@@ -1,8 +1,8 @@
 import type { Observation, Postcondition } from '../model.ts';
 import type { HistoricalRun, Receipt, State } from './facts.ts';
-import { authoritativeAbsenceEvidence, observationVerified } from '../observation/observe.ts';
+import { authoritativeAbsenceEvidence, observationSatisfiesPostcondition } from '../observation/observe.ts';
 
-export type CurrentRealizationJudgment =
+export type CurrentRealizationAdmissibility =
   | {
       state: 'admissible';
       reason: 'CURRENT_POSTCONDITION_VERIFIED';
@@ -19,9 +19,9 @@ export type CurrentRealizationJudgment =
 export function classifyCurrentRealization(
   postcondition: Postcondition,
   observed: Observation,
-): CurrentRealizationJudgment {
+): CurrentRealizationAdmissibility {
   try {
-    if (observationVerified(postcondition, observed)) {
+    if (observationSatisfiesPostcondition(postcondition, observed)) {
       return {
         state: 'admissible',
         reason: 'CURRENT_POSTCONDITION_VERIFIED',
@@ -60,7 +60,7 @@ export function classifyCurrentRealization(
   }
 }
 
-export function deriveCurrentRealizationJudgments({
+export function deriveCurrentRealizationAdmissibility({
   state,
   runs,
   receiptsByRun,
@@ -72,8 +72,8 @@ export function deriveCurrentRealizationJudgments({
   receiptsByRun: Map<string, Receipt>;
   semanticKeys: Map<string, string | null>;
   observe: (postcondition: Postcondition) => Observation;
-}): Map<string, CurrentRealizationJudgment> {
-  const judgments = new Map<string, CurrentRealizationJudgment>();
+}): Map<string, CurrentRealizationAdmissibility> {
+  const judgments = new Map<string, CurrentRealizationAdmissibility>();
 
   for (const obligation of Object.values(state.obligations)) {
     const semanticKey = semanticKeys.get(obligation.id) ?? null;
@@ -87,7 +87,7 @@ export function deriveCurrentRealizationJudgments({
     );
     if (candidates.length === 0) continue;
 
-    let judgment: CurrentRealizationJudgment;
+    let judgment: CurrentRealizationAdmissibility;
     try {
       judgment = classifyCurrentRealization(
         obligation.postcondition,

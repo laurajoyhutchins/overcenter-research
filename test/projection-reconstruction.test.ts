@@ -89,14 +89,14 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
       ['verify-publish', 'BLOCKED'],
     ]);
 
-    f.kernel.beginEffect(run);
+    f.kernel.reserveEffect(run);
     writeFileSync(world, 'present');
     assertReconstructs([
       ['publish', 'EXECUTING'],
       ['verify-publish', 'BLOCKED'],
     ]);
 
-    const recovery = f.kernel.recoverInterrupted(run, {
+    const recovery = f.kernel.recordExecutionTermination(run, {
       source: 'projection-erasure-proof',
     });
     assert.equal(recovery.disposition, 'RECOVERY_REQUIRED');
@@ -107,7 +107,7 @@ test('GitOvercenterKernel reconstructs the same projection after every materiali
       ['verify-publish', 'BLOCKED'],
     ]);
 
-    const settled = f.kernel.reconcile(run);
+    const settled = f.kernel.observeAndSettle(run);
     assert.equal(settled.disposition, 'DONE');
     assert.equal(settled.claim_commit, run.claim_commit);
 

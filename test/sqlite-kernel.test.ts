@@ -284,7 +284,7 @@ test('no-op graph reconciliation remains read-only while work is in flight', () 
       /PROJECT_BUSY/,
     );
     assert.equal(kernel.head(), head);
-    kernel.recoverInterrupted(run);
+    kernel.recordExecutionTermination(run);
   } finally {
     kernel.close();
     rmSync(root, { recursive: true, force: true });
@@ -426,7 +426,7 @@ test('retired node can rebind the same immutable definition and reuse evidence',
     });
     const run = kernel.claim('a', kernel.deriveReadyWork()!.revision);
     writeFileSync(path, 'A');
-    assert.equal(kernel.resolve(run).disposition, 'DONE');
+    assert.equal(kernel.observeAndSettle(run).disposition, 'DONE');
 
     kernel.applyGraphPatch({ retire: ['a'] }, kernel.head()!);
     assert.deepEqual(kernel.inspect(), []);
@@ -486,8 +486,8 @@ test('SQLite kernel rejects every inexact execution permit identity', () => {
       { ...run, execution_capability_sha256: '0'.repeat(64) },
       { ...run, execution_capability: 'wrong' },
     ]) {
-      assert.throws(() => kernel.beginEffect(hostile), /STALE_EXECUTION_GENERATION/);
-      assert.throws(() => kernel.resolve(hostile), /STALE_EXECUTION_GENERATION/);
+      assert.throws(() => kernel.reserveEffect(hostile), /STALE_EXECUTION_GENERATION/);
+      assert.throws(() => kernel.observeAndSettle(hostile), /STALE_EXECUTION_GENERATION/);
     }
   } finally {
     kernel.close();
@@ -587,14 +587,14 @@ test('judgment receipt requires a fresh execution generation before effect resum
     assert.equal(waiting.disposition, 'WAITING');
 
     assert.throws(
-      () => kernel.beginEffect(first),
+      () => kernel.reserveEffect(first),
       /RUN_NOT_EXECUTING/,
       'the pre-judgment capability must not cross the effect boundary',
     );
 
     const resumed = kernel.acquireExecution(first.id);
     assert.equal(resumed.execution_generation, first.execution_generation + 1);
-    assert.doesNotThrow(() => kernel.beginEffect(resumed));
+    assert.doesNotThrow(() => kernel.reserveEffect(resumed));
   } finally {
     kernel.close();
     rmSync(root, { recursive: true, force: true });
@@ -613,7 +613,7 @@ test('SQLite projection cache recovers after historical claimed-work lookup', ()
     assert.ok(ready);
     const run = kernel.claim('a', ready.revision);
     writeFileSync(join(root, 'a'), 'A');
-    assert.equal(kernel.resolve(run).disposition, 'DONE');
+    assert.equal(kernel.observeAndSettle(run).disposition, 'DONE');
 
     const currentHead = kernel.head();
     assert.ok(currentHead);

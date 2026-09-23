@@ -170,7 +170,7 @@ async function executeTestAttempt(
     assertComputationEvidenceFor(evidence, execution);
   } catch (error: unknown) {
     const transportError = errorMessage(error);
-    const receipt = kernel.recoverInterrupted(permit, {
+    const receipt = kernel.recordExecutionTermination(permit, {
       computation_transport_failure: {
         schema: COMPUTATION_TRANSPORT_FAILURE_SCHEMA,
         execution_spec_sha256: execution.execution_spec_sha256,
@@ -190,7 +190,7 @@ async function executeTestAttempt(
   }
 
   if (evidence.outcome !== 'completed' || evidence.exit_code !== 0) {
-    const receipt = kernel.recoverInterrupted(permit, {
+    const receipt = kernel.recordExecutionTermination(permit, {
       computation_attempt: attemptSummary(evidence),
       computation_rejection: 'PROCESS_DID_NOT_COMPLETE_SUCCESSFULLY',
     });
@@ -205,7 +205,7 @@ async function executeTestAttempt(
     };
   }
 
-  const receipt = await kernel.resolveAsync(permit, {
+  const receipt = await kernel.observeAndSettleAsync(permit, {
     computation_attempt: attemptSummary(evidence),
   });
   return {

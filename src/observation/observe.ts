@@ -673,7 +673,7 @@ export function observationAuthoritativelyAbsent(
   return authoritativeAbsenceEvidence(postcondition, observed) !== null;
 }
 
-export function observationVerified(postcondition: Postcondition, observed: Observation): boolean {
+export function observationSatisfiesPostcondition(postcondition: Postcondition, observed: Observation): boolean {
   assertObservationCoordinate(postcondition, observed);
   if (observed.mutation_certainty !== 'present') return false;
 

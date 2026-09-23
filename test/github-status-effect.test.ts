@@ -227,9 +227,9 @@ test('lost broker acknowledgement survives SQLite reopen and settles from author
     try {
       const recoveryPermit = fresh.acquireExecution(run.id);
       assert.equal(recoveryPermit.execution_generation, 2);
-      const interrupted = fresh.recoverInterrupted(recoveryPermit, { source: 'broker-supervisor' });
+      const interrupted = fresh.recordExecutionTermination(recoveryPermit, { source: 'broker-supervisor' });
       assert.equal(interrupted.disposition, 'RECOVERY_REQUIRED');
-      const settled = fresh.reconcile(recoveryPermit);
+      const settled = fresh.observeAndSettle(recoveryPermit);
       assert.equal(settled.disposition, 'DONE');
       assert.equal(settled.verified, true);
       assert.equal(fresh.inspect()[0].status, 'DONE');
@@ -314,7 +314,7 @@ async function assertReservationRemainsUnresolved(
     );
 
     assert.equal(kernel.hasUnresolvedEffect(run.id), true);
-    const interrupted = kernel.recoverInterrupted(run, { source: 'production-regression' });
+    const interrupted = kernel.recordExecutionTermination(run, { source: 'production-regression' });
     assert.equal(interrupted.disposition, 'RECOVERY_REQUIRED');
     assert.equal(kernel.inspect()[0]?.status, 'RECOVERY_REQUIRED');
     assert.equal(kernel.deriveReadyWork(), null);
