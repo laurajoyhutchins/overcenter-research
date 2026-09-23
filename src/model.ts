@@ -100,6 +100,7 @@ export interface Run {
   execution_generation: number;
   execution_authority_commit: string;
   execution_capability_sha256: string;
+  source_revision?: string;
 }
 
 export interface ExecutionPermit extends Run {
