@@ -6,7 +6,10 @@
     "ObservationObserver": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "id"],
+      "required": [
+        "kind",
+        "id"
+      ],
       "properties": {
         "kind": {
           "$ref": "#/$defs/NonEmptyNoNulString"
@@ -19,7 +22,10 @@
     "ProviderOutcome": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "visibility"],
+      "required": [
+        "status",
+        "visibility"
+      ],
       "properties": {
         "status": {
           "type": "integer",
@@ -27,7 +33,11 @@
           "maximum": 9007199254740991
         },
         "visibility": {
-          "enum": ["observed", "not-observed", "indeterminate"]
+          "enum": [
+            "observed",
+            "not-observed",
+            "indeterminate"
+          ]
         },
         "value": {},
         "transport_error": {
@@ -94,7 +104,15 @@
     "AbsenceEvidenceEnvelope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "kind", "subject", "scope", "snapshot", "completeness", "provenance"],
+      "required": [
+        "schema",
+        "kind",
+        "subject",
+        "scope",
+        "snapshot",
+        "completeness",
+        "provenance"
+      ],
       "properties": {
         "schema": {
           "const": "overcenter-absence-evidence-v1"
@@ -140,7 +158,10 @@
     "FileCoordinate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "path"],
+      "required": [
+        "kind",
+        "path"
+      ],
       "properties": {
         "kind": {
           "const": "file-path"
@@ -154,7 +175,15 @@
     "LocalFileEnoentEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "kind", "subject", "scope", "snapshot", "completeness", "provenance"],
+      "required": [
+        "schema",
+        "kind",
+        "subject",
+        "scope",
+        "snapshot",
+        "completeness",
+        "provenance"
+      ],
       "properties": {
         "schema": {
           "const": "overcenter-absence-evidence-v1"
@@ -168,7 +197,10 @@
         "scope": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "coordinate"],
+          "required": [
+            "kind",
+            "coordinate"
+          ],
           "properties": {
             "kind": {
               "const": "exact-coordinate"
@@ -184,7 +216,10 @@
         "completeness": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "result"],
+          "required": [
+            "kind",
+            "result"
+          ],
           "properties": {
             "kind": {
               "const": "direct-coordinate-read"
@@ -197,7 +232,11 @@
         "provenance": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["adapter", "operation", "error_code"],
+          "required": [
+            "adapter",
+            "operation",
+            "error_code"
+          ],
           "properties": {
             "adapter": {
               "const": "node:fs"
@@ -215,7 +254,14 @@
     "KubernetesSubject": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "authority_id", "api_group", "resource", "namespace", "name"],
+      "required": [
+        "provider",
+        "authority_id",
+        "api_group",
+        "resource",
+        "namespace",
+        "name"
+      ],
       "properties": {
         "provider": {
           "const": "kubernetes"
@@ -243,7 +289,13 @@
     "KubernetesScope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "authority_id", "api_group", "resource", "namespace"],
+      "required": [
+        "provider",
+        "authority_id",
+        "api_group",
+        "resource",
+        "namespace"
+      ],
       "properties": {
         "provider": {
           "const": "kubernetes"
@@ -320,7 +372,12 @@
     "KubernetesProvenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "authority_id", "operation_id", "pages"],
+      "required": [
+        "provider",
+        "authority_id",
+        "operation_id",
+        "pages"
+      ],
       "properties": {
         "provider": {
           "const": "kubernetes"
@@ -344,7 +401,12 @@
     "KubernetesCompleteList": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "page_count", "terminal_continue", "page_chain_digest"],
+      "required": [
+        "kind",
+        "page_count",
+        "terminal_continue",
+        "page_chain_digest"
+      ],
       "properties": {
         "kind": {
           "const": "complete-list"
@@ -405,7 +467,11 @@
           "const": "maintained"
         },
         "watch_termination": {
-          "enum": ["client-stop", "eof", "timeout"]
+          "enum": [
+            "client-stop",
+            "eof",
+            "timeout"
+          ]
         },
         "watch_events_digest": {
           "type": "string",
@@ -416,7 +482,15 @@
     "KubernetesCompleteListAbsence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "kind", "subject", "scope", "snapshot", "completeness", "provenance"],
+      "required": [
+        "schema",
+        "kind",
+        "subject",
+        "scope",
+        "snapshot",
+        "completeness",
+        "provenance"
+      ],
       "properties": {
         "schema": {
           "const": "overcenter-absence-evidence-v1"
@@ -433,7 +507,9 @@
         "snapshot": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["resource_version"],
+          "required": [
+            "resource_version"
+          ],
           "properties": {
             "resource_version": {
               "type": "string",
@@ -468,7 +544,10 @@
     },
     "SettlementObservation": {
       "type": "object",
-      "required": ["verifier", "mutation_certainty"],
+      "required": [
+        "verifier",
+        "mutation_certainty"
+      ],
       "properties": {
         "verifier": {
           "enum": [
@@ -480,7 +559,11 @@
           ]
         },
         "mutation_certainty": {
-          "enum": ["present", "absent", "uncertain"]
+          "enum": [
+            "present",
+            "absent",
+            "uncertain"
+          ]
         },
         "absence_evidence": {
           "$ref": "#/$defs/AbsenceEvidenceEnvelope"
@@ -495,7 +578,10 @@
           "type": "string"
         },
         "provider": {
-          "enum": ["github", "kubernetes"]
+          "enum": [
+            "github",
+            "kubernetes"
+          ]
         },
         "authority_id": {
           "type": "string"
@@ -610,7 +696,10 @@
     "RevalidationProvenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["observed_at", "etag"],
+      "required": [
+        "observed_at",
+        "etag"
+      ],
       "properties": {
         "observed_at": {
           "$ref": "#/$defs/NonEmptyNoNulString"
@@ -623,7 +712,12 @@
     "GenericProviderContract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "api_version", "operation_id", "schema_sha256"],
+      "required": [
+        "provider",
+        "api_version",
+        "operation_id",
+        "schema_sha256"
+      ],
       "properties": {
         "provider": {
           "$ref": "#/$defs/NonEmptyNoNulString"
@@ -643,7 +737,12 @@
     "KubernetesProviderContract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "api_version", "operation_id", "schema_sha256"],
+      "required": [
+        "provider",
+        "api_version",
+        "operation_id",
+        "schema_sha256"
+      ],
       "properties": {
         "provider": {
           "const": "kubernetes"
@@ -663,7 +762,14 @@
     "GenericProviderObservation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["contract", "observer", "observed_at", "request", "response", "outcome"],
+      "required": [
+        "contract",
+        "observer",
+        "observed_at",
+        "request",
+        "response",
+        "outcome"
+      ],
       "properties": {
         "contract": {
           "allOf": [

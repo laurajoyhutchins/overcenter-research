@@ -9,8 +9,15 @@
     "limitations": "Envelope validity never grants negative-evidence authority by itself. Provider/verifier-specific matchers must bind evidence to the exact postcondition coordinate and completeness semantics."
   },
   "participants": {
-    "producers": ["provider-adapters", "trusted-observers"],
-    "consumers": ["verifiers", "settlement", "durable-receipts"]
+    "producers": [
+      "provider-adapters",
+      "trusted-observers"
+    ],
+    "consumers": [
+      "verifiers",
+      "settlement",
+      "durable-receipts"
+    ]
   },
   "schema": {
     "format": "json-schema",
@@ -22,7 +29,10 @@
       "absenceEvidenceEnvelope": "#/$defs/AbsenceEvidenceEnvelope",
       "knownAuthoritativeAbsenceEvidence": "#/$defs/KnownAuthoritativeAbsenceEvidence"
     },
-    "validationExtensions": ["x-overcenter-providerOwned", "x-overcenter-kindOwned"],
+    "validationExtensions": [
+      "x-overcenter-providerOwned",
+      "x-overcenter-kindOwned"
+    ],
     "generatedDefinitions": {
       "SettlementObservation": {
         "source": "./settlement-observation.typebox.ts",
@@ -32,7 +42,9 @@
           "./schema.json#/$defs/SettlementObservation",
           "../../src/generated/settlement-observation-schema.ts"
         ],
-        "externalReferences": ["absence_evidence -> #/$defs/AbsenceEvidenceEnvelope"],
+        "externalReferences": [
+          "absence_evidence -> #/$defs/AbsenceEvidenceEnvelope"
+        ],
         "toolchainClosure": "TypeBox is installed only in the projection proof. Production runtime consumes checked-in generated structure through deterministic repository code and requires no npm install."
       }
     }
@@ -60,15 +72,29 @@
         "contract.operation_id",
         "contract.schema_sha256"
       ],
-      "provenanceFields": ["observer", "observed_at"],
-      "coordinateFields": ["request"],
-      "transportMetadataFields": ["response"],
-      "resultFields": ["outcome"],
+      "provenanceFields": [
+        "observer",
+        "observed_at"
+      ],
+      "coordinateFields": [
+        "request"
+      ],
+      "transportMetadataFields": [
+        "response"
+      ],
+      "resultFields": [
+        "outcome"
+      ],
       "note": "Provider-specific coordinate and response semantics remain in provider adapters. structural_validation is a derived schema-binding certificate; revalidated_from records exact conditional-HTTP provenance. Both are known derived stages, not provider-owned extension buckets.",
-      "derivedFields": ["structural_validation", "revalidated_from"]
+      "derivedFields": [
+        "structural_validation",
+        "revalidated_from"
+      ]
     },
     "settlementObservation": {
-      "bindingFields": ["verifier"],
+      "bindingFields": [
+        "verifier"
+      ],
       "certaintyField": "mutation_certainty",
       "absenceEvidenceField": "absence_evidence",
       "providerEvidenceField": "provider_evidence",

@@ -10,7 +10,9 @@
   },
   "participants": {
     "producer": "typescript-authority",
-    "consumers": ["go-computation-executor"]
+    "consumers": [
+      "go-computation-executor"
+    ]
   },
   "schema": {
     "format": "json-schema",
@@ -62,7 +64,11 @@
     },
     "executionIdentity": {
       "definition": "ExecutionIdentityV1",
-      "materialFields": ["run_id", "execution_generation", "execution_authority_commit"]
+      "materialFields": [
+        "run_id",
+        "execution_generation",
+        "execution_authority_commit"
+      ]
     },
     "attemptEvidence": {
       "definition": "ComputationAttemptEvidenceV1",
@@ -88,7 +94,9 @@
         "stderr_sha256",
         "stderr_truncated"
       ],
-      "diagnosticFields": ["error"]
+      "diagnosticFields": [
+        "error"
+      ]
     }
   },
   "quality": [

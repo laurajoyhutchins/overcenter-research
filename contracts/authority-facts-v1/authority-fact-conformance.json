@@ -38,7 +38,9 @@
         "schema": "overcenter-graph-patch-v1",
         "definitions": [],
         "bindings": [],
-        "retire": ["alpha"]
+        "retire": [
+          "alpha"
+        ]
       }
     },
     {

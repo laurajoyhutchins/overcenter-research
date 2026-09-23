@@ -1,7 +1,10 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["verifier", "mutation_certainty"],
+  "required": [
+    "verifier",
+    "mutation_certainty"
+  ],
   "properties": {
     "verifier": {
       "enum": [
@@ -12,7 +15,11 @@
       ]
     },
     "mutation_certainty": {
-      "enum": ["present", "absent", "uncertain"]
+      "enum": [
+        "present",
+        "absent",
+        "uncertain"
+      ]
     },
     "absence_evidence": {
       "$ref": "#/$defs/AbsenceEvidenceEnvelope"
@@ -27,7 +34,10 @@
       "type": "string"
     },
     "provider": {
-      "enum": ["github", "kubernetes"]
+      "enum": [
+        "github",
+        "kubernetes"
+      ]
     },
     "authority_id": {
       "type": "string"

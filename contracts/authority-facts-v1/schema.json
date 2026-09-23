@@ -11,7 +11,10 @@
     "ControlDependency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "upstream"],
+      "required": [
+        "kind",
+        "upstream"
+      ],
       "properties": {
         "kind": {
           "const": "control"
@@ -26,10 +29,16 @@
     "SemanticConsumption": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "selector"],
+      "required": [
+        "kind",
+        "selector"
+      ],
       "properties": {
         "kind": {
-          "enum": ["output", "evidence"]
+          "enum": [
+            "output",
+            "evidence"
+          ]
         },
         "selector": {
           "type": "string",
@@ -41,7 +50,11 @@
     "SemanticDependency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "upstream", "consumes"],
+      "required": [
+        "kind",
+        "upstream",
+        "consumes"
+      ],
       "properties": {
         "kind": {
           "const": "semantic"
@@ -238,7 +251,11 @@
           "pattern": "^[^\\u0000]+$"
         },
         "kind": {
-          "enum": ["observation", "judgment-required", "execution-terminated"]
+          "enum": [
+            "observation",
+            "judgment-required",
+            "execution-terminated"
+          ]
         },
         "observed": {
           "oneOf": [
@@ -288,7 +305,11 @@
     "ObligationDefinition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["dependencies", "packet", "postcondition"],
+      "required": [
+        "dependencies",
+        "packet",
+        "postcondition"
+      ],
       "properties": {
         "dependencies": {
           "type": "array",
@@ -306,7 +327,9 @@
           "type": "object",
           "x-overcenter-openBoundary": true,
           "additionalProperties": true,
-          "required": ["verifier"],
+          "required": [
+            "verifier"
+          ],
           "description": "Verifier-owned postcondition contract; intentionally open here."
         }
       }
@@ -314,7 +337,10 @@
     "DefinitionFact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "definition"],
+      "required": [
+        "id",
+        "definition"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/Sha256Hex"
@@ -327,7 +353,10 @@
     "BindingFact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["node_id", "definition_id"],
+      "required": [
+        "node_id",
+        "definition_id"
+      ],
       "properties": {
         "node_id": {
           "type": "string",
@@ -342,7 +371,12 @@
     "GraphPatchFact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "definitions", "bindings", "retire"],
+      "required": [
+        "schema",
+        "definitions",
+        "bindings",
+        "retire"
+      ],
       "properties": {
         "schema": {
           "const": "overcenter-graph-patch-v1"

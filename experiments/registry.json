@@ -135,7 +135,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403306"]
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
       },
       "interpretation": "Within the declared small-model bounds, graph validation, reachability, lifecycle projection, and semantic-invalidation behavior agree with independent reference relations. Small semantic bugs in this surface should therefore require a counterexample outside the modeled bounds or outside the modeled semantics.",
       "non_claims": [
@@ -182,7 +184,9 @@
       ],
       "evidence": {
         "status": "pending",
-        "artifacts": [".github/workflows/codex-closed-loop.yml"],
+        "artifacts": [
+          ".github/workflows/codex-closed-loop.yml"
+        ],
         "pending_reason": "The deterministic boundary is implemented, but accepted hosted Codex execution evidence under the maintained integration path has not yet been recorded."
       },
       "interpretation": "A positive result establishes the bounded reasoning-worker transaction boundary. It supports using Codex as a disposable implementation worker, not as authority for project truth or provider mutation.",
@@ -276,7 +280,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403306"]
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
       },
       "interpretation": "Historical settlement and current truth are distinct. Current status can be recomputed from durable realization history plus fresh authoritative admissibility judgments, including withdrawal and later restoration, without invalidation or lifecycle repair mutations.",
       "non_claims": [
@@ -322,7 +328,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403296"]
+        "artifacts": [
+          "GitHub Actions run 35463403296"
+        ]
       },
       "interpretation": "For the modeled projection slice, validated durable history plus recomputed semantic judgments is sufficient to derive public project status relationally without stored lifecycle state or stored derived disposition.",
       "non_claims": [
@@ -368,7 +376,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403293"]
+        "artifacts": [
+          "GitHub Actions run 35463403293"
+        ]
       },
       "interpretation": "The experiment demonstrates that run identity and recovery state can survive total worker loss when authority, execution generation, reservation, and receipt identity are durable and independently reconstructible.",
       "non_claims": [
@@ -464,7 +474,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403306"]
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
       },
       "interpretation": "Replay permission depends on evidence authority and strength, not on absence-shaped or stale provider output. Uncertain negative readback remains recovery-bound until stronger evidence arrives.",
       "non_claims": [
@@ -510,7 +522,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403306"]
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
       },
       "interpretation": "The tested Git reference backend preserves its safety invariants across the exercised Git-specific failure and contention modes rather than only in a single-process happy path.",
       "non_claims": [
@@ -602,7 +616,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403282"]
+        "artifacts": [
+          "GitHub Actions run 35463403282"
+        ]
       },
       "interpretation": "The experiment separates structural legality from semantic meaning: generated schema-derived vocabulary constrains legal response shape, while explicit trusted projections continue to define provider identity and readback semantics.",
       "non_claims": [
@@ -792,7 +808,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403306"]
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
       },
       "interpretation": "The experiment supports further investigation of a single declarative semantic-role source because it closes the tested projection-drift seam that independent hand-wired TypeScript projections allow; line-count reduction alone is not the result.",
       "non_claims": [
@@ -823,7 +841,10 @@
         "tier": "deterministic",
         "local": "node --experimental-strip-types --test experiments/frontier-prioritization/frontier-prioritization.test.ts"
       },
-      "environment": ["Node.js from .node-version", "No network, model, or external dependency"],
+      "environment": [
+        "Node.js from .node-version",
+        "No network, model, or external dependency"
+      ],
       "success_criteria": [
         "Only dependency-closed reachable states are evaluated.",
         "Every modeled nontrivial frontier is compared with the complete oracle-equivalent choice set.",
@@ -992,7 +1013,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "d1cb01b9a553513961029a92b652e2c43426c729",
-        "artifacts": ["GitHub Actions run 35424249863"]
+        "artifacts": [
+          "GitHub Actions run 35424249863"
+        ]
       },
       "interpretation": "The experiment falsifies authoritative mutable lifecycle as the preferred state model for the tested reconstruction and semantic-change requirements. The supported conclusion is derived status, not a particular derived implementation language.",
       "non_claims": [
@@ -1047,7 +1070,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "eee41cac304acffa453c6e37883153a6498fea24",
-        "artifacts": ["GitHub Actions run 35540980827"]
+        "artifacts": [
+          "GitHub Actions run 35540980827"
+        ]
       },
       "interpretation": "Bare SQLite authority CAS sustained a median 2,387.857 appends/s with one writer and 1,297.630/s with eight, versus the preceding end-to-end scheduler result of about 7.9/s and 2.25/s. History scanning was near-linear at ~5.2 microseconds/commit, while semantic replay and deriveReadyWork grew superlinearly over the tested flat definition sizes. The current dominant scaling limit is repeated reconstruction/projection above SQLite, not bare authority-write capacity. Optimize projection/reconstruction before introducing distributed authority.",
       "non_claims": [
@@ -1091,7 +1116,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403306"]
+        "artifacts": [
+          "GitHub Actions run 35463403306"
+        ]
       },
       "interpretation": "This historical baseline remains useful as the smallest executable control for the original fencing, observation-settlement, interruption-recovery, and no-blind-replay invariants.",
       "non_claims": [
@@ -1138,7 +1165,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "7b5cac8e4ad67a093b63ad74e5fb1c84d89a679e",
-        "artifacts": ["experiments/storage-backend-comparison/results/2026-09-19.md"]
+        "artifacts": [
+          "experiments/storage-backend-comparison/results/2026-09-19.md"
+        ]
       },
       "interpretation": "The bounded result supports removing one-fact-per-Git-object/ref transactions from the frequent production hot path while retaining Git as an interchange, audit, export, or independent reconstruction representation.",
       "non_claims": [
@@ -1183,7 +1212,9 @@
       "evidence": {
         "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
-        "artifacts": ["GitHub Actions run 35463403309"]
+        "artifacts": [
+          "GitHub Actions run 35463403309"
+        ]
       },
       "interpretation": "The experiment separates serialization of authoritative state transitions from concurrency of independent external effects: one CAS lane need not become one global execution lane.",
       "non_claims": [

@@ -7,7 +7,9 @@
       "spec": {
         "schema": "overcenter-process-spec-v1",
         "executable": "/bin/echo",
-        "argv": ["hello"],
+        "argv": [
+          "hello"
+        ],
         "cwd": ".",
         "env": {
           "LANG": "C"
