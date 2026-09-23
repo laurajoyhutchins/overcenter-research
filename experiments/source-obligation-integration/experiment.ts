@@ -160,9 +160,7 @@ function integratedCommit(
     if (!body.includes(`Overcenter-Candidate: ${candidate.commit_sha}`)) continue;
     if (!body.includes(`Overcenter-Obligation-Key: ${candidate.obligation_key}`)) continue;
 
-    const parents = git(f.repo, ['show', '-s', '--format=%P', commit])
-      .split(/\s+/)
-      .filter(Boolean);
+    const parents = git(f.repo, ['show', '-s', '--format=%P', commit]).split(/\s+/).filter(Boolean);
     if (parents.length !== 1) continue;
 
     const root = worktree(f, parents[0]!, 'replay-proof');
