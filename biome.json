@@ -26,7 +26,18 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended"
+      "preset": "none",
+      "correctness": {
+        "preset": "recommended"
+      },
+      "security": {
+        "preset": "recommended"
+      },
+      "suspicious": {
+        "preset": "recommended",
+        "noExplicitAny": "off",
+        "noTemplateCurlyInString": "off"
+      }
     }
   },
   "assist": {
