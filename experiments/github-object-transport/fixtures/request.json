@@ -2,7 +2,7 @@
   "schema": "github-object-transport/request/v1",
   "entries": [
     {
-      "path": "experiments/github-object-transport/contract.mjs",
+      "path": "experiments/github-object-transport/contract.ts",
       "writable": false
     },
     {

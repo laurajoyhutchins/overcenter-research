@@ -81,6 +81,50 @@ The model has five guard constants. The authoritative configuration enables all 
 
 The negative controls matter because a green model is weak evidence if the specification is incapable of expressing the failures it claims to exclude.
 
+## Resource-containment protocol model
+
+`ResourceContainment.tla` models a second, deliberately smaller safety boundary: the trusted supervisor protocol around one exact cgroup leaf.
+
+It does **not** model Linux CPU scheduling, memory accounting, PID accounting, Landlock, seccomp, or cgroup controller implementation. Those are exercised by the hosted kernel proof in `src/execution/confinement/proof.sh`.
+
+The model asks:
+
+> Once the host has pinned one exact resource-domain object for an attempt, can a stale locator or an early observation be mistaken for final resource evidence?
+
+The finite model contains two possible cgroup-leaf identities and the supervisor lifecycle:
+
+```text
+start exact leaf
+      |
+worker / descendants run
+      |
+direct child closes
+      |
+kill exact leaf
+      |
+observe populated = 0
+      |
+capture final evidence
+      |
+remove exact leaf
+```
+
+The authoritative configuration checks:
+
+- `TypeOK`: the state remains in the finite modeled domains.
+- `ExactLeafAuthority`: kill, evidence, and removal never target a leaf other than the pinned active object.
+- `FinalEvidenceSafety`: resource evidence is never final unless the active leaf has been killed and observed unpopulated.
+- `RemovalSafety`: removal cannot occur before final evidence for the exact active leaf.
+
+Two negative controls are mandatory:
+
+| configuration | removed guard | expected violated invariant |
+| --- | --- | --- |
+| `BrokenResourceIdentity.cfg` | exact leaf-identity check | `ExactLeafAuthority` |
+| `BrokenResourceEarlyEvidence.cfg` | empty-before-evidence ordering | `FinalEvidenceSafety` |
+
+This formal layer is intentionally about protocol authority and ordering. The stronger physical claim that `memory.max`, `pids.max`, and `cpu.max` actually constrain hostile descendants requires the independent real-kernel proof.
+
 ## Run
 
 Requirements:
@@ -100,7 +144,7 @@ The runner pins TLA+ Tools 1.7.4 by SHA-256:
 936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
 ```
 
-It checks the authoritative model first, then requires all five broken models to fail for their expected invariant rather than accepting any non-zero TLC exit code as a successful negative test.
+It checks the authoritative transition model and five negative controls, then the resource-containment model and its two negative controls. Every broken configuration must fail for its expected invariant rather than merely returning a non-zero TLC exit code.
 
 Temporary TLC state and logs live under `formal/.tlc/` and are not authoritative evidence.
 
@@ -137,3 +181,47 @@ This is deliberate. A cached lifecycle label may exist in an implementation, but
 The model assumes that a `Verify` action, when it occurs, returns authoritative truth for the exact mutation coordinate. It does not prove that GitHub, a cloud provider, or any other external observer is correct.
 
 It also does not prove eventual progress. Permanent inability to establish external effect truth may permanently prevent replay or settlement. That is the intended fail-closed safety tradeoff.
+
+
+## Asynchronous effect finality and conditional liveness
+
+`AsyncEffectKernel.tla` extends the formal boundary only where the first transition model was intentionally too coarse: an outbound request may remain able to apply after Overcenter has observed the target state as absent.
+
+The model separates:
+
+```text
+absent at observation time
+        !=
+prior request is terminally unable to apply
+```
+
+It contains one original request and one retry, two fenced worker authorities, in-flight transport duplication, per-request provider deduplication, stale absence observations, settlement, and durable terminal evidence.
+
+The authoritative configuration requires all of the following:
+
+- current fenced authority for initial execution, retry, and settlement;
+- an absence observation whose prior request is already terminal before replay;
+- provider deduplication of duplicate deliveries of one request.
+
+It checks:
+
+- `AuthoritySafety`: stale authority never crosses an effect or settlement boundary;
+- `NoUnsafeReplay`: replay is never authorized from an absence observation taken while the prior request could still apply;
+- `NoDoubleExecution`: at most one semantic external effect occurs;
+- `NoFalseDone`: durable `Done` never exists without exactly one established effect.
+
+Three negative controls remove one guarantee at a time:
+
+| configuration | removed guarantee | expected result |
+| --- | --- | --- |
+| `BrokenAsyncNoTerminality.cfg` | terminality-bound absence before replay | double-effect counterexample |
+| `BrokenAsyncNoDeliveryDedupe.cfg` | provider deduplication for duplicated delivery of one request | double-effect counterexample |
+| `BrokenAsyncNoFence.cfg` | current fenced authority | stale-authority counterexample |
+
+This makes an adapter boundary explicit: Overcenter can prevent itself from authorizing a second logical attempt, but exactly-once external execution additionally depends on provider semantics such as request idempotency, conditional mutation, or proof that the predecessor request is terminal.
+
+`RecoveryLiveness.tla` is deliberately separate from the safety model. It asks a conditional liveness question under explicit fairness assumptions: if a stable successor worker remains available, provider requests eventually resolve, authoritative observations eventually occur, and enabled recovery steps are fairly scheduled, does work eventually reach either `Done` or an explicit `Escalated` terminal classification?
+
+The negative control `BrokenRecoveryNoReap.cfg` disables dead-lease reclamation while keeping a stable successor available. The expected temporal counterexample demonstrates orphaned authority: the dead owner's live lease can permanently prevent the successor from acquiring authority even though every external dependency needed for progress is available.
+
+The liveness theorem is intentionally conditional. It does not claim that Overcenter can force a provider to resolve an operation, heal a permanently unavailable external dependency, or guarantee that arbitrary projects finish.

@@ -102,8 +102,8 @@ The experiment pins TypeScript 5.8.3.
 
 ```sh
 npm install --no-save --ignore-scripts typescript@5.8.3
-node --test experiments/production-criticality-ranking/analyze.test.mjs
-node experiments/production-criticality-ranking/analyze.mjs \
+node --experimental-strip-types --test experiments/production-criticality-ranking/analyze.test.ts
+node --experimental-strip-types experiments/production-criticality-ranking/analyze.ts \
   --config experiments/production-criticality-ranking/config.json \
   --json /tmp/criticality.json \
   --markdown /tmp/criticality.md
@@ -149,9 +149,9 @@ Run it with:
 
 ```sh
 npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0
-node --test experiments/production-criticality-ranking/summarize-mutation.test.mjs
-npx stryker run experiments/production-criticality-ranking/stryker.config.mjs
-node experiments/production-criticality-ranking/summarize-mutation.mjs mutation.json mutation-summary.md
+node --experimental-strip-types --test experiments/production-criticality-ranking/summarize-mutation.test.ts
+npx stryker run experiments/production-criticality-ranking/generate-stryker-config.ts
+node --experimental-strip-types experiments/production-criticality-ranking/summarize-mutation.ts mutation.json mutation-summary.md
 ```
 
 
@@ -185,5 +185,7 @@ E = max(reachability_gap, mutation_gap)
 Mutation evidence is content-addressed by the exact Git blob identities of the production files it exercised. Matching bytes allow evidence reuse across later commits. If any bound blob changes, the affected probe becomes stale and contributes a full evidence gap (`E = 1`) until it is rerun. For authority sinks, recovery terminals, and calibration callables, **missing** hostile-case evidence is also a first-class evidence obligation and contributes `E = 1`; absence of evidence is never interpreted as a zero gap.
 
 The checked-in snapshot is a cache of probe evidence, not an authority by itself. CI binds it to the cited successful mutation workflow, artifact digest, mutation-report digest, resolved semantic ranges, and the exact historical Git blobs at that revision. Freshness is a separate question: if current source bytes differ, the analyzer reports the probe as stale and assigns the affected callable a full evidence gap (`E = 1`) instead of treating staleness as a repository-wide merge veto.
+
+Each probe carries its own source-run provenance. Successful mutation runs on `main` are reconciled automatically: a trusted `workflow_run` job accepts only the exact uploaded artifact, replaces only probes whose source blobs still match current `main`, and commits the refreshed snapshot. Targeted probes therefore update their own evidence without rewriting unrelated probe provenance or requiring a human copy step.
 
 This makes mutation output a durable evidence snapshot rather than a 27-minute dependency of every ranking run. The raw mutation score is intentionally conservative: diagnostic/equivalent mutants can overstate the gap, but surviving claim-bearing mutants show that the gap is real. A later experiment should distinguish claim-bearing mutants from diagnostic noise rather than pretending the raw percentage is exact.

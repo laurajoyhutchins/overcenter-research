@@ -12,72 +12,98 @@
           "file": "src/digest.ts",
           "name": "canonicalDigest"
         }
+      ],
+      "tests": [
+        "test/digest-pure.test.ts"
       ]
     },
     {
       "id": "semantic-identity",
       "selectors": [
         {
-          "file": "src/semantic-identity.ts",
+          "file": "src/graph/identity.ts",
           "name": "semanticDependencyIdentity"
         },
         {
-          "file": "src/semantic-identity.ts",
+          "file": "src/graph/identity.ts",
           "name": "obligationKey"
         }
+      ],
+      "tests": [
+        "test/semantic-dependency.test.ts",
+        "test/semantic-identity-hostile.test.ts"
       ]
     },
     {
       "id": "done-candidate-reuse",
       "selectors": [
         {
-          "file": "src/projector.ts",
+          "file": "src/authority/project-state.ts",
           "name": "deriveRealizationRelations"
         }
+      ],
+      "tests": [
+        "test/projector-pure.test.ts"
       ]
     },
     {
       "id": "effect-reservation",
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "qualifiedName": "KernelCore.beginEffect"
         }
+      ],
+      "tests": [
+        "test/kernel-backend-differential.test.ts",
+        "test/sqlite-kernel.test.ts",
+        "test/git-kernel.test.ts"
       ]
     },
     {
       "id": "settlement",
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
+          "file": "src/authority/engine.ts",
           "qualifiedName": "KernelCore.resolve"
         }
+      ],
+      "tests": [
+        "test/kernel-backend-differential.test.ts",
+        "test/sqlite-kernel.test.ts",
+        "test/git-kernel.test.ts"
       ]
     },
     {
       "id": "execution-fence",
       "selectors": [
         {
-          "file": "src/kernel-core.ts",
-          "qualifiedName": "KernelCore.#requireExecutionPermit"
+          "file": "src/authority/transaction-admission.ts",
+          "name": "projectExecutionAuthority"
         }
+      ],
+      "tests": [
+        "test/hostile.test.ts"
       ]
     },
     {
       "id": "verification-and-absence",
       "selectors": [
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "name": "authoritativeAbsenceEvidence"
         },
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "name": "observationAuthoritativelyAbsent"
         },
         {
-          "file": "src/observation.ts",
+          "file": "src/observation/observe.ts",
           "name": "observationVerified"
         }
+      ],
+      "tests": [
+        "test/observation-hostile.test.ts"
       ]
     }
   ]

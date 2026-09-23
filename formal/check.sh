@@ -37,40 +37,48 @@ if [[ "$actual_sha" != "$TLA_SHA256" ]]; then
 fi
 
 run_tlc() {
-  local cfg="$1"
-  local log="$2"
+  local module="$1"
+  local cfg="$2"
+  local log="$3"
   (
     cd "$FORMAL"
     java -XX:+UseParallelGC -jar "$JAR" \
       -workers auto \
-      -metadir "$FORMAL/.tlc/${cfg%.cfg}" \
+      -metadir "$FORMAL/.tlc/${module}-${cfg%.cfg}" \
       -config "$cfg" \
-      TransitionKernel.tla
+      "$module.tla"
   ) >"$log" 2>&1
 }
 
 rm -rf "$FORMAL/.tlc"
 mkdir -p "$FORMAL/.tlc/logs"
 
-GOOD_LOG="$FORMAL/.tlc/logs/TransitionKernel.log"
-echo "==> checking authoritative kernel"
-if ! run_tlc "TransitionKernel.cfg" "$GOOD_LOG"; then
-  cat "$GOOD_LOG" >&2
-  exit 1
-fi
-if ! grep -q "Model checking completed" "$GOOD_LOG"; then
-  cat "$GOOD_LOG" >&2
-  exit 1
-fi
-tail -n 8 "$GOOD_LOG"
+check_good() {
+  local module="$1"
+  local cfg="$2"
+  local label="$3"
+  local log="$FORMAL/.tlc/logs/${cfg%.cfg}.log"
+
+  echo "==> checking $label"
+  if ! run_tlc "$module" "$cfg" "$log"; then
+    cat "$log" >&2
+    exit 1
+  fi
+  if ! grep -q "Model checking completed" "$log"; then
+    cat "$log" >&2
+    exit 1
+  fi
+  tail -n 8 "$log"
+}
 
 check_expected_failure() {
-  local cfg="$1"
-  local invariant="$2"
+  local module="$1"
+  local cfg="$2"
+  local invariant="$3"
   local log="$FORMAL/.tlc/logs/${cfg%.cfg}.log"
 
   echo "==> checking expected counterexample: $cfg ($invariant)"
-  if run_tlc "$cfg" "$log"; then
+  if run_tlc "$module" "$cfg" "$log"; then
     echo "expected TLC to reject $cfg" >&2
     cat "$log" >&2
     exit 1
@@ -83,10 +91,42 @@ check_expected_failure() {
   grep -m1 "Invariant ${invariant} is violated" "$log"
 }
 
-check_expected_failure "BrokenNoFence.cfg" "MutationAuthoritySafety"
-check_expected_failure "BrokenNoRevision.cfg" "ExactRevisionEvidence"
-check_expected_failure "BrokenNoReplayGuard.cfg" "ReplaySafety"
-check_expected_failure "BrokenNoReservation.cfg" "ReservationSafety"
-check_expected_failure "BrokenNoEvidence.cfg" "NoFalseDone"
+check_expected_temporal_failure() {
+  local module="$1"
+  local cfg="$2"
+  local log="$FORMAL/.tlc/logs/${cfg%.cfg}.log"
 
-echo "TLA+ kernel and all five negative controls behaved as expected."
+  echo "==> checking expected temporal counterexample: $cfg"
+  if run_tlc "$module" "$cfg" "$log"; then
+    echo "expected TLC to reject $cfg" >&2
+    cat "$log" >&2
+    exit 1
+  fi
+  if ! grep -Eq "Temporal propert(y|ies).*violated|Property.*violated" "$log"; then
+    echo "TLC failed for $cfg, but not with the expected temporal-property violation" >&2
+    cat "$log" >&2
+    exit 1
+  fi
+  grep -Em1 "Temporal propert(y|ies).*violated|Property.*violated" "$log"
+}
+
+check_good "TransitionKernel" "TransitionKernel.cfg" "authoritative kernel"
+check_expected_failure "TransitionKernel" "BrokenNoFence.cfg" "MutationAuthoritySafety"
+check_expected_failure "TransitionKernel" "BrokenNoRevision.cfg" "ExactRevisionEvidence"
+check_expected_failure "TransitionKernel" "BrokenNoReplayGuard.cfg" "ReplaySafety"
+check_expected_failure "TransitionKernel" "BrokenNoReservation.cfg" "ReservationSafety"
+check_expected_failure "TransitionKernel" "BrokenNoEvidence.cfg" "NoFalseDone"
+
+check_good "ResourceContainment" "ResourceContainment.cfg" "resource containment protocol"
+check_expected_failure "ResourceContainment" "BrokenResourceIdentity.cfg" "ExactLeafAuthority"
+check_expected_failure "ResourceContainment" "BrokenResourceEarlyEvidence.cfg" "FinalEvidenceSafety"
+
+check_good "AsyncEffectKernel" "AsyncEffectKernel.cfg" "asynchronous effect finality kernel"
+check_expected_failure "AsyncEffectKernel" "BrokenAsyncNoTerminality.cfg" "NoDoubleExecution"
+check_expected_failure "AsyncEffectKernel" "BrokenAsyncNoDeliveryDedupe.cfg" "NoDoubleExecution"
+check_expected_failure "AsyncEffectKernel" "BrokenAsyncNoFence.cfg" "AuthoritySafety"
+
+check_good "RecoveryLiveness" "RecoveryLiveness.cfg" "conditional recovery liveness"
+check_expected_temporal_failure "RecoveryLiveness" "BrokenRecoveryNoReap.cfg"
+
+echo "TLA+ safety and conditional-liveness models, including all negative controls, behaved as expected."

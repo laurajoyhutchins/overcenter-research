@@ -1,0 +1,17 @@
+name: Overcenter internal · candidate handoff
+
+on:
+  push:
+    branches:
+      - 'overcenter/candidate/**'
+
+permissions: {}
+
+jobs:
+  signal:
+    name: Internal candidate handoff
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    steps:
+      - name: Emit no authority
+        run: 'true'

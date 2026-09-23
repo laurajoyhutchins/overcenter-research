@@ -2,66 +2,81 @@ name: Merge gate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: merge-gate-${{ github.event.pull_request.number || github.ref }}
+  group: merge-gate-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
   evidence:
-    name: Evidence
+    name: Certify candidate
     uses: ./.github/workflows/tests.yml
-
-  production-computation:
-    name: Production computation
-    uses: ./.github/workflows/computation-executor.yml
-
-  self-application:
-    name: Self application
-    uses: ./.github/workflows/self-application.yml
+    with:
+      expensive: ${{ github.event_name == 'push' || github.run_attempt > 1 }}
 
   gate:
-    name: Merge gate
+    name: ${{ github.event_name == 'pull_request' && github.run_attempt == 1 && 'PR preflight' || 'Merge gate' }}
     if: ${{ always() }}
-    needs:
-      - evidence
-      - production-computation
-      - self-application
+    needs: evidence
     runs-on: ubuntu-slim
     timeout-minutes: 1
     env:
+      EVENT_NAME: ${{ github.event_name }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       EVIDENCE_RESULT: ${{ needs.evidence.result }}
-      PRODUCTION_COMPUTATION_RESULT: ${{ needs.production-computation.result }}
-      SELF_APPLICATION_RESULT: ${{ needs.self-application.result }}
     steps:
-      - name: Require all core evidence for one source revision
+      - name: Require an exact-head candidate before merge
+        run: |
+          set -euo pipefail
+
+          case "$EVENT_NAME" in
+            pull_request)
+              if [ "$RUN_ATTEMPT" -eq 1 ]; then
+                echo "PR preflight only; rerun Certify candidate to spend exact-head merge evidence."
+              else
+                test "$RUN_ATTEMPT" -gt 1
+              fi
+              ;;
+            push)
+              ;;
+            *)
+              echo "::error::Unsupported merge-gate event: $EVENT_NAME"
+              exit 1
+              ;;
+          esac
+
+      - name: Require evidence for this execution mode
         run: |
           set -euo pipefail
           printf 'source_sha=%s\n' "$SOURCE_SHA"
+          printf 'run_attempt=%s\n' "$RUN_ATTEMPT"
           printf 'evidence=%s\n' "$EVIDENCE_RESULT"
-          printf 'production_computation=%s\n' "$PRODUCTION_COMPUTATION_RESULT"
-          printf 'self_application=%s\n' "$SELF_APPLICATION_RESULT"
-
           test "$EVIDENCE_RESULT" = success
-          test "$PRODUCTION_COMPUTATION_RESULT" = success
-          test "$SELF_APPLICATION_RESULT" = success
 
       - name: Publish merge-gate evidence summary
         if: ${{ always() }}
         run: |
           {
-            echo '## Merge gate'
-            echo
+            if [ "$EVENT_NAME" = pull_request ] && [ "$RUN_ATTEMPT" -eq 1 ]; then
+              echo '## PR preflight'
+              echo
+              echo '- merge certification: not requested'
+              echo '- next action: rerun Certify candidate for this exact head'
+            else
+              echo '## Merge gate'
+              echo
+              echo '- merge certification: exact-head candidate'
+            fi
             echo "- source SHA: $SOURCE_SHA"
+            echo "- event: $EVENT_NAME"
+            echo "- run attempt: $RUN_ATTEMPT"
             echo "- Evidence: $EVIDENCE_RESULT"
-            echo "- Production computation: $PRODUCTION_COMPUTATION_RESULT"
-            echo "- Self application: $SELF_APPLICATION_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"

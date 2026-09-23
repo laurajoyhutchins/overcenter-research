@@ -1,7 +1,7 @@
 import { githubProofStateRef } from '../proof-environment.ts';
 import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
-import { GitOvercenterKernel } from '../../src/git-kernel.ts';
+import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -26,15 +26,21 @@ const kernel = new GitOvercenterKernel(process.cwd(), {
   githubToken: token,
 });
 
-const candidates = kernel.inspect().filter(work => {
+const candidates = kernel.inspect().filter((work) => {
   if (work.status !== 'EXECUTING') return false;
   const executor = work.packet.executor as Record<string, unknown> | undefined;
-  return executor?.provider === 'github-actions/v1'
-    && String(executor.workflow_run_id) === workflowRunId
-    && String(executor.workflow_run_attempt) === workflowRunAttempt
-    && executor.job === 'agent-a';
+  return (
+    executor?.provider === 'github-actions/v1' &&
+    String(executor.workflow_run_id) === workflowRunId &&
+    String(executor.workflow_run_attempt) === workflowRunAttempt &&
+    executor.job === 'agent-a'
+  );
 });
-assert.equal(candidates.length, 1, `expected one exact unresolved execution, found ${candidates.length}`);
+assert.equal(
+  candidates.length,
+  1,
+  `expected one exact unresolved execution, found ${candidates.length}`,
+);
 const work = candidates[0];
 assert.ok(work.run_id);
 assert.equal(work.execution_generation, 2);
@@ -62,36 +68,44 @@ assert.equal(settled.observed?.commit_sha, sourceSha);
 assert.equal(settled.observed?.context, work.postcondition.context);
 assert.equal(settled.observed?.actual_state, 'success');
 
-const final = kernel.inspect().find(candidate => candidate.id === work.id);
+const final = kernel.inspect().find((candidate) => candidate.id === work.id);
 assert.equal(final?.status, 'DONE');
 
 const receipts = kernel.receipts(work.run_id);
-assert.deepEqual(receipts.map(receipt => receipt.disposition), ['RECOVERY_REQUIRED', 'DONE']);
-assert.ok(receipts.every(receipt => receipt.claim_commit === recovery.claim_commit));
+assert.deepEqual(
+  receipts.map((receipt) => receipt.disposition),
+  ['RECOVERY_REQUIRED', 'DONE'],
+);
+assert.ok(receipts.every((receipt) => receipt.claim_commit === recovery.claim_commit));
 
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
-  appendFileSync(summary, [
-    '## Trusted recovery / settlement',
-    '',
-    `- Reconstructed run: \`${work.run_id}\`.`,
-    '- Worker generation 1 never held provider write authority.',
-    '- Effect broker generation 2 held provider write authority and terminated after mutation.',
-    `- Recovery rotated to generation \`${recoveryPermit.execution_generation}\`.`,
-    `- Immutable input: \`${sourceSha}\`.`,
-    `- Provider status context: \`${settled.observed?.context}\`.`,
-    `- Provider state: \`${settled.observed?.actual_state}\`.`,
-    `- Final disposition: **${settled.disposition}**.`,
-    '',
-  ].join('\n'));
+  appendFileSync(
+    summary,
+    [
+      '## Trusted recovery / settlement',
+      '',
+      `- Reconstructed run: \`${work.run_id}\`.`,
+      '- Worker generation 1 never held provider write authority.',
+      '- Effect broker generation 2 held provider write authority and terminated after mutation.',
+      `- Recovery rotated to generation \`${recoveryPermit.execution_generation}\`.`,
+      `- Immutable input: \`${sourceSha}\`.`,
+      `- Provider status context: \`${settled.observed?.context}\`.`,
+      `- Provider state: \`${settled.observed?.actual_state}\`.`,
+      `- Final disposition: **${settled.disposition}**.`,
+      '',
+    ].join('\n'),
+  );
 }
 
-console.log(JSON.stringify({
-  recovered_run_id: work.run_id,
-  recovery_generation: recoveryPermit.execution_generation,
-  recovery_commit: recovery.settlement_commit,
-  settlement_commit: settled.settlement_commit,
-  disposition: settled.disposition,
-  verified: settled.verified,
-  observation: settled.observed,
-}));
+console.log(
+  JSON.stringify({
+    recovered_run_id: work.run_id,
+    recovery_generation: recoveryPermit.execution_generation,
+    recovery_commit: recovery.settlement_commit,
+    settlement_commit: settled.settlement_commit,
+    disposition: settled.disposition,
+    verified: settled.verified,
+    observation: settled.observed,
+  }),
+);

@@ -1,1 +1,1 @@
-export * from '../../src/provider-observation/response-slice.ts';
+export * from '../../src/observation/response-slice.ts';

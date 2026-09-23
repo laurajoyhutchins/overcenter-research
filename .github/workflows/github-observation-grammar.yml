@@ -14,11 +14,9 @@ on:
       - experiments/github-observation-grammar/**
       - experiments/provider-observation/**
       - src/model.ts
-      - src/observation.ts
+      - src/observation/**
       - src/semantics.ts
-      - src/github-authority-command.ts
-      - src/provider-observation/**
-      - src/providers/**
+      - src/providers/github/**
       - scripts/generate-github-operations.ts
       - bin/github-authority.ts
       - test/provider-observation.test.ts
@@ -30,6 +28,7 @@ on:
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
   pull_request:
+    types: [ready_for_review]
     branches:
       - main
     paths:
@@ -37,11 +36,9 @@ on:
       - experiments/github-observation-grammar/**
       - experiments/provider-observation/**
       - src/model.ts
-      - src/observation.ts
+      - src/observation/**
       - src/semantics.ts
-      - src/github-authority-command.ts
-      - src/provider-observation/**
-      - src/providers/**
+      - src/providers/github/**
       - scripts/generate-github-operations.ts
       - bin/github-authority.ts
       - test/provider-observation.test.ts
@@ -68,6 +65,9 @@ concurrency:
 
 jobs:
   test:
+    # Candidate deterministic coverage is owned by the exact-head Merge gate.
+    # Keep this job for main/manual runs; PR candidates pay only for live semantics.
+    if: ${{ github.event_name != 'pull_request' }}
     name: Unit regression and observation experiment
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -87,11 +87,11 @@ jobs:
             test/github-authority-command.test.ts
       - name: Shared observation certificate adversaries
         run: node --experimental-strip-types --test experiments/provider-observation/response-slice.test.ts
-      - name: GitHub observation experiment
+      - name: GitHub observation conformance experiment
         run: node --experimental-strip-types --test experiments/github-observation-grammar/github-observation.test.ts
 
   semantics:
-    name: Pinned schema and live semantic shapes
+    name: Pinned schema and live production semantics
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -99,6 +99,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: '.node-version'
+      - name: GitHub observation conformance experiment
+        run: node --experimental-strip-types --test experiments/github-observation-grammar/github-observation.test.ts
+
       - name: Fetch immutable 2026-03-10 dereferenced schema
         run: |
           curl --fail --location --retry 3 \
@@ -108,37 +111,18 @@ jobs:
         run: |
           node --experimental-strip-types scripts/generate-github-operations.ts \
             "$RUNNER_TEMP/github-openapi.json"
-          git diff --exit-code -- src/providers/github-operations.generated.ts
-      - name: Verify runtime GitHub contracts against pinned OpenAPI
+          git diff --exit-code -- src/providers/github/operations.generated.ts
+      - name: Verify production contracts against pinned OpenAPI
         run: |
           node --experimental-strip-types experiments/github-observation-grammar/verify-kernel-github-contract.ts \
             "$RUNNER_TEMP/github-openapi.json"
-      - name: Generate complete read-only observation inventory
-        run: |
-          node --experimental-strip-types experiments/github-observation-grammar/inventory.ts \
-            "$RUNNER_TEMP/github-openapi.json" \
-            2026-03-10
-      - name: Verify representative semantic shapes exist in the pinned contract
-        run: |
-          node --experimental-strip-types experiments/github-observation-grammar/semantic-inventory.ts \
-            "$RUNNER_TEMP/github-openapi.json"
-      - name: Inventory representative response schema complexity
-        run: |
-          node --experimental-strip-types experiments/github-observation-grammar/response-schema-inventory.ts \
-            "$RUNNER_TEMP/github-openapi.json"
-      - name: Prove live identity, immutable, mutable, pagination, conditional, and reconstruction semantics
+      - name: Exercise generic live production semantic reads
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          SOURCE_REF: ${{ github.head_ref || github.ref_name }}
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          CHECK_REF: main
+          CHECK_REF: ${{ github.event.pull_request.head.sha || github.sha }}
           STATUS_REF: b91ac6c4e64f72b83c6a8d8caa78e9482037a2d1
-          BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
-          VOLATILE_CHECK_REF: ${{ github.sha }}
-          PULL_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          node --experimental-strip-types experiments/github-observation-grammar/live-semantic-proof.ts \
-            "$RUNNER_TEMP/github-openapi.json"
+        run: node --experimental-strip-types experiments/github-observation-grammar/live-semantic-proof.ts
 
       - name: Prove runtime commit-status readback uses certified observations
         env:

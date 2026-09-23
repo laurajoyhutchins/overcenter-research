@@ -1,0 +1,102 @@
+import type { KernelCore } from '../../authority/engine.ts';
+import type { ExecutionPermit } from '../../model.ts';
+import { GITHUB_COMMIT_STATUS_EFFECT } from '../../effect-adapter.ts';
+import { GITHUB_API_VERSION } from './contract.ts';
+import { observeCertifiedGithubRepository } from './certified-repository.ts';
+import { githubGetAsync, runGithubReadObserverAsync, type GithubJsonGetAsync } from './rest.ts';
+
+export { GITHUB_COMMIT_STATUS_EFFECT } from '../../effect-adapter.ts';
+
+export interface GithubStatusMutationBody {
+  state: 'error' | 'failure' | 'pending' | 'success';
+  context: string;
+  description: string;
+}
+
+export type GithubStatusPost = (
+  token: string,
+  path: string,
+  body: GithubStatusMutationBody,
+) => Promise<{ status: number; body: string }>;
+
+async function githubPost(
+  token: string,
+  path: string,
+  body: GithubStatusMutationBody,
+): Promise<{ status: number; body: string }> {
+  const response = await fetch(`https://api.github.com${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': GITHUB_API_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return { status: response.status, body: await response.text() };
+}
+
+export async function performGithubCommitStatusEffect(
+  kernel: KernelCore,
+  permit: ExecutionPermit,
+  {
+    token,
+    get = githubGetAsync,
+    post = githubPost,
+    clock = () => new Date().toISOString(),
+  }: {
+    token: string;
+    get?: GithubJsonGetAsync;
+    post?: GithubStatusPost;
+    clock?: () => string;
+  },
+): Promise<{
+  repository_id: number;
+  repository_full_name: string;
+  commit_sha: string;
+  context: string;
+  state: 'error' | 'failure' | 'pending' | 'success';
+}> {
+  if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
+
+  const authority = kernel.authorizeEffect(
+    permit,
+    GITHUB_COMMIT_STATUS_EFFECT,
+    'github-commit-status/v2',
+  );
+  const p = authority.postcondition;
+  const repository = await runGithubReadObserverAsync(
+    token,
+    (syncGet) =>
+      observeCertifiedGithubRepository(token, {
+        repositoryId: p.repository_id,
+        repositoryFullName: p.repository_full_name,
+        get: syncGet,
+        clock,
+        observerId: 'github-commit-status-effect/v1',
+      }),
+    get,
+  );
+  const { owner, repo, full_name } = repository.fact.object;
+  const path = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/statuses/${encodeURIComponent(p.commit_sha)}`;
+  const body: GithubStatusMutationBody = {
+    state: p.expected_state,
+    context: p.context,
+    description: 'Overcenter trusted effect broker',
+  };
+
+  return kernel.performEffect(authority, async () => {
+    const response = await post(token, path, body);
+    if (response.status !== 201) {
+      throw new Error(`GITHUB_STATUS_MUTATION_FAILED:${response.status}:${response.body}`);
+    }
+    return {
+      repository_id: p.repository_id,
+      repository_full_name: full_name,
+      commit_sha: p.commit_sha,
+      context: p.context,
+      state: p.expected_state,
+    };
+  });
+}

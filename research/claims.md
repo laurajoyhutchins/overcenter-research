@@ -152,6 +152,8 @@ Identical desired states are explicitly modeled as commuting. Incompatible desir
 
 The prior hosted proof established that an authority-untrusted executor can corrupt local Git configuration, refs, kernel source, and cache without redefining the centrally committed obligation or the trusted verifier's provider coordinate.
 
+The current hosted broker is intentionally thin: provider-coordinate derivation, certified repository identity, reservation-before-POST, and the status write itself are now carried by `src/providers/github/status-effect.ts`, with SQLite crash/reopen recovery covered by `test/github-status-effect.test.ts`. This promotes only the explicit GitHub commit-status path, not provider mutation in general.
+
 A prior hosted workflow established the credential boundary: the worker job had `contents: read` but no `statuses: write`, while a separate trusted broker owned provider write authority and execution-generation authority. Live workflow run `35389453056` at exact source revision `f8a883d6214d76b0b609eb05e3798d6238d108cc` showed the worker's authority-ref rewrite and provider status-write attempts both returning HTTP 403; the broker performed the mutation in execution generation 2; fresh recovery rotated to generation 3 and settled `DONE` from canonical GitHub readback. The current proof removes the worker-declared effect-intent echo entirely: immutable project authority carries only a versioned effect contract, and the trusted broker derives repository, commit, context, and desired state from the authoritative postcondition.
 
 **Claim:**
@@ -221,6 +223,26 @@ DONE =
 A cached lifecycle field may exist, but it should not be the deepest source of truth.
 
 The pure replay and projection-reconstruction tests derive `DONE` from obligation, claim, observation, verification, and receipt facts after materialized projection state is discarded. The formal kernel separately checks `NoFalseDone` and requires the broken no-evidence model to produce a counterexample. This does not yet prove that the proposed compact transition-attestation format is sufficient for every provider or future storage backend.
+
+### S13. Resource containment is bound to an exact kernel object
+
+**Status:** Demonstrated on the supported Linux x86-64 confinement path by deterministic contracts, a machine-checked supervisor model, and a hostile real-cgroup proof.
+
+The resource claim is not merely that a worker happens to be placed in a cgroup.
+
+**Claim:**
+
+> One attempt is bound to one exact cgroup-v2 leaf; final resource evidence is accepted only after that leaf is killed and observed empty; per-attempt CPU, memory, and PID ceilings sit beneath a finite aggregate worker-pool envelope.
+
+The trusted supervisor creates and pins the child cgroup object. PID, process-group ID, cgroup name, and pathname are locators rather than execution authority. Resource evidence carries the exact leaf device/inode identity.
+
+The formal model `formal/ResourceContainment.tla` checks `ExactLeafAuthority`, `FinalEvidenceSafety`, and `RemovalSafety`. `BrokenResourceIdentity.cfg` and `BrokenResourceEarlyEvidence.cfg` must produce counterexamples when the respective guards are removed.
+
+The physical proof remains separate: `src/execution/confinement/proof.sh` exercises actual `pids.max` exhaustion, `cpu.max` throttling, `memory.max` OOM containment, HugeTLB denial, stale-leaf noninterference, and trusted-supervisor timeout/output cleanup on cgroup v2.
+
+**Non-claims:** This does not establish device I/O throttling, workspace disk quota, guaranteed capacity equal to the declared ceiling, automatic authority-safe orphan cleanup after supervisor death, or complete VM isolation.
+
+See [`resource-containment-proof.md`](./resource-containment-proof.md).
 
 ## Safety assumptions and non-claims
 

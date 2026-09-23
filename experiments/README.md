@@ -7,8 +7,13 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 ## Experiment index
 
 - `assignment-capsule/` - exact Overcenter claim plus self-contained task-byte delivery to a no-checkout worker and trusted settlement.
+- `transport-not-dispatched-evidence/` - preregistered HTTPS transport experiment for trustworthy pre-dispatch evidence on fresh sockets.
+- `adapter-uncertainty-exploration/` - bounded production-adapter uncertainty exploration for retry-relevant durable-state collisions.
+- `attempt-unification/` - falsifies the single recovery-clock simplification and proves authority fencing and unresolved mutation identity require distinct temporal dimensions.
+- `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
 - `sqlite-baseline/` - original SQLite-backed baseline.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
+- `ambient-authority-boundary/` - separates substrate-owned provider capability from Overcenter project-truth authority.
 - `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.
 - `conflicting-effect/` - provider-coordinate conflict, ordering, and commutativity.
 - `eventually-consistent-readback/` - hostile stale or negative provider readback and the no-blind-replay rule.
@@ -17,18 +22,39 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `linkml-ontology/` - structural ontology audition: one LinkML model projected to JSON Schema, TypeScript, and SHACL with an explicit semantic-boundary negative control.
 - `linkml-contract-refactor/` - production-facing maintenance experiment over the real SettlementObservation structural contract.
+- `lean-semantic-oracle/` - historical exact-revision TypeScript-vs-Lean differential; executable proof retained at its evaluated revision.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
+- `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.
 - `projection-comparison/` - mutable lifecycle versus TypeScript, status-free SQL, and Datalog over one normalized projection contract.
 - `bounded-graph-exhaustion/` - exhaustive small-model coverage for DAG topology, lifecycle projection, and control-versus-semantic invalidation.
+- `frontier-prioritization/` - exhaustive and sampled proof that apparently ambiguous READY-frontier priority can be resolved or verified deterministically before AI escalation.
 - `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
+- `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
+- `typed-capability-authority/` - preregistered Rust differential for sealed affine effect authority, compile-fail invalid states, and sequential/concurrent admission cost.
+- `effect-authority-decay/` - current-main production broker experiment testing whether bound authority eliminates downstream raw-coordinate reconstruction while preserving the final runtime fence.
+- `rust-exec-typestate-boundary/` - historical negative: typestate preserved the real Rust confinement proof but removed no runtime guard class and increased source complexity.
 
 ## Experiment contract
 
-Maintained experiments are registered in [`registry.json`](./registry.json). The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, exact evidence identity, interpretation, and non-claims must be explicit.
+Maintained experiments are registered in [`registry.json`](./registry.json). Historical experiments keep their README, exact evaluated revision, and reproduction command, but their executable scaffolding is not carried forward on `main`; check out the recorded revision to reproduce the result.
+
+Maintained experiments are registered in [`registry.json`](./registry.json). The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, design provenance, outcome, exact revision-bound evidence, interpretation, and non-claims must be explicit.
+
+The contract deliberately separates three questions that older entries used to blur:
+
+```text
+design provenance       outcome                 evidence
+preregistered           pending                 pending
+retrospective           supported               or
+mixed                   falsified               evaluated @ exact SHA
+unknown                  mixed / inconclusive
+```
+
+A retrospectively documented experiment can still be useful evidence, but its maintained criteria are not represented as preregistered. A falsified hypothesis is a valid experiment outcome. Evaluated evidence always names the exact revision that was run; the registry does not call old evidence "current" merely because maintainers still consider the conclusion relevant.
 
 ```sh
 npm run experiments:list
@@ -48,11 +74,11 @@ Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/su
 The repository began with two storage experiments:
 
 ```text
-experiments/sqlite-baseline/kernel.js
+experiments/sqlite-baseline/kernel.ts
         ↓
 prove the smallest local state machine
 
-src/git-kernel.ts
+src/storage/git-kernel.ts
         ↓
 ask whether durable shared authority can collapse to
 immutable Git objects + one authority ref + CAS

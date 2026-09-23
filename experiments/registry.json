@@ -1,6 +1,6 @@
 {
-  "schema": "overcenter-experiment-registry/v1",
-  "standard": "Maintained experiments must be explainable and reproducible from repository state alone.",
+  "schema": "overcenter-experiment-registry/v2",
+  "standard": "Maintained experiments must make design provenance, bounded acceptance criteria, outcome, reproducibility, and exact revision-bound evidence explicit.",
   "entries": [
     {
       "id": "assignment-capsule",
@@ -28,10 +28,10 @@
         "Trusted reconstruction and independent observation settle the same run DONE."
       ],
       "evidence": {
-        "state": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "00acffaf713032a0f8eb9603d6ffc9b0b969ebef",
         "artifacts": [
-          ".github/workflows/assignment-capsule-proof.yml",
-          "Hosted runs 35488588703 and 35488740731 previously passed end to end; exact current-head proof reruns on every PR update."
+          "GitHub Actions run 35488740731: exact-head hosted assignment capsule proof; deterministic contract, no-checkout worker, isolated network namespace, damaged-assignment controls, and trusted settlement all passed."
         ]
       },
       "interpretation": "A positive result proves byte-complete assignment plumbing for the bounded workload; it does not make the worker authoritative for success or imply arbitrary toolchain portability.",
@@ -40,12 +40,78 @@
         "This is a general artifact distribution or confidential payload service.",
         "Arbitrary provider mutation is authorized by the worker capsule.",
         "Every future obligation already fits this proof packet."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The boundary and fail-closed criteria were committed on the experiment branch before the hosted proof result; later exact-head runs confirm the same bounded contract."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Exact claimed work and task bytes were delivered to a no-checkout, no-network worker and independently settled by trusted authority."
+      }
+    },
+    {
+      "id": "attempt-unification",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/attempt-unification",
+      "readme": "experiments/attempt-unification/README.md",
+      "question": "Can ClaimFact, ExecutionAuthorityFact, and EffectReservationFact safely collapse to Claim + Attempt while actually reducing machinery and preserving performance?",
+      "claim": "In the bounded recovery model, one Attempt clock cannot simultaneously rotate to fence stale workers and remain stable to represent an unresolved external mutation. A safe Claim + Attempt representation therefore recreates the missing dimension as execute/recover purpose plus unresolved-effect identity, preserving safety and throughput but not reducing writes or source surface.",
+      "contrast": "Keep semantic claim ownership, execution/recovery fencing, and unresolved external-effect reservation as distinct state dimensions.",
+      "design": {
+        "provenance": "mixed",
+        "note": "The simplification hypothesis and acceptance thresholds were fixed before hosted confirmation, while the candidate shape was informed by prior production-code inspection and exploratory local modeling."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "The safe collapse preserved safety and met the performance bound but grew the bounded authority model from 88 to 107 SLOC (+21.6%) with unchanged representative durable-write counts. Both smaller single-clock variants fail: rotating the clock admits a successor while the prior external mutation remains unresolved; preserving it fails to fence stale authority."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:attempt-unification"
+      },
+      "environment": [
+        "Node.js from .node-version for the executable differential.",
+        "Pinned Lean semantic oracle revision 39bd16a317bc2155a17b6674a5050adaf4295c90 for the universal two-clock necessity theorem.",
+        "No provider credential, database, or model is required for the deterministic experiment."
+      ],
+      "success_criteria": [
+        "The safe candidate rejects stale authority after recovery fencing.",
+        "Recovery-only authority cannot execute a second unresolved external effect.",
+        "Replay-safe computation still requires proof that the prior containment domain terminated.",
+        "Representative durable-write counts are no worse than the legacy-shaped reference.",
+        "The safe candidate is smaller than the legacy-shaped reference by at least 5% SLOC for the proposed simplification to be supported.",
+        "If one Attempt clock rotates on recovery, the negative control demonstrates duplicate external-effect eligibility unless unresolved-effect state is tracked separately.",
+        "If one Attempt clock is preserved across recovery to retain mutation identity, the negative control demonstrates that stale execution authority remains accepted.",
+        "Median in-process effect-recovery transition time remains within 1.25x of the legacy-shaped reference over seven 200,000-transaction samples.",
+        "The pinned Lean oracle proves for arbitrary epoch types that authority rotation plus mutation-epoch persistence contradicts a single clock that remains aliased before and after recovery."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "ed6d23365f540c90f61a6ecd97fa448728d0251a",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35757238433, rerun attempt 2: exact-head candidate evidence PASS",
+          "authority-model-sloc: legacy 88, safe candidate 107, unsafe candidate 33",
+          "effect-recovery-throughput: 200000 iterations, legacy median 20.043804 ms, candidate median 15.031002 ms, ratio 0.749908",
+          "TLA+ transition kernel and resource-containment negative controls behaved as expected in run 35757238433",
+          "Production Rust worker confinement boundary PASS in run 35757238433",
+          "Pinned Lean oracle 39bd16a317bc2155a17b6674a5050adaf4295c90: single_clock_recovery_impossible and recovery_requires_distinct_clock_dimension",
+          "Proof PR #253 exact theorem head: Lean build and leanchecker declaration replay PASS"
+        ]
+      },
+      "interpretation": "The negative result is about temporal factorization, not naming: claim lifetime, authority epoch, and mutation-uncertainty lifetime are not coextensive. A safe simplification must preserve those dimensions while reducing surrounding choreography rather than aliasing them into one clock.",
+      "non_claims": [
+        "The in-process transition benchmark represents provider I/O, SQLite latency, or native executor overhead.",
+        "The Go computation executor should be retained or removed.",
+        "The present production implementation is globally minimal.",
+        "No alternative representation can reduce code while preserving the same independent temporal dimensions."
       ]
     },
     {
       "id": "bounded-graph-exhaustion",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/bounded-graph-exhaustion",
       "readme": "experiments/bounded-graph-exhaustion/README.md",
       "question": "Can small graph state spaces be exhausted instead of sampled?",
@@ -56,23 +122,38 @@
         "local": "npm run test:bounded-graph"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "No network, provider credential, or external solver is required."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "The generated family contains every unlabeled DAG through five vertices and exhausts the declared ordered-DAG bound through six vertices.",
+        "Production reachability and single-edge cycle admission agree exactly with independent transitive-closure reference relations.",
+        "Production lifecycle projection agrees with the independent lifecycle rule across every generated bounded graph/state scenario.",
+        "A material output amendment invalidates exactly the amended obligation plus descendants reachable through semantic edges; control-only descendants retain their prior semantic realization.",
+        "After a same-output packet amendment and resettlement, verified-content consumers may reuse historical realizations while settlement-receipt consumers invalidate because settlement identity changed."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "Within the declared small-model bounds, graph validation, reachability, lifecycle projection, and semantic-invalidation behavior agree with independent reference relations. Small semantic bugs in this surface should therefore require a counterexample outside the modeled bounds or outside the modeled semantics.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Arbitrary-size graph correctness is proved.",
+        "Provider behavior, liveness, or the transaction/recovery protocol is covered by this graph-state exhaustion.",
+        "The full typed/state space has been quotient-canonicalized by graph isomorphism.",
+        "Future edge kinds or lifecycle states inherit this evidence without extending the generator and reference model."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The bounded graph/state space agrees with independent reachability, lifecycle, and semantic-invalidation reference relations over the declared bounds."
+      }
     },
     {
       "id": "codex-closed-loop",
@@ -102,10 +183,11 @@
         "GitHub readback reports the exact trusted-publisher commit on the expected base as an open draft PR."
       ],
       "evidence": {
-        "state": "pending",
+        "status": "pending",
         "artifacts": [
           ".github/workflows/codex-closed-loop.yml"
-        ]
+        ],
+        "pending_reason": "The deterministic boundary is implemented, but accepted hosted Codex execution evidence under the maintained integration path has not yet been recorded."
       },
       "interpretation": "A positive result establishes the bounded reasoning-worker transaction boundary. It supports using Codex as a disposable implementation worker, not as authority for project truth or provider mutation.",
       "non_claims": [
@@ -114,12 +196,20 @@
         "The worker is trusted because the candidate passed.",
         "GitHub itself is authoritative project state.",
         "The witness pull request should be merged."
-      ]
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The worker/trusted-authority boundary and acceptance criteria are recorded while the hosted closed-loop outcome remains pending."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The deterministic contract is maintained, but the hosted reasoning-worker transaction has not yet produced accepted evidence under the current integration boundary."
+      }
     },
     {
       "id": "conflicting-effect",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/conflicting-effect",
       "readme": "experiments/conflicting-effect/README.md",
       "question": "Must incompatible effects on one canonical provider coordinate be ordered?",
@@ -130,28 +220,42 @@
         "local": "npm run test:effect-order"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version for the deterministic admission proof.",
+        "GitHub Actions plus a GitHub status-write credential for the separately dispatchable hosted sequential-write proof."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Unordered incompatible writes to the same canonical GitHub status coordinate are rejected before admission, including case-only context aliases.",
+        "An amendment that removes required ordering is rejected rather than allowing the conflict to enter authority.",
+        "Explicitly ordered incompatible effects may execute and settle sequentially, while explicitly identical desired writes remain admissible under the experiment's commutativity rule.",
+        "After the later write changes the mutable coordinate, final verification distinguishes alpha's historical settlement from beta's current realization truth rather than reporting both postconditions currently DONE."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "570e776aadb131589c9a47309d923e06b476e436",
         "artifacts": [
           "GitHub Actions run 35465653746: full ordered conflict proof including corrected final current-truth verification."
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The experiment supports admission-time ordering for known conflicting mutable effects and separately demonstrates that historical settlement does not imply current realization admissibility after a later ordered write.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "GitHub status credentials are coordinate-scoped rather than repository-scoped.",
+        "Identical desired writes have identical provider histories or side effects.",
+        "The GitHub commit-status conflict relation generalizes unchanged to arbitrary providers.",
+        "Two historically settled incompatible postconditions remain simultaneously true in current mutable provider state."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Known incompatible writes to one canonical GitHub status coordinate require ordering, and later mutable truth is correctly separated from historical settlement."
+      }
     },
     {
       "id": "current-realization-admissibility",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/current-realization-admissibility",
       "readme": "experiments/current-realization-admissibility/README.md",
       "question": "What should current truth say when historical DONE remains but external reality changes?",
@@ -162,28 +266,44 @@
         "local": "npm run test:current-realization-admissibility"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "The proof uses local strongly observable and deliberately eventually-consistent file postcondition fixtures; no network or provider credential is required."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Fresh matching evidence preserves an exact historical realization as DONE without writing lifecycle repair state.",
+        "Fresh authoritative contradiction withdraws historical reuse and returns the work to READY.",
+        "Authoritative absence for the strongly observed fixture returns the work to READY.",
+        "Stale or negative eventually-consistent readback produces an indeterminate judgment and BLOCKED rather than silent reuse or replay.",
+        "A fresh kernel reconstructs the same current status and explanation from durable history plus fresh realization judgment.",
+        "Restoring desired reality makes the original historical realization admissible again without writing a new settlement."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "Historical settlement and current truth are distinct. Current status can be recomputed from durable realization history plus fresh authoritative admissibility judgments, including withdrawal and later restoration, without invalidation or lifecycle repair mutations.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Fresh authoritative observation is always available or eventually converges.",
+        "Provider-specific observation and verification correctness is proved by the projector experiment.",
+        "Historical settlements are erased when they become currently inadmissible.",
+        "The experiment provides an eventual-progress or replay-liveness guarantee."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Fresh authoritative judgment can preserve, withdraw, or leave historical realization reuse indeterminate without lifecycle repair writes."
+      }
     },
     {
       "id": "datalog-projection",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/datalog-projection",
       "readme": "experiments/datalog-projection/README.md",
       "question": "Can project status be derived relationally instead of stored?",
@@ -194,23 +314,39 @@
         "local": "npm run test:datalog"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "Soufflé 2.5 on PATH; the hosted workflow verifies the pinned Ubuntu package bytes before installation.",
+        "No provider credential is required for the differential projection corpus."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Datalog receives no lifecycle status or precomputed receipt disposition as input and derives public lifecycle from validated history plus current semantic judgments.",
+        "Soufflé and the production TypeScript projection agree on their shared semantics across dependency closure, exact-key reuse, semantic invalidation, execution, waiting, recovery, accepted absence, and superseding evidence cases.",
+        "Missing observation interpretation fails closed to RECOVERY_REQUIRED rather than inventing a disposition.",
+        "With mutable historical DONE, withdrawing current realization admissibility can return work to READY without writing an invalidation fact.",
+        "Control and semantic dependencies retain their distinct roles: both gate execution, while only semantic dependencies participate in current semantic identity."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403296"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "For the modeled projection slice, validated durable history plus recomputed semantic judgments is sufficient to derive public project status relationally without stored lifecycle state or stored derived disposition.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "The Datalog rules cover every Overcenter semantic or authority rule.",
+        "Soufflé should become a production runtime dependency.",
+        "Datalog owns provider interpretation, canonical hashing, conflict admission, execution fencing, mutation ordering, or CAS.",
+        "Agreement on the bounded corpus proves universal equivalence between the TypeScript and Datalog implementations."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The modeled public project projection can be recomputed relationally from durable facts plus current semantic judgments without stored lifecycle input."
+      }
     },
     {
       "id": "disposable-agent",
@@ -226,28 +362,96 @@
         "local": "npm run test:handoff"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version and Git for the deterministic handoff proof.",
+        "GitHub Actions for the hosted worker-destruction/provider-readback proof with job-level permission separation."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "After the original worker sandbox is destroyed, a fresh worker reconstructs the unresolved run from durable authority without using the original checkout, cache, database, refs, or process memory.",
+        "Recovery rotates execution authority so stale execution generation cannot continue acting for the run.",
+        "Verifier or obligation replacement is rejected rather than being accepted as recovery of the original claim.",
+        "Lost settlement acknowledgement is reconciled without producing a second semantic result.",
+        "Missing or ambiguous authority fails closed, and competing authority updates preserve a single CAS winner.",
+        "The hosted path settles from independent GitHub readback through the production status-effect boundary rather than trusting the original worker's success assertion."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403293"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The experiment demonstrates that run identity and recovery state can survive total worker loss when authority, execution generation, reservation, and receipt identity are durable and independently reconstructible.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Every execution substrate physically separates worker and provider credentials.",
+        "GitHub repository-scoped statuses:write is coordinate-scoped least privilege.",
+        "Fresh recovery is guaranteed to regain liveness.",
+        "Worker disposability makes worker assertions authoritative for settlement."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "A fresh worker can reconstruct and settle the same unresolved run from durable authority after the original worker disappears."
+      }
+    },
+    {
+      "id": "ambient-authority-boundary",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/ambient-authority-boundary",
+      "readme": "experiments/ambient-authority-boundary/README.md",
+      "question": "If an agent arrives inside a sandbox whose ambient capabilities Overcenter does not control, which guarantees remain substrate-independent?",
+      "claim": "For the bounded witness, extra ambient provider authority can bypass physical effect confinement but cannot by itself advance Overcenter project truth when execution permits, verification, and settlement authority remain outside the worker.",
+      "contrast": "Treat an inner worker sandbox as sufficient to neutralize capabilities already held by the surrounding agent substrate.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:ambient-authority-boundary"
+      },
+      "environment": [
+        "Node.js from .node-version and Git for the deterministic authority fixture.",
+        "GitHub Actions ubuntu-24.04 for the hosted permission-boundary proof.",
+        "The hosted control job receives contents:read only; the over-capable job receives the same source/work packet plus statuses:write while retaining contents:read."
+      ],
+      "success_criteria": [
+        "Both arms receive byte-identical task packets and begin from the same EXECUTING authority state.",
+        "The controlled arm, which receives no ambient provider-write capability, cannot produce the external effect.",
+        "The over-capable arm can produce the external effect through its host-provided capability even though the work packet is unchanged.",
+        "A worker-declared DONE/verified result in either arm does not change authoritative project state.",
+        "After the over-capable worker mutates external truth, authoritative state remains EXECUTING until trusted verification and settlement run.",
+        "Trusted verification may settle the original run DONE from the independently observed matching postcondition.",
+        "In the hosted proof, the controlled job's direct GitHub status mutation is rejected while the over-capable job's direct mutation succeeds using the host-provided token.",
+        "The hosted over-capable job still observes the obligation as EXECUTING after its provider mutation, and a separate contents-write/statuses-read recovery job is required to settle DONE."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "7982eb745f6c12cc99053e7e7673ebafb7c05a6c",
+        "artifacts": [
+          "GitHub Actions run 35773933844: trusted authority, controlled worker, ambient-capability worker, and trusted readback/settlement jobs all passed at the exact evaluated revision.",
+          "GitHub Actions run 35773934727: exact-head Merge gate passed."
+        ]
+      },
+      "interpretation": "The experiment separates physical effect confinement from project-truth authority. Overcenter cannot claim to prevent external effects when a surrounding substrate independently grants the agent a consequential provider capability, but the worker still cannot make those effects authoritative project truth without trusted verification and settlement.",
+      "non_claims": [
+        "The hosted GitHub permission model represents every third-party agent sandbox or tool surface.",
+        "An uncontrolled substrate with consequential ambient provider credentials is safe for arbitrary execution.",
+        "Rust confinement can revoke capabilities held by the parent agent or by the hosting platform.",
+        "Independent readback makes an unauthorized external effect acceptable merely because its postcondition later matches."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The authority/effect split and acceptance criteria were recorded before the experiment's exact-revision CI result."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The hosted proof shows that an uncontrolled worker with an ambient provider-write capability can bypass physical effect confinement, but cannot advance Overcenter project truth: authoritative state remains unchanged until trusted readback and settlement run."
+      }
     },
     {
       "id": "eventually-consistent-readback",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/eventually-consistent-readback",
       "readme": "experiments/eventually-consistent-readback/README.md",
       "question": "May stale or negative eventually-consistent readback authorize replay after uncertain mutation?",
@@ -258,28 +462,42 @@
         "local": "npm run test:eventual"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "No network or real provider is required; the fixture deliberately models stale and negative eventually-consistent reads."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "After one accepted effect, a negative read remains RECOVERY_REQUIRED and exposes no READY work.",
+        "A stale non-matching read likewise remains RECOVERY_REQUIRED and mints no authoritative absence certificate.",
+        "Neither negative nor stale read authorizes a second effect attempt; total effect attempts remain exactly one.",
+        "A later authoritative matching read may settle the original run DONE without replaying the effect."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "Replay permission depends on evidence authority and strength, not on absence-shaped or stale provider output. Uncertain negative readback remains recovery-bound until stronger evidence arrives.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Eventually consistent providers converge within any bounded time.",
+        "Every provider can furnish authoritative absence evidence.",
+        "A negative provider read is generally safe evidence of non-occurrence.",
+        "The experiment proves liveness once a mutation outcome becomes uncertain."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Stale or negative non-authoritative readback remains recovery-bound and does not authorize blind replay."
+      }
     },
     {
       "id": "git-stress",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/git-stress",
       "readme": "experiments/git-stress/README.md",
       "question": "Do Git authority invariants survive lock, GC, clone, object-format, and CAS adversaries?",
@@ -290,23 +508,39 @@
         "local": "npm run test:stress"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "Git with support for the repository/object-format cases exercised by the suite.",
+        "A local filesystem on which ref locking, clone, garbage collection, and multi-process CAS can be exercised."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Ref-lock and concurrent-CAS adversaries fail closed rather than creating multiple authority winners.",
+        "The reference backend preserves authority behavior in SHA-256 object-format repositories.",
+        "Aggressive garbage collection does not destroy reachable authoritative history required for reconstruction.",
+        "A disposable fresh clone can reconstruct the tested authority state without worker-local repository residue.",
+        "Multi-process contention preserves exact compare-and-swap semantics and a single winning authority transition."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The tested Git reference backend preserves its safety invariants across the exercised Git-specific failure and contention modes rather than only in a single-process happy path.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Git is an appropriate production hot-path authority store.",
+        "Arbitrary network or distributed filesystems provide the same locking and durability behavior.",
+        "The stress cases prove provider semantics or project liveness.",
+        "Passing the bounded stress suite proves all Git implementations and object-store failure modes safe."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The Git reference backend preserves the tested fail-closed and single-winner authority properties across the exercised Git adversaries."
+      }
     },
     {
       "id": "github-object-transport",
@@ -322,23 +556,38 @@
         "local": "npm run test:github-object-transport"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version for the deterministic manifest/path contract.",
+        "GitHub Actions for permission-separated materialization, no-checkout execution, trusted publication, and authoritative readback."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "The deterministic contract accepts only declared GitHub object inputs and bounded writable paths represented by the manifest.",
+        "The disposable worker operates from materialized declared blobs without a repository checkout or repository credential.",
+        "The worker validates the realized workspace against the same exact manifest bytes it received as read-only input.",
+        "Only the trusted publication stage receives repository write authority and publishes the authorized candidate bytes.",
+        "Authoritative GitHub readback confirms the published result independently of the worker's local claim."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "570e776aadb131589c9a47309d923e06b476e436",
         "artifacts": [
           "GitHub Actions run 35465653729: materialize, no-checkout execute, publish, and authoritative readback all passed."
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The hosted proof makes task input identity, writable scope, publication authority, and result readback independently checkable without giving the disposable worker a normal credentialed checkout.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "The transport is an arbitrary filesystem sandbox.",
+        "GitHub provides provider-native coordinate-scoped authorization for the worker.",
+        "The manifest proves arbitrary task closure or toolchain completeness.",
+        "A worker's candidate output becomes project truth without trusted publication and readback."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Manifest-bound bytes, no-checkout execution, permission-separated publication, and independent readback make the bounded worker transport independently checkable."
+      }
     },
     {
       "id": "github-observation-grammar",
@@ -354,28 +603,43 @@
         "local": "npm run test:github-observation"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "The deterministic contract uses the repository-pinned GitHub OpenAPI structure for consumed response slices.",
+        "GitHub Actions and live GitHub read access for the hosted observation proof."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Consumed GitHub response slices must satisfy the pinned structural contract before semantic projection.",
+        "Provider-specific semantic projections assign the tested identity and readback meaning explicitly rather than inheriting meaning from schema structure alone.",
+        "Structural drift or malformed consumed fields fail the deterministic observation contract instead of being silently accepted.",
+        "The hosted proof exercises the generated observation grammar against live GitHub data at the exact evaluated revision."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403282"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The experiment separates structural legality from semantic meaning: generated schema-derived vocabulary constrains legal response shape, while explicit trusted projections continue to define provider identity and readback semantics.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "The generated grammar covers the entire GitHub API.",
+        "OpenAPI structural validity proves that GitHub's returned facts are semantically truthful.",
+        "Every GitHub endpoint can share one semantic projection.",
+        "Schema generation replaces provider-specific verification logic."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Schema-derived structural legality plus explicit semantic projection covers the tested GitHub observation slices without conflating shape with meaning."
+      }
     },
     {
       "id": "kubernetes-observation",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/kubernetes-observation",
       "readme": "experiments/kubernetes-observation/README.md",
       "question": "Does the observation/certificate architecture survive Kubernetes identity and continuity semantics?",
@@ -386,28 +650,43 @@
         "local": "npm run test:kubernetes-observation"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version for the deterministic ConfigMap semantics.",
+        "The separately dispatchable hosted proof pins kind, kubectl/Kubernetes, and the node image digest."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "ConfigMap identity remains bound to namespace/name plus object UID so delete-and-recreate does not masquerade as continuity.",
+        "ResourceVersion and pagination checks require one coherent complete LIST before absence can become authoritative.",
+        "Partial or mismatched page chains, resourceVersion drift, and wrong namespace/name fail closed.",
+        "Broken WATCH continuity fails closed rather than synthesizing a continuous observation history.",
+        "Delete/recreate UID changes are detected as a new provider object rather than reuse of the prior identity."
       ],
       "evidence": {
-        "state": "historical",
-        "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
+        "status": "evaluated",
+        "evaluated_revision": "c7ce05a82da451d2f2911ebf56f012bd227c79ec",
         "artifacts": [
-          "Deterministic semantics on current main; live provider workflow is separately dispatchable."
+          "GitHub Actions run 35650473150: deterministic Kubernetes semantics and live Kubernetes provider proof both passed at the exact evaluated revision."
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The ConfigMap slice demonstrates that the generic observation/certificate boundary can accommodate a second provider with object identity, snapshot completeness, and stream-continuity semantics materially different from GitHub.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Every Kubernetes resource kind shares the ConfigMap observation semantics.",
+        "Kubernetes watch or list operations guarantee application liveness.",
+        "The experiment proves a provider-generic adapter for arbitrary external systems.",
+        "Historical deterministic semantics constitute a current live-provider proof."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The ConfigMap slice demonstrates UID/resourceVersion identity, complete LIST absence, and WATCH continuity through the generic observation/certificate boundary."
+      }
     },
     {
       "id": "linkml-contract-refactor",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/linkml-contract-refactor",
       "readme": "experiments/linkml-contract-refactor/README.md",
       "question": "Can stock LinkML generation replace real SettlementObservation structural manifestations without weakening them?",
@@ -420,7 +699,7 @@
       "environment": [
         "Node.js from .node-version",
         "LinkML 1.11.1",
-        "Current production observation-evidence-v1 schema, src/model.ts, and src/observation.ts."
+        "Current production observation-evidence-v1 schema, src/model.ts, and src/observation/observe.ts."
       ],
       "success_criteria": [
         "Current production field vocabulary and requiredness agree before mutation.",
@@ -430,10 +709,10 @@
         "The faithful stock-LinkML architecture is measured as 3 independently maintained authored manifestations, not 2."
       ],
       "evidence": {
-        "state": "current",
-        "evaluated_revision": "fc99ed6e44f4b07f07a72d689b2d4caed5919be8",
+        "status": "evaluated",
+        "evaluated_revision": "67006ff0ccb2a3e119fa44b541984bd08f201607",
         "artifacts": [
-          "GitHub Actions run 35485610531: 6/6 exact-head tests passed against current production; the experiment caught and removed stale github-commit-status/v1 vocabulary, preserved JSON Schema semantics, demonstrated stock TypeScript enum widening, and retained the faithful 3 -> 3 manifestation result."
+          "GitHub Actions run 35485857395: final corrected exact-head LinkML contract-refactor experiment passed; expected faithful result remained 3 -> 3 with stock TypeScript enum widening explicit."
         ]
       },
       "interpretation": "A positive result supports LinkML as the structural source for the tested JSON Schema slice, not as the source of Overcenter's narrow TypeScript domain types.",
@@ -443,12 +722,20 @@
         "Stock LinkML TypeScript preserves Overcenter enum narrowing.",
         "A custom LinkML TypeScript template would be simpler than handwritten TypeScript.",
         "LinkML owns verifier semantics, settlement authority, or evidence meaning."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The initial refactor question preceded execution, while observed stock-TypeScript enum widening and the corrected faithful 3-to-3 manifestation result informed the maintained acceptance contract."
+      },
+      "outcome": {
+        "state": "mixed",
+        "summary": "LinkML preserves the tested JSON structural contract after corrections, but stock TypeScript generation widens enum-valued fields and does not reduce the faithful authored manifestation count below three."
+      }
     },
     {
       "id": "linkml-ontology",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/linkml-ontology",
       "readme": "experiments/linkml-ontology/README.md",
       "question": "Can LinkML own Overcenter's structural ontology vocabulary without owning semantic truth?",
@@ -471,10 +758,10 @@
         "A semantic-key mismatch remains structurally valid in LinkML and is rejected by an independent Overcenter semantic check."
       ],
       "evidence": {
-        "state": "current",
-        "evaluated_revision": "0f7758293653e3d07a82e096d73b87186cf90d6b",
+        "status": "evaluated",
+        "evaluated_revision": "4e13415a5e40c37401d3f2e6d24c119a65de897b",
         "artifacts": [
-          "GitHub Actions run 35484865636: corrected exact-head LinkML ontology experiment passed 5/5; scalar fidelity, projection behavior, and the semantic-boundary negative control all passed."
+          "GitHub Actions run 35485448763: rebased final exact-head LinkML ontology experiment passed."
         ]
       },
       "interpretation": "A positive result supports LinkML only as structural vocabulary/projection tooling; semantic authority remains in deterministic Overcenter mechanisms.",
@@ -483,12 +770,20 @@
         "LinkML belongs in the production runtime.",
         "Generated TypeScript is a runtime validator.",
         "Every generator preserves every source constraint."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The ontology question preceded execution, while early projection defects were corrected and the maintained criteria describe the corrected exact-head experiment rather than untouched first-pass preregistration."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The corrected representative LinkML slice projects the tested structural model faithfully while leaving semantic identity as an explicit external invariant."
+      }
     },
     {
       "id": "lisp-semantics",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/lisp-semantics",
       "readme": "experiments/lisp-semantics/README.md",
       "question": "Can one declarative role definition reduce semantic projection drift?",
@@ -499,28 +794,103 @@
         "local": "npm run test:lisp-semantics"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "No Lisp runtime, network, provider credential, or execution/settlement authority is required; the experiment compiles a small S-expression source to canonical IR."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "The TypeScript control demonstrates that whole-postcondition identity can change while independently maintained coordinate/effect/absence projections remain stale.",
+        "Adding one declared coordinate role updates observation, effect-resource, and absence projections together in the candidate representation.",
+        "Context-only fields do not contaminate coordinate-dependent projections.",
+        "Missing or ambiguous semantic roles, missing settlement semantics, absence-policy drift, and undeclared forms are rejected.",
+        "Canonical IR generation is deterministic and tampering is distinguishable.",
+        "The candidate prevents the targeted projection drift while keeping execution authority, settlement authority, and trusted enforcement outside the declarative language."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The experiment supports further investigation of a single declarative semantic-role source because it closes the tested projection-drift seam that independent hand-wired TypeScript projections allow; line-count reduction alone is not the result.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Overcenter should be rewritten in Lisp.",
+        "A Lisp runtime belongs in the production trusted computing base.",
+        "The declarative source owns execution, provider mutation, or settlement authority.",
+        "The tiny compiler proves all future semantic projections coherent."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "A single declarative semantic-role source prevents the targeted projection-drift seam in the hostile evolution while keeping execution and settlement outside the language."
+      }
+    },
+    {
+      "id": "frontier-prioritization",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/frontier-prioritization",
+      "readme": "experiments/frontier-prioritization/README.md",
+      "question": "When several graph nodes are simultaneously admissible, how often can deterministic software settle the priority before an AI agent is consulted, and what actually limits the exact fallback?",
+      "claim": "Across 7,395 exhaustive reachable small-graph frontier states, the structural heuristic leaves zero ambiguity or misses. In 15,574 reachable frontier states from a fixed 5–10 node adversarial sample it is oracle-equivalent in 99.28%; all 112 residuals are exactly certified. The exact fallback is then reduced by kernelization, objective-interaction decomposition, and branch-and-bound: representative state counts fall from 8,191 to 12 for independent binary objectives and from 7,714 to 1 for a connected 20-objective cycle, while a 200-node decomposable case remains linear in 100 objective components.",
+      "contrast": "Treat multiple READY nodes as an AI prioritization problem merely because no trivial ordering rule selects one.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "node --experimental-strip-types --test experiments/frontier-prioritization/frontier-prioritization.test.ts"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "No network, model, or external dependency"
+      ],
+      "success_criteria": [
+        "Only dependency-closed reachable states are evaluated.",
+        "Every modeled nontrivial frontier is compared with the complete oracle-equivalent choice set.",
+        "Every heuristic feature is mechanically derived from graph/objective state.",
+        "The final heuristic leaves zero ambiguity and zero unique misses in the exhaustive small corpus.",
+        "The fixed 5–10 node sample retains at least 99% oracle-equivalent heuristic coverage.",
+        "Every larger-sample residual is exactly certified by the closure verifier.",
+        "Closure verification exactly matches subset-state dynamic programming throughout the exhaustive reachable corpus.",
+        "Irrelevant width and forced depth do not inflate closure-search state count in controlled cases.",
+        "Objective-alternative scaling remains explicit rather than hidden by an aggregate.",
+        "The optimized exact solver matches the reference subset-state oracle on minimum cost and complete oracle-equivalent next-choice sets throughout the exhaustive reachable corpus.",
+        "Solver-ladder ablations separately demonstrate kernelization, objective-interaction decomposition, and branch-and-bound reductions.",
+        "A 200-node, 100-objective independent case is solved in 100 bounded search states, demonstrating that raw node count is not the controlling parameter.",
+        "A fixed connected 80-node, 50-objective stress case remains exactly solvable within 248 bounded search states."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "c7ce05a82da451d2f2911ebf56f012bd227c79ec",
+        "artifacts": [
+          "Merge gate run 35650473557: exact-head Evidence / Experiment and formal evidence ran the adversarial experiment proof lane including frontier-prioritization and passed."
+        ]
+      },
+      "interpretation": "Multiple READY nodes are not themselves an AI prioritization problem. The cheap structural policy settles every exhaustive reachable small-graph frontier and 99.28% of the larger fixed sample; exact verification settles the residuals. The exact fallback can itself be compressed aggressively: kernelization removes dominated/forced structure, objective-interaction decomposition makes independent objective components additive, and branch-and-bound collapses many connected cases. The controlling difficulty is the size and overlap of the remaining interacting objective kernel, not raw graph size. Exceeding a deterministic budget still calls first for stronger deterministic optimization or decomposition, not automatic AI escalation. Heavier exact solvers and parameterized decomposition are explicitly future research rather than acceptance criteria for this experiment.",
+      "non_claims": [
+        "The current heuristic tuple is globally optimal.",
+        "The closure verifier is polynomial in arbitrary objective systems.",
+        "Every real software objective is machine-readable.",
+        "Equal node-selection cost is an adequate production utility model.",
+        "All combinatorial optimization should be solved by brute force.",
+        "A heuristic result should be trusted without deterministic verification.",
+        "No software-engineering task ever requires AI judgment.",
+        "Pseudo-Boolean, SAT, CP-SAT, MILP, incremental, or treewidth-aware solvers are required for the current experiment."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "Exploratory deterministic results informed the maintained heuristic and solver ladder. The fixed corpora and exact-oracle checks are reproducible, but the headline thresholds and optimized representation are not claimed as untouched preregistration."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Across the maintained bounded corpora, cheap deterministic prioritization plus exact closure verification resolves or certifies the modeled READY-frontier choices before AI escalation."
+      }
     },
     {
       "id": "production-criticality-ranking",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/production-criticality-ranking",
       "readme": "experiments/production-criticality-ranking/README.md",
       "question": "Can Overcenter maintain a reproducible total ordering of production-code importance from quantitative facts?",
@@ -528,7 +898,7 @@
       "contrast": "Periodically repeat a human ranking exercise or rely on generic complexity/hotspot metrics alone.",
       "reproduce": {
         "tier": "toolchain",
-        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --test experiments/production-criticality-ranking/analyze.test.mjs && node experiments/production-criticality-ranking/analyze.mjs --config experiments/production-criticality-ranking/config.json --min-calibration 0.8"
+        "local": "npm install --no-save --ignore-scripts typescript@5.8.3 && node --experimental-strip-types --test experiments/production-criticality-ranking/analyze.test.ts && node --experimental-strip-types experiments/production-criticality-ranking/analyze.ts --config experiments/production-criticality-ranking/config.json --json /tmp/criticality.json --markdown /tmp/criticality.md"
       },
       "environment": [
         "Node.js from .node-version",
@@ -538,32 +908,87 @@
       "success_criteria": [
         "Only production callables under src/ enter the ranked population.",
         "Configured authority and recovery selectors resolve exactly once.",
-        "The static graph is informative and unresolved internal calls are reported.",
-        "At least 80% of the initial pairwise calibration judgments agree.",
-        "Every surprising rank decomposes into quantitative vector components and graph evidence."
+        "Internal static-call resolution remains informative; unresolved internal/unknown calls are reported, and critical callback-boundary exemptions fail closed when stale or malformed.",
+        "Every named required calibration regression remains satisfied while known model mismatches remain explicit diagnostics rather than consuming a percentage budget.",
+        "Every surprising rank decomposes into quantitative vector components and graph evidence.",
+        "Deleting generated reports and recomputing at the same revision produces the same result."
       ],
       "evidence": {
-        "state": "current",
-        "evaluated_revision": "737736d4bc799ceaa23190da1d2ff818507d2852",
+        "status": "evaluated",
+        "evaluated_revision": "515a771257ca0ac21cede5410144be5e02da4f7b",
         "artifacts": [
-          "PR #111",
-          "Production criticality ranking run 35480506420 at 737736d4bc799ceaa23190da1d2ff818507d2852",
-          "Criticality mutation probe run 35471986995 at 13cf51fc24a5d0794ae6c63e7ef303f12aaf0b57",
-          "experiments/production-criticality-ranking/mutation-evidence.json"
+          "GitHub Actions run 35673456200: production criticality ranking passed after component-local normalization made unchanged authority components invariant to disconnected production code.",
+          "experiments/production-criticality-ranking/mutation-evidence.json: exact-blob-bound hostile-case evidence; stale probes fail closed to a full evidence gap."
         ]
       },
-      "interpretation": "A production-only callable graph can derive a reproducible consequence order and a separate engineering-attention order from quantitative facts. At evaluated revision 737736d4bc799ceaa23190da1d2ff818507d2852 the production graph ranks 299 callables, resolves 84.5% of internal/unknown production calls, and agrees with 6/7 prior pairwise judgments. The lone reuse-over-identity disagreement remains evidence that callable granularity cannot represent every branch-level semantic claim. Exact-blob mutation evidence materially improves E, all 7 probes apply with 0 stale at the evaluated revision, and stale mutation evidence fails closed.",
+      "interpretation": "The maintained ranking provides reproducible consequence and engineering-attention orders from revision-bound graph and evidence facts. Component-local normalization prevents unrelated disconnected code from perturbing unchanged authority components. Required calibration regressions remain explicit, branch-level/callable-granularity mismatches remain diagnostics, and mutation evidence is exact-blob-bound so stale probes fail closed rather than silently transferring.",
       "non_claims": [
         "Callable boundaries are the final semantic unit.",
         "Static test reachability is equivalent to hostile-case evidence.",
         "Exported-entrypoint reachability is equivalent to production telemetry.",
         "The current weighting equation is uniquely correct."
-      ]
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "Prior human pairwise judgments predate the analyzer, but callable granularity, ranking policy, component normalization, and mutation-evidence handling evolved in response to observed disagreements and gaps."
+      },
+      "outcome": {
+        "state": "mixed",
+        "summary": "The ranking is reproducible and useful for consequence/attention ordering, while callable granularity and hostile-case evidence remain explicit model limitations rather than hidden calibration errors."
+      }
+    },
+    {
+      "id": "production-latency",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/production-latency",
+      "readme": "experiments/production-latency/README.md",
+      "question": "For one successful production GitHub status transaction, how much latency belongs to Overcenter local correctness machinery versus provider I/O?",
+      "claim": "The benchmark separates SQLite authority, reservation, provider identity, the mutation boundary, readback, and local settlement costs while exercising the unchanged production GitHub status effect.",
+      "contrast": "Infer feasibility from whole GitHub Actions job duration or storage microbenchmarks without timing the production transaction boundary.",
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run bench:production-latency"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Local mode uses SQLite plus an in-memory fake GitHub transport.",
+        "Hosted live mode uses GitHub Actions ubuntu-24.04 and the workflow GITHUB_TOKEN with statuses: write."
+      ],
+      "success_criteria": [
+        "Every sample claims exact SQLite-backed work and settles DONE from authoritative readback.",
+        "Experiment-only timing wraps the production effect boundary without changing production mutation code.",
+        "Provider-facing I/O and local Overcenter work are reported separately."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "e103e0d8442f55cb7d4c55e49104c676d5c8f95b",
+        "artifacts": [
+          "GitHub Actions run 35540143115: 25-sample deterministic baseline and 3-sample live GitHub decomposition passed with production source unchanged.",
+          "experiments/production-latency/results/2026-09-20.md"
+        ]
+      },
+      "interpretation": "Use the result as a single-operation latency decomposition. Compare provider and Overcenter-local cost; do not extrapolate it directly to concurrency or large-history throughput.",
+      "non_claims": [
+        "Large-history projection remains constant-time.",
+        "SQLite is a distributed or HA authority store.",
+        "GitHub rate limits permit arbitrary transaction throughput.",
+        "Recovery-path latency matches successful-path latency.",
+        "Other providers have the same latency profile."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The transaction boundary and timing buckets were fixed for the hosted measurement, while the numeric latency result is observational rather than a preregistered performance threshold."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The benchmark separates Overcenter-local correctness work from provider-facing latency for the bounded successful GitHub status transaction."
+      }
     },
     {
       "id": "projection-comparison",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/projection-comparison",
       "readme": "experiments/projection-comparison/README.md",
       "question": "Does derived status beat authoritative mutable lifecycle on reconstruction and repair burden?",
@@ -574,23 +999,40 @@
         "local": "npm run test:projection-comparison"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "Soufflé 2.5 for the Datalog implementation; the hosted workflow pins and verifies the exact package bytes.",
+        "SQLite for both the mutable-lifecycle control and status-free SQL derivation."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "TypeScript, status-free SQL, and Datalog derive identical public statuses over the shared hostile transition corpus.",
+        "After semantic-key change or withdrawal of current realization admissibility, the mutable lifecycle control is stale until repaired while all derived implementations recompute directly from facts and current judgments.",
+        "Derived implementations require zero durable status-repair writes; the mutable control's repair writes scale with the number of affected materialized lifecycle rows.",
+        "After materialized lifecycle erasure, all derived implementations reconstruct from their inputs while the mutable lifecycle control cannot answer until an additional rebuild mechanism restores rows.",
+        "The status-free SQLite control preserves the reconstruction and zero-status-write properties, isolating the architectural result from any anti-SQLite or pro-Datalog explanation."
       ],
       "evidence": {
-        "state": "historical",
+        "status": "evaluated",
         "evaluated_revision": "d1cb01b9a553513961029a92b652e2c43426c729",
         "artifacts": [
           "GitHub Actions run 35424249863"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The experiment falsifies authoritative mutable lifecycle as the preferred state model for the tested reconstruction and semantic-change requirements. The supported conclusion is derived status, not a particular derived implementation language.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Soufflé is the best production runtime.",
+        "SQL scales better than the current TypeScript projector.",
+        "All event-sourced materialized views are equivalent to authoritative mutable lifecycle.",
+        "Derived projection eliminates coordination requirements at mutation boundaries.",
+        "The experiment establishes a production winner among TypeScript, status-free SQL, and Datalog."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Derived TypeScript, SQL, and Datalog projections reconstruct without lifecycle repair writes; the mutable authoritative-lifecycle control becomes stale and requires repair."
+      }
     },
     {
       "id": "provider-observation",
@@ -599,6 +1041,54 @@
       "directory": "experiments/provider-observation",
       "readme": "experiments/provider-observation/README.md",
       "purpose": "Shared response-slice/certificate machinery used by GitHub and Kubernetes experiments; not an independent empirical claim."
+    },
+    {
+      "id": "scheduler-bottleneck",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/scheduler-bottleneck",
+      "readme": "experiments/scheduler-bottleneck/README.md",
+      "question": "Is the current scheduler scaling limit dominated by history/projection reconstruction or by SQLite's serialized authority transaction?",
+      "claim": "The experiment independently measures history scan, semantic replay, full READY-read latency, and bare multi-process SQLite authority-CAS throughput so the next optimization can target the measured bottleneck rather than inferred architecture.",
+      "contrast": "Treat poor N-way scheduler scaling as sufficient evidence for distributed authority without decomposing the local transaction path.",
+      "reproduce": {
+        "tier": "benchmark",
+        "local": "npm run experiment:scheduler-bottleneck"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Local filesystem supporting SQLite WAL",
+        "Hosted reference run uses GitHub Actions ubuntu-24.04"
+      ],
+      "success_criteria": [
+        "History scan timing is reported at 10, 100, 1,000, and 5,000 durable commits.",
+        "Production replayProjection timing is reported at 1, 8, 32, 64, and 128 valid obligation definitions.",
+        "Production deriveReadyWork timing is reported at 1, 8, 32, and 64 definitions.",
+        "Bare SQLite authority CAS completes exactly 4,096 appends at 1, 2, 4, and 8 writer processes and reports throughput plus retry pressure.",
+        "The interpretation distinguishes storage scan, semantic replay, combined scheduler read, and authority-write serialization."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "eee41cac304acffa453c6e37883153a6498fea24",
+        "artifacts": [
+          "GitHub Actions run 35540980827"
+        ]
+      },
+      "interpretation": "Bare SQLite authority CAS sustained a median 2,387.857 appends/s with one writer and 1,297.630/s with eight, versus the preceding end-to-end scheduler result of about 7.9/s and 2.25/s. History scanning was near-linear at ~5.2 microseconds/commit, while semantic replay and deriveReadyWork grew superlinearly over the tested flat definition sizes. The current dominant scaling limit is repeated reconstruction/projection above SQLite, not bare authority-write capacity. Optimize projection/reconstruction before introducing distributed authority.",
+      "non_claims": [
+        "Absolute benchmark timings are portable across hosts.",
+        "Synthetic flat obligation definitions represent every project graph.",
+        "SQLite provides distributed HA.",
+        "The experiment itself authorizes a production optimization."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The decomposition question was fixed after an earlier scaling result exposed the bottleneck, while the numeric diagnosis is an observed benchmark result rather than a preregistered threshold."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The measured current scheduler bottleneck is repeated reconstruction/projection above SQLite rather than bare SQLite authority-write capacity."
+      }
     },
     {
       "id": "sqlite-baseline",
@@ -611,31 +1101,45 @@
       "contrast": "Start directly from later distributed machinery.",
       "reproduce": {
         "tier": "deterministic",
-        "local": "node --test experiments/sqlite-baseline/kernel.test.js"
+        "local": "node --experimental-strip-types --test experiments/sqlite-baseline/kernel.test.ts"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "Local SQLite; no network, provider credential, or distributed coordinator is required."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Claims are fenced to the exact revision used by the compact state machine.",
+        "Settlement is driven by observation evidence rather than executor success assertion.",
+        "An interrupted run can enter the modeled recovery path without discarding its durable identity.",
+        "An uncertain prior effect is not blindly replayed merely because execution was interrupted."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403306"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "This historical baseline remains useful as the smallest executable control for the original fencing, observation-settlement, interruption-recovery, and no-blind-replay invariants.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "The baseline is the current production authority architecture.",
+        "The local SQLite state machine proves distributed coordination semantics.",
+        "The baseline covers later provider-specific, graph, or physical-confinement guarantees.",
+        "The experiment guarantees eventual recovery or completion."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The historical compact SQLite control demonstrates exact fencing, observation settlement, interruption recovery, and no blind replay."
+      }
     },
     {
       "id": "storage-backend-comparison",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/storage-backend-comparison",
       "readme": "experiments/storage-backend-comparison/README.md",
       "question": "Does Git belong on the frequent durable-fact hot path?",
@@ -646,28 +1150,46 @@
         "local": "npm run test:storage-backend-safety && npm run bench:storage-backends"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version.",
+        "Git for object/ref transactions and replay measurements.",
+        "Local SQLite with WAL and synchronous=FULL for the database path.",
+        "Host filesystem/process behavior materially affects absolute benchmark timings."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Git current replay, batched Git replay, and SQLite replay the same generated durable fact stream to the same canonical history digest.",
+        "Two contenders from one expected head produce exactly one winner in the SQLite CAS safety check, and the losing transaction leaves no fact row behind.",
+        "After SIGKILL following a committed prefix, Git retains exactly the reachable committed prefix and passes git fsck.",
+        "After the corresponding SQLite SIGKILL, integrity_check is ok, authority sequence equals committed row count, and no parent link is broken.",
+        "The benchmark reports current Git replay, batched Git replay, Git per-fact write cost, and append-only SQLite cost separately so the hot-path conclusion is not inferred from one aggregate timing."
       ],
       "evidence": {
-        "state": "historical",
+        "status": "evaluated",
         "evaluated_revision": "7b5cac8e4ad67a093b63ad74e5fb1c84d89a679e",
         "artifacts": [
           "experiments/storage-backend-comparison/results/2026-09-19.md"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The bounded result supports removing one-fact-per-Git-object/ref transactions from the frequent production hot path while retaining Git as an interchange, audit, export, or independent reconstruction representation.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "SQLite is universally a fixed multiple faster than Git across hosts.",
+        "SQLite is a distributed or highly available authority store.",
+        "Backend-local commit identities replace semantic obligation identity.",
+        "The benchmark proves production-scale throughput or latency under every workload.",
+        "Git has no useful role outside the frequent durable-fact hot path."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The tested append-only SQLite path preserves the required immutable-history/CAS/crash-prefix properties without Git's per-fact hot-path write cost."
+      }
     },
     {
       "id": "two-effect-concurrency",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/two-effect-concurrency",
       "readme": "experiments/two-effect-concurrency/README.md",
       "question": "Does serialized project authority require globally serialized independent effects?",
@@ -678,23 +1200,364 @@
         "local": "npm run test:concurrency"
       },
       "environment": [
-        "Node.js from .node-version",
-        "See experiment README for additional material prerequisites."
+        "Node.js from .node-version for the deterministic concurrency proof.",
+        "GitHub Actions for the separately dispatchable hosted overlap proof."
       ],
       "success_criteria": [
-        "The hostile cases and distinguishing criterion documented in the experiment README pass."
+        "Two independent obligations may both remain EXECUTING while their external effects overlap rather than being globally serialized by the authority store.",
+        "Each run retains its own exact claim identity throughout concurrent execution.",
+        "Both settlements can commit through the single compare-and-swap authority coordinate without conflating the two runs.",
+        "Authority serialization orders durable commits without requiring physical serialization of independent external effects."
       ],
       "evidence": {
-        "state": "current",
+        "status": "evaluated",
         "evaluated_revision": "1f6ad04704b3ed594c58ad5a5759be5048c3843d",
         "artifacts": [
           "GitHub Actions run 35463403309"
         ]
       },
-      "interpretation": "Interpret only the bounded claim above; do not promote adjacent architectural conclusions without separate evidence.",
+      "interpretation": "The experiment separates serialization of authoritative state transitions from concurrency of independent external effects: one CAS lane need not become one global execution lane.",
       "non_claims": [
-        "Anything outside the documented experiment boundary."
-      ]
+        "Effects on the same canonical provider coordinate may run concurrently.",
+        "Arbitrary provider histories commute.",
+        "The experiment proves scheduler fairness or N-way scalability.",
+        "Serialized authority commits impose no throughput limit at larger scale."
+      ],
+      "design": {
+        "provenance": "retrospective",
+        "note": "The original experiment had produced results before the repository-wide experiment contract was introduced. The maintained criteria document the bounded evidence and are not represented as preregistered."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Independent external effects can overlap while their durable settlements serialize through one CAS authority coordinate with exact claim identity."
+      }
+    },
+    {
+      "id": "lean-semantic-oracle",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/lean-semantic-oracle",
+      "readme": "experiments/lean-semantic-oracle/README.md",
+      "question": "Can selected production TypeScript graph, effect-ordering, and transaction-authority semantics be checked against an independent pinned Lean reference without making Lean a runtime authority?",
+      "claim": "At the evaluated production revision, bounded exhaustive differentials agreed with the pinned Lean semantic reference while Lean remained outside every production execution path.",
+      "contrast": "Keep the Lean differential as a permanent source-scoped CI lane on current main.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:lean-oracle"
+      },
+      "environment": [
+        "Check out the exact evaluated production revision before running the historical command.",
+        "Node.js from .node-version.",
+        "Pinned Lean semantic reference revision 39bd16a317bc2155a17b6674a5050adaf4295c90.",
+        "The exact historical workflow installs the pinned Lean toolchain and builds the comparison server."
+      ],
+      "success_criteria": [
+        "Mutation admission agrees for every modeled boolean class.",
+        "Execution-authority, reservation-replay, and receipt-replay projections agree for every bounded identity mismatch class.",
+        "All enumerated four-node graph cases and hostile graph fixtures agree.",
+        "All enumerated effect-ordering cases agree across dependency kinds, resource relationships, and obligation orderings.",
+        "Lean remains outside production replay, admission, projection, settlement, and execution paths."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "766f581c1592f7f3193b95b3d18f47f7c5b22234",
+        "artifacts": [
+          "GitHub Actions run 35801357388, job 106992185603: TypeScript vs Lean semantic oracle PASS at exact production revision 766f581c1592f7f3193b95b3d18f47f7c5b22234.",
+          "Pinned Lean semantic reference revision 39bd16a317bc2155a17b6674a5050adaf4295c90.",
+          "The exact evaluated revision retains the workflow, test implementation, and reproduction command."
+        ]
+      },
+      "interpretation": "The independent Lean reference remains valuable evidence, but its completed bounded differential does not need executable scaffolding on every future main revision. Future semantic changes that need the same claim can reproduce or supersede this witness explicitly.",
+      "non_claims": [
+        "Current main automatically agrees with the historical Lean reference after later semantic changes.",
+        "Bounded differential agreement is a universal equivalence proof.",
+        "Provider-specific effect normalization is proved by Lean.",
+        "Lean should become a production runtime dependency."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The oracle and bounded corpora were maintained as live CI before this lifecycle change; historicalization occurred only after an exact successful witness was recorded."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The exact production revision 766f581c1592f7f3193b95b3d18f47f7c5b22234 passed the bounded TypeScript-vs-Lean oracle against pinned reference 39bd16a317bc2155a17b6674a5050adaf4295c90; the executable differential is now retained through exact-revision history rather than current-main CI."
+      }
+    },
+    {
+      "id": "typed-capability-authority",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/typed-capability-authority",
+      "readme": "experiments/typed-capability-authority/README.md",
+      "question": "Can Rust preserve the current GitHub commit-status mutation admission semantics while making weaker authority impossible to pass to the effect primitive through safe code without materially reducing local admission performance?",
+      "claim": "A sealed, affine, zero-sized Rust execution capability can preserve the modeled production admission decision exactly while making raw, forged, and reused authority invalid at compile time with no more than a 10% median local admission regression.",
+      "contrast": "Keep the current structural execution permit plus repeated runtime proof obligations at downstream effect call sites.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:typed-capability-authority"
+      },
+      "environment": [
+        "Stable Rust compiler on Linux x86-64 for the hosted measurement.",
+        "Optimized rustc -O build with std::hint::black_box around benchmark inputs.",
+        "No network, provider credential, SQLite store, or external service is required for the modeled authority differential.",
+        "Host CPU scheduling affects absolute timing, so the benchmark alternates baseline/treatment rounds and compares medians within one process."
+      ],
+      "success_criteria": [
+        "All 131,072 modeled authority combinations produce the same admission or error class in the structural baseline and typed treatment.",
+        "Only the fully valid authority tuple crosses the modeled effect boundary.",
+        "Raw authority invocation, safe capability forgery, and reuse of a consumed capability each fail compilation for the intended type-system reason.",
+        "ExecutionPermit<GithubCommitStatus> is zero-sized and requires no drop glue.",
+        "Median optimized sequential typed admission is no more than 1.10x the structural baseline.",
+        "Median optimized concurrent typed admission is no more than 1.10x the structural baseline."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "637d15c0f7d29cf0aec9be6afc9cfc40a8d0ea06",
+        "artifacts": [
+          "GitHub Actions run 35819335382, job 107047627325: typed capability authority experiment PASS.",
+          "131,071 hostile authority combinations plus valid control matched baseline admission exactly.",
+          "Sequential median ratio 0.949x; concurrent 4-thread median ratio 0.959x; both below preregistered 1.10x ceiling."
+        ]
+      },
+      "interpretation": "A passing result would justify testing the same capability representation at an actual Rust-owned mutation boundary; it would not by itself justify moving durable authority, provider observation, settlement, or graph semantics out of the TypeScript + SQLite production path.",
+      "non_claims": [
+        "Runtime generation, revision, lifecycle, unresolved-effect, or provider-contract checks can be removed from the authoritative ingress.",
+        "A capability remains valid after external authority changes without revalidation or an atomic fence.",
+        "Provider credentials become coordinate-scoped or least-privilege because the local Rust type is effect-specific.",
+        "The modeled local admission benchmark proves end-to-end transaction latency or distributed throughput.",
+        "Rust should replace the current TypeScript + SQLite authority implementation.",
+        "Safe Rust types defend against unsafe code, process compromise, or a malicious trusted provider adapter."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Question, hostile-state corpus, compile-fail controls, and 1.10x sequential/concurrent performance thresholds were recorded before the first hosted experiment run."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 637d15c0f7d29cf0aec9be6afc9cfc40a8d0ea06, the typed Rust capability matched the modeled production admission decision across all 131,072 cases, rejected raw/forged/reused authority at compile time, remained zero-sized, and measured 0.949x sequential and 0.959x concurrent median admission time versus the structural baseline."
+      }
+    },
+    {
+      "id": "rust-exec-typestate-boundary",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/rust-exec-typestate-boundary",
+      "readme": "experiments/rust-exec-typestate-boundary/README.md",
+      "question": "Can a typed capability simplify the real Rust-owned overcenter-exec boundary by making premature exec unrepresentable while deleting runtime machinery without weakening confinement or materially increasing compiled footprint?",
+      "claim": "An affine ExecPermit can preserve the existing physical confinement proof, reject forgery/reuse at compile time, remove or consolidate at least one runtime guard class, avoid increasing production sandbox SLOC, and keep optimized stripped launcher size within 1% of baseline.",
+      "contrast": "Keep the current straight-line runtime-validated sandbox execute function with no typestate token.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:rust-exec-typestate-boundary && npm run proof:rust-exec"
+      },
+      "environment": [
+        "Linux x86-64 with cgroup v2 and Landlock ABI >= 6 for the physical confinement proof.",
+        "Pinned Rust toolchain from rust-toolchain.toml.",
+        "Git history containing exact baseline b683a84d55bb29b166652f00fa8b6be5f2aaec2c for source and binary comparison.",
+        "Ubuntu hosted runner with sudo for delegated cgroup proof setup."
+      ],
+      "success_criteria": [
+        "The complete production Rust confinement hostile proof passes against the typestate treatment.",
+        "Safe caller code cannot forge ExecPermit because its fields are private.",
+        "One ExecPermit cannot be reused after launch(self) consumes it.",
+        "The treatment reduces the preregistered census of explicit runtime guard classes relative to baseline.",
+        "Production sandbox.rs nonblank SLOC is no greater than baseline.",
+        "The optimized stripped launcher binary is no more than 1% larger than baseline."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "b72cfe56020f2280746dbcaa2cacf94a866dd99b",
+        "artifacts": [
+          "GitHub Actions run 35820430558, job 107050895775: experiment executed successfully and production hostile confinement proof passed.",
+          "Compile-fail controls rejected ExecPermit forgery and reuse.",
+          "sandbox.rs nonblank SLOC: 517 baseline -> 534 treatment (+17).",
+          "Runtime guard census: 13 baseline -> 13 treatment; no dynamic proof class was removed.",
+          "Optimized stripped launcher: 461616 -> 461632 bytes; within preregistered 1% footprint bound."
+        ]
+      },
+      "interpretation": "At the real overcenter-exec boundary, typestate can encode sequencing but does not replace the runtime proofs of external Linux state. Keep the straight-line production launcher; use typed capabilities only after dynamic authority has already been established where they reduce downstream misuse.",
+      "non_claims": [
+        "Linux cgroup, FD identity, Landlock, capability, scheduling, or seccomp state can be proven statically.",
+        "The trusted TypeScript supervisor's independent runtime checks are redundant.",
+        "Provider mutation credentials or settlement authority belong in overcenter-exec.",
+        "Binary size is an end-to-end transaction latency measurement.",
+        "Safe Rust prevents malicious edits inside the trusted sandbox module."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The real production sandbox treatment, baseline revision, hostile proof, compile-fail controls, runtime-guard census, no-SLOC-growth requirement, and <=1% binary-growth threshold were fixed before the first hosted execution."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "The real production typestate treatment preserved physical confinement and compile-time exclusion with negligible binary footprint change, but increased sandbox.rs by 17 nonblank lines and removed zero of 13 runtime guard classes. The treatment was reverted."
+      }
+    },
+    {
+      "id": "effect-authority-decay",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/effect-authority-decay",
+      "readme": "experiments/effect-authority-decay/README.md",
+      "question": "Once execution authority is established, can Overcenter preserve it through the trusted GitHub effect broker instead of repeatedly decomposing it into raw identifiers and reconstructing the same relationship at each provider?",
+      "claim": "A nominal EffectAuthority minted once at provider ingress can eliminate duplicated provider authority reconstruction, prevent raw ExecutionPermit from reaching performEffect, preserve the independent stale-generation reservation fence, avoid net source growth, and keep same-runner local production latency within 1.10x baseline.",
+      "contrast": "Each provider independently reconstructs claimed work from a raw ExecutionPermit, rechecks run/revision/effect/verifier fields, and passes the raw permit to performEffect before the current-head reservation fence.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm install --ignore-scripts --package-lock=false && npm run test:effect-authority-decay && npm run bench:effect-authority-decay"
+      },
+      "environment": [
+        "Node from .node-version and the repository-pinned TypeScript/type definitions in package.json.",
+        "Exact current-main baseline 81b350e526824ab2c397642e6761a0c860151331 retained in Git history for source and same-runner latency comparison.",
+        "No live provider credentials are required; provider regression uses deterministic fake GitHub I/O."
+      ],
+      "success_criteria": [
+        "Raw permit/work mismatch is rejected before provider I/O and before effect reservation.",
+        "Authority superseded after binding during provider read I/O is rejected by the unchanged final reservation fence before provider mutation.",
+        "The production TypeScript checker rejects a raw ExecutionPermit at performEffect and rejects structural EffectAuthority forgery.",
+        "Provider claimedWork calls, raw coordinate comparisons, effect-contract checks, verifier checks, and performEffect(rawPermit) calls all fall to zero, with exactly one centralized authority mint.",
+        "Combined nonblank SLOC across engine.ts and the two admitted GitHub effect providers does not increase relative to baseline.",
+        "Median-of-run medians for effect_reservation_ms and overcenter_local_ms are each no more than 1.10x the exact baseline on the same hosted runner.",
+        "Existing GitHub status and PR update-branch provider effect regressions remain green."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "04bc98a42f4db5ddc73293a713412f17127fbc68",
+        "artifacts": [
+          "GitHub Actions run 35825868462, job 107067328128: production typecheck, adversarial runtime controls, authority-decay census, provider regressions, and same-runner latency differential passed.",
+          "Merge-gate run 35825868706, candidate-evidence job 107067329353: repository typecheck and full deterministic regression passed on the same treatment revision.",
+          "Provider claimedWork calls 2 -> 0; raw coordinate comparisons 6 -> 0; effect-contract checks 2 -> 0; verifier checks 2 -> 0; provider raw performEffect calls 2 -> 0; one central authority mint.",
+          "Combined production SLOC 909 -> 907.",
+          "Same-runner effect reservation median 0.718 ms -> 0.726 ms (1.011x); Overcenter local median 4.430 ms -> 4.324 ms (0.976x).",
+          "Authority superseded during provider I/O was rejected by the unchanged final beginEffect fence before provider mutation or effect reservation."
+        ]
+      },
+      "interpretation": "Typed capabilities pay off where runtime-established authority would otherwise decay into raw data and repeated trusted-interior reconstruction. Preserve historical reconstruction APIs that have distinct semantic jobs, and retain a final runtime fence anywhere external authority can change before the effect.",
+      "non_claims": [
+        "TypeScript nominal branding provides Rust affine or ownership guarantees.",
+        "Bound authority remains current after external execution authority changes.",
+        "The final current-head reservation fence can be removed.",
+        "Provider identity observation or authoritative readback can be skipped.",
+        "Wire protocols can trust in-process types instead of validating received data.",
+        "Explicit unsafe casts or malicious trusted code are prevented."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "Confirmatory current-main criteria were fixed before this run, but the corrected treatment incorporates lessons from an earlier prototype that exposed legitimate historical reconstruction and low-level reservation consumers."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "On current-main baseline 81b350e526824ab2c397642e6761a0c860151331, bound EffectAuthority removed all duplicated provider authority reconstruction, reduced the measured production slice by 2 nonblank lines, preserved the stale-generation mutation fence, passed repository typecheck and full deterministic regression, and stayed within the 1.10x latency ceiling."
+      }
+    },
+    {
+      "id": "adapter-uncertainty-exploration",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/adapter-uncertainty-exploration",
+      "readme": "experiments/adapter-uncertainty-exploration/README.md",
+      "question": "Does Overcenter's current durable GitHub commit-status state vocabulary preserve every distinction that matters to retry safety across uncertainty at the provider boundary?",
+      "claim": "The current effect-reservation, observation, and receipt vocabulary distinguishes materially different mutation-certainty states that require different safe retry decisions.",
+      "contrast": "A bounded explorer finds two physically different worlds with different retry safety that reconstruct to the same durable Overcenter recovery fingerprint.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:adapter-uncertainty-exploration"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production TypeScript GitHub commit-status adapter and production SQLite authority kernel.",
+        "Injected provider transport and readback visibility; no network or provider credential is required."
+      ],
+      "success_criteria": [
+        "All ten declared reachable uncertainty worlds execute through the real production adapter and SQLite recovery path.",
+        "An unresolved reservation blocks every attempted second provider mutation.",
+        "DONE occurs only when a matching remote effect is visible to authoritative readback.",
+        "The explorer kills retry-on-any-throw, retry-on-RECOVERY_REQUIRED, and trust-HTTP-201-without-readback negative controls.",
+        "The preregistered definitely-not-dispatched world and committed-but-readback-hidden world are compared for exact durable recovery equivalence.",
+        "The hypothesis is falsified if those two worlds require different physical retry decisions yet produce the same durable recovery fingerprint."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "c4c3564bb02618642fcb9d046686772f7adb8224",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35822437473, rerun attempt 2, candidate-evidence job 107057254622: exact-head deterministic experiment PASS.",
+          "10 reachable provider-boundary worlds collapsed to 2 durable equivalence classes with 1 retry-safety collision.",
+          "Preregistered witness: connect-fails-before-dispatch and dispatch-present-throw-hidden both reconstructed to RECOVERY_REQUIRED with COLLECTION_ABSENCE_NOT_AUTHORITATIVE while duplicate retry remained blocked.",
+          "All three unsafe negative controls were killed; no production blind retry or false DONE was observed.",
+          "The first attempted run at 709b0b5d345744e7aa7e5c8f7e5a45ad6112bf76 was discarded before interpretation because a test-fixture path assertion rejected the production paginated readback request; c4c3564bb02618642fcb9d046686772f7adb8224 fixes only that fixture."
+        ]
+      },
+      "interpretation": "A collision is evidence of a liveness/knowledge gap, not a duplicate-effect safety failure: Overcenter may conservatively retain RECOVERY_REQUIRED even when trustworthy pre-dispatch evidence could make retry safe.",
+      "non_claims": [
+        "Arbitrary provider adapters are covered.",
+        "Node fetch can always prove that no request bytes were dispatched.",
+        "Transport errors or HTTP 502 responses are authoritative absence evidence.",
+        "Real GitHub timing or eventual-consistency distributions are measured.",
+        "This bounded enumerator is a complete symbolic or concolic executor."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The uncertainty grammar, preregistered witness pair, durable fingerprint, safety invariants, and three negative controls were recorded before execution. The only post-run harness correction fixed an over-escaped paginated-readback path assertion; it did not change the preregistered experiment semantics."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "At exact revision c4c3564bb02618642fcb9d046686772f7adb8224, a definitely-not-dispatched failure and a committed-but-readback-hidden failure required different physical retry decisions but reconstructed to the same durable RECOVERY_REQUIRED state. The current representation remains safe because unresolved reservations block blind replay, but it loses retry-relevant dispatch knowledge."
+      }
+    },
+    {
+      "id": "transport-not-dispatched-evidence",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/transport-not-dispatched-evidence",
+      "readme": "experiments/transport-not-dispatched-evidence/README.md",
+      "question": "Can a trusted HTTPS transport boundary produce a NOT_DISPATCHED witness strong enough to distinguish definitely-not-dispatched mutation from an uncertain mutation outcome?",
+      "claim": "On a fresh HTTPS socket, failure before TLS secureConnect can be retained as NOT_DISPATCHED while every later transport failure remains UNKNOWN.",
+      "contrast": "Infer dispatch certainty from coarse transport error strings or map all mutation transport failures to one UNKNOWN state.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:transport-not-dispatched-evidence"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Node https.request using fresh sockets only.",
+        "Loopback TCP/TLS peers with a fixed test certificate; no external network or provider credential is required."
+      ],
+      "success_criteria": [
+        "DNS failure before connection establishment yields NOT_DISPATCHED.",
+        "TLS-handshake reset before secureConnect yields NOT_DISPATCHED and zero peer-observed application bytes.",
+        "Reset after secureConnect yields UNKNOWN and the peer observes decrypted HTTP request bytes.",
+        "HTTP 201 after receiving the mutation body yields ACKNOWLEDGED.",
+        "No world with peer-observed application bytes yields NOT_DISPATCHED.",
+        "Error-code-only and any-transport-error NOT_DISPATCHED negative controls are killed."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "0420435e83f4fd66cbeed4f3093b3c97efa78bdb",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35824901839, rerun attempt 2, candidate-evidence job 107064713901: exact-head experiment and candidate proof PASS.",
+          "DNS failure: NOT_DISPATCHED, secure_connected=false, peer_application_bytes=0.",
+          "TLS-handshake reset: NOT_DISPATCHED, secure_connected=false, ECONNRESET, peer_tls_bytes=349, peer_application_bytes=0.",
+          "Post-secureConnect reset: UNKNOWN, secure_connected=true, ECONNRESET, peer_application_bytes=172.",
+          "HTTP 201 control: ACKNOWLEDGED, secure_connected=true, peer_application_bytes=48.",
+          "Error-code-only and any-transport-error NOT_DISPATCHED negative controls were both killed.",
+          "The exact-head gate also passed TypeScript type-checking, TLA+ verification, production computation boundary proof, and self-application."
+        ]
+      },
+      "interpretation": "The bounded result supports a narrow transport-phase witness for fresh HTTPS sockets. The next experiment should place this transport beneath the real GitHub commit-status effect and prove that only NOT_DISPATCHED releases replay while UNKNOWN preserves RECOVERY_REQUIRED.",
+      "non_claims": [
+        "Reused keep-alive sockets satisfy the same evidence rule.",
+        "HTTP/2, QUIC, proxies, or arbitrary transports expose an equivalent boundary.",
+        "secureConnect proves a mutation occurred.",
+        "The current production fetch wrapper already exposes this evidence.",
+        "Production retry semantics should change before a real-effect-path treatment is tested."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The fresh-socket secureConnect boundary, four transport worlds, peer-byte oracle, and two unsafe negative controls were committed before first execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, the fresh-socket HTTPS treatment emitted NOT_DISPATCHED only for failures before TLS secureConnect, kept post-connect failure UNKNOWN when the peer had already observed 172 decrypted HTTP bytes, and returned ACKNOWLEDGED on HTTP 201. No peer-observed application-byte case was misclassified as NOT_DISPATCHED."
+      }
     }
   ]
 }

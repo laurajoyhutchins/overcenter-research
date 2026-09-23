@@ -7,7 +7,7 @@ Can a disposable worker receive exactly declared GitHub objects, no repository c
 A manifest-bound capsule plus permission-separated hosted jobs makes input identity, writable scope, and result bytes independently checkable. The control is a normal checkout with worker credentials and path discipline by convention.
 
 ## Experiment-owned contract
-`contract.mjs` owns deterministic path/request/manifest validation and is locally tested. The hosted workflow remains the integration harness because job-level permissions and GitHub object publication are part of the claim. The worker receives the contract as one of its exact declared read-only blobs, so it can validate the realized workspace without a checkout.
+`contract.ts` owns deterministic path/request/manifest validation and is locally tested. The hosted workflow remains the integration harness because job-level permissions and GitHub object publication are part of the claim. The worker receives the contract as one of its exact declared read-only blobs, so it can validate the realized workspace without a checkout.
 
 ## Run
 ```sh

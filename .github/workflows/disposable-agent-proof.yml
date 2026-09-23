@@ -3,6 +3,7 @@ name: Overcenter disposable-agent trust proof
 on:
   workflow_dispatch:
   pull_request:
+    types: [ready_for_review]
     paths:
       - .github/workflows/disposable-agent-proof.yml
       - experiments/disposable-agent/authority.ts
@@ -11,6 +12,7 @@ on:
       - experiments/disposable-agent/agent-b.ts
       - src/**
       - test/git-kernel.test.ts
+      - test/github-status-effect.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
       - ARCHITECTURE.md
@@ -28,6 +30,7 @@ on:
       - experiments/disposable-agent/agent-b.ts
       - src/**
       - test/git-kernel.test.ts
+      - test/github-status-effect.test.ts
       - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
       - ARCHITECTURE.md
@@ -65,9 +68,11 @@ jobs:
           node-version-file: '.node-version'
 
       - name: Focused disposable-agent regressions
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           node --experimental-strip-types --test \
             test/git-kernel.test.ts \
+            test/github-status-effect.test.ts \
             experiments/disposable-agent/disposable-agent.test.ts
 
       - name: Define immutable obligation and claim exact snapshot

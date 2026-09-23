@@ -31,33 +31,12 @@ jobs:
         with:
           go-version-file: '.go-version'
           cache: false
-      - name: Build isolated self-application executor
-        run: |
-          set -euo pipefail
-          go_version="$(tr -d '\r\n' < .go-version)"
-          test "$(go env GOVERSION)" = "go${go_version}"
-          rm -rf .overcenter-build
-          mkdir -p .overcenter-build
-          (
-            cd executor
-            CGO_ENABLED=0 go build -trimpath -buildvcs=false \
-              -o ../.overcenter-build/overcenter-executor \
-              ./cmd/overcenter-executor
-          )
-          docker build \
-            --build-arg NODE_IMAGE="$(node -e "const x=require('./executor/runtime-images.json'); process.stdout.write(x.node_self_application)")" \
-            --build-arg NODE_VERSION="$(cat .node-version)" \
-            -f executor/self-application/Dockerfile \
-            -t "overcenter-self-application:${{ github.run_id }}" \
-            .
-      - name: Let Overcenter verify this exact revision
+      - name: Prove self-application
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/overcenter-self-application.json"
-          node --experimental-strip-types bin/self-application-evidence.ts \
-            --image "overcenter-self-application:${{ github.run_id }}" \
-            --source-sha "$SOURCE_SHA" \
-            --report "$report"
+          image="overcenter-self-application:${{ github.run_id }}"
+          bash scripts/proof-self-application.sh "$SOURCE_SHA" "$image" "$report"
           {
             echo '## Overcenter self-application'
             echo

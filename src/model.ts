@@ -36,6 +36,18 @@ export interface GitHubCommitStatusPostcondition {
   expected_state: 'error' | 'failure' | 'pending' | 'success';
 }
 
+export interface GitHubPullRequestBranchUpdatedPostcondition {
+  verifier: 'github-pull-request-branch-updated/v1';
+  provider: 'github';
+  repository_id: number;
+  repository_full_name: string;
+  pull_number: number;
+  pull_node_id: string;
+  expected_previous_head_sha: string;
+  base_ref: string;
+  expected_base_sha: string;
+}
+
 export interface KubernetesConfigMapExistsPostcondition {
   verifier: 'kubernetes-configmap-exists/v1';
   provider: 'kubernetes';
@@ -50,18 +62,17 @@ export type Postcondition =
   | FileContentPostcondition
   | EventuallyConsistentFilePostcondition
   | GitHubCommitStatusPostcondition
+  | GitHubPullRequestBranchUpdatedPostcondition
   | KubernetesConfigMapExistsPostcondition;
 
-export type {Observation} from '../contracts/observation-evidence-v1/settlement-observation.typebox.ts';
+export type { Observation } from '../contracts/observation-evidence/settlement-observation.typebox.ts';
 
 export type Dependency =
   | { kind: 'control'; upstream: string }
   | {
       kind: 'semantic';
       upstream: string;
-      consumes:
-        | { kind: 'output'; selector: string }
-        | { kind: 'evidence'; selector: string };
+      consumes: { kind: 'output'; selector: string } | { kind: 'evidence'; selector: string };
     };
 
 export interface Obligation {

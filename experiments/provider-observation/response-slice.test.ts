@@ -21,7 +21,7 @@ test('shared structural validator follows provider-supplied local refs', () => {
       },
     },
   };
-  const resolveRef: SchemaResolver = ref => {
+  const resolveRef: SchemaResolver = (ref) => {
     const schema = schemas[ref];
     if (!schema) throw new Error(`TEST_REF_NOT_FOUND:${ref}`);
     return schema;
@@ -47,7 +47,7 @@ test('shared structural validator fails closed on a ref cycle', () => {
     '#/A': { $ref: '#/B' },
     '#/B': { $ref: '#/A' },
   };
-  const resolveRef: SchemaResolver = ref => {
+  const resolveRef: SchemaResolver = (ref) => {
     const schema = schemas[ref];
     if (!schema) throw new Error(`TEST_REF_NOT_FOUND:${ref}`);
     return schema;
@@ -58,13 +58,14 @@ test('shared structural validator fails closed on a ref cycle', () => {
   };
 
   assert.throws(
-    () => validateResponseSlice(
-      operation,
-      '200',
-      { metadata: { uid: 'entity-1' } },
-      [{ path: 'metadata.uid' }],
-      resolveRef,
-    ),
+    () =>
+      validateResponseSlice(
+        operation,
+        '200',
+        { metadata: { uid: 'entity-1' } },
+        [{ path: 'metadata.uid' }],
+        resolveRef,
+      ),
     /RESPONSE_SLICE_SCHEMA_REF_CYCLE/,
   );
 });

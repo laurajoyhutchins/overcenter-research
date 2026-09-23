@@ -30,6 +30,29 @@ recompute project projection ↺
 
 The worker does not decide that its work succeeded.
 
+## Resolution frontier
+
+Overcenter's goal is not merely to fail closed when certainty ends. It is to push the boundary of deterministic resolution outward as far as software can safely prove.
+
+```text
+deterministic software
+  known reconciliation, evidence acquisition, recovery, and retry rules
+        ↓ unresolved
+reasoning agent
+  discover additional evidence or execute a bounded one-off recovery procedure
+        ↓ unresolved
+human operator
+  decide the precise residual ambiguity
+```
+
+Deterministic software gets the first and widest opportunity to resolve uncertainty. Known reconciliation paths, authoritative observations, proof validation, replay rules, recovery procedures, and other mechanically knowable work belong in the kernel or in provider-specific deterministic machinery.
+
+When those paths are exhausted, Overcenter may deploy a reasoning agent to investigate the remaining ambiguity. The agent may gather information, discover an unmodeled evidence source, synthesize a one-off procedure, or carry out a narrowly authorized recovery step that was not practical to model in advance. The agent does not become the authority on success: any resulting claim must still be grounded in retained evidence, independently verified where verification is possible, and settled through the normal authority boundary.
+
+Agent recovery is also a learning signal. If agents repeatedly resolve the same class of ambiguity with materially the same procedure, Overcenter should treat that repetition as evidence of missing deterministic machinery. The recurring recovery path should be captured, tested against hostile cases, and promoted into software when its preconditions and outcome can be mechanically recognized. A mature system should therefore make its agent-recovery frontier retreat over time.
+
+If deterministic machinery and bounded agent recovery both fail to resolve an ambiguity, Overcenter should escalate the exact residual problem to a human operator: what is known, what remains unknown, what procedures were attempted, which actions remain unsafe, and what consequences follow from the available decisions. Humans are the final decision-makers for genuinely unresolved cases, not a substitute for recovery logic that software could own.
+
 ## Current production slice
 
 The supported runtime boundary is intentionally smaller than the research surface:
@@ -37,6 +60,7 @@ The supported runtime boundary is intentionally smaller than the research surfac
 | Concern | Current owner | Status |
 | --- | --- | --- |
 | durable authority, graph semantics, claim/recovery fencing, observation, settlement | TypeScript + SQLite | production reference path |
+| GitHub commit-status mutation | TypeScript provider effect + kernel reservation | admitted only for exact `github-commit-status/v2` postconditions with the explicit status-effect grant |
 | isolated replay-safe pure computation and attempt evidence | Go | admitted for the `test` workload |
 | worker filesystem/process confinement | Rust | admitted native confinement substrate on supported Linux x86-64 |
 | Lean, Datalog, F*, bounded model checks | proof/differential oracles | no runtime authority |
@@ -73,7 +97,7 @@ Run the same supported-slice proof used by CI:
 npm run proof:production
 ```
 
-Provider mutation is deliberately outside this supported production slice. The hosted GitHub trust-boundary proof demonstrates physical credential separation and a brokered mutation path, but it does not promote provider mutation into the supported profile. Provider mutation remains a separate evidence surface until its authority binding and exclusive mutation path are themselves carried by production code and proof.
+Provider mutation is admitted only for one narrow path: `src/providers/github/status-effect.ts` derives a GitHub commit-status write from the exact claimed postcondition, requires the explicit status-effect grant, certifies repository identity, and crosses the provider boundary only through the kernel's durable effect reservation. The hosted trust-boundary proof invokes that production implementation under a separate `statuses: write` credential and then forces fresh-generation recovery. Other provider mutations remain outside the supported slice.
 
 ## What is Overcenter?
 
@@ -114,8 +138,9 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
 - **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
-- **The hosted trust-boundary proof demonstrates physical credential separation for one GitHub mutation path.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub and it emits no provider authority. A separate trusted broker requires an explicit immutable effect contract, derives the exact provider coordinates from authoritative state, reserves the effect, and performs the mutation before authoritative readback settles the result. This is evidence for the broker architecture, not promotion of provider mutation into the supported production slice.
+- **One GitHub commit-status mutation path is production-carried and live-proved.** The disposable worker has `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub and it emits no provider authority. The trusted broker invokes the production status-effect implementation, which requires the explicit immutable grant, derives coordinates from the exact claimed postcondition, certifies repository identity, reserves the effect, and performs the mutation before authoritative readback settles the result.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
+- **Native worker resource containment is exact-object and evidence ordered.** On the supported Linux x86-64 confinement path, each attempt is bound to one host-created cgroup-v2 leaf by pinned object identity; the aggregate delegated parent is finite; CPU, memory, and PID ceilings are exercised against the real kernel; and final resource evidence is captured only after the exact leaf is killed and observed empty. `formal/ResourceContainment.tla` independently checks exact-leaf authority and kill → empty → evidence → removal ordering, with negative controls for both guards. See [the resource containment proof](./research/resource-containment-proof.md).
 
 The detailed empirical lineage and live hosted proof evidence live under [`experiments/`](./experiments/README.md). The claim taxonomy lives in [`research/claims.md`](./research/claims.md), with a layer-by-layer witness map in [`research/proof-obligations.md`](./research/proof-obligations.md).
 
@@ -130,7 +155,7 @@ The repository deliberately does **not** establish that:
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
-- the hosted provider-mutation experiments constitute a supported production mutation profile;
+- provider mutations other than the admitted GitHub commit-status path are supported production mutation profiles;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
 - direct low-level callers outside `runCoreLoop` cannot bypass the execution-permit/effect-reservation API;
 - the trusted GitHub effect broker has coordinate-scoped least privilege for status writes. GitHub's `statuses: write` permission is repository-scoped;
@@ -141,12 +166,11 @@ The safety claim is narrower: an uncertain or even locally hostile worker does n
 ## Repository map
 
 ```text
-src/          reusable reference mechanism and trusted executor client
+src/          all production implementation, including operator CLIs and native execution
 contracts/    versioned machine-readable data contracts
-executor/     Go physical computation executor
-runtime/      narrow native execution/confinement substrates
-test/         focused invariants of that mechanism
-experiments/  executable empirical and adversarial proofs
+test/         focused invariants of production mechanisms
+scripts/      repository tooling and proof/evidence entrypoints
+experiments/  maintained executable proofs + historical exact-revision evidence
 formal/       machine-checked safety model and negative controls
 research/     prior art, synthesis, claims, and design arguments
 docs/adr/     durable architecture decisions
@@ -156,30 +180,32 @@ examples/     small runnable demonstrations
 
 Important entry points:
 
-- [`src/kernel.ts`](./src/kernel.ts) - production SQLite-backed kernel entry point.
-- [`src/kernel-core.ts`](./src/kernel-core.ts) - storage-neutral transaction, recovery, and settlement policy.
-- [`src/fact-store.ts`](./src/fact-store.ts) - minimal durable-fact authority contract.
-- [`src/sqlite-store.ts`](./src/sqlite-store.ts) - production append-only SQLite authority store.
-- [`src/git-kernel.ts`](./src/git-kernel.ts) and [`src/git-store.ts`](./src/git-store.ts) - Git reference implementation of the same durable-fact contract.
-- [`src/facts.ts`](./src/facts.ts) - durable fact schemas plus obligation/fact validation.
+- [`src/cli/`](./src/cli/) - the two supported semantic operator entrypoints: `project.advance` and `project.submit`.
+- [`src/authority/kernel.ts`](./src/authority/kernel.ts) - production SQLite-backed kernel entry point.
+- [`src/authority/engine.ts`](./src/authority/engine.ts) - storage-neutral transaction, recovery, and settlement policy.
+- [`src/authority/store.ts`](./src/authority/store.ts) - minimal durable-fact authority contract.
+- [`src/storage/sqlite.ts`](./src/storage/sqlite.ts) - production append-only SQLite authority store.
+- [`src/storage/git-kernel.ts`](./src/storage/git-kernel.ts) and [`src/storage/git-store.ts`](./src/storage/git-store.ts) - Git reference implementation of the same durable-fact contract.
+- [`src/authority/facts.ts`](./src/authority/facts.ts) - durable fact schemas plus obligation/fact validation.
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
-- [`src/evidence.ts`](./src/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
+- [`src/observation/evidence.ts`](./src/observation/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
-- [`src/graph.ts`](./src/graph.ts) - provider-agnostic dependency topology, validation, and ordering queries.
-- [`src/admission.ts`](./src/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
-- [`src/projection.ts`](./src/projection.ts) - pure replay reducer from durable fact commits to historical project facts.
-- [`src/projector.ts`](./src/projector.ts) - the single derived project-status/claimability projection.
-- [`src/realization-admissibility.ts`](./src/realization-admissibility.ts) - fresh-authority classification for historical realization reuse.
+- [`src/graph/topology.ts`](./src/graph/topology.ts) - provider-agnostic dependency topology, validation, and ordering queries.
+- [`src/authority/admission.ts`](./src/authority/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
+- [`src/authority/replay.ts`](./src/authority/replay.ts) - pure replay reducer from durable fact commits to historical project facts.
+- [`src/authority/project-state.ts`](./src/authority/project-state.ts) - the single derived project-status/claimability projection.
+- [`src/authority/realization-reuse.ts`](./src/authority/realization-reuse.ts) - fresh-authority classification for historical realization reuse.
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
-- [`src/observation.ts`](./src/observation.ts) - authoritative observation and verification boundary.
-- [`src/computation-execution.ts`](./src/computation-execution.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
-- [`src/computation-runner.ts`](./src/computation-runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
-- [`src/go-executor-client.ts`](./src/go-executor-client.ts) - Unix-socket client for an isolated physical executor.
-- [`src/execution-manifest.ts`](./src/execution-manifest.ts) - canonical exact-byte manifest for the Rust confinement launcher.
-- [`src/confined-executor.ts`](./src/confined-executor.ts) - trusted TypeScript transport that sends exactly the hashed manifest bytes to the native launcher.
-- [`runtime/overcenter-exec/`](./runtime/overcenter-exec/README.md) - Rust Landlock/seccomp worker-confinement substrate; physical confinement only, with no project-state authority.
-- [`contracts/computation-execution-v1/`](./contracts/computation-execution-v1/) - shared versioned wire contract and conformance corpus.
-- [`executor/`](./executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
+- [`src/observation/observe.ts`](./src/observation/observe.ts) - authoritative observation and verification boundary.
+- [`src/providers/github/status-effect.ts`](./src/providers/github/status-effect.ts) - narrow production GitHub commit-status mutation path: authority-derived coordinates, certified repository identity, reservation-before-POST.
+- [`src/execution/protocol.ts`](./src/execution/protocol.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
+- [`src/execution/runner.ts`](./src/execution/runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
+- [`src/execution/go-client.ts`](./src/execution/go-client.ts) - Unix-socket client for an isolated physical executor.
+- [`src/execution/manifest.ts`](./src/execution/manifest.ts) - canonical exact-byte manifest for the Rust confinement launcher.
+- [`src/execution/confined-executor.ts`](./src/execution/confined-executor.ts) - trusted TypeScript transport that sends exactly the hashed manifest bytes to the native launcher.
+- [`src/execution/confinement/`](./src/execution/confinement/README.md) - Rust Landlock/seccomp worker-confinement substrate; physical confinement only, with no project-state authority.
+- [`contracts/computation-execution/`](./contracts/computation-execution/) - shared versioned wire contract and conformance corpus.
+- [`src/execution/executor/`](./src/execution/executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
 - [`formal/`](./formal/) - TLA+ transaction/recovery kernel.
 - [`research/README.md`](./research/README.md) - research map.
@@ -192,22 +218,33 @@ The command name states what kind of evidence a green check supports:
 | Command | Evidence |
 | --- | --- |
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
-| `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
+| `npm run proof:local` | Maintained deterministic local experiments at the current revision. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
-| `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression. |
-| Lean semantic-oracle CI | Bounded exhaustive agreement between selected production TypeScript semantics and the exact pinned Lean reference. |
+| `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression, including the production GitHub status-effect contract with a fake provider. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
+
+The former Lean semantic-oracle differential is retained as historical exact-revision evidence at `766f581c1592f7f3193b95b3d18f47f7c5b22234`; see [its experiment record](./experiments/lean-semantic-oracle/README.md). It is no longer a current merge gate.
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
 `.github/workflows/tests.yml` enforces the first three tiers on every pull request and every push to `main`. The live tier remains separate because it exercises real provider boundaries and permissions.
 
+### Operator commands
+
+The reasoning-agent interface is deliberately small:
+
+```text
+project.advance -> work packet -> reasoning -> project.submit
+```
+
+[Operator commands](./docs/operator-commands.md) hide frontier selection, claims, leases, authority coordinates, transport refs, and settlement mechanics behind those two semantic operations. When reasoning is required, `project.advance` emits a self-contained packet with a capability-free native `overcenter` executable, so the same worker contract can be delivered into either an Overcenter-controlled sandbox or a foreign sandbox. The reasoner receives work only when judgment is required and never declares its own success. Pull-request certification is CI behavior: rerun the existing `Certify candidate` job on the PR's Merge gate to spend the full exact-head evidence suite.
+
 Requirements:
 
 - Node.js at the exact version declared in [`.node-version`](./.node-version);
-- Go at the exact runtime version declared in [`.go-version`](./.go-version) for the physical computation executor (`executor/go.mod` remains the Go language/module compatibility declaration);
+- Go at the exact runtime version declared in [`.go-version`](./.go-version) for the physical computation executor (`src/execution/executor/go.mod` remains the Go language/module compatibility declaration);
 - Rust at the exact version declared in [`rust-toolchain.toml`](./rust-toolchain.toml) for the native worker-confinement substrate;
-- Docker for the catastrophic executor-death containment proof; executor base images are pinned by immutable digest in [`executor/runtime-images.json`](./executor/runtime-images.json);
+- Docker for the catastrophic executor-death containment proof; executor base images are pinned by immutable digest in [`src/execution/executor/runtime-images.json`](./src/execution/executor/runtime-images.json);
 - Git;
 - Java 21 for the TLA+ model;
 - network access on the first formal run unless `TLA2TOOLS_JAR` already points to the pinned TLC jar;
@@ -221,11 +258,7 @@ The focused underlying commands remain available when debugging a particular cla
 npm run test:projection
 npm run test:dependency-edges
 npm run test:handoff
-npm run test:eventual
-npm run test:concurrency
-npm run test:effect-order
 npm run test:github-observation
-npm run test:stress
 npm run test:storage
 npm run test:computation-executor
 npm run demo                       # production SQLite kernel

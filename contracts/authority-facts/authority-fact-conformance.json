@@ -1,0 +1,242 @@
+{
+  "schema": "overcenter-authority-fact-conformance-v1",
+  "cases": [
+    {
+      "name": "graph-patch-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-graph-patch-v1",
+        "definitions": [
+          {
+            "id": "539bdd327548724eb38e78c7f69ed78c472465e266192b83910057ee0f41f5cd",
+            "definition": {
+              "dependencies": [],
+              "packet": {
+                "kind": "example"
+              },
+              "postcondition": {
+                "verifier": "file-content-equals/v1",
+                "path": "/provider/a",
+                "content": "A"
+              }
+            }
+          }
+        ],
+        "bindings": [
+          {
+            "node_id": "alpha",
+            "definition_id": "539bdd327548724eb38e78c7f69ed78c472465e266192b83910057ee0f41f5cd"
+          }
+        ],
+        "retire": []
+      }
+    },
+    {
+      "name": "graph-retirement-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-graph-patch-v1",
+        "definitions": [],
+        "bindings": [],
+        "retire": [
+          "alpha"
+        ]
+      }
+    },
+    {
+      "name": "claim-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-claim-v3",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "obligation_key": "key-1",
+        "execution_capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "execution-authority-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-execution-authority-v1",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "generation": 2,
+        "previous_authority_commit": "claim-1",
+        "execution_capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "effect-reservation-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-effect-reservation-v1",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "execution_generation": 2,
+        "execution_authority_commit": "authority-2"
+      }
+    },
+    {
+      "name": "receipt-v5-valid",
+      "valid": true,
+      "fact": {
+        "schema": "overcenter-git-receipt-v5",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "claim_commit": "claim-1",
+        "execution_generation": 2,
+        "execution_authority_commit": "authority-2",
+        "kind": "observation",
+        "observed": {
+          "verifier": "file-content-equals/v1",
+          "mutation_certainty": "present",
+          "path": "/provider/a"
+        },
+        "diagnostic": {
+          "source": "conformance"
+        },
+        "settled_at": "2026-09-19T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "claim-unknown-field-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-claim-v3",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "obligation_key": "key-1",
+        "execution_capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "surprise": true
+      }
+    },
+    {
+      "name": "claim-bad-capability-digest-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-claim-v3",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "obligation_key": "key-1",
+        "execution_capability_sha256": "not-a-digest"
+      }
+    },
+    {
+      "name": "receipt-unknown-field-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-receipt-v5",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "claim_commit": "claim-1",
+        "execution_generation": 1,
+        "execution_authority_commit": "claim-1",
+        "kind": "execution-terminated",
+        "observed": null,
+        "settled_at": "2026-09-19T00:00:00.000Z",
+        "disposition": "DONE"
+      }
+    },
+    {
+      "name": "unsupported-historical-receipt-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-git-receipt-v3",
+        "run_id": "run-1",
+        "obligation_id": "alpha",
+        "claimed_revision": "revision-1",
+        "claim_commit": "claim-1",
+        "execution_generation": 1,
+        "execution_authority_commit": "claim-1",
+        "kind": "observation",
+        "observed": {},
+        "settled_at": "2026-09-17T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "graph-patch-definition-id-mismatch-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-graph-patch-v1",
+        "definitions": [
+          {
+            "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "definition": {
+              "dependencies": [],
+              "packet": {
+                "kind": "example"
+              },
+              "postcondition": {
+                "verifier": "file-content-equals/v1",
+                "path": "/provider/a",
+                "content": "A"
+              }
+            }
+          }
+        ],
+        "bindings": [
+          {
+            "node_id": "alpha",
+            "definition_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "retire": []
+      }
+    },
+    {
+      "name": "graph-patch-duplicate-node-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-graph-patch-v1",
+        "definitions": [
+          {
+            "id": "539bdd327548724eb38e78c7f69ed78c472465e266192b83910057ee0f41f5cd",
+            "definition": {
+              "dependencies": [],
+              "packet": {
+                "kind": "example"
+              },
+              "postcondition": {
+                "verifier": "file-content-equals/v1",
+                "path": "/provider/a",
+                "content": "A"
+              }
+            }
+          }
+        ],
+        "bindings": [
+          {
+            "node_id": "alpha",
+            "definition_id": "539bdd327548724eb38e78c7f69ed78c472465e266192b83910057ee0f41f5cd"
+          },
+          {
+            "node_id": "alpha",
+            "definition_id": "539bdd327548724eb38e78c7f69ed78c472465e266192b83910057ee0f41f5cd"
+          }
+        ],
+        "retire": []
+      }
+    },
+    {
+      "name": "graph-patch-binding-definition-id-format-invalid",
+      "valid": false,
+      "fact": {
+        "schema": "overcenter-graph-patch-v1",
+        "definitions": [],
+        "bindings": [
+          {
+            "node_id": "alpha",
+            "definition_id": "not-a-digest"
+          }
+        ],
+        "retire": []
+      }
+    }
+  ]
+}
