@@ -591,7 +591,23 @@ export function deriveProjectProjection({
     );
   }
 
-  const readyWork = work.find((candidate) => claimabilityErrors.get(candidate.id) === null) ?? null;
+  const lastCurrentClaimOrdinal = new Map<string, number>();
+  let claimOrdinal = 0;
+  for (const run of runs.values()) {
+    if (run.obligation_key === semanticKeys.get(run.obligation_id)) {
+      lastCurrentClaimOrdinal.set(run.obligation_id, claimOrdinal);
+    }
+    claimOrdinal += 1;
+  }
+
+  const readyWork =
+    work
+      .filter((candidate) => claimabilityErrors.get(candidate.id) === null)
+      .sort((a, b) => {
+        const aOrdinal = lastCurrentClaimOrdinal.get(a.id) ?? -1;
+        const bOrdinal = lastCurrentClaimOrdinal.get(b.id) ?? -1;
+        return aOrdinal - bOrdinal || a.id.localeCompare(b.id);
+      })[0] ?? null;
 
   return {
     lifecycles,
