@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 
-function option(name) {
+function option(name:string):string {
   const index=process.argv.indexOf(name);
   const value=index<0 ? undefined : process.argv[index+1];
   if (!value || value.startsWith('--')) throw new Error(name+' requires a value');
@@ -26,7 +26,7 @@ const spec={
   stderr_max_bytes:1024,
 };
 const specBytes=Buffer.from(JSON.stringify(spec));
-const sha256=value=>createHash('sha256').update(value).digest('hex');
+const sha256=(value:string|Buffer):string=>createHash('sha256').update(value).digest('hex');
 const execution={
   schema:'overcenter-computation-execution-v1',
   run_id:'containment-run',
@@ -74,13 +74,13 @@ if (records.length<2) throw new Error('grandchild never started');
 
 const parentPid=Number.parseInt(records.find(record=>record.startsWith('parent:'))?.split(':')[1]??'',10);
 if (!Number.isSafeInteger(parentPid)) throw new Error('parent pid missing');
-const statusOf=pid=>readFileSync('/proc/'+pid+'/status','utf8');
-const uidOf=pid=>{
+const statusOf=(pid:number):string=>readFileSync('/proc/'+pid+'/status','utf8');
+const uidOf=(pid:number):number=>{
   const match=statusOf(pid).match(/^Uid:\s+(\d+)/m);
   if (!match) throw new Error('uid unavailable for pid '+pid);
   return Number.parseInt(match[1],10);
 };
-const groupsOf=pid=>{
+const groupsOf=(pid:number):number[]=>{
   const match=statusOf(pid).match(/^Groups:\s*(.*)$/m);
   if (!match) throw new Error('groups unavailable for pid '+pid);
   return match[1].trim().split(/\s+/).filter(Boolean).map(value=>Number.parseInt(value,10));
