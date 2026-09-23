@@ -1873,6 +1873,208 @@
         "state": "mixed",
         "summary": "One bounded refinement round improved the frozen model result from 3/7 to cumulative 4/7 (refinement gain +1) with zero false certainty, but only tied the deterministic 4/7 baseline (baseline gain 0), so refinement helped the known model failure without earning inference a recovery-yield advantage over deterministic search."
       }
+    },
+    {
+      "id": "git-metadata-independence",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/git-metadata-independence",
+      "readme": "experiments/git-metadata-independence/README.md",
+      "question": "Can the deterministic candidate regression and experiment suites execute without ambient repository Git metadata or commit identity?",
+      "claim": "The unit and experiment suites pass from a filesystem source snapshot with no .git directory and no ambient Git worktree after removing accidental checkout dependencies.",
+      "contrast": "Treat deterministic regression evidence as revision-bound because fixtures use the caller checkout for file inventory or source copying.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:git-metadata-independence"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Git executable available for explicit temporary-repository fixtures and the negative ambient-worktree probe",
+        "No provider credentials or network access required by the experiment harness itself"
+      ],
+      "success_criteria": [
+        "The copied source snapshot contains no .git directory.",
+        "git rev-parse --show-toplevel fails in the copied source snapshot.",
+        "npm run test:unit passes from the Git-free snapshot.",
+        "npm run test:experiments passes from the Git-free snapshot."
+      ],
+      "evidence": {
+        "artifacts": [
+          "GitHub Actions run 35738774674: exact-head Git-metadata independence proof established no .git, failed ambient git rev-parse, and passed both deterministic suites.",
+          ".github/workflows/git-metadata-independence.yml",
+          "experiments/git-metadata-independence/experiment.ts"
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "89f79ee7c1031b9490de95ff0f0df5220c04676c"
+      },
+      "interpretation": "A positive result establishes ambient-Git independence for deterministic regression/experiment evidence and supports a later, separately proven tree-bound evidence layer. It does not authorize cross-revision substitution.",
+      "non_claims": [
+        "Formal, production-boundary, self-application, or hosted provider evidence is tree-bound.",
+        "Tree equality is sufficient for merge evidence substitution.",
+        "Git is absent from tests that intentionally exercise Git semantics.",
+        "The live Merge gate may skip post-merge evidence."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The no-.git/no-ambient-worktree conditions and required deterministic suite passes were fixed before the hosted proof was accepted."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The deterministic unit and experiment suites pass from a source snapshot with no .git directory and no ambient worktree after removing accidental checkout dependencies."
+      }
+    },
+    {
+      "id": "tree-bound-candidate-evidence",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/tree-bound-candidate-evidence",
+      "readme": "experiments/tree-bound-candidate-evidence/README.md",
+      "question": "Can Git stress, TLA+, and the production computation boundary run without ambient Git metadata or revision-coordinate environment?",
+      "claim": "The expensive non-self-application candidate proofs execute from a Git-free source snapshot with revision-coordinate environment removed, establishing tree/toolchain-bound behavior under the tested environment.",
+      "contrast": "Treat every expensive candidate proof as revision-bound because the hosted runner starts from a Git checkout.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run test:tree-bound-candidate-evidence"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "Java 21",
+        "Go from .go-version",
+        "Rust from rust-toolchain.toml",
+        "Docker",
+        "Network access when pinned formal or toolchain artifacts are not cached"
+      ],
+      "success_criteria": [
+        "The copied source snapshot contains no .git directory.",
+        "git rev-parse --show-toplevel fails in the copied source snapshot.",
+        "Revision-coordinate environment variables are removed from child proofs.",
+        "Git stress passes from the snapshot.",
+        "TLA+ formal proof passes from the snapshot.",
+        "Production computation boundary passes from the snapshot."
+      ],
+      "evidence": {
+        "artifacts": [
+          "GitHub Actions run 35739503501: initial hosted proof falsified the first draft because test-only computation context consumed ambient revision metadata.",
+          "GitHub Actions run 35739852417: corrected exact-head hosted proof passed Git stress, TLA+, and the production computation boundary from a .git-free snapshot with revision-coordinate environment removed.",
+          ".github/workflows/tree-bound-candidate-evidence.yml"
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "62fe49a53f80c0a99c2b9e4c501da83877786da4"
+      },
+      "interpretation": "A positive result supports factoring candidate verification into reusable tree/toolchain-bound evidence plus a smaller revision-bound derivation/self-application tail. Cross-revision reuse still requires a separate exact derivation contract.",
+      "non_claims": [
+        "Self-application evidence is tree-bound.",
+        "Provider/live evidence is tree-bound.",
+        "Equal Git trees imply equal execution identity.",
+        "The current Merge gate may skip post-merge evidence."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The initial tree-bound hypothesis preceded execution, but the first hosted run exposed a test-only ambient revision dependency. The test fixture was narrowed to the production execution identity boundary before the successful rerun."
+      },
+      "outcome": {
+        "state": "mixed",
+        "summary": "The first draft was falsified by a test-only ambient revision dependency; after removing that non-production coupling, Git stress, TLA+, and the production computation boundary passed from a .git-free source snapshot with revision-coordinate environment removed."
+      }
+    },
+    {
+      "id": "tree-evidence-derivation",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/tree-evidence-derivation",
+      "readme": "experiments/tree-evidence-derivation/README.md",
+      "question": "Can tree/toolchain-bound candidate evidence be safely applied to an identical-content merge without relabeling it as merge-revision execution evidence?",
+      "claim": "A strict derivation can keep reusable tree evidence revision-free, bind its successful candidate provenance, prove exact content-preserving merge applicability, and require fresh revision evidence for the merge SHA.",
+      "contrast": "Treat successful exact-head evidence as if it executed on the merge commit merely because the Git trees match.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:tree-evidence-derivation"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "No network or provider credentials required"
+      ],
+      "success_criteria": [
+        "Reusable tree evidence rejects revision-bound fields.",
+        "Candidate provenance must bind a successful run to the exact tree-evidence digest.",
+        "Proof contract and proof environment must match policy.",
+        "Merge parents must be exactly [certified base, certified head].",
+        "Merge Git tree and independently recomputed source-tree digest must match the inherited evidence.",
+        "Fresh exact-lineage and self-application evidence must name the merge SHA."
+      ],
+      "evidence": {
+        "artifacts": [
+          "GitHub Actions run 35741449465: exact-head tree evidence derivation proof passed.",
+          ".github/workflows/tree-evidence-derivation.yml",
+          "experiments/tree-evidence-derivation/tree-evidence-derivation.test.ts"
+        ],
+        "status": "evaluated",
+        "evaluated_revision": "f5e1c289ca8935b5158ff921018bff935854246a"
+      },
+      "interpretation": "A positive result establishes the derivation contract shape required before tree evidence can be reused across a content-preserving merge. It does not itself alter live certification.",
+      "non_claims": [
+        "Workflow runs currently emit durable tree-evidence receipts.",
+        "Provider/live evidence is tree-bound.",
+        "Revision-bound self-application evidence is reusable across SHAs.",
+        "The live Merge gate may skip post-merge tree evidence yet."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The reusable-tree-evidence restrictions, candidate provenance binding, exact lineage/tree/digest applicability checks, and fresh revision-evidence requirement were fixed before the hosted derivation proof."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The tested derivation contract safely applies revision-free tree/toolchain evidence across an identical-content merge only when candidate provenance, exact [base, head] lineage, Git tree, and independently recomputed source-tree digest agree, while fresh revision-bound evidence still names the merge SHA."
+      }
+    },
+    {
+      "id": "merge-evidence-substitution",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/merge-evidence-substitution",
+      "readme": "experiments/merge-evidence-substitution/README.md",
+      "question": "Can exact-head candidate evidence safely substitute for post-merge evidence when a two-parent merge commit has the same tree as the certified head?",
+      "claim": "The strict parent/tree relation proves a content-preserving merge, but current Overcenter execution evidence remains revision-bound because source_sha participates in execution context and trusted attestation identity.",
+      "contrast": "Skip the post-merge proof solely because the merge commit tree equals the certified head tree.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:merge-evidence-substitution"
+      },
+      "environment": [
+        "Node.js from .node-version",
+        "No network or provider credentials required."
+      ],
+      "success_criteria": [
+        "Exact [base, head] parent order plus equal merge/head tree admits a content-preserving merge witness.",
+        "Changed tree, reversed or extra parents, stale base/head coordinates, and failed candidate evidence are rejected.",
+        "Two identical source trees at different source SHAs produce different current self-application execution-context digests.",
+        "Revision-bound trusted attestation bytes differ between the certified head and merge commit."
+      ],
+      "evidence": {
+        "artifacts": [
+          "experiments/merge-evidence-substitution/merge-evidence-substitution.test.ts",
+          "experiments/merge-evidence-substitution/results/2026-09-22.md",
+          "PR #234: candidate run 35691651230 and post-merge run 35691877235 demonstrate identical certified-head/merge trees with distinct revision-bound evidence.",
+          "GitHub Actions run 35737829413: exact-head candidate certification and Merge gate passed at d273dc057a0199935025bd568e90aa6d9bb24fe0."
+        ],
+        "evaluated_revision": "d273dc057a0199935025bd568e90aa6d9bb24fe0",
+        "status": "evaluated"
+      },
+      "interpretation": "A positive result falsifies direct exact-evidence substitution under the current revision-bound execution identity while preserving a narrower deterministic content-preserving merge witness.",
+      "non_claims": [
+        "Tree equality implies exact execution identity.",
+        "Current candidate evidence may be relabeled as merge-commit evidence.",
+        "The live Merge gate should skip post-merge proof.",
+        "Squash, rebase, octopus, or content-changing merges satisfy the witness."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The identical-tree two-parent merge relation and direct evidence-substitution hypothesis were fixed before the deterministic/hosted witness was evaluated."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "Identical content is provable, but direct substitution of exact-head candidate evidence is falsified because current execution context and trusted attestations remain bound to source_sha."
+      }
     }
   ]
 }
