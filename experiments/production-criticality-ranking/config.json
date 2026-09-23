@@ -2,10 +2,7 @@
   "schema": "overcenter-production-callable-criticality-config/v1",
   "maxRecoveryClass": 6,
   "changeHalfLifeDays": 30,
-  "requiredEvidenceTiers": [
-    "test",
-    "experiment"
-  ],
+  "requiredEvidenceTiers": ["test", "experiment"],
   "authorityClasses": [
     {
       "id": "realization-reuse",

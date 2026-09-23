@@ -7,25 +7,23 @@ import {
 } from '../authority/facts.ts';
 
 export interface GraphReconciliationPlan {
-  upsert:Obligation[];
-  added:string[];
-  rebound:string[];
-  unchanged:string[];
+  upsert: Obligation[];
+  added: string[];
+  rebound: string[];
+  unchanged: string[];
 }
 
 export function planGraphReconciliation(
-  state:State,
-  desired:ObligationInput[],
-):GraphReconciliationPlan {
-  const normalized=desired
-    .map(normalizeObligation)
-    .sort((a,b)=>a.id.localeCompare(b.id));
+  state: State,
+  desired: ObligationInput[],
+): GraphReconciliationPlan {
+  const normalized = desired.map(normalizeObligation).sort((a, b) => a.id.localeCompare(b.id));
 
-  const seen=new Set<string>();
-  const upsert:Obligation[]=[];
-  const added:string[]=[];
-  const rebound:string[]=[];
-  const unchanged:string[]=[];
+  const seen = new Set<string>();
+  const upsert: Obligation[] = [];
+  const added: string[] = [];
+  const rebound: string[] = [];
+  const unchanged: string[] = [];
 
   for (const obligation of normalized) {
     if (seen.has(obligation.id)) {
@@ -33,17 +31,15 @@ export function planGraphReconciliation(
     }
     seen.add(obligation.id);
 
-    const definitionId=obligationDefinitionId(
-      obligationDefinition(obligation),
-    );
-    const currentDefinitionId=state.definition_ids[obligation.id];
+    const definitionId = obligationDefinitionId(obligationDefinition(obligation));
+    const currentDefinitionId = state.definition_ids[obligation.id];
 
     if (!currentDefinitionId) {
       upsert.push(obligation);
       added.push(obligation.id);
       continue;
     }
-    if (currentDefinitionId===definitionId) {
+    if (currentDefinitionId === definitionId) {
       unchanged.push(obligation.id);
       continue;
     }
@@ -51,5 +47,5 @@ export function planGraphReconciliation(
     rebound.push(obligation.id);
   }
 
-  return {upsert,added,rebound,unchanged};
+  return { upsert, added, rebound, unchanged };
 }

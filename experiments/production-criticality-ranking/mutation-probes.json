@@ -13,9 +13,7 @@
           "name": "canonicalDigest"
         }
       ],
-      "tests": [
-        "test/digest-pure.test.ts"
-      ]
+      "tests": ["test/digest-pure.test.ts"]
     },
     {
       "id": "semantic-identity",
@@ -29,10 +27,7 @@
           "name": "obligationKey"
         }
       ],
-      "tests": [
-        "test/semantic-dependency.test.ts",
-        "test/semantic-identity-hostile.test.ts"
-      ]
+      "tests": ["test/semantic-dependency.test.ts", "test/semantic-identity-hostile.test.ts"]
     },
     {
       "id": "done-candidate-reuse",
@@ -42,9 +37,7 @@
           "name": "deriveRealizationRelations"
         }
       ],
-      "tests": [
-        "test/projector-pure.test.ts"
-      ]
+      "tests": ["test/projector-pure.test.ts"]
     },
     {
       "id": "effect-reservation",
@@ -82,9 +75,7 @@
           "name": "projectExecutionAuthority"
         }
       ],
-      "tests": [
-        "test/hostile.test.ts"
-      ]
+      "tests": ["test/hostile.test.ts"]
     },
     {
       "id": "verification-and-absence",
@@ -102,9 +93,7 @@
           "name": "observationVerified"
         }
       ],
-      "tests": [
-        "test/observation-hostile.test.ts"
-      ]
+      "tests": ["test/observation-hostile.test.ts"]
     }
   ]
 }

@@ -57,8 +57,14 @@ test('hosted proof does not transport worker-declared provider authority', () =>
   const worker = job('agent-a', 'effect-broker');
   const broker = job('effect-broker', 'agent-b');
 
-  assert.doesNotMatch(worker, /effect[- ]intent|disposable-agent-effect-intent|effect-intent\.json/i);
-  assert.doesNotMatch(broker, /effect[- ]intent|disposable-agent-effect-intent|effect-intent\.json/i);
+  assert.doesNotMatch(
+    worker,
+    /effect[- ]intent|disposable-agent-effect-intent|effect-intent\.json/i,
+  );
+  assert.doesNotMatch(
+    broker,
+    /effect[- ]intent|disposable-agent-effect-intent|effect-intent\.json/i,
+  );
 });
 
 test('active hosted proof contains no legacy commit-status effect intent', () => {
@@ -152,4 +158,3 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
     );
   }
 });
-

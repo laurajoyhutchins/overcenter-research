@@ -15,136 +15,130 @@ import {
 } from './protocol.ts';
 
 interface PendingExecution {
-  execution:ComputationExecutionV1;
-  resolve:(evidence:ComputationAttemptEvidenceV1)=>void;
-  reject:(error:Error)=>void;
+  execution: ComputationExecutionV1;
+  resolve: (evidence: ComputationAttemptEvidenceV1) => void;
+  reject: (error: Error) => void;
 }
 
 export interface GoExecutorClientOptions {
-  socketPath:string;
-  maxConcurrency:number;
-  executionContextSha256?:string;
-  containmentId?:string;
+  socketPath: string;
+  maxConcurrency: number;
+  executionContextSha256?: string;
+  containmentId?: string;
 }
 
 export class GoExecutorClient {
-  executionContextSha256?:string;
-  containmentId?:string;
-  readonly #expectedExecutionContextSha256?:string;
-  readonly #expectedContainmentId?:string;
-  readonly #helloRequired:boolean;
-  #helloSeen=false;
-  readonly #ready:Promise<void>;
-  #resolveReady!:()=>void;
-  #rejectReady!:(error:Error)=>void;
-  readonly #socket:Socket;
-  readonly #maxConcurrency:number;
-  readonly #pending=new Map<string,PendingExecution>();
-  readonly #capacityWaiters:Array<()=>void>=[];
-  readonly #connected:Promise<void>;
-  readonly #closed:Promise<void>;
-  #inflight=0;
-  #terminalError:Error|null=null;
-  #closing=false;
+  executionContextSha256?: string;
+  containmentId?: string;
+  readonly #expectedExecutionContextSha256?: string;
+  readonly #expectedContainmentId?: string;
+  readonly #helloRequired: boolean;
+  #helloSeen = false;
+  readonly #ready: Promise<void>;
+  #resolveReady!: () => void;
+  #rejectReady!: (error: Error) => void;
+  readonly #socket: Socket;
+  readonly #maxConcurrency: number;
+  readonly #pending = new Map<string, PendingExecution>();
+  readonly #capacityWaiters: Array<() => void> = [];
+  readonly #connected: Promise<void>;
+  readonly #closed: Promise<void>;
+  #inflight = 0;
+  #terminalError: Error | null = null;
+  #closing = false;
 
   constructor({
     socketPath,
     maxConcurrency,
     executionContextSha256,
     containmentId,
-  }:GoExecutorClientOptions) {
+  }: GoExecutorClientOptions) {
     if (!socketPath.startsWith('/')) {
       throw new Error('GO_EXECUTOR_SOCKET_MUST_BE_ABSOLUTE');
     }
-    if (!Number.isSafeInteger(maxConcurrency) || maxConcurrency<=0) {
+    if (!Number.isSafeInteger(maxConcurrency) || maxConcurrency <= 0) {
       throw new Error('GO_EXECUTOR_CONCURRENCY_INVALID');
     }
     if (
-      executionContextSha256!==undefined
-      && !/^sha256:[0-9a-f]{64}$/.test(executionContextSha256)
+      executionContextSha256 !== undefined &&
+      !/^sha256:[0-9a-f]{64}$/.test(executionContextSha256)
     ) {
       throw new Error('GO_EXECUTOR_EXECUTION_CONTEXT_INVALID');
     }
     if (
-      containmentId!==undefined
-      && (
-        containmentId.length===0
-        || Buffer.byteLength(containmentId,'utf8')>512
-        || containmentId.includes('\0')
-      )
+      containmentId !== undefined &&
+      (containmentId.length === 0 ||
+        Buffer.byteLength(containmentId, 'utf8') > 512 ||
+        containmentId.includes('\0'))
     ) {
       throw new Error('GO_EXECUTOR_CONTAINMENT_ID_INVALID');
     }
-    if ((executionContextSha256===undefined)!==(containmentId===undefined)) {
+    if ((executionContextSha256 === undefined) !== (containmentId === undefined)) {
       throw new Error('GO_EXECUTOR_ATTESTATION_PAIR_REQUIRED');
     }
-    this.#expectedExecutionContextSha256=executionContextSha256;
-    this.#expectedContainmentId=containmentId;
-    this.#helloRequired=executionContextSha256!==undefined;
-    this.#ready=new Promise<void>((resolve,reject)=>{
-      this.#resolveReady=resolve;
-      this.#rejectReady=reject;
+    this.#expectedExecutionContextSha256 = executionContextSha256;
+    this.#expectedContainmentId = containmentId;
+    this.#helloRequired = executionContextSha256 !== undefined;
+    this.#ready = new Promise<void>((resolve, reject) => {
+      this.#resolveReady = resolve;
+      this.#rejectReady = reject;
     });
-    void this.#ready.catch(()=>{});
-    this.#maxConcurrency=maxConcurrency;
-    this.#socket=createConnection({path:socketPath});
+    void this.#ready.catch(() => {});
+    this.#maxConcurrency = maxConcurrency;
+    this.#socket = createConnection({ path: socketPath });
 
-    this.#connected=new Promise((resolve,reject)=>{
-      this.#socket.once('connect',()=>{
+    this.#connected = new Promise((resolve, reject) => {
+      this.#socket.once('connect', () => {
         resolve();
         if (!this.#helloRequired) this.#resolveReady();
       });
-      this.#socket.once('error',reject);
+      this.#socket.once('error', reject);
     });
 
-    const lines=createInterface({input:this.#socket,crlfDelay:Infinity});
-    lines.on('error',error=>this.#fail(error));
-    lines.on('line',line=>{
+    const lines = createInterface({ input: this.#socket, crlfDelay: Infinity });
+    lines.on('error', (error) => this.#fail(error));
+    lines.on('line', (line) => {
       try {
-        const parsed:unknown=JSON.parse(line);
+        const parsed: unknown = JSON.parse(line);
         if (this.#helloRequired && !this.#helloSeen) {
-          const hello=validateExecutorHello(parsed);
+          const hello = validateExecutorHello(parsed);
           if (
-            hello.execution_context_sha256!==this.#expectedExecutionContextSha256
-            || hello.containment_id!==this.#expectedContainmentId
+            hello.execution_context_sha256 !== this.#expectedExecutionContextSha256 ||
+            hello.containment_id !== this.#expectedContainmentId
           ) {
             throw new Error('GO_EXECUTOR_ATTESTATION_MISMATCH');
           }
-          this.#helloSeen=true;
-          this.executionContextSha256=hello.execution_context_sha256;
-          this.containmentId=hello.containment_id;
+          this.#helloSeen = true;
+          this.executionContextSha256 = hello.execution_context_sha256;
+          this.containmentId = hello.containment_id;
           this.#resolveReady();
           return;
         }
-        const evidence=validateComputationEvidence(parsed);
-        const key=executionIdentityKey({
-          run_id:evidence.run_id,
-          execution_generation:evidence.execution_generation,
-          execution_authority_commit:evidence.execution_authority_commit,
+        const evidence = validateComputationEvidence(parsed);
+        const key = executionIdentityKey({
+          run_id: evidence.run_id,
+          execution_generation: evidence.execution_generation,
+          execution_authority_commit: evidence.execution_authority_commit,
         });
-        const pending=this.#pending.get(key);
+        const pending = this.#pending.get(key);
         if (!pending) {
           throw new Error(`GO_EXECUTOR_UNEXPECTED_EVIDENCE:${key}`);
         }
-        assertComputationEvidenceFor(evidence,pending.execution);
+        assertComputationEvidenceFor(evidence, pending.execution);
         this.#pending.delete(key);
         this.#releaseCapacity();
         pending.resolve(evidence);
       } catch (error) {
-        this.#fail(
-          error instanceof Error
-            ? error
-            : new Error(String(error)),
-        );
+        this.#fail(error instanceof Error ? error : new Error(String(error)));
       }
     });
 
-    this.#socket.on('error',error=>this.#fail(error));
-    this.#closed=new Promise(resolve=>{
-      this.#socket.once('close',hadError=>{
+    this.#socket.on('error', (error) => this.#fail(error));
+    this.#closed = new Promise((resolve) => {
+      this.#socket.once('close', (hadError) => {
         if (hadError) {
           this.#fail(new Error('GO_EXECUTOR_SOCKET_CLOSED_WITH_ERROR'));
-        } else if (this.#pending.size>0) {
+        } else if (this.#pending.size > 0) {
           this.#fail(new Error('GO_EXECUTOR_SOCKET_CLOSED_WITH_PENDING_EXECUTIONS'));
         } else if (!this.#closing) {
           this.#fail(new Error('GO_EXECUTOR_SOCKET_CLOSED'));
@@ -154,13 +148,13 @@ export class GoExecutorClient {
     });
   }
 
-  async ready():Promise<void> {
+  async ready(): Promise<void> {
     await this.#connected;
     await this.#ready;
     if (this.#terminalError) throw this.#terminalError;
   }
 
-  async execute(execution:ComputationExecutionV1):Promise<ComputationAttemptEvidenceV1> {
+  async execute(execution: ComputationExecutionV1): Promise<ComputationAttemptEvidenceV1> {
     validateComputationExecution(execution);
     await this.ready();
     await this.#acquireCapacity();
@@ -169,23 +163,23 @@ export class GoExecutorClient {
       throw this.#terminalError;
     }
 
-    const key=executionIdentityKey(executionIdentity(execution));
+    const key = executionIdentityKey(executionIdentity(execution));
     if (this.#pending.has(key)) {
       this.#releaseCapacity();
       throw new Error(`GO_EXECUTOR_DUPLICATE_EXECUTION:${key}`);
     }
 
-    let resolve!:PendingExecution['resolve'];
-    let reject!:PendingExecution['reject'];
-    const evidencePromise=new Promise<ComputationAttemptEvidenceV1>((res,rej)=>{
-      resolve=res;
-      reject=rej;
+    let resolve!: PendingExecution['resolve'];
+    let reject!: PendingExecution['reject'];
+    const evidencePromise = new Promise<ComputationAttemptEvidenceV1>((res, rej) => {
+      resolve = res;
+      reject = rej;
     });
-    this.#pending.set(key,{execution,resolve,reject});
+    this.#pending.set(key, { execution, resolve, reject });
 
-    const command:ExecutorCommandV1={
-      schema:EXECUTOR_COMMAND_SCHEMA,
-      kind:'execute',
+    const command: ExecutorCommandV1 = {
+      schema: EXECUTOR_COMMAND_SCHEMA,
+      kind: 'execute',
       execution,
     };
     try {
@@ -198,57 +192,54 @@ export class GoExecutorClient {
     return await evidencePromise;
   }
 
-  async cancel(execution:ComputationExecutionV1):Promise<void> {
+  async cancel(execution: ComputationExecutionV1): Promise<void> {
     validateComputationExecution(execution);
     await this.ready();
-    const command:ExecutorCommandV1={
-      schema:EXECUTOR_COMMAND_SCHEMA,
-      kind:'cancel',
-      identity:executionIdentity(execution),
+    const command: ExecutorCommandV1 = {
+      schema: EXECUTOR_COMMAND_SCHEMA,
+      kind: 'cancel',
+      identity: executionIdentity(execution),
     };
     await this.#writeCommand(command);
   }
 
-  async close():Promise<void> {
-    if (this.#pending.size>0) {
+  async close(): Promise<void> {
+    if (this.#pending.size > 0) {
       throw new Error('GO_EXECUTOR_CLOSE_WITH_PENDING_EXECUTIONS');
     }
     await this.ready();
-    this.#closing=true;
+    this.#closing = true;
     this.#socket.end();
     await this.#closed;
     if (this.#terminalError) throw this.#terminalError;
   }
 
-  async #acquireCapacity():Promise<void> {
-    if (this.#inflight<this.#maxConcurrency) {
-      this.#inflight+=1;
+  async #acquireCapacity(): Promise<void> {
+    if (this.#inflight < this.#maxConcurrency) {
+      this.#inflight += 1;
       return;
     }
-    await new Promise<void>(resolve=>this.#capacityWaiters.push(resolve));
-    this.#inflight+=1;
+    await new Promise<void>((resolve) => this.#capacityWaiters.push(resolve));
+    this.#inflight += 1;
   }
 
-  #releaseCapacity():void {
-    if (this.#inflight>0) this.#inflight-=1;
+  #releaseCapacity(): void {
+    if (this.#inflight > 0) this.#inflight -= 1;
     this.#capacityWaiters.shift()?.();
   }
 
-  async #writeCommand(command:ExecutorCommandV1):Promise<void> {
+  async #writeCommand(command: ExecutorCommandV1): Promise<void> {
     if (this.#terminalError) throw this.#terminalError;
-    const line=JSON.stringify(command)+'\n';
+    const line = JSON.stringify(command) + '\n';
     if (this.#socket.write(line)) return;
-    await Promise.race([
-      once(this.#socket,'drain'),
-      this.#closed,
-    ]);
+    await Promise.race([once(this.#socket, 'drain'), this.#closed]);
     if (this.#terminalError) throw this.#terminalError;
     if (this.#socket.destroyed) throw new Error('GO_EXECUTOR_SOCKET_CLOSED');
   }
 
-  #fail(error:Error):void {
+  #fail(error: Error): void {
     if (this.#terminalError) return;
-    this.#terminalError=error;
+    this.#terminalError = error;
     this.#rejectReady(error);
     for (const pending of this.#pending.values()) {
       pending.reject(error);

@@ -1,11 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "files": {
-    "includes": [
-      "**",
-      "!src/generated/**",
-      "!src/providers/github/operations.generated.ts"
-    ],
+    "includes": ["**", "!src/generated/**", "!src/providers/github/operations.generated.ts"],
     "ignoreUnknown": true
   },
   "formatter": {

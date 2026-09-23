@@ -153,11 +153,7 @@
     "ExecutionIdentityV1": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "run_id",
-        "execution_generation",
-        "execution_authority_commit"
-      ],
+      "required": ["run_id", "execution_generation", "execution_authority_commit"],
       "properties": {
         "run_id": {
           "type": "string",
@@ -181,11 +177,7 @@
     "ExecuteCommandV1": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "schema",
-        "kind",
-        "execution"
-      ],
+      "required": ["schema", "kind", "execution"],
       "properties": {
         "schema": {
           "const": "overcenter-executor-command-v1"
@@ -201,11 +193,7 @@
     "CancelCommandV1": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "schema",
-        "kind",
-        "identity"
-      ],
+      "required": ["schema", "kind", "identity"],
       "properties": {
         "schema": {
           "const": "overcenter-executor-command-v1"
@@ -286,11 +274,7 @@
           "$ref": "#/$defs/Sha256Tagged"
         },
         "outcome": {
-          "enum": [
-            "completed",
-            "failed",
-            "cancelled"
-          ]
+          "enum": ["completed", "failed", "cancelled"]
         },
         "exit_code": {
           "type": "integer",
@@ -335,11 +319,7 @@
     "ExecutorHelloV1": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "schema",
-        "execution_context_sha256",
-        "containment_id"
-      ],
+      "required": ["schema", "execution_context_sha256", "containment_id"],
       "properties": {
         "schema": {
           "const": "overcenter-executor-hello-v1"

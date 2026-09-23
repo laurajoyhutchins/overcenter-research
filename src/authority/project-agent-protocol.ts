@@ -1,12 +1,7 @@
-import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
-import {
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import {dirname,join,resolve} from 'node:path';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 
 import {
   AGENT_TASK_PACKET_SCHEMA,
@@ -17,16 +12,16 @@ import {
   validateCandidate,
   validPath,
 } from '../execution/assignment-capsule.ts';
-import {canonicalDigest} from '../digest.ts';
-import {GitOvercenterKernel} from '../storage/git-kernel.ts';
-import type {Work} from '../model.ts';
+import { canonicalDigest } from '../digest.ts';
+import { GitOvercenterKernel } from '../storage/git-kernel.ts';
+import type { Work } from '../model.ts';
 
-export const PROJECT_ADVANCE_RECEIPT_SCHEMA='overcenter-project-advance/v1' as const;
-export const PROJECT_SUBMIT_RECEIPT_SCHEMA='overcenter-project-submit/v1' as const;
-export const PROJECT_ADVANCE_COMMAND='project.advance' as const;
-export const PROJECT_SUBMIT_COMMAND='project.submit' as const;
+export const PROJECT_ADVANCE_RECEIPT_SCHEMA = 'overcenter-project-advance/v1' as const;
+export const PROJECT_SUBMIT_RECEIPT_SCHEMA = 'overcenter-project-submit/v1' as const;
+export const PROJECT_ADVANCE_COMMAND = 'project.advance' as const;
+export const PROJECT_SUBMIT_COMMAND = 'project.submit' as const;
 
-type ProjectVisibleState=
+type ProjectVisibleState =
   | 'READY'
   | 'EXECUTING'
   | 'WAITING'
@@ -36,92 +31,92 @@ type ProjectVisibleState=
   | 'AGENT_EXECUTION_REQUIRED';
 
 export interface ProjectCommandContext {
-  repository_id:number;
-  repository_full_name:string;
-  command_source_sha:string;
-  command_run_id:number;
-  command_run_attempt:number;
+  repository_id: number;
+  repository_full_name: string;
+  command_source_sha: string;
+  command_run_id: number;
+  command_run_attempt: number;
 }
 
 export interface ProjectAdvanceReceipt {
-  schema:typeof PROJECT_ADVANCE_RECEIPT_SCHEMA;
-  command:typeof PROJECT_ADVANCE_COMMAND;
-  transport:'github-actions-job-rerun';
-  repository_id:number;
-  repository_full_name:string;
-  command_source_sha:string;
-  command_run_id:number;
-  command_run_attempt:number;
-  authority_ref:string;
-  authority_head:string;
-  state:ProjectVisibleState;
-  obligation_id?:string;
-  run_id?:string;
-  claimed_revision?:string;
-  assignment_sha256?:string;
-  candidate_branch?:string;
-  candidate_branch_base_sha?:string;
-  receipt_digest:string;
+  schema: typeof PROJECT_ADVANCE_RECEIPT_SCHEMA;
+  command: typeof PROJECT_ADVANCE_COMMAND;
+  transport: 'github-actions-job-rerun';
+  repository_id: number;
+  repository_full_name: string;
+  command_source_sha: string;
+  command_run_id: number;
+  command_run_attempt: number;
+  authority_ref: string;
+  authority_head: string;
+  state: ProjectVisibleState;
+  obligation_id?: string;
+  run_id?: string;
+  claimed_revision?: string;
+  assignment_sha256?: string;
+  candidate_branch?: string;
+  candidate_branch_base_sha?: string;
+  receipt_digest: string;
 }
 
 export interface ProjectSubmitContext extends ProjectCommandContext {
-  candidate_sha:string;
+  candidate_sha: string;
 }
 
 export interface ProjectSubmitReceipt {
-  schema:typeof PROJECT_SUBMIT_RECEIPT_SCHEMA;
-  command:typeof PROJECT_SUBMIT_COMMAND;
-  transport:'github-actions-job-rerun';
-  repository_id:number;
-  repository_full_name:string;
-  command_source_sha:string;
-  command_run_id:number;
-  command_run_attempt:number;
-  authority_ref:string;
-  authority_head:string;
-  candidate_sha:string;
-  obligation_id:string;
-  run_id:string;
-  claimed_revision:string;
-  assignment_sha256:string;
-  output_sha256:string;
-  disposition:'DONE';
-  verified:true;
-  settlement_commit:string|null;
-  already_settled:boolean;
-  receipt_digest:string;
+  schema: typeof PROJECT_SUBMIT_RECEIPT_SCHEMA;
+  command: typeof PROJECT_SUBMIT_COMMAND;
+  transport: 'github-actions-job-rerun';
+  repository_id: number;
+  repository_full_name: string;
+  command_source_sha: string;
+  command_run_id: number;
+  command_run_attempt: number;
+  authority_ref: string;
+  authority_head: string;
+  candidate_sha: string;
+  obligation_id: string;
+  run_id: string;
+  claimed_revision: string;
+  assignment_sha256: string;
+  output_sha256: string;
+  disposition: 'DONE';
+  verified: true;
+  settlement_commit: string | null;
+  already_settled: boolean;
+  receipt_digest: string;
 }
 
 interface ProtocolOptions {
-  authorityRef?:string;
-  remote?:string;
-  githubToken?:string|null;
+  authorityRef?: string;
+  remote?: string;
+  githubToken?: string | null;
 }
 
 interface AdvanceOptions extends ProtocolOptions {
-  outputDir:string;
-  workerClientPath?:string;
+  outputDir: string;
+  workerClientPath?: string;
 }
 
 interface SubmitOptions extends ProtocolOptions {
-  candidatePath?:string;
+  candidatePath?: string;
 }
 
-const DEFAULT_AUTHORITY_REF='refs/overcenter/state';
-const DEFAULT_REMOTE='origin';
-const DEFAULT_CANDIDATE_PATH='.overcenter/candidate.json';
+const DEFAULT_AUTHORITY_REF = 'refs/overcenter/state';
+const DEFAULT_REMOTE = 'origin';
+const DEFAULT_CANDIDATE_PATH = '.overcenter/candidate.json';
 
-function positiveInteger(value:number,name:string):void {
-  if (!Number.isSafeInteger(value) || value<=0) {
+function positiveInteger(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`PROJECT_AGENT_INTEGER_INVALID:${name}`);
   }
 }
 
-function validateCommandContext(context:ProjectCommandContext):void {
-  positiveInteger(context.repository_id,'repository_id');
-  positiveInteger(context.command_run_id,'command_run_id');
-  positiveInteger(context.command_run_attempt,'command_run_attempt');
-  if (context.command_run_attempt<2) {
+function validateCommandContext(context: ProjectCommandContext): void {
+  positiveInteger(context.repository_id, 'repository_id');
+  positiveInteger(context.command_run_id, 'command_run_id');
+  positiveInteger(context.command_run_attempt, 'command_run_attempt');
+  if (context.command_run_attempt < 2) {
     throw new Error('PROJECT_AGENT_COMMAND_NOT_INVOKED');
   }
   if (!/^[^/\s]+\/[^/\s]+$/.test(context.repository_full_name)) {
@@ -132,357 +127,348 @@ function validateCommandContext(context:ProjectCommandContext):void {
   }
 }
 
-function sha256(bytes:Buffer):string {
+function sha256(bytes: Buffer): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function record(value:unknown):value is Record<string,unknown> {
-  return !!value && typeof value==='object' && !Array.isArray(value);
+function record(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function gitBytes(repo:string,commit:string,path:string):Buffer {
-  return execFileSync(
-    'git',
-    ['-C',repo,'show',`${commit}:${path}`],
-    {maxBuffer:16*1024*1024},
-  );
+function gitBytes(repo: string, commit: string, path: string): Buffer {
+  return execFileSync('git', ['-C', repo, 'show', `${commit}:${path}`], {
+    maxBuffer: 16 * 1024 * 1024,
+  });
 }
 
-function prepareAgentPacket(repo:string,work:Work):{
-  sourceSha:string;
-  files:ReturnType<typeof assignmentFile>[];
+function prepareAgentPacket(
+  repo: string,
+  work: Work,
+): {
+  sourceSha: string;
+  files: ReturnType<typeof assignmentFile>[];
 } {
-  const packet=work.packet;
-  if (
-    packet.schema!==AGENT_TASK_PACKET_SCHEMA
-    || packet.kind!=='pure-candidate'
-  ) {
+  const packet = work.packet;
+  if (packet.schema !== AGENT_TASK_PACKET_SCHEMA || packet.kind !== 'pure-candidate') {
     throw new Error('PROJECT_ADVANCE_AGENT_PACKET_UNSUPPORTED');
   }
 
-  const sourceSha=String(packet.source_sha??'').toLowerCase();
+  const sourceSha = String(packet.source_sha ?? '').toLowerCase();
   if (!/^[0-9a-f]{40}$/i.test(sourceSha)) {
     throw new Error('PROJECT_ADVANCE_PACKET_SOURCE_INVALID');
   }
   if (
-    !Array.isArray(packet.command)
-    || packet.command.length===0
-    || packet.command.some(part=>typeof part!=='string' || part.length===0)
+    !Array.isArray(packet.command) ||
+    packet.command.length === 0 ||
+    packet.command.some((part) => typeof part !== 'string' || part.length === 0)
   ) {
     throw new Error('PROJECT_ADVANCE_COMMAND_INVALID');
   }
   if (
-    !Array.isArray(packet.required_paths)
-    || packet.required_paths.length===0
-    || packet.required_paths.some(path=>typeof path!=='string' || !validPath(path))
+    !Array.isArray(packet.required_paths) ||
+    packet.required_paths.length === 0 ||
+    packet.required_paths.some((path) => typeof path !== 'string' || !validPath(path))
   ) {
     throw new Error('PROJECT_ADVANCE_REQUIRED_PATHS_INVALID');
   }
-  const requiredPaths=packet.required_paths as string[];
-  if (new Set(requiredPaths).size!==requiredPaths.length) {
+  const requiredPaths = packet.required_paths as string[];
+  if (new Set(requiredPaths).size !== requiredPaths.length) {
     throw new Error('PROJECT_ADVANCE_REQUIRED_PATHS_DUPLICATE');
   }
-  if (typeof packet.output_path!=='string' || !validPath(packet.output_path)) {
+  if (typeof packet.output_path !== 'string' || !validPath(packet.output_path)) {
     throw new Error('PROJECT_ADVANCE_OUTPUT_PATH_INVALID');
   }
 
   return {
     sourceSha,
-    files:requiredPaths.map(path=>assignmentFile(
-      path,
-      gitBytes(repo,sourceSha,path),
-    )),
+    files: requiredPaths.map((path) => assignmentFile(path, gitBytes(repo, sourceSha, path))),
   };
 }
 
 function agentAssignment(
-  work:Work,
-  prepared:{sourceSha:string;files:ReturnType<typeof assignmentFile>[]},
-):{
-  bytes:Buffer;
-  source_sha:string;
+  work: Work,
+  prepared: { sourceSha: string; files: ReturnType<typeof assignmentFile>[] },
+): {
+  bytes: Buffer;
+  source_sha: string;
 } {
-  const assignment=buildAssignment(work,prepared.files);
-  const bytes=encodeAssignment(assignment);
+  const assignment = buildAssignment(work, prepared.files);
+  const bytes = encodeAssignment(assignment);
   if (bytes.includes(Buffer.from('execution_capability'))) {
     throw new Error('PROJECT_ADVANCE_PACKET_LEAKED_EXECUTION_CAPABILITY');
   }
-  return {bytes,source_sha:prepared.sourceSha};
+  return { bytes, source_sha: prepared.sourceSha };
 }
 
-function visibleState(work:Work[]):ProjectVisibleState {
-  if (work.length===0 || work.every(candidate=>candidate.status==='DONE')) {
+function visibleState(work: Work[]): ProjectVisibleState {
+  if (work.length === 0 || work.every((candidate) => candidate.status === 'DONE')) {
     return 'DONE';
   }
-  for (const status of [
-    'RECOVERY_REQUIRED',
-    'EXECUTING',
-    'WAITING',
-    'BLOCKED',
-    'READY',
-  ] as const) {
-    if (work.some(candidate=>candidate.status===status)) return status;
+  for (const status of ['RECOVERY_REQUIRED', 'EXECUTING', 'WAITING', 'BLOCKED', 'READY'] as const) {
+    if (work.some((candidate) => candidate.status === status)) return status;
   }
   throw new Error('PROJECT_ADVANCE_STATE_UNCLASSIFIED');
 }
 
-function withDigest<T extends Record<string,unknown>>(base:T):T & {receipt_digest:string} {
+function withDigest<T extends Record<string, unknown>>(base: T): T & { receipt_digest: string } {
   return {
     ...base,
-    receipt_digest:canonicalDigest(base),
+    receipt_digest: canonicalDigest(base),
   };
 }
 
 export function advanceProjectForAgent(
-  repo:string,
-  context:ProjectCommandContext,
+  repo: string,
+  context: ProjectCommandContext,
   {
     outputDir,
     workerClientPath,
-    authorityRef=DEFAULT_AUTHORITY_REF,
-    remote=DEFAULT_REMOTE,
-    githubToken=null,
-  }:AdvanceOptions,
-):ProjectAdvanceReceipt {
+    authorityRef = DEFAULT_AUTHORITY_REF,
+    remote = DEFAULT_REMOTE,
+    githubToken = null,
+  }: AdvanceOptions,
+): ProjectAdvanceReceipt {
   validateCommandContext(context);
-  const kernel=new GitOvercenterKernel(repo,{
-    ref:authorityRef,
+  const kernel = new GitOvercenterKernel(repo, {
+    ref: authorityRef,
     remote,
     githubToken,
   });
-  const startingHead=kernel.head();
+  const startingHead = kernel.head();
   if (!startingHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
 
-  for (let attempt=0;attempt<16;attempt+=1) {
-    const ready=kernel.deriveReadyWork();
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const ready = kernel.deriveReadyWork();
     if (!ready) {
-      const authorityHead=kernel.head();
+      const authorityHead = kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
       return withDigest({
-        schema:PROJECT_ADVANCE_RECEIPT_SCHEMA,
-        command:PROJECT_ADVANCE_COMMAND,
-        transport:'github-actions-job-rerun' as const,
-        repository_id:context.repository_id,
-        repository_full_name:context.repository_full_name,
-        command_source_sha:context.command_source_sha.toLowerCase(),
-        command_run_id:context.command_run_id,
-        command_run_attempt:context.command_run_attempt,
-        authority_ref:authorityRef,
-        authority_head:authorityHead,
-        state:visibleState(kernel.inspect()),
+        schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
+        command: PROJECT_ADVANCE_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        state: visibleState(kernel.inspect()),
       });
     }
 
     // The operator command does not ask the reasoning agent to choose work.
     // It only accepts a frontier item that is already an agent-shaped packet.
-    const prepared=prepareAgentPacket(repo,ready);
+    const prepared = prepareAgentPacket(repo, ready);
     if (!workerClientPath) {
       throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED');
     }
-    const workerClient=readFileSync(workerClientPath);
-    if (workerClient.length===0) {
+    const workerClient = readFileSync(workerClientPath);
+    if (workerClient.length === 0) {
       throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_EMPTY');
     }
 
     try {
-      const permit=kernel.claim(ready.id,ready.revision);
-      const claimed=kernel.claimedWork(permit.id);
-      const assignment=agentAssignment(claimed,prepared);
-      const authorityHead=kernel.head();
+      const permit = kernel.claim(ready.id, ready.revision);
+      const claimed = kernel.claimedWork(permit.id);
+      const assignment = agentAssignment(claimed, prepared);
+      const authorityHead = kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
 
-      rmSync(outputDir,{recursive:true,force:true});
-      mkdirSync(outputDir,{recursive:true});
-      writeFileSync(join(outputDir,'assignment.json'),assignment.bytes);
-      writeFileSync(join(outputDir,'overcenter'),workerClient,{mode:0o755});
+      rmSync(outputDir, { recursive: true, force: true });
+      mkdirSync(outputDir, { recursive: true });
+      writeFileSync(join(outputDir, 'assignment.json'), assignment.bytes);
+      writeFileSync(join(outputDir, 'overcenter'), workerClient, { mode: 0o755 });
 
-      const base={
-        schema:PROJECT_ADVANCE_RECEIPT_SCHEMA,
-        command:PROJECT_ADVANCE_COMMAND,
-        transport:'github-actions-job-rerun' as const,
-        repository_id:context.repository_id,
-        repository_full_name:context.repository_full_name,
-        command_source_sha:context.command_source_sha.toLowerCase(),
-        command_run_id:context.command_run_id,
-        command_run_attempt:context.command_run_attempt,
-        authority_ref:authorityRef,
-        authority_head:authorityHead,
-        state:'AGENT_EXECUTION_REQUIRED' as const,
-        obligation_id:claimed.id,
-        run_id:permit.id,
-        claimed_revision:permit.claimed_revision,
-        assignment_sha256:assignmentSha256(assignment.bytes),
-        candidate_branch:`overcenter/candidate/${permit.id}`,
-        candidate_branch_base_sha:context.command_source_sha.toLowerCase(),
+      const base = {
+        schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
+        command: PROJECT_ADVANCE_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        state: 'AGENT_EXECUTION_REQUIRED' as const,
+        obligation_id: claimed.id,
+        run_id: permit.id,
+        claimed_revision: permit.claimed_revision,
+        assignment_sha256: assignmentSha256(assignment.bytes),
+        candidate_branch: `overcenter/candidate/${permit.id}`,
+        candidate_branch_base_sha: context.command_source_sha.toLowerCase(),
       };
-      const receipt=withDigest(base);
-      writeFileSync(
-        join(outputDir,'receipt.json'),
-        `${JSON.stringify(receipt,null,2)}\n`,
-      );
+      const receipt = withDigest(base);
+      writeFileSync(join(outputDir, 'receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
       return receipt;
-    } catch (error:unknown) {
-      const message=error instanceof Error ? error.message : String(error);
-      if (message==='STALE_REVISION' || message==='CLAIM_LOST') continue;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === 'STALE_REVISION' || message === 'CLAIM_LOST') continue;
       throw error;
     }
   }
   throw new Error('PROJECT_ADVANCE_CONTENTION_EXHAUSTED');
 }
 
-function safeLocalObservationRoot(path:string):string {
-  const target=resolve(path);
-  const root=dirname(target);
-  if (root==='/tmp' || dirname(root)!=='/tmp') {
+function safeLocalObservationRoot(path: string): string {
+  const target = resolve(path);
+  const root = dirname(target);
+  if (root === '/tmp' || dirname(root) !== '/tmp') {
     throw new Error('PROJECT_SUBMIT_LOCAL_POSTCONDITION_UNSAFE');
   }
   return root;
 }
 
 export function submitProjectCandidate(
-  repo:string,
-  context:ProjectSubmitContext,
+  repo: string,
+  context: ProjectSubmitContext,
   {
-    authorityRef=DEFAULT_AUTHORITY_REF,
-    remote=DEFAULT_REMOTE,
-    githubToken=null,
-    candidatePath=DEFAULT_CANDIDATE_PATH,
-  }:SubmitOptions={},
-):ProjectSubmitReceipt {
+    authorityRef = DEFAULT_AUTHORITY_REF,
+    remote = DEFAULT_REMOTE,
+    githubToken = null,
+    candidatePath = DEFAULT_CANDIDATE_PATH,
+  }: SubmitOptions = {},
+): ProjectSubmitReceipt {
   validateCommandContext(context);
-  const candidateSha=context.candidate_sha.toLowerCase();
+  const candidateSha = context.candidate_sha.toLowerCase();
   if (!/^[0-9a-f]{40}$/i.test(candidateSha)) {
     throw new Error('PROJECT_SUBMIT_CANDIDATE_SHA_INVALID');
   }
 
-  const raw=JSON.parse(gitBytes(repo,candidateSha,candidatePath).toString('utf8'));
-  if (!record(raw) || typeof raw.run_id!=='string') {
+  const raw = JSON.parse(gitBytes(repo, candidateSha, candidatePath).toString('utf8'));
+  if (!record(raw) || typeof raw.run_id !== 'string') {
     throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_INVALID');
   }
 
-  const kernel=new GitOvercenterKernel(repo,{
-    ref:authorityRef,
+  const kernel = new GitOvercenterKernel(repo, {
+    ref: authorityRef,
     remote,
     githubToken,
   });
   if (!kernel.head()) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
 
-  const assigned=kernel.claimedWork(raw.run_id);
-  const rebuilt=agentAssignment(assigned,prepareAgentPacket(repo,assigned));
-  const candidate=validateCandidate(raw,JSON.parse(rebuilt.bytes.toString('utf8')),rebuilt.bytes);
+  const assigned = kernel.claimedWork(raw.run_id);
+  const rebuilt = agentAssignment(assigned, prepareAgentPacket(repo, assigned));
+  const candidate = validateCandidate(
+    raw,
+    JSON.parse(rebuilt.bytes.toString('utf8')),
+    rebuilt.bytes,
+  );
 
-  const priorDone=kernel.receipts(candidate.run_id)
-    .filter(receipt=>receipt.disposition==='DONE' && receipt.verified)
+  const priorDone = kernel
+    .receipts(candidate.run_id)
+    .filter((receipt) => receipt.disposition === 'DONE' && receipt.verified)
     .at(-1);
   if (priorDone) {
-    const diagnostic=record(priorDone.diagnostic)
-      && record(priorDone.diagnostic.agent_candidate)
-      ? priorDone.diagnostic.agent_candidate
-      : null;
+    const diagnostic =
+      record(priorDone.diagnostic) && record(priorDone.diagnostic.agent_candidate)
+        ? priorDone.diagnostic.agent_candidate
+        : null;
     if (
-      !diagnostic
-      || diagnostic.assignment_sha256!==candidate.assignment_sha256
-      || diagnostic.output_sha256!==candidate.output_sha256
+      !diagnostic ||
+      diagnostic.assignment_sha256 !== candidate.assignment_sha256 ||
+      diagnostic.output_sha256 !== candidate.output_sha256
     ) {
       throw new Error('PROJECT_SUBMIT_SETTLED_OUTPUT_MISMATCH');
     }
-    const authorityHead=kernel.head();
+    const authorityHead = kernel.head();
     if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
     return withDigest({
-      schema:PROJECT_SUBMIT_RECEIPT_SCHEMA,
-      command:PROJECT_SUBMIT_COMMAND,
-      transport:'github-actions-job-rerun' as const,
-      repository_id:context.repository_id,
-      repository_full_name:context.repository_full_name,
-      command_source_sha:context.command_source_sha.toLowerCase(),
-      command_run_id:context.command_run_id,
-      command_run_attempt:context.command_run_attempt,
-      authority_ref:authorityRef,
-      authority_head:authorityHead,
-      candidate_sha:candidateSha,
-      obligation_id:assigned.id,
-      run_id:candidate.run_id,
-      claimed_revision:candidate.claimed_revision,
-      assignment_sha256:candidate.assignment_sha256,
-      output_sha256:candidate.output_sha256,
-      disposition:'DONE' as const,
-      verified:true as const,
-      settlement_commit:priorDone.settlement_commit??null,
-      already_settled:true,
+      schema: PROJECT_SUBMIT_RECEIPT_SCHEMA,
+      command: PROJECT_SUBMIT_COMMAND,
+      transport: 'github-actions-job-rerun' as const,
+      repository_id: context.repository_id,
+      repository_full_name: context.repository_full_name,
+      command_source_sha: context.command_source_sha.toLowerCase(),
+      command_run_id: context.command_run_id,
+      command_run_attempt: context.command_run_attempt,
+      authority_ref: authorityRef,
+      authority_head: authorityHead,
+      candidate_sha: candidateSha,
+      obligation_id: assigned.id,
+      run_id: candidate.run_id,
+      claimed_revision: candidate.claimed_revision,
+      assignment_sha256: candidate.assignment_sha256,
+      output_sha256: candidate.output_sha256,
+      disposition: 'DONE' as const,
+      verified: true as const,
+      settlement_commit: priorDone.settlement_commit ?? null,
+      already_settled: true,
     });
   }
 
-  const current=kernel.inspect().find(work=>work.id===assigned.id);
-  if (!current || current.run_id!==candidate.run_id) {
+  const current = kernel.inspect().find((work) => work.id === assigned.id);
+  if (!current || current.run_id !== candidate.run_id) {
     throw new Error('PROJECT_SUBMIT_AUTHORITY_RUN_MISMATCH');
   }
-  if (!['EXECUTING','RECOVERY_REQUIRED'].includes(current.status)) {
+  if (!['EXECUTING', 'RECOVERY_REQUIRED'].includes(current.status)) {
     throw new Error(`PROJECT_SUBMIT_RUN_NOT_SETTLEABLE:${current.status}`);
   }
 
-  const postcondition=assigned.postcondition;
+  const postcondition = assigned.postcondition;
   if (
-    postcondition.verifier!=='file-content-equals/v1'
-    || typeof postcondition.path!=='string'
-    || typeof postcondition.content!=='string'
+    postcondition.verifier !== 'file-content-equals/v1' ||
+    typeof postcondition.path !== 'string' ||
+    typeof postcondition.content !== 'string'
   ) {
     throw new Error('PROJECT_SUBMIT_POSTCONDITION_UNSUPPORTED');
   }
 
-  const root=safeLocalObservationRoot(postcondition.path);
-  rmSync(root,{recursive:true,force:true});
-  mkdirSync(root,{recursive:true});
-  const output=Buffer.from(candidate.output_base64,'base64');
-  if (sha256(output)!==candidate.output_sha256) {
+  const root = safeLocalObservationRoot(postcondition.path);
+  rmSync(root, { recursive: true, force: true });
+  mkdirSync(root, { recursive: true });
+  const output = Buffer.from(candidate.output_base64, 'base64');
+  if (sha256(output) !== candidate.output_sha256) {
     throw new Error('PROJECT_SUBMIT_OUTPUT_DIGEST_MISMATCH');
   }
-  writeFileSync(postcondition.path,output,{flag:'wx'});
+  writeFileSync(postcondition.path, output, { flag: 'wx' });
 
-  const settlementKernel=new GitOvercenterKernel(repo,{
-    ref:authorityRef,
+  const settlementKernel = new GitOvercenterKernel(repo, {
+    ref: authorityRef,
     remote,
     githubToken,
-    observationContext:{localFileRoot:root},
+    observationContext: { localFileRoot: root },
   });
-  const before=settlementKernel.inspect().find(work=>work.id===assigned.id);
-  if (!before || before.run_id!==candidate.run_id) {
+  const before = settlementKernel.inspect().find((work) => work.id === assigned.id);
+  if (!before || before.run_id !== candidate.run_id) {
     throw new Error('PROJECT_SUBMIT_AUTHORITY_RUN_MISMATCH');
   }
 
-  const permit=settlementKernel.acquireExecution(candidate.run_id);
-  const settled=settlementKernel.resolve(permit,{
-    agent_candidate:{
-      assignment_sha256:candidate.assignment_sha256,
-      output_sha256:candidate.output_sha256,
-      candidate_sha:candidateSha,
+  const permit = settlementKernel.acquireExecution(candidate.run_id);
+  const settled = settlementKernel.resolve(permit, {
+    agent_candidate: {
+      assignment_sha256: candidate.assignment_sha256,
+      output_sha256: candidate.output_sha256,
+      candidate_sha: candidateSha,
     },
   });
-  if (settled.disposition!=='DONE' || settled.verified!==true) {
+  if (settled.disposition !== 'DONE' || settled.verified !== true) {
     throw new Error(`PROJECT_SUBMIT_CANDIDATE_NOT_VERIFIED:${settled.disposition}`);
   }
 
-  const authorityHead=settlementKernel.head();
+  const authorityHead = settlementKernel.head();
   if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
   return withDigest({
-    schema:PROJECT_SUBMIT_RECEIPT_SCHEMA,
-    command:PROJECT_SUBMIT_COMMAND,
-    transport:'github-actions-job-rerun' as const,
-    repository_id:context.repository_id,
-    repository_full_name:context.repository_full_name,
-    command_source_sha:context.command_source_sha.toLowerCase(),
-    command_run_id:context.command_run_id,
-    command_run_attempt:context.command_run_attempt,
-    authority_ref:authorityRef,
-    authority_head:authorityHead,
-    candidate_sha:candidateSha,
-    obligation_id:assigned.id,
-    run_id:candidate.run_id,
-    claimed_revision:candidate.claimed_revision,
-    assignment_sha256:candidate.assignment_sha256,
-    output_sha256:candidate.output_sha256,
-    disposition:'DONE' as const,
-    verified:true as const,
-    settlement_commit:settled.settlement_commit??null,
-    already_settled:false,
+    schema: PROJECT_SUBMIT_RECEIPT_SCHEMA,
+    command: PROJECT_SUBMIT_COMMAND,
+    transport: 'github-actions-job-rerun' as const,
+    repository_id: context.repository_id,
+    repository_full_name: context.repository_full_name,
+    command_source_sha: context.command_source_sha.toLowerCase(),
+    command_run_id: context.command_run_id,
+    command_run_attempt: context.command_run_attempt,
+    authority_ref: authorityRef,
+    authority_head: authorityHead,
+    candidate_sha: candidateSha,
+    obligation_id: assigned.id,
+    run_id: candidate.run_id,
+    claimed_revision: candidate.claimed_revision,
+    assignment_sha256: candidate.assignment_sha256,
+    output_sha256: candidate.output_sha256,
+    disposition: 'DONE' as const,
+    verified: true as const,
+    settlement_commit: settled.settlement_commit ?? null,
+    already_settled: false,
   });
 }

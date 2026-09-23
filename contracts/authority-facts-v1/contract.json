@@ -9,14 +9,8 @@
     "limitations": "This contract defines persisted fact structure and semantic roles. It does not make a fact valid in history merely because its JSON shape is valid; replay still enforces ordering, fencing, graph, observation, and settlement semantics."
   },
   "participants": {
-    "producers": [
-      "typescript-authority"
-    ],
-    "consumers": [
-      "projection",
-      "git-fact-store",
-      "sqlite-fact-store"
-    ]
+    "producers": ["typescript-authority"],
+    "consumers": ["projection", "git-fact-store", "sqlite-fact-store"]
   },
   "schema": {
     "format": "json-schema",
@@ -30,9 +24,7 @@
       "overcenter-git-effect-reservation-v1",
       "overcenter-git-receipt-v5"
     ],
-    "validationExtensions": [
-      "x-overcenter-openBoundary"
-    ]
+    "validationExtensions": ["x-overcenter-openBoundary"]
   },
   "compatibility": {
     "outerFactUnknownFields": "reject",
@@ -53,10 +45,7 @@
       "effectReservation": "effect-reservation.json",
       "receipt": "receipt.json"
     },
-    "backends": [
-      "git",
-      "sqlite"
-    ],
+    "backends": ["git", "sqlite"],
     "backendLocalCommitIdentity": true
   },
   "openBoundaries": [
@@ -127,34 +116,15 @@
         "execution_generation",
         "execution_authority_commit"
       ],
-      "resultFields": [
-        "kind",
-        "observed"
-      ],
-      "auditFields": [
-        "settled_at"
-      ],
-      "diagnosticFields": [
-        "diagnostic"
-      ],
-      "derivedFieldsExcluded": [
-        "disposition",
-        "verified",
-        "settlement_commit"
-      ]
+      "resultFields": ["kind", "observed"],
+      "auditFields": ["settled_at"],
+      "diagnosticFields": ["diagnostic"],
+      "derivedFieldsExcluded": ["disposition", "verified", "settlement_commit"]
     },
     "graphPatchFact": {
-      "immutableDefinitionFields": [
-        "definitions[].id",
-        "definitions[].definition"
-      ],
-      "bindingFields": [
-        "bindings[].node_id",
-        "bindings[].definition_id"
-      ],
-      "retirementFields": [
-        "retire[]"
-      ],
+      "immutableDefinitionFields": ["definitions[].id", "definitions[].definition"],
+      "bindingFields": ["bindings[].node_id", "bindings[].definition_id"],
+      "retirementFields": ["retire[]"],
       "note": "Definitions are immutable and content-addressed. Stable node IDs are rebound or retired atomically by graph revision."
     }
   },

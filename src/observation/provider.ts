@@ -14,16 +14,16 @@ export interface ObservationObserver {
 }
 
 export interface ProviderStructuralValidation {
-  operation_id:string;
-  status:string;
-  validated_paths:string[];
-  optional_absent_paths:string[];
-  schema_sha256:string;
+  operation_id: string;
+  status: string;
+  validated_paths: string[];
+  optional_absent_paths: string[];
+  schema_sha256: string;
 }
 
 export interface ProviderRevalidationProvenance {
-  observed_at:string;
-  etag:string;
+  observed_at: string;
+  etag: string;
 }
 
 export interface ProviderObservation<
@@ -48,28 +48,28 @@ export interface ProviderObservation<
     value?: unknown;
     transport_error?: string;
   } & OutcomeExtra;
-  structural_validation?:ProviderStructuralValidation;
-  revalidated_from?:ProviderRevalidationProvenance;
+  structural_validation?: ProviderStructuralValidation;
+  revalidated_from?: ProviderRevalidationProvenance;
 }
 
 export type ProviderObservationExtensionKind = 'non-empty-string';
 
 export interface ProviderObservationValidationOptions {
   topLevelExtensions?: readonly string[];
-  requiredTopLevelExtensions?: Readonly<Record<string,ProviderObservationExtensionKind>>;
+  requiredTopLevelExtensions?: Readonly<Record<string, ProviderObservationExtensionKind>>;
   outcomeExtensions?: readonly string[];
 }
 
 export function validateProviderObservationEnvelope(
-  value:unknown,
+  value: unknown,
   {
-    topLevelExtensions=[],
-    requiredTopLevelExtensions={},
-    outcomeExtensions=[],
-  }:ProviderObservationValidationOptions={},
-):asserts value is ProviderObservation<string,unknown,unknown> {
+    topLevelExtensions = [],
+    requiredTopLevelExtensions = {},
+    outcomeExtensions = [],
+  }: ProviderObservationValidationOptions = {},
+): asserts value is ProviderObservation<string, unknown, unknown> {
   if (!data(value)) throw new Error('PROVIDER_OBSERVATION_INVALID');
-  const requiredExtensionNames=Object.keys(requiredTopLevelExtensions);
+  const requiredExtensionNames = Object.keys(requiredTopLevelExtensions);
   exactKeys(
     value,
     [
@@ -81,80 +81,66 @@ export function validateProviderObservationEnvelope(
       'outcome',
       ...requiredExtensionNames,
     ],
-    ['structural_validation','revalidated_from',...topLevelExtensions],
+    ['structural_validation', 'revalidated_from', ...topLevelExtensions],
     'PROVIDER_OBSERVATION_SHAPE_INVALID',
   );
-  for (const [name,kind] of Object.entries(requiredTopLevelExtensions)) {
-    if (kind==='non-empty-string') {
-      nonEmptyString(
-        value[name],
-        `PROVIDER_OBSERVATION_EXTENSION_INVALID:${name}`,
-      );
+  for (const [name, kind] of Object.entries(requiredTopLevelExtensions)) {
+    if (kind === 'non-empty-string') {
+      nonEmptyString(value[name], `PROVIDER_OBSERVATION_EXTENSION_INVALID:${name}`);
     }
   }
 
   if (!data(value.contract)) throw new Error('PROVIDER_OBSERVATION_CONTRACT_INVALID');
   exactKeys(
     value.contract,
-    ['provider','api_version','operation_id','schema_sha256'],
+    ['provider', 'api_version', 'operation_id', 'schema_sha256'],
     [],
     'PROVIDER_OBSERVATION_CONTRACT_SHAPE_INVALID',
   );
-  nonEmptyString(value.contract.provider,'PROVIDER_OBSERVATION_PROVIDER_INVALID');
-  nonEmptyString(value.contract.api_version,'PROVIDER_OBSERVATION_API_VERSION_INVALID');
-  nonEmptyString(value.contract.operation_id,'PROVIDER_OBSERVATION_OPERATION_ID_INVALID');
+  nonEmptyString(value.contract.provider, 'PROVIDER_OBSERVATION_PROVIDER_INVALID');
+  nonEmptyString(value.contract.api_version, 'PROVIDER_OBSERVATION_API_VERSION_INVALID');
+  nonEmptyString(value.contract.operation_id, 'PROVIDER_OBSERVATION_OPERATION_ID_INVALID');
   if (
-    typeof value.contract.schema_sha256!=='string'
-    || !/^[0-9a-f]{64}$/.test(value.contract.schema_sha256)
-  ) throw new Error('PROVIDER_OBSERVATION_SCHEMA_DIGEST_INVALID');
+    typeof value.contract.schema_sha256 !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(value.contract.schema_sha256)
+  )
+    throw new Error('PROVIDER_OBSERVATION_SCHEMA_DIGEST_INVALID');
 
   if (!data(value.observer)) throw new Error('PROVIDER_OBSERVATION_OBSERVER_INVALID');
-  exactKeys(
-    value.observer,
-    ['kind','id'],
-    [],
-    'PROVIDER_OBSERVATION_OBSERVER_SHAPE_INVALID',
-  );
-  nonEmptyString(value.observer.kind,'PROVIDER_OBSERVATION_OBSERVER_KIND_INVALID');
-  nonEmptyString(value.observer.id,'PROVIDER_OBSERVATION_OBSERVER_ID_INVALID');
-  nonEmptyString(value.observed_at,'PROVIDER_OBSERVATION_TIME_INVALID');
+  exactKeys(value.observer, ['kind', 'id'], [], 'PROVIDER_OBSERVATION_OBSERVER_SHAPE_INVALID');
+  nonEmptyString(value.observer.kind, 'PROVIDER_OBSERVATION_OBSERVER_KIND_INVALID');
+  nonEmptyString(value.observer.id, 'PROVIDER_OBSERVATION_OBSERVER_ID_INVALID');
+  nonEmptyString(value.observed_at, 'PROVIDER_OBSERVATION_TIME_INVALID');
 
   if (!data(value.request)) throw new Error('PROVIDER_OBSERVATION_REQUEST_INVALID');
   if (!data(value.response)) throw new Error('PROVIDER_OBSERVATION_RESPONSE_INVALID');
   if (!data(value.outcome)) throw new Error('PROVIDER_OBSERVATION_OUTCOME_INVALID');
   exactKeys(
     value.outcome,
-    ['status','visibility'],
-    ['value','transport_error',...outcomeExtensions],
+    ['status', 'visibility'],
+    ['value', 'transport_error', ...outcomeExtensions],
     'PROVIDER_OBSERVATION_OUTCOME_SHAPE_INVALID',
   );
-  if (!Number.isSafeInteger(value.outcome.status) || value.outcome.status<0) {
+  if (!Number.isSafeInteger(value.outcome.status) || value.outcome.status < 0) {
     throw new Error('PROVIDER_OBSERVATION_STATUS_INVALID');
   }
-  if (!['observed','not-observed','indeterminate'].includes(String(value.outcome.visibility))) {
+  if (!['observed', 'not-observed', 'indeterminate'].includes(String(value.outcome.visibility))) {
     throw new Error('PROVIDER_OBSERVATION_VISIBILITY_INVALID');
   }
   if (
-    value.outcome.transport_error!==undefined
-    && (
-      typeof value.outcome.transport_error!=='string'
-      || value.outcome.transport_error.length===0
-    )
-  ) throw new Error('PROVIDER_OBSERVATION_TRANSPORT_ERROR_INVALID');
+    value.outcome.transport_error !== undefined &&
+    (typeof value.outcome.transport_error !== 'string' ||
+      value.outcome.transport_error.length === 0)
+  )
+    throw new Error('PROVIDER_OBSERVATION_TRANSPORT_ERROR_INVALID');
 
-  if (value.structural_validation!==undefined) {
+  if (value.structural_validation !== undefined) {
     if (!data(value.structural_validation)) {
       throw new Error('PROVIDER_OBSERVATION_STRUCTURAL_VALIDATION_INVALID');
     }
     exactKeys(
       value.structural_validation,
-      [
-        'operation_id',
-        'status',
-        'validated_paths',
-        'optional_absent_paths',
-        'schema_sha256',
-      ],
+      ['operation_id', 'status', 'validated_paths', 'optional_absent_paths', 'schema_sha256'],
       [],
       'PROVIDER_OBSERVATION_STRUCTURAL_VALIDATION_SHAPE_INVALID',
     );
@@ -167,24 +153,26 @@ export function validateProviderObservationEnvelope(
       'PROVIDER_OBSERVATION_STRUCTURAL_STATUS_INVALID',
     );
     if (
-      !Array.isArray(value.structural_validation.validated_paths)
-      || !value.structural_validation.validated_paths.every(path=>typeof path==='string')
-      || !Array.isArray(value.structural_validation.optional_absent_paths)
-      || !value.structural_validation.optional_absent_paths.every(path=>typeof path==='string')
-      || typeof value.structural_validation.schema_sha256!=='string'
-      || !/^[0-9a-f]{64}$/.test(value.structural_validation.schema_sha256)
+      !Array.isArray(value.structural_validation.validated_paths) ||
+      !value.structural_validation.validated_paths.every((path) => typeof path === 'string') ||
+      !Array.isArray(value.structural_validation.optional_absent_paths) ||
+      !value.structural_validation.optional_absent_paths.every(
+        (path) => typeof path === 'string',
+      ) ||
+      typeof value.structural_validation.schema_sha256 !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(value.structural_validation.schema_sha256)
     ) {
       throw new Error('PROVIDER_OBSERVATION_STRUCTURAL_VALIDATION_INVALID');
     }
   }
 
-  if (value.revalidated_from!==undefined) {
+  if (value.revalidated_from !== undefined) {
     if (!data(value.revalidated_from)) {
       throw new Error('PROVIDER_OBSERVATION_REVALIDATION_INVALID');
     }
     exactKeys(
       value.revalidated_from,
-      ['observed_at','etag'],
+      ['observed_at', 'etag'],
       [],
       'PROVIDER_OBSERVATION_REVALIDATION_SHAPE_INVALID',
     );
@@ -192,9 +180,6 @@ export function validateProviderObservationEnvelope(
       value.revalidated_from.observed_at,
       'PROVIDER_OBSERVATION_REVALIDATION_TIME_INVALID',
     );
-    nonEmptyString(
-      value.revalidated_from.etag,
-      'PROVIDER_OBSERVATION_REVALIDATION_ETAG_INVALID',
-    );
+    nonEmptyString(value.revalidated_from.etag, 'PROVIDER_OBSERVATION_REVALIDATION_ETAG_INVALID');
   }
 }
