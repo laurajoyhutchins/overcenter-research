@@ -7,24 +7,19 @@ on:
       - main
       - experiment/github-observation-grammar
       - experiment/github-observation-semantics
-      - experiment/provider-certificate-reuse
-      - experiment/github-authority-command
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
-      - experiments/provider-observation/**
       - src/model.ts
       - src/observation/**
       - src/semantics.ts
       - src/providers/github/**
       - scripts/generate-github-operations.ts
-      - bin/github-authority.ts
       - test/provider-observation.test.ts
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
       - test/github-certified-pr.test.ts
       - test/github-openapi-contract.test.ts
-      - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
   pull_request:
@@ -34,19 +29,16 @@ on:
     paths:
       - .github/workflows/github-observation-grammar.yml
       - experiments/github-observation-grammar/**
-      - experiments/provider-observation/**
       - src/model.ts
       - src/observation/**
       - src/semantics.ts
       - src/providers/github/**
       - scripts/generate-github-operations.ts
-      - bin/github-authority.ts
       - test/provider-observation.test.ts
       - test/github-certified-status.test.ts
       - test/github-certified-ref.test.ts
       - test/github-certified-pr.test.ts
       - test/github-openapi-contract.test.ts
-      - test/github-authority-command.test.ts
       - research/github-observation-grammar.md
       - research/provider-observation-reuse.md
 
@@ -83,10 +75,7 @@ jobs:
             test/github-openapi-contract.test.ts \
             test/github-certified-status.test.ts \
             test/github-certified-ref.test.ts \
-            test/github-certified-pr.test.ts \
-            test/github-authority-command.test.ts
-      - name: Shared observation certificate adversaries
-        run: node --experimental-strip-types --test experiments/provider-observation/response-slice.test.ts
+            test/github-certified-pr.test.ts
       - name: GitHub observation conformance experiment
         run: node --experimental-strip-types --test experiments/github-observation-grammar/github-observation.test.ts
 
@@ -148,39 +137,4 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: node --experimental-strip-types experiments/github-observation-grammar/live-kernel-pr-identity.ts
 
-      - name: Exercise semantic GitHub ref authority command
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          SOURCE_REF: ${{ github.head_ref || github.ref_name }}
-          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          npm run github:authority -- ref \
-            --repository-id 1354872053 \
-            --repository laurajoyhutchins/overcenter-research \
-            --ref "heads/$SOURCE_REF" \
-            --expected-sha "$SOURCE_SHA"
 
-          set +e
-          npm run github:authority -- ref \
-            --repository-id 1354872053 \
-            --repository laurajoyhutchins/overcenter-research \
-            --ref "heads/$SOURCE_REF" \
-            --expected-sha 0000000000000000000000000000000000000000
-          stale_code=$?
-          set -e
-          test "$stale_code" -eq 2
-
-      - name: Exercise semantic GitHub PR authority command
-        if: github.event_name == 'pull_request'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          npm run github:authority -- pr \
-            --repository-id 1354872053 \
-            --repository laurajoyhutchins/overcenter-research \
-            --pull-number "${{ github.event.pull_request.number }}" \
-            --node-id "${{ github.event.pull_request.node_id }}" \
-            --state "${{ github.event.pull_request.state }}" \
-            --head-sha "${{ github.event.pull_request.head.sha }}" \
-            --base-ref "${{ github.event.pull_request.base.ref }}" \
-            --base-sha "${{ github.event.pull_request.base.sha }}"
