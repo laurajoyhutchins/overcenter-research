@@ -129,7 +129,7 @@ function processSpec(
     executable:'/usr/local/bin/node',
     argv:tier==='regression'
       ? ['--experimental-strip-types','--test','test/digest-pure.test.ts']
-      : [npmCli,'run','test:bounded-graph'],
+      : [npmCli,'run','experiments:deterministic'],
     cwd:'source',
     env:{
       HOME:'/tmp',

@@ -20,6 +20,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.
 - `linkml-ontology/` - structural ontology audition: one LinkML model projected to JSON Schema, TypeScript, and SHACL with an explicit semantic-boundary negative control.
 - `linkml-contract-refactor/` - production-facing maintenance experiment over the real SettlementObservation structural contract.
+- `lean-semantic-oracle/` - historical exact-revision TypeScript-vs-Lean differential; executable proof retained at its evaluated revision.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
@@ -33,6 +34,8 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
 
 ## Experiment contract
+
+Maintained experiments are registered in [`registry.json`](./registry.json). Historical experiments keep their README, exact evaluated revision, and reproduction command, but their executable scaffolding is not carried forward on `main`; check out the recorded revision to reproduce the result.
 
 Maintained experiments are registered in [`registry.json`](./registry.json). The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, design provenance, outcome, exact revision-bound evidence, interpretation, and non-claims must be explicit.
 

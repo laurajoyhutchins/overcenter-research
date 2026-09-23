@@ -170,7 +170,7 @@ src/          all production implementation, including operator CLIs and native 
 contracts/    versioned machine-readable data contracts
 test/         focused invariants of production mechanisms
 scripts/      repository tooling and proof/evidence entrypoints
-experiments/  executable empirical and adversarial proofs
+experiments/  maintained executable proofs + historical exact-revision evidence
 formal/       machine-checked safety model and negative controls
 research/     prior art, synthesis, claims, and design arguments
 docs/adr/     durable architecture decisions
@@ -218,11 +218,12 @@ The command name states what kind of evidence a green check supports:
 | Command | Evidence |
 | --- | --- |
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
-| `npm run proof:local` | Adversarial local experiments, including Git/CAS stress. |
+| `npm run proof:local` | Maintained deterministic local experiments at the current revision. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
 | `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression, including the production GitHub status-effect contract with a fake provider. |
-| Lean semantic-oracle CI | Bounded exhaustive agreement between selected production TypeScript semantics and the exact pinned Lean reference. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
+
+The former Lean semantic-oracle differential is retained as historical exact-revision evidence at `766f581c1592f7f3193b95b3d18f47f7c5b22234`; see [its experiment record](./experiments/lean-semantic-oracle/README.md). It is no longer a current merge gate.
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
@@ -257,11 +258,7 @@ The focused underlying commands remain available when debugging a particular cla
 npm run test:projection
 npm run test:dependency-edges
 npm run test:handoff
-npm run test:eventual
-npm run test:concurrency
-npm run test:effect-order
 npm run test:github-observation
-npm run test:stress
 npm run test:storage
 npm run test:computation-executor
 npm run demo                       # production SQLite kernel

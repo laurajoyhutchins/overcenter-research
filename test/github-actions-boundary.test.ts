@@ -16,21 +16,11 @@ const evidenceWorkflow = readFileSync(
 );
 const candidateOnlyWorkflowPaths = [
   '../.github/workflows/assignment-capsule-proof.yml',
-  '../.github/workflows/conflicting-effect.yml',
-  '../.github/workflows/datalog-projection.yml',
   '../.github/workflows/disposable-agent-proof.yml',
   '../.github/workflows/formal-kernel.yml',
   '../.github/workflows/github-object-transport-proof.yml',
   '../.github/workflows/github-observation-grammar.yml',
-  '../.github/workflows/kubernetes-observation-semantics.yml',
-  '../.github/workflows/lean-semantic-oracle.yml',
-  '../.github/workflows/linkml-contract-refactor.yml',
-  '../.github/workflows/linkml-ontology.yml',
-  '../.github/workflows/production-criticality-mutation-probe.yml',
-  '../.github/workflows/production-criticality-ranking.yml',
   '../.github/workflows/production-latency.yml',
-  '../.github/workflows/projection-comparison.yml',
-  '../.github/workflows/scheduler-bottleneck.yml',
   '../.github/workflows/typebox-production-contract.yml',
 ];
 
@@ -76,8 +66,6 @@ test('active hosted proof contains no legacy commit-status effect intent', () =>
     '../experiments/disposable-agent/authority.ts',
     '../experiments/disposable-agent/agent-a.ts',
     '../experiments/disposable-agent/effect-broker.ts',
-    '../experiments/two-effect-concurrency/authority.ts',
-    '../experiments/two-effect-concurrency/agent.ts',
   ];
 
   for (const path of paths) {
@@ -141,7 +129,6 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   for (const command of [
     'npm run test:unit',
     'npm run test:experiments',
-    'npm run test:stress',
     'npm run proof:formal',
     'npm run proof:production-boundary',
     'scripts/proof-self-application.sh',

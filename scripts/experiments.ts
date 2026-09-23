@@ -40,7 +40,7 @@ function verify(){
     if(e.environment.some(x=>x.includes('See experiment README')))fail(`${e.id}: material environment must be explicit in the registry`);
 
     if(!e.reproduce||typeof e.reproduce.local!=='string'||!e.reproduce.local.trim())fail(`${e.id}: missing reproduce.local`);
-    text(e.reproduce,'tier'); npmScript(e,e.reproduce.local);
+    text(e.reproduce,'tier'); if(e.status==='maintained')npmScript(e,e.reproduce.local);
 
     if(!e.evidence||!['evaluated','pending'].includes(e.evidence.status))fail(`${e.id}: invalid evidence status`);
     if(!Array.isArray(e.evidence.artifacts)||!e.evidence.artifacts.length)fail(`${e.id}: evidence artifact required`);
@@ -70,6 +70,7 @@ function list(){
 
 function runOne(e){
   if(!e||e.kind!=='experiment')fail('unknown experiment');
+  if(e.status==='historical')fail(`${e.id}: historical evidence lives at ${e.evidence.evaluated_revision}; check out that revision and run: ${e.reproduce.local}`);
   console.log(`\n=== ${e.id} ===\n${e.question}\n$ ${e.reproduce.local}\n`);
   const r=spawnSync(e.reproduce.local,{shell:true,stdio:'inherit'});
   if(r.status!==0)process.exit(r.status??1);
@@ -78,6 +79,6 @@ function runOne(e){
 const [cmd,arg]=process.argv.slice(2);
 if(cmd==='verify')verify();
 else if(cmd==='list')list();
-else if(cmd==='run'&&arg==='--all-deterministic'){verify();for(const e of entries.filter(e=>e.kind==='experiment'&&e.reproduce.tier==='deterministic'))runOne(e);}
+else if(cmd==='run'&&arg==='--all-deterministic'){verify();for(const e of entries.filter(e=>e.kind==='experiment'&&e.status==='maintained'&&e.reproduce.tier==='deterministic'))runOne(e);}
 else if(cmd==='run'&&arg){verify();runOne(entries.find(e=>e.id===arg));}
 else{console.error('usage: experiments.ts verify | list | run <id> | run --all-deterministic');process.exit(2);}

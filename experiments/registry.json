@@ -53,7 +53,7 @@
     {
       "id": "attempt-unification",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/attempt-unification",
       "readme": "experiments/attempt-unification/README.md",
       "question": "Can ClaimFact, ExecutionAuthorityFact, and EffectReservationFact safely collapse to Claim + Attempt while actually reducing machinery and preserving performance?",
@@ -111,7 +111,7 @@
     {
       "id": "bounded-graph-exhaustion",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/bounded-graph-exhaustion",
       "readme": "experiments/bounded-graph-exhaustion/README.md",
       "question": "Can small graph state spaces be exhausted instead of sampled?",
@@ -209,7 +209,7 @@
     {
       "id": "conflicting-effect",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/conflicting-effect",
       "readme": "experiments/conflicting-effect/README.md",
       "question": "Must incompatible effects on one canonical provider coordinate be ordered?",
@@ -255,7 +255,7 @@
     {
       "id": "current-realization-admissibility",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/current-realization-admissibility",
       "readme": "experiments/current-realization-admissibility/README.md",
       "question": "What should current truth say when historical DONE remains but external reality changes?",
@@ -303,7 +303,7 @@
     {
       "id": "datalog-projection",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/datalog-projection",
       "readme": "experiments/datalog-projection/README.md",
       "question": "Can project status be derived relationally instead of stored?",
@@ -399,7 +399,7 @@
     {
       "id": "ambient-authority-boundary",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/ambient-authority-boundary",
       "readme": "experiments/ambient-authority-boundary/README.md",
       "question": "If an agent arrives inside a sandbox whose ambient capabilities Overcenter does not control, which guarantees remain substrate-independent?",
@@ -451,7 +451,7 @@
     {
       "id": "eventually-consistent-readback",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/eventually-consistent-readback",
       "readme": "experiments/eventually-consistent-readback/README.md",
       "question": "May stale or negative eventually-consistent readback authorize replay after uncertain mutation?",
@@ -497,7 +497,7 @@
     {
       "id": "git-stress",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/git-stress",
       "readme": "experiments/git-stress/README.md",
       "question": "Do Git authority invariants survive lock, GC, clone, object-format, and CAS adversaries?",
@@ -639,7 +639,7 @@
     {
       "id": "kubernetes-observation",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/kubernetes-observation",
       "readme": "experiments/kubernetes-observation/README.md",
       "question": "Does the observation/certificate architecture survive Kubernetes identity and continuity semantics?",
@@ -686,7 +686,7 @@
     {
       "id": "linkml-contract-refactor",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/linkml-contract-refactor",
       "readme": "experiments/linkml-contract-refactor/README.md",
       "question": "Can stock LinkML generation replace real SettlementObservation structural manifestations without weakening them?",
@@ -735,7 +735,7 @@
     {
       "id": "linkml-ontology",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/linkml-ontology",
       "readme": "experiments/linkml-ontology/README.md",
       "question": "Can LinkML own Overcenter's structural ontology vocabulary without owning semantic truth?",
@@ -783,7 +783,7 @@
     {
       "id": "lisp-semantics",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/lisp-semantics",
       "readme": "experiments/lisp-semantics/README.md",
       "question": "Can one declarative role definition reduce semantic projection drift?",
@@ -831,7 +831,7 @@
     {
       "id": "frontier-prioritization",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/frontier-prioritization",
       "readme": "experiments/frontier-prioritization/README.md",
       "question": "When several graph nodes are simultaneously admissible, how often can deterministic software settle the priority before an AI agent is consulted, and what actually limits the exact fallback?",
@@ -890,7 +890,7 @@
     {
       "id": "production-criticality-ranking",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/production-criticality-ranking",
       "readme": "experiments/production-criticality-ranking/README.md",
       "question": "Can Overcenter maintain a reproducible total ordering of production-code importance from quantitative facts?",
@@ -988,7 +988,7 @@
     {
       "id": "projection-comparison",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/projection-comparison",
       "readme": "experiments/projection-comparison/README.md",
       "question": "Does derived status beat authoritative mutable lifecycle on reconstruction and repair burden?",
@@ -1045,7 +1045,7 @@
     {
       "id": "scheduler-bottleneck",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/scheduler-bottleneck",
       "readme": "experiments/scheduler-bottleneck/README.md",
       "question": "Is the current scheduler scaling limit dominated by history/projection reconstruction or by SQLite's serialized authority transaction?",
@@ -1139,7 +1139,7 @@
     {
       "id": "storage-backend-comparison",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/storage-backend-comparison",
       "readme": "experiments/storage-backend-comparison/README.md",
       "question": "Does Git belong on the frequent durable-fact hot path?",
@@ -1189,7 +1189,7 @@
     {
       "id": "two-effect-concurrency",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/two-effect-concurrency",
       "readme": "experiments/two-effect-concurrency/README.md",
       "question": "Does serialized project authority require globally serialized independent effects?",
@@ -1230,6 +1230,57 @@
       "outcome": {
         "state": "supported",
         "summary": "Independent external effects can overlap while their durable settlements serialize through one CAS authority coordinate with exact claim identity."
+      }
+    },
+    {
+      "id": "lean-semantic-oracle",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/lean-semantic-oracle",
+      "readme": "experiments/lean-semantic-oracle/README.md",
+      "question": "Can selected production TypeScript graph, effect-ordering, and transaction-authority semantics be checked against an independent pinned Lean reference without making Lean a runtime authority?",
+      "claim": "At the evaluated production revision, bounded exhaustive differentials agreed with the pinned Lean semantic reference while Lean remained outside every production execution path.",
+      "contrast": "Keep the Lean differential as a permanent source-scoped CI lane on current main.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:lean-oracle"
+      },
+      "environment": [
+        "Check out the exact evaluated production revision before running the historical command.",
+        "Node.js from .node-version.",
+        "Pinned Lean semantic reference revision 39bd16a317bc2155a17b6674a5050adaf4295c90.",
+        "The exact historical workflow installs the pinned Lean toolchain and builds the comparison server."
+      ],
+      "success_criteria": [
+        "Mutation admission agrees for every modeled boolean class.",
+        "Execution-authority, reservation-replay, and receipt-replay projections agree for every bounded identity mismatch class.",
+        "All enumerated four-node graph cases and hostile graph fixtures agree.",
+        "All enumerated effect-ordering cases agree across dependency kinds, resource relationships, and obligation orderings.",
+        "Lean remains outside production replay, admission, projection, settlement, and execution paths."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "766f581c1592f7f3193b95b3d18f47f7c5b22234",
+        "artifacts": [
+          "GitHub Actions run 35801357388, job 106992185603: TypeScript vs Lean semantic oracle PASS at exact production revision 766f581c1592f7f3193b95b3d18f47f7c5b22234.",
+          "Pinned Lean semantic reference revision 39bd16a317bc2155a17b6674a5050adaf4295c90.",
+          "The exact evaluated revision retains the workflow, test implementation, and reproduction command."
+        ]
+      },
+      "interpretation": "The independent Lean reference remains valuable evidence, but its completed bounded differential does not need executable scaffolding on every future main revision. Future semantic changes that need the same claim can reproduce or supersede this witness explicitly.",
+      "non_claims": [
+        "Current main automatically agrees with the historical Lean reference after later semantic changes.",
+        "Bounded differential agreement is a universal equivalence proof.",
+        "Provider-specific effect normalization is proved by Lean.",
+        "Lean should become a production runtime dependency."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The oracle and bounded corpora were maintained as live CI before this lifecycle change; historicalization occurred only after an exact successful witness was recorded."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The exact production revision 766f581c1592f7f3193b95b3d18f47f7c5b22234 passed the bounded TypeScript-vs-Lean oracle against pinned reference 39bd16a317bc2155a17b6674a5050adaf4295c90; the executable differential is now retained through exact-revision history rather than current-main CI."
       }
     }
   ]
