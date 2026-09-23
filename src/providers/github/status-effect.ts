@@ -65,6 +65,7 @@ export function createGithubStatusPost({
           ...(lookup ? { lookup } : {}),
           headers: {
             Authorization: `Bearer ${token}`,
+            'User-Agent': 'overcenter-research',
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': GITHUB_API_VERSION,
             'Content-Type': 'application/json',
