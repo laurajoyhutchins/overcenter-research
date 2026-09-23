@@ -125,3 +125,16 @@ This experiment does not prove:
 - that end-to-end transaction latency or distributed throughput improves;
 - that Rust should replace the current TypeScript + SQLite authority path;
 - that safe Rust types protect against `unsafe` code, process compromise, or a malicious trusted provider adapter.
+
+
+## Result
+
+The first hosted exact-head run **supported** the preregistered hypothesis at `637d15c0f7d29cf0aec9be6afc9cfc40a8d0ea06` (GitHub Actions run `35819335382`, Rust 1.98.1 on Ubuntu 24.04):
+
+- security differential: PASS for 131,071 hostile authority combinations plus the valid control;
+- sequential median: baseline 7.615123 ms, typed 7.229962 ms, ratio **0.949x**;
+- concurrent median on 4 threads: baseline 7.634022 ms, typed 7.317384 ms, ratio **0.959x**;
+- representation: zero-sized affine capability with no downstream raw-authority path;
+- compile-fail controls: raw invocation, safe forgery, and permit reuse all rejected as preregistered.
+
+Both performance ratios were below the preregistered 1.10x non-regression ceiling. The result supports proceeding to a second experiment at an actual Rust-owned mutation boundary; it does not change the current production authority boundary.
