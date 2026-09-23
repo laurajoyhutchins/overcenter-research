@@ -1603,13 +1603,18 @@
         "The exact-cost decision externalize iff CAS bytes < inline bytes agrees with the measured winner in every cell."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "Preregistered before the first hosted exact-group threshold run.",
+        "status": "evaluated",
+        "evaluated_revision": "6d799ca7308dc722873f62d63f911fcd280e4613",
         "artifacts": [
-          "Pending first hosted exact-group threshold run."
+          "GitHub Actions run 35823837095, job 107061194775: exact evidence CAS group threshold PASS.",
+          "All 48 payload-size/multiplicity cells preserved exact receipt-v5 reconstruction and projectReceipt semantics with 0 semantic mismatches and 0 false DONE.",
+          "Multiplicity 1 lost for every payload size, as preregistered.",
+          "Minimum winning multiplicity: 3 copies for 32-byte traces; 2 copies for every trace size from 64 bytes through 16 KiB.",
+          "Minimum winning payload for a duplicate pair was 64 bytes; with 3 or more copies, even the 32-byte trace won.",
+          "Representative duplicate-pair ratios: 0.9976x at 64 B, 0.9839x at 128 B, 0.9588x at 256 B, 0.8497x at 1 KiB, and 0.5608x at 16 KiB."
         ]
       },
-      "interpretation": "If the winning boundary varies across payload sizes and multiplicities, production should store the byte-cost decision as deterministic software rather than encode a guessed constant. If one simple stable boundary emerges, a simpler rule may be justified and can be tested separately.",
+      "interpretation": "For normal provenance-bearing evidence, which is already larger than tens of bytes, duplicate count is effectively the storage switch: keep a singleton inline, externalize on the second identical occurrence. The exact byte-cost comparison should remain the authoritative implementation because it is schema-robust and costs almost nothing, but the observed mental model is simpler: duplicate evidence belongs in CAS; unique evidence does not gain storage efficiency from CAS.",
       "non_claims": [
         "Canonical byte break-even captures latency, remote request pricing, compression, retention tiers, or operational recovery value.",
         "Identical bytes imply evidence is semantically reusable outside its complete provenance envelope.",
@@ -1621,8 +1626,8 @@
         "note": "Payload sizes, multiplicities, production receipt identities, canonical-byte accounting, and reported minimum-winning boundaries were fixed before the first hosted run."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first hosted exact-group threshold run."
+        "state": "supported",
+        "summary": "At exact revision 6d799ca7308dc722873f62d63f911fcd280e4613, the local break-even surface was simple: singleton evidence was always cheaper inline; two identical copies were enough to justify CAS at 64 bytes and above; the 32-byte case required three copies. The exact-cost rule matched every measured winner and preserved production receipt semantics."
       }
     }
   ]

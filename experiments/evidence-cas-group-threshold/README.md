@@ -52,3 +52,69 @@ evidence store. No statistical estimate or model judgment is required.
 ```sh
 npm run test:evidence-cas-group-threshold
 ```
+
+## Hosted result
+
+Evaluated at exact revision:
+
+```text
+6d799ca7308dc722873f62d63f911fcd280e4613
+```
+
+GitHub Actions run `35823837095`, job `107061194775`, passed all 48 cells with
+zero semantic mismatches and zero false `DONE`.
+
+### Minimum repetition needed for CAS to use fewer canonical bytes
+
+| trace payload | minimum copies |
+| --- | ---: |
+| 32 B | 3 |
+| 64 B | 2 |
+| 128 B | 2 |
+| 256 B | 2 |
+| 512 B | 2 |
+| 1 KiB | 2 |
+| 4 KiB | 2 |
+| 16 KiB | 2 |
+
+A singleton never won.
+
+For duplicate pairs:
+
+```text
+  32 B   1.0047x   inline wins
+  64 B   0.9976x   CAS barely wins
+ 128 B   0.9839x
+ 256 B   0.9588x
+   1 KiB 0.8497x
+   4 KiB 0.6793x
+  16 KiB 0.5608x
+```
+
+At three copies, even the 32-byte payload crossed below flat storage at 0.9982x.
+
+## Resulting rule
+
+The implementation should still compare exact encoded costs because that stays
+correct if schemas or digest encodings change:
+
+```text
+externalize iff
+  bytes(one CAS object)
+  + sum(bytes(reference receipt))
+  <
+  sum(bytes(inline receipt))
+```
+
+But the operational mental model is now pleasantly small:
+
+```text
+unique evidence
+  -> inline is storage-cheaper
+
+duplicate provenance-bearing evidence
+  -> CAS is already cheaper for ordinary payload sizes
+```
+
+There is no evidence here for a global 64 KiB threshold or a corpus-level reuse
+percentage.
