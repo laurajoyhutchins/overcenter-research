@@ -83,7 +83,9 @@ test('file evidence store sweeps only stale temporary objects',()=>{
 
     assert.equal(store.sweepStaleTemps(60_000),1);
     assert.deepEqual(store.get(ref),Buffer.from('published'));
-    assert.equal(store.sweepStaleTemps(1),1);
+    const recentlyOld=new Date(Date.now()-2_000);
+    utimesSync(fresh,recentlyOld,recentlyOld);
+    assert.equal(store.sweepStaleTemps(1_000),1);
     assert.throws(()=>store.sweepStaleTemps(0),/INVALID_EVIDENCE_TEMP_AGE/);
   } finally {
     rmSync(root,{recursive:true,force:true});
