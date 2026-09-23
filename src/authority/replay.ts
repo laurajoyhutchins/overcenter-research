@@ -24,7 +24,11 @@ import type {
 } from './facts.ts';
 import { dependencyUpstreams, validateGraph } from '../graph/topology.ts';
 import { settlementSemantics } from '../semantics.ts';
-import { reservedEffectReleaseSafe, reservedEffectReplaySafe } from '../effect-adapter.ts';
+import {
+  reservedEffectReleaseSafe,
+  reservedEffectReleaseWitnessSafe,
+  reservedEffectReplaySafe,
+} from '../effect-adapter.ts';
 import {
   effectReleaseAuthorityError,
   effectReservationAuthorityError,
@@ -247,10 +251,24 @@ export function replayProjection(
       if (release.effect_contract !== run.obligation.packet.effect_contract) {
         throw new Error('EFFECT_RELEASE_CONTRACT_MISMATCH');
       }
-      if (
-        !reservedEffectReleaseSafe(run.obligation, release.effect_contract, release.evidence_kind)
-      ) {
-        throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
+      if (release.schema_version === 1) {
+        if (
+          !reservedEffectReleaseSafe(run.obligation, release.effect_contract, release.evidence_kind)
+        ) {
+          throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
+        }
+      } else {
+        if (!release.evidence) throw new Error('EFFECT_RELEASE_EVIDENCE_MISSING');
+        if (
+          !reservedEffectReleaseWitnessSafe(run.obligation, release.effect_contract, {
+            kind: release.evidence.kind,
+            source: release.evidence.source,
+            attempt: release.evidence.attempt,
+            observation: release.evidence.observation,
+          })
+        ) {
+          throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
+        }
       }
       if (record.receipt == null) throw new Error('EFFECT_RELEASE_WITHOUT_READY_RECEIPT');
       const paired = validateReceiptFact(record.receipt);
