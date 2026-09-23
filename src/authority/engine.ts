@@ -341,8 +341,8 @@ export class KernelCore {
     throw new Error('EFFECT_RESERVATION_CONTENTION_EXHAUSTED');
   }
 
-  async performEffect<T>(
-    authority:EffectAuthority<string,Postcondition['verifier']>,
+  async performEffect<T,E extends string,V extends Postcondition['verifier']>(
+    authority:EffectAuthority<E,V>,
     effect:()=>Promise<T>|T,
   ):Promise<T> {
     this.beginEffect(authority.permit);
