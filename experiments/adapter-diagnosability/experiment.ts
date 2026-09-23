@@ -368,18 +368,8 @@ const protocols: Protocol[] = [
     transitions: [
       T('s', 'c', 'remote-commit'),
       T('s', 'n', 'remote-no-commit'),
-      T(
-        'c',
-        'ma',
-        'post-secureConnect-reset',
-        'GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN',
-      ),
-      T(
-        'n',
-        'na',
-        'post-secureConnect-reset',
-        'GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN',
-      ),
+      T('c', 'ma', 'post-secureConnect-reset', 'GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN'),
+      T('n', 'na', 'post-secureConnect-reset', 'GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN'),
       T('ma', 'mr', 'release-reservation', 'RELEASED', 'release-authority'),
       T('na', 'nr', 'release-reservation', 'RELEASED', 'release-authority'),
       T('mr', 'mr', 'readback', 'NO_AUTHORITATIVE_EVIDENCE'),
