@@ -2763,22 +2763,25 @@
         "note": "Phase 1's seven fixtures, expected classifications, depth-12 oracle, too-late distinction, and receipt negative control were fixed before the first Phase 1 execution. Only after Phase 1 passed exact-head hosted evaluation at 79c666d1aad67ff3c7df894f3cd509d572e4fcce were the three Phase 2 GitHub slices fixed, before their first hosted execution, from independent results at adapter-uncertainty-exploration c4c3564bb02618642fcb9d046686772f7adb8224, transport-not-dispatched-evidence 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, and github-status-not-dispatched-release 6b238e23491792dc7a8734038b82f4741a4eae8e. The diagnoser itself was not changed."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Phase 1 is supported at exact revision 79c666d1aad67ff3c7df894f3cd509d572e4fcce. Phase 2 now encodes the real GitHub status uncertainty boundary without changing the diagnoser; exact-head hosted evaluation of the expanded corpus is pending."
+        "state": "supported",
+        "summary": "Phase 1 is supported at exact revision 79c666d1aad67ff3c7df894f3cd509d572e4fcce. Phase 2 is supported at exact revision a062eb8827830d3558fabd794bcf3ae9d8d76460: without changing the diagnoser, the GitHub pre-secureConnect NOT_DISPATCHED slice was safe-diagnosable and derived safe-to-release, while post-secureConnect reset and HTTP 502 were non-diagnosable, emitted ambiguity witnesses, and derived ambiguous-do-not-release."
       },
       "reproduce": {
         "tier": "deterministic",
         "local": "npm run test:adapter-diagnosability"
       },
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "a062eb8827830d3558fabd794bcf3ae9d8d76460",
         "artifacts": [
           "Phase 1: GitHub Actions Merge gate run 35922140571, rerun attempt 2, candidate-evidence job 107389085625 passed at exact revision 79c666d1aad67ff3c7df894f3cd509d572e4fcce.",
           "Phase 1 matched 7/7 synthetic classifications; the depth-12 oracle agreed; all three non-diagnosable fixtures emitted witnesses; too-late remained diagnosable but unsafe before release-authority; the uncorrelated-receipt negative control was killed.",
-          "Independent GitHub boundary evidence: adapter-uncertainty-exploration c4c3564bb02618642fcb9d046686772f7adb8224, transport-not-dispatched-evidence 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, and github-status-not-dispatched-release 6b238e23491792dc7a8734038b82f4741a4eae8e.",
-          "Phase 2 source adds only three protocol fixtures plus derived assertions; the diagnoser functions are unchanged from the Phase 1 evaluated revision."
-        ],
-        "pending_reason": "The expanded exact-head corpus containing the three real GitHub status protocol slices has not yet completed hosted candidate certification."
+          "Independent GitHub boundary evidence used to freeze Phase 2 expectations: adapter-uncertainty-exploration c4c3564bb02618642fcb9d046686772f7adb8224, transport-not-dispatched-evidence 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, and github-status-not-dispatched-release 6b238e23491792dc7a8734038b82f4741a4eae8e.",
+          "Phase 2: GitHub Actions Merge gate run 35923271198, rerun attempt 2, candidate-evidence job 107392831495 passed at exact revision a062eb8827830d3558fabd794bcf3ae9d8d76460.",
+          "The unchanged diagnoser classified github-status-pre-secure-connect as diagnosable and safe-diagnosable with zero ambiguous pairs, deriving safe-to-release.",
+          "The unchanged diagnoser classified github-status-post-secure-connect-reset and github-status-http-502 as non-diagnosable and not safe-diagnosable; each retained one depth-12 ambiguous observation sequence, emitted an ambiguity-cycle witness, exposed release-authority while ambiguous, and derived ambiguous-do-not-release.",
+          "The Phase 2 exact-head candidate also passed repository lint, TypeScript checking, experiment-contract verification, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application."
+        ]
       }
     }
   ]
