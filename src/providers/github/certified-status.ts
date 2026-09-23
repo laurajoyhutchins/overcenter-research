@@ -6,7 +6,7 @@ import {
 import {
   GITHUB_COMBINED_COMMIT_STATUS_OPERATION,
   GITHUB_COMMIT_STATUSES_OPERATION,
-} from './operations.generated.ts';
+} from '../../../generated/github-operations.ts';
 import { materializeGithubOperationRequest } from './openapi.ts';
 import { scanGithubPageCollection } from './page-collection.ts';
 import {
@@ -371,7 +371,7 @@ export function observeCertifiedGithubCommitStatus(
 export {
   GITHUB_COMBINED_COMMIT_STATUS_OPERATION,
   GITHUB_COMMIT_STATUSES_OPERATION,
-} from './operations.generated.ts';
+} from '../../../generated/github-operations.ts';
 export {
   GITHUB_COMBINED_COMMIT_STATUS_RESPONSE_SLICE,
   GITHUB_COMMIT_STATUS_RESPONSE_SLICE,
