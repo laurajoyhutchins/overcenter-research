@@ -62,7 +62,8 @@
     "experiment:scheduler-liveness": "node --experimental-strip-types experiments/scheduler-liveness/experiment.ts",
     "experiment:scheduler-policy-comparison": "node --experimental-strip-types experiments/scheduler-policy-comparison/experiment.ts",
     "test:distributed-authority-chaos": "node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts local",
-    "test:source-obligation-integration": "node --experimental-strip-types experiments/source-obligation-integration/experiment.ts"
+    "test:source-obligation-integration": "node --experimental-strip-types experiments/source-obligation-integration/experiment.ts",
+    "test:verified-generated-output": "node --experimental-strip-types experiments/verified-generated-output/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
