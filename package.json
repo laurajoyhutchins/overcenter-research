@@ -48,6 +48,7 @@
     "test:merkle-execution-receipts": "node --experimental-strip-types --test experiments/merkle-execution-receipts/experiment.test.ts",
     "test:merkle-receipt-v5-dedup": "node --experimental-strip-types --test experiments/merkle-receipt-v5-dedup/experiment.test.ts",
     "test:merkle-evidence-leaves": "node --experimental-strip-types --test experiments/merkle-evidence-leaves/experiment.test.ts",
-    "test:evidence-cas-break-even": "node --experimental-strip-types --test experiments/evidence-cas-break-even/experiment.test.ts"
+    "test:evidence-cas-break-even": "node --experimental-strip-types --test experiments/evidence-cas-break-even/experiment.test.ts",
+    "test:evidence-cas-group-threshold": "node --experimental-strip-types --test experiments/evidence-cas-group-threshold/experiment.test.ts"
   }
 }

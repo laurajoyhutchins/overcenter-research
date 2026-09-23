@@ -51,3 +51,6 @@ jobs:
 
       - name: Evidence CAS break-even matrix
         run: npm run test:evidence-cas-break-even
+
+      - name: Exact evidence CAS group threshold
+        run: npm run test:evidence-cas-group-threshold

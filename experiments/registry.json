@@ -1573,6 +1573,57 @@
         "state": "supported",
         "summary": "At exact revision 9bf7dc83d36700c022dcbf1af2a77ff873809cb2, universal evidence CAS was confirmed to be a small storage loss at zero reuse and a substantial win once evidence repeated. Across the preregistered matrix, the first sampled universal crossover was 25% reuse for every payload size, while the exact-cost selective policy never exceeded flat storage because it kept singleton groups inline. The 256 KiB/50%-reuse file-backed control halved cold recovery bytes, reduced warm recovery to reference-only bytes, verified every lookup digest, and swept all injected orphans without deleting live evidence."
       }
+    },
+    {
+      "id": "evidence-cas-group-threshold",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/evidence-cas-group-threshold",
+      "readme": "experiments/evidence-cas-group-threshold/README.md",
+      "question": "For one exact evidence digest group, what payload size and repetition count make externalization cheaper than keeping the same evidence inline?",
+      "claim": "There is no useful corpus-level reuse percentage threshold. The local break-even is a deterministic function of exact encoded payload bytes, exact reference overhead, and group multiplicity; a per-group byte comparison can therefore make the externalization decision without global tuning.",
+      "contrast": "Choose a fixed payload threshold, a fixed corpus reuse percentage, or always externalize duplicates.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-cas-group-threshold"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "Sixteen production GitHub receipt-v5 identities are generated through OvercenterKernel and performGithubCommitStatusEffect.",
+        "One identical schema-valid execution-trace diagnostic is applied to groups of 1, 2, 3, 4, 8, or 16 receipt identities.",
+        "Trace payload targets are 32, 64, 128, 256, 512, 1024, 4096, and 16384 bytes.",
+        "Costs are exact canonical JSON bytes of complete inline receipt-v5 facts versus complete reference receipts plus one CAS trace object.",
+        "No compression, filesystem allocation, remote object-store metadata, or network pricing is included."
+      ],
+      "success_criteria": [
+        "Every externalized group hydrates to canonically identical receipt-v5 facts and production projectReceipt semantics with zero false DONE.",
+        "Multiplicity 1 is never cheaper to externalize for any preregistered payload size.",
+        "The experiment reports exact inline and CAS bytes plus CAS/inline ratio for every payload-size/multiplicity cell.",
+        "The experiment reports the minimum winning multiplicity for each payload size and the minimum winning payload size for each multiplicity.",
+        "The exact-cost decision externalize iff CAS bytes < inline bytes agrees with the measured winner in every cell."
+      ],
+      "evidence": {
+        "status": "pending",
+        "pending_reason": "Preregistered before the first hosted exact-group threshold run.",
+        "artifacts": [
+          "Pending first hosted exact-group threshold run."
+        ]
+      },
+      "interpretation": "If the winning boundary varies across payload sizes and multiplicities, production should store the byte-cost decision as deterministic software rather than encode a guessed constant. If one simple stable boundary emerges, a simpler rule may be justified and can be tested separately.",
+      "non_claims": [
+        "Canonical byte break-even captures latency, remote request pricing, compression, retention tiers, or operational recovery value.",
+        "Identical bytes imply evidence is semantically reusable outside its complete provenance envelope.",
+        "The measured boundary is immutable if the reference schema changes.",
+        "This experiment justifies changing receipt-v5 persistence."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Payload sizes, multiplicities, production receipt identities, canonical-byte accounting, and reported minimum-winning boundaries were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first hosted exact-group threshold run."
+      }
     }
   ]
 }
