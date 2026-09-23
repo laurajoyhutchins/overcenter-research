@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   observeCertifiedGithubRefFence,
-} from '../src/providers/github/certified-ref.ts';
+} from '../experiments/github-observation-grammar/certified-ref.ts';
 import type { GithubJsonGet } from '../src/providers/github/rest.ts';
 
 const SHA_A='a'.repeat(40);
