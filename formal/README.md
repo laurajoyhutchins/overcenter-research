@@ -236,3 +236,13 @@ The authoritative stable-set configuration requires `TargetProgress`: once the r
 - `SchedulerFreshFlood.cfg` retains the current fresh-first policy but abstracts an unbounded stream of newly introduced never-claimed work; it must produce a starvation trace if fresh priority can indefinitely dominate recovered work.
 
 The second case is intentionally not labeled a broken scheduler. It identifies an assumption boundary: fixed finite-set fairness does not by itself imply liveness for an open project whose higher-priority fresh class is replenished forever.
+
+## Service-age scheduler liveness
+
+`SchedulerServiceAge.tla` models the candidate policy produced by the scheduler-policy comparison experiment.
+
+For one continuously eligible target, `olderRemaining` counts the finite set of eligible identities whose service age is older than the target. Scheduling one of those identities moves its age to a new claim ordinal, so the count decreases. Arbitrarily many younger admissions are represented by `AdmitYounger` and do not increase the older set.
+
+The authoritative configuration checks `TargetProgress` under weak fairness for authority restoration, target readiness, continuing younger admissions, and scheduler steps.
+
+`BrokenServiceAgeNonMonotone.cfg` deliberately violates the essential age-order assumption by allowing later work to increase `olderRemaining`. TLC must find a temporal starvation trace. This makes the proof conditional on durable monotonic admission/claim ordinals rather than on wall-clock timing or an implicit scheduler cursor.
