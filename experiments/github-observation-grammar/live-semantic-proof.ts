@@ -4,7 +4,7 @@ import { GITHUB_OPENAPI_SHA256 } from '../../src/providers/github/contract.ts';
 import {
   observeCertifiedGithubSemanticRead,
   type CertifiedGithubSemanticReadResult,
-} from '../../src/providers/github/certified-read.ts';
+} from './certified-read.ts';
 
 const token=process.env.GITHUB_TOKEN;
 if (!token) throw new Error('GITHUB_TOKEN_REQUIRED');
