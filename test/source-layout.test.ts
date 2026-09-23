@@ -79,6 +79,7 @@ test('native execution implementations live beneath the execution namespace',()=
     'manifest.ts',
     'protocol.ts',
     'runner.ts',
+    'worker-client/',
   ]);
   assert.equal(existsSync('executor'),false);
   assert.equal(existsSync('runtime'),false);

@@ -53,6 +53,7 @@ OVERCENTER_EXECUTOR_IMAGE="$image" \
 node --experimental-strip-types scripts/prove-computation-containment.ts \
   --image "$image"
 
+npm run proof:worker-client
 npm run proof:rust-exec
 
 if [[ "$mode" != "--boundary-only" ]]; then

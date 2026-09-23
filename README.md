@@ -236,7 +236,7 @@ The reasoning-agent interface is deliberately small:
 project.advance -> work packet -> reasoning -> project.submit
 ```
 
-[Operator commands](./docs/operator-commands.md) hide frontier selection, claims, leases, authority coordinates, transport refs, and settlement mechanics behind those two semantic operations. The reasoner receives work only when judgment is required and never declares its own success. Pull-request certification is CI behavior: rerun the existing `Certify candidate` job on the PR's Merge gate to spend the full exact-head evidence suite.
+[Operator commands](./docs/operator-commands.md) hide frontier selection, claims, leases, authority coordinates, transport refs, and settlement mechanics behind those two semantic operations. When reasoning is required, `project.advance` emits a self-contained packet with a capability-free native `overcenter` executable, so the same worker contract can be delivered into either an Overcenter-controlled sandbox or a foreign sandbox. The reasoner receives work only when judgment is required and never declares its own success. Pull-request certification is CI behavior: rerun the existing `Certify candidate` job on the PR's Merge gate to spend the full exact-head evidence suite.
 
 Requirements:
 

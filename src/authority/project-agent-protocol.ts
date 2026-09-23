@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {
   mkdirSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -99,6 +100,7 @@ interface ProtocolOptions {
 
 interface AdvanceOptions extends ProtocolOptions {
   outputDir:string;
+  workerClientPath?:string;
 }
 
 interface SubmitOptions extends ProtocolOptions {
@@ -236,6 +238,7 @@ export function advanceProjectForAgent(
   context:ProjectCommandContext,
   {
     outputDir,
+    workerClientPath,
     authorityRef=DEFAULT_AUTHORITY_REF,
     remote=DEFAULT_REMOTE,
     githubToken=null,
@@ -273,6 +276,13 @@ export function advanceProjectForAgent(
     // The operator command does not ask the reasoning agent to choose work.
     // It only accepts a frontier item that is already an agent-shaped packet.
     const prepared=prepareAgentPacket(repo,ready);
+    if (!workerClientPath) {
+      throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED');
+    }
+    const workerClient=readFileSync(workerClientPath);
+    if (workerClient.length===0) {
+      throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_EMPTY');
+    }
 
     try {
       const permit=kernel.claim(ready.id,ready.revision);
@@ -284,6 +294,7 @@ export function advanceProjectForAgent(
       rmSync(outputDir,{recursive:true,force:true});
       mkdirSync(outputDir,{recursive:true});
       writeFileSync(join(outputDir,'assignment.json'),assignment.bytes);
+      writeFileSync(join(outputDir,'overcenter'),workerClient,{mode:0o755});
 
       const base={
         schema:PROJECT_ADVANCE_RECEIPT_SCHEMA,
