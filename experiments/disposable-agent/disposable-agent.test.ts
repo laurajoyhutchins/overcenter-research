@@ -50,9 +50,7 @@ test('entire Agent A sandbox can disappear and fresh Agent B reconstructs and se
 
     writeFileSync(join(a, 'agent-cache.sqlite'), 'throw me away');
 
-    void agentA.performEffect(agentA.authorizeEffect(run), () =>
-      writeFileSync(f.world, 'present'),
-    );
+    void agentA.performEffect(agentA.authorizeEffect(run), () => writeFileSync(f.world, 'present'));
     const claimCommit = run.claim_commit;
     rmSync(a, { recursive: true, force: true });
     assert.equal(existsSync(a), false);
