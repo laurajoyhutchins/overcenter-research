@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -138,7 +139,6 @@ function ref(fact:ReceiptFact,digest:string):RefReceipt {
 }
 
 function digestFor(t:Trace):string {
-  const {createHash}=require('node:crypto');
   return createHash('sha256').update(canonical(t as unknown as Json)).digest('hex');
 }
 
