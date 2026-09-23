@@ -333,6 +333,82 @@ const protocols: Protocol[] = [
       T('n', 'n', 'get', 'GET_DESIRED'),
     ],
   },
+
+  // Production-boundary falsifier, added only after the original seven-fixture
+  // corpus passed hosted exact-head evaluation at 79c666d1aad67ff3c7df894f3cd509d572e4fcce.
+  // These slices encode the independently established GitHub commit-status
+  // transport boundary without changing the diagnoser.
+  {
+    id: 'github-status-pre-secure-connect',
+    initial: 's',
+    states: [S('s', 'not-occurred'), S('n', 'not-occurred'), S('r', 'not-occurred')],
+    transitions: [
+      T(
+        's',
+        'n',
+        'fresh-https-fails-before-secureConnect',
+        'GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED',
+      ),
+      T('n', 'r', 'release-reservation', 'RELEASED', 'release-authority'),
+      T('r', 'r', 'idle', 'IDLE'),
+    ],
+  },
+  {
+    id: 'github-status-post-secure-connect-reset',
+    initial: 's',
+    states: [
+      S('s', 'not-occurred'),
+      S('c', 'occurred'),
+      S('n', 'not-occurred'),
+      S('ma', 'occurred'),
+      S('na', 'not-occurred'),
+      S('mr', 'occurred'),
+      S('nr', 'not-occurred'),
+    ],
+    transitions: [
+      T('s', 'c', 'remote-commit'),
+      T('s', 'n', 'remote-no-commit'),
+      T(
+        'c',
+        'ma',
+        'post-secureConnect-reset',
+        'GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN',
+      ),
+      T(
+        'n',
+        'na',
+        'post-secureConnect-reset',
+        'GITHUB_STATUS_MUTATION_TRANSPORT_UNCERTAIN',
+      ),
+      T('ma', 'mr', 'release-reservation', 'RELEASED', 'release-authority'),
+      T('na', 'nr', 'release-reservation', 'RELEASED', 'release-authority'),
+      T('mr', 'mr', 'readback', 'NO_AUTHORITATIVE_EVIDENCE'),
+      T('nr', 'nr', 'readback', 'NO_AUTHORITATIVE_EVIDENCE'),
+    ],
+  },
+  {
+    id: 'github-status-http-502',
+    initial: 's',
+    states: [
+      S('s', 'not-occurred'),
+      S('c', 'occurred'),
+      S('n', 'not-occurred'),
+      S('ma', 'occurred'),
+      S('na', 'not-occurred'),
+      S('mr', 'occurred'),
+      S('nr', 'not-occurred'),
+    ],
+    transitions: [
+      T('s', 'c', 'remote-commit'),
+      T('s', 'n', 'remote-no-commit'),
+      T('c', 'ma', 'http-response', 'GITHUB_STATUS_MUTATION_FAILED:502'),
+      T('n', 'na', 'http-response', 'GITHUB_STATUS_MUTATION_FAILED:502'),
+      T('ma', 'mr', 'release-reservation', 'RELEASED', 'release-authority'),
+      T('na', 'nr', 'release-reservation', 'RELEASED', 'release-authority'),
+      T('mr', 'mr', 'readback', 'NO_AUTHORITATIVE_EVIDENCE'),
+      T('nr', 'nr', 'readback', 'NO_AUTHORITATIVE_EVIDENCE'),
+    ],
+  },
 ];
 
 const expected: Record<string, [boolean, boolean]> = {
@@ -343,6 +419,9 @@ const expected: Record<string, [boolean, boolean]> = {
   'bounded-eventual-webhook': [true, true],
   'too-late': [true, false],
   'same-final-state': [false, false],
+  'github-status-pre-secure-connect': [true, true],
+  'github-status-post-secure-connect-reset': [false, false],
+  'github-status-http-502': [false, false],
 };
 const results = protocols.map((p) => {
   const result = analyze(p);
@@ -356,6 +435,25 @@ const results = protocols.map((p) => {
   if (!result.diagnosable)
     assert.ok(result.nonDiagnosableWitness?.length, `${p.id}: missing witness`);
   return { protocol: p.id, ...result, depth12AmbiguousSequences: ambiguousAt12 };
+});
+
+const resultByProtocol = new Map(results.map((result) => [result.protocol, result]));
+const githubStatusBoundary = {
+  preSecureConnect: resultByProtocol.get('github-status-pre-secure-connect')?.safeDiagnosable
+    ? 'safe-to-release'
+    : 'ambiguous-do-not-release',
+  postSecureConnectReset: resultByProtocol.get('github-status-post-secure-connect-reset')
+    ?.safeDiagnosable
+    ? 'safe-to-release'
+    : 'ambiguous-do-not-release',
+  http502: resultByProtocol.get('github-status-http-502')?.safeDiagnosable
+    ? 'safe-to-release'
+    : 'ambiguous-do-not-release',
+};
+assert.deepEqual(githubStatusBoundary, {
+  preSecureConnect: 'safe-to-release',
+  postSecureConnectReset: 'ambiguous-do-not-release',
+  http502: 'ambiguous-do-not-release',
 });
 const receipt = protocols.find((p) => p.id === 'receipt')!;
 const uncorrelated: Protocol = {
@@ -371,6 +469,7 @@ console.log(
     {
       experiment: 'adapter-diagnosability',
       classifications: results,
+      githubStatusBoundary,
       negativeControls: { uncorrelatedReceipt: 'KILLED' },
     },
     null,
