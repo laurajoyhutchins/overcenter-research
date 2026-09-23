@@ -1311,12 +1311,13 @@
         "Median optimized concurrent typed admission is no more than 1.10x the structural baseline."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "637d15c0f7d29cf0aec9be6afc9cfc40a8d0ea06",
         "artifacts": [
-          ".github/workflows/typed-capability-authority.yml",
-          "experiments/typed-capability-authority/run.sh"
-        ],
-        "pending_reason": "The criteria are preregistered on the experiment branch before the first hosted execution."
+          "GitHub Actions run 35819335382, job 107047627325: typed capability authority experiment PASS.",
+          "131,071 hostile authority combinations plus valid control matched baseline admission exactly.",
+          "Sequential median ratio 0.949x; concurrent 4-thread median ratio 0.959x; both below preregistered 1.10x ceiling."
+        ]
       },
       "interpretation": "A passing result would justify testing the same capability representation at an actual Rust-owned mutation boundary; it would not by itself justify moving durable authority, provider observation, settlement, or graph semantics out of the TypeScript + SQLite production path.",
       "non_claims": [
@@ -1332,8 +1333,8 @@
         "note": "Question, hostile-state corpus, compile-fail controls, and 1.10x sequential/concurrent performance thresholds were recorded before the first hosted experiment run."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first exact-head hosted run."
+        "state": "supported",
+        "summary": "At exact revision 637d15c0f7d29cf0aec9be6afc9cfc40a8d0ea06, the typed Rust capability matched the modeled production admission decision across all 131,072 cases, rejected raw/forged/reused authority at compile time, remained zero-sized, and measured 0.949x sequential and 0.959x concurrent median admission time versus the structural baseline."
       }
     }
   ]
