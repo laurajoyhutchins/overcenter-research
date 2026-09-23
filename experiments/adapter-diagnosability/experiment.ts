@@ -153,9 +153,7 @@ function analyze(p: Protocol) {
   let unsafe: { pair: [string, string]; action: Action } | undefined;
   for (const k of ambiguous) {
     const [a, b] = pair(k);
-    const t = [...(g.out.get(a) ?? []), ...(g.out.get(b) ?? [])].find(
-      (x) => x.consequential,
-    );
+    const t = [...(g.out.get(a) ?? []), ...(g.out.get(b) ?? [])].find((x) => x.consequential);
     if (t?.consequential) {
       unsafe = { pair: [a, b], action: t.consequential };
       break;
@@ -181,9 +179,7 @@ function oracle(p: Protocol, depth = 12) {
       (out.get(trace.state) ?? []).map((t) => ({
         state: t.to,
         observations:
-          t.observation === undefined
-            ? trace.observations
-            : [...trace.observations, t.observation],
+          t.observation === undefined ? trace.observations : [...trace.observations, t.observation],
       })),
     );
   const groups = new Map<string, Set<Mutation>>();
@@ -201,10 +197,7 @@ const protocols: Protocol[] = [
     id: 'undispatched',
     initial: 's',
     states: [S('s', 'not-occurred'), S('n', 'not-occurred')],
-    transitions: [
-      T('s', 'n', 'connect-failed', 'CONNECT_FAILED'),
-      T('n', 'n', 'idle', 'IDLE'),
-    ],
+    transitions: [T('s', 'n', 'connect-failed', 'CONNECT_FAILED'), T('n', 'n', 'idle', 'IDLE')],
   },
   {
     id: 'ambiguous-timeout',
@@ -359,11 +352,7 @@ const results = protocols.map((p) => {
     expected[p.id],
     `${p.id}: classification`,
   );
-  assert.equal(
-    ambiguousAt12 > 0,
-    !result.diagnosable,
-    `${p.id}: independent oracle disagreement`,
-  );
+  assert.equal(ambiguousAt12 > 0, !result.diagnosable, `${p.id}: independent oracle disagreement`);
   if (!result.diagnosable)
     assert.ok(result.nonDiagnosableWitness?.length, `${p.id}: missing witness`);
   return { protocol: p.id, ...result, depth12AmbiguousSequences: ambiguousAt12 };
