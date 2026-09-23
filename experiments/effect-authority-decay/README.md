@@ -127,3 +127,55 @@ This experiment does not claim that:
 - provider identity observation or authoritative readback can be skipped;
 - wire protocols can trust in-process types instead of validating received data;
 - malicious trusted code or explicit unsafe casts are prevented.
+
+
+## Result
+
+The corrected current-main treatment is **supported** at exact production revision `04bc98a42f4db5ddc73293a713412f17127fbc68`.
+
+Hosted evidence:
+
+- effect-authority experiment run `35825868462`, job `107067328128`: all type, security, structure, provider-regression, and same-runner latency criteria passed;
+- merge-gate run `35825868706`, candidate-evidence job `107067329353`: repository typecheck and the full deterministic regression passed on the same treatment head.
+
+Authority-decay measurements:
+
+- provider `claimedWork(permit.id)` calls: **2 -> 0**;
+- provider raw work/permit coordinate comparisons: **6 -> 0**;
+- provider effect-contract checks: **2 -> 0**;
+- provider verifier checks: **2 -> 0**;
+- provider `performEffect(rawPermit,...)` calls: **2 -> 0**;
+- centralized authority mint sites: **1**;
+- combined nonblank SLOC across the authority engine and two admitted GitHub mutation providers: **909 -> 907**.
+
+Same-runner production latency, median-of-run medians:
+
+- effect reservation: **0.718 ms -> 0.726 ms**, ratio **1.011x**;
+- Overcenter local total: **4.430 ms -> 4.324 ms**, ratio **0.976x**.
+
+Both remain comfortably within the preregistered **1.10x** ceiling.
+
+The stale-authority adversary also passed: authority was bound, the execution generation was superseded during provider identity I/O, and the unchanged final `beginEffect` fence rejected the old authority before POST and before effect reservation.
+
+### Interpretation
+
+This is the positive case the earlier experiments were trying to isolate.
+
+The capability is useful **after** runtime truth has been established, specifically where that truth would otherwise decay into raw identifiers and repeated interior checks. It is not useful as a replacement for the external-state proof itself.
+
+```text
+runtime proof
+    │
+    ▼
+bound authority
+    │
+    ├── trusted interior carries it
+    │
+    ▼
+final mutable-state fence
+    │
+    ▼
+effect
+```
+
+The historical `claimedWork(runId)` reconstruction API remains because `project.submit` has a real need to reconstruct exact assignment bytes. The treatment removes duplication only from the provider mutation path.
