@@ -1366,10 +1366,12 @@
         "No tested state yields an authoritative reference that was created before the referenced evidence was durably published."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "Preregistered before the first hosted evidence-first publication run.",
+        "status": "evaluated",
+        "evaluated_revision": "eea803191db2eeec4a93807ab810c8d8a1ba88b6",
         "artifacts": [
-          "Pending first hosted evidence reference publication run."
+          "GitHub Actions run 35886719419, job 107268618049: exact-head checkout, repository typecheck, experiment contract, and evidence-first publication experiment passed.",
+          "Hosted result: crash before authority = orphan-only; crash after authority = durable-reference-to-durable-evidence; concurrent authority winners = 1; losing evidence collectible = true; missing referenced evidence = fail-closed; invalid histories = 0.",
+          "Merge-gate run 35886719976, candidate-evidence job 107268620466: lint, repository typecheck, experiment contract, and full deterministic regression passed on the same exact revision."
         ]
       },
       "interpretation": "A passing result would establish the write ordering needed for a receipt reference migration without a cross-store transaction. Evidence-store GC must remain authority-aware and live above the byte store because only authority knows reachability.",
@@ -1385,8 +1387,8 @@
         "note": "Crash phases, concurrent-writer case, authority-history validation, missing-evidence control, and authority-derived orphan collection were fixed before the first hosted run."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first hosted evidence-first publication run."
+        "state": "supported",
+        "summary": "At exact revision eea803191db2eeec4a93807ab810c8d8a1ba88b6, hosted SIGKILL crash windows, same-head concurrent writers, authority-derived orphan collection, referenced-evidence deletion, repository typecheck, and deterministic regression all passed. The bounded evidence-first ordering claim is supported without introducing a cross-store transaction."
       }
     },
     {
