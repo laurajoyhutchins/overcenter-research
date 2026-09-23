@@ -1,4 +1,4 @@
-# Durable authority facts contract v1
+# Durable authority facts contract
 
 This package defines the persisted logical facts from which Overcenter reconstructs project truth.
 
