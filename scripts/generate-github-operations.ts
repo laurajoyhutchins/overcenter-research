@@ -13,7 +13,7 @@ import {
 import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github/semantics.ts';
 
 const schemaPath=process.argv[2];
-const outputPath=process.argv[3]??'src/providers/github/operations.generated.ts';
+const outputPath=process.argv[3]??'generated/github-operations.ts';
 if (!schemaPath) throw new Error('usage: generate-github-operations.ts <api.github.com.json> [output.ts]');
 
 const source=readFileSync(schemaPath,'utf8');
