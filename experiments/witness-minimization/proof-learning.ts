@@ -135,6 +135,7 @@ function learnProof():LearnedProof{
 
 function evaluateClause(clause:Clause,atoms:Set<string>):boolean{
   if(!clause.required.every(atom=>atoms.has(atom))) return false;
+  if(clause.alternatives.length===0) return true;
   return clause.alternatives.some(group=>group.every(atom=>atoms.has(atom)));
 }
 
@@ -146,6 +147,7 @@ function evaluateLearned(proof:LearnedProof,obs:Observation[]):boolean{
 
 function renderClause(clause:Clause):string{
   const left=clause.required.join(' & ');
+  if(clause.alternatives.length===0) return left;
   const alt=clause.alternatives.map(group=>group.join(' & ')).join(' | ');
   return `${left} & (${alt})`;
 }
@@ -201,11 +203,11 @@ assert.deepEqual(
 );
 assert.deepEqual(
   proof.byRoute.helper.required,
-  ['generation-terminated','reservation-bound','route:helper'],
+  ['generation-terminated','helper-clear','reservation-bound','route:helper'],
 );
 assert.deepEqual(
   proof.byRoute.helper.alternatives,
-  [['helper-clear']],
+  [],
 );
 
 const hostile=hostileTruthTable(proof);
