@@ -1420,16 +1420,18 @@
         "Existing GitHub status and PR update-branch provider effect regressions remain green."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "04bc98a42f4db5ddc73293a713412f17127fbc68",
         "artifacts": [
-          ".github/workflows/effect-authority-decay.yml",
-          "experiments/effect-authority-decay/run.sh",
-          "experiments/effect-authority-decay/benchmark.sh",
-          "test/effect-authority-types.ts"
-        ],
-        "pending_reason": "Corrected treatment rebuilt on current main; awaiting first exact-head hosted execution."
+          "GitHub Actions run 35825868462, job 107067328128: production typecheck, adversarial runtime controls, authority-decay census, provider regressions, and same-runner latency differential passed.",
+          "Merge-gate run 35825868706, candidate-evidence job 107067329353: repository typecheck and full deterministic regression passed on the same treatment revision.",
+          "Provider claimedWork calls 2 -> 0; raw coordinate comparisons 6 -> 0; effect-contract checks 2 -> 0; verifier checks 2 -> 0; provider raw performEffect calls 2 -> 0; one central authority mint.",
+          "Combined production SLOC 909 -> 907.",
+          "Same-runner effect reservation median 0.718 ms -> 0.726 ms (1.011x); Overcenter local median 4.430 ms -> 4.324 ms (0.976x).",
+          "Authority superseded during provider I/O was rejected by the unchanged final beginEffect fence before provider mutation or effect reservation."
+        ]
       },
-      "interpretation": "Typed capabilities should be used where runtime-established authority would otherwise decay into raw data and repeated interior reconstruction. Mutable external facts remain protected by the final authoritative fence at the consequential boundary.",
+      "interpretation": "Typed capabilities pay off where runtime-established authority would otherwise decay into raw data and repeated trusted-interior reconstruction. Preserve historical reconstruction APIs that have distinct semantic jobs, and retain a final runtime fence anywhere external authority can change before the effect.",
       "non_claims": [
         "TypeScript nominal branding provides Rust affine or ownership guarantees.",
         "Bound authority remains current after external execution authority changes.",
@@ -1443,8 +1445,8 @@
         "note": "Confirmatory current-main criteria were fixed before this run, but the corrected treatment incorporates lessons from an earlier prototype that exposed legitimate historical reconstruction and low-level reservation consumers."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first exact-head current-main run."
+        "state": "supported",
+        "summary": "On current-main baseline 81b350e526824ab2c397642e6761a0c860151331, bound EffectAuthority removed all duplicated provider authority reconstruction, reduced the measured production slice by 2 nonblank lines, preserved the stale-generation mutation fence, passed repository typecheck and full deterministic regression, and stayed within the 1.10x latency ceiling."
       }
     }
   ]
