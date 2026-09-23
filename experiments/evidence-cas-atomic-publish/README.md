@@ -62,3 +62,67 @@ delete temps old enough that no live publisher could still own them.
 ```sh
 npm run test:evidence-cas-atomic-publish
 ```
+
+## Hosted result
+
+Evaluated at exact revision:
+
+```text
+3b9758dfd4e01e26c0e3e7504e31ce747cc6a0db
+```
+
+GitHub Actions run `35824626596`, job `107063576774`, passed every hostile
+case.
+
+```text
+crash after temp fsync
+  final object        absent
+  temp object         complete + sweepable
+
+crash after link + directory fsync
+  final object        complete + digest-valid
+  temp object         complete + sweepable
+
+concurrent writers    8
+final objects         1
+corrupt target        rejected
+false accepts         0
+```
+
+For 256 KiB evidence:
+
+```text
+hardened first put p50      1,157.760 us
+hardened first put p95      2,112.502 us
+duplicate put p50             471.165 us
+verified read p50             436.420 us
+```
+
+The file and directory fsyncs account for much of the write-cost increase versus
+the earlier naive filesystem measurement. That is the correct trade: publication
+latency buys a final-path invariant that is mechanically checkable after a
+process dies.
+
+## Promotion boundary
+
+This is enough evidence to promote the **storage primitive**, not the receipt
+migration.
+
+The next production-shaped step is:
+
+```text
+EvidenceRef
+  sha256
+  byte_length
+
+EvidenceStore
+  put(bytes) -> EvidenceRef
+  get(ref) -> verified bytes
+
+FileEvidenceStore
+  atomic local implementation
+```
+
+Receipt-v5 remains unchanged until a separate migration proves that referenced
+evidence can be introduced without creating a split authority or unrecoverable
+missing-object state.
