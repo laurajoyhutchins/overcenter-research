@@ -63,3 +63,5 @@ historical replay.
 ```sh
 npm run test:evidence-reference-publication
 ```
+
+The experiment criteria above were committed before the first hosted execution.
