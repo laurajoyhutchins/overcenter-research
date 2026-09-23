@@ -388,10 +388,7 @@ export function submitProjectCandidate(
   const assigned = kernel.claimedWork(raw.run_id);
   const sourceRevision = kernel.claimedSourceRevision(raw.run_id);
   if (!sourceRevision) throw new Error('PROJECT_SUBMIT_SOURCE_REVISION_MISSING');
-  const rebuilt = agentAssignment(
-    assigned,
-    prepareAgentPacket(repo, assigned, sourceRevision),
-  );
+  const rebuilt = agentAssignment(assigned, prepareAgentPacket(repo, assigned, sourceRevision));
   const candidate = validateCandidate(
     raw,
     JSON.parse(rebuilt.bytes.toString('utf8')),
