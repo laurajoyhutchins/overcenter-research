@@ -2821,12 +2821,12 @@
         "The pull-request update-branch effect is promoted into Overcenter's supported production mutation slice."
       ],
       "design": {
-        "provenance": "preregistered",
-        "note": "The bounded-versus-unbounded liveness contrast, expected classifications, depth-12 oracle expectations, production capability cross-checks, unchanged-head non-authoritative-absence assertion, positive ancestry verification, and falsification criteria were committed before the first execution of this experiment."
+        "provenance": "mixed",
+        "note": "The bounded-versus-unbounded liveness contrast, expected classifications, depth-12 oracle expectations, production capability cross-checks, unchanged-head non-authoritative-absence assertion, positive ancestry verification, and falsification criteria were committed before first execution. The first hosted treatment at exact revision 18d17e1f0aebece16caba5f21799bfef01a3d718 confirmed bounded diagnosable=true and safeDiagnosable=false, then failed because the single unsafeWitness selected settle-done instead of the preregistered release-authority hazard. After observing that result, the protocol model was narrowed by removing only the settle-done consequential annotation; states, transitions, observations, liveness assumptions, production cross-checks, and the diagnoser implementation were unchanged. The corrected treatment is therefore explicitly post-observation and mixed-provenance."
       },
       "outcome": {
         "state": "pending",
-        "summary": "The asynchronous GitHub update-branch diagnosability treatment is preregistered and has not yet been executed."
+        "summary": "The original preregistered treatment exposed a multi-consequential-witness ambiguity at exact revision 18d17e1f0aebece16caba5f21799bfef01a3d718 after confirming bounded diagnosable=true and safeDiagnosable=false. A post-observation correction now scopes the model to the preregistered release-authority safety question; that corrected treatment has not yet been evaluated."
       },
       "reproduce": {
         "tier": "deterministic",
@@ -2835,10 +2835,12 @@
       "evidence": {
         "status": "pending",
         "artifacts": [
-          "Preregistered protocol source: experiments/async-effect-diagnosability/experiment.ts.",
-          "Preregistered rationale and falsification contract: experiments/async-effect-diagnosability/README.md."
+          "Original preregistered treatment: GitHub Actions Merge gate run 35929296953, rerun attempt 2, candidate-evidence job 107412346863 at exact revision 18d17e1f0aebece16caba5f21799bfef01a3d718.",
+          "Before the failure, the original treatment established bounded-completion diagnosable=true and safeDiagnosable=false.",
+          "The original treatment then failed its release-authority witness assertion because the analyzer's single unsafeWitness returned settle-done; later criteria were not accepted as evaluated evidence.",
+          "Post-observation correction d570503065687ce5e4c6c2558feaa02484d9085e removes only the settle-done consequential annotation and documents the provenance change."
         ],
-        "pending_reason": "No local or hosted execution has been accepted yet; the first exact-head run remains pending."
+        "pending_reason": "The corrected release-authority-scoped treatment has not yet completed exact-head hosted evaluation."
       }
     },
     {
