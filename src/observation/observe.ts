@@ -11,7 +11,7 @@ import {
   localFileEnoentEvidenceMatches,
   validateAbsenceEvidenceEnvelope,
 } from './evidence.ts';
-import {SettlementObservationSchema} from '../generated/settlement-observation-schema.ts';
+import observationEvidenceSchema from '../../contracts/observation-evidence-v1/schema.json' with {type:'json'};
 import {
   assertSupportedStructuralSchema,
   structurallyMatches,
@@ -57,6 +57,7 @@ function data(value:unknown):value is Record<string,unknown> {
   return !!value && typeof value==='object' && !Array.isArray(value);
 }
 
+const SettlementObservationSchema=observationEvidenceSchema.$defs.SettlementObservation;
 assertSupportedStructuralSchema(SettlementObservationSchema);
 
 const observationExternalRef=(ref:string,value:unknown):boolean=>{
