@@ -3,6 +3,7 @@ name: Merkle receipt-v5 dedup
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/merkle-receipt-v5-dedup.yml
       - experiments/merkle-receipt-v5-dedup/**
