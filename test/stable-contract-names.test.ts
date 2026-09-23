@@ -73,7 +73,7 @@ test('stable contract names do not encode schema versions',()=>{
   const scanRoots=['.github','src','scripts','test','examples','experiments','contracts'];
   const scanFiles=scanRoots.flatMap(root=>filesUnder(root))
     .filter(path=>path!=='test/stable-contract-names.test.ts')
-    .filter(path=>/\.(?:ts|tsx|js|json|md|ya?ml|sh|toml)$/.test(path));
+    .filter(path=>/\.(?:ts|tsx|js|json|md|ya?ml|sh|toml|go|rs)$/.test(path));
   for (const path of scanFiles) {
     const text=readFileSync(path,'utf8');
     for (const oldPath of OLD_CONTRACT_PATHS) {
