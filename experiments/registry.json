@@ -1485,13 +1485,17 @@
         "Missing evidence cannot project DONE, and no false DONE occurs."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "Preregistered after the full receipt-DAG result and before the first evidence-leaf hosted run.",
+        "status": "evaluated",
+        "evaluated_revision": "1ad6c4f97d698f3e194b5e8ec74bf4050084bf14",
         "artifacts": [
-          "Pending first hosted exact-head evidence-leaf run."
+          "GitHub Actions run 35822020117, job 107055707500: existing authority spine + Merkle evidence leaves PASS.",
+          "128 receipt-v5 facts were generated through the production kernel/effect adapter, read back through validated SqliteFactStore.history, hydrated from evidence references, and replayed with 0 semantic mismatches and 0 false DONE outcomes.",
+          "Merkle-evidence-leaf/flat byte ratios were 1.053x at 1 receipt, 0.402x at 8, 0.322x at 32, 0.308x at 64, and 0.302x at 128.",
+          "The 128-receipt corpus stored exactly one shared evidence object; evidence tamper and missing-evidence controls were rejected, and changing run identity changed the SQLite-style outer commit digest.",
+          "The same workflow reran the full authority-bound receipt DAG at 0.506x flat bytes for 128 receipts, providing a same-host comparison."
         ]
       },
-      "interpretation": "A passing result would favor a smaller architecture: keep the current content-addressed fact-commit authority chain and externalize only large reusable evidence payloads. A failing storage threshold would indicate that the full receipt DAG earns its extra structure even after accounting for the authority spine Overcenter already has.",
+      "interpretation": "The evidence favors a smaller architecture than a second receipt DAG. Overcenter's SQLite/Git fact history already supplies the authoritative content-addressed outer spine; reusable certified observations and future execution-trace payloads can be content-addressed leaves referenced by ordinary settlement facts. This preserves existing settlement authority and exact run/revision binding while gaining tamper detection, deduplication, and independently retrievable evidence.",
       "non_claims": [
         "Every observation is safe to deduplicate merely because its bytes match; verifier/subject/snapshot provenance remains part of the evidence bytes.",
         "The production SQLite schema should be changed on the strength of this single corpus.",
@@ -1505,8 +1509,8 @@
         "note": "The leaf-only architecture, authoritative-history readback requirement, 128-receipt corpus, <=0.56x storage threshold, tamper/missing controls, and outer-commit identity control were fixed before the first hosted run."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first exact-head hosted run."
+        "state": "supported",
+        "summary": "At exact revision 1ad6c4f97d698f3e194b5e8ec74bf4050084bf14, the leaf-only treatment preserved exact receipt-v5/projectReceipt semantics with zero false DONE, used one shared evidence object, and reached 0.302x flat bytes at 128 receipts. On the same hosted run, the fuller receipt DAG used 0.506x, so retaining the existing authority spine and Merkleizing only repeated evidence was both simpler and materially smaller for this corpus."
       }
     }
   ]

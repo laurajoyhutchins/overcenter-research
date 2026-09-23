@@ -62,3 +62,55 @@ the second per-execution DAG and its separate root-authority concern.
 ```sh
 npm run test:merkle-evidence-leaves
 ```
+
+## Hosted result
+
+Evaluated at exact revision:
+
+```text
+1ad6c4f97d698f3e194b5e8ec74bf4050084bf14
+```
+
+GitHub Actions run `35822020117`, job `107055707500`, passed.
+
+```text
+receipt-v5 facts                         128
+semantic mismatches                        0
+false DONE                                 0
+content-addressed evidence objects         1
+
+evidence-leaf / flat bytes
+  1 receipt                            1.053x
+  8 receipts                           0.402x
+ 32 receipts                           0.322x
+ 64 receipts                           0.308x
+128 receipts                           0.302x
+
+same-host full receipt DAG @ 128        0.506x
+```
+
+The smaller treatment therefore beat the preregistered 0.56x threshold and the
+full receipt DAG on the same hosted run.
+
+The architectural result is not "Merkleize everything." It is:
+
+```text
+existing authority spine
+  SQLite canonical fact-commit chain
+  or Git commit graph
+            |
+            | settlement fact keeps exact identity
+            | and references evidence digest
+            v
+content-addressed evidence leaves
+  certified observations
+  execution traces
+  large replay inputs
+```
+
+This keeps authority singular. The fact commit says which evidence counts; the
+evidence digest says exactly which bytes were observed. Missing or corrupted
+evidence fails closed, while repeated evidence can be stored once.
+
+For this corpus, a second per-execution receipt DAG is additional machinery with
+worse canonical storage than the leaf-only design.
