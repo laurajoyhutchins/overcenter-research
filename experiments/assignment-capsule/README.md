@@ -55,7 +55,7 @@ candidate bytes
 trusted observation + settlement
 ```
 
-The task-specific bytes are self-contained. The reusable capsule mechanism lives in `src/`; this experiment only exercises it. The Node runtime and Linux kernel remain trusted execution substrate and are not embedded in the assignment.
+The task-specific bytes are self-contained. The reusable native worker implementation lives in `src/execution/worker-client/`; production `project.advance` packages its `overcenter` binary beside the assignment. The packet can therefore be handed to an otherwise empty compatible worker without a repository checkout or Node/TypeScript runtime for the client itself. Task-specific commands may still require their own declared runtime.
 
 ## Non-claims
 

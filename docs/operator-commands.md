@@ -28,7 +28,9 @@ Ask Overcenter to make progress.
 
 The caller supplies no obligation ID, selector, priority, lease, run ID, or execution plan. Overcenter owns those mechanics. It reconciles authoritative state, derives the executable frontier, chooses work, and claims the exact revision.
 
-The result is either current project state or an immutable work packet when reasoning is required.
+The result is either current project state or an immutable work packet when reasoning is required. A reasoning packet contains `assignment.json`, the command receipt, and a capability-free native `overcenter` worker executable. The executable validates and materializes the assignment, runs the declared task, and emits candidate bytes bound to the exact assignment/run/revision.
+
+The worker executable carries no project-settlement or provider authority. The current published binary target is statically linked Linux x86-64; portability across trust domains is independent of adding further OS/architecture builds. It can be handed to either an Overcenter-controlled sandbox or a foreign sandbox whose ambient capabilities Overcenter cannot revoke; in the latter case Overcenter still protects project truth, but cannot prevent effects independently authorized by that host.
 
 A reasoning agent does not select or claim its own work.
 
