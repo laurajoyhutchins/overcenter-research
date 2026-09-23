@@ -2075,6 +2075,126 @@
         "state": "falsified",
         "summary": "Identical content is provable, but direct substitution of exact-head candidate evidence is falsified because current execution context and trusted attestations remain bound to source_sha."
       }
+    },
+    {
+      "id": "execution-witness",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/execution-witness",
+      "readme": "experiments/execution-witness/README.md",
+      "question": "Can complete syscall-level evidence safely discharge some post-reservation RECOVERY_REQUIRED cases without treating a network send as proof of provider commit?",
+      "claim": "A trusted Linux execution witness can prove safe retry when an interrupted reserved attempt terminated before any request bytes crossed the provider socket; after request bytes are sent, the attempt remains recovery-bound.",
+      "contrast": "Treat every crash after reservation as potentially mutating, or unsafely infer non-occurrence merely because no provider response was observed.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:execution-witness"
+      },
+      "environment": [
+        "Linux x86-64 with ptrace support and a C11 compiler for the deterministic fault-injection harness.",
+        "The provider is a loopback TCP process with an independent fsync-backed commit ledger.",
+        "GitHub Actions ubuntu-24.04 separately probes rr record/replay; lack of PMU or kernel support is reported as a substrate limitation rather than weakening the ptrace acceptance criteria."
+      ],
+      "success_criteria": [
+        "The conservative post-reservation baseline releases zero interrupted cases as retry-safe.",
+        "The syscall witness releases at least the before-connect and after-connect cases as safe retry.",
+        "Every witness-classified safe retry has zero commits in the independent provider ledger.",
+        "The after-send case remains ambiguous even if no response was observed.",
+        "An unsafe no-response classifier yields at least one false-certainty case against the provider ledger.",
+        "Replaying the deterministic classifier over each immutable trace yields the same disposition.",
+        "The hosted rr probe, when the substrate supports recording, reproduces the original environment, file, clock, and random-derived output after the live environment and file are changed."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "33911faa705d8be4aac8cfc92a9472f841706411",
+        "artifacts": [
+          "GitHub Actions run 35820143252 at exact revision 33911faa705d8be4aac8cfc92a9472f841706411: ptrace fault matrix PASS; conservative baseline released 0/4 interrupted cases, execution witness safely released 2/4 pre-send cases, witness false certainty was 0, and the unsafe no-response negative control produced 1 false-certainty case.",
+          "GitHub Actions run 35820143252: rr 5.7 installed on ubuntu-24.04; native CPU detection rejected CPU type 0xa06d0, and a bounded forced-microarchitecture retry advanced to perf_event_open but found hosted hardware performance counters unavailable, so full rr record/replay was not evaluated on this substrate."
+        ]
+      },
+      "interpretation": "Use the result to decide whether an authority-bound execution witness is worth promoting into recovery machinery. A positive result supports proving non-occurrence before the external send boundary; it does not make locally observed sends or responses authoritative provider truth.",
+      "non_claims": [
+        "A successful socket send proves the provider committed the effect.",
+        "Ptrace trace text is a production-ready evidence certificate or tamper-resistant format.",
+        "The loopback provider models arbitrary network, TLS, proxy, or provider behavior.",
+        "Full rr process replay is required for the syscall-witness safety result.",
+        "GitHub-hosted runners necessarily support rr recording."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The recovery hypothesis, four crash points, acceptance criteria, and unsafe no-response negative control were committed in a pending registry entry before exact-head hosted evaluation. A local smoke run validated harness mechanics before hosted evaluation."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The hosted fault matrix supports syscall-level execution evidence as a safe way to discharge the two pre-send post-reservation ambiguities in the four-case model, with zero false certainty; once request bytes crossed the provider socket, the witness remained recovery-bound."
+      }
+    },
+    {
+      "id": "witness-minimization",
+      "kind": "experiment",
+      "status": "historical",
+      "directory": "experiments/witness-minimization",
+      "readme": "experiments/witness-minimization/README.md",
+      "question": "Can minimized historical recovery witnesses automatically define a narrow future capture contract that preserves deterministic recovery on unseen schedules without false certainty?",
+      "claim": "A capture contract learned only from black-box minimization of broad historical witnesses preserves at least 95% of broad-recorder SAFE_RETRY decisions on an unseen alternate effect route while producing zero false SAFE_RETRY decisions.",
+      "contrast": "Keep broad capture, or use witness minimization only for post-hoc evidence reduction until observation completeness and mutation routes are independently known.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:witness-minimization"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "No network, provider credential, model, ptrace, or external solver is required.",
+        "The deterministic synthetic corpus contains an ordinary effect route visible in training and a helper route withheld until challenge evaluation."
+      ],
+      "success_criteria": [
+        "Mean post-hoc witness size is reduced by at least 90% while preserving the deterministic SAFE_RETRY proof.",
+        "Every minimized training witness is 1-minimal: removing any retained observation destroys the SAFE_RETRY proof.",
+        "Held-out ordinary-route recovery retention is at least 95% with zero false certainty.",
+        "The frozen learned capture contract preserves at least 95% of broad-recorder SAFE_RETRY decisions on the unseen helper route with zero false certainty for the strong hypothesis to be supported.",
+        "The unsafe missing-monitor negative control produces at least one false SAFE_RETRY on a committed unseen-route execution.",
+        "Redundant ordinary-route monitors produce more than one valid minimal witness shape, demonstrating that the experiment does not assume a unique causal basis."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "77f1733b78f757a983a844d61ce07146f110791e",
+        "artifacts": [
+          "GitHub Actions run 35821101302 at exact preregistered revision 77f1733b78f757a983a844d61ce07146f110791e: experiment contract PASS and blind witness-discovery corpus PASS.",
+          "40 safe training traces: mean broad witness 102 observations, mean 1-minimal witness 4 observations, 96.08% reduction, two distinct minimal witness shapes due to redundant ordinary-route monitors.",
+          "Frozen learned capture contract: monitor-main-a, monitor-main-b, reservation, route, terminated.",
+          "Held-out ordinary route: 100.00% deterministic recovery retention, zero false certainty.",
+          "Unseen helper route: 0.00% deterministic recovery retention, zero false certainty; fail-closed verifier returned RECOVERY_REQUIRED because helper-route completeness was not captured.",
+          "Unsafe missing-monitor negative control: 50 false-certainty cases on committed helper-route executions.",
+          "Follow-on matrix run 35821496326 at exact preregistered revision d35c8e0208c68a8c6627ae93df17a73f02890db4: route-exposure sweep, minimization-stability, fail-closed outcome asymmetry, guarded promotion, and shadow-discovery trials all passed their preregistered assertions.",
+          "Route exposure: 0 helper safe traces retained 0% helper recovery; 1 or more retained 100%, with zero false certainty.",
+          "Minimization stability: 500 traces split 258/242 across two equivalent 1-minimal witness shapes; literal intersection omitted both complete monitors.",
+          "Outcome asymmetry: 50 committed helper RECOVERY_REQUIRED traces minimized to 0 observations when only disposition preservation was requested.",
+          "Guarded promotion: independent helper-route inventory plus learned main-route evidence retained 6/102 capture classes (94.12% reduction), 100% recovery, zero false certainty.",
+          "Shadow sampling at a 1% hidden-route rate showed long discovery tails: at 1% broad shadow capture, route novelty median/p95 was 6,932/29,956 executions; safe-witness discovery was 13,863/59,914.",
+          "Production source-boundary audit run 35821658065 at exact preregistered revision 48e67d48208105a47a2dbe35a8bd4bc5c8ed0402: 61 src TypeScript files, 2 literal mutation-capable HTTP candidates, both in files containing kernel.performEffect; 0 scanned mutation candidates outside that boundary.",
+          "Learned positive recovery proof run 35822236282 at evaluated revision d484b5b86cc0187e85e14af5c42cfb75e7f2ac75: learned main disjunction and helper conjunction matched the deterministic verifier on all 512 hostile truth-table cases with zero false certainty and zero false negatives.",
+          "The learned main formula retained equivalent complete monitors as OR alternatives; missing completeness failed closed; a recorded send invalidated the corresponding clear predicate; an alternate complete clear monitor still recovered safely.",
+          "Two preceding hosted attempts failed only on Boolean normal-form representation assertions before semantic evaluation; both were corrected without weakening the 512-case verifier-equivalence gate.",
+          "Authority-bound recovery certificate run 35822785538 at exact preregistered revision 1e37026e28d5aa2f908a9ab3c4650793861cd940: all 14 mint-time hostile substitutions and all 13 consume-time substitutions rejected; constructor forgery, single-use replay, equivalent-witness substitution, topology drift, and proof-policy substitution rejected with zero false certainty.",
+          "Certificate bindings cover run, obligation, claimed revision, claim commit, obligation key, execution generation, execution-authority commit, effect-reservation commit, route, topology digest, learned-proof digest, and witness digest.",
+          "Kernel inspection after T8 showed that a production retry must materialize replay-verifiable READY evidence rather than directly bypass unresolved-effect admission, because replay clears unresolved effect reservations only on DONE or READY receipts."
+        ]
+      },
+      "interpretation": "Historical witness minimization is strongly supported for compact positive recovery proofs and can safely optimize capture inside an independently complete mutation envelope. Historical absence cannot establish that envelope. Route coverage, not repeated same-route samples, controls generalization; equivalent proofs make literal minima non-unique; generic fail-closed outcomes are degenerate minimization targets; probabilistic broad shadowing is useful for drift detection but not a completeness proof. A bounded production-source audit found the current detected mutation HTTP sites structurally fenced through KernelCore.performEffect, suggesting the envelope can presently be derived from trusted code structure. A subsequent prototype showed that, once the route envelope is supplied independently, minimized positive witnesses can be generalized into executable Boolean proof expressions: the learned formulas exactly matched the reference verifier across 512 hostile truth-table cases with zero false certainty and zero false negatives. The authority-binding prototype rejected every tested cross-run, stale-generation, stale-reservation, topology, proof-policy, and witness substitution. The production integration point is therefore a durable replay-verifiable non-occurrence settlement yielding READY, not a direct bypass of unresolved-effect admission.",
+      "non_claims": [
+        "Historical minimality proves global causal necessity.",
+        "The synthetic route vocabulary represents arbitrary providers.",
+        "A 95% recovery-retention threshold is a production SLO.",
+        "Delta debugging finds a unique or globally minimum witness.",
+        "Learned capture may claim completeness for an effect route it does not actually observe."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The hidden-route challenge, 95% unseen-route retention threshold, zero-false-certainty gate, redundant-evidence construction, and unsafe negative control are recorded before hosted evaluation."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "The original automatic capture-promotion hypothesis remains falsified: historical minima alone retained 0% recovery on an unseen route. Follow-on trials isolate the repair: one covered helper route restored 100% recovery; guarded promotion inside an independent mutation-route inventory achieved 94.12% capture-class reduction with 100% recovery and zero false certainty. Generic RECOVERY_REQUIRED minimization collapsed to an empty witness, and shadow sampling showed long rare-route discovery tails."
+      }
     }
   ]
 }
