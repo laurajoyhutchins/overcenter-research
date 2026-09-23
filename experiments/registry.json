@@ -1512,6 +1512,62 @@
         "state": "supported",
         "summary": "At exact revision 1ad6c4f97d698f3e194b5e8ec74bf4050084bf14, the leaf-only treatment preserved exact receipt-v5/projectReceipt semantics with zero false DONE, used one shared evidence object, and reached 0.302x flat bytes at 128 receipts. On the same hosted run, the fuller receipt DAG used 0.506x, so retaining the existing authority spine and Merkleizing only repeated evidence was both simpler and materially smaller for this corpus."
       }
+    },
+    {
+      "id": "evidence-cas-break-even",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/evidence-cas-break-even",
+      "readme": "experiments/evidence-cas-break-even/README.md",
+      "question": "Across realistic replay-evidence sizes and reuse rates, when does content-addressed evidence externalization beat inline receipt storage, and what recovery/GC costs does that indirection introduce?",
+      "claim": "Evidence CAS is not a universal storage win: zero-reuse evidence will remain larger than inline storage, while increasing payload size and reuse will produce measurable crossover curves. A deterministic group-cost policy that externalizes only when refs plus one stored object are smaller than repeated inline payloads will never exceed flat canonical bytes across the preregistered matrix and will preserve exact receipt-v5 semantics.",
+      "contrast": "Always externalize every evidence payload into CAS regardless of size or reuse, or always keep all evidence inline.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-cas-break-even"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "A corpus of 128 actual production GitHub receipt-v5 identities is generated once through OvercenterKernel and performGithubCommitStatusEffect.",
+        "Execution-trace diagnostics are schema-valid non-semantic receipt-v5 data layered onto those production identities, validated by validateReceiptFact and replayed through production projectReceipt.",
+        "Trace payload sizes are 1 KiB, 16 KiB, 256 KiB, and 1 MiB; reuse fractions are 0%, 25%, 50%, 75%, and 100% with deterministic exact-byte traces.",
+        "Logical storage accounting uses canonical JSON bytes for inline receipts, reference receipts, and unique CAS objects. File-system lookup and GC measurements use a temporary local directory CAS on the hosted runner.",
+        "Physical database pages, remote object-store billing, compression, and network RTT are outside this experiment."
+      ],
+      "success_criteria": [
+        "Every hydrated externalized receipt is canonically identical to its inline receipt-v5 fact and production projectReceipt preserves disposition and verified result with zero false DONE.",
+        "Universal externalization is larger than inline storage at 0% reuse for every preregistered payload size, establishing the no-reuse negative control.",
+        "At 100% reuse, universal externalization is smaller than inline storage for every preregistered payload size.",
+        "The experiment reports universal CAS byte ratios for every payload-size/reuse cell and the first measured reuse crossover for each payload size.",
+        "A deterministic exact-cost policy that externalizes a digest group only when reference receipts plus one CAS object are smaller than that group's inline receipts never exceeds flat canonical bytes in any matrix cell.",
+        "For a 256 KiB, 50%-reuse representative corpus, file-backed CAS lookup verifies the requested digest on every read and reports p50/p95 lookup latency.",
+        "A mark-and-sweep GC control over the representative corpus deletes all injected orphan objects, deletes no live object, and reports reclaimed bytes and sweep latency.",
+        "Cold recovery bandwidth for the representative corpus is reported as reference bytes plus unique evidence bytes; warm recovery bandwidth after evidence caching is reported as reference bytes only."
+      ],
+      "evidence": {
+        "status": "pending",
+        "pending_reason": "Preregistered before the first hosted break-even matrix run.",
+        "artifacts": [
+          "Pending first hosted exact-head evidence CAS break-even run."
+        ]
+      },
+      "interpretation": "The result will decide policy shape rather than whether content addressing is useful. If the exact-cost selective policy dominates or matches flat storage while universal CAS loses at low reuse, evidence CAS should be available as infrastructure but externalization should be a deterministic storage decision, not a mandatory receipt representation.",
+      "non_claims": [
+        "The matrix represents the empirical distribution of production Overcenter replay traces.",
+        "Local filesystem latency predicts remote object-store latency.",
+        "Canonical-byte savings equal physical SQLite, Git, compressed object-store, or network billing savings.",
+        "Repeated evidence is semantically reusable unless its complete provenance-bearing bytes are identical.",
+        "GC of evidence objects is safe without tracing all authoritative receipt references.",
+        "Evidence CAS replaces authoritative observation, settlement authority, or current-realization checks."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Payload sizes, reuse fractions, 128-receipt corpus, zero-reuse and full-reuse controls, exact-cost selective policy, representative lookup/GC case, and reported recovery bandwidth metrics were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first exact-head break-even matrix run."
+      }
     }
   ]
 }
