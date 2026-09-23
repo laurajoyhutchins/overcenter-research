@@ -23,6 +23,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `attempt-unification/` - falsifies the single recovery-clock simplification and proves authority fencing and unresolved mutation identity require distinct temporal dimensions.
 - `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
 - `source-obligation-integration/` - stable source intent, claim-time Git fencing, trusted current-main verification, CAS integration, conflict rejection, and replay detection.
+- `verified-generated-output/` - preregistered test of evidence-backed generated artifact identity and downstream settlement-receipt semantics.
 - `disposable-agent/` - worker destruction, reconstruction, authoritative readback, and settlement.
 - `distributed-authority-handoff/` - Postgres-free multi-controller authority handoff through immutable Git facts plus one remote exact-head CAS coordinate.
 - `distributed-authority-chaos/` - repeated multi-controller CAS contention, crash injection, authority rotation, and bounded fresh-controller recovery.
