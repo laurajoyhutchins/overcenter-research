@@ -18,6 +18,7 @@ Then use the detailed notes for the specific invariant they contribute:
 | [Distributed fencing](./distributed-fencing.md) | How are stale execution authority and stale project state rejected independently? |
 | [FoundationDB transaction semantics](./foundationdb-transaction-semantics.md) | How should Overcenter distinguish conflict from unknown mutation outcome and place the validation/commit boundary? |
 | [Git transaction substrate](./git-transaction-substrate.md) | How little durable shared authority is sufficient for the prototype? |
+| [CAS evidence program](./cas-evidence-program.md) | How should immutable evidence move from a content-addressed byte store into authoritative references without a cross-store transaction? |
 | [Kubernetes / Flux reconciliation](./kubernetes-flux-reconciliation-prior-art.md) | How should desired state, observed state, reconciliation, generations, and conditions influence the outer loop? |
 | [Kubernetes observation semantics](./kubernetes-observation-semantics.md) | Can structural certificates carry provider identity, complete snapshots, authoritative absence, and WATCH continuity across a second provider? |
 | [Provider observation reuse](./provider-observation-reuse.md) | Which observation/certificate mechanics actually generalize across GitHub and Kubernetes without flattening provider meaning? |
