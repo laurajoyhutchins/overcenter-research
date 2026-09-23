@@ -31,9 +31,8 @@ const reports = ADAPTER_DIAGNOSABILITY_CASES.map(({ protocol, expected }) => {
     assert.ok(analysis.nonDiagnosableWitness?.length, `${protocol.id}: missing ambiguity witness`);
   }
   if (!analysis.safeDiagnosable) {
-    assert.equal(
-      analysis.unsafeWitness?.action,
-      'release-authority',
+    assert.ok(
+      analysis.unsafeWitnesses.some((witness) => witness.action === 'release-authority'),
       `${protocol.id}: unsafe release witness missing`,
     );
   }
@@ -46,7 +45,7 @@ const reports = ADAPTER_DIAGNOSABILITY_CASES.map(({ protocol, expected }) => {
     maxAmbiguousObservableDelay: analysis.maxAmbiguousObservableDelay,
     depth12AmbiguousSequences,
     decision,
-    unsafeAction: analysis.unsafeWitness?.action ?? null,
+    unsafeActions: analysis.unsafeWitnesses.map((witness) => witness.action),
   };
 });
 
