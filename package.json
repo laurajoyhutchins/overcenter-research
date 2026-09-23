@@ -32,7 +32,7 @@
     "test:github-object-transport": "node --experimental-strip-types --test experiments/github-object-transport/contract.test.ts",
     "test:data-contracts": "node --experimental-strip-types --test test/data-contracts.test.ts",
     "test:execution-manifest": "node --experimental-strip-types --test test/execution-manifest.test.ts",
-    "proof:rust-exec": "bash src/execution/confinement/proof.sh",
+    "proof:rust-exec": "bash test/proof/confinement/proof.sh",
     "test:assignment-capsule": "node --experimental-strip-types --test experiments/assignment-capsule/contract.test.ts",
     "test:codex-closed-loop": "node --experimental-strip-types --test experiments/codex-closed-loop/contract.test.ts",
     "generate:settlement-observation": "node --experimental-strip-types scripts/generate-settlement-observation.ts --write",
@@ -43,6 +43,6 @@
     "bench:production-latency": "node --experimental-strip-types experiments/production-latency/benchmark.ts --iterations 25",
     "bench:production-latency:live": "node --experimental-strip-types experiments/production-latency/benchmark.ts --live --iterations 3",
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
-    "proof:worker-client": "bash src/execution/worker-client/proof.sh"
+    "proof:worker-client": "bash test/proof/worker-client/proof.sh"
   }
 }
