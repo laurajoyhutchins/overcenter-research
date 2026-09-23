@@ -52,7 +52,7 @@ const pkg=JSON.parse(
 ) as {scripts?:Record<string,string>};
 const experimentReadme=readFileSync('experiments/README.md','utf8');
 const entries:ExperimentEntry[]=registry.entries??[];
-const fail=(message:string):never=>{throw new Error(`EXPERIMENT_CONTRACT: ${message}`);};
+function fail(message:string):never { throw new Error(`EXPERIMENT_CONTRACT: ${message}`); }
 const text=(entry:Record<string,unknown>,key:string):void=>{
   const value=entry[key];
   if(typeof value!=='string'||!value.trim()) {
