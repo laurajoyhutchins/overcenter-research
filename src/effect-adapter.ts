@@ -52,7 +52,7 @@ export function validateEffectAdapterCapabilities(capabilities: EffectAdapterCap
   }
 }
 
-export const EFFECT_ADAPTER_CAPABILITIES: readonly EffectAdapterCapabilities[] = [
+export const EFFECT_ADAPTER_CAPABILITIES = [
   {
     schema: EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
     effect_contract: GITHUB_COMMIT_STATUS_EFFECT,
@@ -73,20 +73,27 @@ export const EFFECT_ADAPTER_CAPABILITIES: readonly EffectAdapterCapabilities[] =
       reason: 'provider request finality and duplicate-effect suppression are not established',
     },
   },
-];
+] as const satisfies readonly EffectAdapterCapabilities[];
+
+export type RegisteredEffectAdapter = (typeof EFFECT_ADAPTER_CAPABILITIES)[number];
+export type RegisteredEffectContract = RegisteredEffectAdapter['effect_contract'];
+export type EffectVerifier<E extends RegisteredEffectContract> = Extract<
+  RegisteredEffectAdapter,
+  { effect_contract: E }
+>['postcondition_verifier'];
 
 for (const capabilities of EFFECT_ADAPTER_CAPABILITIES) {
   validateEffectAdapterCapabilities(capabilities);
 }
 
-const byContract = new Map(
-  EFFECT_ADAPTER_CAPABILITIES.map((capabilities) => [capabilities.effect_contract, capabilities]),
-);
-
 export function effectAdapterCapabilities(
   effectContract: unknown,
 ): EffectAdapterCapabilities | null {
-  return typeof effectContract === 'string' ? (byContract.get(effectContract) ?? null) : null;
+  return (
+    EFFECT_ADAPTER_CAPABILITIES.find(
+      (capabilities) => capabilities.effect_contract === effectContract,
+    ) ?? null
+  );
 }
 
 export function reservedEffectReplaySafe(

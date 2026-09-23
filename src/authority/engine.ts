@@ -47,6 +47,11 @@ import { deriveCurrentRealizationJudgments } from './realization-reuse.ts';
 import { advanceProjection, projectReceipt, replayProjection } from './replay.ts';
 import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
+import {
+  effectAdapterCapabilities,
+  type EffectVerifier,
+  type RegisteredEffectContract,
+} from '../effect-adapter.ts';
 import { planGraphReconciliation } from '../graph/reconciliation.ts';
 
 export type { Receipt } from './facts.ts';
@@ -186,19 +191,20 @@ export class KernelCore {
     return structuredClone(work);
   }
 
-  authorizeEffect<E extends string, V extends Postcondition['verifier']>(
+  authorizeEffect<E extends RegisteredEffectContract>(
     permit: ExecutionPermit,
     effectContract: E,
-    verifier: V,
-  ): EffectAuthority<E, V> {
+  ): EffectAuthority<E, EffectVerifier<E>> {
     const work = this.claimedWork(permit);
+    const capabilities = effectAdapterCapabilities(effectContract)!;
     if (work.packet.effect_contract !== effectContract)
       throw new Error('EFFECT_CONTRACT_NOT_AUTHORIZED');
-    if (work.postcondition.verifier !== verifier) throw new Error('EFFECT_POSTCONDITION_MISMATCH');
+    if (work.postcondition.verifier !== capabilities.postcondition_verifier)
+      throw new Error('EFFECT_POSTCONDITION_MISMATCH');
     return {
       [effectAuthorityBrand]: effectContract,
       permit,
-      postcondition: work.postcondition as EffectAuthority<E, V>['postcondition'],
+      postcondition: work.postcondition as EffectAuthority<E, EffectVerifier<E>>['postcondition'],
     };
   }
 

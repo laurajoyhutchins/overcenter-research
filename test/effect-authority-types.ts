@@ -20,3 +20,9 @@ void kernel.performEffect(permit, async () => 42);
 // @ts-expect-error the private unique-symbol brand cannot be structurally forged
 const forged: StatusAuthority = { permit, postcondition };
 void forged;
+
+// @ts-expect-error effect authority can only be minted for a registered effect contract
+kernel.authorizeEffect(permit, 'unregistered/effect');
+
+// @ts-expect-error verifier is derived from the registered adapter, not supplied by callers
+kernel.authorizeEffect(permit, GITHUB_COMMIT_STATUS_EFFECT, 'file-content-equals/v1');
