@@ -1629,6 +1629,61 @@
         "state": "supported",
         "summary": "At exact revision 6d799ca7308dc722873f62d63f911fcd280e4613, the local break-even surface was simple: singleton evidence was always cheaper inline; two identical copies were enough to justify CAS at 64 bytes and above; the 32-byte case required three copies. The exact-cost rule matched every measured winner and preserved production receipt semantics."
       }
+    },
+    {
+      "id": "evidence-cas-local-backend",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/evidence-cas-local-backend",
+      "readme": "experiments/evidence-cas-local-backend/README.md",
+      "question": "For a local evidence CAS, should Overcenter default to immutable files addressed by SHA-256 or a SQLite BLOB table keyed by the same digest?",
+      "claim": "Both local backends can provide idempotent deduplicating puts and verified reads without changing evidence identity, but their operational costs will differ: filesystem CAS should reclaim physical bytes immediately on sweep, while SQLite requires compaction to return deleted BLOB space to the filesystem.",
+      "contrast": "Choose a backend from architectural taste without measuring duplicate puts, verified reads, durable reopen, and garbage-collection behavior for replay-sized objects.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-cas-local-backend"
+      },
+      "environment": [
+        "Node.js from .node-version on Linux x86-64 for the hosted run.",
+        "Evidence identity is SHA-256 over exact canonical evidence bytes and is identical across both backends.",
+        "The corpus contains 64 unique 256 KiB trace objects and 16 unique 1 MiB trace objects; every object is inserted twice to exercise deduplication.",
+        "Filesystem CAS stores one immutable file per digest. SQLite uses WAL, synchronous=FULL, and a WITHOUT ROWID table keyed by digest.",
+        "Verified reads recompute SHA-256 before returning bytes.",
+        "GC deletes every second object; SQLite physical size is measured after DELETE/checkpoint and again after VACUUM.",
+        "Absolute timings are host-dependent and are reported descriptively, not as pass/fail thresholds."
+      ],
+      "success_criteria": [
+        "Both backends contain exactly 80 objects after inserting the 80 unique objects twice.",
+        "Every verified read returns byte-identical evidence and rejects digest mismatch.",
+        "After close/reopen, every retained object remains verifiable in both backends.",
+        "Deleting every second object removes exactly 40 objects from each backend without deleting a retained object.",
+        "The experiment reports first-put, duplicate-put, and verified-read p50/p95 latency for each backend.",
+        "The experiment reports logical live bytes, filesystem physical bytes, SQLite physical bytes before GC, after DELETE/checkpoint, and after VACUUM.",
+        "No evidence identity changes across backends."
+      ],
+      "evidence": {
+        "status": "pending",
+        "pending_reason": "Preregistered before the first hosted local evidence-CAS backend comparison.",
+        "artifacts": [
+          "Pending first hosted local evidence-CAS backend run."
+        ]
+      },
+      "interpretation": "This experiment selects a local default only. A distributed or cloud evidence store will need the same digest/ref contract behind a different transport. If neither local backend has a decisive operational advantage, the smallest interface should permit both without allowing backend identity to leak into receipt semantics.",
+      "non_claims": [
+        "Local filesystem or SQLite latency predicts cloud object-store latency.",
+        "SQLite is a distributed evidence store.",
+        "Filesystem atomicity provides multi-object transactions.",
+        "Physical-byte measurements include filesystem metadata or remote-storage billing.",
+        "This experiment changes durable authority or receipt-v5."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Object sizes/counts, duplicate-put pass, verified-read requirement, 50% GC sweep, reopen control, and SQLite VACUUM comparison were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first hosted local evidence-CAS backend run."
+      }
     }
   ]
 }

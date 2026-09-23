@@ -54,3 +54,6 @@ jobs:
 
       - name: Exact evidence CAS group threshold
         run: npm run test:evidence-cas-group-threshold
+
+      - name: Local evidence CAS backend comparison
+        run: npm run test:evidence-cas-local-backend

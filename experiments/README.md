@@ -38,6 +38,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `merkle-evidence-leaves/` - read-only authority-history experiment that keeps the existing commit hash spine and content-addresses only reusable certified evidence.
 - `evidence-cas-break-even/` - replay-evidence payload/reuse matrix with selective externalization, file-backed lookup, GC, and recovery-bandwidth measurements.
 - `evidence-cas-group-threshold/` - exact canonical-byte break-even surface by evidence payload size and digest-group multiplicity.
+- `evidence-cas-local-backend/` - filesystem versus SQLite BLOB content store for replay-sized evidence, including deduplication, verified reads, reopen, and GC.
 
 ## Experiment contract
 
