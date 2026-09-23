@@ -53,6 +53,31 @@ The post-hoc minimization claim is separately weakened if mean observation reduc
 npm run test:witness-minimization
 ```
 
+## Result
+
+GitHub Actions run `35821101302` evaluated the exact preregistered revision `77f1733b78f757a983a844d61ce07146f110791e`.
+
+```text
+training_safe_cases=40
+broad_observations_mean=102.00
+minimized_observations_mean=4.00
+observation_reduction_pct=96.08
+distinct_minimal_witness_shapes=2
+learned_capture_contract=monitor-main-a,monitor-main-b,reservation,route,terminated
+same_route_recovery_retention_pct=100.00
+same_route_false_certainty=0
+unseen_route_recovery_retention_pct=0.00
+unseen_route_false_certainty=0
+unsafe_unseen_false_certainty=50
+strong_hypothesis=FALSIFIED
+```
+
+The strong promotion hypothesis is falsified. Historical minimized witnesses were sufficient to learn an excellent contract for the observed ordinary route, but they provided no evidence that the helper-route monitor could be discarded globally. The fail-closed verifier handled that epistemic gap safely by returning `RECOVERY_REQUIRED`, so the failure was liveness/recovery power rather than false certainty.
+
+The unsafe negative control shows why capture completeness is part of the proof rather than bookkeeping: treating an unmonitored route as equivalent to an observed absence produced 50 false safe-retry decisions for committed helper effects.
+
+The secondary post-hoc minimization result is positive. Every training safe-retry witness became 1-minimal at four observations on average, a 96.08% reduction, and redundant equivalent monitors produced two distinct valid minimal witness shapes rather than a fictional unique causal set.
+
 ## Interpretation and non-claims
 
 A negative generalization result does not invalidate post-hoc witness minimization. It means historical minimality alone is insufficient authority for narrowing future capture across previously unseen effect routes.

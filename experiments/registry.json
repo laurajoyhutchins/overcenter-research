@@ -1419,13 +1419,18 @@
         "Redundant ordinary-route monitors produce more than one valid minimal witness shape, demonstrating that the experiment does not assume a unique causal basis."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "77f1733b78f757a983a844d61ce07146f110791e",
         "artifacts": [
-          "Hosted automatic-witness-minimization workflow result pending."
-        ],
-        "pending_reason": "Preregistered before exact-head hosted evaluation."
+          "GitHub Actions run 35821101302 at exact preregistered revision 77f1733b78f757a983a844d61ce07146f110791e: experiment contract PASS and blind witness-discovery corpus PASS.",
+          "40 safe training traces: mean broad witness 102 observations, mean 1-minimal witness 4 observations, 96.08% reduction, two distinct minimal witness shapes due to redundant ordinary-route monitors.",
+          "Frozen learned capture contract: monitor-main-a, monitor-main-b, reservation, route, terminated.",
+          "Held-out ordinary route: 100.00% deterministic recovery retention, zero false certainty.",
+          "Unseen helper route: 0.00% deterministic recovery retention, zero false certainty; fail-closed verifier returned RECOVERY_REQUIRED because helper-route completeness was not captured.",
+          "Unsafe missing-monitor negative control: 50 false-certainty cases on committed helper-route executions."
+        ]
       },
-      "interpretation": "The experiment distinguishes post-hoc proof minimization from promotion of historical minima into future capture policy. Safe failure on unseen routes is informative even when false certainty remains zero.",
+      "interpretation": "Post-hoc witness minimization is strongly supported for proof/storage reduction, but historical minimality alone is insufficient authority for narrowing future capture. Capture promotion needs an independently complete effect-route model, continued broad shadow sampling, or another mechanism that can detect previously unseen mutation channels.",
       "non_claims": [
         "Historical minimality proves global causal necessity.",
         "The synthetic route vocabulary represents arbitrary providers.",
@@ -1438,8 +1443,8 @@
         "note": "The hidden-route challenge, 95% unseen-route retention threshold, zero-false-certainty gate, redundant-evidence construction, and unsafe negative control are recorded before hosted evaluation."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting exact-head hosted evaluation."
+        "state": "falsified",
+        "summary": "Historical witness minimization compressed broad safe-retry proofs by 96.08% and generalized perfectly within the observed route, but the frozen learned capture contract retained 0% of broad-recorder SAFE_RETRY decisions on the unseen helper route. The fail-closed verifier preserved safety with zero false certainty, while the unsafe absence-without-completeness control produced 50 false retries."
       }
     }
   ]
