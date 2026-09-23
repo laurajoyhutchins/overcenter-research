@@ -166,6 +166,10 @@ func reapChildrenUntil(pids []int, deadline time.Time) error {
 	return nil
 }
 
+func processDisappeared(err error) bool {
+	return errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESRCH)
+}
+
 func directChildPIDs(parentPID int) ([]int, error) {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
@@ -181,7 +185,7 @@ func directChildPIDs(parentPID int) ([]int, error) {
 			continue
 		}
 		status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
-		if errors.Is(err, os.ErrNotExist) {
+		if processDisappeared(err) {
 			continue
 		}
 		if err != nil {
