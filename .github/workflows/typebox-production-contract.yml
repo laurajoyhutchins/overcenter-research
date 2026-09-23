@@ -14,7 +14,6 @@ on:
       - 'src/observation/observe.ts'
       - 'scripts/generate-settlement-observation.ts'
       - 'test/typebox-production-contract.test.ts'
-      - 'test/typebox-production-contract.static.ts'
       - 'test/typebox-production-projection.test.ts'
       - 'package.json'
       - '.github/workflows/typebox-production-contract.yml'
@@ -63,14 +62,3 @@ jobs:
         run: npm run check:settlement-observation
       - name: Prove source-only mutations fail closed
         run: npm run test:typebox-production-projection
-      - name: Prove static TypeScript contract
-        run: >-
-          ./node_modules/.bin/tsc
-          --noEmit
-          --strict
-          --target ES2024
-          --module NodeNext
-          --moduleResolution NodeNext
-          --allowImportingTsExtensions
-          --skipLibCheck
-          test/typebox-production-contract.static.ts

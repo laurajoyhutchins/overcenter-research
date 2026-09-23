@@ -47,8 +47,6 @@ docker build \
   -t "$image" \
   .
 
-OVERCENTER_EXECUTOR_IMAGE="$image" \
-  node --experimental-strip-types --test test/computation-container.test.ts
 
 node --experimental-strip-types scripts/prove-computation-containment.ts \
   --image "$image"

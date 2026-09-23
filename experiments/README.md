@@ -34,6 +34,8 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 
 ## Experiment contract
 
+Maintained experiments are registered in [`registry.json`](./registry.json). Historical experiments keep their README, exact evaluated revision, and reproduction command, but their executable scaffolding is not carried forward on `main`; check out the recorded revision to reproduce the result.
+
 Maintained experiments are registered in [`registry.json`](./registry.json). The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, design provenance, outcome, exact revision-bound evidence, interpretation, and non-claims must be explicit.
 
 The contract deliberately separates three questions that older entries used to blur:
