@@ -12,16 +12,15 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-export const ASSIGNMENT_SCHEMA = 'overcenter-agent-assignment/v1' as const;
+export const ASSIGNMENT_SCHEMA = 'overcenter-agent-assignment/v2' as const;
 export const CANDIDATE_SCHEMA = 'overcenter-agent-candidate/v1' as const;
-export const AGENT_TASK_PACKET_SCHEMA = 'overcenter-agent-task/v1' as const;
+export const AGENT_TASK_PACKET_SCHEMA = 'overcenter-agent-task/v2' as const;
 
 type AssignmentMode = '100644' | '100755';
 
 export interface AssignmentTaskPacket extends Record<string, unknown> {
   schema: typeof AGENT_TASK_PACKET_SCHEMA;
   kind: 'pure-candidate';
-  source_sha: string;
   command: string[];
   required_paths: string[];
   output_path: string;
@@ -46,6 +45,7 @@ export interface AssignmentFile {
 
 export interface Assignment {
   schema: typeof ASSIGNMENT_SCHEMA;
+  source_revision: string;
   work: AssignmentWork;
   files: AssignmentFile[];
 }
@@ -97,19 +97,23 @@ function decodeBase64(value: unknown): Buffer {
   return bytes;
 }
 
+function validateSourceRevision(value: unknown): string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{40}$/.test(value)) {
+    fail('ASSIGNMENT_SOURCE_REVISION_INVALID');
+  }
+  return value;
+}
+
 export function validateAgentTaskPacket(value: unknown): AssignmentTaskPacket {
   if (!record(value) || value.schema !== AGENT_TASK_PACKET_SCHEMA) {
     fail('ASSIGNMENT_PACKET_SCHEMA_MISMATCH');
   }
   exactKeys(
     value,
-    ['schema', 'kind', 'source_sha', 'command', 'required_paths', 'output_path'],
+    ['schema', 'kind', 'command', 'required_paths', 'output_path'],
     'ASSIGNMENT_PACKET',
   );
   if (value.kind !== 'pure-candidate') fail('ASSIGNMENT_PACKET_KIND_INVALID');
-  if (typeof value.source_sha !== 'string' || !/^[0-9a-f]{40}$/.test(value.source_sha)) {
-    fail('ASSIGNMENT_SOURCE_SHA_INVALID');
-  }
   if (
     !Array.isArray(value.command) ||
     value.command.length === 0 ||
@@ -134,8 +138,9 @@ export function validateAgentTaskPacket(value: unknown): AssignmentTaskPacket {
 }
 
 export function validateAssignment(value: unknown): Assignment {
-  exactKeys(value, ['schema', 'work', 'files'], 'ASSIGNMENT');
+  exactKeys(value, ['schema', 'source_revision', 'work', 'files'], 'ASSIGNMENT');
   if (value.schema !== ASSIGNMENT_SCHEMA) fail('ASSIGNMENT_SCHEMA_MISMATCH');
+  const sourceRevision = validateSourceRevision(value.source_revision);
 
   if (!record(value.work)) fail('ASSIGNMENT_WORK_INVALID');
   const work = value.work;
@@ -173,7 +178,12 @@ export function validateAssignment(value: unknown): Assignment {
     if (!seen.has(required)) fail(`ASSIGNMENT_REQUIRED_FILE_MISSING:${required}`);
   }
 
-  return value as unknown as Assignment;
+  return {
+    schema: ASSIGNMENT_SCHEMA,
+    source_revision: sourceRevision,
+    work: value.work as unknown as AssignmentWork,
+    files: value.files as AssignmentFile[],
+  };
 }
 
 export function assignmentFile(
@@ -190,9 +200,14 @@ export function assignmentFile(
   };
 }
 
-export function buildAssignment(work: unknown, files: AssignmentFile[]): Assignment {
+export function buildAssignment(
+  work: unknown,
+  files: AssignmentFile[],
+  sourceRevision: string,
+): Assignment {
   return validateAssignment({
     schema: ASSIGNMENT_SCHEMA,
+    source_revision: sourceRevision,
     work: structuredClone(work),
     files: files.map((file) => structuredClone(file)),
   });

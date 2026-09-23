@@ -11,9 +11,9 @@ use std::process::{Command, ExitCode};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const ASSIGNMENT_SCHEMA: &str = "overcenter-agent-assignment/v1";
+const ASSIGNMENT_SCHEMA: &str = "overcenter-agent-assignment/v2";
 const CANDIDATE_SCHEMA: &str = "overcenter-agent-candidate/v1";
-const TASK_SCHEMA: &str = "overcenter-agent-task/v1";
+const TASK_SCHEMA: &str = "overcenter-agent-task/v2";
 const MAX_ASSIGNMENT_BYTES: usize = 16 * 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -348,7 +348,7 @@ fn validate_assignment(root: &Json) -> Result<Assignment, String> {
     let assignment = object(root, "ASSIGNMENT_INVALID")?;
     exact_keys(
         assignment,
-        &["schema", "work", "files"],
+        &["schema", "source_revision", "work", "files"],
         "ASSIGNMENT_SHAPE_INVALID",
     )?;
     if string(
@@ -357,6 +357,18 @@ fn validate_assignment(root: &Json) -> Result<Assignment, String> {
     )? != ASSIGNMENT_SCHEMA
     {
         return Err("ASSIGNMENT_SCHEMA_MISMATCH".to_owned());
+    }
+
+    let source_revision = string(
+        field(
+            assignment,
+            "source_revision",
+            "ASSIGNMENT_SOURCE_REVISION_MISSING",
+        )?,
+        "ASSIGNMENT_SOURCE_REVISION_INVALID",
+    )?;
+    if !lower_hex(source_revision, 40) {
+        return Err("ASSIGNMENT_SOURCE_REVISION_INVALID".to_owned());
     }
 
     let work = object(
@@ -421,14 +433,7 @@ fn validate_assignment(root: &Json) -> Result<Assignment, String> {
     )?;
     exact_keys(
         packet,
-        &[
-            "schema",
-            "kind",
-            "source_sha",
-            "command",
-            "required_paths",
-            "output_path",
-        ],
+        &["schema", "kind", "command", "required_paths", "output_path"],
         "ASSIGNMENT_PACKET_SHAPE_INVALID",
     )?;
     if string(
@@ -445,14 +450,6 @@ fn validate_assignment(root: &Json) -> Result<Assignment, String> {
     {
         return Err("ASSIGNMENT_PACKET_KIND_INVALID".to_owned());
     }
-    let source_sha = string(
-        field(packet, "source_sha", "ASSIGNMENT_SOURCE_SHA_MISSING")?,
-        "ASSIGNMENT_SOURCE_SHA_INVALID",
-    )?;
-    if !lower_hex(source_sha, 40) {
-        return Err("ASSIGNMENT_SOURCE_SHA_INVALID".to_owned());
-    }
-
     let command_values = array(
         field(packet, "command", "ASSIGNMENT_COMMAND_MISSING")?,
         "ASSIGNMENT_COMMAND_INVALID",

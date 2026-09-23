@@ -160,14 +160,15 @@ function desiredProjectGraph(repo: string, sourceSha: string) {
   } catch {
     throw new Error('PROJECT_INTENT_JSON_INVALID');
   }
-  return compileProjectIntent(value, sourceSha);
+  return compileProjectIntent(value);
 }
 
 function prepareAgentPacket(
   repo: string,
   work: Work,
+  sourceRevision: string,
 ): {
-  sourceSha: string;
+  sourceRevision: string;
   files: ReturnType<typeof assignmentFile>[];
 } {
   const packet = work.packet;
@@ -175,9 +176,9 @@ function prepareAgentPacket(
     throw new Error('PROJECT_ADVANCE_AGENT_PACKET_UNSUPPORTED');
   }
 
-  const sourceSha = String(packet.source_sha ?? '').toLowerCase();
-  if (!/^[0-9a-f]{40}$/i.test(sourceSha)) {
-    throw new Error('PROJECT_ADVANCE_PACKET_SOURCE_INVALID');
+  const source = sourceRevision.toLowerCase();
+  if (!/^[0-9a-f]{40}$/.test(source)) {
+    throw new Error('PROJECT_ADVANCE_SOURCE_REVISION_INVALID');
   }
   if (
     !Array.isArray(packet.command) ||
@@ -202,24 +203,24 @@ function prepareAgentPacket(
   }
 
   return {
-    sourceSha,
-    files: requiredPaths.map((path) => assignmentFile(path, gitBytes(repo, sourceSha, path))),
+    sourceRevision: source,
+    files: requiredPaths.map((path) => assignmentFile(path, gitBytes(repo, source, path))),
   };
 }
 
 function agentAssignment(
   work: Work,
-  prepared: { sourceSha: string; files: ReturnType<typeof assignmentFile>[] },
+  prepared: { sourceRevision: string; files: ReturnType<typeof assignmentFile>[] },
 ): {
   bytes: Buffer;
   source_sha: string;
 } {
-  const assignment = buildAssignment(work, prepared.files);
+  const assignment = buildAssignment(work, prepared.files, prepared.sourceRevision);
   const bytes = encodeAssignment(assignment);
   if (bytes.includes(Buffer.from('execution_capability'))) {
     throw new Error('PROJECT_ADVANCE_PACKET_LEAKED_EXECUTION_CAPABILITY');
   }
-  return { bytes, source_sha: prepared.sourceSha };
+  return { bytes, source_sha: prepared.sourceRevision };
 }
 
 function visibleState(work: Work[]): ProjectVisibleState {
@@ -293,7 +294,7 @@ export function advanceProjectForAgent(
 
     // The operator command does not ask the reasoning agent to choose work.
     // It only accepts a frontier item that is already an agent-shaped packet.
-    const prepared = prepareAgentPacket(repo, ready);
+    const prepared = prepareAgentPacket(repo, ready, context.command_source_sha.toLowerCase());
     if (!workerClientPath) {
       throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED');
     }
@@ -303,7 +304,9 @@ export function advanceProjectForAgent(
     }
 
     try {
-      const permit = kernel.claim(ready.id, ready.revision);
+      const permit = kernel.claim(ready.id, ready.revision, {
+        sourceRevision: prepared.sourceRevision,
+      });
       const claimed = kernel.claimedWork(permit.id);
       const assignment = agentAssignment(claimed, prepared);
       const authorityHead = kernel.head();
@@ -331,7 +334,7 @@ export function advanceProjectForAgent(
         claimed_revision: permit.claimed_revision,
         assignment_sha256: assignmentSha256(assignment.bytes),
         candidate_branch: `overcenter/candidate/${permit.id}`,
-        candidate_branch_base_sha: context.command_source_sha.toLowerCase(),
+        candidate_branch_base_sha: permit.source_revision ?? prepared.sourceRevision,
       };
       const receipt = withDigest(base);
       writeFileSync(join(outputDir, 'receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
@@ -383,7 +386,9 @@ export function submitProjectCandidate(
   if (!kernel.head()) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
 
   const assigned = kernel.claimedWork(raw.run_id);
-  const rebuilt = agentAssignment(assigned, prepareAgentPacket(repo, assigned));
+  const sourceRevision = kernel.claimedSourceRevision(raw.run_id);
+  if (!sourceRevision) throw new Error('PROJECT_SUBMIT_SOURCE_REVISION_MISSING');
+  const rebuilt = agentAssignment(assigned, prepareAgentPacket(repo, assigned, sourceRevision));
   const candidate = validateCandidate(
     raw,
     JSON.parse(rebuilt.bytes.toString('utf8')),
