@@ -1,0 +1,175 @@
+{
+  "schema": "overcenter-recovery-semantic-judgment-oracle/v1",
+  "deterministic_baseline_expected": 4,
+  "cases": [
+    {
+      "id": "analytics-preview-vm",
+      "recoverable": true,
+      "expected_interpretation": "ordinal-fleet-member",
+      "expected_effect_digest": "effect:analytics-preview-vm",
+      "compilers": {
+        "ordinal-fleet-member": {
+          "operation": "compute.instances.insert",
+          "resource": "vm:analytics-preview-03",
+          "region": "us-west1"
+        },
+        "third-currently-active": {
+          "operation": "compute.instances.insert",
+          "resource": "vm:analytics-preview-02",
+          "region": "us-west1"
+        },
+        "workload-only": {
+          "operation": "compute.instances.insert",
+          "region": "us-west1"
+        }
+      }
+    },
+    {
+      "id": "checkout-east-canary",
+      "recoverable": true,
+      "expected_interpretation": "documented-cell-alias",
+      "expected_effect_digest": "effect:checkout-east-canary",
+      "compilers": {
+        "documented-cell-alias": {
+          "operation": "deploy.release",
+          "resource": "service:checkout-api-canary-e1",
+          "artifact": "7f3d9a"
+        },
+        "region-only": {
+          "operation": "deploy.release",
+          "region": "us-east1",
+          "artifact": "7f3d9a"
+        },
+        "artifact-identifies-target": {
+          "operation": "deploy.release",
+          "artifact": "7f3d9a"
+        }
+      }
+    },
+    {
+      "id": "contoso-eu-archive",
+      "recoverable": true,
+      "expected_interpretation": "archive-policy-identity",
+      "expected_effect_digest": "effect:contoso-eu-archive",
+      "compilers": {
+        "archive-policy-identity": {
+          "operation": "storage.objects.create",
+          "resource": "bucket:contoso-invoices-eu-primary"
+        },
+        "month-specific-archive": {
+          "operation": "storage.objects.create",
+          "resource": "bucket:contoso-invoices-eu-primary-2026-09"
+        },
+        "descriptive-only": {
+          "operation": "storage.objects.create"
+        }
+      }
+    },
+    {
+      "id": "missing-physical-receipt",
+      "recoverable": false,
+      "expected_interpretation": null,
+      "expected_effect_digest": null,
+      "compilers": {}
+    }
+  ],
+  "records": [
+    {
+      "id": "semantic-audit-01",
+      "effect_digest": "effect:analytics-preview-vm",
+      "effect_state": "present",
+      "fields": {
+        "operation": "compute.instances.insert",
+        "resource": "vm:analytics-preview-03",
+        "region": "us-west1"
+      }
+    },
+    {
+      "id": "semantic-audit-02",
+      "effect_digest": "distractor:analytics-preview-02",
+      "effect_state": "present",
+      "fields": {
+        "operation": "compute.instances.insert",
+        "resource": "vm:analytics-preview-02",
+        "region": "us-west1"
+      }
+    },
+    {
+      "id": "semantic-audit-03",
+      "effect_digest": "distractor:analytics-preview-04",
+      "effect_state": "present",
+      "fields": {
+        "operation": "compute.instances.insert",
+        "resource": "vm:analytics-preview-04",
+        "region": "us-west1"
+      }
+    },
+    {
+      "id": "semantic-audit-04",
+      "effect_digest": "effect:checkout-east-canary",
+      "effect_state": "present",
+      "fields": {
+        "operation": "deploy.release",
+        "resource": "service:checkout-api-canary-e1",
+        "region": "us-east1",
+        "artifact": "7f3d9a"
+      }
+    },
+    {
+      "id": "semantic-audit-05",
+      "effect_digest": "distractor:checkout-east-secondary",
+      "effect_state": "present",
+      "fields": {
+        "operation": "deploy.release",
+        "resource": "service:checkout-api-canary-e2",
+        "region": "us-east1",
+        "artifact": "7f3d9a"
+      }
+    },
+    {
+      "id": "semantic-audit-06",
+      "effect_digest": "distractor:checkout-west-canary",
+      "effect_state": "present",
+      "fields": {
+        "operation": "deploy.release",
+        "resource": "service:checkout-api-canary-w1",
+        "region": "us-west1",
+        "artifact": "7f3d9a"
+      }
+    },
+    {
+      "id": "semantic-audit-07",
+      "effect_digest": "effect:contoso-eu-archive",
+      "effect_state": "present",
+      "fields": {
+        "operation": "storage.objects.create",
+        "resource": "bucket:contoso-invoices-eu-primary"
+      }
+    },
+    {
+      "id": "semantic-audit-08",
+      "effect_digest": "distractor:contoso-eu-backup",
+      "effect_state": "present",
+      "fields": {
+        "operation": "storage.objects.create",
+        "resource": "bucket:contoso-invoices-eu-backup"
+      }
+    },
+    {
+      "id": "semantic-audit-09",
+      "effect_digest": "distractor:contoso-september-subarchive",
+      "effect_state": "present",
+      "fields": {
+        "operation": "storage.objects.create",
+        "resource": "bucket:contoso-invoices-eu-primary-2026-09"
+      }
+    }
+  ],
+  "deterministic_baseline_evidence": {
+    "experiment_id": "recovery-agent-search",
+    "evaluated_revision": "88c90ab73fdc49facbb48b014cd543c65d22b2a0",
+    "hosted_run_id": 35694479360,
+    "resolved": 4,
+    "archive_pr": 232
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema": "overcenter-recovery-semantic-judgment-packets/v1",
+  "premise": "Deterministic recovery has already resolved four of seven recoverable cases. These packets are only the semantic residue. Choose a semantic interpretation when the evidence supports one; otherwise abstain. Do not construct provider coordinates.",
+  "cases": [
+    {
+      "id": "analytics-preview-vm",
+      "evidence": [
+        "The incident refers to the third analytics preview VM in the west region.",
+        "The inventory policy says the preview fleet is numbered from 01 upward.",
+        "The provider stem for this fleet is analytics-preview."
+      ],
+      "interpretations": [
+        {
+          "id": "ordinal-fleet-member",
+          "meaning": "The word third denotes ordinal member 3 of the documented numbered preview fleet."
+        },
+        {
+          "id": "third-currently-active",
+          "meaning": "The word third denotes whichever preview VM is third in the current active inventory ordering."
+        },
+        {
+          "id": "workload-only",
+          "meaning": "The evidence identifies the analytics preview workload but does not identify a particular fleet member."
+        }
+      ]
+    },
+    {
+      "id": "checkout-east-canary",
+      "evidence": [
+        "The intended rollout target is the checkout east canary.",
+        "The topology documentation says the east canary cell is called e1 in provider-facing topology records.",
+        "The checkout canary service stem is checkout-api-canary."
+      ],
+      "interpretations": [
+        {
+          "id": "documented-cell-alias",
+          "meaning": "East canary refers to the documented canary cell whose provider-facing topology alias is e1."
+        },
+        {
+          "id": "region-only",
+          "meaning": "East constrains only a geographic region and does not identify the canary cell."
+        },
+        {
+          "id": "artifact-identifies-target",
+          "meaning": "The rollout artifact itself should determine which canary cell was intended."
+        }
+      ]
+    },
+    {
+      "id": "contoso-eu-archive",
+      "evidence": [
+        "The intended target is Contoso's primary EU invoice archive.",
+        "The storage naming policy says invoice archive identity is composed from tenant, the invoices role, region, and primary-or-backup role.",
+        "The incident identifies tenant Contoso, region EU, and role primary.",
+        "The payload happens to be the September close bundle."
+      ],
+      "interpretations": [
+        {
+          "id": "archive-policy-identity",
+          "meaning": "The archive identity is determined by tenant + invoices + region + primary/backup role; the month describes payload, not archive identity."
+        },
+        {
+          "id": "month-specific-archive",
+          "meaning": "September implies a distinct month-specific archive identity."
+        },
+        {
+          "id": "descriptive-only",
+          "meaning": "Tenant, region, and primary role are descriptive and insufficient to identify an archive."
+        }
+      ]
+    },
+    {
+      "id": "missing-physical-receipt",
+      "evidence": [
+        "A field technician may have pressed the physical reset button on rack 12.",
+        "The device exposes no event history.",
+        "There is no request identifier, receipt, camera record, or externally queryable observation."
+      ],
+      "interpretations": [
+        {
+          "id": "assume-reset",
+          "meaning": "Treat the reset as having occurred."
+        },
+        {
+          "id": "assume-no-reset",
+          "meaning": "Treat the reset as not having occurred."
+        }
+      ]
+    }
+  ]
+}
