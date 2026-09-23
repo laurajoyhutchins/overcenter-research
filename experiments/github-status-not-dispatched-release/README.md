@@ -16,6 +16,7 @@ The hypothesis is falsified by any of these outcomes:
 - a post-`secureConnect` transport failure becomes READY;
 - HTTP 502 becomes READY;
 - forged evidence releases a reservation;
+- the exact admitted evidence-kind token can be supplied directly without a fresh-HTTPS transport witness and still release a reservation;
 - stale execution authority releases a reservation;
 - the old run itself is reopened for mutation instead of terminating READY;
 - a retry can mutate without a new run and new effect reservation;
@@ -64,6 +65,7 @@ The schema name is stable (`overcenter-effect-release`); its numeric version is 
 2. TLS reset after `secureConnect`: the peer observes decrypted HTTP bytes. The reservation must remain unresolved and recovery must stay `RECOVERY_REQUIRED`.
 3. HTTP 502 after receiving the request: the reservation must remain unresolved.
 4. Forged evidence and stale execution authority: both must fail closed.
+5. Exact-token provenance forgery: a current low-level effect caller presents the real admitted `github-status/fresh-https-pre-secure-connect` token without any transport event. The release must fail closed; matching the token value is not itself evidence.
 
 ## Existing semantics that must remain true
 
@@ -83,7 +85,7 @@ No external GitHub mutation is required. The experiment uses the production GitH
 
 ## Acceptance criteria
 
-All assertions in the four cases above must pass, plus repository typechecking and the normal exact-head candidate gate.
+All assertions in the five cases above must pass, plus repository typechecking and the normal exact-head candidate gate.
 
 ## Non-claims
 
@@ -95,6 +97,14 @@ This experiment does not establish:
 - automatic retry for any error after `secureConnect`;
 - generic reservation release for adapters that do not explicitly admit a trusted evidence kind;
 - that transport evidence can settle DONE without authoritative provider readback.
+
+## Red-team follow-on
+
+A post-promotion negative control now attacks the provenance boundary directly. It does not use the HTTPS transport at all: current effect authority reserves the mutation, then presents the exact exported admitted evidence-kind token directly to `releaseEffectReservation`.
+
+The promoted rule is stronger only if this direct token forgery is rejected. If the call succeeds, the existing experiment's earlier "forged evidence" case was too weak because it tested only an unrecognized string, not forgery of the recognized token.
+
+This follow-on is intentionally evidence-only. No production repair is included in the red-team branch.
 
 ## Result
 
