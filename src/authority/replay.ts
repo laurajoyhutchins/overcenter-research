@@ -29,6 +29,7 @@ import {
   validateGraph,
 } from '../graph/topology.ts';
 import { settlementSemantics } from '../semantics.ts';
+import { reservedEffectReplaySafe } from '../effect-adapter.ts';
 import { effectReservationAuthorityError, executionAuthorityAdvanceError, receiptAuthorityError } from './transaction-admission.ts';
 import {
   deriveProjectProjection,
@@ -54,6 +55,7 @@ export function projectReceipt(
   fact:ReceiptFact,
   work:Obligation,
   settlementCommit?:string,
+  unresolvedEffect=false,
 ):Receipt {
   let disposition:Receipt['disposition'];
   let verified=false;
@@ -66,10 +68,13 @@ export function projectReceipt(
       work.postcondition,
       fact.observed,
     );
+    const acceptedAbsence=absenceEvidence
+      && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind);
+    const replaySafe=!unresolvedEffect
+      || (absenceEvidence!==null && reservedEffectReplaySafe(work,absenceEvidence));
     disposition=verified
       ? 'DONE'
-      : absenceEvidence
-        && policy.acceptedAbsenceEvidenceKinds.includes(absenceEvidence.kind)
+      : acceptedAbsence && replaySafe
         ? 'READY'
         : 'RECOVERY_REQUIRED';
   } else {
@@ -250,7 +255,13 @@ export function replayProjection(commits:FactCommit[]):Projection {
       throw new Error('RECEIPT_AFTER_TERMINAL_SETTLEMENT');
     }
 
-    const receipt=projectReceipt(fact,run.obligation,record.commit);
+    const unresolvedEffect=unresolvedReservationsByRun.has(run.id);
+    const receipt=projectReceipt(
+      fact,
+      run.obligation,
+      record.commit,
+      unresolvedEffect,
+    );
     receiptsByRun.set(run.id,receipt);
     if (receipt.disposition==='DONE' || receipt.disposition==='READY') {
       unresolvedReservationsByRun.delete(run.id);
