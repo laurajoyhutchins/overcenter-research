@@ -82,19 +82,31 @@ export function projectReceipt(
   };
 }
 
-export function replayProjection(commits: FactCommit[]): Projection {
-  const state = emptyState();
-  const definitions: Record<string, ObligationDefinition> = {};
-  const runs = new Map<string, HistoricalRun>();
-  const receiptsByRun = new Map<string, Receipt>();
-  const unresolvedReservationsByRun = new Map<string, EffectReservation>();
-  const receipts: Receipt[] = [];
-  let project = deriveProjectProjection({
-    state,
-    runs,
-    receiptsByRun,
-    revision: '',
-  });
+export function replayProjection(
+  commits: FactCommit[],
+  base: Projection | null = null,
+): Projection {
+  const state = base
+    ? {
+        obligations: { ...base.state.obligations },
+        definition_ids: { ...base.state.definition_ids },
+      }
+    : emptyState();
+  const definitions: Record<string, ObligationDefinition> = base ? { ...base.definitions } : {};
+  const runs = base ? new Map(base.history.runs) : new Map<string, HistoricalRun>();
+  const receiptsByRun = base ? new Map(base.history.receiptsByRun) : new Map<string, Receipt>();
+  const unresolvedReservationsByRun = base
+    ? new Map(base.history.unresolvedReservationsByRun)
+    : new Map<string, EffectReservation>();
+  const receipts = base ? [...base.history.receipts] : [];
+  let project =
+    base?.project ??
+    deriveProjectProjection({
+      state,
+      runs,
+      receiptsByRun,
+      revision: '',
+    });
 
   const refresh = (revision: string): void => {
     project = deriveProjectProjection({
@@ -254,7 +266,7 @@ export function replayProjection(commits: FactCommit[]): Projection {
     receipts.push(receipt);
   }
 
-  const revision = commits.at(-1)?.commit ?? '';
+  const revision = commits.at(-1)?.commit ?? base?.project.work[0]?.revision ?? '';
   refresh(revision);
   return {
     state,
@@ -267,4 +279,8 @@ export function replayProjection(commits: FactCommit[]): Projection {
       receipts,
     },
   };
+}
+
+export function advanceProjection(previous: Projection, record: FactCommit): Projection {
+  return replayProjection([record], previous);
 }

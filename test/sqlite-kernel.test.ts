@@ -600,3 +600,81 @@ test('judgment receipt requires a fresh execution generation before effect resum
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('SQLite projection cache recovers after historical claimed-work lookup', () => {
+  const root = mkdtempSync(join(tmpdir(), 'sqlite-projection-cache-history-'));
+  const database = join(root, 'overcenter.sqlite');
+  const kernel = new OvercenterKernel(database);
+
+  try {
+    kernel.initialize();
+    kernel.define({ id: 'a', postcondition: pc(join(root, 'a'), 'A') });
+    const ready = kernel.deriveReadyWork();
+    assert.ok(ready);
+    const run = kernel.claim('a', ready.revision);
+    writeFileSync(join(root, 'a'), 'A');
+    assert.equal(kernel.resolve(run).disposition, 'DONE');
+
+    const currentHead = kernel.head();
+    assert.ok(currentHead);
+    assert.equal(kernel.inspect()[0]?.status, 'DONE');
+
+    const claimed = kernel.claimedWork(run.id);
+    assert.equal(claimed.status, 'EXECUTING');
+    assert.equal(claimed.revision, run.claim_commit);
+
+    assert.equal(kernel.head(), currentHead);
+    assert.equal(kernel.inspect()[0]?.status, 'DONE');
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('SQLite projection cache follows external heads and never bypasses durable validation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'sqlite-projection-cache-'));
+  const database = join(root, 'overcenter.sqlite');
+  const first = new OvercenterKernel(database);
+  const second = new OvercenterKernel(database);
+
+  try {
+    first.initialize();
+    first.define({ id: 'a', postcondition: pc(join(root, 'a'), 'A') });
+    assert.deepEqual(
+      first.inspect().map((work) => work.id),
+      ['a'],
+    );
+
+    second.define({ id: 'b', postcondition: pc(join(root, 'b'), 'B') });
+    assert.deepEqual(
+      first.inspect().map((work) => work.id),
+      ['a', 'b'],
+    );
+
+    const db = new DatabaseSync(database);
+    try {
+      db.prepare(`
+        UPDATE fact_commits
+        SET files_json = ?
+        WHERE sequence = 2
+      `).run(
+        JSON.stringify({
+          'graph-patch.json': {
+            schema: 'tampered',
+            definitions: [],
+            bindings: [],
+            retire: [],
+          },
+        }),
+      );
+    } finally {
+      db.close();
+    }
+
+    assert.throws(() => first.inspect(), /FACT_COMMIT_DIGEST_MISMATCH/);
+  } finally {
+    first.close();
+    second.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});

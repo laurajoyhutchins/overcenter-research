@@ -14,6 +14,10 @@ on:
       - src/providers/github/certified-repository.ts
       - src/observation/observe.ts
       - src/authority/engine.ts
+      - src/storage/sqlite.ts
+      - src/authority/kernel.ts
+      - src/authority/project-state.ts
+      - src/authority/replay.ts
       - src/execution/runner.ts
       - src/providers/github/certified-status.ts
       - src/providers/github/semantics.ts
@@ -31,6 +35,10 @@ on:
       - src/providers/github/certified-repository.ts
       - src/observation/observe.ts
       - src/authority/engine.ts
+      - src/storage/sqlite.ts
+      - src/authority/kernel.ts
+      - src/authority/project-state.ts
+      - src/authority/replay.ts
       - src/execution/runner.ts
       - src/providers/github/certified-status.ts
       - src/providers/github/semantics.ts
