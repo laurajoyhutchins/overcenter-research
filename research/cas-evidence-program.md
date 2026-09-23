@@ -26,6 +26,52 @@ The durable invariant is therefore:
 
 The `EvidenceStore` identifies and verifies bytes. It does not decide which evidence is authoritative or live.
 
+## Evidence CAS lineage
+
+This is the strongest coherent experimental lineage in the current backlog:
+
+```text
+#279 -> #284 -> #289 -> #293 -> #296 -> #297 -> #298 -> #299 -> #300
+```
+
+Each step narrows the architecture or removes an unresolved choice:
+
+| PR | Question | Narrowing |
+| --- | --- | --- |
+| #279, **Merkle execution receipts** | Can a content-addressed causal receipt DAG preserve integrity and recovery evidence? | Starts broad: Merkleize the execution receipt structure while leaving production authority unchanged. |
+| #284, **authority-bound receipt-v5 Merkle dedup** | Is content-addressed integrity sufficient for authoritative receipt acceptance? | No. A valid substituted execution can produce a valid new root, so root acceptance must remain bound to existing authoritative settlement. |
+| #289, **Merkle evidence leaves on existing authority spine** | How much of the receipt actually needs CAS? | Keeps the existing content-addressed authority spine and externalizes only repeated certified evidence leaves. |
+| #293, **evidence CAS break-even** | When is externalizing evidence actually worthwhile? | Replaces universal CAS with measured economics across payload size and reuse, including zero-reuse as a negative control. |
+| #296, **exact evidence CAS group threshold** | Can the storage decision collapse to a simple duplicate-count rule? | Narrows the decision to exact digest groups and tests whether exact-byte cost should remain authoritative. |
+| #297, **local evidence CAS backends** | Which local substrate should implement the now-small primitive? | Compares filesystem objects with SQLite BLOBs without preregistering a performance winner. |
+| #298, **crash-safe evidence CAS publication** | Can the filesystem implementation survive crashes, duplicate writers, and corrupt targets? | Hardens the selected primitive with temp-write, fsync, atomic publication, verification, and cleanup semantics. |
+| #299, **content-addressed evidence store** | What is the smallest result justified for production? | Promotes only `EvidenceRef` plus the backend-neutral store and local filesystem implementation. |
+| #300, **evidence-first authority publication** | Can the promoted byte store safely cross into authority without a distributed transaction? | Gates the cross-store ordering: durable evidence first, authoritative reference second. |
+
+The research trajectory is therefore not "Merkle everything." It progressively removes structure:
+
+```text
+Merkle receipt DAG
+        |
+        | authority-binding correction
+        v
+Merkle only repeated evidence leaves
+        |
+        | empirical storage threshold
+        v
+small EvidenceStore primitive
+        |
+        | crash-safe implementation
+        v
+narrow production promotion (#299)
+        |
+        | publication semantics
+        v
+authority-safe use (#300)
+```
+
+The negative and corrective steps are part of the result. In particular, #284 prevents content-addressed integrity from being confused with authority, while #293 and #296 prevent deduplication from being assumed valuable without an exact storage benefit.
+
 ## Promotion chain
 
 ### #299: narrow production storage primitive
