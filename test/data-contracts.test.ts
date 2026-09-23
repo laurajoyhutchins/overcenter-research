@@ -80,8 +80,8 @@ function assertContractReferencesExist(
   }
 }
 
-const goProtocol=readFileSync(join(root,'src/execution/executor/protocol.go'),'utf8');
-const goMain=readFileSync(join(root,'src/execution/executor/cmd/overcenter-executor/main.go'),'utf8');
+const goProtocol=readFileSync(join(root,'native/executor/protocol.go'),'utf8');
+const goMain=readFileSync(join(root,'native/executor/cmd/overcenter-executor/main.go'),'utf8');
 
 test('computation contract declares explicit structural authority and compatibility',()=>{
   assert.equal(contract.apiVersion,'overcenter.dev/data-contract/v1');
