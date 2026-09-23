@@ -63,6 +63,13 @@ export interface KernelOptions {
   observationContext?:Omit<ObservationContext,'githubToken'>;
 }
 
+const effectAuthorityBrand:unique symbol=Symbol('effect-authority');
+export type EffectAuthority<E extends string,V extends Postcondition['verifier']>={
+  readonly [effectAuthorityBrand]:E;
+  readonly permit:ExecutionPermit;
+  readonly postcondition:Extract<Postcondition,{verifier:V}>;
+};
+
 export interface GraphPatchInput {
   upsert?:ObligationInput[];
   retire?:string[];
@@ -172,23 +179,30 @@ export class KernelCore {
     return this.#currentProjection(head).project.work;
   }
 
-  claimedWork(runId:string):Work {
-    const head=this.#requireHead();
-    const current=this.#historicalProjection(head);
-    const run=current.history.runs.get(runId);
+  claimedWork(identity:string|ExecutionPermit):Work {
+    const runId=typeof identity==='string'?identity:identity.id;
+    const run=this.#historicalProjection(this.#requireHead()).history.runs.get(runId);
     if (!run) throw new Error('UNKNOWN_RUN');
-    const atClaim=this.#historicalProjection(run.claim_commit);
-    const work=atClaim.project.work.find(candidate=>candidate.id===run.obligation_id);
-    if (
-      !work
-      || work.status!=='EXECUTING'
-      || work.run_id!==runId
-      || work.claimed_revision!==run.claimed_revision
-      || work.revision!==run.claim_commit
-    ) {
-      throw new Error('CLAIMED_WORK_RECONSTRUCTION_FAILED');
+    const work=this.#historicalProjection(run.claim_commit).project.work
+      .find(candidate=>candidate.id===run.obligation_id);
+    if (!work || work.status!=='EXECUTING' || work.run_id!==runId
+      || work.claimed_revision!==run.claimed_revision || work.revision!==run.claim_commit
+      || (typeof identity!=='string' && (identity.obligation_id!==run.obligation_id
+        || identity.claimed_revision!==run.claimed_revision))) {
+      throw new Error(typeof identity==='string'
+        ? 'CLAIMED_WORK_RECONSTRUCTION_FAILED' : 'EFFECT_AUTHORITY_RUN_MISMATCH');
     }
     return structuredClone(work);
+  }
+
+  authorizeEffect<E extends string,V extends Postcondition['verifier']>(
+    permit:ExecutionPermit,effectContract:E,verifier:V,
+  ):EffectAuthority<E,V> {
+    const work=this.claimedWork(permit);
+    if (work.packet.effect_contract!==effectContract) throw new Error('EFFECT_CONTRACT_NOT_AUTHORIZED');
+    if (work.postcondition.verifier!==verifier) throw new Error('EFFECT_POSTCONDITION_MISMATCH');
+    return {[effectAuthorityBrand]:effectContract,permit,
+      postcondition:work.postcondition as EffectAuthority<E,V>['postcondition']};
   }
 
   deriveReadyWork():Work|null {
@@ -328,10 +342,10 @@ export class KernelCore {
   }
 
   async performEffect<T>(
-    permit:ExecutionPermit,
+    authority:EffectAuthority<string,Postcondition['verifier']>,
     effect:()=>Promise<T>|T,
   ):Promise<T> {
-    this.beginEffect(permit);
+    this.beginEffect(authority.permit);
     return await effect();
   }
 

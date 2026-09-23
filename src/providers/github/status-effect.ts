@@ -64,22 +64,12 @@ export async function performGithubCommitStatusEffect(
 }> {
   if (!token) throw new Error('GITHUB_TOKEN_UNAVAILABLE');
 
-  const work=kernel.claimedWork(permit.id);
-  if (
-    work.id!==permit.obligation_id
-    || work.run_id!==permit.id
-    || work.claimed_revision!==permit.claimed_revision
-  ) {
-    throw new Error('GITHUB_STATUS_EFFECT_RUN_MISMATCH');
-  }
-  if (work.packet.effect_contract!==GITHUB_COMMIT_STATUS_EFFECT) {
-    throw new Error('GITHUB_STATUS_EFFECT_NOT_AUTHORIZED');
-  }
-  if (work.postcondition.verifier!=='github-commit-status/v2') {
-    throw new Error('GITHUB_STATUS_EFFECT_POSTCONDITION_MISMATCH');
-  }
-
-  const p=work.postcondition;
+  const authority=kernel.authorizeEffect(
+    permit,
+    GITHUB_COMMIT_STATUS_EFFECT,
+    'github-commit-status/v2',
+  );
+  const p=authority.postcondition;
   const repository=await runGithubReadObserverAsync(
     token,
     syncGet=>observeCertifiedGithubRepository(token,{
@@ -99,7 +89,7 @@ export async function performGithubCommitStatusEffect(
     description:'Overcenter trusted effect broker',
   };
 
-  return kernel.performEffect(permit,async()=>{
+  return kernel.performEffect(authority,async()=>{
     const response=await post(token,path,body);
     if (response.status!==201) {
       throw new Error(

@@ -284,9 +284,8 @@ test('unresolved effect reservation survives generation handoff until presence s
     f.kernel.define({ id: 'x', postcondition: pc(path, 'present') });
     const first = f.kernel.claim('x', f.kernel.deriveReadyWork()!.revision);
 
-    await f.kernel.performEffect(first, async () => {
-      writeFileSync(path, 'present');
-    });
+    f.kernel.beginEffect(first);
+    writeFileSync(path, 'present');
 
     const second = f.kernel.acquireExecution(first.id);
     assert.throws(() => f.kernel.beginEffect(second), /UNRESOLVED_EFFECT/);

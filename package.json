@@ -45,7 +45,9 @@
     "bench:production-latency:live": "node --experimental-strip-types experiments/production-latency/benchmark.ts --live --iterations 3",
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
     "proof:worker-client": "bash src/execution/worker-client/proof.sh",
-    "test:typed-capability-authority": "bash experiments/typed-capability-authority/run.sh"
+    "test:typed-capability-authority": "bash experiments/typed-capability-authority/run.sh",
+    "test:effect-authority-decay": "npm run typecheck && bash experiments/effect-authority-decay/run.sh",
+    "bench:effect-authority-decay": "bash experiments/effect-authority-decay/benchmark.sh"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
