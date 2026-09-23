@@ -1338,6 +1338,58 @@
       }
     },
     {
+      "id": "evidence-reference-publication",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/evidence-reference-publication",
+      "readme": "experiments/evidence-reference-publication/README.md",
+      "question": "Can immutable evidence bytes and authoritative references be persisted safely without a distributed transaction by requiring durable evidence publication before authority append?",
+      "claim": "Evidence-first publication makes every inter-store crash state recoverable: a crash before authority append leaves only collectible evidence, a crash after authority append leaves a reference to already durable evidence, and concurrent writers preserve exactly one authority winner while losing evidence remains collectible.",
+      "contrast": "Append an authoritative reference before evidence durability, or attempt to coordinate filesystem evidence and SQLite authority with an unnecessary cross-store transaction.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:evidence-reference-publication"
+      },
+      "environment": [
+        "Linux GitHub-hosted runner with Node.js from .node-version and the current TypeScript checker.",
+        "The production FileEvidenceStore is used for evidence publication and production SqliteFactStore for the authoritative append-only chain.",
+        "Reference facts are experiment-only files inside the existing SQLite fact commit; no production receipt schema is changed.",
+        "Crash injection uses SIGKILL after durable evidence publication or immediately after authority append returns.",
+        "The concurrent case launches two writers with different 256 KiB evidence payloads from the same expected authority head."
+      ],
+      "success_criteria": [
+        "SIGKILL after evidence publication but before authority append leaves the authority head unchanged, authority history valid, and one collectible unreferenced evidence object.",
+        "SIGKILL immediately after authority append leaves a valid advanced authority history whose reference resolves to digest-verified evidence.",
+        "Two concurrent writers from one expected head produce exactly one authoritative commit while both evidence publications remain safe.",
+        "After tracing authoritative references, garbage collection removes losing/unreferenced evidence and preserves referenced evidence.",
+        "Deleting referenced evidence after authority append makes evidence resolution fail closed while the authority history remains internally valid.",
+        "No tested state yields an authoritative reference that was created before the referenced evidence was durably published."
+      ],
+      "evidence": {
+        "status": "pending",
+        "pending_reason": "Preregistered before the first hosted evidence-first publication run.",
+        "artifacts": [
+          "Pending first hosted evidence reference publication run."
+        ]
+      },
+      "interpretation": "A passing result would establish the write ordering needed for a receipt reference migration without a cross-store transaction. Evidence-store GC must remain authority-aware and live above the byte store because only authority knows reachability.",
+      "non_claims": [
+        "Experiment-only evidence-ref.json is a production receipt schema.",
+        "Referenced evidence can never be lost after publication due to disk or operator failure.",
+        "A local filesystem evidence store provides distributed replication.",
+        "Garbage collection may ignore in-flight publishers or temp-file age.",
+        "Historical receipt-v5 replay is migrated by this experiment."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Crash phases, concurrent-writer case, authority-history validation, missing-evidence control, and authority-derived orphan collection were fixed before the first hosted run."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first hosted evidence-first publication run."
+      }
+    },
+    {
       "id": "rust-exec-typestate-boundary",
       "kind": "experiment",
       "status": "historical",
@@ -1393,55 +1445,170 @@
       }
     },
     {
-      "id": "evidence-reference-publication",
+      "id": "effect-authority-decay",
       "kind": "experiment",
       "status": "maintained",
-      "directory": "experiments/evidence-reference-publication",
-      "readme": "experiments/evidence-reference-publication/README.md",
-      "question": "Can immutable evidence bytes and authoritative references be persisted safely without a distributed transaction by requiring durable evidence publication before authority append?",
-      "claim": "Evidence-first publication makes every inter-store crash state recoverable: a crash before authority append leaves only collectible evidence, a crash after authority append leaves a reference to already durable evidence, and concurrent writers preserve exactly one authority winner while losing evidence remains collectible.",
-      "contrast": "Append an authoritative reference before evidence durability, or attempt to coordinate filesystem evidence and SQLite authority with an unnecessary cross-store transaction.",
+      "directory": "experiments/effect-authority-decay",
+      "readme": "experiments/effect-authority-decay/README.md",
+      "question": "Once execution authority is established, can Overcenter preserve it through the trusted GitHub effect broker instead of repeatedly decomposing it into raw identifiers and reconstructing the same relationship at each provider?",
+      "claim": "A nominal EffectAuthority minted once at provider ingress can eliminate duplicated provider authority reconstruction, prevent raw ExecutionPermit from reaching performEffect, preserve the independent stale-generation reservation fence, avoid net source growth, and keep same-runner local production latency within 1.10x baseline.",
+      "contrast": "Each provider independently reconstructs claimed work from a raw ExecutionPermit, rechecks run/revision/effect/verifier fields, and passes the raw permit to performEffect before the current-head reservation fence.",
       "reproduce": {
         "tier": "hosted",
-        "local": "npm run test:evidence-reference-publication"
+        "local": "npm install --ignore-scripts --package-lock=false && npm run test:effect-authority-decay && npm run bench:effect-authority-decay"
       },
       "environment": [
-        "Linux GitHub-hosted runner with Node.js from .node-version and the current TypeScript checker.",
-        "The production FileEvidenceStore is used for evidence publication and production SqliteFactStore for the authoritative append-only chain.",
-        "Reference facts are experiment-only files inside the existing SQLite fact commit; no production receipt schema is changed.",
-        "Crash injection uses SIGKILL after durable evidence publication or immediately after authority append returns.",
-        "The concurrent case launches two writers with different 256 KiB evidence payloads from the same expected authority head."
+        "Node from .node-version and the repository-pinned TypeScript/type definitions in package.json.",
+        "Exact current-main baseline 81b350e526824ab2c397642e6761a0c860151331 retained in Git history for source and same-runner latency comparison.",
+        "No live provider credentials are required; provider regression uses deterministic fake GitHub I/O."
       ],
       "success_criteria": [
-        "SIGKILL after evidence publication but before authority append leaves the authority head unchanged, authority history valid, and one collectible unreferenced evidence object.",
-        "SIGKILL immediately after authority append leaves a valid advanced authority history whose reference resolves to digest-verified evidence.",
-        "Two concurrent writers from one expected head produce exactly one authoritative commit while both evidence publications remain safe.",
-        "After tracing authoritative references, garbage collection removes losing/unreferenced evidence and preserves referenced evidence.",
-        "Deleting referenced evidence after authority append makes evidence resolution fail closed while the authority history remains internally valid.",
-        "No tested state yields an authoritative reference that was created before the referenced evidence was durably published."
+        "Raw permit/work mismatch is rejected before provider I/O and before effect reservation.",
+        "Authority superseded after binding during provider read I/O is rejected by the unchanged final reservation fence before provider mutation.",
+        "The production TypeScript checker rejects a raw ExecutionPermit at performEffect and rejects structural EffectAuthority forgery.",
+        "Provider claimedWork calls, raw coordinate comparisons, effect-contract checks, verifier checks, and performEffect(rawPermit) calls all fall to zero, with exactly one centralized authority mint.",
+        "Combined nonblank SLOC across engine.ts and the two admitted GitHub effect providers does not increase relative to baseline.",
+        "Median-of-run medians for effect_reservation_ms and overcenter_local_ms are each no more than 1.10x the exact baseline on the same hosted runner.",
+        "Existing GitHub status and PR update-branch provider effect regressions remain green."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "Preregistered before the first hosted evidence-first publication run.",
+        "status": "evaluated",
+        "evaluated_revision": "04bc98a42f4db5ddc73293a713412f17127fbc68",
         "artifacts": [
-          "Pending first hosted evidence reference publication run."
+          "GitHub Actions run 35825868462, job 107067328128: production typecheck, adversarial runtime controls, authority-decay census, provider regressions, and same-runner latency differential passed.",
+          "Merge-gate run 35825868706, candidate-evidence job 107067329353: repository typecheck and full deterministic regression passed on the same treatment revision.",
+          "Provider claimedWork calls 2 -> 0; raw coordinate comparisons 6 -> 0; effect-contract checks 2 -> 0; verifier checks 2 -> 0; provider raw performEffect calls 2 -> 0; one central authority mint.",
+          "Combined production SLOC 909 -> 907.",
+          "Same-runner effect reservation median 0.718 ms -> 0.726 ms (1.011x); Overcenter local median 4.430 ms -> 4.324 ms (0.976x).",
+          "Authority superseded during provider I/O was rejected by the unchanged final beginEffect fence before provider mutation or effect reservation."
         ]
       },
-      "interpretation": "A passing result would establish the write ordering needed for a receipt reference migration without a cross-store transaction. Evidence-store GC must remain authority-aware and live above the byte store because only authority knows reachability.",
+      "interpretation": "Typed capabilities pay off where runtime-established authority would otherwise decay into raw data and repeated trusted-interior reconstruction. Preserve historical reconstruction APIs that have distinct semantic jobs, and retain a final runtime fence anywhere external authority can change before the effect.",
       "non_claims": [
-        "Experiment-only evidence-ref.json is a production receipt schema.",
-        "Referenced evidence can never be lost after publication due to disk or operator failure.",
-        "A local filesystem evidence store provides distributed replication.",
-        "Garbage collection may ignore in-flight publishers or temp-file age.",
-        "Historical receipt-v5 replay is migrated by this experiment."
+        "TypeScript nominal branding provides Rust affine or ownership guarantees.",
+        "Bound authority remains current after external execution authority changes.",
+        "The final current-head reservation fence can be removed.",
+        "Provider identity observation or authoritative readback can be skipped.",
+        "Wire protocols can trust in-process types instead of validating received data.",
+        "Explicit unsafe casts or malicious trusted code are prevented."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "Confirmatory current-main criteria were fixed before this run, but the corrected treatment incorporates lessons from an earlier prototype that exposed legitimate historical reconstruction and low-level reservation consumers."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "On current-main baseline 81b350e526824ab2c397642e6761a0c860151331, bound EffectAuthority removed all duplicated provider authority reconstruction, reduced the measured production slice by 2 nonblank lines, preserved the stale-generation mutation fence, passed repository typecheck and full deterministic regression, and stayed within the 1.10x latency ceiling."
+      }
+    },
+    {
+      "id": "adapter-uncertainty-exploration",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/adapter-uncertainty-exploration",
+      "readme": "experiments/adapter-uncertainty-exploration/README.md",
+      "question": "Does Overcenter's current durable GitHub commit-status state vocabulary preserve every distinction that matters to retry safety across uncertainty at the provider boundary?",
+      "claim": "The current effect-reservation, observation, and receipt vocabulary distinguishes materially different mutation-certainty states that require different safe retry decisions.",
+      "contrast": "A bounded explorer finds two physically different worlds with different retry safety that reconstruct to the same durable Overcenter recovery fingerprint.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:adapter-uncertainty-exploration"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production TypeScript GitHub commit-status adapter and production SQLite authority kernel.",
+        "Injected provider transport and readback visibility; no network or provider credential is required."
+      ],
+      "success_criteria": [
+        "All ten declared reachable uncertainty worlds execute through the real production adapter and SQLite recovery path.",
+        "An unresolved reservation blocks every attempted second provider mutation.",
+        "DONE occurs only when a matching remote effect is visible to authoritative readback.",
+        "The explorer kills retry-on-any-throw, retry-on-RECOVERY_REQUIRED, and trust-HTTP-201-without-readback negative controls.",
+        "The preregistered definitely-not-dispatched world and committed-but-readback-hidden world are compared for exact durable recovery equivalence.",
+        "The hypothesis is falsified if those two worlds require different physical retry decisions yet produce the same durable recovery fingerprint."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "c4c3564bb02618642fcb9d046686772f7adb8224",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35822437473, rerun attempt 2, candidate-evidence job 107057254622: exact-head deterministic experiment PASS.",
+          "10 reachable provider-boundary worlds collapsed to 2 durable equivalence classes with 1 retry-safety collision.",
+          "Preregistered witness: connect-fails-before-dispatch and dispatch-present-throw-hidden both reconstructed to RECOVERY_REQUIRED with COLLECTION_ABSENCE_NOT_AUTHORITATIVE while duplicate retry remained blocked.",
+          "All three unsafe negative controls were killed; no production blind retry or false DONE was observed.",
+          "The first attempted run at 709b0b5d345744e7aa7e5c8f7e5a45ad6112bf76 was discarded before interpretation because a test-fixture path assertion rejected the production paginated readback request; c4c3564bb02618642fcb9d046686772f7adb8224 fixes only that fixture."
+        ]
+      },
+      "interpretation": "A collision is evidence of a liveness/knowledge gap, not a duplicate-effect safety failure: Overcenter may conservatively retain RECOVERY_REQUIRED even when trustworthy pre-dispatch evidence could make retry safe.",
+      "non_claims": [
+        "Arbitrary provider adapters are covered.",
+        "Node fetch can always prove that no request bytes were dispatched.",
+        "Transport errors or HTTP 502 responses are authoritative absence evidence.",
+        "Real GitHub timing or eventual-consistency distributions are measured.",
+        "This bounded enumerator is a complete symbolic or concolic executor."
       ],
       "design": {
         "provenance": "preregistered",
-        "note": "Crash phases, concurrent-writer case, authority-history validation, missing-evidence control, and authority-derived orphan collection were fixed before the first hosted run."
+        "note": "The uncertainty grammar, preregistered witness pair, durable fingerprint, safety invariants, and three negative controls were recorded before execution. The only post-run harness correction fixed an over-escaped paginated-readback path assertion; it did not change the preregistered experiment semantics."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first hosted evidence-first publication run."
+        "state": "falsified",
+        "summary": "At exact revision c4c3564bb02618642fcb9d046686772f7adb8224, a definitely-not-dispatched failure and a committed-but-readback-hidden failure required different physical retry decisions but reconstructed to the same durable RECOVERY_REQUIRED state. The current representation remains safe because unresolved reservations block blind replay, but it loses retry-relevant dispatch knowledge."
+      }
+    },
+    {
+      "id": "transport-not-dispatched-evidence",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/transport-not-dispatched-evidence",
+      "readme": "experiments/transport-not-dispatched-evidence/README.md",
+      "question": "Can a trusted HTTPS transport boundary produce a NOT_DISPATCHED witness strong enough to distinguish definitely-not-dispatched mutation from an uncertain mutation outcome?",
+      "claim": "On a fresh HTTPS socket, failure before TLS secureConnect can be retained as NOT_DISPATCHED while every later transport failure remains UNKNOWN.",
+      "contrast": "Infer dispatch certainty from coarse transport error strings or map all mutation transport failures to one UNKNOWN state.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:transport-not-dispatched-evidence"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Node https.request using fresh sockets only.",
+        "Loopback TCP/TLS peers with a fixed test certificate; no external network or provider credential is required."
+      ],
+      "success_criteria": [
+        "DNS failure before connection establishment yields NOT_DISPATCHED.",
+        "TLS-handshake reset before secureConnect yields NOT_DISPATCHED and zero peer-observed application bytes.",
+        "Reset after secureConnect yields UNKNOWN and the peer observes decrypted HTTP request bytes.",
+        "HTTP 201 after receiving the mutation body yields ACKNOWLEDGED.",
+        "No world with peer-observed application bytes yields NOT_DISPATCHED.",
+        "Error-code-only and any-transport-error NOT_DISPATCHED negative controls are killed."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "0420435e83f4fd66cbeed4f3093b3c97efa78bdb",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35824901839, rerun attempt 2, candidate-evidence job 107064713901: exact-head experiment and candidate proof PASS.",
+          "DNS failure: NOT_DISPATCHED, secure_connected=false, peer_application_bytes=0.",
+          "TLS-handshake reset: NOT_DISPATCHED, secure_connected=false, ECONNRESET, peer_tls_bytes=349, peer_application_bytes=0.",
+          "Post-secureConnect reset: UNKNOWN, secure_connected=true, ECONNRESET, peer_application_bytes=172.",
+          "HTTP 201 control: ACKNOWLEDGED, secure_connected=true, peer_application_bytes=48.",
+          "Error-code-only and any-transport-error NOT_DISPATCHED negative controls were both killed.",
+          "The exact-head gate also passed TypeScript type-checking, TLA+ verification, production computation boundary proof, and self-application."
+        ]
+      },
+      "interpretation": "The bounded result supports a narrow transport-phase witness for fresh HTTPS sockets. The next experiment should place this transport beneath the real GitHub commit-status effect and prove that only NOT_DISPATCHED releases replay while UNKNOWN preserves RECOVERY_REQUIRED.",
+      "non_claims": [
+        "Reused keep-alive sockets satisfy the same evidence rule.",
+        "HTTP/2, QUIC, proxies, or arbitrary transports expose an equivalent boundary.",
+        "secureConnect proves a mutation occurred.",
+        "The current production fetch wrapper already exposes this evidence.",
+        "Production retry semantics should change before a real-effect-path treatment is tested."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The fresh-socket secureConnect boundary, four transport worlds, peer-byte oracle, and two unsafe negative controls were committed before first execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, the fresh-socket HTTPS treatment emitted NOT_DISPATCHED only for failures before TLS secureConnect, kept post-connect failure UNKNOWN when the peer had already observed 172 decrypted HTTP bytes, and returned ACKNOWLEDGED on HTTP 201. No peer-observed application-byte case was misclassified as NOT_DISPATCHED."
       }
     }
   ]

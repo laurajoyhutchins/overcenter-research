@@ -7,6 +7,8 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 ## Experiment index
 
 - `assignment-capsule/` - exact Overcenter claim plus self-contained task-byte delivery to a no-checkout worker and trusted settlement.
+- `transport-not-dispatched-evidence/` - preregistered HTTPS transport experiment for trustworthy pre-dispatch evidence on fresh sockets.
+- `adapter-uncertainty-exploration/` - bounded production-adapter uncertainty exploration for retry-relevant durable-state collisions.
 - `attempt-unification/` - falsifies the single recovery-clock simplification and proves authority fencing and unresolved mutation identity require distinct temporal dimensions.
 - `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
 - `sqlite-baseline/` - original SQLite-backed baseline.
@@ -33,6 +35,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
 - `typed-capability-authority/` - preregistered Rust differential for sealed affine effect authority, compile-fail invalid states, and sequential/concurrent admission cost.
+- `effect-authority-decay/` - current-main production broker experiment testing whether bound authority eliminates downstream raw-coordinate reconstruction while preserving the final runtime fence.
 - `evidence-reference-publication/` - evidence-first filesystem-CAS to SQLite-authority crash/concurrency proof with authority-derived orphan collection.
 - `rust-exec-typestate-boundary/` - historical negative: typestate preserved the real Rust confinement proof but removed no runtime guard class and increased source complexity.
 

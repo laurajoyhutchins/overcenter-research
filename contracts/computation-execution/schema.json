@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://overcenter.dev/contracts/computation-execution-v1/schema.json",
-  "title": "Overcenter computation execution v1",
+  "$id": "https://overcenter.dev/contracts/computation-execution/schema.json",
+  "title": "Overcenter computation execution",
   "description": "Canonical mechanically knowable wire structure for the TypeScript authority to Go computation-executor boundary.",
   "$defs": {
     "Sha256Hex": {
@@ -12,7 +12,7 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "ProcessSpecV1": {
+    "ProcessSpec": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -81,7 +81,7 @@
         }
       }
     },
-    "ComputationExecutionV1": {
+    "ComputationExecution": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -150,7 +150,7 @@
         }
       }
     },
-    "ExecutionIdentityV1": {
+    "ExecutionIdentity": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -178,7 +178,7 @@
         }
       }
     },
-    "ExecuteCommandV1": {
+    "ExecuteCommand": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -194,11 +194,11 @@
           "const": "execute"
         },
         "execution": {
-          "$ref": "#/$defs/ComputationExecutionV1"
+          "$ref": "#/$defs/ComputationExecution"
         }
       }
     },
-    "CancelCommandV1": {
+    "CancelCommand": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -214,21 +214,21 @@
           "const": "cancel"
         },
         "identity": {
-          "$ref": "#/$defs/ExecutionIdentityV1"
+          "$ref": "#/$defs/ExecutionIdentity"
         }
       }
     },
-    "ExecutorCommandV1": {
+    "ExecutorCommand": {
       "oneOf": [
         {
-          "$ref": "#/$defs/ExecuteCommandV1"
+          "$ref": "#/$defs/ExecuteCommand"
         },
         {
-          "$ref": "#/$defs/CancelCommandV1"
+          "$ref": "#/$defs/CancelCommand"
         }
       ]
     },
-    "ComputationAttemptEvidenceV1": {
+    "ComputationAttemptEvidence": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -332,7 +332,7 @@
         }
       }
     },
-    "ExecutorHelloV1": {
+    "ExecutorHello": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -356,15 +356,15 @@
       }
     },
     "AuthorityToExecutor": {
-      "$ref": "#/$defs/ExecutorCommandV1"
+      "$ref": "#/$defs/ExecutorCommand"
     },
     "ExecutorToAuthority": {
       "oneOf": [
         {
-          "$ref": "#/$defs/ExecutorHelloV1"
+          "$ref": "#/$defs/ExecutorHello"
         },
         {
-          "$ref": "#/$defs/ComputationAttemptEvidenceV1"
+          "$ref": "#/$defs/ComputationAttemptEvidence"
         }
       ]
     }

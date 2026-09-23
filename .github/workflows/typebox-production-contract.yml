@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [ready_for_review]
     paths:
-      - 'contracts/observation-evidence-v1/settlement-observation.typebox.ts'
-      - 'contracts/observation-evidence-v1/schema.json'
-      - 'contracts/observation-evidence-v1/contract.json'
-      - 'contracts/observation-evidence-v1/README.md'
+      - 'contracts/observation-evidence/settlement-observation.typebox.ts'
+      - 'contracts/observation-evidence/schema.json'
+      - 'contracts/observation-evidence/contract.json'
+      - 'contracts/observation-evidence/README.md'
       - 'src/generated/settlement-observation-schema.ts'
       - 'src/structural-schema.ts'
       - 'src/model.ts'

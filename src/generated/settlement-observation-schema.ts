@@ -1,4 +1,4 @@
-// Generated from contracts/observation-evidence-v1/settlement-observation.typebox.ts.
+// Generated from contracts/observation-evidence/settlement-observation.typebox.ts.
 // Do not edit by hand.
 export const SettlementObservationSchema={
   "type": "object",

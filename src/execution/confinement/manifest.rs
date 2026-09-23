@@ -27,7 +27,9 @@ fn parse_u64(name: &str, value: &str) -> Result<u64, String> {
     if value.len() > 1 && value.starts_with('0') {
         return Err(format!("{name} must use canonical decimal"));
     }
-    value.parse::<u64>().map_err(|_| format!("{name} is out of range"))
+    value
+        .parse::<u64>()
+        .map_err(|_| format!("{name} is out of range"))
 }
 
 fn parse_bounded_positive_u64(name: &str, value: &str, maximum: u64) -> Result<u64, String> {
@@ -79,7 +81,9 @@ fn set_once<T>(slot: &mut Option<T>, value: T, name: &str) -> Result<(), String>
 
 pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
     if input.is_empty() || !input.ends_with('\n') {
-        return Err("manifest must end with exactly one newline-delimited record stream".to_owned());
+        return Err(
+            "manifest must end with exactly one newline-delimited record stream".to_owned(),
+        );
     }
     if input.contains('\r') {
         return Err("manifest contains carriage return".to_owned());
@@ -121,19 +125,39 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
                 set_once(&mut task_id, (*value).to_owned(), "task_id")?;
             }
             ["workspace", value] => {
-                set_once(&mut workspace, validate_absolute("workspace", value)?, "workspace")?;
+                set_once(
+                    &mut workspace,
+                    validate_absolute("workspace", value)?,
+                    "workspace",
+                )?;
             }
             ["workspace_dev", value] => {
-                set_once(&mut workspace_dev, parse_u64("workspace_dev", value)?, "workspace_dev")?;
+                set_once(
+                    &mut workspace_dev,
+                    parse_u64("workspace_dev", value)?,
+                    "workspace_dev",
+                )?;
             }
             ["workspace_ino", value] => {
-                set_once(&mut workspace_ino, parse_u64("workspace_ino", value)?, "workspace_ino")?;
+                set_once(
+                    &mut workspace_ino,
+                    parse_u64("workspace_ino", value)?,
+                    "workspace_ino",
+                )?;
             }
             ["program", value] => {
-                set_once(&mut program, validate_absolute("program", value)?, "program")?;
+                set_once(
+                    &mut program,
+                    validate_absolute("program", value)?,
+                    "program",
+                )?;
             }
             ["timeout_ms", value] => {
-                set_once(&mut timeout_ms, parse_bounded_positive_u64("timeout_ms", value, 2_147_483_647)?, "timeout_ms")?;
+                set_once(
+                    &mut timeout_ms,
+                    parse_bounded_positive_u64("timeout_ms", value, 2_147_483_647)?,
+                    "timeout_ms",
+                )?;
             }
             ["max_output_bytes", value] => {
                 set_once(
@@ -188,7 +212,10 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
                     return Err(format!("duplicate runtime_ro path: {}", path.display()));
                 }
                 if runtime_exec_seen.contains(&path) {
-                    return Err(format!("runtime path has conflicting access mode: {}", path.display()));
+                    return Err(format!(
+                        "runtime path has conflicting access mode: {}",
+                        path.display()
+                    ));
                 }
                 runtime_read_only.push(path);
             }
@@ -198,7 +225,10 @@ pub fn parse_manifest(input: &str) -> Result<Manifest, String> {
                     return Err(format!("duplicate runtime_exec path: {}", path.display()));
                 }
                 if runtime_ro_seen.contains(&path) {
-                    return Err(format!("runtime path has conflicting access mode: {}", path.display()));
+                    return Err(format!(
+                        "runtime path has conflicting access mode: {}",
+                        path.display()
+                    ));
                 }
                 runtime_executable.push(path);
             }

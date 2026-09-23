@@ -204,7 +204,7 @@ Important entry points:
 - [`src/execution/manifest.ts`](./src/execution/manifest.ts) - canonical exact-byte manifest for the Rust confinement launcher.
 - [`src/execution/confined-executor.ts`](./src/execution/confined-executor.ts) - trusted TypeScript transport that sends exactly the hashed manifest bytes to the native launcher.
 - [`src/execution/confinement/`](./src/execution/confinement/README.md) - Rust Landlock/seccomp worker-confinement substrate; physical confinement only, with no project-state authority.
-- [`contracts/computation-execution-v1/`](./contracts/computation-execution-v1/) - shared versioned wire contract and conformance corpus.
+- [`contracts/computation-execution/`](./contracts/computation-execution/) - shared versioned wire contract and conformance corpus.
 - [`src/execution/executor/`](./src/execution/executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
 - [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
 - [`formal/`](./formal/) - TLA+ transaction/recovery kernel.

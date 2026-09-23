@@ -9,10 +9,10 @@ import (
 )
 
 type boundedDigestWriter struct {
-	hash      hash.Hash
-	buffer    bytes.Buffer
-	limit     int64
-	total     int64
+	hash   hash.Hash
+	buffer bytes.Buffer
+	limit  int64
+	total  int64
 }
 
 func newBoundedDigestWriter(limit int64) *boundedDigestWriter {

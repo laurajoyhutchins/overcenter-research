@@ -14,42 +14,40 @@ import { projectReceipt, replayProjection } from '../src/authority/replay.ts';
 import type { Obligation } from '../src/model.ts';
 import { localFileEnoentEvidence } from '../src/observation/evidence.ts';
 
-const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
+const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
-const obligation:Obligation={
-  id:'a',
-  dependencies:[],
-  packet:{kind:'pure-projection-proof'},
-  postcondition:{
-    verifier:'file-content-equals/v1',
-    path:'/provider/a',
-    content:'A',
+const obligation: Obligation = {
+  id: 'a',
+  dependencies: [],
+  packet: { kind: 'pure-projection-proof' },
+  postcondition: {
+    verifier: 'file-content-equals/v1',
+    path: '/provider/a',
+    content: 'A',
   },
 };
 
-function graphPatch(...obligations:Obligation[]):GraphPatchFact {
-  const definitions=new Map<string,GraphPatchFact['definitions'][number]>();
-  const bindings=obligations.map(item=>{
-    const definition=obligationDefinition(item);
-    const definitionId=obligationDefinitionId(definition);
-    definitions.set(definitionId,{id:definitionId,definition});
-    return {node_id:item.id,definition_id:definitionId};
+function graphPatch(...obligations: Obligation[]): GraphPatchFact {
+  const definitions = new Map<string, GraphPatchFact['definitions'][number]>();
+  const bindings = obligations.map((item) => {
+    const definition = obligationDefinition(item);
+    const definitionId = obligationDefinitionId(definition);
+    definitions.set(definitionId, { id: definitionId, definition });
+    return { node_id: item.id, definition_id: definitionId };
   });
   return {
-    schema:GRAPH_PATCH_SCHEMA,
-    definitions:[...definitions.values()],
+    schema: GRAPH_PATCH_SCHEMA,
+    definitions: [...definitions.values()],
     bindings,
-    retire:[],
+    retire: [],
   };
 }
 
-const defined=graphPatch(obligation);
+const defined = graphPatch(obligation);
 
-function claimCommit(parent:string):FactCommit {
-  const base=replayProjection([
-    {commit:parent,parent:null,graph_patch:defined},
-  ]);
-  const key=obligationKey(
+function claimCommit(parent: string): FactCommit {
+  const base = replayProjection([{ commit: parent, parent: null, graph_patch: defined }]);
+  const key = obligationKey(
     base.state,
     obligation,
     base.project.lifecycles,
@@ -57,327 +55,309 @@ function claimCommit(parent:string):FactCommit {
   );
   assert.ok(key);
   return {
-    commit:'claim-1',
+    commit: 'claim-1',
     parent,
-    claim:{
-      schema:CLAIM_SCHEMA,
-      run_id:'run-1',
-      obligation_id:'a',
-      claimed_revision:parent,
-      obligation_key:key,
-      execution_capability_sha256:sha256('permit-1'),
+    claim: {
+      schema: CLAIM_SCHEMA,
+      run_id: 'run-1',
+      obligation_id: 'a',
+      claimed_revision: parent,
+      obligation_key: key,
+      execution_capability_sha256: sha256('permit-1'),
     },
   };
 }
 
-test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git',()=>{
-  const defineRecord:FactCommit={
-    commit:'define-1',
-    parent:null,
-    graph_patch:defined,
+test('pure replay derives UNREALIZED -> EXECUTING -> DONE without Git', () => {
+  const defineRecord: FactCommit = {
+    commit: 'define-1',
+    parent: null,
+    graph_patch: defined,
   };
-  const ready=replayProjection([defineRecord]);
-  assert.equal(ready.project.lifecycles.get('a')?.status,'UNREALIZED');
+  const ready = replayProjection([defineRecord]);
+  assert.equal(ready.project.lifecycles.get('a')?.status, 'UNREALIZED');
 
-  const claimRecord=claimCommit('define-1');
-  const executing=replayProjection([defineRecord,claimRecord]);
-  assert.equal(executing.project.lifecycles.get('a')?.status,'EXECUTING');
+  const claimRecord = claimCommit('define-1');
+  const executing = replayProjection([defineRecord, claimRecord]);
+  assert.equal(executing.project.lifecycles.get('a')?.status, 'EXECUTING');
 
-  const receipt:ReceiptFact={
-    schema:RECEIPT_SCHEMA,
-    run_id:'run-1',
-    obligation_id:'a',
-    claimed_revision:'define-1',
-    claim_commit:'claim-1',
-    execution_generation:1,
-    execution_authority_commit:'claim-1',
-    kind:'observation',
-    observed:{
-      verifier:'file-content-equals/v1',
-      path:'/provider/a',
-      expected_sha256:sha256('A'),
-      actual_sha256:sha256('A'),
-      mutation_certainty:'present',
+  const receipt: ReceiptFact = {
+    schema: RECEIPT_SCHEMA,
+    run_id: 'run-1',
+    obligation_id: 'a',
+    claimed_revision: 'define-1',
+    claim_commit: 'claim-1',
+    execution_generation: 1,
+    execution_authority_commit: 'claim-1',
+    kind: 'observation',
+    observed: {
+      verifier: 'file-content-equals/v1',
+      path: '/provider/a',
+      expected_sha256: sha256('A'),
+      actual_sha256: sha256('A'),
+      mutation_certainty: 'present',
     },
-    settled_at:'2026-09-18T00:00:00.000Z',
+    settled_at: '2026-09-18T00:00:00.000Z',
   };
-  const done=replayProjection([
+  const done = replayProjection([
     defineRecord,
     claimRecord,
-    {commit:'receipt-1',parent:'claim-1',receipt},
+    { commit: 'receipt-1', parent: 'claim-1', receipt },
   ]);
 
-  assert.equal(done.project.lifecycles.get('a')?.status,'DONE');
-  assert.equal(done.history.receipts.at(-1)?.verified,true);
-  assert.equal(done.history.receipts.at(-1)?.settlement_commit,'receipt-1');
+  assert.equal(done.project.lifecycles.get('a')?.status, 'DONE');
+  assert.equal(done.history.receipts.at(-1)?.verified, true);
+  assert.equal(done.history.receipts.at(-1)?.settlement_commit, 'receipt-1');
 });
 
-test('pure replay validates a graph patch after applying its complete node set',()=>{
-  const first:Obligation={
+test('pure replay validates a graph patch after applying its complete node set', () => {
+  const first: Obligation = {
     ...obligation,
-    id:'first',
+    id: 'first',
   };
-  const second:Obligation={
+  const second: Obligation = {
     ...obligation,
-    id:'second',
-    dependencies:[{kind:'control',upstream:'first'}],
+    id: 'second',
+    dependencies: [{ kind: 'control', upstream: 'first' }],
   };
-  const projection=replayProjection([{
-    commit:'patch-1',
-    parent:null,
-    graph_patch:graphPatch(second,first),
-  }]);
+  const projection = replayProjection([
+    {
+      commit: 'patch-1',
+      parent: null,
+      graph_patch: graphPatch(second, first),
+    },
+  ]);
 
-  assert.deepEqual(
-    Object.keys(projection.state.obligations).sort(),
-    ['first','second'],
-  );
-  const firstDefinition=projection.state.definition_ids.first;
-  const secondDefinition=projection.state.definition_ids.second;
+  assert.deepEqual(Object.keys(projection.state.obligations).sort(), ['first', 'second']);
+  const firstDefinition = projection.state.definition_ids.first;
+  const secondDefinition = projection.state.definition_ids.second;
   assert.ok(firstDefinition);
   assert.ok(secondDefinition);
-  assert.deepEqual(
-    projection.definitions[firstDefinition],
-    obligationDefinition(first),
-  );
-  assert.deepEqual(
-    projection.definitions[secondDefinition],
-    obligationDefinition(second),
-  );
-  assert.equal(projection.project.lifecycles.get('first')?.status,'UNREALIZED');
-  assert.equal(projection.project.lifecycles.get('second')?.status,'UNREALIZED');
+  assert.deepEqual(projection.definitions[firstDefinition], obligationDefinition(first));
+  assert.deepEqual(projection.definitions[secondDefinition], obligationDefinition(second));
+  assert.equal(projection.project.lifecycles.get('first')?.status, 'UNREALIZED');
+  assert.equal(projection.project.lifecycles.get('second')?.status, 'UNREALIZED');
 });
 
-test('replay rejects duplicate graph patch identities',()=>{
-  const definition=obligationDefinition(obligation);
-  const definitionId=obligationDefinitionId(definition);
+test('replay rejects duplicate graph patch identities', () => {
+  const definition = obligationDefinition(obligation);
+  const definitionId = obligationDefinitionId(definition);
   assert.throws(
-    ()=>replayProjection([{
-      commit:'patch-duplicate',
-      parent:null,
-      graph_patch:{
-        schema:GRAPH_PATCH_SCHEMA,
-        definitions:[{id:definitionId,definition}],
-        bindings:[
-          {node_id:'a',definition_id:definitionId},
-          {node_id:'a',definition_id:definitionId},
-        ],
-        retire:[],
-      },
-    }]),
+    () =>
+      replayProjection([
+        {
+          commit: 'patch-duplicate',
+          parent: null,
+          graph_patch: {
+            schema: GRAPH_PATCH_SCHEMA,
+            definitions: [{ id: definitionId, definition }],
+            bindings: [
+              { node_id: 'a', definition_id: definitionId },
+              { node_id: 'a', definition_id: definitionId },
+            ],
+            retire: [],
+          },
+        },
+      ]),
     /DUPLICATE_GRAPH_PATCH_ID:a/,
   );
 });
 
-test('replay rejects graph rebinding while work is in flight',()=>{
-  const defineRecord:FactCommit={
-    commit:'define-1',
-    parent:null,
-    graph_patch:defined,
+test('replay rejects graph rebinding while work is in flight', () => {
+  const defineRecord: FactCommit = {
+    commit: 'define-1',
+    parent: null,
+    graph_patch: defined,
   };
-  const claimRecord=claimCommit('define-1');
-  const rebound=graphPatch({...obligation,packet:{kind:'rebound'}});
+  const claimRecord = claimCommit('define-1');
+  const rebound = graphPatch({ ...obligation, packet: { kind: 'rebound' } });
 
   assert.throws(
-    ()=>replayProjection([
-      defineRecord,
-      claimRecord,
-      {commit:'rebind-1',parent:'claim-1',graph_patch:rebound},
-    ]),
+    () =>
+      replayProjection([
+        defineRecord,
+        claimRecord,
+        { commit: 'rebind-1', parent: 'claim-1', graph_patch: rebound },
+      ]),
     /GRAPH_PATCH_WHILE_IN_FLIGHT/,
   );
 });
 
-test('pure replay rejects a claim whose parent is not its claimed revision',()=>{
-  const defineRecord:FactCommit={
-    commit:'define-1',
-    parent:null,
-    graph_patch:defined,
+test('pure replay rejects a claim whose parent is not its claimed revision', () => {
+  const defineRecord: FactCommit = {
+    commit: 'define-1',
+    parent: null,
+    graph_patch: defined,
   };
-  const claimRecord=claimCommit('define-1');
-  (claimRecord.claim as {claimed_revision:string}).claimed_revision='different-head';
+  const claimRecord = claimCommit('define-1');
+  (claimRecord.claim as { claimed_revision: string }).claimed_revision = 'different-head';
 
-  assert.throws(
-    ()=>replayProjection([defineRecord,claimRecord]),
-    /CLAIM_REVISION_MISMATCH/,
-  );
+  assert.throws(() => replayProjection([defineRecord, claimRecord]), /CLAIM_REVISION_MISMATCH/);
 });
 
 function absentReceipt(
-  work:Obligation,
+  work: Obligation,
   {
-    includeCertificate=false,
+    includeCertificate = false,
     certificatePath,
-  }:{
-    includeCertificate?:boolean;
-    certificatePath?:string;
-  }={},
-):ReceiptFact {
-  const observed=work.postcondition.verifier==='github-commit-status/v2'
-    ? {
-        verifier:work.postcondition.verifier,
-        provider:'github' as const,
-        repository_id:work.postcondition.repository_id,
-        repository_full_name:work.postcondition.repository_full_name,
-        commit_sha:work.postcondition.commit_sha,
-        context:work.postcondition.context,
-        mutation_certainty:'absent' as const,
-      }
-    : work.postcondition.verifier==='file-content-equals/v1'
-      || work.postcondition.verifier==='eventually-consistent-file-content-equals/v1'
+  }: {
+    includeCertificate?: boolean;
+    certificatePath?: string;
+  } = {},
+): ReceiptFact {
+  const observed =
+    work.postcondition.verifier === 'github-commit-status/v2'
       ? {
-          verifier:work.postcondition.verifier,
-          path:work.postcondition.path,
-          mutation_certainty:'absent' as const,
-          ...(includeCertificate && work.postcondition.verifier==='file-content-equals/v1'
-            ? {
-                absence_evidence:localFileEnoentEvidence(
-                  certificatePath??work.postcondition.path,
-                ),
-              }
-            : {}),
+          verifier: work.postcondition.verifier,
+          provider: 'github' as const,
+          repository_id: work.postcondition.repository_id,
+          repository_full_name: work.postcondition.repository_full_name,
+          commit_sha: work.postcondition.commit_sha,
+          context: work.postcondition.context,
+          mutation_certainty: 'absent' as const,
         }
-      : (()=>{throw new Error('ABSENT_RECEIPT_UNSUPPORTED_POSTCONDITION');})();
+      : work.postcondition.verifier === 'file-content-equals/v1' ||
+          work.postcondition.verifier === 'eventually-consistent-file-content-equals/v1'
+        ? {
+            verifier: work.postcondition.verifier,
+            path: work.postcondition.path,
+            mutation_certainty: 'absent' as const,
+            ...(includeCertificate && work.postcondition.verifier === 'file-content-equals/v1'
+              ? {
+                  absence_evidence: localFileEnoentEvidence(
+                    certificatePath ?? work.postcondition.path,
+                  ),
+                }
+              : {}),
+          }
+        : (() => {
+            throw new Error('ABSENT_RECEIPT_UNSUPPORTED_POSTCONDITION');
+          })();
   return {
-    schema:RECEIPT_SCHEMA,
-    run_id:'run-absence',
-    obligation_id:'absence',
-    claimed_revision:'revision-absence',
-    claim_commit:'claim-absence',
-    execution_generation:1,
-    execution_authority_commit:'authority-absence',
-    kind:'observation',
+    schema: RECEIPT_SCHEMA,
+    run_id: 'run-absence',
+    obligation_id: 'absence',
+    claimed_revision: 'revision-absence',
+    claim_commit: 'claim-absence',
+    execution_generation: 1,
+    execution_authority_commit: 'authority-absence',
+    kind: 'observation',
     observed,
-    settled_at:'2026-09-18T00:00:00.000Z',
+    settled_at: '2026-09-18T00:00:00.000Z',
   };
 }
 
-test('receipt v5 requires a matching absence certificate before replay',()=>{
-  const local:Obligation={
-    id:'absence',
-    dependencies:[],
-    packet:{},
-    postcondition:{verifier:'file-content-equals/v1',path:'/provider/absence',content:'A'},
+test('receipt v5 requires a matching absence certificate before replay', () => {
+  const local: Obligation = {
+    id: 'absence',
+    dependencies: [],
+    packet: {},
+    postcondition: { verifier: 'file-content-equals/v1', path: '/provider/absence', content: 'A' },
   };
   assert.equal(
-    projectReceipt(
-      absentReceipt(local,{includeCertificate:true}),
-      local,
-    ).disposition,
+    projectReceipt(absentReceipt(local, { includeCertificate: true }), local).disposition,
     'READY',
   );
-  assert.equal(
-    projectReceipt(absentReceipt(local),local).disposition,
-    'RECOVERY_REQUIRED',
-  );
+  assert.equal(projectReceipt(absentReceipt(local), local).disposition, 'RECOVERY_REQUIRED');
   assert.equal(
     projectReceipt(
-      absentReceipt(local,{
-        includeCertificate:true,
-        certificatePath:'/provider/wrong-certificate-subject',
+      absentReceipt(local, {
+        includeCertificate: true,
+        certificatePath: '/provider/wrong-certificate-subject',
       }),
       local,
     ).disposition,
     'RECOVERY_REQUIRED',
   );
-  const foreignCertificate=absentReceipt(local,{includeCertificate:true});
-  foreignCertificate.observed!.absence_evidence={
-    schema:'overcenter-absence-evidence-v1',
-    kind:'kubernetes-complete-list-absence/v1',
-    subject:{
-      api_group:'',
-      resource:'configmaps',
-      namespace:'proof',
-      name:'missing',
+  const foreignCertificate = absentReceipt(local, { includeCertificate: true });
+  foreignCertificate.observed!.absence_evidence = {
+    schema: 'overcenter-absence-evidence-v1',
+    kind: 'kubernetes-complete-list-absence/v1',
+    subject: {
+      api_group: '',
+      resource: 'configmaps',
+      namespace: 'proof',
+      name: 'missing',
     },
-    scope:{
-      api_group:'',
-      resource:'configmaps',
-      namespace:'proof',
+    scope: {
+      api_group: '',
+      resource: 'configmaps',
+      namespace: 'proof',
     },
-    snapshot:{resource_version:'489'},
-    completeness:{
-      kind:'complete-list',
-      page_count:3,
-      terminal_continue:'',
+    snapshot: { resource_version: '489' },
+    completeness: {
+      kind: 'complete-list',
+      page_count: 3,
+      terminal_continue: '',
     },
-    provenance:{
-      provider:'kubernetes',
-      contract:'openapi-v3',
+    provenance: {
+      provider: 'kubernetes',
+      contract: 'openapi-v3',
     },
   };
-  assert.equal(
-    projectReceipt(foreignCertificate,local).disposition,
-    'RECOVERY_REQUIRED',
-  );
+  assert.equal(projectReceipt(foreignCertificate, local).disposition, 'RECOVERY_REQUIRED');
 
-  const eventual:Obligation={
-    id:'absence',
-    dependencies:[],
-    packet:{},
-    postcondition:{
-      verifier:'eventually-consistent-file-content-equals/v1',
-      path:'/provider/absence',
-      content:'A',
+  const eventual: Obligation = {
+    id: 'absence',
+    dependencies: [],
+    packet: {},
+    postcondition: {
+      verifier: 'eventually-consistent-file-content-equals/v1',
+      path: '/provider/absence',
+      content: 'A',
     },
   };
-  assert.equal(
-    projectReceipt(absentReceipt(eventual),eventual).disposition,
-    'RECOVERY_REQUIRED',
-  );
+  assert.equal(projectReceipt(absentReceipt(eventual), eventual).disposition, 'RECOVERY_REQUIRED');
 
-  const github:Obligation={
-    id:'absence',
-    dependencies:[],
-    packet:{},
-    postcondition:{
-      verifier:'github-commit-status/v2',
-      provider:'github',
-      repository_id:123,
-      repository_full_name:'owner/repo',
-      commit_sha:'a'.repeat(40),
-      context:'overcenter/absence',
-      expected_state:'success',
+  const github: Obligation = {
+    id: 'absence',
+    dependencies: [],
+    packet: {},
+    postcondition: {
+      verifier: 'github-commit-status/v2',
+      provider: 'github',
+      repository_id: 123,
+      repository_full_name: 'owner/repo',
+      commit_sha: 'a'.repeat(40),
+      context: 'overcenter/absence',
+      expected_state: 'success',
     },
   };
-  assert.equal(
-    projectReceipt(absentReceipt(github),github).disposition,
-    'RECOVERY_REQUIRED',
-  );
+  assert.equal(projectReceipt(absentReceipt(github), github).disposition, 'RECOVERY_REQUIRED');
 });
 
-test('legacy v3 static-conflict history remains replayable but fail-closed',()=>{
-  const status=(id:string,state:'success'|'failure'):Obligation=>({
+test('legacy v3 static-conflict history remains replayable but fail-closed', () => {
+  const status = (id: string, state: 'success' | 'failure'): Obligation => ({
     id,
-    dependencies:[],
-    packet:{},
-    postcondition:{
-      verifier:'github-commit-status/v2',
-      provider:'github',
-      repository_id:123,
-      repository_full_name:'owner/repo',
-      commit_sha:'a'.repeat(40),
-      context:'overcenter/legacy-conflict',
-      expected_state:state,
+    dependencies: [],
+    packet: {},
+    postcondition: {
+      verifier: 'github-commit-status/v2',
+      provider: 'github',
+      repository_id: 123,
+      repository_full_name: 'owner/repo',
+      commit_sha: 'a'.repeat(40),
+      context: 'overcenter/legacy-conflict',
+      expected_state: state,
     },
   });
-  const alpha=status('alpha','success');
-  const beta=status('beta','failure');
-  const projection=replayProjection([
+  const alpha = status('alpha', 'success');
+  const beta = status('beta', 'failure');
+  const projection = replayProjection([
     {
-      commit:'define-alpha',
-      parent:null,
-      graph_patch:graphPatch(alpha),
+      commit: 'define-alpha',
+      parent: null,
+      graph_patch: graphPatch(alpha),
     },
     {
-      commit:'define-beta',
-      parent:'define-alpha',
-      graph_patch:graphPatch(beta),
+      commit: 'define-beta',
+      parent: 'define-alpha',
+      graph_patch: graphPatch(beta),
     },
   ]);
 
-  assert.equal(projection.state.obligations.alpha.id,'alpha');
-  assert.equal(projection.state.obligations.beta.id,'beta');
+  assert.equal(projection.state.obligations.alpha.id, 'alpha');
+  assert.equal(projection.state.obligations.beta.id, 'beta');
   assert.equal(
     projection.project.claimabilityErrors.get(alpha.id),
     'UNORDERED_EFFECT_CONFLICT:alpha:beta',

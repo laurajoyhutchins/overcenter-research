@@ -1,4 +1,4 @@
-# Observation and evidence contract v1
+# Observation and evidence contract
 
 This package covers three related boundaries:
 

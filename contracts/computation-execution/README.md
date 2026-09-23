@@ -1,4 +1,4 @@
-# Computation execution contract v1
+# Computation execution contract
 
 This contract is the production boundary between Overcenter's trusted TypeScript authority layer and the Go physical computation executor.
 

@@ -16,7 +16,7 @@ result.
 The relevant shape is independently maintained in three places:
 
 ```text
-contracts/observation-evidence-v1/schema.json
+contracts/observation-evidence/schema.json
 src/model.ts :: Observation
 src/observation/observe.ts :: validateObservationEnvelope()
 ```

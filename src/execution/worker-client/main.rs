@@ -215,9 +215,7 @@ impl<'a> Parser<'a> {
                                 if !(0xdc00..=0xdfff).contains(&low) {
                                     return Err("ASSIGNMENT_JSON_SURROGATE_INVALID".to_owned());
                                 }
-                                0x10000
-                                    + (((high as u32) - 0xd800) << 10)
-                                    + ((low as u32) - 0xdc00)
+                                0x10000 + (((high as u32) - 0xd800) << 10) + ((low as u32) - 0xdc00)
                             } else if (0xdc00..=0xdfff).contains(&high) {
                                 return Err("ASSIGNMENT_JSON_SURROGATE_INVALID".to_owned());
                             } else {
@@ -303,11 +301,7 @@ fn field<'a>(
     value.get(name).ok_or_else(|| code.to_owned())
 }
 
-fn exact_keys(
-    value: &BTreeMap<String, Json>,
-    required: &[&str],
-    code: &str,
-) -> Result<(), String> {
+fn exact_keys(value: &BTreeMap<String, Json>, required: &[&str], code: &str) -> Result<(), String> {
     let actual: BTreeSet<&str> = value.keys().map(String::as_str).collect();
     let expected: BTreeSet<&str> = required.iter().copied().collect();
     if actual == expected {
@@ -352,7 +346,11 @@ struct Assignment {
 
 fn validate_assignment(root: &Json) -> Result<Assignment, String> {
     let assignment = object(root, "ASSIGNMENT_INVALID")?;
-    exact_keys(assignment, &["schema", "work", "files"], "ASSIGNMENT_SHAPE_INVALID")?;
+    exact_keys(
+        assignment,
+        &["schema", "work", "files"],
+        "ASSIGNMENT_SHAPE_INVALID",
+    )?;
     if string(
         field(assignment, "schema", "ASSIGNMENT_SCHEMA_MISSING")?,
         "ASSIGNMENT_SCHEMA_INVALID",
@@ -395,7 +393,10 @@ fn validate_assignment(root: &Json) -> Result<Assignment, String> {
         ("claimed_revision", claimed_revision.as_str()),
     ] {
         if value.is_empty() {
-            return Err(format!("ASSIGNMENT_WORK_{}_INVALID", name.to_ascii_uppercase()));
+            return Err(format!(
+                "ASSIGNMENT_WORK_{}_INVALID",
+                name.to_ascii_uppercase()
+            ));
         }
     }
     if string(
@@ -469,7 +470,11 @@ fn validate_assignment(root: &Json) -> Result<Assignment, String> {
     }
 
     let required_values = array(
-        field(packet, "required_paths", "ASSIGNMENT_REQUIRED_PATHS_MISSING")?,
+        field(
+            packet,
+            "required_paths",
+            "ASSIGNMENT_REQUIRED_PATHS_MISSING",
+        )?,
         "ASSIGNMENT_REQUIRED_PATHS_INVALID",
     )?;
     if required_values.is_empty() {
@@ -581,8 +586,10 @@ fn base64_decode(value: &str) -> Result<Vec<u8>, String> {
     let mut out = Vec::with_capacity(input.len() / 4 * 3);
     for (index, chunk) in input.chunks_exact(4).enumerate() {
         let last = index + 1 == input.len() / 4;
-        let a = base64_value(chunk[0]).ok_or_else(|| "ASSIGNMENT_FILE_BASE64_INVALID".to_owned())?;
-        let b = base64_value(chunk[1]).ok_or_else(|| "ASSIGNMENT_FILE_BASE64_INVALID".to_owned())?;
+        let a =
+            base64_value(chunk[0]).ok_or_else(|| "ASSIGNMENT_FILE_BASE64_INVALID".to_owned())?;
+        let b =
+            base64_value(chunk[1]).ok_or_else(|| "ASSIGNMENT_FILE_BASE64_INVALID".to_owned())?;
         let c_pad = chunk[2] == b'=';
         let d_pad = chunk[3] == b'=';
         if c_pad && !d_pad {
@@ -616,8 +623,7 @@ fn base64_decode(value: &str) -> Result<Vec<u8>, String> {
 }
 
 fn base64_encode(bytes: &[u8]) -> String {
-    const TABLE: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let a = chunk[0];
@@ -650,18 +656,26 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 fn sha256(input: &[u8]) -> [u8; 32] {
     const K: [u32; 64] = [
-        0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-        0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-        0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-        0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-        0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-        0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-        0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-        0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2,
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
+        0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
+        0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
+        0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+        0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
+        0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+        0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116,
+        0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+        0xc67178f2,
     ];
     let mut state = [
-        0x6a09e667u32,0xbb67ae85,0x3c6ef372,0xa54ff53a,
-        0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19,
+        0x6a09e667u32,
+        0xbb67ae85,
+        0x3c6ef372,
+        0xa54ff53a,
+        0x510e527f,
+        0x9b05688c,
+        0x1f83d9ab,
+        0x5be0cd19,
     ];
     let bit_len = (input.len() as u64).wrapping_mul(8);
     let mut padded = input.to_vec();
@@ -683,12 +697,8 @@ fn sha256(input: &[u8]) -> [u8; 32] {
             ]);
         }
         for i in 16..64 {
-            let s0 = w[i - 15].rotate_right(7)
-                ^ w[i - 15].rotate_right(18)
-                ^ (w[i - 15] >> 3);
-            let s1 = w[i - 2].rotate_right(17)
-                ^ w[i - 2].rotate_right(19)
-                ^ (w[i - 2] >> 10);
+            let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
+            let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
             w[i] = w[i - 16]
                 .wrapping_add(s0)
                 .wrapping_add(w[i - 7])
@@ -741,7 +751,8 @@ fn sha256(input: &[u8]) -> [u8; 32] {
 }
 
 fn list_files(root: &Path, prefix: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
-    let entries = fs::read_dir(root).map_err(|error| format!("ASSIGNMENT_WORKSPACE_READ_FAILED:{error}"))?;
+    let entries =
+        fs::read_dir(root).map_err(|error| format!("ASSIGNMENT_WORKSPACE_READ_FAILED:{error}"))?;
     for entry in entries {
         let entry = entry.map_err(|error| format!("ASSIGNMENT_WORKSPACE_READ_FAILED:{error}"))?;
         let file_type = entry
@@ -795,7 +806,11 @@ fn materialize(assignment: &Assignment, workspace: &Path) -> Result<(), String> 
     let mut actual = Vec::new();
     list_files(workspace, Path::new(""), &mut actual)?;
     actual.sort();
-    let mut expected: Vec<PathBuf> = assignment.files.iter().map(|file| PathBuf::from(&file.path)).collect();
+    let mut expected: Vec<PathBuf> = assignment
+        .files
+        .iter()
+        .map(|file| PathBuf::from(&file.path))
+        .collect();
     expected.sort();
     if actual != expected {
         return Err("ASSIGNMENT_WORKSPACE_MEMBERSHIP_MISMATCH".to_owned());
@@ -823,7 +838,9 @@ fn run_task(assignment: &Assignment, workspace: &Path) -> Result<(), String> {
             }
             return Err(format!(
                 "ASSIGNMENT_COMMAND_FAILED:{}",
-                status.code().map_or_else(|| "signal".to_owned(), |code| code.to_string())
+                status
+                    .code()
+                    .map_or_else(|| "signal".to_owned(), |code| code.to_string())
             ));
         }
         if started.elapsed() >= TIMEOUT {
@@ -869,12 +886,13 @@ fn run(assignment_path: &Path, workspace: &Path, candidate_path: &Path) -> Resul
     run_task(&assignment, workspace)?;
 
     let output_file = workspace.join(&assignment.output_path);
-    let metadata = fs::symlink_metadata(&output_file)
-        .map_err(|_| "ASSIGNMENT_OUTPUT_MISSING".to_owned())?;
+    let metadata =
+        fs::symlink_metadata(&output_file).map_err(|_| "ASSIGNMENT_OUTPUT_MISSING".to_owned())?;
     if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
         return Err("ASSIGNMENT_OUTPUT_MISSING".to_owned());
     }
-    let output = fs::read(&output_file).map_err(|error| format!("ASSIGNMENT_OUTPUT_READ_FAILED:{error}"))?;
+    let output =
+        fs::read(&output_file).map_err(|error| format!("ASSIGNMENT_OUTPUT_READ_FAILED:{error}"))?;
     let candidate = format!(
         "{{\n  \"schema\": {},\n  \"assignment_sha256\": {},\n  \"obligation_id\": {},\n  \"run_id\": {},\n  \"claimed_revision\": {},\n  \"output_path\": {},\n  \"output_sha256\": {},\n  \"output_base64\": {}\n}}\n",
         json_string(CANDIDATE_SCHEMA),
@@ -890,8 +908,8 @@ fn run(assignment_path: &Path, workspace: &Path, candidate_path: &Path) -> Resul
         fs::create_dir_all(parent)
             .map_err(|error| format!("CANDIDATE_PARENT_CREATE_FAILED:{error}"))?;
     }
-    let mut file = File::create(candidate_path)
-        .map_err(|error| format!("CANDIDATE_CREATE_FAILED:{error}"))?;
+    let mut file =
+        File::create(candidate_path).map_err(|error| format!("CANDIDATE_CREATE_FAILED:{error}"))?;
     file.write_all(candidate.as_bytes())
         .map_err(|error| format!("CANDIDATE_WRITE_FAILED:{error}"))?;
     Ok(())
@@ -903,7 +921,11 @@ fn main() -> ExitCode {
         eprintln!("usage: overcenter run <assignment.json> <workspace> <candidate.json>");
         return ExitCode::from(2);
     }
-    match run(Path::new(&args[2]), Path::new(&args[3]), Path::new(&args[4])) {
+    match run(
+        Path::new(&args[2]),
+        Path::new(&args[3]),
+        Path::new(&args[4]),
+    ) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("overcenter: {error}");

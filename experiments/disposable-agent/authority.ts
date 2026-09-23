@@ -65,31 +65,36 @@ kernel.define({
   },
 });
 
-const work = kernel.inspect().find(candidate => candidate.id === proofId);
+const work = kernel.inspect().find((candidate) => candidate.id === proofId);
 if (!work) throw new Error('PROOF_OBLIGATION_MISSING');
 const run = kernel.claim(work.id, work.revision);
 
 const summary = process.env.GITHUB_STEP_SUMMARY;
 if (summary) {
-  appendFileSync(summary, [
-    '## Trusted project authority',
-    '',
-    `- Repository ID: \`${repositoryInfo.id}\``,
-    `- Obligation: \`${proofId}\``,
-    `- Exact input: \`${sourceSha}\``,
-    `- Authority ref: \`${stateRef}\``,
-    `- Claim commit: \`${run.claim_commit}\``,
-    `- Run: \`${run.id}\``,
-    '- The disposable executor has not started yet.',
-    '',
-  ].join('\n'));
+  appendFileSync(
+    summary,
+    [
+      '## Trusted project authority',
+      '',
+      `- Repository ID: \`${repositoryInfo.id}\``,
+      `- Obligation: \`${proofId}\``,
+      `- Exact input: \`${sourceSha}\``,
+      `- Authority ref: \`${stateRef}\``,
+      `- Claim commit: \`${run.claim_commit}\``,
+      `- Run: \`${run.id}\``,
+      '- The disposable executor has not started yet.',
+      '',
+    ].join('\n'),
+  );
 }
 
-console.log(JSON.stringify({
-  obligation_id: proofId,
-  repository_id: repositoryInfo.id,
-  exact_input: sourceSha,
-  run_id: run.id,
-  claim_commit: run.claim_commit,
-  verifier: work.postcondition,
-}));
+console.log(
+  JSON.stringify({
+    obligation_id: proofId,
+    repository_id: repositoryInfo.id,
+    exact_input: sourceSha,
+    run_id: run.id,
+    claim_commit: run.claim_commit,
+    verifier: work.postcondition,
+  }),
+);

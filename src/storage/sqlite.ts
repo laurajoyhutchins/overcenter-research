@@ -1,17 +1,14 @@
 import { DatabaseSync } from 'node:sqlite';
 
 import { canonicalDigest } from '../digest.ts';
-import {
-  factCommitFromFiles,
-  type DurableFactStore,
-} from '../authority/store.ts';
+import { factCommitFromFiles, type DurableFactStore } from '../authority/store.ts';
 import type { FactCommit } from '../authority/facts.ts';
 
-const COMMIT_SCHEMA='overcenter-sqlite-fact-commit-v1' as const;
-const SCHEMA_BUSY_RETRIES=4;
-const SCHEMA_BUSY_RETRY_BASE_MS=25;
+const COMMIT_SCHEMA = 'overcenter-sqlite-fact-commit-v1' as const;
+const SCHEMA_BUSY_RETRIES = 4;
+const SCHEMA_BUSY_RETRY_BASE_MS = 25;
 
-const sleepSync=(milliseconds:number)=>{
+const sleepSync = (milliseconds: number) => {
   Atomics.wait(
     new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)),
     0,
@@ -20,66 +17,65 @@ const sleepSync=(milliseconds:number)=>{
   );
 };
 
-const isBusy=(error:unknown)=>
-  /SQLITE_BUSY|database is locked/i.test(
-    error instanceof Error ? error.message : String(error),
-  );
+const isBusy = (error: unknown) =>
+  /SQLITE_BUSY|database is locked/i.test(error instanceof Error ? error.message : String(error));
 
 interface AuthorityRow {
-  head:string|null;
-  sequence:number|bigint;
+  head: string | null;
+  sequence: number | bigint;
 }
 
 interface CommitRow {
-  sequence:number|bigint;
-  commit_id:string;
-  parent_id:string|null;
-  message:string;
-  files_json:string;
+  sequence: number | bigint;
+  commit_id: string;
+  parent_id: string | null;
+  message: string;
+  files_json: string;
 }
 
 export class SqliteFactStore implements DurableFactStore {
-  readonly path:string;
-  readonly #db:DatabaseSync;
+  readonly path: string;
+  readonly #db: DatabaseSync;
 
-  constructor(path:string) {
-    this.path=path;
-    this.#db=new DatabaseSync(path);
+  constructor(path: string) {
+    this.path = path;
+    this.#db = new DatabaseSync(path);
     this.#db.exec('PRAGMA busy_timeout = 5000');
     this.#db.exec('PRAGMA foreign_keys = ON');
     this.#db.exec('PRAGMA synchronous = FULL');
     if (!this.#storageReady()) this.#initializeStorage();
   }
 
-  head():string|null {
-    const row=this.#authority();
+  head(): string | null {
+    const row = this.#authority();
     return row.head;
   }
 
   append(
-    expectedHead:string|null,
-    message:string,
-    files:Record<string,unknown>={},
-  ):string|null {
+    expectedHead: string | null,
+    message: string,
+    files: Record<string, unknown> = {},
+  ): string | null {
     this.#db.exec('BEGIN IMMEDIATE');
     try {
-      const authority=this.#authority();
-      if (authority.head!==expectedHead) {
+      const authority = this.#authority();
+      if (authority.head !== expectedHead) {
         this.#db.exec('ROLLBACK');
         return null;
       }
 
-      const sequence=Number(authority.sequence)+1;
-      const commitId=canonicalDigest({
-        schema:COMMIT_SCHEMA,
+      const sequence = Number(authority.sequence) + 1;
+      const commitId = canonicalDigest({
+        schema: COMMIT_SCHEMA,
         sequence,
-        parent:expectedHead,
+        parent: expectedHead,
         message,
         files,
       });
-      const filesJson=JSON.stringify(files);
+      const filesJson = JSON.stringify(files);
 
-      this.#db.prepare(`
+      this.#db
+        .prepare(`
         INSERT INTO fact_commits(
           sequence,
           commit_id,
@@ -87,15 +83,11 @@ export class SqliteFactStore implements DurableFactStore {
           message,
           files_json
         ) VALUES(?,?,?,?,?)
-      `).run(
-        sequence,
-        commitId,
-        expectedHead,
-        message,
-        filesJson,
-      );
+      `)
+        .run(sequence, commitId, expectedHead, message, filesJson);
 
-      const advanced=this.#db.prepare(`
+      const advanced = this.#db
+        .prepare(`
         UPDATE authority
         SET head = ?, sequence = ?
         WHERE singleton = 1
@@ -104,14 +96,9 @@ export class SqliteFactStore implements DurableFactStore {
             (head IS NULL AND ? IS NULL)
             OR head = ?
           )
-      `).run(
-        commitId,
-        sequence,
-        Number(authority.sequence),
-        expectedHead,
-        expectedHead,
-      );
-      if (advanced.changes!==1) {
+      `)
+        .run(commitId, sequence, Number(authority.sequence), expectedHead, expectedHead);
+      if (advanced.changes !== 1) {
         this.#db.exec('ROLLBACK');
         return null;
       }
@@ -126,87 +113,90 @@ export class SqliteFactStore implements DurableFactStore {
     }
   }
 
-  history(head:string):FactCommit[] {
-    const terminal=this.#db.prepare(`
+  history(head: string): FactCommit[] {
+    const terminal = this.#db
+      .prepare(`
       SELECT sequence
       FROM fact_commits
       WHERE commit_id = ?
-    `).get(head) as {sequence:number|bigint}|undefined;
+    `)
+      .get(head) as { sequence: number | bigint } | undefined;
     if (!terminal) throw new Error('UNKNOWN_AUTHORITY_HEAD');
 
-    const rows=this.#db.prepare(`
+    const rows = this.#db
+      .prepare(`
       SELECT sequence, commit_id, parent_id, message, files_json
       FROM fact_commits
       WHERE sequence <= ?
       ORDER BY sequence
-    `).all(Number(terminal.sequence)) as unknown as CommitRow[];
+    `)
+      .all(Number(terminal.sequence)) as unknown as CommitRow[];
 
-    const history:FactCommit[]=[];
-    let expectedParent:string|null=null;
-    let expectedSequence=1;
+    const history: FactCommit[] = [];
+    let expectedParent: string | null = null;
+    let expectedSequence = 1;
     for (const row of rows) {
-      const sequence=Number(row.sequence);
-      if (sequence!==expectedSequence) {
+      const sequence = Number(row.sequence);
+      if (sequence !== expectedSequence) {
         throw new Error('FACT_HISTORY_SEQUENCE_GAP');
       }
-      if (row.parent_id!==expectedParent) {
+      if (row.parent_id !== expectedParent) {
         throw new Error('FACT_HISTORY_PARENT_MISMATCH');
       }
-      const files=JSON.parse(row.files_json) as Record<string,unknown>;
-      const expectedCommitId=canonicalDigest({
-        schema:COMMIT_SCHEMA,
+      const files = JSON.parse(row.files_json) as Record<string, unknown>;
+      const expectedCommitId = canonicalDigest({
+        schema: COMMIT_SCHEMA,
         sequence,
-        parent:row.parent_id,
-        message:row.message,
+        parent: row.parent_id,
+        message: row.message,
         files,
       });
-      if (row.commit_id!==expectedCommitId) {
+      if (row.commit_id !== expectedCommitId) {
         throw new Error('FACT_COMMIT_DIGEST_MISMATCH');
       }
-      history.push(
-        factCommitFromFiles(
-          row.commit_id,
-          row.parent_id,
-          files,
-        ),
-      );
-      expectedParent=row.commit_id;
-      expectedSequence+=1;
+      history.push(factCommitFromFiles(row.commit_id, row.parent_id, files));
+      expectedParent = row.commit_id;
+      expectedSequence += 1;
     }
 
-    if (history.at(-1)?.commit!==head) {
+    if (history.at(-1)?.commit !== head) {
       throw new Error('FACT_HISTORY_HEAD_MISMATCH');
     }
     return history;
   }
 
-  close():void {
+  close(): void {
     this.#db.close();
   }
 
-  #storageReady():boolean {
-    const journal=this.#db.prepare('PRAGMA journal_mode').get() as
-      {journal_mode:string}|undefined;
-    if (String(journal?.journal_mode??'').toLowerCase()!=='wal') return false;
+  #storageReady(): boolean {
+    const journal = this.#db.prepare('PRAGMA journal_mode').get() as
+      | { journal_mode: string }
+      | undefined;
+    if (String(journal?.journal_mode ?? '').toLowerCase() !== 'wal') return false;
 
-    const tables=this.#db.prepare(`
+    const tables = this.#db
+      .prepare(`
       SELECT COUNT(*) AS count
       FROM sqlite_master
       WHERE type = 'table'
         AND name IN ('fact_commits','authority')
-    `).get() as {count:number|bigint}|undefined;
-    if (Number(tables?.count??0)!==2) return false;
+    `)
+      .get() as { count: number | bigint } | undefined;
+    if (Number(tables?.count ?? 0) !== 2) return false;
 
-    const authority=this.#db.prepare(`
+    const authority = this.#db
+      .prepare(`
       SELECT 1 AS present
       FROM authority
       WHERE singleton = 1
-    `).get() as {present:number}|undefined;
-    return authority?.present===1;
+    `)
+      .get() as { present: number } | undefined;
+    return authority?.present === 1;
   }
 
-  #initializeStorage():void {
-    for (let attempt=0;attempt<SCHEMA_BUSY_RETRIES;attempt+=1) {
+  #initializeStorage(): void {
+    for (let attempt = 0; attempt < SCHEMA_BUSY_RETRIES; attempt += 1) {
       if (this.#storageReady()) return;
       try {
         this.#db.exec('PRAGMA journal_mode = WAL');
@@ -247,19 +237,21 @@ export class SqliteFactStore implements DurableFactStore {
         }
         return;
       } catch (error) {
-        if (!isBusy(error) || attempt===SCHEMA_BUSY_RETRIES-1) throw error;
-        sleepSync(SCHEMA_BUSY_RETRY_BASE_MS*(2**attempt));
+        if (!isBusy(error) || attempt === SCHEMA_BUSY_RETRIES - 1) throw error;
+        sleepSync(SCHEMA_BUSY_RETRY_BASE_MS * 2 ** attempt);
       }
     }
     throw new Error('SQLITE_STORAGE_INITIALIZATION_INCOMPLETE');
   }
 
-  #authority():AuthorityRow {
-    const row=this.#db.prepare(`
+  #authority(): AuthorityRow {
+    const row = this.#db
+      .prepare(`
       SELECT head, sequence
       FROM authority
       WHERE singleton = 1
-    `).get() as AuthorityRow|undefined;
+    `)
+      .get() as AuthorityRow | undefined;
     if (!row) throw new Error('AUTHORITY_ROW_MISSING');
     return row;
   }
