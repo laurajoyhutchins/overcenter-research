@@ -147,12 +147,42 @@ function advanceMain(f: Fixture, mutate: (root: string) => void, message: string
   }
 }
 
-function integratedCommit(f: Fixture, candidateSha: string): string | null {
+function integratedCommit(
+  f: Fixture,
+  intent: SourceIntent,
+  candidate: SourceCandidate,
+): string | null {
   const commits = git(f.repo, ['log', 'refs/heads/main', '--format=%H']);
   if (!commits) return null;
+
   for (const commit of commits.split('\n')) {
     const body = git(f.repo, ['show', '-s', '--format=%B', commit]);
-    if (body.includes(`Overcenter-Candidate: ${candidateSha}`)) return commit;
+    if (!body.includes(`Overcenter-Candidate: ${candidate.commit_sha}`)) continue;
+    if (!body.includes(`Overcenter-Obligation-Key: ${candidate.obligation_key}`)) continue;
+
+    const parents = git(f.repo, ['show', '-s', '--format=%P', commit])
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parents.length !== 1) continue;
+
+    const root = worktree(f, parents[0]!, 'replay-proof');
+    try {
+      if (gitStatus(root, ['cherry-pick', '--no-commit', candidate.commit_sha]) !== 0) continue;
+      const reconstructedTree = git(root, ['write-tree']);
+      const recordedTree = git(f.repo, ['show', '-s', '--format=%T', commit]);
+      if (reconstructedTree !== recordedTree) continue;
+      if (!acceptanceSatisfied(root, intent)) continue;
+
+      const current = worktree(f, 'refs/heads/main', 'replay-current');
+      try {
+        if (!acceptanceSatisfied(current, intent)) continue;
+      } finally {
+        removeWorktree(f, current);
+      }
+      return commit;
+    } finally {
+      removeWorktree(f, root);
+    }
   }
   return null;
 }
@@ -192,9 +222,6 @@ function integrateCandidate(
     return { state: 'REJECTED', reason: 'OBLIGATION_KEY_MISMATCH', attempts: 0 };
   }
 
-  const replay = integratedCommit(f, candidate.commit_sha);
-  if (replay) return { state: 'ALREADY_INTEGRATED', commit_sha: replay, attempts: 0 };
-
   let paths: string[];
   try {
     paths = changedPaths(f, candidate);
@@ -208,6 +235,9 @@ function integrateCandidate(
   if (paths.length === 0 || paths.some((path) => !intent.writable_paths.includes(path))) {
     return { state: 'REJECTED', reason: 'SOURCE_SCOPE_VIOLATION', attempts: 0 };
   }
+
+  const replay = integratedCommit(f, intent, candidate);
+  if (replay) return { state: 'ALREADY_INTEGRATED', commit_sha: replay, attempts: 0 };
 
   const maxAttempts = options.maxAttempts ?? 4;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -374,6 +404,34 @@ const acceptanceDrift = (() => {
   }
 })();
 
+const forgedReplayMarker = (() => {
+  const f = fixture();
+  try {
+    const claim = claimSourceIntent(intent, f.base_sha);
+    const candidate = commitCandidate(f, claim, (root) => {
+      write(join(root, 'src', 'feature.txt'), 'feature:sealed\n');
+    });
+    const forged = advanceMain(
+      f,
+      (root) => write(join(root, 'src', 'unrelated.txt'), 'unrelated:forged-marker\n'),
+      `unrelated change\n\nOvercenter-Obligation-Key: ${candidate.obligation_key}\nOvercenter-Candidate: ${candidate.commit_sha}`,
+    );
+
+    const result = integrateCandidate(f, intent, candidate);
+    assert.equal(result.state, 'INTEGRATED');
+    assert.notEqual(result.commit_sha, forged);
+    assert.equal(git(f.repo, ['rev-parse', `${result.commit_sha}^`]), forged);
+    assert.equal(show(f, 'src/feature.txt'), 'feature:sealed');
+    assert.equal(show(f, 'src/unrelated.txt'), 'unrelated:forged-marker');
+    return {
+      forged_marker_rejected_as_replay: true,
+      state: result.state,
+    };
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+})();
+
 const casRaceAndReplay = (() => {
   const f = fixture();
   try {
@@ -423,6 +481,7 @@ console.log(
       hostile_scope: scopeViolation,
       conflicting_main: conflict,
       acceptance_context_drift: acceptanceDrift,
+      forged_replay_marker: forgedReplayMarker,
       cas_race_and_replay: casRaceAndReplay,
       conclusion: 'supported-within-bounds',
     },

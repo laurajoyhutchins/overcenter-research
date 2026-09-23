@@ -50,14 +50,14 @@ The hypothesis is falsified if any of the following occur:
 
 ## Cases
 
-The deterministic corpus contains six distinguishing cases:
+The deterministic corpus now contains seven distinguishing cases:
 
 1. **Stable identity.** The same semantic source intent is claimed against two different bases and must retain one obligation key.
 2. **Unrelated main advance.** The candidate is produced from an older base; independent `main` work lands; trusted integration reapplies the candidate and preserves both changes.
 3. **Hostile source scope.** A candidate changes one allowed and one undeclared path and must be rejected before target movement.
 4. **Conflicting main advance.** Current `main` changes the same source coordinate; patch application must fail closed with re-realization required.
 5. **Acceptance-context drift.** The patch applies cleantly, but a current-source invariant changed; acceptance must fail closed with re-realization required.
-6. **CAS race plus replay.** `main` advances after verification but before CAS; integration must retry from the new head, preserve the concurrent change, and later recognize exact replay without another commit.
+6. **Forged replay marker.** An unrelated current-main commit copies the candidate trailers but does not realize the candidate; trusted replay verification must reject the marker as proof and perform the real integration.\n7. **CAS race plus replay.** `main` advances after verification but before CAS; integration must retry from the new head, preserve the concurrent change, and later recognize exact replay without another commit.
 
 ## Reproduce
 
@@ -84,6 +84,23 @@ This experiment does not prove:
 - every open historical PR can be imported without an explicit mapping step;
 - the current production realization fact already supports dynamic source candidates;
 - successful local evidence alone authorizes production promotion before exact-head repository evidence is recorded.
+
+## Post-review replay-provenance correction
+
+Review found that the original treatment used the `Overcenter-Candidate` commit trailer as replay authority before independently proving that the marked commit actually realized the candidate. A concurrent or hostile source commit could therefore forge the marker and trigger `ALREADY_INTEGRATED`.
+
+The corrected treatment makes the trailer only a lookup hint. Before replay can short-circuit, trusted code now:
+
+1. validates candidate ancestry and declared writable scope;
+2. requires both candidate and obligation-key trailers;
+3. reapplies the exact candidate commit to the marked commit's single parent;
+4. requires the reconstructed tree to equal the marked commit's tree;
+5. reruns the intent acceptance checks; and
+6. requires those acceptance checks to remain true on current `main`.
+
+A new forged-marker negative control requires an unrelated commit carrying both exact trailers to be rejected as replay evidence and followed by a real candidate integration.
+
+This correction is post-observation and therefore **mixed-provenance**. The original six-case exact-head result remains historical evidence, but the strengthened seven-case treatment requires fresh exact-head evaluation before the experiment can again be called supported.
 
 ## Exact-head result
 

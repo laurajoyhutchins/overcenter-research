@@ -2659,12 +2659,12 @@
       "claim": "Within the bounded local-Git model, stable source intent retains one semantic key across unrelated main revisions while trusted integration can validate candidate scope, reapply the exact candidate patch to current main, rerun acceptance, CAS the target ref, preserve a concurrent main advance, and detect exact replay.",
       "contrast": "Encode mutable branch or pull-request bases into obligation identity and require downstream work to be stacked on upstream Git branches.",
       "design": {
-        "provenance": "preregistered",
-        "note": "The semantic boundary, six distinguishing cases, falsifiers, and non-claims were committed before any hosted exact-head result is interpreted."
+        "provenance": "mixed",
+        "note": "The original semantic boundary and six distinguishing cases were preregistered and evaluated at 83433c916eb73d636dede0c94f8dd81bc915da48. Post-review, a forged replay-trailer falsifier exposed that the marker was being treated as replay authority before tree reconstruction. The seventh case and trusted replay reconstruction are therefore an explicit post-observation correction."
       },
       "outcome": {
-        "state": "supported",
-        "summary": "The bounded exact-head Git treatment preserved stable semantic identity across source revisions, integrated clean stale-base candidates over unrelated main movement, rejected scope/conflict/acceptance violations before target movement, retried a CAS race against the new head, and recognized exact replay."
+        "state": "pending",
+        "summary": "The original six-case treatment was supported, but review found that replay detection trusted a forgeable commit-message marker. The strengthened seven-case treatment now reconstructs the candidate tree and rechecks current acceptance before replay can short-circuit; fresh exact-head evaluation is pending."
       },
       "reproduce": {
         "tier": "deterministic",
@@ -2681,16 +2681,17 @@
         "A candidate that changes any undeclared path is rejected before the authoritative target ref moves.",
         "A current-main conflict causes re-realization to be required and leaves the authoritative target ref unchanged.",
         "A cleanly applicable candidate whose current-source acceptance context changed fails acceptance and leaves the authoritative target ref unchanged.",
-        "If main advances after verification but before CAS, integration retries from the new head, preserves the concurrent change, and exact replay creates no second integration commit."
+        "If main advances after verification but before CAS, integration retries from the new head, preserves the concurrent change, and exact replay creates no second integration commit.",
+        "A forged integration trailer on an unrelated main commit is not accepted as replay evidence unless trusted reconstruction proves the exact candidate tree and current acceptance."
       ],
       "evidence": {
-        "status": "evaluated",
-        "evaluated_revision": "83433c916eb73d636dede0c94f8dd81bc915da48",
+        "status": "pending",
         "artifacts": [
-          "GitHub Actions Merge gate run 35932681826, exact-head rerun candidate job 107423153394: all maintained deterministic experiments passed, including source-obligation-integration.",
-          "source-obligation-integration result: stable semantic key across distinct claim bases; unrelated-main integration PASS; SOURCE_SCOPE_VIOLATION rejection PASS; SOURCE_APPLY_CONFLICT re-realization PASS; SOURCE_ACCEPTANCE_FAILED re-realization PASS; CAS race integrated on attempt 2 while preserving concurrent main; replay returned ALREADY_INTEGRATED.",
-          "The same exact-head rerun also passed TLA+, production computation-boundary proof, and self-application before the overall three-minute workflow was marked cancelled during final completion bookkeeping."
-        ]
+          "Historical six-case treatment: GitHub Actions Merge gate run 35932681826, exact-head rerun candidate job 107423153394 at revision 83433c916eb73d636dede0c94f8dd81bc915da48.",
+          "That treatment established stable semantic identity, stale-base integration over unrelated main movement, scope/conflict/acceptance rejection, CAS retry, and marker-based replay behavior.",
+          "Post-review falsifier: a commit-message marker alone was not independently bound to the candidate realization; the corrected treatment adds exact tree reconstruction and current-acceptance verification."
+        ],
+        "pending_reason": "The post-review forged-marker correction and seventh distinguishing case have not yet completed exact-head hosted evaluation."
       },
       "interpretation": "A positive result supports a narrow source-transaction primitive in which graph intent is stable, source revision is execution fencing, verified source candidates are realizations, and integration into current source authority rather than PR topology determines downstream readiness.",
       "non_claims": [
