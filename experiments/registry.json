@@ -1721,13 +1721,17 @@
         "The experiment reports normal first-put, duplicate-put, and verified-read latency for the hardened publisher."
       ],
       "evidence": {
-        "status": "pending",
-        "pending_reason": "Preregistered before the first hosted atomic-publication crash/concurrency run.",
+        "status": "evaluated",
+        "evaluated_revision": "3b9758dfd4e01e26c0e3e7504e31ce747cc6a0db",
         "artifacts": [
-          "Pending first hosted atomic-publication run."
+          "GitHub Actions run 35824626596, job 107063576774: atomic evidence CAS publication PASS.",
+          "SIGKILL after temp fsync left no final object and one complete sweepable temp; SIGKILL after hard-link + directory fsync left one valid final object plus one sweepable temp.",
+          "Eight concurrent duplicate writers all succeeded with exactly one verified final object.",
+          "A deliberately truncated preexisting final object was rejected rather than accepted as deduplication; false accepts 0.",
+          "Hardened 256 KiB publisher timings on the hosted runner: first-put p50 1157.76 us, p95 2112.502 us; duplicate-put p50 471.165 us; verified-read p50 436.42 us."
         ]
       },
-      "interpretation": "A passing result would justify promoting the filesystem CAS protocol into a small reusable evidence-store primitive. It would not establish distributed durability, remote replication, or cross-filesystem atomicity.",
+      "interpretation": "Promote the atomic filesystem CAS as a small backend-neutral evidence-store implementation, but do not yet change receipt-v5. Evidence identity should remain SHA-256 over exact bytes; authoritative facts may later reference those bytes through an explicit schema change after dual-write/readback migration evidence.",
       "non_claims": [
         "A local filesystem CAS is a distributed evidence service.",
         "Directory fsync semantics are identical on every operating system or network filesystem.",
@@ -1740,8 +1744,8 @@
         "note": "Two crash phases, eight-writer race, corrupt-preexisting negative control, stale-temp sweep, reopen verification, and latency reporting were fixed before the first hosted run."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Awaiting the first hosted atomic-publication run."
+        "state": "supported",
+        "summary": "At exact revision 3b9758dfd4e01e26c0e3e7504e31ce747cc6a0db, same-directory temp/fsync/hard-link/directory-fsync publication survived both injected crash windows, an eight-writer duplicate race, reopen, and corrupt-target controls with zero false accepts. The durability fsyncs increased first-put latency to about 1.16 ms p50 for 256 KiB objects, still competitive with the measured SQLite BLOB path."
       }
     }
   ]
