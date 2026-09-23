@@ -39,6 +39,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `evidence-cas-break-even/` - replay-evidence payload/reuse matrix with selective externalization, file-backed lookup, GC, and recovery-bandwidth measurements.
 - `evidence-cas-group-threshold/` - exact canonical-byte break-even surface by evidence payload size and digest-group multiplicity.
 - `evidence-cas-local-backend/` - filesystem versus SQLite BLOB content store for replay-sized evidence, including deduplication, verified reads, reopen, and GC.
+- `evidence-cas-atomic-publish/` - crash-safe same-directory temp/fsync/link publication with concurrent duplicate writers and corrupt-target rejection.
 
 ## Experiment contract
 
