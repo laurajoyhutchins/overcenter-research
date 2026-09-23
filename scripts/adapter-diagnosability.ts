@@ -145,9 +145,7 @@ function buildProduct(protocol: AdapterProtocol) {
     }
 
     for (const left of leftOutgoing.filter((item) => item.observation !== undefined)) {
-      for (const right of rightOutgoing.filter(
-        (item) => item.observation === left.observation,
-      )) {
+      for (const right of rightOutgoing.filter((item) => item.observation === left.observation)) {
         next.push({
           to: pairKey(left.to, right.to),
           observable: true,
