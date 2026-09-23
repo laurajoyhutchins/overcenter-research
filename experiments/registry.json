@@ -1873,6 +1873,62 @@
         "state": "mixed",
         "summary": "One bounded refinement round improved the frozen model result from 3/7 to cumulative 4/7 (refinement gain +1) with zero false certainty, but only tied the deterministic 4/7 baseline (baseline gain 0), so refinement helped the known model failure without earning inference a recovery-yield advantage over deterministic search."
       }
+    },
+    {
+      "id": "recovery-semantic-judgment",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/recovery-semantic-judgment",
+      "readme": "experiments/recovery-semantic-judgment/README.md",
+      "question": "Does inference add recovery value when exact provider-coordinate construction is removed from the agent interface and the model chooses only among semantic interpretations produced by deterministic software?",
+      "claim": "The locked ablation preserves the inherited 4/7 deterministic recovery baseline, exposes only the three recoverable semantic residue cases plus one permanently unknowable control to the reasoning worker, and lets trusted software alone compile semantic choices into provider queries and require exact effect binding.",
+      "contrast": "Ask the model to synthesize exact provider fields, or let model output carry certainty, retry instructions, provider record identity, or settlement authority.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:recovery-semantic-judgment"
+      },
+      "environment": [
+        "Node.js from .node-version for deterministic compilation, authoritative observation simulation, and scoring.",
+        "The inherited deterministic 4/7 baseline is frozen as provenance-bound historical evidence from recovery-agent-search at exact evaluated revision 88c90ab73fdc49facbb48b014cd543c65d22b2a0; no predecessor executable code is imported.",
+        "GitHub Actions ubuntu-24.04 for the hosted model comparison.",
+        "Google-free inference authenticated through the canonical workflow-scoped GitHub OIDC reasoning identity into the billing-disabled Gemini project.",
+        "The model receives semantic evidence and interpretation IDs only; no checkout, hidden compiler, provider oracle, Overcenter authority, or provider mutation credential."
+      ],
+      "success_criteria": [
+        "The inherited deterministic baseline remains exactly 4 of 7 recoverable cases.",
+        "The model interface contains no exact provider operation/resource/actor/principal/region/artifact fields.",
+        "A correct semantic choice is materialized into an exact provider query only by trusted deterministic software.",
+        "Wrong semantic choices cannot settle even when they compile to a unique distractor record because exact effect binding rejects them.",
+        "False certainty remains zero and the permanently unknowable physical-effect control remains unresolved.",
+        "The hosted result reports semantic-choice accuracy, added recovery yield, and total agent-assisted recovery yield."
+      ],
+      "evidence": {
+        "state": "pending",
+        "artifacts": [
+          "GitHub Actions run 35739647525: setup reached the deterministic semantic-contract check and failed before inference; downstream reasoner/scoring jobs were skipped.",
+          "experiments/recovery-semantic-judgment/decision.schema.json",
+          "experiments/recovery-semantic-judgment/packets.json",
+          "experiments/recovery-semantic-judgment/oracle.json"
+        ],
+        "status": "pending",
+        "pending_reason": "The exact-head hosted attempt failed before inference during deterministic contract verification, so it is an execution/setup failure rather than support or falsification of the semantic-interface hypothesis."
+      },
+      "interpretation": "This is the only live inference experiment in the recovery line. A positive result would support inference as semantic judgment over deterministic candidate interpretations, not as provider-query construction. The prior 4/7 baseline is immutable historical evidence, not executable predecessor machinery. Repeated semantic decisions that become mechanically characterizable should be promoted into software.",
+      "non_claims": [
+        "The model should construct exact provider coordinates.",
+        "A semantic choice is authority-bearing evidence.",
+        "A model win proves inference is necessary for all recovery.",
+        "The synthetic interpretation sets represent every provider or ambiguity class.",
+        "A wrong semantic choice may bypass exact effect identity binding."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The semantic-choice interface, three recoverable residue cases, permanent-uncertainty control, deterministic compiler, and falsification criteria were fixed before hosted inference was attempted."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "No scientific outcome is admitted yet because the exact-head hosted run failed in the deterministic semantic contract before model inference began."
+      }
     }
   ]
 }

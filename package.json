@@ -52,7 +52,8 @@
     "test:transport-not-dispatched-evidence": "node --experimental-strip-types experiments/transport-not-dispatched-evidence/experiment.ts",
     "lint": "bash scripts/lint.sh",
     "format": "bash scripts/format.sh",
-    "experiment:core-loop-concurrency": "node --experimental-strip-types experiments/core-loop-concurrency/experiment.ts"
+    "experiment:core-loop-concurrency": "node --experimental-strip-types experiments/core-loop-concurrency/experiment.ts",
+    "test:recovery-semantic-judgment": "node --test experiments/recovery-semantic-judgment/recovery-semantic-judgment.test.mjs"
   },
   "devDependencies": {
     "@types/node": "22.20.4",

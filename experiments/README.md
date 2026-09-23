@@ -9,6 +9,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `recovery-reasoning/` - historical deterministic recovery frontier: 5/5 mechanically recoverable cases resolved with zero false certainty; judgment only after enumerable safe search is exhausted.
 - `recovery-agent-search/` - historical negative one-shot inference result: 3/7 versus the deterministic 4/7 baseline, with zero false certainty.
 - `recovery-agent-refinement/` - historical bounded-refinement result: 3/7 → 4/7 cumulative, tying rather than beating the deterministic baseline.
+- `recovery-semantic-judgment/` - live recovery experiment: model chooses only among deterministic semantic interpretations; trusted software owns query compilation, authoritative observation, effect binding, and settlement.
 - `assignment-capsule/` - exact Overcenter claim plus self-contained task-byte delivery to a no-checkout worker and trusted settlement.
 - `transport-not-dispatched-evidence/` - preregistered HTTPS transport experiment for trustworthy pre-dispatch evidence on fresh sockets.
 - `adapter-uncertainty-exploration/` - bounded production-adapter uncertainty exploration for retry-relevant durable-state collisions.

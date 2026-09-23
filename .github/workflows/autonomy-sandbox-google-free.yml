@@ -1,0 +1,283 @@
+name: Recovery semantic judgment experiment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'experiments/recovery-semantic-judgment/**'
+      - '.github/workflows/autonomy-sandbox-google-free.yml'
+      - 'package.json'
+      - 'experiments/registry.json'
+
+permissions: {}
+
+concurrency:
+  group: recovery-semantic-judgment-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+  AI_SDK_VERSION: 7.0.107
+  AI_SDK_GOOGLE_VERSION: 4.0.76
+  GCP_IDENTITY_PROJECT_ID: project-6b810532-a302-48dc-b56
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/380435294892/locations/global/workloadIdentityPools/github-reasoning/providers/overcenter-research
+  GCP_API_KEY_READER_SERVICE_ACCOUNT: oc-reasoning-key-reader@project-6b810532-a302-48dc-b56.iam.gserviceaccount.com
+  GEMINI_KEY_ID: overcenter-google-free
+  GEMINI_FREE_PROJECT_ID: ${{ vars.GEMINI_FREE_PROJECT_ID }}
+
+jobs:
+  prepare:
+    name: Trusted benchmark - prepare semantic packets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      prompt_sha256: ${{ steps.packet.outputs.prompt_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify deterministic semantic contract
+        run: npm run test:recovery-semantic-judgment
+      - name: Build model-visible semantic assignment
+        id: packet
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/recovery-semantic-assignment"
+          mkdir -p "$root"
+          cp experiments/recovery-semantic-judgment/decision.schema.json "$root/decision.schema.json"
+          cp experiments/recovery-semantic-judgment/google-free-candidate.ts "$root/google-free-candidate.ts"
+          node - <<'NODE' > "$root/prompt.md"
+          const fs=require('node:fs');
+          const packets=JSON.parse(fs.readFileSync('experiments/recovery-semantic-judgment/packets.json','utf8'));
+          const lines=[
+            'You are an untrusted semantic recovery reasoner in an Overcenter experiment.',
+            '',
+            packets.premise,
+            '',
+            'Your job is semantic judgment only.',
+            'Trusted deterministic software owns provider schemas, exact coordinates, query construction, authoritative observation, and settlement.',
+            '',
+            'For each case choose exactly one listed interpretation when the evidence supports it, or abstain.',
+            'Do not invent a new interpretation.',
+            'Do not emit provider operations, resource coordinates, actors, principals, regions, artifacts, provider record IDs, certainty, retry instructions, or settlement state.',
+            '',
+            'Cases:',
+            JSON.stringify(packets.cases,null,2),
+          ];
+          process.stdout.write(lines.join('\n')+'\n');
+          NODE
+          prompt_sha256="$(sha256sum "$root/prompt.md" | cut -d' ' -f1)"
+          echo "prompt_sha256=$prompt_sha256" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recovery-semantic-assignment
+          path: ${{ runner.temp }}/recovery-semantic-assignment
+          if-no-files-found: error
+          retention-days: 1
+
+  worker:
+    name: Untrusted Google-free reasoner - choose semantics
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: recovery-semantic-assignment
+          path: ${{ runner.temp }}/recovery-semantic-assignment
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22.16.0
+      - name: Verify semantic assignment and free-project coordinate
+        env:
+          EXPECTED_PROMPT_SHA256: ${{ needs.prepare.outputs.prompt_sha256 }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/recovery-semantic-assignment"
+          test "$(sha256sum "$root/prompt.md" | cut -d' ' -f1)" = "$EXPECTED_PROMPT_SHA256"
+          test ! -e "$root/oracle.json"
+          test -n "$GEMINI_FREE_PROJECT_ID"
+          [[ "$GEMINI_FREE_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]]
+      - id: google-auth
+        name: Exchange GitHub OIDC for short-lived Google credentials
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_IDENTITY_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_API_KEY_READER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 300s
+          create_credentials_file: false
+          export_environment_variables: false
+      - id: free-project
+        name: Prove Gemini project is still unbilled
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/recovery-semantic-google-free"
+          mkdir -p "$root"
+          curl --fail-with-body --silent --show-error             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             "https://cloudbilling.googleapis.com/v1/projects/$GEMINI_FREE_PROJECT_ID/billingInfo"             -o "$root/billing.json"
+          BILLING="$root/billing.json" node - <<'NODE'
+          const fs=require('node:fs');
+          const billing=JSON.parse(fs.readFileSync(process.env.BILLING,'utf8'));
+          if(billing.billingEnabled!==false) throw new Error('GEMINI_PROJECT_BILLING_ENABLED');
+          NODE
+          curl --fail-with-body --silent --show-error             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             "https://cloudresourcemanager.googleapis.com/v1/projects/$GEMINI_FREE_PROJECT_ID"             -o "$root/project.json"
+          PROJECT="$root/project.json" KEY_ID="$GEMINI_KEY_ID" node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs=require('node:fs');
+          const project=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));
+          const number=String(project.projectNumber||'');
+          if(!/^[0-9]+$/.test(number)) throw new Error('GEMINI_PROJECT_NUMBER_INVALID');
+          console.log('key_resource=projects/'+number+'/locations/global/keys/'+process.env.KEY_ID);
+          NODE
+      - name: Prepare byte-scoped semantic runtime
+        run: |
+          set -euo pipefail
+          source_root="$RUNNER_TEMP/recovery-semantic-assignment"
+          root="$RUNNER_TEMP/recovery-semantic-google-free"
+          sandbox_root=/opt/overcenter-recovery-semantic
+          mkdir -p "$root/runtime" "$root/input" "$root/out"
+          cp "$source_root/google-free-candidate.ts" "$root/runtime/google-free-candidate.ts"
+          cp "$source_root/prompt.md" "$root/input/prompt.md"
+          cp "$source_root/decision.schema.json" "$root/input/decision.schema.json"
+          npm install --prefix "$root/runtime" --ignore-scripts --no-package-lock --no-save             "ai@$AI_SDK_VERSION" "@ai-sdk/google@$AI_SDK_GOOGLE_VERSION"
+          sudo useradd --no-create-home --shell /usr/sbin/nologin overcenter-model
+          sudo rm -rf "$sandbox_root"
+          sudo install -d -o root -g root -m 0711 "$sandbox_root"
+          sudo mv "$root/runtime" "$sandbox_root/runtime"
+          sudo mv "$root/input" "$sandbox_root/input"
+          sudo chown -R root:root "$sandbox_root/runtime" "$sandbox_root/input"
+          sudo chmod -R a+rX,u-w,g-w,o-w "$sandbox_root/runtime" "$sandbox_root/input"
+          sudo install -d -o overcenter-model -g overcenter-model -m 0700 "$sandbox_root/out" "$sandbox_root/home"
+          rm -rf "$GITHUB_WORKSPACE"
+          mkdir -m 0700 "$GITHUB_WORKSPACE"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
+      - name: Resolve Gemini auth key from Google API Keys
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          GEMINI_API_KEY_RESOURCE: ${{ steps.free-project.outputs.key_resource }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/recovery-semantic-google-free"
+          [[ "$GEMINI_API_KEY_RESOURCE" =~ ^projects/[0-9]+/locations/global/keys/overcenter-google-free$ ]]
+          key_http="$(curl --silent --show-error -o "$root/key-response.json" -w '%{http_code}'             -H "Authorization: Bearer $GOOGLE_ACCESS_TOKEN"             -H "x-goog-user-project: $GEMINI_FREE_PROJECT_ID"             "https://apikeys.googleapis.com/v2/$GEMINI_API_KEY_RESOURCE/keyString")"
+          test "$key_http" = "200"
+          RESPONSE="$root/key-response.json" KEY="$root/gemini-api-key" node - <<'NODE'
+          const fs=require('node:fs');
+          const response=JSON.parse(fs.readFileSync(process.env.RESPONSE,'utf8'));
+          if(typeof response.keyString!=='string' || response.keyString.length<8){
+            throw new Error('GEMINI_API_KEY_STRING_MISSING');
+          }
+          fs.writeFileSync(process.env.KEY,response.keyString,{mode:0o600,flag:'wx'});
+          NODE
+          rm -f "$root/key-response.json"
+          echo "::add-mask::$(cat "$root/gemini-api-key")"
+      - name: Run oracle-blind semantic inference
+        run: |
+          set -euo pipefail
+          test -z "${GITHUB_TOKEN:-}"
+          root="$RUNNER_TEMP/recovery-semantic-google-free"
+          sandbox_root=/opt/overcenter-recovery-semantic
+          model_uid="$(id -u overcenter-model)"
+          model_gid="$(id -g overcenter-model)"
+          runner_uid="$(id -u)"
+          runner_gid="$(id -g)"
+          node_bin="$(readlink -f "$(command -v node)")"
+          test ! -e "$sandbox_root/input/oracle.json"
+          gemini_key="$(cat "$root/gemini-api-key")"
+          cleanup(){
+            rm -f "$root/gemini-api-key"
+            unset gemini_key
+          }
+          trap cleanup EXIT
+          sudo /usr/bin/setpriv             --reuid="$model_uid"             --regid="$model_gid"             --clear-groups             /usr/bin/env -i               PATH=/usr/bin:/bin               HOME="$sandbox_root/home"               GOOGLE_GENERATIVE_AI_API_KEY="$gemini_key"               OVERCENTER_REASONING_CREDENTIAL_SOURCE=gcp-api-keys-via-github-oidc               OVERCENTER_REASONING_BILLING_PROJECT_ID="$GEMINI_FREE_PROJECT_ID"               OVERCENTER_REASONING_BILLING_OBSERVATION_SOURCE=google-cloud-billing-api               OVERCENTER_REASONING_BILLING_ENABLED=false               "$node_bin" --experimental-strip-types                 "$sandbox_root/runtime/google-free-candidate.ts"                 --prompt "$sandbox_root/input/prompt.md"                 --schema "$sandbox_root/input/decision.schema.json"                 --candidate "$sandbox_root/out/candidate.json"                 --provenance "$sandbox_root/out/provenance.json"
+          sudo install -o "$runner_uid" -g "$runner_gid" -m 0600 "$sandbox_root/out/candidate.json" "$root/out/candidate.json"
+          sudo install -o "$runner_uid" -g "$runner_gid" -m 0600 "$sandbox_root/out/provenance.json" "$root/out/provenance.json"
+          cleanup
+          trap - EXIT
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recovery-semantic-candidate
+          path: |
+            ${{ runner.temp }}/recovery-semantic-google-free/out/candidate.json
+            ${{ runner.temp }}/recovery-semantic-google-free/out/provenance.json
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    name: Trusted benchmark - compile, observe, and score
+    needs: [prepare, worker]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: recovery-semantic-candidate
+          path: ${{ runner.temp }}/recovery-semantic-candidate
+      - name: Re-run deterministic contract at exact source revision
+        run: npm run test:recovery-semantic-judgment
+      - name: Verify reasoning provenance
+        run: |
+          PROVENANCE="$RUNNER_TEMP/recovery-semantic-candidate/provenance.json" node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync(process.env.PROVENANCE,'utf8'));
+          if(p.provider!=='google.generative-ai') throw new Error('SEMANTIC_AGENT_PROVIDER_MISMATCH');
+          if(p.model_id!=='gemini-3.8-flash') throw new Error('SEMANTIC_AGENT_MODEL_MISMATCH');
+          if(p.credential_source!=='gcp-api-keys-via-github-oidc') throw new Error('SEMANTIC_AGENT_CREDENTIAL_MISMATCH');
+          if(p.billing_project_id!==process.env.GEMINI_FREE_PROJECT_ID) throw new Error('SEMANTIC_AGENT_BILLING_PROJECT_MISMATCH');
+          if(p.billing_enabled!==false) throw new Error('SEMANTIC_AGENT_BILLING_ENABLED');
+          if(p.repository_credentials_present!==false) throw new Error('SEMANTIC_AGENT_REPOSITORY_CREDENTIALS');
+          if(p.checkout_readable_during_inference!==false) throw new Error('SEMANTIC_AGENT_CHECKOUT_READABLE');
+          if(p.overcenter_authority_present!==false) throw new Error('SEMANTIC_AGENT_AUTHORITY_PRESENT');
+          if(p.provider_mutation_authority_present!==false) throw new Error('SEMANTIC_AGENT_MUTATION_AUTHORITY_PRESENT');
+          if(p.input_scope!=='semantic-interpretations-only') throw new Error('SEMANTIC_AGENT_SCOPE_MISMATCH');
+          NODE
+      - name: Score semantic decisions through deterministic compiler and oracle
+        run: |
+          set -euo pipefail
+          node experiments/recovery-semantic-judgment/score.mjs             "$RUNNER_TEMP/recovery-semantic-candidate/candidate.json"             "$RUNNER_TEMP/recovery-semantic-result.json"
+      - name: Publish semantic judgment result
+        run: |
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/recovery-semantic-result.json','utf8'));
+          console.log('## Recovery semantic judgment result');
+          console.log('');
+          console.log('- deterministic baseline: '+r.deterministic_baseline_resolved+'/'+r.recoverable_cases);
+          console.log('- semantic choices correct: '+r.semantic_correct+'/'+r.semantic_residue_cases);
+          console.log('- semantic residue recovered: '+r.semantic_resolved+'/'+r.semantic_residue_cases);
+          console.log('- agent-assisted total: '+r.agent_assisted_total_resolved+'/'+r.recoverable_cases);
+          console.log('- recovery delta: '+(r.recovery_delta>=0?'+':'')+r.recovery_delta);
+          console.log('- false certainty: '+r.false_certainty);
+          console.log('- permanent-uncertainty violations: '+r.permanent_uncertainty_violations);
+          console.log('- wrong unique matches rejected: '+r.wrong_unique_matches_rejected);
+          console.log('- rejected decisions: '+r.rejected_agent_decisions.length);
+          console.log('- interpretation: '+r.hypothesis);
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recovery-semantic-judgment-result
+          path: |
+            ${{ runner.temp }}/recovery-semantic-result.json
+            ${{ runner.temp }}/recovery-semantic-candidate/provenance.json
+          if-no-files-found: error
+          retention-days: 30

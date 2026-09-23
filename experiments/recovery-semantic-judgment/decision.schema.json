@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "decisions"
+  ],
+  "properties": {
+    "schema": {
+      "const": "overcenter-recovery-semantic-decisions/v1"
+    },
+    "decisions": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "kind",
+              "interpretation_id"
+            ],
+            "properties": {
+              "case_id": {
+                "enum": [
+                  "analytics-preview-vm",
+                  "checkout-east-canary",
+                  "contoso-eu-archive",
+                  "missing-physical-receipt"
+                ]
+              },
+              "kind": {
+                "const": "choose"
+              },
+              "interpretation_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "case_id",
+              "kind"
+            ],
+            "properties": {
+              "case_id": {
+                "enum": [
+                  "analytics-preview-vm",
+                  "checkout-east-canary",
+                  "contoso-eu-archive",
+                  "missing-physical-receipt"
+                ]
+              },
+              "kind": {
+                "const": "abstain"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
