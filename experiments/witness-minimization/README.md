@@ -311,3 +311,44 @@ The prototype is falsified if any of the following occurs:
 - any disagreement produces false certainty.
 
 This remains an experiment. It does not grant the learned expression settlement or retry authority.
+
+## T7 result: positive recovery proof learning
+
+Hosted run `35822236282` evaluated revision `d484b5b86cc0187e85e14af5c42cfb75e7f2ac75`.
+
+The learner produced:
+
+```text
+main:
+  generation-terminated
+  & reservation-bound
+  & route:main
+  & (main-a-clear | main-b-clear)
+
+helper:
+  generation-terminated
+  & helper-clear
+  & reservation-bound
+  & route:helper
+```
+
+The two equivalent main-route monitors remained alternatives rather than being incorrectly intersected. The helper route normalized to a single conjunction because it has only one proof alternative.
+
+The learned expressions were compared against the original deterministic verifier over an exhaustive hostile Boolean table:
+
+```text
+hostile_truth_table_cases=512
+hostile_truth_table_agreement=512
+false_certainty=0
+false_negatives=0
+missing_completeness_fails_closed=true
+committed_monitor_invalidates_clear=true
+equivalent_monitor_recovers=true
+```
+
+Two earlier hosted attempts exposed only representation bugs in the prototype's Boolean normal form: first, a single helper proof was factored entirely into the required conjunction; second, that fully factored clause was represented as one empty alternative instead of no alternative branch. Neither failure passed the semantic equivalence gate. The corrected representation leaves the verifier-equivalence test unchanged.
+
+This supports the narrower mechanism under test: within a separately certified route topology, minimized positive witnesses can be generalized into a compact executable proof expression without turning unobserved events into evidence.
+
+The result does **not** authorize the learned expression for production settlement or retry. Admission still requires binding the proof to exact execution identity, durable reservation, route-topology version/identity, and a trusted completeness claim for each semantic monitor predicate.
+
