@@ -69,7 +69,7 @@ try {
   }
 
   const permit = kernel.acquireExecution(candidate.run_id);
-  const receipt = kernel.resolve(permit, {
+  const receipt = kernel.observeAndSettle(permit, {
     codex_candidate: {
       assignment_sha256: candidate.assignment_sha256,
       patch_sha256: candidate.patch_sha256,

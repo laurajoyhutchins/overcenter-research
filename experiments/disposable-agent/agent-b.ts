@@ -51,7 +51,7 @@ assert.equal(work.postcondition.commit_sha, sourceSha, 'settlement input identit
 const recoveryPermit = kernel.acquireExecution(work.run_id);
 assert.equal(recoveryPermit.execution_generation, 3);
 
-const recovery = kernel.recoverInterrupted(recoveryPermit, {
+const recovery = kernel.recordExecutionTermination(recoveryPermit, {
   source: 'github-actions-job-supervisor',
   workflow_run_id: workflowRunId,
   workflow_run_attempt: workflowRunAttempt,
@@ -59,7 +59,7 @@ const recovery = kernel.recoverInterrupted(recoveryPermit, {
   outcome: brokerOutcome,
 });
 
-const settled = kernel.reconcile(recoveryPermit);
+const settled = kernel.observeAndSettle(recoveryPermit);
 assert.equal(settled.disposition, 'DONE');
 assert.equal(settled.verified, true);
 assert.equal(settled.observed?.verifier, 'github-commit-status/v2');

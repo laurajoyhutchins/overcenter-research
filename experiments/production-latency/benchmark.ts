@@ -233,7 +233,7 @@ async function runSample(
 
     phase = 'settlement';
     const settlementStarted = performance.now();
-    const receipt = await kernel.resolveAsync(permit);
+    const receipt = await kernel.observeAndSettleAsync(permit);
     const settlementMs = performance.now() - settlementStarted;
     phase = 'idle';
 

@@ -242,7 +242,7 @@ const results: Record<string, unknown> = {};
     );
     assert.ok(peerApplicationBytes > 0);
     assert.equal(kernel.hasUnresolvedEffect(run.id), true);
-    const interrupted = kernel.recoverInterrupted(run, { source: 'experiment' });
+    const interrupted = kernel.recordExecutionTermination(run, { source: 'experiment' });
     assert.equal(interrupted.disposition, 'RECOVERY_REQUIRED');
     assert.equal(kernel.inspect()[0].status, 'RECOVERY_REQUIRED');
     assert.equal(kernel.deriveReadyWork(), null);
@@ -329,7 +329,7 @@ const results: Record<string, unknown> = {};
       GITHUB_COMMIT_STATUS_EFFECT,
       'github-commit-status/v2',
     );
-    kernel.beginEffect(run);
+    kernel.reserveEffect(run);
     assert.throws(
       () => kernel.releaseEffectReservation(authority, 'forged/not-dispatched'),
       /EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED/,

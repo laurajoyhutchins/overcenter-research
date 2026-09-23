@@ -194,10 +194,10 @@ async function runWorld(world: World): Promise<Result> {
         duplicateRetryError === 'UNRESOLVED_EFFECT' && postCalls === postsBeforeRetry;
       assert.equal(duplicateRetryBlocked, true);
 
-      const interrupted = fresh.recoverInterrupted(recovery, {
+      const interrupted = fresh.recordExecutionTermination(recovery, {
         source: 'adapter-uncertainty-exploration',
       });
-      const settled = fresh.reconcile(recovery);
+      const settled = fresh.observeAndSettle(recovery);
       const lifecycle = fresh.inspect()[0];
       assert.ok(lifecycle);
 

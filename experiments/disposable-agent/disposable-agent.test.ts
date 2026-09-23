@@ -50,7 +50,7 @@ test('entire Agent A sandbox can disappear and fresh Agent B reconstructs and se
 
     writeFileSync(join(a, 'agent-cache.sqlite'), 'throw me away');
 
-    agentA.beginEffect(run);
+    agentA.reserveEffect(run);
     writeFileSync(f.world, 'present');
     const claimCommit = run.claim_commit;
     rmSync(a, { recursive: true, force: true });
@@ -70,8 +70,8 @@ test('entire Agent A sandbox can disappear and fresh Agent B reconstructs and se
     const termination = JSON.parse(readFileSync(f.supervisor, 'utf8'));
     const recovery = agentB.acquireExecution(termination.run_id);
     assert.equal(recovery.execution_generation, 2);
-    agentB.recoverInterrupted(recovery, { source: 'sandbox-supervisor' });
-    const done = agentB.reconcile(recovery);
+    agentB.recordExecutionTermination(recovery, { source: 'sandbox-supervisor' });
+    const done = agentB.observeAndSettle(recovery);
 
     assert.equal(done.disposition, 'DONE');
     assert.equal(done.verified, true);
@@ -108,9 +108,9 @@ test('kernel-owned verifier cannot be replaced by the agent', () => {
     const k = new GitOvercenterKernel(a, { remote: 'origin' });
     const work = k.deriveReadyWork()!;
     const run = k.claim(work.id, work.revision);
-    k.beginEffect(run);
+    k.reserveEffect(run);
     writeFileSync(f.world, 'wrong');
-    const result = k.resolve(run);
+    const result = k.observeAndSettle(run);
 
     assert.equal(result.disposition, 'RECOVERY_REQUIRED');
     assert.equal(result.verified, false);
@@ -129,11 +129,11 @@ test('READY reconciliation is idempotent after lost acknowledgement', () => {
     const work = k.deriveReadyWork()!;
     const run = k.claim(work.id, work.revision);
 
-    k.recoverInterrupted(run, { source: 'supervisor' });
-    const first = k.reconcile(run);
+    k.recordExecutionTermination(run, { source: 'supervisor' });
+    const first = k.observeAndSettle(run);
     assert.equal(first.disposition, 'READY');
 
-    const second = k.reconcile(run);
+    const second = k.observeAndSettle(run);
     assert.equal(second.disposition, 'READY');
     assert.equal(second.settlement_commit, first.settlement_commit);
   } finally {
@@ -152,7 +152,7 @@ test('missing remote authority never looks empty or idle', () => {
     assert.throws(() => k.inspect(), /NOT_INITIALIZED/);
     assert.throws(() => k.deriveReadyWork(), /NOT_INITIALIZED/);
     assert.throws(() => k.receipts(), /NOT_INITIALIZED/);
-    assert.throws(() => k.recoverInterrupted({ id: 'x' } as never), /NOT_INITIALIZED/);
+    assert.throws(() => k.recordExecutionTermination({ id: 'x' } as never), /NOT_INITIALIZED/);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }

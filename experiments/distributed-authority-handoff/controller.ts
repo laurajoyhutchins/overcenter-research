@@ -171,19 +171,19 @@ async function hostedRecover(args: string[]): Promise<void> {
   assert.ok(work?.run_id);
   const permit = kernel.acquireExecution(work.run_id);
 
-  assert.throws(() => kernel.beginEffect(permit), /UNRESOLVED_EFFECT/);
-  const interrupted = kernel.recoverInterrupted(permit, {
+  assert.throws(() => kernel.reserveEffect(permit), /UNRESOLVED_EFFECT/);
+  const interrupted = kernel.recordExecutionTermination(permit, {
     source: 'distributed-authority-handoff',
     prior_controller: 'terminated-after-provider-effect',
   });
   assert.equal(interrupted.disposition, 'RECOVERY_REQUIRED');
 
-  let settled = await kernel.resolveAsync(permit, {
+  let settled = await kernel.observeAndSettleAsync(permit, {
     source: 'distributed-authority-handoff-fresh-controller',
   });
   for (let attempt = 0; settled.disposition !== 'DONE' && attempt < 8; attempt += 1) {
     await sleep(750);
-    settled = await kernel.resolveAsync(permit, {
+    settled = await kernel.observeAndSettleAsync(permit, {
       source: 'distributed-authority-handoff-fresh-controller',
       observation_retry: attempt + 1,
     });
@@ -274,15 +274,15 @@ function localContract(): void {
     const c = new GitOvercenterKernel(controllerC, { ref, remote });
     assert.equal(c.inspect()[0]?.run_id, winner.id);
     const broker = c.acquireExecution(winner.id);
-    c.beginEffect(broker);
+    c.reserveEffect(broker);
     writeFileSync(shared, 'present');
     assert.equal(c.hasUnresolvedEffect(winner.id), true);
 
     const d = new GitOvercenterKernel(controllerD, { ref, remote });
     const recovery = d.acquireExecution(winner.id);
-    assert.throws(() => d.beginEffect(recovery), /UNRESOLVED_EFFECT/);
-    d.recoverInterrupted(recovery, { source: 'local-contract' });
-    const settled = d.resolve(recovery, { source: 'fresh-local-controller' });
+    assert.throws(() => d.reserveEffect(recovery), /UNRESOLVED_EFFECT/);
+    d.recordExecutionTermination(recovery, { source: 'local-contract' });
+    const settled = d.observeAndSettle(recovery, { source: 'fresh-local-controller' });
     assert.equal(settled.disposition, 'DONE');
     assert.equal(d.inspect()[0]?.status, 'DONE');
 
