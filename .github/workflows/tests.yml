@@ -40,6 +40,8 @@ jobs:
         run: npm install --ignore-scripts --package-lock=false
       - name: Type-check repository
         run: npm run typecheck
+      - name: Verify production source budget
+        run: npm run check:source-budget
       - name: Verify experiment contracts
         run: npm run test:experiment-contract
       - name: Run deterministic regression
