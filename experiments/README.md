@@ -22,6 +22,8 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `lean-semantic-oracle/` - historical exact-revision TypeScript-vs-Lean differential; executable proof retained at its evaluated revision.
 - `lisp-semantics/` - semantic-coherence control: hand-wired TypeScript versus one Lisp-shaped verifier definition compiled to canonical IR.
 - `github-object-transport/` - exact GitHub object transport fixtures.
+- `generated-effect-protocol/` - historical positive generator/checker result for mechanical effect protocol facts.
+- `generated-effect-production-differential/` - historical negative adoption result: behavior matched, but first-adoption surface cost was 5.314x handwritten.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
 - `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
