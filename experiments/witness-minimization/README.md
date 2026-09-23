@@ -389,3 +389,28 @@ A module-local unforgeable token plus private runtime bindings is used so a stru
 The treatment is falsified if any hostile substitution reaches the simulated retry consumer, if a certificate survives a topology or proof-policy change, if the same certificate can be consumed twice, or if missing completeness can contribute a positive recovery atom.
 
 This remains an architectural experiment. The real `KernelCore` settlement/retry path is not changed by T8.
+
+## T8 result: authority-bound recovery certificate
+
+Hosted run `35822785538` evaluated the exact preregistered revision `1e37026e28d5aa2f908a9ab3c4650793861cd940`.
+
+```text
+mint_hostile_cases=14
+mint_hostile_rejected=14
+consume_hostile_cases=13
+consume_hostile_rejected=13
+constructor_forgery_rejected=true
+single_use_replay_rejected=true
+equivalent_witness_substitution_rejected=true
+topology_change_invalidates_certificate=true
+proof_policy_substitution_rejected=true
+false_certainty=0
+```
+
+The certificate binds the positive recovery proof to the exact run, obligation, claimed revision, claim commit, obligation semantic key, execution generation, execution-authority commit, durable effect-reservation commit, effect route, mutation-topology digest, admitted learned-proof digest, and exact witness digest.
+
+A semantically equivalent witness cannot substitute for the certified witness because its digest differs. An old certificate cannot cross a generation or reservation boundary. A changed topology or proof policy invalidates the certificate. The runtime object is single-use and cannot be reconstructed through the public constructor path without the module-local minting authority.
+
+This validates the **ephemeral authority-binding layer**, but it also exposes the next durable requirement. The current kernel clears `unresolvedReservationsByRun` only when replay observes a terminal `DONE` or `READY` receipt. Therefore a production implementation must not merely pass this certificate directly to `beginEffect`; it must commit replay-verifiable non-occurrence evidence that deterministically yields `READY` and clears the old reservation before a new execution generation can reserve another effect.
+
+T8 does not yet modify production settlement semantics.
