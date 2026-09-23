@@ -357,11 +357,7 @@ export function observeCertifiedKubernetesConfigMap(
         observation,
         KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE,
         resolveRef,
-        {
-          requiredTopLevelExtensions:{
-            authority_id:'non-empty-string',
-          },
-        },
+        {requiredNonEmptyTopLevel:['authority_id']},
       );
       const body=data(certified.outcome.value);
       const metadata=data(body?.metadata);
