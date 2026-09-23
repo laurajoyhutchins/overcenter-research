@@ -8,7 +8,7 @@ import type {
   KubernetesConfigMapExistsPostcondition,
 } from '../../model.ts';
 import type { ProviderObservation } from '../../observation/provider.ts';
-import { asData as data, hasExactKeys as exactKeys } from '../../validation.ts';
+import { isData as data, hasExactKeys as exactKeys } from '../../validation.ts';
 import {
   validateObservationSlice,
   type ResponseFieldSpec,
