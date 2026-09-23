@@ -622,7 +622,11 @@ export function deriveProjectProjection({
   const readyWork =
     work
       .filter((candidate) => claimabilityErrors.get(candidate.id) === null)
-      .sort((a, b) => serviceAge(a.id) - serviceAge(b.id) || a.id.localeCompare(b.id))[0] ?? null;
+      .map((candidate) => ({ candidate, serviceAge: serviceAge(candidate.id) }))
+      .sort(
+        (a, b) =>
+          a.serviceAge - b.serviceAge || a.candidate.id.localeCompare(b.candidate.id),
+      )[0]?.candidate ?? null;
 
   return {
     lifecycles,
