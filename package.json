@@ -50,6 +50,7 @@
     "test:merkle-evidence-leaves": "node --experimental-strip-types --test experiments/merkle-evidence-leaves/experiment.test.ts",
     "test:evidence-cas-break-even": "node --experimental-strip-types --test experiments/evidence-cas-break-even/experiment.test.ts",
     "test:evidence-cas-group-threshold": "node --experimental-strip-types --test experiments/evidence-cas-group-threshold/experiment.test.ts",
-    "test:evidence-cas-local-backend": "node --experimental-strip-types --test experiments/evidence-cas-local-backend/experiment.test.ts"
+    "test:evidence-cas-local-backend": "node --experimental-strip-types --test experiments/evidence-cas-local-backend/experiment.test.ts",
+    "test:evidence-cas-atomic-publish": "node --experimental-strip-types --test experiments/evidence-cas-atomic-publish/experiment.test.ts"
   }
 }
