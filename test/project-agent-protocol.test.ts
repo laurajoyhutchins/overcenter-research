@@ -188,6 +188,7 @@ test('project intent is an ensure-set and does not retire unmentioned obligation
       authorityRef: AUTHORITY_REF,
       remote: 'origin',
     });
+    assert.ok(receipt.obligation_id);
     assert.ok(['intent-work', 'real-frontier-work'].includes(receipt.obligation_id));
 
     const current = new GitOvercenterKernel(f.work, {
