@@ -1448,6 +1448,116 @@
         "state": "supported",
         "summary": "On current-main baseline 81b350e526824ab2c397642e6761a0c860151331, bound EffectAuthority removed all duplicated provider authority reconstruction, reduced the measured production slice by 2 nonblank lines, preserved the stale-generation mutation fence, passed repository typecheck and full deterministic regression, and stayed within the 1.10x latency ceiling."
       }
+    },
+    {
+      "id": "adapter-uncertainty-exploration",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/adapter-uncertainty-exploration",
+      "readme": "experiments/adapter-uncertainty-exploration/README.md",
+      "question": "Does Overcenter's current durable GitHub commit-status state vocabulary preserve every distinction that matters to retry safety across uncertainty at the provider boundary?",
+      "claim": "The current effect-reservation, observation, and receipt vocabulary distinguishes materially different mutation-certainty states that require different safe retry decisions.",
+      "contrast": "A bounded explorer finds two physically different worlds with different retry safety that reconstruct to the same durable Overcenter recovery fingerprint.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:adapter-uncertainty-exploration"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production TypeScript GitHub commit-status adapter and production SQLite authority kernel.",
+        "Injected provider transport and readback visibility; no network or provider credential is required."
+      ],
+      "success_criteria": [
+        "All ten declared reachable uncertainty worlds execute through the real production adapter and SQLite recovery path.",
+        "An unresolved reservation blocks every attempted second provider mutation.",
+        "DONE occurs only when a matching remote effect is visible to authoritative readback.",
+        "The explorer kills retry-on-any-throw, retry-on-RECOVERY_REQUIRED, and trust-HTTP-201-without-readback negative controls.",
+        "The preregistered definitely-not-dispatched world and committed-but-readback-hidden world are compared for exact durable recovery equivalence.",
+        "The hypothesis is falsified if those two worlds require different physical retry decisions yet produce the same durable recovery fingerprint."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "c4c3564bb02618642fcb9d046686772f7adb8224",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35822437473, rerun attempt 2, candidate-evidence job 107057254622: exact-head deterministic experiment PASS.",
+          "10 reachable provider-boundary worlds collapsed to 2 durable equivalence classes with 1 retry-safety collision.",
+          "Preregistered witness: connect-fails-before-dispatch and dispatch-present-throw-hidden both reconstructed to RECOVERY_REQUIRED with COLLECTION_ABSENCE_NOT_AUTHORITATIVE while duplicate retry remained blocked.",
+          "All three unsafe negative controls were killed; no production blind retry or false DONE was observed.",
+          "The first attempted run at 709b0b5d345744e7aa7e5c8f7e5a45ad6112bf76 was discarded before interpretation because a test-fixture path assertion rejected the production paginated readback request; c4c3564bb02618642fcb9d046686772f7adb8224 fixes only that fixture."
+        ]
+      },
+      "interpretation": "A collision is evidence of a liveness/knowledge gap, not a duplicate-effect safety failure: Overcenter may conservatively retain RECOVERY_REQUIRED even when trustworthy pre-dispatch evidence could make retry safe.",
+      "non_claims": [
+        "Arbitrary provider adapters are covered.",
+        "Node fetch can always prove that no request bytes were dispatched.",
+        "Transport errors or HTTP 502 responses are authoritative absence evidence.",
+        "Real GitHub timing or eventual-consistency distributions are measured.",
+        "This bounded enumerator is a complete symbolic or concolic executor."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The uncertainty grammar, preregistered witness pair, durable fingerprint, safety invariants, and three negative controls were recorded before execution. The only post-run harness correction fixed an over-escaped paginated-readback path assertion; it did not change the preregistered experiment semantics."
+      },
+      "outcome": {
+        "state": "falsified",
+        "summary": "At exact revision c4c3564bb02618642fcb9d046686772f7adb8224, a definitely-not-dispatched failure and a committed-but-readback-hidden failure required different physical retry decisions but reconstructed to the same durable RECOVERY_REQUIRED state. The current representation remains safe because unresolved reservations block blind replay, but it loses retry-relevant dispatch knowledge."
+      }
+    },
+    {
+      "id": "transport-not-dispatched-evidence",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/transport-not-dispatched-evidence",
+      "readme": "experiments/transport-not-dispatched-evidence/README.md",
+      "question": "Can a trusted HTTPS transport boundary produce a NOT_DISPATCHED witness strong enough to distinguish definitely-not-dispatched mutation from an uncertain mutation outcome?",
+      "claim": "On a fresh HTTPS socket, failure before TLS secureConnect can be retained as NOT_DISPATCHED while every later transport failure remains UNKNOWN.",
+      "contrast": "Infer dispatch certainty from coarse transport error strings or map all mutation transport failures to one UNKNOWN state.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:transport-not-dispatched-evidence"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Node https.request using fresh sockets only.",
+        "Loopback TCP/TLS peers with a fixed test certificate; no external network or provider credential is required."
+      ],
+      "success_criteria": [
+        "DNS failure before connection establishment yields NOT_DISPATCHED.",
+        "TLS-handshake reset before secureConnect yields NOT_DISPATCHED and zero peer-observed application bytes.",
+        "Reset after secureConnect yields UNKNOWN and the peer observes decrypted HTTP request bytes.",
+        "HTTP 201 after receiving the mutation body yields ACKNOWLEDGED.",
+        "No world with peer-observed application bytes yields NOT_DISPATCHED.",
+        "Error-code-only and any-transport-error NOT_DISPATCHED negative controls are killed."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "0420435e83f4fd66cbeed4f3093b3c97efa78bdb",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35824901839, rerun attempt 2, candidate-evidence job 107064713901: exact-head experiment and candidate proof PASS.",
+          "DNS failure: NOT_DISPATCHED, secure_connected=false, peer_application_bytes=0.",
+          "TLS-handshake reset: NOT_DISPATCHED, secure_connected=false, ECONNRESET, peer_tls_bytes=349, peer_application_bytes=0.",
+          "Post-secureConnect reset: UNKNOWN, secure_connected=true, ECONNRESET, peer_application_bytes=172.",
+          "HTTP 201 control: ACKNOWLEDGED, secure_connected=true, peer_application_bytes=48.",
+          "Error-code-only and any-transport-error NOT_DISPATCHED negative controls were both killed.",
+          "The exact-head gate also passed TypeScript type-checking, TLA+ verification, production computation boundary proof, and self-application."
+        ]
+      },
+      "interpretation": "The bounded result supports a narrow transport-phase witness for fresh HTTPS sockets. The next experiment should place this transport beneath the real GitHub commit-status effect and prove that only NOT_DISPATCHED releases replay while UNKNOWN preserves RECOVERY_REQUIRED.",
+      "non_claims": [
+        "Reused keep-alive sockets satisfy the same evidence rule.",
+        "HTTP/2, QUIC, proxies, or arbitrary transports expose an equivalent boundary.",
+        "secureConnect proves a mutation occurred.",
+        "The current production fetch wrapper already exposes this evidence.",
+        "Production retry semantics should change before a real-effect-path treatment is tested."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The fresh-socket secureConnect boundary, four transport worlds, peer-byte oracle, and two unsafe negative controls were committed before first execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 0420435e83f4fd66cbeed4f3093b3c97efa78bdb, the fresh-socket HTTPS treatment emitted NOT_DISPATCHED only for failures before TLS secureConnect, kept post-connect failure UNKNOWN when the peer had already observed 172 decrypted HTTP bytes, and returned ACKNOWLEDGED on HTTP 201. No peer-observed application-byte case was misclassified as NOT_DISPATCHED."
+      }
     }
   ]
 }

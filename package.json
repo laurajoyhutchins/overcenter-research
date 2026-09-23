@@ -47,7 +47,9 @@
     "proof:worker-client": "bash src/execution/worker-client/proof.sh",
     "test:typed-capability-authority": "bash experiments/typed-capability-authority/run.sh",
     "test:effect-authority-decay": "npm run typecheck && bash experiments/effect-authority-decay/run.sh",
-    "bench:effect-authority-decay": "bash experiments/effect-authority-decay/benchmark.sh"
+    "bench:effect-authority-decay": "bash experiments/effect-authority-decay/benchmark.sh",
+    "test:adapter-uncertainty-exploration": "node --experimental-strip-types experiments/adapter-uncertainty-exploration/experiment.ts",
+    "test:transport-not-dispatched-evidence": "node --experimental-strip-types experiments/transport-not-dispatched-evidence/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
