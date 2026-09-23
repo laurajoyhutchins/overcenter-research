@@ -32,7 +32,7 @@ This experiment intentionally uses a bounded finite-state abstraction. It does n
 
 ## Fixtures
 
-Seven protocols are fixed before hosted execution:
+Phase 1 fixed seven synthetic protocols before hosted execution:
 
 1. `undispatched`: connection failure proves no mutation path exists.
 2. `ambiguous-timeout`: commit and reject worlds both yield timeout and indefinitely identical negative observations.
@@ -53,6 +53,26 @@ Expected classifications:
 | `bounded-eventual-webhook` | yes | yes |
 | `too-late` | yes | no |
 | `same-final-state` | no | no |
+
+### Phase 2: real GitHub status boundary
+
+Only after Phase 1 passed exact-head hosted evaluation, the unchanged checker was given three slices of the already-established GitHub commit-status uncertainty boundary.
+
+Those slices are grounded in independent prior evidence:
+
+- `adapter-uncertainty-exploration` at `c4c3564bb02618642fcb9d046686772f7adb8224` showed that definitely-not-dispatched and possibly-committed-but-hidden worlds collapse to the same durable recovery state unless stronger transport evidence is retained.
+- `transport-not-dispatched-evidence` at `0420435e83f4fd66cbeed4f3093b3c97efa78bdb` established the fresh-socket boundary: failure before TLS `secureConnect` yields trusted `NOT_DISPATCHED`; failure after `secureConnect` remains `UNKNOWN`.
+- `github-status-not-dispatched-release` at `6b238e23491792dc7a8734038b82f4741a4eae8e` established on the production path that only the trusted pre-`secureConnect` witness may release the reservation; post-`secureConnect` reset and HTTP 502 remain unresolved.
+
+The checker itself is unchanged. The three added protocol slices are:
+
+| GitHub status slice | Expected diagnosable | Expected safe-diagnosable | Derived recovery decision |
+| --- | --- | --- | --- |
+| pre-`secureConnect` failure / `NOT_DISPATCHED` | yes | yes | safe to release |
+| post-`secureConnect` reset / `UNKNOWN` | no | no | ambiguous, do not release |
+| HTTP 502 after request dispatch | no | no | ambiguous, do not release |
+
+This phase is falsified if the unchanged diagnoser disagrees with any of those independently established runtime decisions, if the independent depth-12 oracle disagrees with the diagnoser, or if obtaining the expected answer requires modifying the checker.
 
 ## Independent oracle
 
@@ -84,12 +104,15 @@ The experiment is informative only if:
 4. the independent depth-12 oracle reports persistent ambiguity for all and only the three non-diagnosable fixtures;
 5. the uncorrelated-receipt negative control is killed;
 6. the experiment runs deterministically with Node type stripping and no runtime dependency additions.
+7. the unchanged checker classifies the GitHub pre-`secureConnect` slice as safe-diagnosable;
+8. the unchanged checker classifies both post-`secureConnect` reset and HTTP 502 as non-diagnosable and therefore unsafe for reservation release;
+9. the derived three-way GitHub boundary exactly matches the independently established production-path result.
 
 ## Interpretation boundary
 
 A positive result would show that DES-style diagnosability is mechanically useful on a deliberately tiny effect-protocol abstraction and that safe diagnosability expresses a distinction Overcenter cares about: knowing the outcome eventually is weaker than knowing it before authority can be reused.
 
-It would not yet establish that arbitrary real adapters can be abstracted conservatively at acceptable cost. The next falsifying step would be to encode one existing production-adapter uncertainty boundary without changing the checker and test whether the derived boundary agrees with the independently established runtime result.
+Phase 2 performs that next falsifier against the already-understood GitHub commit-status boundary. A positive exact-head result would strengthen the case for using diagnosability as adapter admission tooling, but would still not make the checker production authority: the soundness of each adapter abstraction and the trustworthiness of its observations remain separate obligations.
 
 ## Non-claims
 
@@ -116,4 +139,6 @@ The independent depth-12 trace oracle agreed with the product checker on all sev
 
 The same exact-head candidate passed repository lint and TypeScript checking, the experiment contract, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application.
 
-This supports the narrow claim that DES-style diagnosability is mechanically useful on a finite effect-protocol abstraction and that safe diagnosability captures a real distinction between eventual knowledge and knowledge available before authority reuse. It does **not** yet establish that a real provider adapter can be conservatively abstracted without changing the checker. That remains the next falsifying step.
+This supports the narrow Phase 1 claim that DES-style diagnosability is mechanically useful on a finite effect-protocol abstraction and that safe diagnosability captures a real distinction between eventual knowledge and knowledge available before authority reuse.
+
+**Phase 2 is now encoded and pending exact-head hosted evaluation.** The checker implementation was not changed. The new GitHub slices are expected to derive `safe-to-release` only for trusted pre-`secureConnect` `NOT_DISPATCHED`, while post-`secureConnect` reset and HTTP 502 remain `ambiguous-do-not-release`.
