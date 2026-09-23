@@ -48,3 +48,13 @@ jobs:
             echo
             sed 's/^/    /' "$RUNNER_TEMP/witness-minimization-trials.txt"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Audit production mutation boundary
+        run: |
+          set -euo pipefail
+          npm run test:witness-source-boundary | tee "$RUNNER_TEMP/witness-source-boundary.txt"
+          {
+            echo
+            echo '## Production mutation-boundary audit'
+            echo
+            sed 's/^/    /' "$RUNNER_TEMP/witness-source-boundary.txt"
+          } >> "$GITHUB_STEP_SUMMARY"

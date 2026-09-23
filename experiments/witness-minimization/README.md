@@ -137,3 +137,16 @@ These follow-on interpretations are rejected if:
 - the independently guarded contract cannot preserve full recovery and zero false certainty; or
 - shadow discovery is fast enough at tiny sampling rates to make structural route enumeration unnecessary in this model.
 
+
+## T6: production source-boundary audit preregistration
+
+The guarded-promotion result is only useful if the mutation-route envelope can be established independently. Before executing this audit, the trial is defined as follows:
+
+1. recursively inspect every repository-owned TypeScript file under `src/`;
+2. enumerate literal mutation-capable HTTP methods `POST`, `PUT`, `PATCH`, and `DELETE`, plus explicit curl mutation verbs;
+3. enumerate `performEffect(...)` sites;
+4. fail if any mutation-capable HTTP candidate occurs in a source file that does not also route through `kernel.performEffect(...)`.
+
+This is intentionally only a bounded structural audit, not a proof of arbitrary runtime I/O completeness. Dynamic native calls, generated code, shell indirection, or mutation mechanisms not represented by the scanned syntax remain non-claims.
+
+The useful result is whether the current production slice already has a mechanically enumerable mutation boundary that can serve as the certified envelope for learned witness minimization.

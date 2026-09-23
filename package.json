@@ -46,6 +46,7 @@
     "proof:worker-client": "bash src/execution/worker-client/proof.sh",
     "test:typed-capability-authority": "bash experiments/typed-capability-authority/run.sh",
     "test:witness-minimization": "node --experimental-strip-types experiments/witness-minimization/run.ts",
-    "test:witness-minimization:trials": "node --experimental-strip-types experiments/witness-minimization/trials.ts"
+    "test:witness-minimization:trials": "node --experimental-strip-types experiments/witness-minimization/trials.ts",
+    "test:witness-source-boundary": "node --experimental-strip-types experiments/witness-minimization/source-boundary-audit.ts"
   }
 }
