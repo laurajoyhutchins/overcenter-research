@@ -83,3 +83,33 @@ physical storage costs.
 ```sh
 npm run test:merkle-receipt-v5-dedup
 ```
+
+## First hosted run: negative control found a missing authority edge
+
+Run `35821293168`, job `107053492723`, at exact revision
+`540bc0398efe36fd32d38631836f85535a9f9ff0` reached the cross-run substitution
+control and failed because a newly constructed root that referenced another valid
+execution object was still internally hash-consistent.
+
+That is not a digest failure. It is an authority failure:
+
+```text
+content-addressed objects
+        |
+        | prove integrity
+        v
+internally valid forged root
+        |
+        | still needs authority
+        v
+existing settlement_commit -> accepted root
+```
+
+The correction does not duplicate run identity into the settlement payload. It
+requires the candidate root to be the root authorized by the existing
+`settlement_commit`. A swapped parent changes the root and therefore fails the
+authority binding even when every referenced object is individually valid.
+
+The preregistered semantic-parity and <=1.0x-at-128 storage criteria are
+unchanged. Because the treatment was corrected after the first run, registry
+design provenance is now recorded as `mixed`.

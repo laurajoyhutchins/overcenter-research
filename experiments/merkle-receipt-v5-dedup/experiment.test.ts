@@ -303,6 +303,17 @@ function reconstruct(store:MerkleStore,root:string):{
   return {fact,obligation};
 }
 
+function reconstructAuthorized(
+  store:MerkleStore,
+  root:string,
+  settlementCommit:string,
+  authorityRoots:Map<string,string>,
+):{fact:ReceiptFact;obligation:Obligation} {
+  const authorized=authorityRoots.get(settlementCommit);
+  if (authorized!==root) throw new Error('SETTLEMENT_ROOT_UNAUTHORIZED');
+  return reconstruct(store,root);
+}
+
 function flatCorpusBytes(
   items:Array<{fact:ReceiptFact;definition:ObligationDefinition}>,
 ):number {
@@ -338,11 +349,25 @@ test('actual receipt-v5 corpus round-trips with semantic parity and amortized by
     encodeTimes.push((performance.now()-start)*1000);
   }
 
+  const authorityRoots=new Map<string,string>();
+  for (let i=0;i<corpus.length;i+=1) {
+    const settlementCommit=corpus[i]!.receipt.settlement_commit;
+    assert.ok(settlementCommit);
+    authorityRoots.set(settlementCommit,encoded[i]!.root);
+  }
+
   const validateTimes:number[]=[];
   for (let i=0;i<corpus.length;i+=1) {
     const original=corpus[i]!;
+    const settlementCommit=original.receipt.settlement_commit;
+    assert.ok(settlementCommit);
     const start=performance.now();
-    const rebuilt=reconstruct(store,encoded[i]!.root);
+    const rebuilt=reconstructAuthorized(
+      store,
+      encoded[i]!.root,
+      settlementCommit,
+      authorityRoots,
+    );
     const projected=projectReceipt(rebuilt.fact,rebuilt.obligation);
     validateTimes.push((performance.now()-start)*1000);
     assert.equal(
@@ -388,9 +413,16 @@ test('actual receipt-v5 corpus round-trips with semantic parity and amortized by
       execution:second.execution,
     },
   });
+  const firstSettlementCommit=corpus[0]!.receipt.settlement_commit;
+  assert.ok(firstSettlementCommit);
   assert.throws(
-    ()=>reconstruct(store,substituted),
-    /EXECUTION_DEFINITION_MISMATCH|INVALID_|MISMATCH/,
+    ()=>reconstructAuthorized(
+      store,
+      substituted,
+      firstSettlementCommit,
+      authorityRoots,
+    ),
+    /SETTLEMENT_ROOT_UNAUTHORIZED/,
   );
 
   const median=(xs:number[])=>[...xs].sort((a,b)=>a-b)[Math.floor(xs.length/2)]!;
