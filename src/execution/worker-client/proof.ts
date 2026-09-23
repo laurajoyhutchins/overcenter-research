@@ -29,18 +29,18 @@ try {
     claimed_revision: 'revision-1',
     execution_generation: 1,
     packet: {
-      schema: 'overcenter-agent-task/v1',
+      schema: 'overcenter-agent-task/v2',
       kind: 'pure-candidate',
-      source_sha: '0123456789abcdef0123456789abcdef01234567',
       command: ['./task.sh', 'input.txt', 'result.txt'],
       required_paths: ['task.sh', 'input.txt'],
       output_path: 'result.txt',
     },
   };
-  const assignment = buildAssignment(work, [
-    assignmentFile('task.sh', task, '100755'),
-    assignmentFile('input.txt', input),
-  ]);
+  const assignment = buildAssignment(
+    work,
+    [assignmentFile('task.sh', task, '100755'), assignmentFile('input.txt', input)],
+    '0123456789abcdef0123456789abcdef01234567',
+  );
   const assignmentBytes = encodeAssignment(assignment);
   const assignmentPath = join(root, 'assignment.json');
   const workspace = join(root, 'work');
