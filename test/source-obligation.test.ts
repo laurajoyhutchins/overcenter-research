@@ -5,7 +5,6 @@ import {
   bindSourceClaim,
   SOURCE_CANDIDATE_SCHEMA,
   SOURCE_TASK_SCHEMA,
-  sourceTaskDigest,
   validateSourceCandidate,
   validateSourceTaskPacket,
 } from '../src/source/source-obligation.ts';
@@ -15,41 +14,22 @@ const packet = {
   kind: 'source-change',
   objective: 'Seal provider mutation behind EffectAuthority.',
   writable_paths: ['src/providers/github/status-effect.ts', 'src/authority/engine.ts'],
-  acceptance: [
-    {
-      verifier: 'file-content-equals/v1',
-      path: 'src/authority/policy.txt',
-      content: 'sealed\n',
-    },
-    {
-      verifier: 'file-content-equals/v1',
-      path: 'src/providers/github/policy.txt',
-      content: 'broker-only\n',
-    },
-  ],
 } as const;
 
-test('source task semantic identity excludes claim-time source revision', () => {
+test('source task contains semantic work but no claim-time source revision', () => {
   const validated = validateSourceTaskPacket(packet);
-  const digest = sourceTaskDigest(validated);
-
-  const first = bindSourceClaim(digest, 'run-1', 'authority-a', 'a'.repeat(40));
-  const second = bindSourceClaim(digest, 'run-2', 'authority-b', 'b'.repeat(40));
-
-  assert.equal(first.obligation_key, second.obligation_key);
-  assert.notEqual(first.source_sha, second.source_sha);
   assert.equal(JSON.stringify(validated).includes('source_sha'), false);
   assert.equal(JSON.stringify(validated).includes('base_sha'), false);
+  assert.equal(JSON.stringify(validated).includes('acceptance'), false);
 });
 
-test('source task digest is canonical across path and acceptance ordering', () => {
+test('source task canonicalizes writable path ordering without defining a shadow obligation key', () => {
   const reordered = {
     ...packet,
     writable_paths: [...packet.writable_paths].reverse(),
-    acceptance: [...packet.acceptance].reverse(),
   };
 
-  assert.equal(sourceTaskDigest(packet), sourceTaskDigest(reordered));
+  assert.deepEqual(validateSourceTaskPacket(packet), validateSourceTaskPacket(reordered));
 });
 
 test('source task rejects duplicate and unsafe repository paths', () => {
@@ -79,8 +59,17 @@ test('source task rejects duplicate and unsafe repository paths', () => {
   );
 });
 
+test('claim-time source revision is separate from the kernel obligation key', () => {
+  const obligationKey = 'kernel-semantic-key';
+  const first = bindSourceClaim(obligationKey, 'run-1', 'authority-a', 'a'.repeat(40));
+  const second = bindSourceClaim(obligationKey, 'run-2', 'authority-b', 'b'.repeat(40));
+
+  assert.equal(first.obligation_key, second.obligation_key);
+  assert.notEqual(first.source_sha, second.source_sha);
+});
+
 test('source candidate is bound to exact obligation, run, authority revision, and source SHA', () => {
-  const obligationKey = sourceTaskDigest(packet);
+  const obligationKey = 'kernel-semantic-key';
   const claim = bindSourceClaim(obligationKey, 'run-7', 'authority-head', 'c'.repeat(40));
   const candidate = {
     schema: SOURCE_CANDIDATE_SCHEMA,
@@ -94,6 +83,10 @@ test('source candidate is bound to exact obligation, run, authority revision, an
   assert.deepEqual(validateSourceCandidate(candidate, claim), candidate);
 
   assert.throws(
+    () => validateSourceCandidate({ ...candidate, obligation_key: 'other-key' }, claim),
+    /SOURCE_CANDIDATE_OBLIGATION_MISMATCH/,
+  );
+  assert.throws(
     () => validateSourceCandidate({ ...candidate, run_id: 'run-8' }, claim),
     /SOURCE_CANDIDATE_RUN_MISMATCH/,
   );
@@ -104,16 +97,5 @@ test('source candidate is bound to exact obligation, run, authority revision, an
   assert.throws(
     () => validateSourceCandidate({ ...candidate, claimed_source_sha: 'e'.repeat(40) }, claim),
     /SOURCE_CANDIDATE_SOURCE_MISMATCH/,
-  );
-});
-
-test('source acceptance remains deliberately narrow in the first production contract', () => {
-  assert.throws(
-    () =>
-      validateSourceTaskPacket({
-        ...packet,
-        acceptance: [{ verifier: 'command-exits-zero/v1', path: 'package.json', content: '' }],
-      }),
-    /SOURCE_TASK_ACCEPTANCE_VERIFIER_UNSUPPORTED/,
   );
 });
