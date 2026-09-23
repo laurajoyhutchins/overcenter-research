@@ -35,11 +35,7 @@ function normalize(value:unknown):unknown {
 
 function snapshot(kernel:KernelCore) {
   const work=kernel.inspect();
-  return normalize({
-    work,
-    explanations:work.map(item=>kernel.explain(item.id)),
-    receipts:kernel.receipts(),
-  });
+  return normalize({work,receipts:kernel.receipts()});
 }
 
 async function exercise(
