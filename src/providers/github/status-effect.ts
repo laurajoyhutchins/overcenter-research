@@ -24,6 +24,12 @@ export type GithubStatusPost = (
   body: GithubStatusMutationBody,
 ) => Promise<{ status: number; body: string }>;
 
+export interface GithubStatusTransport {
+  baseUrl?: string;
+  rejectUnauthorized?: boolean;
+  lookup?: LookupFunction;
+}
+
 class GithubStatusNotDispatchedError extends Error {
   readonly errorCode: string | null;
   constructor(errorCode: string | null) {
@@ -40,11 +46,7 @@ function createGithubStatusPost({
   baseUrl = 'https://api.github.com',
   rejectUnauthorized = true,
   lookup,
-}: {
-  baseUrl?: string;
-  rejectUnauthorized?: boolean;
-  lookup?: LookupFunction;
-} = {}): GithubStatusPost {
+}: GithubStatusTransport = {}): GithubStatusPost {
   return async (token, path, body) =>
     await new Promise((resolve, reject) => {
       let secureConnected = false;
@@ -125,11 +127,7 @@ export async function performGithubCommitStatusEffect(
     token: string;
     get?: GithubJsonGetAsync;
     post?: GithubStatusPost;
-    transport?: {
-      baseUrl?: string;
-      rejectUnauthorized?: boolean;
-      lookup?: LookupFunction;
-    };
+    transport?: GithubStatusTransport;
     clock?: () => string;
   },
 ): Promise<{

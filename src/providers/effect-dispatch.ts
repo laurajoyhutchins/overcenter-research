@@ -1,7 +1,11 @@
 import type { KernelCore } from '../authority/engine.ts';
 import { effectAdapterCapabilities, GITHUB_COMMIT_STATUS_EFFECT } from '../effect-adapter.ts';
 import type { Data, ExecutionPermit } from '../model.ts';
-import { performGithubCommitStatusEffect, type GithubStatusPost } from './github/status-effect.ts';
+import {
+  performGithubCommitStatusEffect,
+  type GithubStatusPost,
+  type GithubStatusTransport,
+} from './github/status-effect.ts';
 import type { GithubJsonGetAsync } from './github/rest.ts';
 
 export interface TrustedEffectDispatchContext {
@@ -9,6 +13,7 @@ export interface TrustedEffectDispatchContext {
     token: string;
     get?: GithubJsonGetAsync;
     statusPost?: GithubStatusPost;
+    transport?: GithubStatusTransport;
     clock?: () => string;
   };
 }
@@ -36,6 +41,7 @@ export async function dispatchAdmittedEffect(
     token: github.token,
     ...(github.get ? { get: github.get } : {}),
     ...(github.statusPost ? { post: github.statusPost } : {}),
+    ...(github.transport ? { transport: github.transport } : {}),
     ...(github.clock ? { clock: github.clock } : {}),
   });
 }
