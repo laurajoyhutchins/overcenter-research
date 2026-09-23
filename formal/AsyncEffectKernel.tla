@@ -46,7 +46,7 @@ Init ==
         badAuthorityUse |-> FALSE,
         settled |-> FALSE,
         evidenceValid |-> FALSE
-    ]
+        ]
 
 Acquire(w) ==
     /\ s.workerUp[w]
@@ -58,7 +58,7 @@ Acquire(w) ==
         !.leaseLive = TRUE,
         !.fence = s.fence + 1,
         !.leaseFence = s.fence + 1
-    ]
+        ]
 
 ExpireLease ==
     /\ s.leaseLive
@@ -82,7 +82,7 @@ BeginOriginal(w) ==
         !.observation = "Unknown",
         !.absenceProvesFinality = FALSE,
         !.badAuthorityUse = s.badAuthorityUse \/ ~CurrentAuthority(w)
-    ]
+        ]
 
 DuplicateInFlight(q) ==
     /\ s.sent[q]
@@ -108,14 +108,14 @@ ObserveAbsent ==
     /\ s' = [s EXCEPT
         !.observation = "Absent",
         !.absenceProvesFinality = AllPriorRequestsTerminal
-    ]
+        ]
 
 ObservePresent ==
     /\ s.effectCount > 0
     /\ s' = [s EXCEPT
         !.observation = "Present",
         !.absenceProvesFinality = FALSE
-    ]
+        ]
 
 Retry(w) ==
     /\ ~s.settled
@@ -130,7 +130,7 @@ Retry(w) ==
         !.observation = "Unknown",
         !.unsafeReplay = s.unsafeReplay \/ ~s.absenceProvesFinality,
         !.badAuthorityUse = s.badAuthorityUse \/ ~CurrentAuthority(w)
-    ]
+        ]
 
 Settle(w) ==
     /\ ~s.settled
@@ -139,7 +139,7 @@ Settle(w) ==
     /\ s' = [s EXCEPT
         !.settled = TRUE,
         !.badAuthorityUse = s.badAuthorityUse \/ ~CurrentAuthority(w)
-    ]
+        ]
 
 PersistEvidence ==
     /\ s.settled
