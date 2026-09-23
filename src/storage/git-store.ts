@@ -59,6 +59,7 @@ export class GitFactStore implements DurableFactStore {
       for (const path of [
         'graph-patch.json',
         'claim.json',
+        'source-revision.json',
         'execution-authority.json',
         'effect-reservation.json',
         'receipt.json',

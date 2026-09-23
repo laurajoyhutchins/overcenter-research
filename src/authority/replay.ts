@@ -9,6 +9,7 @@ import {
   validateExecutionAuthorityFact,
   validateGraphPatchFact,
   validateReceiptFact,
+  validateSourceRevisionBindingFact,
 } from './facts.ts';
 import type {
   ClaimFact,
@@ -20,6 +21,7 @@ import type {
   ObligationDefinition,
   Receipt,
   ReceiptFact,
+  SourceRevisionBindingFact,
   State,
 } from './facts.ts';
 import { dependencyUpstreams, validateGraph } from '../graph/topology.ts';
@@ -159,8 +161,23 @@ export function replayProjection(
       validateGraph(state);
     }
 
+    if (record.source_revision != null && record.claim == null) {
+      throw new Error('SOURCE_REVISION_WITHOUT_CLAIM');
+    }
+
     if (record.claim != null) {
       const claim = validateClaimFact(record.claim);
+      const sourceRevision: SourceRevisionBindingFact | null =
+        record.source_revision == null
+          ? null
+          : validateSourceRevisionBindingFact(record.source_revision);
+      if (
+        sourceRevision &&
+        (sourceRevision.run_id !== claim.run_id ||
+          sourceRevision.obligation_id !== claim.obligation_id)
+      ) {
+        throw new Error('SOURCE_REVISION_CLAIM_MISMATCH');
+      }
       const obligation = state.obligations[claim.obligation_id];
       if (!obligation) throw new Error('CLAIM_FOR_UNKNOWN_OBLIGATION');
       if (runs.has(claim.run_id)) throw new Error('DUPLICATE_RUN');
@@ -187,6 +204,7 @@ export function replayProjection(
         execution_generation: 1,
         execution_authority_commit: record.commit,
         execution_capability_sha256: claim.execution_capability_sha256,
+        ...(sourceRevision ? { source_revision: sourceRevision.source_revision } : {}),
         obligation: structuredClone(obligation),
         definition_id: state.definition_ids[claim.obligation_id],
       };

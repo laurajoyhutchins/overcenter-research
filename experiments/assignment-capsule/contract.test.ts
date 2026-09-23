@@ -18,9 +18,8 @@ function work() {
     id: 'proof',
     dependencies: [],
     packet: {
-      schema: 'overcenter-agent-task/v1',
+      schema: 'overcenter-agent-task/v2',
       kind: 'pure-candidate',
-      source_sha: '1'.repeat(40),
       command: ['node', '--experimental-strip-types', 'task.ts', 'input.txt', 'result.txt'],
       required_paths: ['task.ts', 'input.txt'],
       output_path: 'result.txt',
@@ -44,20 +43,20 @@ const files = () => [
 ];
 
 test('claimed work plus exact bytes forms a valid self-contained assignment', () => {
-  const assignment = buildAssignment(work(), files());
+  const assignment = buildAssignment(work(), files(), '1'.repeat(40));
   const encoded = encodeAssignment(assignment);
   assert.ok(encoded.length > 0);
   assert.equal(encoded.includes(Buffer.from('execution_capability')), false);
 });
 
 test('one altered byte fails closed before materialization', () => {
-  const assignment = buildAssignment(work(), files());
+  const assignment = buildAssignment(work(), files(), '1'.repeat(40));
   assignment.files[1].content_base64 = Buffer.from('payloae\n').toString('base64');
   assert.throws(() => validateAssignment(assignment), /ASSIGNMENT_FILE_DIGEST_MISMATCH/);
 });
 
 test('one missing required file fails closed before execution', () => {
-  const assignment = buildAssignment(work(), files());
+  const assignment = buildAssignment(work(), files(), '1'.repeat(40));
   assignment.files = assignment.files.filter((file) => file.path !== 'input.txt');
   assert.throws(() => validateAssignment(assignment), /ASSIGNMENT_REQUIRED_FILE_MISSING:input.txt/);
 });
@@ -65,7 +64,7 @@ test('one missing required file fails closed before execution', () => {
 test('materialization recreates only declared bytes', () => {
   const root = mkdtempSync(join(tmpdir(), 'assignment-capsule-'));
   try {
-    const assignment = buildAssignment(work(), files());
+    const assignment = buildAssignment(work(), files(), '1'.repeat(40));
     materializeAssignment(assignment, root);
     assert.equal(readFileSync(join(root, 'input.txt'), 'utf8'), 'payload\n');
     assert.equal(readFileSync(join(root, 'task.ts'), 'utf8'), 'process.exit(0)\n');
@@ -75,7 +74,7 @@ test('materialization recreates only declared bytes', () => {
 });
 
 test('candidate bytes are bound to the exact assignment and claimed run', () => {
-  const assignment = buildAssignment(work(), files());
+  const assignment = buildAssignment(work(), files(), '1'.repeat(40));
   const bytes = encodeAssignment(assignment);
   const output = Buffer.from('done\n');
   const candidate = {
@@ -95,7 +94,7 @@ test('candidate bytes are bound to the exact assignment and claimed run', () => 
 
 test('hostile path grammar is rejected', () => {
   for (const bad of ['', '/x', 'a//b', 'a/./b', 'a/../b', 'a\nb']) {
-    const assignment = buildAssignment(work(), files());
+    const assignment = buildAssignment(work(), files(), '1'.repeat(40));
     assignment.files[0].path = bad;
     assert.throws(() => validateAssignment(assignment));
   }
