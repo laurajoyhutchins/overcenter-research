@@ -20,7 +20,6 @@ const candidateOnlyWorkflowPaths = [
   '../.github/workflows/formal-kernel.yml',
   '../.github/workflows/github-object-transport-proof.yml',
   '../.github/workflows/github-observation-grammar.yml',
-  '../.github/workflows/lean-semantic-oracle.yml',
   '../.github/workflows/production-latency.yml',
   '../.github/workflows/typebox-production-contract.yml',
 ];

@@ -30,7 +30,6 @@
     "experiment": "node --experimental-strip-types scripts/experiments.ts run",
     "experiments:deterministic": "node --experimental-strip-types scripts/experiments.ts run --all-deterministic",
     "test:github-object-transport": "node --experimental-strip-types --test experiments/github-object-transport/contract.test.ts",
-    "test:lean-oracle": "node --experimental-strip-types --test test/lean-semantic-oracle.test.ts",
     "test:data-contracts": "node --experimental-strip-types --test test/data-contracts.test.ts",
     "test:execution-manifest": "node --experimental-strip-types --test test/execution-manifest.test.ts",
     "proof:rust-exec": "bash src/execution/confinement/proof.sh",

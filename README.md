@@ -221,8 +221,9 @@ The command name states what kind of evidence a green check supports:
 | `npm run proof:local` | Maintained deterministic local experiments at the current revision. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
 | `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression, including the production GitHub status-effect contract with a fake provider. |
-| Lean semantic-oracle CI | Bounded exhaustive agreement between selected production TypeScript semantics and the exact pinned Lean reference. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
+
+The former Lean semantic-oracle differential is retained as historical exact-revision evidence at `766f581c1592f7f3193b95b3d18f47f7c5b22234`; see [its experiment record](./experiments/lean-semantic-oracle/README.md). It is no longer a current merge gate.
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 

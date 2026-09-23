@@ -31,14 +31,14 @@ For selected deterministic safety predicates:
 
 - Lean may define an independent proposition and proved executable reference;
 - production TypeScript may use an operationally simpler implementation;
-- CI feeds the same normalized facts to both and fails on bounded disagreement;
-- a semantic change must either continue agreeing with the pinned oracle or
-  deliberately amend the semantic specification, proof obligations, and pinned
-  oracle identity;
-- `formal/lean-semantic-oracle-revision.txt` is the single executable owner of
-  the pinned Lean revision used by CI.
+- exact-revision oracle runs may feed the same normalized facts to both and fail on bounded disagreement;
+- a semantic change that relies on this oracle must either reproduce agreement
+  with the pinned oracle or deliberately amend the semantic specification, proof
+  obligations, and pinned oracle identity;
+- `formal/lean-semantic-oracle-revision.txt` records the pinned Lean revision
+  used by the historical witness and future reproduction.
 
-The first maintained oracle covers provider-independent graph validity and
+The historical oracle witness covers provider-independent graph validity and
 effect ordering over already-normalized effect facts. It exercises both control
 and semantic dependency edges. For effect ordering, TypeScript is compared to
 the retained Lean reference relation; the optimized Lean classifier must also
@@ -64,12 +64,11 @@ Oracle agreement is a separate evidence class. A green bounded differential does
 not turn a bounded result into a universal proof, and it does not prove
 provider-specific normalization that occurs before the Lean boundary.
 
-The current oracle is scoped to production source plus its own executable
-evidence contract rather than attached to every repository change because
-installing/building Lean is materially heavier than normal unit regression. Any
-change under `src/**`, the oracle pin, this ADR, or the proof-obligation map
-reruns it so implementation or evidence drift cannot silently escape through a
-stale path allowlist.
+The oracle was source-scoped to production semantics while it was maintained.
+Its final maintained witness passed at exact production revision `766f581c1592f7f3193b95b3d18f47f7c5b22234`
+against pinned Lean revision `39bd16a317bc2155a17b6674a5050adaf4295c90`. The executable differential and its
+workflow now live at that exact Git revision rather than on current `main`; the
+proof record remains durable without paying the Lean build on every semantic change.
 
 ## Rejected alternatives
 
@@ -91,13 +90,13 @@ that the existing authority-bearing implementation can be deleted and that the
 replacement makes the complete system smaller or stronger after accounting for
 runtime lifecycle and recovery.
 
-Passing semantic-oracle CI is not sufficient evidence for runtime promotion.
+A historical semantic-oracle pass is not sufficient evidence for runtime promotion.
 
 ## Evidence
 
 - PR #113 — proved and benchmarked indexed Lean claim admission.
 - PR #115 — current-main authority-deletion experiment that rejected the
   per-validation subprocess seam.
-- Lean semantic-oracle CI — bounded differential between current TypeScript and
-  exact pinned Lean revision
-  `0c5db60f2dc14af93f554fd9f870181261ce5f11`.
+- Historical Lean semantic-oracle witness — GitHub Actions run `35801357388`,
+  job `106992185603`, passed at exact production revision `766f581c1592f7f3193b95b3d18f47f7c5b22234`
+  against pinned Lean revision `39bd16a317bc2155a17b6674a5050adaf4295c90`.
