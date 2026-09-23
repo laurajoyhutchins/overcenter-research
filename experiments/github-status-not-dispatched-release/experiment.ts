@@ -318,6 +318,32 @@ const results: Record<string, unknown> = {};
   }
 }
 
+// Red-team case: the admitted evidence token itself must not be forgeable by a
+// low-level caller that has current effect authority but no transport witness.
+// If the kernel accepts the exported token by value alone, the phrase
+// "trusted NOT_DISPATCHED evidence" is only a caller-discipline convention.
+{
+  const root = mkdtempSync(join(tmpdir(), 'status-release-origin-forgery-'));
+  const kernel = kernelAt(root);
+  try {
+    const run = define(kernel);
+    const authority = kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT);
+    kernel.beginEffect(run);
+
+    assert.throws(
+      () =>
+        kernel.releaseEffectReservation(authority, GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED, {
+          source: 'red-team/forged-without-transport',
+        }),
+      /EFFECT_RELEASE_EVIDENCE_(?:PROVENANCE|ORIGIN)_INVALID/,
+    );
+    assert.equal(kernel.hasUnresolvedEffect(run.id), true);
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 // Case 4: neither a forged evidence kind nor stale authority can clear a reservation.
 {
   const root = mkdtempSync(join(tmpdir(), 'status-release-adversary-'));
