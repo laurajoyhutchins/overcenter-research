@@ -135,6 +135,7 @@ test('checked-in project intent is source-agnostic until trusted compilation', (
   const compiled = desired[0];
   assert.ok(compiled);
   assert.equal(compiled.id, 'live-agent-loop-witness');
+  assert.ok(compiled.packet);
   assert.equal(compiled.packet.source_sha, sourceSha);
 });
 
