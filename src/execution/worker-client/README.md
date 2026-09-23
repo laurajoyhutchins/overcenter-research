@@ -2,6 +2,8 @@
 
 `overcenter` is the small native executable distributed with reasoning work packets.
 
+Only the compiled `overcenter` binary is distributed to workers. The Rust source and build/proof helpers remain repository-side implementation and evidence machinery.
+
 It is intentionally **not** the Overcenter authority and **not** the Rust confinement launcher.
 
 ```text
