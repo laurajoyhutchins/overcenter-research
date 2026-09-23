@@ -318,7 +318,7 @@ const results: Record<string, unknown> = {};
   }
 }
 
-// Case 4: neither a forged evidence kind nor stale authority can clear a reservation.
+// Case 4: neither the exact admitted token without provenance nor stale authority can clear a reservation.
 {
   const root = mkdtempSync(join(tmpdir(), 'status-release-adversary-'));
   const kernel = kernelAt(root);
@@ -331,8 +331,8 @@ const results: Record<string, unknown> = {};
     );
     kernel.beginEffect(run);
     assert.throws(
-      () => kernel.releaseEffectReservation(authority, 'forged/not-dispatched'),
-      /EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED/,
+      () => kernel.releaseEffectReservation(authority, GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED),
+      /EFFECT_RELEASE_EVIDENCE_PROVENANCE_INVALID/,
     );
     assert.equal(kernel.hasUnresolvedEffect(run.id), true);
 
