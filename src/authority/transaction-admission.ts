@@ -1,4 +1,10 @@
-import type { EffectReservationFact, ExecutionAuthorityFact, ReceiptFact } from './facts.ts';
+import type {
+  EffectReleaseFact,
+  EffectReservation,
+  EffectReservationFact,
+  ExecutionAuthorityFact,
+  ReceiptFact,
+} from './facts.ts';
 import type { ExecutionPermit, Run } from '../model.ts';
 
 export interface ExecutionAuthorityProjection {
@@ -48,6 +54,34 @@ export function effectReservationAuthorityError(
   )
     return 'STALE_EFFECT_RESERVATION';
   return unresolvedEffect ? 'DUPLICATE_UNRESOLVED_EFFECT' : null;
+}
+
+export type EffectReleaseAuthorityError =
+  | 'EFFECT_RELEASE_RUN_MISMATCH'
+  | 'EFFECT_RELEASE_OBLIGATION_MISMATCH'
+  | 'EFFECT_RELEASE_EXECUTION_AUTHORITY_MISMATCH'
+  | 'EFFECT_RELEASE_RESERVATION_MISMATCH'
+  | null;
+
+export function effectReleaseAuthorityError(
+  run: Run,
+  reservation: EffectReservation,
+  fact: EffectReleaseFact,
+): EffectReleaseAuthorityError {
+  if (fact.run_id !== run.id) return 'EFFECT_RELEASE_RUN_MISMATCH';
+  if (fact.obligation_id !== run.obligation_id) return 'EFFECT_RELEASE_OBLIGATION_MISMATCH';
+  if (
+    fact.execution_generation !== run.execution_generation ||
+    fact.execution_authority_commit !== run.execution_authority_commit
+  )
+    return 'EFFECT_RELEASE_EXECUTION_AUTHORITY_MISMATCH';
+  if (
+    fact.reservation_commit !== reservation.reservation_commit ||
+    fact.execution_generation !== reservation.execution_generation ||
+    fact.execution_authority_commit !== reservation.execution_authority_commit
+  )
+    return 'EFFECT_RELEASE_RESERVATION_MISMATCH';
+  return null;
 }
 
 export type ReceiptAuthorityError =

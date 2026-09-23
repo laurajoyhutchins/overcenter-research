@@ -22,6 +22,7 @@ export function factCommitFromFiles(
     claim: files['claim.json'] ?? null,
     execution_authority: files['execution-authority.json'] ?? null,
     effect_reservation: files['effect-reservation.json'] ?? null,
+    effect_release: files['effect-release.json'] ?? null,
     receipt: files['receipt.json'] ?? null,
   };
 }

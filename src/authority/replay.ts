@@ -3,6 +3,7 @@ import { authoritativeAbsenceEvidence, observationVerified } from '../observatio
 import {
   emptyState,
   validateClaimFact,
+  validateEffectReleaseFact,
   validateEffectReservationFact,
   materializeObligation,
   validateExecutionAuthorityFact,
@@ -23,8 +24,9 @@ import type {
 } from './facts.ts';
 import { dependencyUpstreams, validateGraph } from '../graph/topology.ts';
 import { settlementSemantics } from '../semantics.ts';
-import { reservedEffectReplaySafe } from '../effect-adapter.ts';
+import { reservedEffectReleaseSafe, reservedEffectReplaySafe } from '../effect-adapter.ts';
 import {
+  effectReleaseAuthorityError,
   effectReservationAuthorityError,
   executionAuthorityAdvanceError,
   receiptAuthorityError,
@@ -54,6 +56,7 @@ export function projectReceipt(
   work: Obligation,
   settlementCommit?: string,
   unresolvedEffect = false,
+  notDispatchedRelease = false,
 ): Receipt {
   let disposition: Receipt['disposition'];
   let verified = false;
@@ -71,7 +74,12 @@ export function projectReceipt(
     disposition = verified ? 'DONE' : acceptedAbsence && replaySafe ? 'READY' : 'RECOVERY_REQUIRED';
   } else {
     if (fact.observed) throw new Error('NONOBSERVATION_RECEIPT_HAS_EVIDENCE');
-    disposition = fact.kind === 'judgment-required' ? 'WAITING' : 'RECOVERY_REQUIRED';
+    disposition =
+      fact.kind === 'judgment-required'
+        ? 'WAITING'
+        : fact.kind === 'effect-not-dispatched' && notDispatchedRelease
+          ? 'READY'
+          : 'RECOVERY_REQUIRED';
   }
 
   return {
@@ -118,6 +126,7 @@ export function replayProjection(
   };
 
   for (const record of commits) {
+    let notDispatchedRelease = false;
     if (record.graph_patch != null) {
       refresh(record.parent ?? '');
       if (hasInFlight(project)) throw new Error('GRAPH_PATCH_WHILE_IN_FLIGHT');
@@ -227,6 +236,36 @@ export function replayProjection(
       });
     }
 
+    if (record.effect_release != null) {
+      const release = validateEffectReleaseFact(record.effect_release);
+      const run = runs.get(release.run_id);
+      if (!run) throw new Error('EFFECT_RELEASE_WITHOUT_CLAIM');
+      const reservation = unresolvedReservationsByRun.get(run.id);
+      if (!reservation) throw new Error('EFFECT_RELEASE_WITHOUT_RESERVATION');
+      const authorityError = effectReleaseAuthorityError(run, reservation, release);
+      if (authorityError) throw new Error(authorityError);
+      if (release.effect_contract !== run.obligation.packet.effect_contract) {
+        throw new Error('EFFECT_RELEASE_CONTRACT_MISMATCH');
+      }
+      if (
+        !reservedEffectReleaseSafe(run.obligation, release.effect_contract, release.evidence_kind)
+      ) {
+        throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
+      }
+      if (record.receipt == null) throw new Error('EFFECT_RELEASE_WITHOUT_READY_RECEIPT');
+      const paired = validateReceiptFact(record.receipt);
+      if (paired.kind !== 'effect-not-dispatched') {
+        throw new Error('EFFECT_RELEASE_RECEIPT_KIND_MISMATCH');
+      }
+      refresh(record.commit);
+      const current = project.lifecycles.get(run.obligation_id);
+      if (current?.run?.id !== run.id || current.status !== 'EXECUTING') {
+        throw new Error('EFFECT_RELEASE_WHILE_NOT_EXECUTING');
+      }
+      unresolvedReservationsByRun.delete(run.id);
+      notDispatchedRelease = true;
+    }
+
     if (record.receipt == null) continue;
     const fact = validateReceiptFact(record.receipt);
     const run = runs.get(fact.run_id);
@@ -246,6 +285,9 @@ export function replayProjection(
     if (fact.kind === 'execution-terminated' && current.status !== 'EXECUTING') {
       throw new Error('EXECUTION_TERMINATED_WHILE_NOT_EXECUTING');
     }
+    if (fact.kind === 'effect-not-dispatched' && !notDispatchedRelease) {
+      throw new Error('EFFECT_NOT_DISPATCHED_RECEIPT_WITHOUT_RELEASE');
+    }
     if (
       fact.kind === 'observation' &&
       !['EXECUTING', 'WAITING', 'RECOVERY_REQUIRED'].includes(current.status)
@@ -258,7 +300,13 @@ export function replayProjection(
     }
 
     const unresolvedEffect = unresolvedReservationsByRun.has(run.id);
-    const receipt = projectReceipt(fact, run.obligation, record.commit, unresolvedEffect);
+    const receipt = projectReceipt(
+      fact,
+      run.obligation,
+      record.commit,
+      unresolvedEffect,
+      notDispatchedRelease,
+    );
     receiptsByRun.set(run.id, receipt);
     if (receipt.disposition === 'DONE' || receipt.disposition === 'READY') {
       unresolvedReservationsByRun.delete(run.id);

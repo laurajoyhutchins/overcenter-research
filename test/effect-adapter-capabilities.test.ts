@@ -56,6 +56,10 @@ test('replay capability requires terminal evidence and duplicate-effect protecti
       kind: 'terminal-absence',
       terminal_absence_evidence_kinds: ['test-terminal-absence'],
     },
+    reservation_release: {
+      kind: 'forbidden',
+      reason: 'test adapter has no trusted pre-dispatch witness',
+    },
   };
   assert.doesNotThrow(() => validateEffectAdapterCapabilities(base));
 

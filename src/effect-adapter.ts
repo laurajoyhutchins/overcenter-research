@@ -23,12 +23,20 @@ export type ReplayCapability =
       terminal_absence_evidence_kinds: readonly string[];
     };
 
+export type ReservationReleaseCapability =
+  | { kind: 'forbidden'; reason: string }
+  | { kind: 'not-dispatched'; evidence_kinds: readonly string[] };
+
+export const GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED =
+  'github-status/fresh-https-pre-secure-connect' as const;
+
 export interface EffectAdapterCapabilities {
   schema: typeof EFFECT_ADAPTER_CAPABILITIES_SCHEMA;
   effect_contract: string;
   postcondition_verifier: Postcondition['verifier'];
   duplicate_delivery: DuplicateDeliverySemantics;
   replay: ReplayCapability;
+  reservation_release: ReservationReleaseCapability;
 }
 
 export function validateEffectAdapterCapabilities(capabilities: EffectAdapterCapabilities): void {
@@ -39,16 +47,21 @@ export function validateEffectAdapterCapabilities(capabilities: EffectAdapterCap
     throw new Error('EFFECT_ADAPTER_CONTRACT_INVALID');
   }
   if (capabilities.replay.kind === 'forbidden') {
-    if (!capabilities.replay.reason) {
-      throw new Error('FORBIDDEN_REPLAY_REQUIRES_REASON');
+    if (!capabilities.replay.reason) throw new Error('FORBIDDEN_REPLAY_REQUIRES_REASON');
+  } else {
+    if (capabilities.replay.terminal_absence_evidence_kinds.length === 0) {
+      throw new Error('REPLAY_CAPABILITY_REQUIRES_TERMINAL_EVIDENCE');
     }
-    return;
+    if (capabilities.duplicate_delivery === 'may-duplicate') {
+      throw new Error('REPLAY_CAPABILITY_REQUIRES_DUPLICATE_EFFECT_PROTECTION');
+    }
   }
-  if (capabilities.replay.terminal_absence_evidence_kinds.length === 0) {
-    throw new Error('REPLAY_CAPABILITY_REQUIRES_TERMINAL_EVIDENCE');
-  }
-  if (capabilities.duplicate_delivery === 'may-duplicate') {
-    throw new Error('REPLAY_CAPABILITY_REQUIRES_DUPLICATE_EFFECT_PROTECTION');
+  if (capabilities.reservation_release.kind === 'forbidden') {
+    if (!capabilities.reservation_release.reason) {
+      throw new Error('FORBIDDEN_RESERVATION_RELEASE_REQUIRES_REASON');
+    }
+  } else if (capabilities.reservation_release.evidence_kinds.length === 0) {
+    throw new Error('RESERVATION_RELEASE_REQUIRES_EVIDENCE_KIND');
   }
 }
 
@@ -62,6 +75,10 @@ export const EFFECT_ADAPTER_CAPABILITIES = [
       kind: 'forbidden',
       reason: 'provider request finality and duplicate-effect suppression are not established',
     },
+    reservation_release: {
+      kind: 'not-dispatched',
+      evidence_kinds: [GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED],
+    },
   },
   {
     schema: EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
@@ -71,6 +88,10 @@ export const EFFECT_ADAPTER_CAPABILITIES = [
     replay: {
       kind: 'forbidden',
       reason: 'provider request finality and duplicate-effect suppression are not established',
+    },
+    reservation_release: {
+      kind: 'forbidden',
+      reason: 'no trusted pre-dispatch evidence boundary is admitted for this adapter',
     },
   },
 ] as const satisfies readonly EffectAdapterCapabilities[];
@@ -107,4 +128,19 @@ export function reservedEffectReplaySafe(
   }
   if (capabilities.replay.kind !== 'terminal-absence') return false;
   return capabilities.replay.terminal_absence_evidence_kinds.includes(absenceEvidence.kind);
+}
+
+export function reservedEffectReleaseSafe(
+  work: Obligation,
+  effectContract: string,
+  evidenceKind: string,
+): boolean {
+  const capabilities = effectAdapterCapabilities(work.packet.effect_contract);
+  if (!capabilities) return false;
+  if (capabilities.effect_contract !== effectContract) return false;
+  if (capabilities.postcondition_verifier !== work.postcondition.verifier) return false;
+  return (
+    capabilities.reservation_release.kind === 'not-dispatched' &&
+    capabilities.reservation_release.evidence_kinds.includes(evidenceKind)
+  );
 }
