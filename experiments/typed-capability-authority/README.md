@@ -85,6 +85,14 @@ The treatment fails if median typed admission takes more than **1.10x** the corr
 
 The capability must also remain zero-sized and require no drop glue. The benchmark is intentionally local: provider I/O, SQLite reservation latency, and authoritative readback dominate different portions of the real transaction and are already measured by `production-latency`.
 
+## Maintenance after evaluation
+
+The 1.10x sequential/concurrent performance ceilings were acceptance criteria for the exact evaluated treatment at `637d15c0f7d29cf0aec9be6afc9cfc40a8d0ea06`. They are not permanent merge limits for unrelated future changes that merely cause this maintained experiment to rerun.
+
+Current CI continues to enforce the security differential, compile-fail controls, zero-sized affine representation, and exact admission equivalence. It still measures and reports the historical performance differential, but exceeding 1.10x on a later hosted runner is observational by default.
+
+Set `OVERCENTER_ENFORCE_HISTORICAL_TYPED_CAPABILITY=1` only when intentionally asking whether a later revision still satisfies the original preregistered performance gate. Reproducing the accepted scientific result exactly should use the evaluated revision above.
+
 ## Reproduce
 
 Requires a stable Rust toolchain:
