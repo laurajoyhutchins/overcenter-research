@@ -1,4 +1,5 @@
-import { KernelCore, runCoreLoop, type KernelOptions } from './engine.ts';
+import { KernelCore, type KernelOptions } from './engine.ts';
+import { runCoreLoop } from '../execution/core-loop.ts';
 import { SqliteFactStore } from '../storage/sqlite.ts';
 
 export type { Receipt } from './engine.ts';
