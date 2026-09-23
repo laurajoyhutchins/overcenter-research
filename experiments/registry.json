@@ -3011,6 +3011,67 @@
           "TLC accepted SchedulerServiceAge.cfg and rejected BrokenServiceAgeNonMonotone.cfg with a temporal-property violation."
         ]
       }
+    },
+    {
+      "id": "distributed-authority-chaos",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/distributed-authority-chaos",
+      "readme": "experiments/distributed-authority-chaos/README.md",
+      "question": "Does the Postgres-free remote-CAS authority architecture survive repeated controller turnover, concurrent unrelated authority updates, unresolved-effect handoff, and repeated execution-authority rotation rather than only one staged transaction?",
+      "claim": "For 48 independent obligations and eight logical controllers, three fresh hosted controller waves plus a fresh bounded sweeper can preserve exactly one claim per obligation, at most one effect reservation per run, recover controller deaths after claim and reservation, survive a second controller death immediately after authority rotation, and eventually settle every obligation DONE without any shared application database.",
+      "contrast": "Treat the successful single handoff as sufficient HA evidence, or require controller-local database continuity for progress after repeated failures.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:distributed-authority-chaos"
+      },
+      "environment": [
+        "Node.js from .node-version and the production GitOvercenterKernel/GitFactStore.",
+        "The deterministic contract uses fresh local Git repositories for each logical controller wave over one bare remote authority ref.",
+        "The hosted treatment uses eight logical controllers across three GitHub Actions matrix waves; every wave receives a fresh hosted checkout and shares only the remote authority ref.",
+        "Forty-eight independent obligations use a stable local-file observation fixture so this experiment isolates authority/recovery endurance rather than repeating the live provider-mutation claim already established by distributed-authority-handoff.",
+        "A final fresh controller performs a bounded sweep only after all injected-failure waves have terminated."
+      ],
+      "success_criteria": [
+        "All 48 obligations end DONE after three eight-controller waves and one fresh bounded sweeper.",
+        "Every obligation has exactly one durable ClaimFact despite concurrent unrelated authority updates and controller restarts.",
+        "No run has more than one EffectReservationFact.",
+        "The preregistered reservation-crash controls for chaos-0003 and chaos-0005 each retain exactly one reservation through fresh-controller recovery.",
+        "chaos-0002 and chaos-0003 settle at execution generation at least 2, demonstrating takeover after controller termination following claim or reservation.",
+        "chaos-0004 and chaos-0005 settle at execution generation at least 3, demonstrating another controller can die immediately after authority rotation and a later fresh controller can take over again.",
+        "Recovery of an unresolved reservation verifies that beginEffect remains rejected with UNRESOLVED_EFFECT before settlement.",
+        "The final sweeper reaches all-DONE within 256 authority transitions under the explicit assumptions that remote authority remains available, the observation fixture remains stable, and fresh controllers keep taking steps.",
+        "The local deterministic contract reproduces the same six failure modes with a fresh local repository for every logical controller wave."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "1d496629374cf83802680fe6ba33a35b9d17d8dc",
+        "artifacts": [
+          "GitHub Actions run 35930448775: exact-head distributed authority chaos treatment PASS across deterministic preflight, 24 hosted controller-wave jobs, fresh bounded sweep, durable verifier, and cleanup.",
+          "Final verifier: 48 obligations DONE, 48 ClaimFacts, 24 EffectReservationFacts, with exactly one claim per obligation and no duplicate reservation per run.",
+          "chaos-0002 settled at execution generation 2; chaos-0003 settled at generation 2 with its reservation retained through recovery.",
+          "chaos-0004 and chaos-0005 each forced a generation-2 controller termination after authority rotation and later settled at execution generation 3; chaos-0005 retained its unresolved reservation and blocked replay.",
+          "Fresh sweeper reached all-DONE in 34 successful authority transitions versus the preregistered maximum of 256.",
+          "Standing exact-head Merge gate, Typed capability authority, Authority flow analysis, Effect authority decay, and Distributed authority handoff workflows all passed at the treatment revision."
+        ]
+      },
+      "interpretation": "The bounded result strengthens the single distributed-authority handoff into repeated controller-turnover evidence: controller-local database continuity was unnecessary across 24 hosted fault-injection jobs, while one remote exact-head authority coordinate preserved safety and allowed conditional progress. The 34-transition sweep is also evidence that the remaining work was recoverable rather than merely fail-closed. This still does not establish an HA SLA, provider-general mutation recovery, or starvation freedom.",
+      "non_claims": [
+        "This experiment re-proves arbitrary external-provider mutation recovery; it intentionally uses a stable local observation fixture.",
+        "The scheduler is starvation-free under arbitrary adversarial scheduling.",
+        "GitHub provides a production availability, latency, or durability SLA appropriate for every deployment.",
+        "The architecture is consensus-free; the remote exact-head transition remains the agreement primitive.",
+        "The experiment proves multi-region partitions, Byzantine faults, or unbounded liveness.",
+        "Forty-eight obligations and three waves establish asymptotic scalability."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The 48-obligation hosted population, eight-controller ownership partition, three fresh-runner waves, six fault modes, generation thresholds, single-claim/single-reservation invariants, and 256-transition sweep bound were recorded before the first hosted execution. Developmental runs exposed only formatter and local-preflight cost issues; the local preflight was reduced to one obligation per fault mode without changing the hosted 48-obligation treatment or acceptance criteria."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 1d496629374cf83802680fe6ba33a35b9d17d8dc, 48 obligations survived three waves of eight fresh hosted controllers with deterministic claim, reservation, and post-rotation termination modes. Every obligation retained exactly one claim, every run at most one reservation, generation-2 and generation-3 takeover controls passed, and a fresh sweeper closed the project DONE in 34 of the allowed 256 transitions."
+      }
     }
   ]
 }
