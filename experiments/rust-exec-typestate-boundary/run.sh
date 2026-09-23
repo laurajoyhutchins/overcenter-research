@@ -34,6 +34,21 @@ printf '%s\n' '== compile-fail controls against production sandbox =='
   expect_compile_failure "$here/negative-reuse.rs" 'use of moved value'
 )
 
+printf '%s\n' '== optimized binary footprint =='
+baseline_dir="$tmp/baseline-src"
+mkdir -p "$baseline_dir"
+for file in main.rs manifest.rs resource.rs sandbox.rs; do
+  git show "$baseline_sha:src/execution/confinement/$file" > "$baseline_dir/$file"
+done
+rustc --edition=2021 -O "$baseline_dir/main.rs" -o "$tmp/baseline-exec"
+rustc --edition=2021 -O "$repo_root/src/execution/confinement/main.rs" -o "$tmp/treatment-exec"
+strip "$tmp/baseline-exec" "$tmp/treatment-exec"
+baseline_bytes="$(stat -c %s "$tmp/baseline-exec")"
+treatment_bytes="$(stat -c %s "$tmp/treatment-exec")"
+growth_bp="$(( (treatment_bytes-baseline_bytes) * 10000 / baseline_bytes ))"
+printf 'baseline_binary_bytes=%s treatment_binary_bytes=%s growth_basis_points=%+d\n' \
+  "$baseline_bytes" "$treatment_bytes" "$growth_bp"
+
 printf '%s\n' '== source complexity and runtime-guard census =='
 baseline="$tmp/baseline.rs"
 git show "$baseline_sha:src/execution/confinement/sandbox.rs" > "$baseline"
@@ -76,7 +91,7 @@ treatment_guards="$(guard_count "$production")"
 printf 'baseline_sloc=%s treatment_sloc=%s delta=%+d\n'   "$baseline_sloc" "$treatment_sloc" "$((treatment_sloc-baseline_sloc))"
 printf 'baseline_runtime_guard_classes=%s treatment_runtime_guard_classes=%s\n'   "$baseline_guards" "$treatment_guards"
 
-if (( treatment_sloc <= baseline_sloc && treatment_guards < baseline_guards )); then
+if (( treatment_sloc <= baseline_sloc && treatment_guards < baseline_guards && growth_bp <= 100 )); then
   printf '%s\n' 'hypothesis=SUPPORTED'
 else
   printf '%s\n' 'hypothesis=FALSIFIED'
