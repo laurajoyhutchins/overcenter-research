@@ -134,9 +134,10 @@ async function runWorld(world: World): Promise<Result> {
       return { status: 201, body: '{}' };
     };
 
+    const authority = first.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT);
     let adapterOutcome = 'returned';
     try {
-      await performGithubCommitStatusEffect(first, run, {
+      await performGithubCommitStatusEffect(first, authority, {
         token: 'token',
         get: async () => repository(),
         post,
