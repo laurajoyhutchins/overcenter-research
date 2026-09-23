@@ -1,8 +1,5 @@
 import type { KernelCore } from '../authority/engine.ts';
-import {
-  effectAdapterCapabilities,
-  GITHUB_COMMIT_STATUS_EFFECT,
-} from '../effect-adapter.ts';
+import { effectAdapterCapabilities, GITHUB_COMMIT_STATUS_EFFECT } from '../effect-adapter.ts';
 import type { Data, ExecutionPermit } from '../model.ts';
 import { performGithubCommitStatusEffect, type GithubStatusPost } from './github/status-effect.ts';
 import type { GithubJsonGetAsync } from './github/rest.ts';
@@ -16,7 +13,7 @@ export interface TrustedEffectDispatchContext {
   };
 }
 
-export async function dispatchRegisteredEffect(
+export async function dispatchAdmittedEffect(
   kernel: KernelCore,
   permit: ExecutionPermit,
   context: TrustedEffectDispatchContext,
@@ -29,9 +26,7 @@ export async function dispatchRegisteredEffect(
     );
   }
   if (capabilities.effect_contract !== GITHUB_COMMIT_STATUS_EFFECT) {
-    throw new Error(
-      `REGISTERED_EFFECT_DISPATCH_NOT_ADMITTED:${capabilities.effect_contract}`,
-    );
+    throw new Error(`REGISTERED_EFFECT_DISPATCH_NOT_ADMITTED:${capabilities.effect_contract}`);
   }
 
   const github = context.github;
