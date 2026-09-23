@@ -1336,6 +1336,58 @@
         "state": "supported",
         "summary": "At exact revision 637d15c0f7d29cf0aec9be6afc9cfc40a8d0ea06, the typed Rust capability matched the modeled production admission decision across all 131,072 cases, rejected raw/forged/reused authority at compile time, remained zero-sized, and measured 0.949x sequential and 0.959x concurrent median admission time versus the structural baseline."
       }
+    },
+    {
+      "id": "rust-exec-typestate-boundary",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/rust-exec-typestate-boundary",
+      "readme": "experiments/rust-exec-typestate-boundary/README.md",
+      "question": "Can a typed capability simplify the real Rust-owned overcenter-exec boundary by making premature exec unrepresentable while deleting runtime machinery without weakening confinement or materially increasing compiled footprint?",
+      "claim": "An affine ExecPermit can preserve the existing physical confinement proof, reject forgery/reuse at compile time, remove or consolidate at least one runtime guard class, avoid increasing production sandbox SLOC, and keep optimized stripped launcher size within 1% of baseline.",
+      "contrast": "Keep the current straight-line runtime-validated sandbox execute function with no typestate token.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:rust-exec-typestate-boundary && npm run proof:rust-exec"
+      },
+      "environment": [
+        "Linux x86-64 with cgroup v2 and Landlock ABI >= 6 for the physical confinement proof.",
+        "Pinned Rust toolchain from rust-toolchain.toml.",
+        "Git history containing exact baseline b683a84d55bb29b166652f00fa8b6be5f2aaec2c for source and binary comparison.",
+        "Ubuntu hosted runner with sudo for delegated cgroup proof setup."
+      ],
+      "success_criteria": [
+        "The complete production Rust confinement hostile proof passes against the typestate treatment.",
+        "Safe caller code cannot forge ExecPermit because its fields are private.",
+        "One ExecPermit cannot be reused after launch(self) consumes it.",
+        "The treatment reduces the preregistered census of explicit runtime guard classes relative to baseline.",
+        "Production sandbox.rs nonblank SLOC is no greater than baseline.",
+        "The optimized stripped launcher binary is no more than 1% larger than baseline."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/rust-exec-typestate-boundary.yml",
+          "experiments/rust-exec-typestate-boundary/run.sh"
+        ],
+        "pending_reason": "The production treatment and acceptance criteria are preregistered before the first hosted run."
+      },
+      "interpretation": "A supported result would justify retaining typestate at the production exec boundary. A falsified result would show that the dynamic checks are proofs of external Linux state rather than bookkeeping Rust types can replace, so the treatment should be reverted while retaining the negative evidence.",
+      "non_claims": [
+        "Linux cgroup, FD identity, Landlock, capability, scheduling, or seccomp state can be proven statically.",
+        "The trusted TypeScript supervisor's independent runtime checks are redundant.",
+        "Provider mutation credentials or settlement authority belong in overcenter-exec.",
+        "Binary size is an end-to-end transaction latency measurement.",
+        "Safe Rust prevents malicious edits inside the trusted sandbox module."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The real production sandbox treatment, baseline revision, hostile proof, compile-fail controls, runtime-guard census, no-SLOC-growth requirement, and <=1% binary-growth threshold were fixed before the first hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting the first exact-head hosted run."
+      }
     }
   ]
 }
