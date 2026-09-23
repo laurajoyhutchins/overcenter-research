@@ -3,7 +3,7 @@ set -euo pipefail
 
 BIOME_VERSION=2.5.14
 
-# Lint TypeScript and JSON, including contract/evidence JSON, without rewriting bytes.
+# Lint TypeScript and every repository JSON document, including contract/evidence JSON, without rewriting bytes.
 npx --yes "@biomejs/biome@$BIOME_VERSION" lint .
 
 # Formatting remains scoped to handwritten TypeScript plus the two project config files.
