@@ -83,3 +83,57 @@ The secondary post-hoc minimization result is positive. Every training safe-retr
 A negative generalization result does not invalidate post-hoc witness minimization. It means historical minimality alone is insufficient authority for narrowing future capture across previously unseen effect routes.
 
 The experiment is synthetic and bounded. It does not establish that 95% is the correct production threshold, that every provider exposes a finite route vocabulary, or that ddmin is the optimal minimizer.
+
+## Follow-on trial matrix: preregistration
+
+The first result leaves open whether the problem is statistical, semantic, or structural. The following trials are preregistered before their hosted execution.
+
+### T1: route-exposure sweep
+
+Add 0, 1, 2, 4, 8, or 16 **safe** helper-route traces to the original main-route training set, freeze the union of 1-minimal witness capabilities, then challenge it on 200 helper-route executions.
+
+Prediction to test: if route coverage rather than sample count is the limiting variable, zero helper examples will retain 0% helper recovery while even one valid helper safe-retry proof will be enough to retain 100% in this two-route model.
+
+### T2: minimization stability under redundant evidence
+
+Minimize 500 independently shuffled main-route safe traces. There are two semantically equivalent complete main-route monitors.
+
+Measure the number and frequency of distinct 1-minimal witness shapes, their set intersection, and their union.
+
+Prediction to test: individual minimal witnesses will be non-unique, while the intersection will contain only the proof-invariant core `reservation + route + termination`. Therefore literal feature intersection cannot itself define a complete capture policy.
+
+### T3: fail-closed outcome asymmetry
+
+Minimize 50 committed helper traces using only the predicate “the verifier still returns `RECOVERY_REQUIRED`.”
+
+Prediction to test: because `RECOVERY_REQUIRED` is the verifier's safe default for missing evidence, delta minimization will reduce these cases to an empty witness. This would show that status preservation is insufficient: useful minimization targets must be positive propositions/proofs, not a generic fail-closed disposition.
+
+### T4: guarded promotion
+
+Learn the narrow main-route contract historically, then add the helper monitor from an **independently supplied complete mutation-route inventory**. Remove all remaining broad noise.
+
+Success criterion: preserve 100% broad-recorder safe recovery across both routes with zero false certainty while retaining at most 10% of broad capture classes.
+
+This tests the alternative architecture: learning may minimize *inside* a structurally certified observation envelope, but may not learn the envelope's completeness from historical absence.
+
+### T5: broad shadow sampling
+
+Assume an unseen helper route occurs in 1% of production executions. Compute geometric discovery latency for broad shadow-capture rates of 0.1%, 0.5%, 1%, 5%, and 10%.
+
+Compare:
+
+- structural route-novelty detection, which can react to any broadly captured helper execution; and
+- safe-witness-only discovery, which needs the helper execution also to be pre-effect.
+
+The purpose is to quantify whether probabilistic shadow capture is a plausible completeness mechanism or merely a backstop.
+
+### Falsifying observations
+
+These follow-on interpretations are rejected if:
+
+- helper recovery rises smoothly with repeated same-route samples even without helper-route exposure, contradicting the route-coverage explanation;
+- a unique literal minimal witness dominates despite redundant equivalent monitors;
+- generic `RECOVERY_REQUIRED` minimization retains substantive causal evidence rather than collapsing to the fail-closed default;
+- the independently guarded contract cannot preserve full recovery and zero false certainty; or
+- shadow discovery is fast enough at tiny sampling rates to make structural route enumeration unnecessary in this model.
+

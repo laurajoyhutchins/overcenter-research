@@ -2,6 +2,9 @@ name: Automatic witness minimization experiment
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/witness-minimization-20260923
 
 permissions:
   contents: read
@@ -34,4 +37,14 @@ jobs:
             echo '## Automatic witness minimization'
             echo
             sed 's/^/    /' "$RUNNER_TEMP/witness-minimization.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Run follow-on trial matrix
+        run: |
+          set -euo pipefail
+          npm run test:witness-minimization:trials | tee "$RUNNER_TEMP/witness-minimization-trials.txt"
+          {
+            echo
+            echo '## Follow-on trial matrix'
+            echo
+            sed 's/^/    /' "$RUNNER_TEMP/witness-minimization-trials.txt"
           } >> "$GITHUB_STEP_SUMMARY"

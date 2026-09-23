@@ -45,6 +45,7 @@
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
     "proof:worker-client": "bash src/execution/worker-client/proof.sh",
     "test:typed-capability-authority": "bash experiments/typed-capability-authority/run.sh",
-    "test:witness-minimization": "node --experimental-strip-types experiments/witness-minimization/run.ts"
+    "test:witness-minimization": "node --experimental-strip-types experiments/witness-minimization/run.ts",
+    "test:witness-minimization:trials": "node --experimental-strip-types experiments/witness-minimization/trials.ts"
   }
 }
