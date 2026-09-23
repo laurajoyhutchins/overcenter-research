@@ -41,9 +41,7 @@ import type {
 import { validateAdmission } from './admission.ts';
 import {
   deriveProjectProjection,
-  explainProjectWork,
   hasInFlight,
-  type ProjectExplanation,
 } from './project-state.ts';
 import { deriveCurrentRealizationJudgments } from './realization-reuse.ts';
 import {
@@ -196,32 +194,6 @@ export class KernelCore {
     return this.#currentProjection(head).project.readyWork;
   }
 
-  explain(id:string):ProjectExplanation {
-    const head=this.#requireHead();
-    const historical=this.#historicalProjection(head);
-    const judgments=deriveCurrentRealizationJudgments({
-      state:historical.state,
-      runs:historical.history.runs,
-      receiptsByRun:historical.history.receiptsByRun,
-      semanticKeys:historical.project.semanticKeys,
-      observe:postcondition=>this.#observe(postcondition),
-    });
-    const project=deriveProjectProjection({
-      state:historical.state,
-      runs:historical.history.runs,
-      receiptsByRun:historical.history.receiptsByRun,
-      revision:head,
-      currentRealizationJudgments:judgments,
-    });
-    return explainProjectWork(
-      project,
-      historical.state,
-      historical.history.runs,
-      historical.history.receiptsByRun,
-      id,
-      judgments,
-    );
-  }
 
   claim(id:string,expectedRevision:string):ExecutionPermit {
     const head=this.#requireHead();
