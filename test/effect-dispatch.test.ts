@@ -7,7 +7,7 @@ import test from 'node:test';
 import { OvercenterKernel } from '../src/authority/kernel.ts';
 import { GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT } from '../src/effect-adapter.ts';
 import { githubCommitStatus } from '../src/providers/github/status-resource.ts';
-import { dispatchRegisteredEffect } from '../src/providers/effect-dispatch.ts';
+import { dispatchAdmittedEffect } from '../src/providers/effect-dispatch.ts';
 
 const COMMIT = 'a'.repeat(40);
 
@@ -34,7 +34,7 @@ test('trusted dispatcher infers the registered provider effect from claimed work
     assert.ok(ready);
     const permit = kernel.claim(ready.id, ready.revision);
 
-    const result = await dispatchRegisteredEffect(kernel, permit, {
+    const result = await dispatchAdmittedEffect(kernel, permit, {
       github: {
         token: 'token',
         get: async () => ({
@@ -83,7 +83,7 @@ test('trusted dispatcher rejects unregistered effect contracts before reservatio
     const permit = kernel.claim(ready.id, ready.revision);
 
     await assert.rejects(
-      dispatchRegisteredEffect(kernel, permit, { github: { token: 'token' } }),
+      dispatchAdmittedEffect(kernel, permit, { github: { token: 'token' } }),
       /REGISTERED_EFFECT_DISPATCH_UNREGISTERED/,
     );
     assert.equal(kernel.hasUnresolvedEffect(permit.id), false);
@@ -119,7 +119,7 @@ test('registered but unadmitted effects cannot enter trusted dispatch', async ()
     const permit = kernel.claim(ready.id, ready.revision);
 
     await assert.rejects(
-      dispatchRegisteredEffect(kernel, permit, {}),
+      dispatchAdmittedEffect(kernel, permit, {}),
       /REGISTERED_EFFECT_DISPATCH_NOT_ADMITTED/,
     );
     assert.equal(kernel.hasUnresolvedEffect(permit.id), false);
