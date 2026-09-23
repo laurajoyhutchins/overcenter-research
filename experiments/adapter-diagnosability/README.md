@@ -104,4 +104,16 @@ This experiment does not prove:
 
 ## Result
 
-Pending exact-head hosted evaluation. A pre-commit local execution on Node 22.16.0 matched all seven preregistered classifications, the depth-12 oracle agreed, `too-late` was separated from ordinary diagnosability, and the uncorrelated-receipt negative control was killed. This local result is developmental evidence only until reproduced from the exact committed revision.
+**Supported for the preregistered bounded corpus.** Exact revision `79c666d1aad67ff3c7df894f3cd509d572e4fcce` was evaluated in GitHub Actions Merge gate run `35922140571`, rerun attempt 2, candidate-evidence job `107389085625`.
+
+The hosted checker matched all seven expected classifications:
+
+- `undispatched`, `receipt`, and `bounded-eventual-webhook` were safe-diagnosable;
+- `ambiguous-timeout`, `stale-get`, and `same-final-state` were non-diagnosable and each emitted a concrete ambiguity-cycle witness;
+- `too-late` was diagnosable but not safe-diagnosable because `release-authority` remained reachable while mutation and non-mutation worlds were still observationally ambiguous.
+
+The independent depth-12 trace oracle agreed with the product checker on all seven fixtures: each non-diagnosable fixture retained one ambiguous observation sequence at depth 12, while every diagnosable fixture retained zero. Collapsing `RECEIPT_PRESENT` and `RECEIPT_ABSENT` into one uncorrelated `RECEIPT` observation made the receipt protocol non-diagnosable, killing the preregistered negative control.
+
+The same exact-head candidate passed repository lint and TypeScript checking, the experiment contract, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application.
+
+This supports the narrow claim that DES-style diagnosability is mechanically useful on a finite effect-protocol abstraction and that safe diagnosability captures a real distinction between eventual knowledge and knowledge available before authority reuse. It does **not** yet establish that a real provider adapter can be conservatively abstracted without changing the checker. That remains the next falsifying step.
