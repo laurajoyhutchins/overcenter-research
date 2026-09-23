@@ -2783,6 +2783,62 @@
           "The Phase 2 exact-head candidate also passed repository lint, TypeScript checking, experiment-contract verification, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application."
         ]
       }
+    },
+    {
+      "id": "authority-flow-analysis",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/authority-flow-analysis",
+      "readme": "experiments/authority-flow-analysis/README.md",
+      "question": "Can a small static abstract interpreter reject mutation paths where untrusted agent data, exact revision identity, or current execution authority cross a trust boundary incorrectly, while accepting the real GitHub mutation paths without per-path suppressions?",
+      "claim": "A product abstract domain over untrusted origin, candidate validation, exact revision, current lease, possible call targets, and mutation-admitted control can reject the preregistered hostile authority-flow mutants while accepting both admitted GitHub mutation paths with zero suppressions.",
+      "contrast": "Rely on TypeScript types and local runtime validators without whole-path analysis across serialization, queue, aliasing, branch-join, and dynamic-dispatch boundaries.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:authority-flow-analysis"
+      },
+      "environment": [
+        "GitHub Actions ubuntu-24.04 with Node.js from .node-version.",
+        "Repository-pinned TypeScript 7.0.2 dev toolchain installed only in the hosted build environment.",
+        "TypeScript 7 unstable/sync and unstable/ast APIs parse source without executing the analyzed program.",
+        "No provider credential, database, model, or external service is required by the analysis itself."
+      ],
+      "success_criteria": [
+        "All 16 hostile mutants are rejected for their expected authority-flow violation: 12 preregistered flow mutants, 3 preregistered production-boundary mutants, and 1 post-observation conditional-dominance mutant.",
+        "All 4 safe controls are accepted without diagnostics.",
+        "Both current GitHub mutation provider paths are accepted.",
+        "Production acceptance requires zero suppressions or per-path allowlists.",
+        "The analysis is static: analyzed snippets and production provider code are parsed but never executed.",
+        "The analyzer remains build-time tooling only: production and self-application retain zero npm runtime dependencies."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "7554f069570e6501afc971adfb9d7420dae3b683",
+        "artifacts": [
+          "experiments/authority-flow-analysis/experiment.ts",
+          "experiments/authority-flow-analysis/analyzer.ts",
+          "GitHub Actions run 35920287943, job 107382200565: exact-head checkout and static authority-flow differential PASS.",
+          "Hosted result: 16/16 hostile mutants rejected, 4/4 safe controls accepted, both production GitHub mutation paths accepted, and production suppressions = 0.",
+          "Merge-gate run 35920288403, exact-head rerun job 107384147704: candidate merge certification PASS on the same treatment revision."
+        ]
+      },
+      "interpretation": "A positive result would justify a production linter that makes runtime-established authority and deliberate proof decay visible across program boundaries; a false positive on current production or false negative in the hostile corpus would reject this abstraction.",
+      "non_claims": [
+        "The prototype is sound for arbitrary TypeScript or JavaScript.",
+        "Runtime authority, revision, lifecycle, unresolved-effect, or provider checks can be removed.",
+        "All dynamic dispatch forms are covered.",
+        "Serialization is inherently unsafe rather than a boundary requiring proof reconstruction.",
+        "Provider credentials become least-privilege.",
+        "Malicious trusted code or explicit analyzer bypasses are prevented."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The abstract domain, 12 flow mutants, 3 original production-boundary mutants, safe controls, production no-suppression criterion, and falsification rule were fixed before the first candidate run. That run exposed that classifying the TypeScript-API experiment as deterministic leaked a dev-tool dependency into dependency-free self-application; the hosted/tooling isolation criterion was added afterward without changing the original corpus. Later exact-head review identified a conditional-beginEffect dominance false negative; a fourth production-boundary mutant was added explicitly post-observation and the checker was narrowed to require an unconditional top-level beginEffect call before any effect invocation."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 7554f069570e6501afc971adfb9d7420dae3b683, the hosted checker rejected all 16 hostile mutants, accepted all 4 safe controls and both real GitHub mutation paths, and required zero production suppressions. The result supports the bounded build-time sidecar claim, not a universal TypeScript soundness claim or production authority role."
+      }
     }
   ]
 }

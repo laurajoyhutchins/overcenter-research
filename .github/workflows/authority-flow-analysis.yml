@@ -1,0 +1,52 @@
+name: Authority flow analysis
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/authority-flow-analysis.yml
+      - experiments/authority-flow-analysis/**
+      - experiments/registry.json
+      - experiments/README.md
+      - package.json
+      - src/authority/engine.ts
+      - src/providers/github/status-effect.ts
+      - src/providers/github/pr-update-branch-effect.ts
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  authority-flow-analysis:
+    name: Static authority-flow differential
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Node from repository
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install pinned build toolchain
+        run: npm install --ignore-scripts --package-lock=false
+
+      - name: Type-check repository
+        run: npm run typecheck
+
+      - name: Experiment contract
+        run: npm run test:experiment-contract
+
+      - name: Authority-flow analysis
+        run: npm run test:authority-flow-analysis

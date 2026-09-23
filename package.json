@@ -56,7 +56,8 @@
     "experiment:core-loop-concurrency": "node --experimental-strip-types experiments/core-loop-concurrency/experiment.ts",
     "test:evidence-store": "node --experimental-strip-types --test test/evidence-file-store.test.ts",
     "test:adapter-diagnosability": "node --experimental-strip-types experiments/adapter-diagnosability/experiment.ts",
-    "check:adapter-diagnosability": "node --experimental-strip-types scripts/check-adapter-diagnosability.ts"
+    "check:adapter-diagnosability": "node --experimental-strip-types scripts/check-adapter-diagnosability.ts",
+    "test:authority-flow-analysis": "node --experimental-strip-types experiments/authority-flow-analysis/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
