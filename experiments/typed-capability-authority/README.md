@@ -11,7 +11,7 @@ This is an architectural experiment, not a production-boundary migration. Produc
 The production path performs runtime validation in two places:
 
 1. `src/providers/github/status-effect.ts` binds claimed work, effect contract, and postcondition to the presented execution permit.
-2. `KernelCore.beginEffect` uses `projectExecutionAuthority` and `mutationAdmitted` to require the current execution generation, exact claimed revision, matching capability digest, an EXECUTING lifecycle, and no unresolved prior effect before durably reserving mutation.
+2. `KernelCore.reserveEffect` uses `projectExecutionAuthority` and `mutationAdmitted` to require the current execution generation, exact claimed revision, matching capability digest, an EXECUTING lifecycle, and no unresolved prior effect before durably reserving mutation.
 
 Those checks remain authoritative runtime facts. The proposed representation does **not** attempt to prove remote or time-varying facts at compile time.
 

@@ -57,8 +57,8 @@ The experiment also parses the real production source.
 It accepts the provider paths only if:
 
 1. the GitHub status POST and pull-request update PUT are lexically inside a `performEffect` callback;
-2. `performEffect` calls `beginEffect` before invoking the effect callback; and
-3. `beginEffect` still contains the current-authority, exact-revision, mutation-admission, and unresolved-effect fence.
+2. `performEffect` calls `reserveEffect` before invoking the effect callback; and
+3. `reserveEffect` still contains the current-authority, exact-revision, mutation-admission, and unresolved-effect fence.
 
 No file-specific suppression is permitted.
 
@@ -79,7 +79,7 @@ The preregistered flow mutants cover:
 - exact revision without current lease; and
 - current lease without exact revision.
 
-Production-boundary mutants additionally cover a provider mutation escaping `performEffect`, effect invocation before the authority fence, loss of the exact-revision fence, and a post-observation conditional-fence probe where `beginEffect` does not dominate the effect call.
+Production-boundary mutants additionally cover a provider mutation escaping `performEffect`, effect invocation before the authority fence, loss of the exact-revision fence, and a post-observation conditional-fence probe where `reserveEffect` does not dominate the effect call.
 
 Safe controls include a validated candidate, explicit revalidation after a queue, and conservative dynamic dispatch under valid authority.
 
@@ -104,7 +104,7 @@ npm run test:authority-flow-analysis
 
 ## Provenance
 
-The authority-flow lattice, 12 flow mutants, 3 original production-boundary mutants, safe controls, zero-suppression production criterion, and falsification rule were preregistered. The first exact-head candidate run then exposed an orthogonal packaging error: placing the experiment in the deterministic tier caused dependency-free self-application to execute a tool that imports the TypeScript dev package. Moving the experiment to the hosted tooling tier is therefore a post-observation boundary correction, not a change to the original security corpus. A later exact-head review added one explicitly post-observation production-boundary mutant for conditional `beginEffect` dominance after that gap was identified; it is not counted as preregistered.
+The authority-flow lattice, 12 flow mutants, 3 original production-boundary mutants, safe controls, zero-suppression production criterion, and falsification rule were preregistered. The first exact-head candidate run then exposed an orthogonal packaging error: placing the experiment in the deterministic tier caused dependency-free self-application to execute a tool that imports the TypeScript dev package. Moving the experiment to the hosted tooling tier is therefore a post-observation boundary correction, not a change to the original security corpus. A later exact-head review added one explicitly post-observation production-boundary mutant for conditional `reserveEffect` dominance after that gap was identified; it is not counted as preregistered.
 
 ## Hosted result
 

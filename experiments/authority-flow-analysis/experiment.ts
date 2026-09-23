@@ -186,13 +186,13 @@ function scenario() {
 
 const soundEngine = `
 class KernelCore {
-  beginEffect(permit:any) {
+  reserveEffect(permit:any) {
     const authority=projectExecutionAuthority(run,permit,digest);
     if (!authority.current_authority || !authority.exact_revision) throw new Error('stale');
     if (!mutationAdmitted({...authority,unresolved_effect:history.unresolvedReservationsByRun.has(run.id)})) throw new Error('unresolved');
   }
   async performEffect(permit:any,effect:any) {
-    this.beginEffect(permit);
+    this.reserveEffect(permit);
     return await effect();
   }
 }`;
@@ -221,14 +221,14 @@ const productionMutants = [
     input: {
       engine: `
 class KernelCore {
-  beginEffect(permit:any) {
+  reserveEffect(permit:any) {
     const authority=projectExecutionAuthority(run,permit,digest);
     if (!authority.current_authority || !authority.exact_revision) throw new Error('stale');
     if (!mutationAdmitted({...authority,unresolved_effect:history.unresolvedReservationsByRun.has(run.id)})) throw new Error('unresolved');
   }
   async performEffect(permit:any,effect:any) {
     const result=await effect();
-    this.beginEffect(permit);
+    this.reserveEffect(permit);
     return result;
   }
 }`,
@@ -238,17 +238,17 @@ class KernelCore {
     expected: 'PRODUCTION_EFFECT_WRAPPER_INVALID' as IssueCode,
   },
   {
-    name: 'beginEffect loses exact revision fence',
+    name: 'reserveEffect loses exact revision fence',
     input: {
       engine: `
 class KernelCore {
-  beginEffect(permit:any) {
+  reserveEffect(permit:any) {
     const authority=projectExecutionAuthority(run,permit,digest);
     if (!authority.current_authority) throw new Error('stale');
     if (!mutationAdmitted({...authority,unresolved_effect:history.unresolvedReservationsByRun.has(run.id)})) throw new Error('unresolved');
   }
   async performEffect(permit:any,effect:any) {
-    this.beginEffect(permit);
+    this.reserveEffect(permit);
     return await effect();
   }
 }`,
@@ -262,13 +262,13 @@ class KernelCore {
     input: {
       engine: `
 class KernelCore {
-  beginEffect(permit:any) {
+  reserveEffect(permit:any) {
     const authority=projectExecutionAuthority(run,permit,digest);
     if (!authority.current_authority || !authority.exact_revision) throw new Error('stale');
     if (!mutationAdmitted({...authority,unresolved_effect:history.unresolvedReservationsByRun.has(run.id)})) throw new Error('unresolved');
   }
   async performEffect(permit:any,effect:any) {
-    if (permit) this.beginEffect(permit);
+    if (permit) this.reserveEffect(permit);
     return await effect();
   }
 }`,

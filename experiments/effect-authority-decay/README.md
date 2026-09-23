@@ -18,7 +18,7 @@ Both admitted GitHub mutation providers independently:
 4. check the postcondition verifier;
 5. later pass the raw permit to `performEffect`.
 
-`beginEffect` then performs the independent current-head execution-generation, exact-revision, lifecycle, capability-digest, and unresolved-effect fence. That final fence is necessary because authority may change during provider I/O.
+`reserveEffect` then performs the independent current-head execution-generation, exact-revision, lifecycle, capability-digest, and unresolved-effect fence. That final fence is necessary because authority may change during provider I/O.
 
 ## Treatment
 
@@ -47,7 +47,7 @@ runtime claim authority
  performEffect
         │
         ▼
- beginEffect current-head fence
+ reserveEffect current-head fence
         │
         ▼
  consequential provider mutation
@@ -66,7 +66,7 @@ If either invalid program becomes type-correct, `npm run typecheck` fails.
 
 The runtime adversary mints bound authority, supersedes the execution generation during asynchronous provider identity observation, then reaches the mutation boundary.
 
-The unchanged `beginEffect` fence must reject `STALE_EXECUTION_GENERATION` before POST and before creating an unresolved effect reservation.
+The unchanged `reserveEffect` fence must reject `STALE_EXECUTION_GENERATION` before POST and before creating an unresolved effect reservation.
 
 That is the intended split:
 
@@ -163,7 +163,7 @@ Same-runner production latency, median-of-run medians:
 
 Both remain comfortably within the preregistered **1.10x** ceiling.
 
-The stale-authority adversary also passed: authority was bound, the execution generation was superseded during provider identity I/O, and the unchanged final `beginEffect` fence rejected the old authority before POST and before effect reservation.
+The stale-authority adversary also passed: authority was bound, the execution generation was superseded during provider identity I/O, and the unchanged final `reserveEffect` fence rejected the old authority before POST and before effect reservation.
 
 ### Interpretation
 

@@ -439,12 +439,12 @@ function isDirectCallStatement(statement: Statement, name: string): boolean {
 function wrapperIsSound(engine: string): boolean {
   return withSource('engine.ts', engine, (source) => {
     const perform = methodNamed(source, 'performEffect');
-    const begin = methodNamed(source, 'beginEffect');
+    const begin = methodNamed(source, 'reserveEffect');
     if (!perform?.body || !begin?.body) return false;
 
     const statements = [...perform.body.statements];
     const beginIndex = statements.findIndex((statement) =>
-      isDirectCallStatement(statement, 'beginEffect'),
+      isDirectCallStatement(statement, 'reserveEffect'),
     );
     const effectIndex = statements.findIndex((statement) => containsCall(statement, 'effect'));
     if (beginIndex < 0 || effectIndex < 0 || beginIndex >= effectIndex) return false;
@@ -516,7 +516,7 @@ export function analyzeProductionBoundary(input: {
     issues.push({
       code: 'PRODUCTION_EFFECT_WRAPPER_INVALID',
       line: 1,
-      detail: 'performEffect/beginEffect no longer establishes the required authority fence.',
+      detail: 'performEffect/reserveEffect no longer establishes the required authority fence.',
     });
   }
   issues.push(...providerIssues('status-effect.ts', input.githubStatus, 'post'));
