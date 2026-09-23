@@ -119,6 +119,7 @@ export interface LoopOptions {
   preflight?: (packet: Data) => Promise<PreflightOutcome>;
   effect: (packet: Data) => Promise<ExecuteOutcome>;
   maxAdvances?: number;
+  concurrency?: number;
 }
 
 export interface LoopResult {

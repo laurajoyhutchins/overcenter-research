@@ -678,3 +678,156 @@ test('SQLite projection cache follows external heads and never bypasses durable 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('core loop overlaps bounded effects without widening authority', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'sqlite-core-loop-concurrency-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+  let active = 0;
+  let maxActive = 0;
+
+  try {
+    kernel.initialize();
+    for (const id of ['a', 'b', 'c', 'd']) {
+      const path = join(root, id);
+      kernel.define({
+        id,
+        packet: { id, path, content: id.toUpperCase() },
+        postcondition: pc(path, id.toUpperCase()),
+      });
+    }
+
+    const result = await runCoreLoop(kernel, {
+      concurrency: 4,
+      effect: async (packet) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        writeFileSync(String(packet.path), String(packet.content));
+        active -= 1;
+        return { kind: 'ok' };
+      },
+    });
+
+    assert.equal(result.state, 'IDLE');
+    assert.equal(maxActive, 4);
+    assert.ok(kernel.inspect().every((work) => work.status === 'DONE'));
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('bounded core-loop capacity selects independent READY peers within a wave', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'sqlite-core-loop-wave-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+  const seen: string[] = [];
+
+  try {
+    kernel.initialize();
+    for (const id of ['a', 'b']) {
+      const path = join(root, id);
+      kernel.define({
+        id,
+        packet: { id, path, content: id.toUpperCase() },
+        postcondition: pc(path, id.toUpperCase()),
+      });
+    }
+
+    const result = await runCoreLoop(kernel, {
+      concurrency: 2,
+      maxAdvances: 2,
+      effect: async (packet) => {
+        const id = String(packet.id);
+        seen.push(id);
+        writeFileSync(String(packet.path), String(packet.content));
+        return { kind: 'ok' };
+      },
+    });
+
+    assert.equal(result.state, 'BUDGET_EXHAUSTED');
+    assert.deepEqual(seen, ['a', 'b']);
+    assert.deepEqual(
+      kernel.inspect().map((work) => [work.id, work.status]),
+      [
+        ['a', 'DONE'],
+        ['b', 'DONE'],
+      ],
+    );
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('concurrent core loop drains started effects before returning WAITING', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'sqlite-core-loop-waiting-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+  let firstEffectStarted = false;
+
+  try {
+    kernel.initialize();
+    for (const id of ['a', 'b']) {
+      const path = join(root, id);
+      kernel.define({
+        id,
+        packet: { id, path, content: id.toUpperCase() },
+        postcondition: pc(path, id.toUpperCase()),
+      });
+    }
+
+    const result = await runCoreLoop(kernel, {
+      concurrency: 2,
+      preflight: async (packet) => {
+        if (packet.id === 'b') {
+          assert.equal(firstEffectStarted, true);
+          return { kind: 'judgment-required', question: 'human choice required' };
+        }
+        return { kind: 'execute' };
+      },
+      effect: async (packet) => {
+        firstEffectStarted = true;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        writeFileSync(String(packet.path), String(packet.content));
+        return { kind: 'ok' };
+      },
+    });
+
+    assert.equal(result.state, 'WAITING');
+    assert.equal(result.work, 'b');
+    assert.deepEqual(
+      kernel.inspect().map((work) => [work.id, work.status]),
+      [
+        ['a', 'DONE'],
+        ['b', 'WAITING'],
+      ],
+    );
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('core loop rejects invalid concurrency before mutation', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'sqlite-core-loop-invalid-concurrency-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+
+  try {
+    kernel.initialize();
+    kernel.define({ id: 'a', packet: {}, postcondition: pc(join(root, 'a'), 'A') });
+    const before = kernel.head();
+
+    await assert.rejects(
+      runCoreLoop(kernel, {
+        concurrency: 0,
+        effect: async () => ({ kind: 'ok' }),
+      }),
+      /INVALID_CONCURRENCY/,
+    );
+
+    assert.equal(kernel.head(), before);
+    assert.equal(kernel.inspect()[0]?.status, 'READY');
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
