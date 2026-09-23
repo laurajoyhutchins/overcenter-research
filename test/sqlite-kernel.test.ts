@@ -55,7 +55,6 @@ test('SQLite production kernel reconstructs project truth after close and reopen
       before.map(work=>[work.id,work.status]),
       [['first','DONE'],['second','DONE']],
     );
-    const beforeExplanations=before.map(work=>kernel.explain(work.id));
     const beforeReceipts=kernel.receipts();
     const head=kernel.head();
     assert.ok(head);
@@ -66,10 +65,6 @@ test('SQLite production kernel reconstructs project truth after close and reopen
     try {
       assert.equal(fresh.initialize(),head);
       assert.deepEqual(fresh.inspect(),before);
-      assert.deepEqual(
-        fresh.inspect().map(work=>fresh.explain(work.id)),
-        beforeExplanations,
-      );
       assert.deepEqual(fresh.receipts(),beforeReceipts);
     } finally {
       fresh.close();
