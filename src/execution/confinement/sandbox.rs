@@ -510,36 +510,10 @@ fn close_inherited_fds() -> io::Result<()> {
     Ok(())
 }
 
-pub(crate) struct ExecPermit<'a> {
-    manifest: &'a Manifest,
-    landlock_abi: i32,
-}
-
-impl ExecPermit<'_> {
-    pub(crate) fn launch(self) -> io::Result<()> {
-        let manifest = self.manifest;
-        eprintln!(
-            "overcenter-exec: task_id={:?} landlock_abi={} cgroup_fd=4 timeout_ms={} max_output_bytes={} memory_max_bytes={} pids_max={} cpu_max={}/{}",
-            manifest.task_id,
-            self.landlock_abi,
-            manifest.timeout_ms,
-            manifest.max_output_bytes,
-            manifest.memory_max_bytes,
-            manifest.pids_max,
-            manifest.cpu_quota_us,
-            manifest.cpu_period_us,
-        );
-        let mut command = Command::new(&manifest.program);
-        command.args(&manifest.args).env_clear();
-        for (name, value) in &manifest.environment { command.env(name, value); }
-        Err(command.exec())
-    }
-}
-
-fn seal_for_exec(manifest: &Manifest) -> io::Result<ExecPermit<'_>> {
+pub fn execute(manifest: Manifest) -> io::Result<()> {
     ensure_unprivileged_caller()?;
-    resource::enter(manifest)?;
-    let workspace = pin_workspace(manifest)?;
+    resource::enter(&manifest)?;
+    let workspace = pin_workspace(&manifest)?;
     let abi = landlock_abi()?;
     let handled_fs = handled_fs_rights(abi)?;
     let ruleset = create_ruleset(abi, handled_fs)?;
@@ -568,12 +542,18 @@ fn seal_for_exec(manifest: &Manifest) -> io::Result<ExecPermit<'_>> {
     close_inherited_fds()?;
     install_seccomp_policy()?;
 
-    Ok(ExecPermit {
-        manifest,
-        landlock_abi: abi,
-    })
-}
-
-pub fn execute(manifest: Manifest) -> io::Result<()> {
-    seal_for_exec(&manifest)?.launch()
+    eprintln!(
+        "overcenter-exec: task_id={:?} landlock_abi={abi} cgroup_fd=4 timeout_ms={} max_output_bytes={} memory_max_bytes={} pids_max={} cpu_max={}/{}",
+        manifest.task_id,
+        manifest.timeout_ms,
+        manifest.max_output_bytes,
+        manifest.memory_max_bytes,
+        manifest.pids_max,
+        manifest.cpu_quota_us,
+        manifest.cpu_period_us,
+    );
+    let mut command = Command::new(&manifest.program);
+    command.args(&manifest.args).env_clear();
+    for (name, value) in &manifest.environment { command.env(name, value); }
+    Err(command.exec())
 }
