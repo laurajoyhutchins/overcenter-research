@@ -168,7 +168,9 @@ export function replayProjection(
     if (record.claim != null) {
       const claim = validateClaimFact(record.claim);
       const sourceRevision: SourceRevisionBindingFact | null =
-        record.source_revision == null ? null : validateSourceRevisionBindingFact(record.source_revision);
+        record.source_revision == null
+          ? null
+          : validateSourceRevisionBindingFact(record.source_revision);
       if (
         sourceRevision &&
         (sourceRevision.run_id !== claim.run_id ||
