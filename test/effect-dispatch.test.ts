@@ -93,12 +93,9 @@ test('trusted dispatcher rejects unregistered effect contracts before reservatio
   }
 });
 
-test('trusted dispatcher routes the registered PR update effect', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'effect-dispatch-pr-update-'));
+test('registered but unadmitted effects cannot enter trusted dispatch', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'effect-dispatch-not-admitted-'));
   const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
-  const head = 'b'.repeat(40);
-  const base = 'c'.repeat(40);
-  let puts = 0;
 
   try {
     kernel.initialize();
@@ -112,53 +109,20 @@ test('trusted dispatcher routes the registered PR update effect', async () => {
         repository_full_name: 'acme/widget',
         pull_number: 37,
         pull_node_id: 'PR_node_37',
-        expected_previous_head_sha: head,
+        expected_previous_head_sha: 'b'.repeat(40),
         base_ref: 'main',
-        expected_base_sha: base,
+        expected_base_sha: 'c'.repeat(40),
       },
     });
     const ready = kernel.deriveReadyWork();
     assert.ok(ready);
     const permit = kernel.claim(ready.id, ready.revision);
 
-    const result = await dispatchRegisteredEffect(kernel, permit, {
-      github: {
-        token: 'token',
-        get: async (_token, path) => {
-          if (path === '/repos/acme/widget') {
-            return {
-              id: 42,
-              node_id: 'R_42',
-              full_name: 'acme/widget',
-              name: 'widget',
-              owner: { login: 'acme' },
-            };
-          }
-          if (path === '/repos/acme/widget/pulls/37') {
-            return {
-              id: 3700,
-              node_id: 'PR_node_37',
-              number: 37,
-              state: 'open',
-              head: { sha: head },
-              base: { ref: 'main', sha: base },
-            };
-          }
-          throw new Error(`UNEXPECTED_GITHUB_PATH:${path}`);
-        },
-        updateBranchPut: async (_token, path, body) => {
-          puts += 1;
-          assert.equal(kernel.hasUnresolvedEffect(permit.id), true);
-          assert.equal(path, '/repos/acme/widget/pulls/37/update-branch');
-          assert.equal(body.expected_head_sha, head);
-          return { status: 202, body: '{}' };
-        },
-      },
-    });
-
-    assert.equal(puts, 1);
-    assert.equal(result.previous_head_sha, head);
-    assert.equal(kernel.hasUnresolvedEffect(permit.id), true);
+    await assert.rejects(
+      dispatchRegisteredEffect(kernel, permit, {}),
+      /REGISTERED_EFFECT_DISPATCH_NOT_ADMITTED/,
+    );
+    assert.equal(kernel.hasUnresolvedEffect(permit.id), false);
   } finally {
     kernel.close();
     rmSync(root, { recursive: true, force: true });
