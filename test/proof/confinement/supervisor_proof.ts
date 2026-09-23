@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import { runConfinedWorker } from '../confined-executor.ts';
-import type { ExecutionManifestInput } from '../manifest.ts';
+import { runConfinedWorker } from '../../../src/execution/confined-executor.ts';
+import type { ExecutionManifestInput } from '../../../src/execution/manifest.ts';
 
 function required(name:string):string {
   const value=process.env[name];
