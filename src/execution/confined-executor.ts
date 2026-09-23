@@ -212,7 +212,7 @@ export async function runConfinedWorker(
   }
 
   return await new Promise((resolve, reject) => {
-    let child;
+    let child: ReturnType<typeof spawn>;
     try {
       child = spawn(launcher, input.launcher_args ?? [], {
         stdio: ['pipe', 'pipe', 'pipe', workspaceFd, leaf.leaf_fd],
