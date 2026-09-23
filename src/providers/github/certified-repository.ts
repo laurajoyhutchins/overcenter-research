@@ -1,4 +1,4 @@
-import { GITHUB_REPOSITORY_OPERATION } from './operations.generated.ts';
+import { GITHUB_REPOSITORY_OPERATION } from '../../../generated/github-operations.ts';
 import { materializeGithubOperationRequest } from './openapi.ts';
 import { observeCertifiedGithubRead200 } from './certified-observation.ts';
 import { GITHUB_REPOSITORY_RESPONSE_SLICE } from './semantics.ts';
@@ -106,7 +106,7 @@ export {
   GITHUB_OPENAPI_SHA256,
   GITHUB_OPENAPI_SOURCE_COMMIT,
 } from './contract.ts';
-export { GITHUB_REPOSITORY_OPERATION } from './operations.generated.ts';
+export { GITHUB_REPOSITORY_OPERATION } from '../../../generated/github-operations.ts';
 export { GITHUB_REPOSITORY_RESPONSE_SLICE } from './semantics.ts';
 export type { GithubObservationOperation } from './openapi.ts';
 export type { GithubJsonGet } from './rest.ts';
