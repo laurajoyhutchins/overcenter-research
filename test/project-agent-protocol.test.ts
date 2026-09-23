@@ -71,7 +71,7 @@ function workerClientFixture(root: string): string {
 
 function defineAgentWork(
   work: string,
-  sourceSha: string,
+  _sourceSha: string,
   postconditionPath: string,
 ): GitOvercenterKernel {
   const kernel = new GitOvercenterKernel(work, { remote: 'origin', ref: AUTHORITY_REF });
@@ -79,9 +79,8 @@ function defineAgentWork(
   kernel.define({
     id: 'real-frontier-work',
     packet: {
-      schema: 'overcenter-agent-task/v1',
+      schema: 'overcenter-agent-task/v2',
       kind: 'pure-candidate',
-      source_sha: sourceSha,
       command: ['node', 'task.mjs', 'input.txt', 'result.txt'],
       required_paths: ['task.mjs', 'input.txt'],
       output_path: 'result.txt',
@@ -129,14 +128,13 @@ test('checked-in project intent is source-agnostic until trusted compilation', (
   );
   assert.equal(JSON.stringify(raw).includes('source_sha'), false);
 
-  const sourceSha = 'a'.repeat(40);
-  const desired = compileProjectIntent(raw, sourceSha);
+  const desired = compileProjectIntent(raw);
   assert.equal(desired.length, 1);
   const compiled = desired[0];
   assert.ok(compiled);
   assert.equal(compiled.id, 'live-agent-loop-witness');
   assert.ok(compiled.packet);
-  assert.equal(compiled.packet.source_sha, sourceSha);
+  assert.equal(JSON.stringify(compiled.packet).includes('source_sha'), false);
 });
 
 test('project.advance reconciles trusted project intent before frontier selection', () => {
@@ -159,7 +157,8 @@ test('project.advance reconciles trusted project intent before frontier selectio
     assert.equal(receipt.state, 'AGENT_EXECUTION_REQUIRED');
     assert.equal(receipt.obligation_id, 'intent-work');
     const assignment = JSON.parse(readFileSync(join(outputDir, 'assignment.json'), 'utf8'));
-    assert.equal(assignment.work.packet.source_sha, sourceSha);
+    assert.equal(assignment.source_revision, sourceSha);
+    assert.equal(JSON.stringify(assignment.work.packet).includes('source_sha'), false);
 
     const current = new GitOvercenterKernel(f.work, {
       remote: 'origin',
@@ -277,6 +276,8 @@ test('project.advance selects and claims real READY work, then emits a bounded p
     assert.equal(assignment.work.id, 'real-frontier-work');
     assert.equal(assignment.work.status, 'EXECUTING');
     assert.equal(assignment.work.run_id, receipt.run_id);
+    assert.equal(assignment.source_revision, f.sourceSha);
+    assert.equal(JSON.stringify(assignment.work.packet).includes('source_sha'), false);
     assert.equal(assignmentBytes.includes(Buffer.from('execution_capability')), false);
     assert.deepEqual(
       assignment.files.map((file: { path: string }) => file.path),
