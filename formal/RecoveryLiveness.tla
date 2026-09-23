@@ -36,7 +36,7 @@ Init ==
         provider |-> "None",
         observation |-> "Unknown",
         attempts |-> 0
-    ]
+        ]
 
 Acquire(w) ==
     /\ s.workerUp[w]
@@ -49,7 +49,7 @@ Acquire(w) ==
         !.leaseLive = TRUE,
         !.fence = s.fence + 1,
         !.leaseFence = s.fence + 1
-    ]
+        ]
 
 StartOrRetry(w) ==
     /\ CurrentAuthority(w)
@@ -60,7 +60,7 @@ StartOrRetry(w) ==
         !.provider = "Pending",
         !.observation = "Unknown",
         !.attempts = @ + 1
-    ]
+        ]
 
 CrashPrimary ==
     /\ ~s.primaryCrashed
@@ -68,7 +68,7 @@ CrashPrimary ==
     /\ s' = [s EXCEPT
         !.workerUp = [s.workerUp EXCEPT ![W1] = FALSE],
         !.primaryCrashed = TRUE
-    ]
+        ]
 
 ReapDeadLease ==
     /\ EnableDeadLeaseReaping
@@ -78,7 +78,7 @@ ReapDeadLease ==
     /\ s' = [s EXCEPT
         !.leaseLive = FALSE,
         !.work = IF s.work = "Executing" THEN "Recovery" ELSE @
-    ]
+        ]
 
 ResolveProvider ==
     /\ s.provider = "Pending"
@@ -94,7 +94,7 @@ ObserveProvider ==
     /\ s.provider \in {"Applied", "NoEffect"}
     /\ s' = [s EXCEPT
         !.observation = IF s.provider = "Applied" THEN "Present" ELSE "Absent"
-    ]
+        ]
 
 AdvanceAfterObservation ==
     /\ s.work = "Recovery"
