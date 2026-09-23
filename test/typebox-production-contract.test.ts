@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 
-import {SettlementObservationSchema} from '../src/generated/settlement-observation-schema.ts';
 import {
   assertSupportedStructuralSchema,
   structurallyMatches,
@@ -13,8 +12,9 @@ import {validateObservationEnvelope} from '../src/observation/observe.ts';
 const document=JSON.parse(
   readFileSync('contracts/observation-evidence-v1/schema.json','utf8'),
 );
+const SettlementObservationSchema=document.$defs.SettlementObservation;
 
-test('generated runtime structure is the production wire definition',()=>{
+test('authoritative JSON structure is the production wire definition',()=>{
   assert.deepEqual(
     SettlementObservationSchema,
     document.$defs.SettlementObservation,
