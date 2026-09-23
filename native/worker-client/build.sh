@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-source_file="$repo_root/src/execution/worker-client/main.rs"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source_file="$repo_root/native/worker-client/main.rs"
 output="${1:-$repo_root/.overcenter-build/overcenter}"
 
 mkdir -p "$(dirname "$output")"
