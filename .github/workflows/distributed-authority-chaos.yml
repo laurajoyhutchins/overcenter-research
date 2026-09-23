@@ -1,0 +1,150 @@
+name: Distributed authority chaos
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/distributed-authority-chaos/**'
+      - '.github/workflows/distributed-authority-chaos.yml'
+      - 'src/authority/**'
+      - 'src/storage/git-kernel.ts'
+      - 'src/storage/git-store.ts'
+      - 'package.json'
+      - 'experiments/registry.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  AUTHORITY_REF: refs/heads/overcenter-chaos-${{ github.run_id }}-${{ github.run_attempt }}
+  CHAOS_TASKS: '48'
+
+jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - name: Verify exact source revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Run deterministic contract
+        run: npm run test:distributed-authority-chaos
+      - name: Initialize hosted chaos authority
+        run: node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts setup "$AUTHORITY_REF" "$CHAOS_TASKS"
+
+  wave-one:
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        controller: [0, 1, 2, 3, 4, 5, 6, 7]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Controller wave one
+        run: node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts wave "$AUTHORITY_REF" "${{ matrix.controller }}" "$CHAOS_TASKS"
+
+  wave-two:
+    needs: wave-one
+    strategy:
+      fail-fast: false
+      matrix:
+        controller: [0, 1, 2, 3, 4, 5, 6, 7]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Controller wave two
+        run: node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts wave "$AUTHORITY_REF" "${{ matrix.controller }}" "$CHAOS_TASKS"
+
+  wave-three:
+    needs: wave-two
+    strategy:
+      fail-fast: false
+      matrix:
+        controller: [0, 1, 2, 3, 4, 5, 6, 7]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Controller wave three
+        run: node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts wave "$AUTHORITY_REF" "${{ matrix.controller }}" "$CHAOS_TASKS"
+
+  sweep:
+    needs: wave-three
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Fresh bounded sweeper
+        run: node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts sweep "$AUTHORITY_REF" "$CHAOS_TASKS" 256
+
+  verify:
+    needs: sweep
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Verify durable chaos invariants
+        run: node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts verify "$AUTHORITY_REF" "$CHAOS_TASKS"
+
+  cleanup:
+    if: ${{ always() }}
+    needs: [setup, wave-one, wave-two, wave-three, sweep, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: true
+      - name: Remove ephemeral chaos authority ref
+        shell: bash
+        run: |
+          set +e
+          git push --quiet origin ":$AUTHORITY_REF"
+          exit 0
