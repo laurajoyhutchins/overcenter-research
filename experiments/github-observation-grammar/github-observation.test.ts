@@ -9,7 +9,7 @@ import {
 } from '../../src/providers/github/operations.generated.ts';
 import { materializeGithubOperationRequest } from '../../src/providers/github/openapi.ts';
 import { observeCertifiedGithubPullRequestIdentity } from '../../src/providers/github/certified-pr.ts';
-import { observeCertifiedGithubRefFence } from '../../src/providers/github/certified-ref.ts';
+import { observeCertifiedGithubRefFence } from './certified-ref.ts';
 import { observeCertifiedGithubRepository } from '../../src/providers/github/certified-repository.ts';
 import { observeCertifiedGithubSemanticRead } from '../../src/providers/github/certified-read.ts';
 import { observeCertifiedGithubCommitStatus } from '../../src/providers/github/certified-status.ts';
