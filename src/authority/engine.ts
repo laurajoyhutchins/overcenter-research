@@ -228,7 +228,11 @@ export class KernelCore {
     return explainProjectWork(this.#currentProjection(head).project, id);
   }
 
-  claim(id: string, expectedRevision: string, { sourceRevision }: ClaimOptions = {}): ExecutionPermit {
+  claim(
+    id: string,
+    expectedRevision: string,
+    { sourceRevision }: ClaimOptions = {},
+  ): ExecutionPermit {
     const head = this.#requireHead();
     if (head !== expectedRevision) throw new Error('STALE_REVISION');
     const { state, project } = this.#currentProjection(head);
