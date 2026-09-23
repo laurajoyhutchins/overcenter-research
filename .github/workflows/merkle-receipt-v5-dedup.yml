@@ -57,3 +57,6 @@ jobs:
 
       - name: Local evidence CAS backend comparison
         run: npm run test:evidence-cas-local-backend
+
+      - name: Atomic evidence CAS publication
+        run: npm run test:evidence-cas-atomic-publish
