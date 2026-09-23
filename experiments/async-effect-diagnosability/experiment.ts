@@ -73,10 +73,7 @@ function unboundedPendingProtocol(): AdapterProtocol {
   return {
     ...protocol,
     id: 'github-pr-update-branch-unbounded-pending',
-    transitions: [
-      ...protocol.transitions,
-      { from: 'q', to: 'q', event: 'provider-still-pending' },
-    ],
+    transitions: [...protocol.transitions, { from: 'q', to: 'q', event: 'provider-still-pending' }],
   };
 }
 
@@ -118,7 +115,7 @@ function pull(head = HEAD) {
   };
 }
 
-function compare(ancestor: string, descendant: string) {
+function compare(ancestor: string, _descendant: string) {
   return {
     status: 'ahead',
     ahead_by: 1,
