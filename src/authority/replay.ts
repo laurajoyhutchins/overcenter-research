@@ -11,7 +11,6 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
-  EffectReservation,
   EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
