@@ -3,8 +3,7 @@
   "files": {
     "includes": [
       "**/*.ts",
-      "biome.json",
-      "package.json",
+      "**/*.json",
       "!src/generated/**",
       "!src/providers/github/operations.generated.ts"
     ],
