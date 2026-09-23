@@ -4,9 +4,6 @@ export function isData(value:unknown):value is Data {
   return !!value && typeof value==='object' && !Array.isArray(value);
 }
 
-export function asData(value:unknown):Data|null {
-  return isData(value)?value:null;
-}
 
 export function hasExactKeys(
   value:Data,
