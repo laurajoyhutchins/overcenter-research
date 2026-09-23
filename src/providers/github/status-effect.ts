@@ -1,5 +1,6 @@
 import type { KernelCore } from '../../authority/engine.ts';
 import type { ExecutionPermit } from '../../model.ts';
+import { GITHUB_COMMIT_STATUS_EFFECT } from '../../effect-adapter.ts';
 import { GITHUB_API_VERSION } from './contract.ts';
 import { observeCertifiedGithubRepository } from './certified-repository.ts';
 import {
@@ -8,8 +9,7 @@ import {
   type GithubJsonGetAsync,
 } from './rest.ts';
 
-export const GITHUB_COMMIT_STATUS_EFFECT =
-  'github-commit-status/set-from-postcondition/v1' as const;
+export { GITHUB_COMMIT_STATUS_EFFECT } from '../../effect-adapter.ts';
 
 export interface GithubStatusMutationBody {
   state:'error'|'failure'|'pending'|'success';
