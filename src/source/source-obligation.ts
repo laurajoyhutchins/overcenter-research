@@ -1,21 +1,13 @@
-import { canonicalDigest } from '../digest.ts';
 import { assertExactKeys, assertNonEmptyString, isData } from '../validation.ts';
 
 export const SOURCE_TASK_SCHEMA = 'overcenter-source-task/v1' as const;
 export const SOURCE_CANDIDATE_SCHEMA = 'overcenter-source-candidate/v1' as const;
-
-export interface SourceAcceptance {
-  verifier: 'file-content-equals/v1';
-  path: string;
-  content: string;
-}
 
 export interface SourceTaskPacket extends Record<string, unknown> {
   schema: typeof SOURCE_TASK_SCHEMA;
   kind: 'source-change';
   objective: string;
   writable_paths: string[];
-  acceptance: SourceAcceptance[];
 }
 
 export interface SourceClaimBinding {
@@ -48,23 +40,11 @@ function exactSha(value: unknown, error: string): asserts value is string {
   if (typeof value !== 'string' || !/^[0-9a-f]{40}$/.test(value)) throw new Error(error);
 }
 
-function canonicalSourceTask(packet: SourceTaskPacket): SourceTaskPacket {
-  return {
-    schema: SOURCE_TASK_SCHEMA,
-    kind: 'source-change',
-    objective: packet.objective,
-    writable_paths: [...packet.writable_paths].sort(),
-    acceptance: [...packet.acceptance]
-      .map((check) => ({ ...check }))
-      .sort((a, b) => a.path.localeCompare(b.path)),
-  };
-}
-
 export function validateSourceTaskPacket(value: unknown): SourceTaskPacket {
   if (!isData(value)) throw new Error('SOURCE_TASK_INVALID');
   assertExactKeys(
     value,
-    ['schema', 'kind', 'objective', 'writable_paths', 'acceptance'],
+    ['schema', 'kind', 'objective', 'writable_paths'],
     [],
     'SOURCE_TASK_INVALID',
   );
@@ -82,43 +62,12 @@ export function validateSourceTaskPacket(value: unknown): SourceTaskPacket {
     throw new Error('SOURCE_TASK_WRITABLE_PATH_DUPLICATE');
   }
 
-  if (!Array.isArray(value.acceptance) || value.acceptance.length === 0) {
-    throw new Error('SOURCE_TASK_ACCEPTANCE_INVALID');
-  }
-  const acceptance: SourceAcceptance[] = [];
-  const acceptancePaths = new Set<string>();
-  for (const raw of value.acceptance) {
-    if (!isData(raw)) throw new Error('SOURCE_TASK_ACCEPTANCE_INVALID');
-    assertExactKeys(raw, ['verifier', 'path', 'content'], [], 'SOURCE_TASK_ACCEPTANCE_INVALID');
-    if (raw.verifier !== 'file-content-equals/v1') {
-      throw new Error('SOURCE_TASK_ACCEPTANCE_VERIFIER_UNSUPPORTED');
-    }
-    if (!validRepositoryPath(raw.path)) throw new Error('SOURCE_TASK_ACCEPTANCE_PATH_INVALID');
-    if (typeof raw.content !== 'string') throw new Error('SOURCE_TASK_ACCEPTANCE_CONTENT_INVALID');
-    if (acceptancePaths.has(raw.path)) throw new Error('SOURCE_TASK_ACCEPTANCE_PATH_DUPLICATE');
-    acceptancePaths.add(raw.path);
-    acceptance.push({
-      verifier: raw.verifier,
-      path: raw.path,
-      content: raw.content,
-    });
-  }
-
-  return canonicalSourceTask({
+  return {
     schema: SOURCE_TASK_SCHEMA,
     kind: 'source-change',
     objective: value.objective,
-    writable_paths: [...value.writable_paths],
-    acceptance,
-  });
-}
-
-export function sourceTaskDigest(value: unknown): string {
-  const packet = validateSourceTaskPacket(value);
-  return canonicalDigest({
-    domain: 'overcenter-source-task',
-    packet,
-  });
+    writable_paths: [...value.writable_paths].sort(),
+  };
 }
 
 export function bindSourceClaim(
