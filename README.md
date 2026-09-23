@@ -193,6 +193,7 @@ Important entry points:
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
 - [`src/observation/evidence.ts`](./src/observation/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
+- [`scripts/check-adapter-diagnosability.ts`](./scripts/check-adapter-diagnosability.ts) - development/CI analysis of whether effect protocols can distinguish mutation from non-mutation before consequential actions; it has no runtime authority. See [`docs/adapter-diagnosability.md`](./docs/adapter-diagnosability.md).
 - [`src/graph/topology.ts`](./src/graph/topology.ts) - provider-agnostic dependency topology, validation, and ordering queries.
 - [`src/authority/admission.ts`](./src/authority/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
 - [`src/authority/replay.ts`](./src/authority/replay.ts) - pure replay reducer from durable fact commits to historical project facts.
@@ -264,6 +265,7 @@ npm run test:handoff
 npm run test:github-observation
 npm run test:storage
 npm run test:computation-executor
+npm run check:adapter-diagnosability
 npm run demo                       # production SQLite kernel
 npm run demo:git                  # Git reference backend
 ```
