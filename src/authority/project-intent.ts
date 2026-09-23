@@ -41,7 +41,7 @@ export function compileProjectIntent(value: unknown): ObligationInput[] {
     const packet = validateAgentTaskPacket({
       schema: AGENT_TASK_PACKET_SCHEMA,
       kind: 'pure-candidate',
-       command: structuredClone(candidate.task.command),
+      command: structuredClone(candidate.task.command),
       required_paths: structuredClone(candidate.task.required_paths),
       output_path: candidate.task.output_path,
     });
