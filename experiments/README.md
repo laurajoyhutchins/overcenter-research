@@ -19,6 +19,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `transport-not-dispatched-evidence/` - preregistered HTTPS transport experiment for trustworthy pre-dispatch evidence on fresh sockets.
 - `adapter-uncertainty-exploration/` - bounded production-adapter uncertainty exploration for retry-relevant durable-state collisions.
 - `adapter-diagnosability/` - finite-state diagnosability and safe-diagnosability analysis for mutation ambiguity.
+- `async-effect-diagnosability/` - bounded-versus-unbounded diagnosability of GitHub's asynchronous pull-request branch update effect.
 - `github-status-not-dispatched-release/` - production-path treatment for exact reservation release from trusted pre-dispatch transport evidence.
 - `attempt-unification/` - falsifies the single recovery-clock simplification and proves authority fencing and unresolved mutation identity require distinct temporal dimensions.
 - `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.
