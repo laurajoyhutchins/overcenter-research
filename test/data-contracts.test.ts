@@ -157,7 +157,6 @@ test('the checked-in process-spec corpus is executable against the production va
     } else {
       assert.throws(
         ()=>validateProcessSpec(candidate.spec),
-        undefined,
         candidate.name,
       );
     }
@@ -301,7 +300,6 @@ test('authority fact conformance corpus runs against the production envelope val
     } else {
       assert.throws(
         ()=>validateAuthorityFact(candidate.fact),
-        undefined,
         candidate.name,
       );
     }
@@ -421,7 +419,7 @@ test('observation/evidence conformance corpus runs against production envelope v
       throw new Error('UNKNOWN_OBSERVATION_CONFORMANCE_KIND');
     };
     if (candidate.valid) assert.doesNotThrow(validate,candidate.name);
-    else assert.throws(validate,undefined,candidate.name);
+    else assert.throws(validate,candidate.name);
   }
 });
 

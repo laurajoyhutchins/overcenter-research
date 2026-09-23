@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
     "test": "npm run test:experiment-contract && npm run test:unit",
     "test:unit": "node --experimental-strip-types --test --test-concurrency=2 test/digest-pure.test.ts test/evidence-pure.test.ts test/graph-pure.test.ts test/graph-reconciliation.test.ts test/semantic-dependency.test.ts test/hostile.test.ts test/admission-pure.test.ts test/projector-pure.test.ts test/realization-admissibility.test.ts test/realization-pure.test.ts test/fact-store-contract.test.ts test/kernel-backend-differential.test.ts test/sqlite-kernel.test.ts test/git-kernel.test.ts test/provider-observation.test.ts test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts test/kubernetes-core-verifier.test.ts test/github-openapi-contract.test.ts test/github-certified-read.test.ts test/github-certified-status.test.ts test/github-status-effect.test.ts test/github-pr-update-branch-effect.test.ts test/github-certified-ref.test.ts test/github-certified-pr.test.ts test/projection-pure.test.ts test/projection-reconstruction.test.ts test/dependency-edge-adversarial.test.ts test/github-actions-boundary.test.ts test/data-contracts.test.ts test/execution-manifest.test.ts test/project-agent-protocol.test.ts test/project-agent-actions.test.ts",
     "test:experiments": "node --experimental-strip-types scripts/experiments.ts run --all-deterministic",
@@ -45,5 +46,10 @@
     "test:gcp-observation": "node --experimental-strip-types --test test/gcp-certified-observation.test.ts test/gcp-cloud-resource-observation.test.ts",
     "proof:worker-client": "bash src/execution/worker-client/proof.sh",
     "test:typed-capability-authority": "bash experiments/typed-capability-authority/run.sh"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typebox": "1.3.34",
+    "typescript": "7.0.2"
   }
 }

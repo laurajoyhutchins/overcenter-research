@@ -14,6 +14,22 @@ const document=JSON.parse(
   readFileSync('contracts/observation-evidence-v1/schema.json','utf8'),
 );
 
+interface MutableSchemaProperty extends Record<string,unknown> {
+  enum?:string[];
+  maximum?:number;
+  type?:string;
+}
+
+interface MutableSettlementSchema extends Record<string,unknown> {
+  properties:Record<string,MutableSchemaProperty>;
+}
+
+function mutableSettlementSchema():MutableSettlementSchema {
+  return structuredClone(
+    SettlementObservationSchema,
+  ) as unknown as MutableSettlementSchema;
+}
+
 test('generated runtime structure is the production wire definition',()=>{
   assert.deepEqual(
     SettlementObservationSchema,
@@ -61,12 +77,12 @@ test('schema mutations directly change deterministic structural admission',()=>{
     verifier:'file-content-equals/v1',
     mutation_certainty:'present',
   };
-  const added=structuredClone(SettlementObservationSchema);
+  const added=mutableSettlementSchema();
   added.properties.observer_generation={type:'integer'};
   assert.equal(structurallyMatches(SettlementObservationSchema,{...base,observer_generation:1}),false);
   assert.equal(structurallyMatches(added,{...base,observer_generation:1}),true);
 
-  const narrowed=structuredClone(SettlementObservationSchema);
+  const narrowed=mutableSettlementSchema();
   narrowed.properties.verifier.enum=['file-content-equals/v1'];
   assert.equal(
     structurallyMatches(narrowed,{
@@ -76,7 +92,7 @@ test('schema mutations directly change deterministic structural admission',()=>{
     false,
   );
 
-  const bounded=structuredClone(SettlementObservationSchema);
+  const bounded=mutableSettlementSchema();
   bounded.properties.repository_id.maximum=10;
   assert.equal(structurallyMatches(bounded,{...base,repository_id:11}),false);
 });

@@ -143,7 +143,7 @@ export interface ProjectProjectionInput {
   currentRealizationJudgments?:ReadonlyMap<
     string,
     CurrentRealizationJudgment
-  >;
+  >|null;
 }
 
 const IN_FLIGHT=new Set<RealizationStatus>([

@@ -47,11 +47,16 @@ function option(name:string):string|null {
   return value;
 }
 
-const image=option('--image');
-if (!image) throw new Error('--image is required');
+function requiredOption(name:string):string {
+  const value=option(name);
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
 
-const sourceSha=option('--source-sha')?.toLowerCase();
-if (!sourceSha || !/^[0-9a-f]{40,64}$/.test(sourceSha)) {
+const image=requiredOption('--image');
+
+const sourceSha=requiredOption('--source-sha').toLowerCase();
+if (!/^[0-9a-f]{40,64}$/.test(sourceSha)) {
   throw new Error('--source-sha must be an exact Git object id');
 }
 const reportPath=option('--report');

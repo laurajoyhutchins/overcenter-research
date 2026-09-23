@@ -291,7 +291,11 @@ export function validateComputationExecution(value:unknown):ComputationExecution
     throw new Error('EXECUTION_CAPABILITY_DIGEST_MISMATCH');
   }
 
-  const specBytes=decodeCanonicalBase64(value.execution_spec_base64);
+  if (typeof value.execution_spec_base64!=='string') {
+    throw new Error('EXECUTION_SPEC_BASE64_INVALID');
+  }
+  const executionSpecBase64=value.execution_spec_base64;
+  const specBytes=decodeCanonicalBase64(executionSpecBase64);
   assertSha256Tagged(value.execution_spec_sha256,'execution_spec_sha256');
   if (sha256Tagged(specBytes)!==value.execution_spec_sha256) {
     throw new Error('EXECUTION_SPEC_DIGEST_MISMATCH');
@@ -306,7 +310,7 @@ export function validateComputationExecution(value:unknown):ComputationExecution
     execution_authority_commit:value.execution_authority_commit,
     execution_capability:value.execution_capability,
     execution_capability_sha256:value.execution_capability_sha256,
-    execution_spec_base64:value.execution_spec_base64,
+    execution_spec_base64:executionSpecBase64,
     execution_spec_sha256:value.execution_spec_sha256,
   };
 }
