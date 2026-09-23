@@ -1391,6 +1391,63 @@
         "state": "falsified",
         "summary": "The real production typestate treatment preserved physical confinement and compile-time exclusion with negligible binary footprint change, but increased sandbox.rs by 17 nonblank lines and removed zero of 13 runtime guard classes. The treatment was reverted."
       }
+    },
+    {
+      "id": "effect-authority-decay",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/effect-authority-decay",
+      "readme": "experiments/effect-authority-decay/README.md",
+      "question": "Once execution authority is established, can Overcenter preserve it through the trusted GitHub effect broker instead of repeatedly decomposing it into raw identifiers and reconstructing the same relationship at each provider?",
+      "claim": "A nominal EffectAuthority minted once at provider ingress can eliminate duplicated provider authority reconstruction, prevent raw ExecutionPermit from reaching performEffect, preserve the independent stale-generation reservation fence, avoid net source growth, and keep same-runner local production latency within 1.10x baseline.",
+      "contrast": "Each provider independently reconstructs claimed work from a raw ExecutionPermit, rechecks run/revision/effect/verifier fields, and passes the raw permit to performEffect before the current-head reservation fence.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm install --ignore-scripts --package-lock=false && npm run test:effect-authority-decay && npm run bench:effect-authority-decay"
+      },
+      "environment": [
+        "Node from .node-version and the repository-pinned TypeScript/type definitions in package.json.",
+        "Exact current-main baseline 81b350e526824ab2c397642e6761a0c860151331 retained in Git history for source and same-runner latency comparison.",
+        "No live provider credentials are required; provider regression uses deterministic fake GitHub I/O."
+      ],
+      "success_criteria": [
+        "Raw permit/work mismatch is rejected before provider I/O and before effect reservation.",
+        "Authority superseded after binding during provider read I/O is rejected by the unchanged final reservation fence before provider mutation.",
+        "The production TypeScript checker rejects a raw ExecutionPermit at performEffect and rejects structural EffectAuthority forgery.",
+        "Provider claimedWork calls, raw coordinate comparisons, effect-contract checks, verifier checks, and performEffect(rawPermit) calls all fall to zero, with exactly one centralized authority mint.",
+        "Combined nonblank SLOC across engine.ts and the two admitted GitHub effect providers does not increase relative to baseline.",
+        "Median-of-run medians for effect_reservation_ms and overcenter_local_ms are each no more than 1.10x the exact baseline on the same hosted runner.",
+        "Existing GitHub status and PR update-branch provider effect regressions remain green."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "04bc98a42f4db5ddc73293a713412f17127fbc68",
+        "artifacts": [
+          "GitHub Actions run 35825868462, job 107067328128: production typecheck, adversarial runtime controls, authority-decay census, provider regressions, and same-runner latency differential passed.",
+          "Merge-gate run 35825868706, candidate-evidence job 107067329353: repository typecheck and full deterministic regression passed on the same treatment revision.",
+          "Provider claimedWork calls 2 -> 0; raw coordinate comparisons 6 -> 0; effect-contract checks 2 -> 0; verifier checks 2 -> 0; provider raw performEffect calls 2 -> 0; one central authority mint.",
+          "Combined production SLOC 909 -> 907.",
+          "Same-runner effect reservation median 0.718 ms -> 0.726 ms (1.011x); Overcenter local median 4.430 ms -> 4.324 ms (0.976x).",
+          "Authority superseded during provider I/O was rejected by the unchanged final beginEffect fence before provider mutation or effect reservation."
+        ]
+      },
+      "interpretation": "Typed capabilities pay off where runtime-established authority would otherwise decay into raw data and repeated trusted-interior reconstruction. Preserve historical reconstruction APIs that have distinct semantic jobs, and retain a final runtime fence anywhere external authority can change before the effect.",
+      "non_claims": [
+        "TypeScript nominal branding provides Rust affine or ownership guarantees.",
+        "Bound authority remains current after external execution authority changes.",
+        "The final current-head reservation fence can be removed.",
+        "Provider identity observation or authoritative readback can be skipped.",
+        "Wire protocols can trust in-process types instead of validating received data.",
+        "Explicit unsafe casts or malicious trusted code are prevented."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "Confirmatory current-main criteria were fixed before this run, but the corrected treatment incorporates lessons from an earlier prototype that exposed legitimate historical reconstruction and low-level reservation consumers."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "On current-main baseline 81b350e526824ab2c397642e6761a0c860151331, bound EffectAuthority removed all duplicated provider authority reconstruction, reduced the measured production slice by 2 nonblank lines, preserved the stale-generation mutation fence, passed repository typecheck and full deterministic regression, and stayed within the 1.10x latency ceiling."
+      }
     }
   ]
 }

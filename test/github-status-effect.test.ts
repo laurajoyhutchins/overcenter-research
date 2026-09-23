@@ -152,7 +152,7 @@ test('missing effect grant fails before provider I/O',async()=>{
           return {status:201,body:'{}'};
         },
       }),
-      /GITHUB_STATUS_EFFECT_NOT_AUTHORIZED/,
+      /EFFECT_CONTRACT_NOT_AUTHORIZED/,
     );
     assert.equal(reads,0);
     assert.equal(posts,0);

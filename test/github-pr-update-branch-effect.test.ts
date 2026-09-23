@@ -110,7 +110,7 @@ test('missing semantic grant fails before provider I/O',async()=>{
       token:'token',
       get:async()=>{reads+=1; return repository();},
       put:async()=>{puts+=1; return {status:202,body:'{}'};},
-    }),/GITHUB_PR_UPDATE_BRANCH_EFFECT_NOT_AUTHORIZED/);
+    }),/EFFECT_CONTRACT_NOT_AUTHORIZED/);
     assert.equal(reads,0); assert.equal(puts,0);
   } finally { kernel.close(); rmSync(root,{recursive:true,force:true}); }
 });
