@@ -22,6 +22,9 @@ export const GRAPH_PATCH_SCHEMA='overcenter-graph-patch-v1' as const;
 export const CLAIM_SCHEMA='overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA='overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA='overcenter-git-effect-reservation-v1' as const;
+export const EFFECT_TRACKING_SCHEMA='overcenter-git-effect-tracking-v1' as const;
+export const EFFECT_DISPATCH_SCHEMA='overcenter-git-effect-dispatch-v1' as const;
+export const EFFECT_TRACKING_PROTOCOL='dispatch-fact-before-callback' as const;
 export const RECEIPT_SCHEMA='overcenter-git-receipt-v5' as const;
 
 export interface ObligationInput {
@@ -89,6 +92,24 @@ export interface EffectReservation extends EffectReservationFact {
   reservation_commit:string;
 }
 
+export interface EffectTrackingFact {
+  schema:typeof EFFECT_TRACKING_SCHEMA;
+  run_id:string;
+  obligation_id:string;
+  execution_generation:number;
+  execution_authority_commit:string;
+  protocol:typeof EFFECT_TRACKING_PROTOCOL;
+}
+
+export interface EffectDispatchFact {
+  schema:typeof EFFECT_DISPATCH_SCHEMA;
+  run_id:string;
+  obligation_id:string;
+  execution_generation:number;
+  execution_authority_commit:string;
+  reservation_commit:string;
+}
+
 export type ReceiptKind='observation'|'judgment-required'|'execution-terminated';
 
 export interface ReceiptFact {
@@ -123,6 +144,8 @@ export interface FactCommit {
   claim?:unknown|null;
   execution_authority?:unknown|null;
   effect_reservation?:unknown|null;
+  effect_tracking?:unknown|null;
+  effect_dispatch?:unknown|null;
   receipt?:unknown|null;
 }
 
@@ -370,6 +393,56 @@ export function validateEffectReservationFact(value:unknown):EffectReservationFa
   return structuredClone(value) as unknown as EffectReservationFact;
 }
 
+export function validateEffectTrackingFact(value:unknown):EffectTrackingFact {
+  if (!data(value)) throw new Error('INVALID_EFFECT_TRACKING_FACT');
+  exactKeys(value,[
+    'schema',
+    'run_id',
+    'obligation_id',
+    'execution_generation',
+    'execution_authority_commit',
+    'protocol',
+  ],[],'INVALID_EFFECT_TRACKING_FACT');
+  if (value.schema!==EFFECT_TRACKING_SCHEMA) {
+    throw new Error('INVALID_EFFECT_TRACKING_SCHEMA');
+  }
+  nonEmptyString(value.run_id,'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
+  positiveSafeInteger(value.execution_generation,'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(
+    value.execution_authority_commit,
+    'INVALID_EXECUTION_AUTHORITY_COMMIT',
+  );
+  if (value.protocol!==EFFECT_TRACKING_PROTOCOL) {
+    throw new Error('INVALID_EFFECT_TRACKING_PROTOCOL');
+  }
+  return structuredClone(value) as unknown as EffectTrackingFact;
+}
+
+export function validateEffectDispatchFact(value:unknown):EffectDispatchFact {
+  if (!data(value)) throw new Error('INVALID_EFFECT_DISPATCH_FACT');
+  exactKeys(value,[
+    'schema',
+    'run_id',
+    'obligation_id',
+    'execution_generation',
+    'execution_authority_commit',
+    'reservation_commit',
+  ],[],'INVALID_EFFECT_DISPATCH_FACT');
+  if (value.schema!==EFFECT_DISPATCH_SCHEMA) {
+    throw new Error('INVALID_EFFECT_DISPATCH_SCHEMA');
+  }
+  nonEmptyString(value.run_id,'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
+  positiveSafeInteger(value.execution_generation,'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(
+    value.execution_authority_commit,
+    'INVALID_EXECUTION_AUTHORITY_COMMIT',
+  );
+  nonEmptyString(value.reservation_commit,'INVALID_EFFECT_RESERVATION_COMMIT');
+  return structuredClone(value) as unknown as EffectDispatchFact;
+}
+
 export function validateReceiptFact(value:unknown):ReceiptFact {
   if (!data(value)) throw new Error('INVALID_RECEIPT_FACT');
   exactKeys(value,[
@@ -417,6 +490,8 @@ export type AuthorityFact =
   | ClaimFact
   | ExecutionAuthorityFact
   | EffectReservationFact
+  | EffectTrackingFact
+  | EffectDispatchFact
   | ReceiptFact;
 
 export function validateAuthorityFact(value:unknown):AuthorityFact {
@@ -430,6 +505,10 @@ export function validateAuthorityFact(value:unknown):AuthorityFact {
       return validateExecutionAuthorityFact(value);
     case EFFECT_RESERVATION_SCHEMA:
       return validateEffectReservationFact(value);
+    case EFFECT_TRACKING_SCHEMA:
+      return validateEffectTrackingFact(value);
+    case EFFECT_DISPATCH_SCHEMA:
+      return validateEffectDispatchFact(value);
     case RECEIPT_SCHEMA:
       return validateReceiptFact(value);
     default:
