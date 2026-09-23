@@ -255,21 +255,21 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn object(value: &Json, code: &str) -> Result<&BTreeMap<String, Json>, String> {
+fn object<'a>(value: &'a Json, code: &str) -> Result<&'a BTreeMap<String, Json>, String> {
     match value {
         Json::Object(value) => Ok(value),
         _ => Err(code.to_owned()),
     }
 }
 
-fn array(value: &Json, code: &str) -> Result<&[Json], String> {
+fn array<'a>(value: &'a Json, code: &str) -> Result<&'a [Json], String> {
     match value {
         Json::Array(value) => Ok(value),
         _ => Err(code.to_owned()),
     }
 }
 
-fn string(value: &Json, code: &str) -> Result<&str, String> {
+fn string<'a>(value: &'a Json, code: &str) -> Result<&'a str, String> {
     match value {
         Json::String(value) => Ok(value),
         _ => Err(code.to_owned()),
