@@ -335,9 +335,7 @@ export function validateClaimFact(value: unknown): ClaimFact {
   return structuredClone(value) as unknown as ClaimFact;
 }
 
-export function validateSourceRevisionBindingFact(
-  value: unknown,
-): SourceRevisionBindingFact {
+export function validateSourceRevisionBindingFact(value: unknown): SourceRevisionBindingFact {
   if (!data(value)) throw new Error('INVALID_SOURCE_REVISION_BINDING_FACT');
   exactKeys(
     value,
