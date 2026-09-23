@@ -53,7 +53,8 @@
     "test:github-status-not-dispatched-release": "node --experimental-strip-types experiments/github-status-not-dispatched-release/experiment.ts",
     "lint": "bash scripts/lint.sh",
     "format": "bash scripts/format.sh",
-    "experiment:core-loop-concurrency": "node --experimental-strip-types experiments/core-loop-concurrency/experiment.ts"
+    "experiment:core-loop-concurrency": "node --experimental-strip-types experiments/core-loop-concurrency/experiment.ts",
+    "test:adapter-diagnosability": "node --experimental-strip-types experiments/adapter-diagnosability/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",

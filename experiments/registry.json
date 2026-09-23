@@ -2718,6 +2718,59 @@
         "state": "supported",
         "summary": "At exact revision 6b238e23491792dc7a8734038b82f4741a4eae8e, trusted pre-secureConnect evidence atomically released exactly one status-effect reservation and terminated the old attempt READY; retry required a new run. Post-secureConnect failure with 377 peer-observed HTTP bytes, HTTP 502, forged evidence, and stale authority all retained or protected the reservation, while provider replay remained forbidden."
       }
+    },
+    {
+      "id": "adapter-diagnosability",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/adapter-diagnosability",
+      "readme": "experiments/adapter-diagnosability/README.md",
+      "question": "Can a finite-state DES-style checker determine whether mutation occurrence is eventually distinguishable from non-occurrence, and whether that distinction is available before authority reuse?",
+      "claim": "For the preregistered seven-protocol corpus, a synchronized two-world product will classify recoverable versus irreducible mutation ambiguity, separate eventual from safe diagnosability, emit concrete ambiguity witnesses, and agree with an independent bounded trace oracle.",
+      "contrast": "Treat every ambiguous provider failure as a runtime-only recovery problem and discover missing observations only after an execution enters RECOVERY_REQUIRED.",
+      "interpretation": "If supported, diagnosability is useful as a static research lens for effect protocols: it can prove that some ambiguity is information-theoretically unresolved and can distinguish eventual recovery from recovery before authority reuse. Promotion requires a conservative abstraction of a real adapter without changing the checker.",
+      "environment": [
+        "Node.js with experimental TypeScript type stripping; no network, provider credential, database, or LLM is required.",
+        "Seven finite-state protocols encode hidden mutation reality, visible observations, and optionally consequential authority transitions.",
+        "A synchronized product permits independent unobservable transitions and synchronizes equal observable transitions.",
+        "An independent brute-force trace enumerator expands complete traces to depth 12 and groups only by emitted observation sequences.",
+        "The bounded-eventual-webhook fixture encodes a finite observation bound; unbounded fairness and wall-clock timing are outside this experiment."
+      ],
+      "success_criteria": [
+        "All seven preregistered fixtures match the documented diagnosable and safe-diagnosable classifications.",
+        "Every non-diagnosable fixture emits a concrete ambiguous-cycle witness.",
+        "The too-late fixture is diagnosable but not safe-diagnosable and identifies release-authority while ambiguity remains.",
+        "The independent depth-12 oracle reports persistent ambiguity for all and only the three non-diagnosable fixtures.",
+        "Collapsing correlated receipt observations to one uncorrelated RECEIPT observation makes the receipt protocol non-diagnosable.",
+        "The experiment is deterministic and adds no runtime dependency."
+      ],
+      "non_claims": [
+        "Arbitrary or infinite-state provider protocols are diagnosable by this bounded model.",
+        "The abstraction is already sound for GitHub, Kubernetes, GCP, or another real provider.",
+        "The checker proves wall-clock diagnosis bounds or unbounded fairness.",
+        "Final resource-state equality proves that a particular mutation occurred.",
+        "A separating observation is trustworthy merely because it distinguishes abstract states.",
+        "The checker is production authority or may participate in settlement."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The seven fixtures, expected classifications, depth-12 independent oracle, too-late safe-diagnosability distinction, and uncorrelated-receipt negative control were specified before the first execution in this conversation."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Local developmental execution matched all preregistered classifications and killed the negative control; exact-head hosted evaluation is pending."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:adapter-diagnosability"
+      },
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "Pre-commit local developmental run on Node 22.16.0 matched all seven classifications, the depth-12 oracle agreed, and the uncorrelated-receipt negative control was killed."
+        ],
+        "pending_reason": "Exact-head hosted repository evaluation has not yet completed."
+      }
     }
   ]
 }
