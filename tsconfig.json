@@ -18,6 +18,7 @@
   "include": [
     "src/**/*.ts",
     "native/**/*.ts",
+    "bin/**/*.ts",
     "scripts/**/*.ts",
     "test/**/*.ts",
     "examples/**/*.ts",
