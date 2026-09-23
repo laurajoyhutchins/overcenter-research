@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
+import { RECEIPT_SCHEMA } from '../src/authority/facts.ts';
 import type { HistoricalRun, Receipt, State } from '../src/authority/facts.ts';
 import { obligationKey } from '../src/graph/identity.ts';
 import { deriveProjectProjection } from '../src/authority/project-state.ts';
@@ -212,4 +213,92 @@ test('indeterminate current realization judgment blocks replay instead of becomi
   );
   assert.equal(project.work.find((candidate) => candidate.id === 'a')?.status, 'BLOCKED');
   assert.equal(project.readyWork, null);
+});
+
+test('READY selection is starvation-free in bounded replayable schedules', () => {
+  const make = (id: string): Obligation => ({
+    id,
+    dependencies: [],
+    packet: {},
+    postcondition: {
+      verifier: 'file-content-equals/v1',
+      path: `/provider/${id}`,
+      content: id.toUpperCase(),
+    },
+  });
+
+  for (let count = 1; count <= 5; count += 1) {
+    const ids = Array.from({ length: count }, (_, index) =>
+      String.fromCharCode('a'.charCodeAt(0) + index),
+    );
+    const obligations: Record<string, Obligation> = Object.fromEntries(
+      ids.map((id) => [id, make(id)]),
+    );
+    const fairState: State = {
+      obligations,
+      definition_ids: Object.fromEntries(ids.map((id) => [id, `define-${id}`])),
+    };
+    const emptyReceipts = new Map<string, Receipt>();
+    const base = deriveProjectProjection({
+      state: fairState,
+      runs: new Map(),
+      receiptsByRun: emptyReceipts,
+      revision: 'define-all',
+    });
+    const semanticKeys = new Map(
+      ids.map((id) => {
+        const key = obligationKey(fairState, obligations[id]!, base.lifecycles, emptyReceipts);
+        assert.ok(key);
+        return [id, key] as const;
+      }),
+    );
+    const runs = new Map<string, HistoricalRun>();
+    const receipts = new Map<string, Receipt>();
+    const seen: string[] = [];
+
+    for (let step = 0; step < count * 2; step += 1) {
+      const revision = `revision-${step}`;
+      const projection = deriveProjectProjection({
+        state: fairState,
+        runs,
+        receiptsByRun: receipts,
+        revision,
+      });
+      const id = projection.readyWork?.id;
+      assert.ok(id);
+      seen.push(id);
+
+      const runId = `run-${step}-${id}`;
+      const claimCommit = `claim-${step}-${id}`;
+      const run: HistoricalRun = {
+        id: runId,
+        obligation_id: id,
+        claimed_revision: revision,
+        claim_commit: claimCommit,
+        obligation_key: semanticKeys.get(id)!,
+        execution_generation: step + 1,
+        execution_authority_commit: claimCommit,
+        execution_capability_sha256: '0'.repeat(64),
+        obligation: obligations[id]!,
+        definition_id: `define-${id}`,
+      };
+      runs.set(runId, run);
+      receipts.set(runId, {
+        schema: RECEIPT_SCHEMA,
+        run_id: runId,
+        obligation_id: id,
+        claimed_revision: revision,
+        claim_commit: claimCommit,
+        execution_generation: step + 1,
+        execution_authority_commit: claimCommit,
+        kind: 'observation',
+        observed: null,
+        settled_at: '2026-09-23T00:00:00.000Z',
+        disposition: 'READY',
+        verified: false,
+      } as Receipt);
+    }
+
+    assert.deepEqual(seen, [...ids, ...ids]);
+  }
 });
