@@ -2757,19 +2757,24 @@
         "note": "The seven fixtures, expected classifications, depth-12 independent oracle, too-late safe-diagnosability distinction, and uncorrelated-receipt negative control were specified before the first execution in this conversation."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Local developmental execution matched all preregistered classifications and killed the negative control; exact-head hosted evaluation is pending."
+        "state": "supported",
+        "summary": "At exact revision 79c666d1aad67ff3c7df894f3cd509d572e4fcce, the hosted checker matched all seven preregistered diagnosability/safe-diagnosability classifications. The independent depth-12 trace oracle agreed on all seven, all three non-diagnosable protocols emitted ambiguity-cycle witnesses, the too-late protocol remained eventually diagnosable but exposed release-authority while ambiguous, and the uncorrelated-receipt negative control was killed."
       },
       "reproduce": {
         "tier": "deterministic",
         "local": "npm run test:adapter-diagnosability"
       },
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "79c666d1aad67ff3c7df894f3cd509d572e4fcce",
         "artifacts": [
-          "Pre-commit local developmental run on Node 22.16.0 matched all seven classifications, the depth-12 oracle agreed, and the uncorrelated-receipt negative control was killed."
-        ],
-        "pending_reason": "Exact-head hosted repository evaluation has not yet completed."
+          "GitHub Actions Merge gate run 35922140571, rerun attempt 2, candidate-evidence job 107389085625: exact-head candidate PASS at 79c666d1aad67ff3c7df894f3cd509d572e4fcce.",
+          "Hosted adapter-diagnosability result matched 7/7 preregistered classifications: undispatched, receipt, and bounded-eventual-webhook were safe-diagnosable; ambiguous-timeout, stale-get, and same-final-state were non-diagnosable; too-late was diagnosable but not safe-diagnosable.",
+          "The three non-diagnosable fixtures each retained one depth-12 ambiguous observation sequence and emitted a concrete ambiguity-cycle witness; every diagnosable fixture retained zero depth-12 ambiguous sequences.",
+          "The too-late witness identified release-authority from an ambiguous mutation/non-mutation pair before the later receipt could distinguish the worlds.",
+          "Collapsing RECEIPT_PRESENT and RECEIPT_ABSENT into one uncorrelated RECEIPT observation changed the receipt protocol to non-diagnosable, killing the preregistered negative control.",
+          "The same exact-head candidate run passed repository lint, TypeScript checking, experiment-contract verification, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application."
+        ]
       }
     }
   ]
