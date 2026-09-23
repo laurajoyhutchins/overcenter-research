@@ -61,7 +61,8 @@
     "test:distributed-authority-handoff": "node --experimental-strip-types experiments/distributed-authority-handoff/controller.ts local",
     "experiment:scheduler-liveness": "node --experimental-strip-types experiments/scheduler-liveness/experiment.ts",
     "experiment:scheduler-policy-comparison": "node --experimental-strip-types experiments/scheduler-policy-comparison/experiment.ts",
-    "test:distributed-authority-chaos": "node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts local"
+    "test:distributed-authority-chaos": "node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts local",
+    "test:source-obligation-integration": "node --experimental-strip-types experiments/source-obligation-integration/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
