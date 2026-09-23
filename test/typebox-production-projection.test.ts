@@ -30,8 +30,8 @@ test('projection fails closed on source-only structural mutations', () => {
     'field',
     (source) =>
       source.replace(
-        '  observation_error:Type.Optional(Type.String()),',
-        '  observation_error:Type.Optional(Type.String()),\n  observer_generation:Type.Optional(Type.Integer()),',
+        '    observation_error: Type.Optional(Type.String()),',
+        '    observation_error: Type.Optional(Type.String()),\n    observer_generation: Type.Optional(Type.Integer()),',
       ),
     'observer_generation',
   );
@@ -46,7 +46,7 @@ test('projection fails closed on source-only structural mutations', () => {
   );
   rejected(
     'bound',
-    (source) => source.replace('    maximum:Number.MAX_SAFE_INTEGER,', '    maximum:10,'),
+    (source) => source.replace('        maximum: Number.MAX_SAFE_INTEGER,', '        maximum: 10,'),
     '"maximum": 10',
   );
 });
