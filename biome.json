@@ -24,7 +24,10 @@
     }
   },
   "linter": {
-    "enabled": true
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
   },
   "assist": {
     "enabled": false
