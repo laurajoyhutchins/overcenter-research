@@ -27,17 +27,20 @@ export interface ProductStep {
   states: readonly [string, string];
 }
 
+export interface UnsafeActionWitness {
+  pair: readonly [string, string];
+  action: string;
+  trace: readonly ProductStep[];
+}
+
 export interface DiagnosabilityAnalysis {
   diagnosable: boolean;
   safeDiagnosable: boolean;
   ambiguousPairs: number;
   maxAmbiguousObservableDelay: number | null;
   nonDiagnosableWitness?: readonly ProductStep[];
-  unsafeWitness?: {
-    pair: readonly [string, string];
-    action: string;
-    trace: readonly ProductStep[];
-  };
+  unsafeWitnesses: readonly UnsafeActionWitness[];
+  unsafeWitness?: UnsafeActionWitness;
 }
 
 interface ProductEdge {
@@ -236,27 +239,29 @@ export function analyzeAdapterProtocol(protocol: AdapterProtocol): Diagnosabilit
   const ambiguous = [...product.seen].filter(product.differs);
   const cycle = findAmbiguousCycle(product);
 
-  let unsafeWitness: DiagnosabilityAnalysis['unsafeWitness'];
+  const unsafeByAction = new Map<string, UnsafeActionWitness>();
   for (const key of ambiguous) {
     const [left, right] = parsePair(key);
-    const transition = [
+    for (const transition of [
       ...(product.outgoing.get(left) ?? []),
       ...(product.outgoing.get(right) ?? []),
-    ].find((candidate) => candidate.consequential);
-
-    if (transition?.consequential) {
-      unsafeWitness = {
+    ]) {
+      if (!transition.consequential || unsafeByAction.has(transition.consequential)) continue;
+      unsafeByAction.set(transition.consequential, {
         pair: [left, right],
         action: transition.consequential,
         trace: product.pathTo(key),
-      };
-      break;
+      });
     }
   }
+  const unsafeWitnesses = [...unsafeByAction.values()].sort((a, b) =>
+    a.action.localeCompare(b.action),
+  );
+  const unsafeWitness = unsafeWitnesses[0];
 
   return {
     diagnosable: cycle === null,
-    safeDiagnosable: cycle === null && unsafeWitness === undefined,
+    safeDiagnosable: cycle === null && unsafeWitnesses.length === 0,
     ambiguousPairs: ambiguous.length,
     maxAmbiguousObservableDelay: cycle === null ? maxAmbiguousDelay(product) : null,
     ...(cycle
@@ -267,6 +272,7 @@ export function analyzeAdapterProtocol(protocol: AdapterProtocol): Diagnosabilit
           ],
         }
       : {}),
+    unsafeWitnesses,
     ...(unsafeWitness === undefined ? {} : { unsafeWitness }),
   };
 }
