@@ -2,7 +2,6 @@ import type {
   Obligation,
   Run,
   Work,
-  WorkStatus,
 } from '../model.ts';
 import type {
   HistoricalRun,
@@ -128,7 +127,8 @@ function deriveRealizationRelations(
             && !indeterminateRealizations.has(id)
           ) {
             indeterminateRealizations.set(id,{run,judgment});
-          }        }
+          }
+        }
       }
 
       if (done) {
@@ -248,9 +248,9 @@ export function deriveProjectProjection({
       obligation,
       lifecycles,
       semanticKeys.get(obligation.id)??null,
-        indeterminateRealizations.get(obligation.id)??null,
-        staticEffectIndex,
-      );
+      indeterminateRealizations.get(obligation.id)??null,
+      staticEffectIndex,
+    );
     claimabilityErrors.set(obligation.id,claimability.error);
     return projectWork(
       obligation,
