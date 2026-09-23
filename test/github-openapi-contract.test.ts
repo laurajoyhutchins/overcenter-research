@@ -8,7 +8,7 @@ import {
   GITHUB_PULL_REQUEST_OPERATION,
   GITHUB_REF_OPERATION,
   GITHUB_REPOSITORY_OPERATION,
-} from '../src/providers/github/operations.generated.ts';
+} from '../generated/github-operations.ts';
 import { scanGithubPageCollection } from '../src/providers/github/page-collection.ts';
 import { materializeGithubOperationRequest } from '../src/providers/github/openapi.ts';
 import { GITHUB_OPERATION_SEMANTICS } from '../src/providers/github/semantics.ts';
