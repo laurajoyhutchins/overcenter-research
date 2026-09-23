@@ -2785,6 +2785,63 @@
       }
     },
     {
+      "id": "async-effect-diagnosability",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/async-effect-diagnosability",
+      "readme": "experiments/async-effect-diagnosability/README.md",
+      "question": "Can the unchanged diagnosability checker distinguish eventual knowability from safe authority reuse for an asynchronous provider effect whose HTTP 202 acceptance does not establish completion?",
+      "claim": "For GitHub pull-request update-branch semantics, the unchanged checker should classify a bounded-completion model as ordinarily diagnosable but unsafe before release-authority, while adding an unbounded pending loop should make the same effect non-diagnosable; both models must remain ambiguous-do-not-release and agree with current production replay/release and observation boundaries.",
+      "contrast": "Treat HTTP 202 acceptance as completed mutation, or treat a currently unchanged pull-request head as terminal non-occurrence sufficient for authority reuse.",
+      "interpretation": "If supported, the result shows that diagnosability tooling can make asynchronous-provider liveness assumptions explicit: eventual distinguishability under a completion assumption is weaker than safe knowledge at the recovery action, while an unbounded pending state destroys ordinary diagnosability entirely.",
+      "environment": [
+        "Node.js with experimental TypeScript type stripping; no network, provider credential, database, model, or external solver is required.",
+        "The production diagnoser in scripts/adapter-diagnosability.ts is reused unchanged.",
+        "The target production effect is github-pull-request/update-branch, whose GitHub REST endpoint returns HTTP 202 Accepted.",
+        "RFC 9110 section 15.3.3 defines 202 Accepted as processing not yet completed and permits the request to be acted upon later or never acted upon.",
+        "The bounded protocol assumes the provider eventually applies or abandons the accepted operation; the unbounded protocol differs only by an unobservable provider-still-pending self-loop.",
+        "Current production capabilities and observation functions are imported read-only as an independent runtime cross-check."
+      ],
+      "success_criteria": [
+        "Without changing the diagnoser, the bounded-completion protocol is diagnosable but not safe-diagnosable before release-authority and derives ambiguous-do-not-release.",
+        "The bounded-completion depth-12 trace oracle has zero surviving ambiguous observation sequences.",
+        "Without changing the diagnoser, the unbounded-pending protocol is non-diagnosable and not safe-diagnosable, emits an ambiguity-cycle witness, exposes release-authority while ambiguous, and derives ambiguous-do-not-release.",
+        "The unbounded-pending depth-12 trace oracle retains at least one ambiguous observation sequence.",
+        "The production github-pull-request/update-branch adapter continues to declare replay forbidden and reservation release forbidden.",
+        "A current unchanged-head observation is not accepted as authoritative absence evidence.",
+        "An ancestry-proven changed head is mutation-present and verifies the production postcondition.",
+        "The experiment is deterministic and adds no runtime dependency."
+      ],
+      "non_claims": [
+        "GitHub update-branch jobs actually remain pending forever in real executions.",
+        "HTTP 202 alone fully specifies GitHub's internal update-branch state machine.",
+        "An unchanged pull-request head proves the accepted update will never execute.",
+        "The finite protocol description is automatically a sound abstraction of GitHub.",
+        "The diagnosability checker may mint runtime authority, release reservations, replay effects, or settle project truth.",
+        "The pull-request update-branch effect is promoted into Overcenter's supported production mutation slice."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The bounded-versus-unbounded liveness contrast, expected classifications, depth-12 oracle expectations, production capability cross-checks, unchanged-head non-authoritative-absence assertion, positive ancestry verification, and falsification criteria were committed before the first execution of this experiment."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The asynchronous GitHub update-branch diagnosability treatment is preregistered and has not yet been executed."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:async-effect-diagnosability"
+      },
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "Preregistered protocol source: experiments/async-effect-diagnosability/experiment.ts.",
+          "Preregistered rationale and falsification contract: experiments/async-effect-diagnosability/README.md."
+        ],
+        "pending_reason": "No local or hosted execution has been accepted yet; the first exact-head run remains pending."
+      }
+    },
+    {
       "id": "authority-flow-analysis",
       "kind": "experiment",
       "status": "maintained",
