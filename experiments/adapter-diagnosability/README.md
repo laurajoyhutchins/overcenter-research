@@ -141,4 +141,14 @@ The same exact-head candidate passed repository lint and TypeScript checking, th
 
 This supports the narrow Phase 1 claim that DES-style diagnosability is mechanically useful on a finite effect-protocol abstraction and that safe diagnosability captures a real distinction between eventual knowledge and knowledge available before authority reuse.
 
-**Phase 2 is now encoded and pending exact-head hosted evaluation.** The checker implementation was not changed. The new GitHub slices are expected to derive `safe-to-release` only for trusted pre-`secureConnect` `NOT_DISPATCHED`, while post-`secureConnect` reset and HTTP 502 remain `ambiguous-do-not-release`.
+**Phase 2 is supported at exact revision `a062eb8827830d3558fabd794bcf3ae9d8d76460`.** GitHub Actions Merge gate run `35923271198`, rerun attempt 2, candidate-evidence job `107392831495`, passed the full exact-head candidate suite. The diagnoser implementation was unchanged from Phase 1.
+
+The three independently frozen GitHub-status slices reproduced the established recovery boundary:
+
+- trusted pre-`secureConnect` `NOT_DISPATCHED` was diagnosable and safe-diagnosable with zero ambiguous pairs, deriving `safe-to-release`;
+- post-`secureConnect` reset was non-diagnosable and not safe-diagnosable, retained one depth-12 ambiguous observation sequence, emitted an ambiguity-cycle witness, and derived `ambiguous-do-not-release`;
+- HTTP 502 after dispatch had the same non-diagnosable result and likewise derived `ambiguous-do-not-release`.
+
+Both ambiguous GitHub slices identified `release-authority` as reachable while mutation and non-mutation worlds remained observationally indistinguishable. The same exact-head candidate passed lint, TypeScript checking, experiment-contract verification, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application.
+
+This is stronger than the synthetic result alone: the unchanged checker independently recovered a real recovery boundary that had been established by separate transport and production-path experiments. It still does not prove that arbitrary provider adapters can be abstracted soundly, nor does it make the checker production authority.
