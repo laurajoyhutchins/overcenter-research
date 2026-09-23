@@ -57,16 +57,6 @@ The following are implementation details and are not supported agent operations:
 
 The GitHub transport may use refs, workflow events, artifacts, and reruns internally. Those mechanics are deliberately hidden behind `project.advance` and `project.submit`.
 
-## Developer GitHub capability
-
-Broad GitHub development operations belong to **Laura's Dev Tools**, not to the Overcenter command surface.
-
-That includes ordinary developer mechanics such as inspecting GitHub objects, creating branches, manipulating pull requests, dispatching or rerunning workflows, and retrieving artifacts. These operations may be useful to a reasoning agent acting as a developer, but they do not become Overcenter project transitions merely because an agent invokes them.
-
-A Laura's Dev Tools mutation creates provider state. Overcenter may later observe that state, but it must independently establish the exact identity, admissibility, authorization, and postcondition required for settlement.
-
-The Dev Tools App identity, installation, bot actor, webhook hook, or token is provider capability/provenance rather than Overcenter semantic authority. Overcenter does not use that App for routine runtime observation: repository-local `project.advance` and `project.submit` run with GitHub Actions' native `github.token`, and provider operations use ordinary scoped bearer credentials. The former App-backed webhook status mirror has been removed. See [ADR-0009](./adr/0009-separate-github-developer-capability.md).
-
 ## Pull-request certification
 
 Pull-request certification is CI behavior, not a separate Overcenter command.
@@ -105,5 +95,3 @@ The internal candidate handoff workflow has no write authority. It exists only t
 Add a command only when it represents stable semantic intent that cannot already be expressed by an existing authoritative transition.
 
 Do not expose CRUD, arbitrary REST, arbitrary workflows, free-form JSON commands, graph selection, claim mechanics, recovery bookkeeping, or transport wrappers. If the caller can derive or coordinate it mechanically, Overcenter should own it instead.
-
-If a capability is useful for ordinary GitHub development but does not express an Overcenter project transition, put it in Laura's Dev Tools rather than widening this interface.
