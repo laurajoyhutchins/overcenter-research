@@ -83,14 +83,12 @@ export function buildStaticEffectIndex(
       (resourceMasks.get(entry.semantics.resource)??0n)|bit,
     );
 
-    if (entry.semantics.sameDesiredCommutes) {
-      const byDesired=commutingMutable.get(entry.semantics.resource)??new Map();
-      byDesired.set(
-        entry.semantics.desired,
-        (byDesired.get(entry.semantics.desired)??0n)|bit,
-      );
-      commutingMutable.set(entry.semantics.resource,byDesired);
-    }
+    const byDesired=commutingMutable.get(entry.semantics.resource)??new Map();
+    byDesired.set(
+      entry.semantics.desired,
+      (byDesired.get(entry.semantics.desired)??0n)|bit,
+    );
+    commutingMutable.set(entry.semantics.resource,byDesired);
   }
 
   const ancestors=new Map<string,bigint>();
@@ -152,9 +150,8 @@ export function staticEffectConflict(
 
   const resource=work.semantics.resource;
   const resourceMask=index.resourceMasks.get(resource)??0n;
-  const compatibleMask=work.semantics.sameDesiredCommutes
-    ? index.commutingMasks.get(resource)?.get(work.semantics.desired)??0n
-    : 0n;
+  const compatibleMask=index.commutingMasks
+    .get(resource)?.get(work.semantics.desired)??0n;
   const incompatibleMask=resourceMask & ~(compatibleMask|work.bit);
   const unorderedMask=incompatibleMask & ~(index.orderedBitsById.get(workId)??0n);
   if (unorderedMask===0n) return null;
