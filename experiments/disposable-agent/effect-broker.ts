@@ -45,7 +45,8 @@ assert.equal(work.postcondition.commit_sha, sourceSha);
 const permit = kernel.acquireExecution(work.run_id);
 assert.equal(permit.execution_generation, 2);
 
-const effect = await performGithubCommitStatusEffect(kernel, permit, {
+const authority = kernel.authorizeEffect(permit, GITHUB_COMMIT_STATUS_EFFECT);
+const effect = await performGithubCommitStatusEffect(kernel, authority, {
   token: required('GITHUB_TOKEN'),
 });
 assert.equal(effect.commit_sha, sourceSha);
