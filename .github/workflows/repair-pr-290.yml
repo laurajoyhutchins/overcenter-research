@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      EXPECTED_PARENT: 1ed2025ea11d996a56c1b7ed13a7580b50eae356
+      EXPECTED_PARENT: d4108d88b7363d850ba7e3cc8b48005c051373e2
       MAIN_SHA: 848742ebe4484ffb6bef02cd6ac08175e99f569e
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -49,6 +49,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           set +e
           git merge --no-ff --no-commit -Xtheirs "$MAIN_SHA"
           status=$?
@@ -139,8 +141,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm -- .github/workflows/repair-pr-290.yml
           git add -A
           git commit -m "chore: reconcile lint gate with current main"
