@@ -21,14 +21,12 @@ export const REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA='overcenter-replay-safe-
 export const COMPUTATION_ATTEMPT_SUMMARY_SCHEMA='overcenter-computation-attempt-summary-v1' as const;
 export const COMPUTATION_TRANSPORT_FAILURE_SCHEMA='overcenter-computation-transport-failure-v1' as const;
 
-export interface ReplaySafeTestComputationPacketV1 {
+export interface TestComputationPacket {
   schema:typeof REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA;
   kind:'test';
   execution_context_sha256:string;
   process_spec:ProcessSpec;
 }
-
-export type TestComputationPacket=ReplaySafeTestComputationPacketV1;
 
 export interface ComputationExecutor {
   readonly executionContextSha256?:string;

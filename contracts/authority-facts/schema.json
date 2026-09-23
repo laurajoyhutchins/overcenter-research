@@ -277,9 +277,6 @@
         }
       }
     },
-    "ReceiptFact": {
-      "$ref": "#/$defs/ReceiptFact"
-    },
     "AuthorityFact": {
       "oneOf": [
         {
