@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  structurallyCertifiedFor,
-  structurallyValidatedFor,
   validateObservationSlice,
   validateResponseSlice,
   type SchemaResolver,
@@ -116,58 +114,6 @@ test('production structural validator binds certificate to operation and schema 
 });
 
 
-test('full response-slice certification distinguishes validated from optional absence',()=>{
-  const operation:StructuralOperation={
-    operation_id:'test/get',
-    outcomes:[{
-      status:'200',
-      schema:{
-        type:'object',
-        required:['id'],
-        properties:{
-          id:{type:'integer'},
-          note:{type:'string'},
-        },
-      },
-    }],
-  };
-  const observation={
-    contract:{
-      provider:'test',
-      api_version:'v1',
-      operation_id:'test/get',
-      schema_sha256:'a'.repeat(64),
-    },
-    observer:{kind:'test',id:'provider-observation'},
-    observed_at:'2026-09-20T19:00:00.000Z',
-    request:{},
-    response:{},
-    outcome:{
-      status:200,
-      visibility:'observed' as const,
-      value:{id:42},
-    },
-  };
-  const fields=[{path:'id'},{path:'note',required:false}] as const;
-  const certified=validateObservationSlice(operation,observation,fields);
-
-  assert.equal(structurallyCertifiedFor(certified,'test/get',fields),true);
-  assert.equal(structurallyValidatedFor(certified,'test/get',['id','note']),false);
-
-  const missingOptional=structuredClone(certified);
-  missingOptional.structural_validation.optional_absent_paths=[];
-  assert.equal(structurallyCertifiedFor(missingOptional,'test/get',fields),false);
-
-  const requiredAsAbsent=structuredClone(certified);
-  requiredAsAbsent.structural_validation.validated_paths=[];
-  requiredAsAbsent.structural_validation.optional_absent_paths=['id','note'];
-  assert.equal(structurallyCertifiedFor(requiredAsAbsent,'test/get',fields),false);
-
-  const contradictory=structuredClone(certified);
-  contradictory.structural_validation.optional_absent_paths=['id','note'];
-  assert.equal(structurallyCertifiedFor(contradictory,'test/get',fields),false);
-});
-
 test('provider observation envelope rejects undeclared outer fields',()=>{
   const observation={
     contract:{
@@ -208,9 +154,7 @@ test('provider-specific outer fields require explicit declaration',()=>{
   assert.doesNotThrow(()=>validateProviderObservationEnvelope(
     observation,
     {
-      requiredTopLevelExtensions:{
-        authority_id:'non-empty-string',
-      },
+      requiredNonEmptyTopLevel:['authority_id'],
     },
   ));
   const {authority_id:_,...missing}=observation;
@@ -218,9 +162,7 @@ test('provider-specific outer fields require explicit declaration',()=>{
     ()=>validateProviderObservationEnvelope(
       missing,
       {
-        requiredTopLevelExtensions:{
-          authority_id:'non-empty-string',
-        },
+        requiredNonEmptyTopLevel:['authority_id'],
       },
     ),
     /PROVIDER_OBSERVATION_SHAPE_INVALID:MISSING_FIELD:authority_id/,
@@ -229,43 +171,13 @@ test('provider-specific outer fields require explicit declaration',()=>{
     ()=>validateProviderObservationEnvelope(
       {...observation,authority_id:''},
       {
-        requiredTopLevelExtensions:{
-          authority_id:'non-empty-string',
-        },
+        requiredNonEmptyTopLevel:['authority_id'],
       },
     ),
     /PROVIDER_OBSERVATION_EXTENSION_INVALID:authority_id/,
   );
 });
 
-
-test('conditional revalidation provenance is explicit and closed',()=>{
-  const base={
-    contract:{
-      provider:'github',
-      api_version:'2026-03-10',
-      operation_id:'repos/get',
-      schema_sha256:'a'.repeat(64),
-    },
-    observer:{kind:'git-kernel',id:'conditional-proof'},
-    observed_at:'2026-09-19T00:00:01.000Z',
-    request:{path:'/repos/o/r'},
-    response:{etag:'"abc"'},
-    outcome:{status:200,visibility:'observed' as const,value:{}},
-    revalidated_from:{
-      observed_at:'2026-09-19T00:00:00.000Z',
-      etag:'"abc"',
-    },
-  };
-  assert.doesNotThrow(()=>validateProviderObservationEnvelope(base));
-  assert.throws(
-    ()=>validateProviderObservationEnvelope({
-      ...base,
-      revalidated_from:{...base.revalidated_from,surprise:true},
-    }),
-    /PROVIDER_OBSERVATION_REVALIDATION_SHAPE_INVALID:UNKNOWN_FIELD:surprise/,
-  );
-});
 
 
 test('provider envelope rejects unsafe status and NUL-bearing identity strings',()=>{

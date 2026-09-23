@@ -25,17 +25,17 @@ else
   rm -rf .overcenter-build
   mkdir -p .overcenter-build
   (
-    cd src/execution/executor
+    cd native/executor
     CGO_ENABLED=0 go build -trimpath -buildvcs=false \
-      -o ../../../.overcenter-build/overcenter-executor \
+      -o ../../.overcenter-build/overcenter-executor \
       ./cmd/overcenter-executor
   )
 fi
 
 docker build \
-  --build-arg NODE_IMAGE="$(node -e "const x=require('./src/execution/executor/runtime-images.json'); process.stdout.write(x.node_self_application)")" \
+  --build-arg NODE_IMAGE="$(node -e "const x=require('./native/executor/runtime-images.json'); process.stdout.write(x.node_self_application)")" \
   --build-arg NODE_VERSION="$(cat .node-version)" \
-  -f src/execution/executor/self-application/Dockerfile \
+  -f native/executor/self-application/Dockerfile \
   -t "$image" \
   .
 

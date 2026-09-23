@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-here="$repo_root/src/execution/confinement"
+here="$repo_root/native/confinement"\nproof_here="$repo_root/test/proof/confinement"
 tmp="$(mktemp -d)"
 cgroup_root=""
 cgroup_parent=""
@@ -96,9 +96,9 @@ uname -srmo
 
 printf '%s\n' '== compile production launcher and hostile worker =='
 rustc --edition=2021 -D warnings "$here/main.rs" -o "$launcher"
-rustc --edition=2021 -D warnings "$here/hostile_worker.rs" -o "$worker"
-rustc --edition=2021 -D warnings "$here/x32_probe.rs" -o "$x32_probe"
-rustc --edition=2021 -D warnings "$here/resource_probe.rs" -o "$resource_probe"
+rustc --edition=2021 -D warnings "$proof_here/hostile_worker.rs" -o "$worker"
+rustc --edition=2021 -D warnings "$proof_here/x32_probe.rs" -o "$x32_probe"
+rustc --edition=2021 -D warnings "$proof_here/resource_probe.rs" -o "$resource_probe"
 loader="$(ldd "$worker" 2>/dev/null | grep -oE '/[^[:space:]]*ld-linux[^[:space:]]*' | head -n 1)"
 test -n "$loader"
 
@@ -110,7 +110,7 @@ printf '%s\n' '== trusted TypeScript supervisor uses exact cgroup leaves =='
 OVERCENTER_EXEC_LAUNCHER="$launcher" \
 OVERCENTER_CGROUP_PARENT="$cgroup_parent" \
 OVERCENTER_WORKSPACE="$root" \
-  node --experimental-strip-types "$here/supervisor_proof.ts"
+  node --experimental-strip-types "$proof_here/supervisor_proof.ts"
 
 runtime_closure() {
   local binary="$1"

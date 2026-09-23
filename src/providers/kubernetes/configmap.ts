@@ -8,7 +8,7 @@ import type {
   KubernetesConfigMapExistsPostcondition,
 } from '../../model.ts';
 import type { ProviderObservation } from '../../observation/provider.ts';
-import { asData as data, hasExactKeys as exactKeys } from '../../validation.ts';
+import { isData as data, hasExactKeys as exactKeys } from '../../validation.ts';
 import {
   validateObservationSlice,
   type ResponseFieldSpec,
@@ -357,11 +357,7 @@ export function observeCertifiedKubernetesConfigMap(
         observation,
         KUBERNETES_CONFIGMAP_LIST_RESPONSE_SLICE,
         resolveRef,
-        {
-          requiredTopLevelExtensions:{
-            authority_id:'non-empty-string',
-          },
-        },
+        {requiredNonEmptyTopLevel:['authority_id']},
       );
       const body=data(certified.outcome.value);
       const metadata=data(body?.metadata);

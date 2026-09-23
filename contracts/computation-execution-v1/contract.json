@@ -127,7 +127,7 @@
     },
     {
       "type": "go-validator",
-      "path": "../../src/execution/executor/protocol.go"
+      "path": "../../native/executor/protocol.go"
     },
     {
       "type": "executor-attestation",
@@ -135,7 +135,7 @@
     },
     {
       "type": "executor-attestation",
-      "path": "../../src/execution/executor/cmd/overcenter-executor/main.go"
+      "path": "../../native/executor/cmd/overcenter-executor/main.go"
     }
   ],
   "extensions": {}

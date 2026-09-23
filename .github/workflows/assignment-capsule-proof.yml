@@ -58,7 +58,7 @@ jobs:
           mkdir -p authority transport
           node --experimental-strip-types experiments/assignment-capsule/prepare.ts \
             authority/overcenter.sqlite capsule
-          src/execution/worker-client/build.sh capsule/overcenter
+          native/worker-client/build.sh capsule/overcenter
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
             -cf transport/assignment-capsule.tar -C capsule .
           capsule_sha256="$(sha256sum transport/assignment-capsule.tar | cut -d' ' -f1)"

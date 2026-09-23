@@ -1,5 +1,6 @@
 import type { ProviderObservation } from '../../observation/provider.ts';
 import {
+  projectResponseSlice,
   validateObservationSlice,
   type CertifiedObservation,
   type ResponseFieldSpec,
@@ -129,4 +130,73 @@ export function observeCertifiedGcpRead200({
       resolveRef,
     ),
   };
+}
+
+
+export interface GcpReadOptions {
+  get?:GcpJsonGet;
+  clock?:()=>string;
+  quotaProject?:string;
+}
+
+export function gcpPathSegment(value:string,error:string):string {
+  if (!value || value==='.' || value==='..' || /[\\/?#\x00-\x1f\x7f]/.test(value)) {
+    throw new Error(error);
+  }
+  return encodeURIComponent(value);
+}
+
+export function observeCertifiedGcpResource<T>({
+  accessToken,
+  operation,
+  request,
+  fields,
+  observerId,
+  options={},
+  validate,
+  evidence,
+}:{
+  accessToken:string;
+  operation:GcpObservationOperation;
+  request:MaterializedGcpOperationRequest;
+  fields:readonly ResponseFieldSpec[];
+  observerId:string;
+  options?:GcpReadOptions;
+  validate:(value:T)=>void;
+  evidence:(value:T)=>Record<string,unknown>;
+}) {
+  try {
+    const {observed_at,certified}=observeCertifiedGcpRead200({
+      accessToken,
+      operation,
+      request,
+      fields,
+      observerId,
+      ...options,
+    });
+    const value=projectResponseSlice(certified.outcome.value,fields) as T;
+    validate(value);
+    return {
+      state:'observed' as const,
+      value,
+      evidence:{
+        provider:'gcp' as const,
+        authority_host:operation.authority_host,
+        api_version:operation.api_version,
+        operation_id:operation.operation_id,
+        schema_sha256:operation.schema_sha256,
+        observer:{kind:'gcp-rest' as const,id:observerId},
+        observed_at,
+        validated_paths:certified.structural_validation.validated_paths,
+        optional_absent_paths:certified.structural_validation.optional_absent_paths,
+        negative_evidence_authoritative:false as const,
+        ...evidence(value),
+      },
+    };
+  } catch (error:unknown) {
+    return {
+      state:'indeterminate' as const,
+      observation_error:error instanceof Error?error.message:String(error),
+    };
+  }
 }

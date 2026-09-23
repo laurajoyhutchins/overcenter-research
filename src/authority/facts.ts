@@ -138,6 +138,21 @@ function sha256Hex(value:unknown,error:string):asserts value is string {
   if (typeof value!=='string' || !/^[0-9a-f]{64}$/.test(value)) throw new Error(error);
 }
 
+function runFact(
+  value:unknown,
+  schema:string,
+  required:readonly string[],
+  optional:readonly string[],
+  error:string,
+):Record<string,unknown> {
+  if (!data(value)) throw new Error(error);
+  exactKeys(value,required,optional,error);
+  if (value.schema!==schema) throw new Error(`${error}_SCHEMA`);
+  nonEmptyString(value.run_id,'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
+  return value;
+}
+
 export function validateDependencies(dependencies:Dependency[]):void {
   for (const edge of dependencies) {
     if (!data(edge)) throw new Error('INVALID_DEPENDENCY');
@@ -300,116 +315,58 @@ export function validateGraphPatchFact(value:unknown):GraphPatchFact {
 }
 
 export function validateClaimFact(value:unknown):ClaimFact {
-  if (!data(value)) throw new Error('INVALID_CLAIM_FACT');
-  exactKeys(value,[
-    'schema',
-    'run_id',
-    'obligation_id',
-    'claimed_revision',
-    'obligation_key',
+  const fact=runFact(value,CLAIM_SCHEMA,[
+    'schema','run_id','obligation_id','claimed_revision','obligation_key',
     'execution_capability_sha256',
   ],[],'INVALID_CLAIM_FACT');
-  if (value.schema!==CLAIM_SCHEMA) throw new Error('INVALID_CLAIM_SCHEMA');
-  nonEmptyString(value.run_id,'INVALID_RUN_ID');
-  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
-  nonEmptyString(value.claimed_revision,'INVALID_CLAIMED_REVISION');
-  nonEmptyString(value.obligation_key,'INVALID_OBLIGATION_KEY');
-  sha256Hex(
-    value.execution_capability_sha256,
-    'INVALID_EXECUTION_CAPABILITY_DIGEST',
-  );
-  return structuredClone(value) as unknown as ClaimFact;
+  nonEmptyString(fact.claimed_revision,'INVALID_CLAIMED_REVISION');
+  nonEmptyString(fact.obligation_key,'INVALID_OBLIGATION_KEY');
+  sha256Hex(fact.execution_capability_sha256,'INVALID_EXECUTION_CAPABILITY_DIGEST');
+  return structuredClone(fact) as unknown as ClaimFact;
 }
 
 export function validateExecutionAuthorityFact(value:unknown):ExecutionAuthorityFact {
-  if (!data(value)) throw new Error('INVALID_EXECUTION_AUTHORITY_FACT');
-  exactKeys(value,[
-    'schema',
-    'run_id',
-    'obligation_id',
-    'generation',
-    'previous_authority_commit',
+  const fact=runFact(value,EXECUTION_AUTHORITY_SCHEMA,[
+    'schema','run_id','obligation_id','generation','previous_authority_commit',
     'execution_capability_sha256',
   ],[],'INVALID_EXECUTION_AUTHORITY_FACT');
-  if (value.schema!==EXECUTION_AUTHORITY_SCHEMA) {
-    throw new Error('INVALID_EXECUTION_AUTHORITY_SCHEMA');
-  }
-  nonEmptyString(value.run_id,'INVALID_RUN_ID');
-  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
-  positiveSafeInteger(value.generation,'INVALID_EXECUTION_GENERATION');
-  nonEmptyString(
-    value.previous_authority_commit,
-    'INVALID_PREVIOUS_AUTHORITY_COMMIT',
-  );
-  sha256Hex(
-    value.execution_capability_sha256,
-    'INVALID_EXECUTION_CAPABILITY_DIGEST',
-  );
-  return structuredClone(value) as unknown as ExecutionAuthorityFact;
+  positiveSafeInteger(fact.generation,'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(fact.previous_authority_commit,'INVALID_PREVIOUS_AUTHORITY_COMMIT');
+  sha256Hex(fact.execution_capability_sha256,'INVALID_EXECUTION_CAPABILITY_DIGEST');
+  return structuredClone(fact) as unknown as ExecutionAuthorityFact;
 }
 
 export function validateEffectReservationFact(value:unknown):EffectReservationFact {
-  if (!data(value)) throw new Error('INVALID_EFFECT_RESERVATION_FACT');
-  exactKeys(value,[
-    'schema',
-    'run_id',
-    'obligation_id',
-    'execution_generation',
+  const fact=runFact(value,EFFECT_RESERVATION_SCHEMA,[
+    'schema','run_id','obligation_id','execution_generation',
     'execution_authority_commit',
   ],[],'INVALID_EFFECT_RESERVATION_FACT');
-  if (value.schema!==EFFECT_RESERVATION_SCHEMA) {
-    throw new Error('INVALID_EFFECT_RESERVATION_SCHEMA');
-  }
-  nonEmptyString(value.run_id,'INVALID_RUN_ID');
-  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
-  positiveSafeInteger(value.execution_generation,'INVALID_EXECUTION_GENERATION');
-  nonEmptyString(
-    value.execution_authority_commit,
-    'INVALID_EXECUTION_AUTHORITY_COMMIT',
-  );
-  return structuredClone(value) as unknown as EffectReservationFact;
+  positiveSafeInteger(fact.execution_generation,'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(fact.execution_authority_commit,'INVALID_EXECUTION_AUTHORITY_COMMIT');
+  return structuredClone(fact) as unknown as EffectReservationFact;
 }
 
 export function validateReceiptFact(value:unknown):ReceiptFact {
-  if (!data(value)) throw new Error('INVALID_RECEIPT_FACT');
-  exactKeys(value,[
-    'schema',
-    'run_id',
-    'obligation_id',
-    'claimed_revision',
-    'claim_commit',
-    'execution_generation',
-    'execution_authority_commit',
-    'kind',
-    'observed',
-    'settled_at',
+  const fact=runFact(value,RECEIPT_SCHEMA,[
+    'schema','run_id','obligation_id','claimed_revision','claim_commit',
+    'execution_generation','execution_authority_commit','kind','observed','settled_at',
   ],['diagnostic'],'INVALID_RECEIPT_FACT');
-  if (value.schema!==RECEIPT_SCHEMA) {
-    throw new Error('INVALID_RECEIPT_SCHEMA');
-  }
-  nonEmptyString(value.run_id,'INVALID_RUN_ID');
-  nonEmptyString(value.obligation_id,'INVALID_OBLIGATION_ID');
-  nonEmptyString(value.claimed_revision,'INVALID_CLAIMED_REVISION');
-  nonEmptyString(value.claim_commit,'INVALID_CLAIM_COMMIT');
-  positiveSafeInteger(value.execution_generation,'INVALID_EXECUTION_GENERATION');
-  nonEmptyString(
-    value.execution_authority_commit,
-    'INVALID_EXECUTION_AUTHORITY_COMMIT',
-  );
-  if (!['observation','judgment-required','execution-terminated'].includes(String(value.kind))) {
+  nonEmptyString(fact.claimed_revision,'INVALID_CLAIMED_REVISION');
+  nonEmptyString(fact.claim_commit,'INVALID_CLAIM_COMMIT');
+  positiveSafeInteger(fact.execution_generation,'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(fact.execution_authority_commit,'INVALID_EXECUTION_AUTHORITY_COMMIT');
+  if (!['observation','judgment-required','execution-terminated'].includes(String(fact.kind))) {
     throw new Error('INVALID_RECEIPT_KIND');
   }
-  if (value.observed!==null && !data(value.observed)) {
-    throw new Error('INVALID_RECEIPT_OBSERVATION');
+  if (fact.observed!==null) {
+    if (!data(fact.observed)) throw new Error('INVALID_RECEIPT_OBSERVATION');
+    validateObservationEnvelope(fact.observed);
   }
-  if (value.observed!==null) {
-    validateObservationEnvelope(value.observed);
-  }
-  if (value.diagnostic!==undefined && !data(value.diagnostic)) {
+  if (fact.diagnostic!==undefined && !data(fact.diagnostic)) {
     throw new Error('INVALID_RECEIPT_DIAGNOSTIC');
   }
-  nonEmptyString(value.settled_at,'INVALID_SETTLED_AT');
-  return structuredClone(value) as unknown as ReceiptFact;
+  nonEmptyString(fact.settled_at,'INVALID_SETTLED_AT');
+  return structuredClone(fact) as unknown as ReceiptFact;
 }
 
 export type AuthorityFact =

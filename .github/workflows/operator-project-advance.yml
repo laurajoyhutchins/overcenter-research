@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p worker-client
-          src/execution/worker-client/build.sh worker-client/overcenter
+          native/worker-client/build.sh worker-client/overcenter
           sha256sum worker-client/overcenter > worker-client/overcenter.sha256
 
       - name: Publish exact worker client

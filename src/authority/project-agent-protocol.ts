@@ -43,9 +43,7 @@ export interface ProjectCommandContext {
   command_run_attempt:number;
 }
 
-export interface ProjectAdvanceReceipt {
-  schema:typeof PROJECT_ADVANCE_RECEIPT_SCHEMA;
-  command:typeof PROJECT_ADVANCE_COMMAND;
+interface ProjectReceiptBase {
   transport:'github-actions-job-rerun';
   repository_id:number;
   repository_full_name:string;
@@ -54,6 +52,12 @@ export interface ProjectAdvanceReceipt {
   command_run_attempt:number;
   authority_ref:string;
   authority_head:string;
+  receipt_digest:string;
+}
+
+export interface ProjectAdvanceReceipt extends ProjectReceiptBase {
+  schema:typeof PROJECT_ADVANCE_RECEIPT_SCHEMA;
+  command:typeof PROJECT_ADVANCE_COMMAND;
   state:ProjectVisibleState;
   obligation_id?:string;
   run_id?:string;
@@ -61,24 +65,15 @@ export interface ProjectAdvanceReceipt {
   assignment_sha256?:string;
   candidate_branch?:string;
   candidate_branch_base_sha?:string;
-  receipt_digest:string;
 }
 
 export interface ProjectSubmitContext extends ProjectCommandContext {
   candidate_sha:string;
 }
 
-export interface ProjectSubmitReceipt {
+export interface ProjectSubmitReceipt extends ProjectReceiptBase {
   schema:typeof PROJECT_SUBMIT_RECEIPT_SCHEMA;
   command:typeof PROJECT_SUBMIT_COMMAND;
-  transport:'github-actions-job-rerun';
-  repository_id:number;
-  repository_full_name:string;
-  command_source_sha:string;
-  command_run_id:number;
-  command_run_attempt:number;
-  authority_ref:string;
-  authority_head:string;
   candidate_sha:string;
   obligation_id:string;
   run_id:string;
@@ -89,7 +84,6 @@ export interface ProjectSubmitReceipt {
   verified:true;
   settlement_commit:string|null;
   already_settled:boolean;
-  receipt_digest:string;
 }
 
 interface ProtocolOptions {
@@ -227,12 +221,25 @@ function visibleState(work:Work[]):ProjectVisibleState {
 }
 
 function withDigest<T extends Record<string,unknown>>(base:T):T & {receipt_digest:string} {
-  return {
-    ...base,
-    receipt_digest:canonicalDigest(base),
-  };
+  return {...base,receipt_digest:canonicalDigest(base)};
 }
 
+function receiptContext(
+  context:ProjectCommandContext,
+  authorityRef:string,
+  authorityHead:string,
+) {
+  return {
+    transport:'github-actions-job-rerun' as const,
+    repository_id:context.repository_id,
+    repository_full_name:context.repository_full_name,
+    command_source_sha:context.command_source_sha.toLowerCase(),
+    command_run_id:context.command_run_id,
+    command_run_attempt:context.command_run_attempt,
+    authority_ref:authorityRef,
+    authority_head:authorityHead,
+  };
+}
 export function advanceProjectForAgent(
   repo:string,
   context:ProjectCommandContext,
@@ -261,14 +268,7 @@ export function advanceProjectForAgent(
       return withDigest({
         schema:PROJECT_ADVANCE_RECEIPT_SCHEMA,
         command:PROJECT_ADVANCE_COMMAND,
-        transport:'github-actions-job-rerun' as const,
-        repository_id:context.repository_id,
-        repository_full_name:context.repository_full_name,
-        command_source_sha:context.command_source_sha.toLowerCase(),
-        command_run_id:context.command_run_id,
-        command_run_attempt:context.command_run_attempt,
-        authority_ref:authorityRef,
-        authority_head:authorityHead,
+        ...receiptContext(context,authorityRef,authorityHead),
         state:visibleState(kernel.inspect()),
       });
     }
@@ -299,14 +299,7 @@ export function advanceProjectForAgent(
       const base={
         schema:PROJECT_ADVANCE_RECEIPT_SCHEMA,
         command:PROJECT_ADVANCE_COMMAND,
-        transport:'github-actions-job-rerun' as const,
-        repository_id:context.repository_id,
-        repository_full_name:context.repository_full_name,
-        command_source_sha:context.command_source_sha.toLowerCase(),
-        command_run_id:context.command_run_id,
-        command_run_attempt:context.command_run_attempt,
-        authority_ref:authorityRef,
-        authority_head:authorityHead,
+        ...receiptContext(context,authorityRef,authorityHead),
         state:'AGENT_EXECUTION_REQUIRED' as const,
         obligation_id:claimed.id,
         run_id:permit.id,
@@ -391,14 +384,7 @@ export function submitProjectCandidate(
     return withDigest({
       schema:PROJECT_SUBMIT_RECEIPT_SCHEMA,
       command:PROJECT_SUBMIT_COMMAND,
-      transport:'github-actions-job-rerun' as const,
-      repository_id:context.repository_id,
-      repository_full_name:context.repository_full_name,
-      command_source_sha:context.command_source_sha.toLowerCase(),
-      command_run_id:context.command_run_id,
-      command_run_attempt:context.command_run_attempt,
-      authority_ref:authorityRef,
-      authority_head:authorityHead,
+      ...receiptContext(context,authorityRef,authorityHead),
       candidate_sha:candidateSha,
       obligation_id:assigned.id,
       run_id:candidate.run_id,

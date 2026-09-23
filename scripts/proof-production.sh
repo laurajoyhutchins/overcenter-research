@@ -13,7 +13,7 @@ cd "$repo_root"
 image="overcenter-executor-production-proof:${GITHUB_SHA:-local}"
 go_version="$(tr -d '\r\n' < .go-version)"
 node_version="$(tr -d '\r\n' < .node-version)"
-node_image="$(node -e "const x=require('./src/execution/executor/runtime-images.json'); process.stdout.write(x.node_runtime)")"
+node_image="$(node -e "const x=require('./native/executor/runtime-images.json'); process.stdout.write(x.node_runtime)")"
 build_dir=".overcenter-build"
 preverified_computation_executor="${OVERCENTER_PREVERIFIED_COMPUTATION_EXECUTOR:-0}"
 keep_build="${OVERCENTER_KEEP_BUILD:-0}"
@@ -31,9 +31,9 @@ if [[ "$keep_build" != "1" ]]; then
 fi
 
 (
-  cd src/execution/executor
+  cd native/executor
   go test ./...
-  CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "../../../$build_dir/overcenter-executor" ./cmd/overcenter-executor
+  CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "../../$build_dir/overcenter-executor" ./cmd/overcenter-executor
 )
 
 if [[ "$preverified_computation_executor" != "1" ]]; then
@@ -43,7 +43,7 @@ fi
 docker build \
   --build-arg NODE_IMAGE="$node_image" \
   --build-arg NODE_VERSION="$node_version" \
-  -f src/execution/executor/containment/Dockerfile \
+  -f native/executor/containment/Dockerfile \
   -t "$image" \
   .
 
