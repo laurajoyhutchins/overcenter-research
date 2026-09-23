@@ -15,6 +15,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `two-effect-concurrency/` - independent concurrent effects and recovery through one authority ref.
 - `conflicting-effect/` - provider-coordinate conflict, ordering, and commutativity.
 - `eventually-consistent-readback/` - hostile stale or negative provider readback and the no-blind-replay rule.
+- `witness-minimization/` - blind delta-minimization of over-recorded recovery evidence plus a frozen-capture challenge against an unseen effect route.
 - `current-realization-admissibility/` - fresh authoritative observation over historical DONE, including withdrawal, indeterminate blocking, and cache-free reconstruction.
 - `github-observation-grammar/` - generated GitHub observation vocabulary and live ref proof.
 - `kubernetes-observation/` - second-provider structural certificate, UID/resourceVersion identity, complete LIST, WATCH continuity, and reconstruction proof.

@@ -1391,6 +1391,56 @@
         "state": "falsified",
         "summary": "The real production typestate treatment preserved physical confinement and compile-time exclusion with negligible binary footprint change, but increased sandbox.rs by 17 nonblank lines and removed zero of 13 runtime guard classes. The treatment was reverted."
       }
+    },
+    {
+      "id": "witness-minimization",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/witness-minimization",
+      "readme": "experiments/witness-minimization/README.md",
+      "question": "Can minimized historical recovery witnesses automatically define a narrow future capture contract that preserves deterministic recovery on unseen schedules without false certainty?",
+      "claim": "A capture contract learned only from black-box minimization of broad historical witnesses preserves at least 95% of broad-recorder SAFE_RETRY decisions on an unseen alternate effect route while producing zero false SAFE_RETRY decisions.",
+      "contrast": "Keep broad capture, or use witness minimization only for post-hoc evidence reduction until observation completeness and mutation routes are independently known.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:witness-minimization"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "No network, provider credential, model, ptrace, or external solver is required.",
+        "The deterministic synthetic corpus contains an ordinary effect route visible in training and a helper route withheld until challenge evaluation."
+      ],
+      "success_criteria": [
+        "Mean post-hoc witness size is reduced by at least 90% while preserving the deterministic SAFE_RETRY proof.",
+        "Every minimized training witness is 1-minimal: removing any retained observation destroys the SAFE_RETRY proof.",
+        "Held-out ordinary-route recovery retention is at least 95% with zero false certainty.",
+        "The frozen learned capture contract preserves at least 95% of broad-recorder SAFE_RETRY decisions on the unseen helper route with zero false certainty for the strong hypothesis to be supported.",
+        "The unsafe missing-monitor negative control produces at least one false SAFE_RETRY on a committed unseen-route execution.",
+        "Redundant ordinary-route monitors produce more than one valid minimal witness shape, demonstrating that the experiment does not assume a unique causal basis."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "Hosted automatic-witness-minimization workflow result pending."
+        ],
+        "pending_reason": "Preregistered before exact-head hosted evaluation."
+      },
+      "interpretation": "The experiment distinguishes post-hoc proof minimization from promotion of historical minima into future capture policy. Safe failure on unseen routes is informative even when false certainty remains zero.",
+      "non_claims": [
+        "Historical minimality proves global causal necessity.",
+        "The synthetic route vocabulary represents arbitrary providers.",
+        "A 95% recovery-retention threshold is a production SLO.",
+        "Delta debugging finds a unique or globally minimum witness.",
+        "Learned capture may claim completeness for an effect route it does not actually observe."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The hidden-route challenge, 95% unseen-route retention threshold, zero-false-certainty gate, redundant-evidence construction, and unsafe negative control are recorded before hosted evaluation."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Awaiting exact-head hosted evaluation."
+      }
     }
   ]
 }

@@ -1,0 +1,40 @@
+name: Automatic witness minimization experiment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/witness-minimization-20260923
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: ${{ github.sha }}
+
+jobs:
+  evaluate:
+    name: Blind witness discovery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact experiment revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify experiment contract
+        run: npm run test:experiment-contract
+      - name: Run blind minimization and challenge corpus
+        run: |
+          set -euo pipefail
+          npm run test:witness-minimization | tee "$RUNNER_TEMP/witness-minimization.txt"
+          {
+            echo '## Automatic witness minimization'
+            echo
+            sed 's/^/    /' "$RUNNER_TEMP/witness-minimization.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
