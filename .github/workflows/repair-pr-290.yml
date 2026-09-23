@@ -1,0 +1,143 @@
+name: Repair PR 290
+
+on:
+  push:
+    branches:
+      - chore/sensible-lint
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ github.event.head_commit.message == 'ci: repair PR 290 against current main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_PARENT: 040c3fa21a79a89c2ca2ccf4953680eb13ecea9c
+      MAIN_SHA: 848742ebe4484ffb6bef02cd6ac08175e99f569e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Fence repair inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$MAIN_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: '.go-version'
+          cache: false
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal --component rustfmt --no-self-update
+          test "$(rustc --version | awk '{print $2}')" = "$channel"
+      - name: Merge current main, preserving main semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          git merge --no-ff --no-commit -Xtheirs "$MAIN_SHA"
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            mapfile -t unresolved < <(git diff --name-only --diff-filter=U)
+            printf 'unresolved=%s\n' "${unresolved[*]}"
+            test "${#unresolved[@]}" -eq 1
+            test "${unresolved[0]}" = "contracts/observation-evidence-v1/settlement-observation.typebox.ts"
+            git rm -- "contracts/observation-evidence-v1/settlement-observation.typebox.ts"
+          fi
+          test -f contracts/observation-evidence/settlement-observation.typebox.ts
+      - name: Reapply quality-gate integration to current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          pkg.scripts.lint = 'bash scripts/lint.sh';
+          pkg.scripts.format = 'bash scripts/format.sh';
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/tests.yml')
+          s = p.read_text()
+          if '      - name: Lint source\n' not in s:
+              marker = """      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+                with:
+                  node-version-file: '.node-version'
+          """
+              insert = marker + """      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+                with:
+                  go-version-file: '.go-version'
+                  cache: false
+              - name: Install pinned Rust toolchain
+                shell: bash
+                run: |
+                  set -euo pipefail
+                  channel="$(sed -n 's/^channel = "\\([^"]*\\)"$/\\1/p' rust-toolchain.toml)"
+                  test -n "$channel"
+                  rustup toolchain install "$channel" --profile minimal --component rustfmt --no-self-update
+                  test "$(rustc --version | awk '{print $2}')" = "$channel"
+              - name: Lint source
+                run: npm run lint
+          """
+              if marker not in s:
+                  raise SystemExit('setup-node marker not found')
+              s = s.replace(marker, insert, 1)
+
+          duplicate = """      - name: Install Go for candidate production evidence
+                if: ${{ inputs.expensive }}
+                uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+                with:
+                  go-version-file: '.go-version'
+                  cache: false
+              - name: Install pinned Rust toolchain
+                if: ${{ inputs.expensive }}
+                shell: bash
+                run: |
+                  set -euo pipefail
+                  channel="$(sed -n 's/^channel = "\\([^"]*\\)"$/\\1/p' rust-toolchain.toml)"
+                  test -n "$channel"
+                  rustup toolchain install "$channel" --profile minimal --no-self-update
+                  test "$(rustc --version | awk '{print $2}')" = "$channel"
+          """
+          s = s.replace(duplicate, '', 1)
+          p.write_text(s)
+          PY
+      - name: Format reconciled source
+        run: npm run format
+      - name: Install TypeScript toolchain
+        run: npm install --ignore-scripts --package-lock=false
+      - name: Verify repaired tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run lint
+          npm run typecheck
+          npm test
+          test ! -e contracts/observation-evidence-v1/settlement-observation.typebox.ts
+          test -e contracts/observation-evidence/settlement-observation.typebox.ts
+      - name: Commit repaired branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -- .github/workflows/repair-pr-290.yml
+          git add -A
+          git commit -m "chore: reconcile lint gate with current main"
+          git push origin HEAD:chore/sensible-lint
