@@ -97,10 +97,7 @@ export function buildSourceChangeAssignment(work: Work, sourceSha: string): Sour
   if (work.status !== 'EXECUTING') fail('SOURCE_CHANGE_WORK_NOT_EXECUTING');
   if (!work.run_id) fail('SOURCE_CHANGE_RUN_ID_INVALID');
   if (!work.claimed_revision) fail('SOURCE_CHANGE_CLAIMED_REVISION_INVALID');
-  if (
-    !Number.isSafeInteger(work.execution_generation) ||
-    (work.execution_generation ?? 0) < 1
-  ) {
+  if (!Number.isSafeInteger(work.execution_generation) || (work.execution_generation ?? 0) < 1) {
     fail('SOURCE_CHANGE_EXECUTION_GENERATION_INVALID');
   }
 
