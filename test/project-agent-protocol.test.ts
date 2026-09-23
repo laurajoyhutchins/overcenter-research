@@ -175,10 +175,9 @@ test('project intent is an ensure-set and does not retire unmentioned obligation
   const f = fixture();
   try {
     defineAgentWork(f.work, f.sourceSha, f.postconditionPath);
-    const sourceSha = commitProjectIntent(
-      f.work,
-      [agentIntent('intent-work', f.postconditionPath)],
-    );
+    const sourceSha = commitProjectIntent(f.work, [
+      agentIntent('intent-work', f.postconditionPath),
+    ]);
 
     const receipt = advanceProjectForAgent(f.work, commandContext(sourceSha), {
       outputDir: join(f.root, 'packet'),
