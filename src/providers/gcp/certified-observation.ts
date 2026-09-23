@@ -146,7 +146,7 @@ export function gcpPathSegment(value:string,error:string):string {
   return encodeURIComponent(value);
 }
 
-export function observeCertifiedGcpResource<T,E extends object>({
+export function observeCertifiedGcpResource<T>({
   accessToken,
   operation,
   request,
@@ -163,7 +163,7 @@ export function observeCertifiedGcpResource<T,E extends object>({
   observerId:string;
   options?:GcpReadOptions;
   validate:(value:T)=>void;
-  evidence:(value:T)=>E;
+  evidence:(value:T)=>Record<string,unknown>;
 }) {
   try {
     const {observed_at,certified}=observeCertifiedGcpRead200({
