@@ -8,9 +8,9 @@ import {
   assertComputationEvidenceFor,
   computationExecution,
   validateProcessSpec,
-  type ComputationAttemptEvidenceV1,
-  type ComputationExecutionV1,
-  type ProcessSpecV1,
+  type ComputationAttemptEvidence,
+  type ComputationExecution,
+  type ProcessSpec,
 } from './protocol.ts';
 import {
   KernelCore,
@@ -21,22 +21,20 @@ export const REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA='overcenter-replay-safe-
 export const COMPUTATION_ATTEMPT_SUMMARY_SCHEMA='overcenter-computation-attempt-summary-v1' as const;
 export const COMPUTATION_TRANSPORT_FAILURE_SCHEMA='overcenter-computation-transport-failure-v1' as const;
 
-export interface ReplaySafeTestComputationPacketV1 {
+export interface TestComputationPacket {
   schema:typeof REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA;
   kind:'test';
   execution_context_sha256:string;
-  process_spec:ProcessSpecV1;
+  process_spec:ProcessSpec;
 }
-
-export type TestComputationPacket=ReplaySafeTestComputationPacketV1;
 
 export interface ComputationExecutor {
   readonly executionContextSha256?:string;
   readonly containmentId?:string;
   ready?():Promise<void>;
   execute(
-    execution:ComputationExecutionV1,
-  ):Promise<ComputationAttemptEvidenceV1>;
+    execution:ComputationExecution,
+  ):Promise<ComputationAttemptEvidence>;
 }
 
 export interface TestComputationResult {
@@ -46,7 +44,7 @@ export interface TestComputationResult {
   execution_generation:number;
   execution_spec_sha256:string;
   receipt:Receipt;
-  evidence?:ComputationAttemptEvidenceV1;
+  evidence?:ComputationAttemptEvidence;
   transport_error?:string;
 }
 
@@ -95,7 +93,7 @@ export function validateTestComputationPacket(
 }
 
 function attemptSummary(
-  evidence:ComputationAttemptEvidenceV1,
+  evidence:ComputationAttemptEvidence,
 ):Data {
   if (evidence.schema!==COMPUTATION_EVIDENCE_SCHEMA) {
     throw new Error('COMPUTATION_EVIDENCE_SCHEMA_MISMATCH');
@@ -179,7 +177,7 @@ async function executeTestAttempt(
   permit:ExecutionPermit,
 ):Promise<TestComputationResult> {
   const execution=computationExecution(permit,packet.process_spec);
-  let evidence:ComputationAttemptEvidenceV1;
+  let evidence:ComputationAttemptEvidence;
   try {
     evidence=await executor.execute(execution);
     assertComputationEvidenceFor(evidence,execution);

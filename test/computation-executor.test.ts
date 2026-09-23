@@ -21,7 +21,7 @@ import {
   executionIdentityKey,
   validateComputationExecution,
   validateProcessSpec,
-  type ProcessSpecV1,
+  type ProcessSpec,
 } from '../src/execution/protocol.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
@@ -212,7 +212,7 @@ function spec(
     pidFile?:string;
     timeoutMs?:number;
   }={},
-):ProcessSpecV1 {
+):ProcessSpec {
   return {
     schema:PROCESS_SPEC_SCHEMA,
     executable:process.execPath,
@@ -258,7 +258,7 @@ async function assertDead(pids:number[]):Promise<void> {
 
 test('TypeScript and Go accept the same process-spec conformance corpus',()=>{
   const corpus=JSON.parse(readFileSync(
-    join(repoRoot,'contracts/computation-execution-v1/process-spec-conformance.json'),
+    join(repoRoot,'contracts/computation-execution/process-spec-conformance.json'),
     'utf8',
   )) as {
     cases:Array<{name:string;valid:boolean;spec:unknown}>;

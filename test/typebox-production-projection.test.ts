@@ -3,7 +3,7 @@ import {readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import test from 'node:test';
 
-const source='contracts/observation-evidence-v1/settlement-observation.typebox.ts';
+const source='contracts/observation-evidence/settlement-observation.typebox.ts';
 const generator='scripts/generate-settlement-observation.ts';
 const original=readFileSync(source,'utf8');
 
@@ -12,7 +12,7 @@ function rejected(
   mutate:(source:string)=>string,
   needle:string,
 ):void {
-  const path='contracts/observation-evidence-v1/.settlement-observation-'+name+'.typebox.ts';
+  const path='contracts/observation-evidence/.settlement-observation-'+name+'.typebox.ts';
   const changed=mutate(original);
   assert.notEqual(changed,original,name+' mutation did not modify the source fixture');
   writeFileSync(path,changed);

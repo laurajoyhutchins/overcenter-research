@@ -51,7 +51,7 @@
   },
   "semanticIdentity": {
     "computationExecution": {
-      "definition": "ComputationExecutionV1",
+      "definition": "ComputationExecution",
       "materialFields": [
         "run_id",
         "obligation_id",
@@ -63,7 +63,7 @@
       ]
     },
     "executionIdentity": {
-      "definition": "ExecutionIdentityV1",
+      "definition": "ExecutionIdentity",
       "materialFields": [
         "run_id",
         "execution_generation",
@@ -71,7 +71,7 @@
       ]
     },
     "attemptEvidence": {
-      "definition": "ComputationAttemptEvidenceV1",
+      "definition": "ComputationAttemptEvidence",
       "bindsTo": "computationExecution",
       "settlementAuthority": false,
       "identityBindingFields": [

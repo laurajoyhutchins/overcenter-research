@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://overcenter.dev/contracts/observation-evidence-v1/schema.json",
-  "title": "Overcenter observation and evidence v1",
+  "$id": "https://overcenter.dev/contracts/observation-evidence/schema.json",
+  "title": "Overcenter observation and evidence",
   "$defs": {
     "ObservationObserver": {
       "type": "object",
