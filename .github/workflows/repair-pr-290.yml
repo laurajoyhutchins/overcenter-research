@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      EXPECTED_PARENT: f9700e47c3610dc2f288b8ca3d0939e77856fad1
+      EXPECTED_PARENT: e6d95b8e2b50469afa1da4ba4c3b92616baad0fa
       MAIN_SHA: a22f91aaeee693ec9e0e648301ab74c9768a4b19
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -62,6 +62,43 @@ jobs:
             test "${unresolved[0]}" = "contracts/observation-evidence-v1/settlement-observation.typebox.ts"
             git rm -- "contracts/observation-evidence-v1/settlement-observation.typebox.ts"
           fi
+
+          # For paths changed by both sides, keep current main's semantics exactly.
+          # The PR's formatter is reapplied to these files in the next step.
+          git checkout "$MAIN_SHA" -- \
+            .github/workflows/tests.yml \
+            package.json \
+            scripts/experiments.ts \
+            scripts/generate-settlement-observation.ts \
+            scripts/self-application-evidence.ts \
+            src/authority/engine.ts \
+            src/authority/project-state.ts \
+            src/authority/replay.ts \
+            src/execution/assignment-capsule.ts \
+            src/execution/confined-executor.ts \
+            src/execution/executor/containment/driver.ts \
+            src/execution/go-client.ts \
+            src/execution/protocol.ts \
+            src/execution/runner.ts \
+            src/model.ts \
+            src/observation/provider.ts \
+            src/providers/github/certified-status.ts \
+            src/providers/github/pr-update-branch-effect.ts \
+            src/providers/github/status-effect.ts \
+            test/computation-executor.test.ts \
+            test/data-contracts.test.ts \
+            test/fixtures/computation-child.ts \
+            test/git-kernel.test.ts \
+            test/github-certified-status.test.ts \
+            test/github-pr-update-branch-effect.test.ts \
+            test/github-status-effect.test.ts \
+            test/projection-pure.test.ts \
+            test/projector-pure.test.ts \
+            test/realization-admissibility.test.ts \
+            test/semantic-identity-hostile.test.ts \
+            test/typebox-production-contract.test.ts \
+            test/typebox-production-projection.test.ts
+
           test -f contracts/observation-evidence/settlement-observation.typebox.ts
 
       - name: Reapply lint integration
