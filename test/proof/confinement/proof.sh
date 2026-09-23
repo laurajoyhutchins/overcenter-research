@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-here="$repo_root/src/execution/confinement"\nproof_here="$repo_root/test/proof/confinement"
+here="$repo_root/native/confinement"\nproof_here="$repo_root/test/proof/confinement"
 tmp="$(mktemp -d)"
 cgroup_root=""
 cgroup_parent=""
