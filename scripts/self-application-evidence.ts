@@ -17,8 +17,8 @@ import {fileURLToPath} from 'node:url';
 import {
   PROCESS_SPEC_SCHEMA,
   assertComputationEvidenceFor,
-  type ComputationExecutionV1,
-  type ProcessSpecV1,
+  type ComputationExecution,
+  type ProcessSpec,
 } from '../src/execution/protocol.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
@@ -124,7 +124,7 @@ function executionContextSha256():string {
 
 function processSpec(
   tier:'regression'|'experiments',
-):ProcessSpecV1 {
+):ProcessSpec {
   // Exhaustive repository coverage belongs to the independent Evidence
   // producer. Self-application proves the execution/settlement mechanism with
   // two small, real workloads from the exact mounted source revision instead
@@ -262,7 +262,7 @@ function attestingExecutor(
     get executionContextSha256(){ return client.executionContextSha256; },
     get containmentId(){ return client.containmentId; },
     ready:()=>client.ready(),
-    execute:async(execution:ComputationExecutionV1)=>{
+    execute:async(execution:ComputationExecution)=>{
       const evidence=await client.execute(execution);
       assertComputationEvidenceFor(evidence,execution);
       if (evidence.outcome==='completed' && evidence.exit_code===0) {

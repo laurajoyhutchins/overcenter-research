@@ -21,7 +21,7 @@ import {
   executionIdentityKey,
   validateComputationExecution,
   validateProcessSpec,
-  type ProcessSpecV1,
+  type ProcessSpec,
 } from '../src/execution/protocol.ts';
 import {
   REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
@@ -212,7 +212,7 @@ function spec(
     pidFile?:string;
     timeoutMs?:number;
   }={},
-):ProcessSpecV1 {
+):ProcessSpec {
   return {
     schema:PROCESS_SPEC_SCHEMA,
     executable:process.execPath,
