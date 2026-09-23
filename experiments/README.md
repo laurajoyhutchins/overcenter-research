@@ -6,6 +6,10 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 
 ## Experiment index
 
+- `git-metadata-independence/` - historical proof that deterministic regression/experiment evidence does not require ambient checkout identity.
+- `tree-bound-candidate-evidence/` - historical classification experiment for tree/toolchain-bound expensive candidate proofs.
+- `tree-evidence-derivation/` - historical derivation-contract proof for applying revision-free tree evidence across identical-content merges.
+- `merge-evidence-substitution/` - historical negative result: identical tree/merge relation alone cannot substitute source-SHA-bound evidence.
 - `recovery-reasoning/` - historical deterministic recovery frontier: 5/5 mechanically recoverable cases resolved with zero false certainty; judgment only after enumerable safe search is exhausted.
 - `recovery-agent-search/` - historical negative one-shot inference result: 3/7 versus the deterministic 4/7 baseline, with zero false certainty.
 - `recovery-agent-refinement/` - historical bounded-refinement result: 3/7 → 4/7 cumulative, tying rather than beating the deterministic baseline.
