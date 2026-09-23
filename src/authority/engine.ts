@@ -547,7 +547,12 @@ export class KernelCore {
     permit:ExecutionPermit,
   ):
     | {receipt:Receipt}
-    | {head:string;run:HistoricalRun;work:HistoricalRun['obligation']} {
+    | {
+        head:string;
+        run:HistoricalRun;
+        work:HistoricalRun['obligation'];
+        unresolvedEffect:boolean;
+      } {
     const runId=permit.id;
     const head=this.#requireHead();
     const {state,history,project}=this.#historicalProjection(head);
@@ -569,15 +574,25 @@ export class KernelCore {
       if (prior) return {receipt:prior};
       throw new Error('NOT_RESOLVABLE');
     }
-    return {head,run,work};
+    return {
+      head,
+      run,
+      work,
+      unresolvedEffect:history.unresolvedReservationsByRun.has(runId),
+    };
   }
 
   #commitObservation(
-    candidate:{head:string;run:HistoricalRun;work:HistoricalRun['obligation']},
+    candidate:{
+      head:string;
+      run:HistoricalRun;
+      work:HistoricalRun['obligation'];
+      unresolvedEffect:boolean;
+    },
     observed:Observation,
     diagnostic:Data,
   ):Receipt|null {
-    const {head,run,work}=candidate;
+    const {head,run,work,unresolvedEffect}=candidate;
     const fact=this.#receiptFact(
       run,
       work.id,
@@ -585,7 +600,7 @@ export class KernelCore {
       observed,
       diagnostic,
     );
-    const receipt=projectReceipt(fact,work);
+    const receipt=projectReceipt(fact,work,undefined,unresolvedEffect);
     const commit=this.#store.append(
       head,
       `overcenter: observe ${work.id} ${run.id}`,
