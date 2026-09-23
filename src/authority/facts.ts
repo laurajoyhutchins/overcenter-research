@@ -10,6 +10,12 @@ import type {
 import { validateObservationEnvelope, validatePostcondition } from '../observation/observe.ts';
 import { canonicalDigest } from '../digest.ts';
 import {
+  effectReleaseEvidenceRef,
+  validateEffectReleaseEvidence,
+  type EffectReleaseEvidence,
+} from '../effect-release-witness.ts';
+import { validateEvidenceRef, type EvidenceRef } from '../evidence/reference.ts';
+import {
   assertExactKeys as exactKeys,
   assertNonEmptyString as nonEmptyString,
   isData as data,
@@ -20,7 +26,7 @@ export const CLAIM_SCHEMA = 'overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA = 'overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA = 'overcenter-git-effect-reservation-v1' as const;
 export const EFFECT_RELEASE_SCHEMA = 'overcenter-effect-release' as const;
-export const EFFECT_RELEASE_SCHEMA_VERSION = 1 as const;
+export const EFFECT_RELEASE_SCHEMA_VERSION = 2 as const;
 export const RECEIPT_SCHEMA = 'overcenter-git-receipt-v5' as const;
 
 export interface ObligationInput {
@@ -90,7 +96,7 @@ export interface EffectReservation extends EffectReservationFact {
 
 export interface EffectReleaseFact {
   schema: typeof EFFECT_RELEASE_SCHEMA;
-  schema_version: typeof EFFECT_RELEASE_SCHEMA_VERSION;
+  schema_version: 1 | typeof EFFECT_RELEASE_SCHEMA_VERSION;
   run_id: string;
   obligation_id: string;
   execution_generation: number;
@@ -98,6 +104,8 @@ export interface EffectReleaseFact {
   reservation_commit: string;
   effect_contract: string;
   evidence_kind: string;
+  evidence?: EffectReleaseEvidence;
+  evidence_ref?: EvidenceRef;
 }
 
 export type ReceiptKind =
@@ -368,26 +376,33 @@ export function validateEffectReservationFact(value: unknown): EffectReservation
 
 export function validateEffectReleaseFact(value: unknown): EffectReleaseFact {
   if (!data(value)) throw new Error('INVALID_EFFECT_RELEASE_FACT');
-  exactKeys(
-    value,
-    [
-      'schema',
-      'schema_version',
-      'run_id',
-      'obligation_id',
-      'execution_generation',
-      'execution_authority_commit',
-      'reservation_commit',
-      'effect_contract',
-      'evidence_kind',
-    ],
-    [],
-    'INVALID_EFFECT_RELEASE_FACT',
-  );
   if (value.schema !== EFFECT_RELEASE_SCHEMA) throw new Error('INVALID_EFFECT_RELEASE_SCHEMA');
-  if (value.schema_version !== EFFECT_RELEASE_SCHEMA_VERSION) {
+
+  const commonKeys = [
+    'schema',
+    'schema_version',
+    'run_id',
+    'obligation_id',
+    'execution_generation',
+    'execution_authority_commit',
+    'reservation_commit',
+    'effect_contract',
+    'evidence_kind',
+  ] as const;
+
+  if (value.schema_version === 1) {
+    exactKeys(value, [...commonKeys], [], 'INVALID_EFFECT_RELEASE_FACT');
+  } else if (value.schema_version === EFFECT_RELEASE_SCHEMA_VERSION) {
+    exactKeys(
+      value,
+      [...commonKeys, 'evidence', 'evidence_ref'],
+      [],
+      'INVALID_EFFECT_RELEASE_FACT',
+    );
+  } else {
     throw new Error('INVALID_EFFECT_RELEASE_SCHEMA_VERSION');
   }
+
   nonEmptyString(value.run_id, 'INVALID_RUN_ID');
   nonEmptyString(value.obligation_id, 'INVALID_OBLIGATION_ID');
   positiveSafeInteger(value.execution_generation, 'INVALID_EXECUTION_GENERATION');
@@ -395,7 +410,48 @@ export function validateEffectReleaseFact(value: unknown): EffectReleaseFact {
   nonEmptyString(value.reservation_commit, 'INVALID_RESERVATION_COMMIT');
   nonEmptyString(value.effect_contract, 'INVALID_EFFECT_CONTRACT');
   nonEmptyString(value.evidence_kind, 'INVALID_EFFECT_RELEASE_EVIDENCE_KIND');
-  return structuredClone(value) as unknown as EffectReleaseFact;
+
+  if (value.schema_version === 1) {
+    return structuredClone(value) as unknown as EffectReleaseFact;
+  }
+
+  const evidence = validateEffectReleaseEvidence(value.evidence);
+  if (evidence.kind !== value.evidence_kind) {
+    throw new Error('EFFECT_RELEASE_EVIDENCE_KIND_MISMATCH');
+  }
+  if (
+    evidence.attempt.run_id !== value.run_id ||
+    evidence.attempt.obligation_id !== value.obligation_id ||
+    evidence.attempt.execution_generation !== value.execution_generation ||
+    evidence.attempt.execution_authority_commit !== value.execution_authority_commit ||
+    evidence.attempt.reservation_commit !== value.reservation_commit ||
+    evidence.attempt.effect_contract !== value.effect_contract
+  ) {
+    throw new Error('EFFECT_RELEASE_EVIDENCE_BINDING_MISMATCH');
+  }
+  const evidenceRefValue = validateEvidenceRef(value.evidence_ref);
+  const expectedRef = effectReleaseEvidenceRef(evidence);
+  if (
+    evidenceRefValue.algorithm !== expectedRef.algorithm ||
+    evidenceRefValue.digest !== expectedRef.digest ||
+    evidenceRefValue.byte_length !== expectedRef.byte_length
+  ) {
+    throw new Error('EFFECT_RELEASE_EVIDENCE_REF_MISMATCH');
+  }
+
+  return {
+    schema: EFFECT_RELEASE_SCHEMA,
+    schema_version: EFFECT_RELEASE_SCHEMA_VERSION,
+    run_id: value.run_id,
+    obligation_id: value.obligation_id,
+    execution_generation: value.execution_generation,
+    execution_authority_commit: value.execution_authority_commit,
+    reservation_commit: value.reservation_commit,
+    effect_contract: value.effect_contract,
+    evidence_kind: value.evidence_kind,
+    evidence,
+    evidence_ref: evidenceRefValue,
+  };
 }
 
 export function validateReceiptFact(value: unknown): ReceiptFact {
