@@ -1,0 +1,26 @@
+{
+  "schema": "overcenter-project-intent/v1",
+  "obligations": [
+    {
+      "id": "live-agent-loop-witness",
+      "task": {
+        "command": [
+          "node",
+          "experiments/assignment-capsule/fixture-task.ts",
+          "experiments/assignment-capsule/fixture-input.txt",
+          "result.txt"
+        ],
+        "required_paths": [
+          "experiments/assignment-capsule/fixture-task.ts",
+          "experiments/assignment-capsule/fixture-input.txt"
+        ],
+        "output_path": "result.txt"
+      },
+      "postcondition": {
+        "verifier": "file-content-equals/v1",
+        "path": "/tmp/overcenter-live-agent-loop/result.txt",
+        "content": "completed:assignment-bytes\n"
+      }
+    }
+  ]
+}

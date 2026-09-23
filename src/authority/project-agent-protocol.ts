@@ -14,6 +14,7 @@ import {
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest } from '../digest.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
+import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
 import type { Work } from '../model.ts';
 
 export const PROJECT_ADVANCE_RECEIPT_SCHEMA = 'overcenter-project-advance/v1' as const;
@@ -141,6 +142,27 @@ function gitBytes(repo: string, commit: string, path: string): Buffer {
   });
 }
 
+function gitOptionalBytes(repo: string, commit: string, path: string): Buffer | null {
+  const listed = execFileSync('git', ['-C', repo, 'ls-tree', '--name-only', commit, '--', path], {
+    encoding: 'utf8',
+  }).trim();
+  if (listed === '') return null;
+  if (listed !== path) throw new Error('PROJECT_INTENT_PATH_AMBIGUOUS');
+  return gitBytes(repo, commit, path);
+}
+
+function desiredProjectGraph(repo: string, sourceSha: string) {
+  const bytes = gitOptionalBytes(repo, sourceSha, PROJECT_INTENT_PATH);
+  if (!bytes) return null;
+  let value: unknown;
+  try {
+    value = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new Error('PROJECT_INTENT_JSON_INVALID');
+  }
+  return compileProjectIntent(value, sourceSha);
+}
+
 function prepareAgentPacket(
   repo: string,
   work: Work,
@@ -234,10 +256,22 @@ export function advanceProjectForAgent(
     remote,
     githubToken,
   });
-  const startingHead = kernel.head();
-  if (!startingHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
+  if (!kernel.head()) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
+  const desired = desiredProjectGraph(repo, context.command_source_sha.toLowerCase());
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
+    if (desired) {
+      const expectedRevision = kernel.head();
+      if (!expectedRevision) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
+      try {
+        kernel.reconcileGraph(desired, expectedRevision);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message === 'STALE_REVISION') continue;
+        throw error;
+      }
+    }
+
     const ready = kernel.deriveReadyWork();
     if (!ready) {
       const authorityHead = kernel.head();
