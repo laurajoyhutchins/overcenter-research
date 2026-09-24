@@ -3395,7 +3395,7 @@
       "question": "Can one bounded weakest-precondition model derive a complete mutually exclusive unresolved-effect recovery action: SETTLE, RELEASE, REPLAY, or RECOVERY_REQUIRED?",
       "claim": "Across 64 preregistered unresolved-effect states, SETTLE should derive from exact authoritative verified-present evidence without adapter dependence; RELEASE from exact trusted non-dispatch evidence plus adapter match; REPLAY from exact terminal absence plus duplicate-safe replay semantics; and RECOVERY_REQUIRED should cover every remaining state with no overlap.",
       "contrast": "Continue implementing settlement, release, replay, and recovery-required as separately reasoned branches without mechanically checking that their evidence domains form a complete disjoint decision partition.",
-      "interpretation": "If supported, the result would show that the current recovery decision can be expressed as one derived partition over evidence, authority, attempt identity, and adapter semantics, while preserving postcondition-centric settlement.",
+      "interpretation": "The bounded calculation produced a complete disjoint recovery partition for unresolved effects. Verified authoritative postcondition evidence derives SETTLE without adapter dependence; exact non-dispatch evidence derives RELEASE only with adapter match; authoritative terminal absence derives REPLAY only with duplicate-safe adapter semantics; every other state remains RECOVERY_REQUIRED. This supports consolidating recovery policy around derived evidence semantics while preserving the production separation between settlement verification and mutation-adapter recovery rules.",
       "environment": [
         "Node.js from .node-version with built-in TypeScript stripping.",
         "Production observationVerified(), projectReceipt(), effect adapter descriptor, and GitHub semantic release predicate.",
@@ -3434,19 +3434,31 @@
         "note": "The 64-state unresolved-effect domain, hidden-world evidence semantics, three expected weakest conditions, exact-action partition, two evidence-collapse mutants, missing-fallback control, adapter-independence falsifier, and production differential were fixed before the first hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Exact-head hosted execution has not yet evaluated the preregistered recovery action partition."
+        "state": "supported",
+        "summary": "At exact revision e62739adf3e4764167762de3e1350a5deb0b322d, exhaustive evaluation of 64 unresolved-effect states derived SETTLE = current_authority AND exact_attempt_binding AND evidence=verified-present, RELEASE = current_authority AND exact_attempt_binding AND adapter_match AND evidence=not-dispatched, and REPLAY = current_authority AND exact_attempt_binding AND adapter_match AND replay_protected AND evidence=terminal-absence. The safe sets contained 4, 2, and 1 states respectively, had zero overlap, and RECOVERY_REQUIRED covered the remaining 57 states. Production differential checks confirmed verified settlement remains DONE despite an unresolved reservation and despite packet adapter mismatch, while wrong-state GitHub observation remains RECOVERY_REQUIRED."
       },
       "reproduce": {
         "tier": "deterministic",
         "local": "npm run test:recovery-action-partition"
       },
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "e62739adf3e4764167762de3e1350a5deb0b322d",
         "artifacts": [
-          "Pending exact-head GitHub Actions candidate evidence on the stacked experiment pull request."
-        ],
-        "pending_reason": "The preregistered experiment has not yet been executed by hosted exact-head CI."
+          "GitHub Actions Merge gate run 35955935794, rerun attempt 2, exact-head candidate job 107497573082: candidate regressions passed.",
+          "SETTLE weakest precondition: current_authority && exact_attempt_binding && evidence=verified-present; 4/64 states safe.",
+          "RELEASE weakest precondition: current_authority && exact_attempt_binding && adapter_match && evidence=not-dispatched; 2/64 states safe.",
+          "REPLAY weakest precondition: current_authority && exact_attempt_binding && adapter_match && replay_protected && evidence=terminal-absence; 1/64 state safe.",
+          "The three affirmative safe sets had zero overlap; RECOVERY_REQUIRED covered all remaining 57 states.",
+          "Misclassifying verified-present as not-dispatched admitted 2 unsafe release states; misclassifying terminal absence as not-dispatched admitted 2 unsafe release states.",
+          "Removing RECOVERY_REQUIRED left 57 states unclassified.",
+          "Production observationVerified() accepted the exact desired GitHub state; projectReceipt() settled it DONE with an unresolved reservation.",
+          "The same verified observation settled DONE with an unregistered packet effect contract, confirming adapter-independent settlement.",
+          "A wrong-state GitHub observation with unresolved effect projected RECOVERY_REQUIRED.",
+          "The exact pre-secureConnect GitHub witness remained accepted for semantic release.",
+          "Current GitHub terminal absence mapped to RECOVERY_REQUIRED; the replay-protected terminal-absence control mapped to REPLAY.",
+          "The same exact-head candidate passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application."
+        ]
       }
     }
   ]
