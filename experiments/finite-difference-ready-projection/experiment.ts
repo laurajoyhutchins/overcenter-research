@@ -459,7 +459,7 @@ function control(upstream: string): Dependency {
 }
 
 function semantic(upstream: string): Dependency {
-  return { kind: 'semantic', upstream, consumes: { kind: 'output', selector: 'digest' } };
+  return { kind: 'semantic', upstream, consumes: { kind: 'output', selector: 'verified-content' } };
 }
 
 function runRelationalHostileCorpus(): void {
