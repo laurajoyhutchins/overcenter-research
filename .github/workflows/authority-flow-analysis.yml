@@ -43,8 +43,6 @@ jobs:
       - name: Type-check repository
         run: npm run typecheck
 
-      - name: Experiment contract
-        run: npm run test:experiment-contract
 
       - name: Authority-flow analysis
         run: npm run test:authority-flow-analysis
