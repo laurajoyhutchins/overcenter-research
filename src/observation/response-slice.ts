@@ -1,3 +1,4 @@
+import { asData as object, isData } from '../validation.ts';
 import {
   validateProviderObservationEnvelope,
   type ProviderObservation,
@@ -31,14 +32,7 @@ export type CertifiedObservation<T extends StructuralObservation = StructuralObs
   structural_validation: ProviderStructuralValidation;
 };
 
-type Schema = Record<string, unknown>;
 export type SchemaResolver = (ref: string) => unknown;
-
-function object(value: unknown): Schema | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Schema)
-    : null;
-}
 
 function resolved(schema: unknown, resolveRef?: SchemaResolver): unknown {
   let current = schema;
@@ -92,8 +86,7 @@ function primitiveTypeMatches(type: string, value: unknown): boolean {
   if (type === 'integer') return typeof value === 'number' && Number.isSafeInteger(value);
   if (type === 'number') return typeof value === 'number' && Number.isFinite(value);
   if (type === 'boolean') return typeof value === 'boolean';
-  if (type === 'object')
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (type === 'object') return isData(value);
   if (type === 'array') return Array.isArray(value);
   if (type === 'null') return value === null;
   return true;
