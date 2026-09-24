@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import {
   GITHUB_COMMIT_STATUS_EFFECT,
@@ -14,18 +17,21 @@ import { canonicalDigest } from '../../src/digest.ts';
 import type { Observation } from '../../src/model.ts';
 import { observationVerified } from '../../src/observation/observe.ts';
 import { RECEIPT_SCHEMA, type ReceiptFact } from '../../src/authority/facts.ts';
+import { OvercenterKernel } from '../../src/authority/kernel.ts';
 import { projectReceipt } from '../../src/authority/replay.ts';
 
-type Evidence = 'verified-present' | 'not-dispatched' | 'terminal-absence' | 'ambiguous';
-
-type Action = 'SETTLE' | 'RELEASE' | 'REPLAY' | 'RECOVERY_REQUIRED';
+type ProviderObservation = 'verified-present' | 'terminal-absence' | 'ambiguous' | 'none';
+type AffirmativeAction = 'SETTLE' | 'RELEASE' | 'REPLAY';
+type Action = AffirmativeAction | 'RECOVERY_REQUIRED';
 
 interface State {
   current_authority: boolean;
-  exact_attempt_binding: boolean;
+  exact_revision: boolean;
+  reservation_binding: boolean;
   adapter_match: boolean;
   replay_protected: boolean;
-  evidence: Evidence;
+  not_dispatched: boolean;
+  provider_observation: ProviderObservation;
 }
 
 interface HiddenOutcome {
@@ -34,26 +40,32 @@ interface HiddenOutcome {
 }
 
 const bools = [false, true] as const;
-const evidenceModes = [
+const providerObservations = [
   'verified-present',
-  'not-dispatched',
   'terminal-absence',
   'ambiguous',
-] as const satisfies readonly Evidence[];
+  'none',
+] as const satisfies readonly ProviderObservation[];
 
 const states: State[] = [];
 for (const current_authority of bools) {
-  for (const exact_attempt_binding of bools) {
-    for (const adapter_match of bools) {
-      for (const replay_protected of bools) {
-        for (const evidence of evidenceModes) {
-          states.push({
-            current_authority,
-            exact_attempt_binding,
-            adapter_match,
-            replay_protected,
-            evidence,
-          });
+  for (const exact_revision of bools) {
+    for (const reservation_binding of bools) {
+      for (const adapter_match of bools) {
+        for (const replay_protected of bools) {
+          for (const not_dispatched of bools) {
+            for (const provider_observation of providerObservations) {
+              states.push({
+                current_authority,
+                exact_revision,
+                reservation_binding,
+                adapter_match,
+                replay_protected,
+                not_dispatched,
+                provider_observation,
+              });
+            }
+          }
         }
       }
     }
@@ -63,18 +75,20 @@ for (const current_authority of bools) {
 const stateKey = (state: State): string =>
   [
     state.current_authority ? 'A1' : 'A0',
-    state.exact_attempt_binding ? 'B1' : 'B0',
+    state.exact_revision ? 'R1' : 'R0',
+    state.reservation_binding ? 'B1' : 'B0',
     state.adapter_match ? 'M1' : 'M0',
     state.replay_protected ? 'P1' : 'P0',
-    state.evidence,
+    state.not_dispatched ? 'N1' : 'N0',
+    state.provider_observation,
   ].join(':');
 
 function hiddenOutcomes(state: State): HiddenOutcome[] {
-  const prior = state.evidence === 'not-dispatched' ? ([false] as const) : ([false, true] as const);
+  const prior = state.not_dispatched ? ([false] as const) : ([false, true] as const);
   const present =
-    state.evidence === 'verified-present'
+    state.provider_observation === 'verified-present'
       ? ([true] as const)
-      : state.evidence === 'terminal-absence'
+      : state.provider_observation === 'terminal-absence'
         ? ([false] as const)
         : ([false, true] as const);
 
@@ -86,8 +100,8 @@ function hiddenOutcomes(state: State): HiddenOutcome[] {
   );
 }
 
-function safe(action: Exclude<Action, 'RECOVERY_REQUIRED'>, state: State, outcome: HiddenOutcome) {
-  if (!state.current_authority || !state.exact_attempt_binding) return false;
+function safe(action: AffirmativeAction, state: State, outcome: HiddenOutcome): boolean {
+  if (!state.current_authority || !state.exact_revision) return false;
 
   if (action === 'SETTLE') {
     return outcome.provider_desired_present;
@@ -96,15 +110,13 @@ function safe(action: Exclude<Action, 'RECOVERY_REQUIRED'>, state: State, outcom
   if (!state.adapter_match) return false;
 
   if (action === 'RELEASE') {
-    return !outcome.prior_effect_occurred;
+    return state.reservation_binding && !outcome.prior_effect_occurred;
   }
 
-  return (
-    !outcome.provider_desired_present && (state.replay_protected || !outcome.prior_effect_occurred)
-  );
+  return state.replay_protected && !outcome.provider_desired_present;
 }
 
-function weakestPrecondition(action: Exclude<Action, 'RECOVERY_REQUIRED'>): State[] {
+function weakestPrecondition(action: AffirmativeAction): State[] {
   return states.filter((state) =>
     hiddenOutcomes(state).every((outcome) => safe(action, state, outcome)),
   );
@@ -112,37 +124,40 @@ function weakestPrecondition(action: Exclude<Action, 'RECOVERY_REQUIRED'>): Stat
 
 const atomicPredicates = [
   ['current_authority', (state: State) => state.current_authority],
-  ['exact_attempt_binding', (state: State) => state.exact_attempt_binding],
+  ['exact_revision', (state: State) => state.exact_revision],
+  ['reservation_binding', (state: State) => state.reservation_binding],
   ['adapter_match', (state: State) => state.adapter_match],
   ['replay_protected', (state: State) => state.replay_protected],
-  ['evidence=verified-present', (state: State) => state.evidence === 'verified-present'],
-  ['evidence=not-dispatched', (state: State) => state.evidence === 'not-dispatched'],
-  ['evidence=terminal-absence', (state: State) => state.evidence === 'terminal-absence'],
+  ['not_dispatched', (state: State) => state.not_dispatched],
+  [
+    'provider_observation=verified-present',
+    (state: State) => state.provider_observation === 'verified-present',
+  ],
+  [
+    'provider_observation=terminal-absence',
+    (state: State) => state.provider_observation === 'terminal-absence',
+  ],
 ] as const;
 
 function derivePositiveConjunction(selected: readonly State[]): string {
   const target = new Set(selected.map(stateKey));
-  const candidates: { names: string[]; states: State[] }[] = [];
+  const candidates: string[][] = [];
   const count = atomicPredicates.length;
 
   for (let mask = 0; mask < 1 << count; mask += 1) {
     const chosen = atomicPredicates.filter((_, index) => (mask & (1 << index)) !== 0);
     const accepted = states.filter((state) => chosen.every(([, predicate]) => predicate(state)));
     if (accepted.length === target.size && accepted.every((state) => target.has(stateKey(state)))) {
-      candidates.push({
-        names: chosen.map(([name]) => name),
-        states: accepted,
-      });
+      candidates.push(chosen.map(([name]) => name));
     }
   }
 
   assert.ok(candidates.length > 0, 'safe set is not representable as a positive conjunction');
   candidates.sort(
     (left, right) =>
-      left.names.length - right.names.length ||
-      left.names.join(' && ').localeCompare(right.names.join(' && ')),
+      left.length - right.length || left.join(' && ').localeCompare(right.join(' && ')),
   );
-  return candidates[0]!.names.join(' && ');
+  return candidates[0]!.join(' && ');
 }
 
 const settleWp = weakestPrecondition('SETTLE');
@@ -155,88 +170,144 @@ const replayFormula = derivePositiveConjunction(replayWp);
 
 assert.equal(
   settleFormula,
-  'current_authority && exact_attempt_binding && evidence=verified-present',
+  'current_authority && exact_revision && provider_observation=verified-present',
 );
 assert.equal(
   releaseFormula,
-  'current_authority && exact_attempt_binding && adapter_match && evidence=not-dispatched',
+  'current_authority && exact_revision && reservation_binding && adapter_match && not_dispatched',
 );
 assert.equal(
   replayFormula,
-  'current_authority && exact_attempt_binding && adapter_match && replay_protected && evidence=terminal-absence',
+  'current_authority && exact_revision && adapter_match && replay_protected && provider_observation=terminal-absence',
 );
 
-const settleKeys = new Set(settleWp.map(stateKey));
-const releaseKeys = new Set(releaseWp.map(stateKey));
-const replayKeys = new Set(replayWp.map(stateKey));
+assert.equal(settleWp.length, 16);
+assert.equal(releaseWp.length, 8);
+assert.equal(replayWp.length, 4);
+
+const safeKeys = {
+  SETTLE: new Set(settleWp.map(stateKey)),
+  RELEASE: new Set(releaseWp.map(stateKey)),
+  REPLAY: new Set(replayWp.map(stateKey)),
+} as const;
+
+function safeActions(state: State): Set<AffirmativeAction> {
+  const key = stateKey(state);
+  return new Set(
+    (['SETTLE', 'RELEASE', 'REPLAY'] as const).filter((action) => safeKeys[action].has(key)),
+  );
+}
+
+const actionPrecedence = ['SETTLE', 'RELEASE', 'REPLAY'] as const;
 
 function chooseAction(state: State): Action {
-  const key = stateKey(state);
-  if (settleKeys.has(key)) return 'SETTLE';
-  if (releaseKeys.has(key)) return 'RELEASE';
-  if (replayKeys.has(key)) return 'REPLAY';
-  return 'RECOVERY_REQUIRED';
+  const admitted = safeActions(state);
+  return actionPrecedence.find((action) => admitted.has(action)) ?? 'RECOVERY_REQUIRED';
 }
 
-const partition = states.map((state) => ({ state, action: chooseAction(state) }));
-assert.equal(partition.length, 64);
-assert.equal(partition.filter(({ action }) => action === 'SETTLE').length, settleWp.length);
-assert.equal(partition.filter(({ action }) => action === 'RELEASE').length, releaseWp.length);
-assert.equal(partition.filter(({ action }) => action === 'REPLAY').length, replayWp.length);
-assert.equal(
-  partition.filter(({ action }) => action === 'RECOVERY_REQUIRED').length,
-  states.length - settleWp.length - releaseWp.length - replayWp.length,
-);
+const partition = states.map((state) => ({
+  state,
+  admitted: safeActions(state),
+  action: chooseAction(state),
+}));
 
-for (const state of states) {
-  const memberships = [
-    settleKeys.has(stateKey(state)),
-    releaseKeys.has(stateKey(state)),
-    replayKeys.has(stateKey(state)),
-  ].filter(Boolean).length;
-  assert.ok(memberships <= 1, `safe action overlap at ${stateKey(state)}`);
+for (const { state, admitted, action } of partition) {
+  if (action === 'RECOVERY_REQUIRED') {
+    assert.equal(admitted.size, 0, `recovery chosen despite safe action at ${stateKey(state)}`);
+    continue;
+  }
+  assert.ok(admitted.has(action), `unsafe affirmative action chosen at ${stateKey(state)}`);
+  assert.equal(
+    action,
+    actionPrecedence.find((candidate) => admitted.has(candidate)),
+    `precedence mismatch at ${stateKey(state)}`,
+  );
 }
 
-const gapStates = partition.filter(({ action }) => action === 'RECOVERY_REQUIRED');
-assert.ok(gapStates.length > 0, 'hostile ambiguous states must remain unresolved');
-
-const adapterIndependenceState: State = {
-  current_authority: true,
-  exact_attempt_binding: true,
-  adapter_match: false,
-  replay_protected: false,
-  evidence: 'verified-present',
-};
-assert.equal(chooseAction(adapterIndependenceState), 'SETTLE');
-
-const verifiedAsNotDispatchedMutant = (state: State): boolean =>
-  state.current_authority &&
-  state.exact_attempt_binding &&
-  state.adapter_match &&
-  ['not-dispatched', 'verified-present'].includes(state.evidence);
-const mutantUnsafeRelease = states.filter(
-  (state) => verifiedAsNotDispatchedMutant(state) && !releaseKeys.has(stateKey(state)),
+const settleReleaseOverlap = partition.filter(
+  ({ admitted }) => admitted.has('SETTLE') && admitted.has('RELEASE'),
 );
-assert.ok(mutantUnsafeRelease.length > 0);
-
-const absenceAsNotDispatchedMutant = (state: State): boolean =>
-  state.current_authority &&
-  state.exact_attempt_binding &&
-  state.adapter_match &&
-  ['not-dispatched', 'terminal-absence'].includes(state.evidence);
-const mutantAbsenceUnsafeRelease = states.filter(
-  (state) => absenceAsNotDispatchedMutant(state) && !releaseKeys.has(stateKey(state)),
+const releaseReplayOverlap = partition.filter(
+  ({ admitted }) => admitted.has('RELEASE') && admitted.has('REPLAY'),
 );
-assert.ok(mutantAbsenceUnsafeRelease.length > 0);
+const settleReplayOverlap = partition.filter(
+  ({ admitted }) => admitted.has('SETTLE') && admitted.has('REPLAY'),
+);
 
-const noRecoveryFallback = partition.filter(({ action }) => action !== 'RECOVERY_REQUIRED');
-assert.ok(noRecoveryFallback.length < states.length);
+assert.equal(settleReleaseOverlap.length, 2);
+assert.equal(releaseReplayOverlap.length, 1);
+assert.equal(settleReplayOverlap.length, 0);
+assert.ok(settleReleaseOverlap.every(({ action }) => action === 'SETTLE'));
+assert.ok(releaseReplayOverlap.every(({ action }) => action === 'RELEASE'));
+
+const actionCounts = Object.fromEntries(
+  (['SETTLE', 'RELEASE', 'REPLAY', 'RECOVERY_REQUIRED'] as const).map((action) => [
+    action,
+    partition.filter((candidate) => candidate.action === action).length,
+  ]),
+);
+assert.deepEqual(actionCounts, {
+  SETTLE: 16,
+  RELEASE: 6,
+  REPLAY: 3,
+  RECOVERY_REQUIRED: 231,
+});
+
+const releaseWithoutReservationBinding = states.filter(
+  (state) =>
+    state.current_authority &&
+    state.exact_revision &&
+    state.adapter_match &&
+    state.not_dispatched &&
+    !safeKeys.RELEASE.has(stateKey(state)),
+);
+assert.ok(releaseWithoutReservationBinding.some((state) => !state.reservation_binding));
+
+const verifiedAsNotDispatchedMutant = states.filter(
+  (state) =>
+    state.current_authority &&
+    state.exact_revision &&
+    state.reservation_binding &&
+    state.adapter_match &&
+    (state.not_dispatched || state.provider_observation === 'verified-present') &&
+    !safeKeys.RELEASE.has(stateKey(state)),
+);
+assert.ok(verifiedAsNotDispatchedMutant.length > 0);
+
+const absenceAsNotDispatchedMutant = states.filter(
+  (state) =>
+    state.current_authority &&
+    state.exact_revision &&
+    state.reservation_binding &&
+    state.adapter_match &&
+    (state.not_dispatched || state.provider_observation === 'terminal-absence') &&
+    !safeKeys.RELEASE.has(stateKey(state)),
+);
+assert.ok(absenceAsNotDispatchedMutant.length > 0);
+
+const settleRequiresReservationBindingOverconstraint = settleWp.filter(
+  (state) => !state.reservation_binding,
+);
+const replayRequiresReservationBindingOverconstraint = replayWp.filter(
+  (state) => !state.reservation_binding,
+);
+assert.ok(settleRequiresReservationBindingOverconstraint.length > 0);
+assert.ok(replayRequiresReservationBindingOverconstraint.length > 0);
+
+const settleWithoutExactRevisionMutant = states.filter(
+  (state) =>
+    state.current_authority &&
+    state.provider_observation === 'verified-present' &&
+    !safeKeys.SETTLE.has(stateKey(state)),
+);
+assert.ok(settleWithoutExactRevisionMutant.some((state) => !state.exact_revision));
 
 const github = effectAdapterCapabilities(GITHUB_COMMIT_STATUS_EFFECT);
 assert.ok(github);
 assert.equal(github.duplicate_delivery, 'may-duplicate');
 assert.equal(github.replay.kind, 'forbidden');
 
+const commitSha = 'a'.repeat(40);
 const work = {
   id: 'github-status',
   dependencies: [],
@@ -246,7 +317,7 @@ const work = {
     provider: 'github' as const,
     repository_id: 1,
     repository_full_name: 'acme/widget',
-    commit_sha: 'abc123',
+    commit_sha: commitSha,
     context: 'ci/test',
     expected_state: 'success' as const,
   },
@@ -257,7 +328,7 @@ const verifiedObservation: Observation = {
   provider: 'github',
   repository_id: 1,
   repository_full_name: 'acme/widget',
-  commit_sha: 'abc123',
+  commit_sha: commitSha,
   context: 'ci/test',
   expected_state: 'success',
   actual_state: 'success',
@@ -285,12 +356,7 @@ const receiptFact = (observed: Observation): ReceiptFact => ({
   settled_at: '2026-09-24T00:00:00.000Z',
 });
 
-const settledWithReservation = projectReceipt(
-  receiptFact(verifiedObservation),
-  work,
-  undefined,
-  true,
-);
+const settledWithReservation = projectReceipt(receiptFact(verifiedObservation), work, undefined, true);
 assert.equal(settledWithReservation.verified, true);
 assert.equal(settledWithReservation.disposition, 'DONE');
 
@@ -307,12 +373,7 @@ const settledDespiteAdapterMismatch = projectReceipt(
 assert.equal(settledDespiteAdapterMismatch.verified, true);
 assert.equal(settledDespiteAdapterMismatch.disposition, 'DONE');
 
-const unresolvedWrongState = projectReceipt(
-  receiptFact(wrongStateObservation),
-  work,
-  undefined,
-  true,
-);
+const unresolvedWrongState = projectReceipt(receiptFact(wrongStateObservation), work, undefined, true);
 assert.equal(unresolvedWrongState.verified, false);
 assert.equal(unresolvedWrongState.disposition, 'RECOVERY_REQUIRED');
 
@@ -337,7 +398,7 @@ const preSecureWitness: ValidatedEffectReleaseWitness = {
     secure_connected: false,
     method: 'POST',
     origin: GITHUB_STATUS_PROVIDER_ORIGIN,
-    path: '/repos/acme/widget/statuses/abc123',
+    path: `/repos/acme/widget/statuses/${commitSha}`,
     body_sha256: canonicalDigest({
       state: 'success',
       context: 'ci/test',
@@ -353,51 +414,130 @@ assert.equal(
 );
 
 const githubCases = {
-  verified_desired_state: chooseAction({
+  verified_and_not_dispatched: chooseAction({
     current_authority: true,
-    exact_attempt_binding: true,
-    adapter_match: false,
-    replay_protected: false,
-    evidence: 'verified-present',
-  }),
-  trusted_pre_dispatch_failure: chooseAction({
-    current_authority: true,
-    exact_attempt_binding: true,
+    exact_revision: true,
+    reservation_binding: true,
     adapter_match: true,
     replay_protected: false,
-    evidence: 'not-dispatched',
+    not_dispatched: true,
+    provider_observation: 'verified-present',
   }),
-  authoritative_terminal_absence: chooseAction({
+  not_dispatched_without_provider_result: chooseAction({
     current_authority: true,
-    exact_attempt_binding: true,
+    exact_revision: true,
+    reservation_binding: true,
     adapter_match: true,
     replay_protected: false,
-    evidence: 'terminal-absence',
+    not_dispatched: true,
+    provider_observation: 'none',
   }),
-  post_connect_or_502_ambiguity: chooseAction({
+  terminal_absence_without_replay_protection: chooseAction({
     current_authority: true,
-    exact_attempt_binding: true,
+    exact_revision: true,
+    reservation_binding: false,
     adapter_match: true,
     replay_protected: false,
-    evidence: 'ambiguous',
+    not_dispatched: false,
+    provider_observation: 'terminal-absence',
+  }),
+  terminal_absence_with_replay_protection: chooseAction({
+    current_authority: true,
+    exact_revision: true,
+    reservation_binding: false,
+    adapter_match: true,
+    replay_protected: true,
+    not_dispatched: false,
+    provider_observation: 'terminal-absence',
+  }),
+  not_dispatched_and_replayable_absence: chooseAction({
+    current_authority: true,
+    exact_revision: true,
+    reservation_binding: true,
+    adapter_match: true,
+    replay_protected: true,
+    not_dispatched: true,
+    provider_observation: 'terminal-absence',
+  }),
+  ambiguous: chooseAction({
+    current_authority: true,
+    exact_revision: true,
+    reservation_binding: false,
+    adapter_match: true,
+    replay_protected: false,
+    not_dispatched: false,
+    provider_observation: 'ambiguous',
   }),
 } as const;
 
 assert.deepEqual(githubCases, {
-  verified_desired_state: 'SETTLE',
-  trusted_pre_dispatch_failure: 'RELEASE',
-  authoritative_terminal_absence: 'RECOVERY_REQUIRED',
-  post_connect_or_502_ambiguity: 'RECOVERY_REQUIRED',
+  verified_and_not_dispatched: 'SETTLE',
+  not_dispatched_without_provider_result: 'RELEASE',
+  terminal_absence_without_replay_protection: 'RECOVERY_REQUIRED',
+  terminal_absence_with_replay_protection: 'REPLAY',
+  not_dispatched_and_replayable_absence: 'RELEASE',
+  ambiguous: 'RECOVERY_REQUIRED',
 });
 
-const replayableControl = chooseAction({
-  current_authority: true,
-  exact_attempt_binding: true,
-  adapter_match: true,
-  replay_protected: true,
-  evidence: 'terminal-absence',
+const root = mkdtempSync(join(tmpdir(), 'recovery-action-partition-'));
+const database = join(root, 'overcenter.sqlite');
+const target = join(root, 'result.txt');
+writeFileSync(target, 'expected');
+const kernel = new OvercenterKernel(database, {
+  observationContext: { localFileRoot: root },
 });
-assert.equal(replayableControl, 'REPLAY');
+
+let successorSettlement: {
+  stale_authority_rejected: boolean;
+  wrong_revision_rejected: boolean;
+  successor_disposition: string;
+  unresolved_effect_after_settlement: boolean;
+} | null = null;
+
+try {
+  kernel.initialize();
+  kernel.define({
+    id: 'two-clock-settlement',
+    packet: { effect_contract: 'unregistered/effect' },
+    postcondition: {
+      verifier: 'file-content-equals/v1',
+      path: target,
+      content: 'expected',
+    },
+  });
+  const ready = kernel.deriveReadyWork();
+  assert.ok(ready);
+  const initialPermit = kernel.claim(ready.id, ready.revision);
+  kernel.beginEffect(initialPermit);
+  assert.equal(kernel.hasUnresolvedEffect(initialPermit.id), true);
+
+  const successorPermit = kernel.acquireExecution(initialPermit.id);
+  assert.notEqual(successorPermit.execution_generation, initialPermit.execution_generation);
+  assert.equal(kernel.hasUnresolvedEffect(initialPermit.id), true);
+
+  assert.throws(() => kernel.resolve(initialPermit), /STALE_EXECUTION_GENERATION/);
+  const wrongRevisionPermit = {
+    ...successorPermit,
+    claimed_revision: 'wrong-revision',
+  };
+  assert.throws(() => kernel.resolve(wrongRevisionPermit), /STALE_EXECUTION_GENERATION/);
+
+  const receipt = kernel.resolve(successorPermit);
+  assert.equal(receipt.disposition, 'DONE');
+  assert.equal(kernel.hasUnresolvedEffect(initialPermit.id), false);
+
+  successorSettlement = {
+    stale_authority_rejected: true,
+    wrong_revision_rejected: true,
+    successor_disposition: receipt.disposition,
+    unresolved_effect_after_settlement: kernel.hasUnresolvedEffect(initialPermit.id),
+  };
+} finally {
+  kernel.close();
+  rmSync(root, { recursive: true, force: true });
+}
+
+assert.ok(successorSettlement);
 
 console.log('recovery action partition experiment: SUPPORTED');
 console.log(
@@ -413,17 +553,27 @@ console.log(
         SETTLE: settleWp.length,
         RELEASE: releaseWp.length,
         REPLAY: replayWp.length,
-        RECOVERY_REQUIRED: gapStates.length,
       },
-      partition: {
-        exactly_one_action_per_state: true,
-        safe_action_overlap_states: 0,
-        recovery_gap_states: gapStates.length,
+      safe_action_overlaps: {
+        settle_release: settleReleaseOverlap.length,
+        release_replay: releaseReplayOverlap.length,
+        settle_replay: settleReplayOverlap.length,
       },
+      chosen_action_counts: actionCounts,
+      precedence: actionPrecedence,
       hostile_controls: {
-        verified_misclassified_as_not_dispatched: mutantUnsafeRelease.length,
-        terminal_absence_misclassified_as_not_dispatched: mutantAbsenceUnsafeRelease.length,
-        missing_recovery_fallback_unclassified_states: states.length - noRecoveryFallback.length,
+        release_without_reservation_binding: releaseWithoutReservationBinding.filter(
+          (state) => !state.reservation_binding,
+        ).length,
+        verified_misclassified_as_not_dispatched: verifiedAsNotDispatchedMutant.length,
+        terminal_absence_misclassified_as_not_dispatched: absenceAsNotDispatchedMutant.length,
+        settle_overconstrained_by_reservation_binding:
+          settleRequiresReservationBindingOverconstraint.length,
+        replay_overconstrained_by_reservation_binding:
+          replayRequiresReservationBindingOverconstraint.length,
+        settle_without_exact_revision: settleWithoutExactRevisionMutant.filter(
+          (state) => !state.exact_revision,
+        ).length,
       },
       production_differential: {
         verified_observation: observationVerified(work.postcondition, verifiedObservation),
@@ -436,7 +586,7 @@ console.log(
           preSecureWitness,
         ),
         github_cases: githubCases,
-        replayable_terminal_absence_control: replayableControl,
+        successor_authority_settlement: successorSettlement,
       },
     },
     null,
