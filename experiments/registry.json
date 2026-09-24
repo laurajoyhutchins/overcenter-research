@@ -1399,6 +1399,57 @@
       }
     },
     {
+      "id": "stubborn-set-partial-order",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/stubborn-set-partial-order",
+      "readme": "experiments/stubborn-set-partial-order/README.md",
+      "question": "Can a stubborn-set closure that includes causal enablers preserve exhaustive causal traces where the prior obligation-root DPOR heuristic failed?",
+      "claim": "For the preregistered bounded static-event corpus, stubborn-set closure plus sleep sets preserves the exhaustive causal trace set, including the cross-obligation counterexample that falsified the earlier race heuristic.",
+      "contrast": "Backtrack only to an enabled event from the later conflicting event's obligation, which misses cross-obligation causal enablers.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:stubborn-set-partial-order"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Shared experiments/partial-order.ts exhaustive and trace-normalization machinery.",
+        "No network, provider credential, database, external solver, or model is required."
+      ],
+      "success_criteria": [
+        "Independent four-chain treatment reduces to one trace with exact exhaustive trace-set equality.",
+        "Scheduler-sensitive four-chain treatment retains exactly 24 trace classes with exact exhaustive equality.",
+        "Same-obligation and cross-obligation future-conflict fixtures preserve every exhaustive trace class.",
+        "The five-event counterexample from DPOR review retains all six exhaustive trace classes.",
+        "All 1,024 generated four-event DAG/resource models have exact reduced/exhaustive trace-set equality.",
+        "Every reduced complete execution represents a distinct causal trace class."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/stubborn-set-partial-order.yml"
+        ],
+        "pending_reason": "The reduction rule, counterexamples, generated corpus, and acceptance criteria are preregistered; hosted exact-head execution has not yet been recorded."
+      },
+      "interpretation": "A positive result would support persistent/stubborn-set style reduction for the bounded static event model while leaving Source-DPOR, optimality, liveness preservation, and dynamic effect footprints unclaimed.",
+      "non_claims": [
+        "The algorithm is Source-DPOR or Optimal-DPOR.",
+        "The reduction is optimal.",
+        "The bounded generated corpus proves arbitrary graphs.",
+        "Liveness or fairness properties are preserved.",
+        "Dynamic effect footprints can use the relation without additional evidence.",
+        "Production scheduling should adopt the reduction."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The stubborn closure rule, exact known-fixture trace counts, five-event review counterexample, and complete 1,024-model generated corpus were committed before hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The preregistered stubborn-set treatment has not yet produced exact-head hosted evidence."
+      }
+    },
+    {
       "id": "two-effect-concurrency",
       "kind": "experiment",
       "status": "historical",
