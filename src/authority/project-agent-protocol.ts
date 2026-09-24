@@ -13,10 +13,7 @@ import {
   validPath,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest } from '../digest.ts';
-import {
-  buildSourceAssignment,
-  validateSourceTaskPacket,
-} from '../source/source-obligation.ts';
+import { buildSourceAssignment, validateSourceTaskPacket } from '../source/source-obligation.ts';
 import {
   integrateVerifiedSourceCandidate,
   validateSourceIntegrationEvidence,
@@ -309,7 +306,10 @@ export function advanceProjectForAgent(
     const sourceRevision = context.command_source_sha.toLowerCase();
     let preparedAgent: ReturnType<typeof prepareAgentPacket> | null = null;
     let workerClient: Buffer | null = null;
-    if (ready.packet.schema === AGENT_TASK_PACKET_SCHEMA && ready.packet.kind === 'pure-candidate') {
+    if (
+      ready.packet.schema === AGENT_TASK_PACKET_SCHEMA &&
+      ready.packet.kind === 'pure-candidate'
+    ) {
       preparedAgent = prepareAgentPacket(repo, ready, sourceRevision);
       if (!workerClientPath) throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED');
       workerClient = readFileSync(workerClientPath);
