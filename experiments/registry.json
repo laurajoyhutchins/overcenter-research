@@ -3269,7 +3269,7 @@
         "Node.js from .node-version.",
         "Production Obligation, State, graph validation, dependency traversal, Receipt/HistoricalRun types, and deriveProjectProjection() are used by the differential.",
         "No provider credential, database, model, or external solver is required.",
-        "Hosted reference is expected from GitHub Actions ubuntu-24.04 at the exact experiment head."
+        "Hosted reference is expected from GitHub Actions ubuntu-slim at the exact experiment head."
       ],
       "success_criteria": [
         "The incremental treatment and declarative oracle have exactly identical READY membership, cardinality, and selected work after every hostile mutation.",
