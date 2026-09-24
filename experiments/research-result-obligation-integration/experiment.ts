@@ -136,7 +136,10 @@ function compile(
     progress = false;
     for (const id of [...remaining].sort()) {
       const plan = byId.get(id)!;
-      const required = plan.requires.map((experiment) => ({ experiment, result: results.get(experiment) }));
+      const required = plan.requires.map((experiment) => ({
+        experiment,
+        result: results.get(experiment),
+      }));
       if (required.some(({ result }) => !result || result.outcome !== 'supported')) {
         remaining.delete(id);
         progress = true;
@@ -208,7 +211,9 @@ function realDesign() {
       evidence: { status: string; evaluated_revision?: string };
     }>;
   };
-  const entry = registry.entries.find((candidate) => candidate.id === 'source-obligation-integration');
+  const entry = registry.entries.find(
+    (candidate) => candidate.id === 'source-obligation-integration',
+  );
   assert.ok(entry);
   assert.equal(entry.outcome.state, 'supported');
   assert.equal(entry.evidence.status, 'evaluated');
@@ -234,10 +239,31 @@ const designB = {
   success_criteria: ['B treatment passes.'],
 };
 const plans: Plan[] = [
-  { id: 'promotion-a', requires: ['synthetic-a'], objective: 'Promote A.', writable_paths: ['src/a.txt'] },
-  { id: 'promotion-a-child', requires: [], after: ['promotion-a'], objective: 'Consume A.', writable_paths: ['src/a.txt'] },
-  { id: 'promotion-b', requires: ['synthetic-b'], objective: 'Promote B.', writable_paths: ['src/a.txt'] },
-  { id: 'promotion-c', requires: ['source-obligation-integration'], objective: 'Promote real result C.', writable_paths: ['src/c.txt'] },
+  {
+    id: 'promotion-a',
+    requires: ['synthetic-a'],
+    objective: 'Promote A.',
+    writable_paths: ['src/a.txt'],
+  },
+  {
+    id: 'promotion-a-child',
+    requires: [],
+    after: ['promotion-a'],
+    objective: 'Consume A.',
+    writable_paths: ['src/a.txt'],
+  },
+  {
+    id: 'promotion-b',
+    requires: ['synthetic-b'],
+    objective: 'Promote B.',
+    writable_paths: ['src/a.txt'],
+  },
+  {
+    id: 'promotion-c',
+    requires: ['source-obligation-integration'],
+    objective: 'Promote real result C.',
+    writable_paths: ['src/c.txt'],
+  },
 ];
 
 const keys = generateKeyPairSync('ed25519');
@@ -245,19 +271,34 @@ const a1 = certify(designA, 'a'.repeat(40), 'supported', '1'.repeat(64), keys.pr
 const aRerun = certify(designA, 'c'.repeat(40), 'supported', '4'.repeat(64), keys.privateKey);
 const b = certify(designB, 'b'.repeat(40), 'falsified', '2'.repeat(64), keys.privateKey);
 const cDesign = realDesign();
-const c = certify(cDesign, '1b6364ff9f172388f9ab956408ab81889ccb9aeb', 'supported', '3'.repeat(64), keys.privateKey);
+const c = certify(
+  cDesign,
+  '1b6364ff9f172388f9ab956408ab81889ccb9aeb',
+  'supported',
+  '3'.repeat(64),
+  keys.privateKey,
+);
 
 const initial = compile(plans, [a1, b, c], keys.publicKey);
-assert.deepEqual(initial.map((work) => work.id), ['promotion-a', 'promotion-a-child', 'promotion-c']);
+assert.deepEqual(
+  initial.map((work) => work.id),
+  ['promotion-a', 'promotion-a-child', 'promotion-c'],
+);
 assert.equal(resultIdentity(a1, keys.publicKey), resultIdentity(aRerun, keys.publicKey));
 assert.deepEqual(
   initial.map(({ id, semantic_key }) => ({ id, semantic_key })),
-  compile(plans, [aRerun, b, c], keys.publicKey).map(({ id, semantic_key }) => ({ id, semantic_key })),
+  compile(plans, [aRerun, b, c], keys.publicKey).map(({ id, semantic_key }) => ({
+    id,
+    semantic_key,
+  })),
 );
 
 const forged = structuredClone(b);
 forged.payload.outcome = 'supported';
-assert.throws(() => compile(plans, [a1, forged, c], keys.publicKey), /RESEARCH_RESULT_SIGNATURE_INVALID/);
+assert.throws(
+  () => compile(plans, [a1, forged, c], keys.publicKey),
+  /RESEARCH_RESULT_SIGNATURE_INVALID/,
+);
 
 const changedA = certify(
   { ...designA, claim: 'Synthetic result A supports a materially narrower promotion.' },
@@ -306,7 +347,12 @@ function tree(f: ReturnType<typeof fixture>, rev: string, label: string) {
 function removeTree(f: ReturnType<typeof fixture>, path: string) {
   gitStatus(f.repo, ['worktree', 'remove', '--force', path]);
 }
-function candidate(f: ReturnType<typeof fixture>, work: Work, run: string, mutate: (root: string) => void) {
+function candidate(
+  f: ReturnType<typeof fixture>,
+  work: Work,
+  run: string,
+  mutate: (root: string) => void,
+) {
   const root = tree(f, f.base, 'candidate');
   try {
     mutate(root);
@@ -337,14 +383,19 @@ function advance(f: ReturnType<typeof fixture>, path: string, content: string) {
     removeTree(f, root);
   }
 }
-function integrate(f: ReturnType<typeof fixture>, work: Work, candidateValue: ReturnType<typeof candidate>) {
+function integrate(
+  f: ReturnType<typeof fixture>,
+  work: Work,
+  candidateValue: ReturnType<typeof candidate>,
+) {
   if (candidateValue.obligation_key !== work.semantic_key) return 'REJECTED';
   const parent = git(f.repo, ['rev-parse', candidateValue.commit_sha + '^']);
   assert.equal(parent, candidateValue.claimed_source_sha);
   const paths = git(f.repo, ['diff', '--name-only', parent, candidateValue.commit_sha])
     .split('\n')
     .filter(Boolean);
-  if (!paths.length || paths.some((path) => !work.task.writable_paths.includes(path))) return 'REJECTED';
+  if (!paths.length || paths.some((path) => !work.task.writable_paths.includes(path)))
+    return 'REJECTED';
   const expected = git(f.repo, ['rev-parse', 'refs/heads/main']);
   const root = tree(f, expected, 'integrate');
   try {
@@ -365,8 +416,12 @@ const workA = initial.find((work) => work.id === 'promotion-a')!;
 const workC = initial.find((work) => work.id === 'promotion-c')!;
 const f = fixture();
 try {
-  const candidateA = candidate(f, workA, 'run-a', (root) => writeFileSync(join(root, 'src/a.txt'), 'a:done\n'));
-  const candidateC = candidate(f, workC, 'run-c', (root) => writeFileSync(join(root, 'src/c.txt'), 'c:done\n'));
+  const candidateA = candidate(f, workA, 'run-a', (root) =>
+    writeFileSync(join(root, 'src/a.txt'), 'a:done\n'),
+  );
+  const candidateC = candidate(f, workC, 'run-c', (root) =>
+    writeFileSync(join(root, 'src/c.txt'), 'c:done\n'),
+  );
   assert.equal(integrate(f, workA, candidateA), 'INTEGRATED');
   advance(f, 'src/unrelated.txt', 'unrelated:advanced\n');
   assert.equal(integrate(f, workC, candidateC), 'INTEGRATED');
@@ -376,11 +431,17 @@ try {
   assert.equal(candidateA.claimed_source_sha, f.base);
   assert.equal(candidateC.claimed_source_sha, f.base);
 
-  const projection = new Map([['promotion-a', 101], ['promotion-c', 102]]);
+  const projection = new Map([
+    ['promotion-a', 101],
+    ['promotion-c', 102],
+  ]);
   const semanticBefore = initial.map(({ id, semantic_key }) => ({ id, semantic_key }));
   projection.clear();
   assert.deepEqual(
-    compile(plans, [a1, b, c], keys.publicKey).map(({ id, semantic_key }) => ({ id, semantic_key })),
+    compile(plans, [a1, b, c], keys.publicKey).map(({ id, semantic_key }) => ({
+      id,
+      semantic_key,
+    })),
     semanticBefore,
   );
 } finally {
