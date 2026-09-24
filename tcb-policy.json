@@ -98,7 +98,9 @@
         "experiments and tests",
         "formal models and proof tools"
       ],
-      "expected_surface_sha256": "098e0ce83e71e805d61e3ea2ea0a03f88f4eb3abd1c31a2dbdc23f0ae85fc420"
+      "expected_surface_sha256": "098e0ce83e71e805d61e3ea2ea0a03f88f4eb3abd1c31a2dbdc23f0ae85fc420",
+      "max_module_closure_semantic_loc": 7947,
+      "expected_module_closure_sha256": "d52fd14cf1ca5bef15ec29a8f6244f08f73df1270ef18686b9fcd2e30c15df87"
     },
     {
       "id": "no-false-done",
@@ -205,7 +207,8 @@
         "Node.js runtime preserves JavaScript/TypeScript execution semantics used by the trusted slice.",
         "Provider observations supplied to the verifier obey the provider-profile assumptions documented separately.",
         "node:crypto SHA-256 behaves as specified.",
-        "node:sqlite and the operating system preserve committed authority history according to the requested durability mode."
+        "node:sqlite and the operating system preserve committed authority history according to the requested durability mode.",
+        "For GitHub-backed observations, node:child_process launches the intended system curl executable and curl faithfully returns the authenticated HTTPS response bytes and status metadata consumed by the verifier."
       ],
       "excluded": [
         "worker assertions of success",
@@ -216,7 +219,9 @@
         "Rust worker confinement",
         "experiments and formal models"
       ],
-      "expected_surface_sha256": "62e4d7a452694df75db6b700b221835b437e40ee97e5d258cc234b9f71627776"
+      "expected_surface_sha256": "62e4d7a452694df75db6b700b221835b437e40ee97e5d258cc234b9f71627776",
+      "max_module_closure_semantic_loc": 7947,
+      "expected_module_closure_sha256": "d52fd14cf1ca5bef15ec29a8f6244f08f73df1270ef18686b9fcd2e30c15df87"
     },
     {
       "id": "github-commit-status-provider",
@@ -288,7 +293,8 @@
         "GitHub repository IDs and commit-status coordinates have the documented API meaning.",
         "GitHub HTTPS responses correspond to the authenticated api.github.com endpoint reached by the transport.",
         "TLS, DNS, sockets, and Node.js HTTPS correctly distinguish failure before secureConnect from failures after secureConnect.",
-        "The pinned GitHub API/OpenAPI contract accurately describes the response fields consumed by the verifier."
+        "The pinned GitHub API/OpenAPI contract accurately describes the response fields consumed by the verifier.",
+        "node:child_process launches the intended system curl executable, and curl faithfully returns the authenticated GitHub HTTPS response bytes and status metadata consumed by certified reads."
       ],
       "excluded": [
         "other GitHub automation",
@@ -297,7 +303,9 @@
         "Kubernetes and GCP providers",
         "worker credentials when they are not broker credentials"
       ],
-      "expected_surface_sha256": "84f0fe24a1fba0b45695052dbb1a1597048cc51d0aad3b20b914f9504868d08e"
+      "expected_surface_sha256": "84f0fe24a1fba0b45695052dbb1a1597048cc51d0aad3b20b914f9504868d08e",
+      "max_module_closure_semantic_loc": 2740,
+      "expected_module_closure_sha256": "8f572e9d658f7d98bb490782972b5e9967617997486e0b273f1d02ec555e00a3"
     }
   ]
 }
