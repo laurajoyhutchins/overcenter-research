@@ -74,7 +74,10 @@ test('ComposedFactStore separates immutable publication from authority CAS', () 
 
   const history = store.history(defined);
   assert.equal(history.length, 2);
-  assert.equal(history[1]?.graph_patch?.schema, 'test-graph-patch/v1');
+  assert.equal(
+    (history[1]?.graph_patch as { schema?: string } | null)?.schema,
+    'test-graph-patch/v1',
+  );
   assert.equal(history.some((record) => record.claim !== null), false);
   assert.equal(authority.records.length, 2);
 });
