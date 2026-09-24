@@ -17,7 +17,8 @@ interface ExplorationResult {
   prefixes: number;
   sleep_prunes: number;
   races: number;
-  backtrack_insertions: number;
+  initial_backtrack_insertions: number;
+  race_backtrack_insertions: number;
 }
 
 type IndependenceOracle = (left: Event, right: Event) => boolean;
@@ -168,16 +169,22 @@ function exploreWithRaceBacktracking(
   let prefixes = 0;
   let sleepPrunes = 0;
   let races = 0;
-  let backtrackInsertions = 0;
+  let initialBacktrackInsertions = 0;
+  let raceBacktrackInsertions = 0;
 
   const prefixKey = (sequence: readonly Event[]): string =>
     sequence.map((event) => event.id).join('\u001f');
 
-  const addBacktrack = (key: string, eventId: string): void => {
+  const addBacktrack = (
+    key: string,
+    eventId: string,
+    reason: 'initial' | 'race',
+  ): void => {
     const choices = backtrack.get(key) ?? new Set<string>();
     if (!choices.has(eventId)) {
       choices.add(eventId);
-      backtrackInsertions += 1;
+      if (reason === 'initial') initialBacktrackInsertions += 1;
+      else raceBacktrackInsertions += 1;
     }
     backtrack.set(key, choices);
   };
@@ -200,7 +207,7 @@ function exploreWithRaceBacktracking(
       const reorderRoot = readyBeforePrior.find(
         (candidate) => candidate.obligation === current.obligation,
       );
-      if (reorderRoot) addBacktrack(prefixKey(beforePrior), reorderRoot.id);
+      if (reorderRoot) addBacktrack(prefixKey(beforePrior), reorderRoot.id, 'race');
     }
   };
 
@@ -219,7 +226,7 @@ function exploreWithRaceBacktracking(
     if (choices.size === 0) {
       const first = ready.find((event) => !sleep.has(event.id));
       if (!first) return;
-      addBacktrack(key, first.id);
+      addBacktrack(key, first.id, 'initial');
     }
 
     const explored = exploredChoices.get(key) ?? new Set<string>();
@@ -269,7 +276,8 @@ function exploreWithRaceBacktracking(
     prefixes,
     sleep_prunes: sleepPrunes,
     races,
-    backtrack_insertions: backtrackInsertions,
+    initial_backtrack_insertions: initialBacktrackInsertions,
+    race_backtrack_insertions: raceBacktrackInsertions,
   };
 }
 
@@ -324,7 +332,8 @@ function compareCorpus(mode: QuotientMode) {
     reduced_executions: reduced.executions.length,
     reduced_prefixes: reduced.prefixes,
     races: reduced.races,
-    backtrack_insertions: reduced.backtrack_insertions,
+    initial_backtrack_insertions: reduced.initial_backtrack_insertions,
+    race_backtrack_insertions: reduced.race_backtrack_insertions,
     sleep_prunes: reduced.sleep_prunes,
     execution_reduction_ratio: exhaustive.length / reduced.executions.length,
     exact_trace_class_match: true,
@@ -380,7 +389,7 @@ function runConflictControl() {
   assert.equal(reduced.executions.length, 2);
   assert.deepEqual([...reducedOutcomes].sort(), [...exhaustiveOutcomes].sort());
   assert.ok(reduced.races > 0);
-  assert.ok(reduced.backtrack_insertions > 1);
+  assert.ok(reduced.race_backtrack_insertions > 0);
 
   assert.equal(unsound.executions.length, 1);
   assert.equal(unsoundOutcomes.size, 1);
@@ -390,7 +399,8 @@ function runConflictControl() {
     exhaustive_executions: exhaustive.length,
     conservative_reduced_executions: reduced.executions.length,
     conservative_races: reduced.races,
-    conservative_backtrack_insertions: reduced.backtrack_insertions,
+    conservative_initial_backtrack_insertions: reduced.initial_backtrack_insertions,
+    race_backtrack_insertions: reduced.race_backtrack_insertions,
     exhaustive_outcomes: exhaustiveOutcomes.size,
     conservative_outcomes: reducedOutcomes.size,
     unsound_reduced_executions: unsound.executions.length,
@@ -452,7 +462,7 @@ function runDependentFutureControl() {
   assert.deepEqual([...reducedOutcomes].sort(), [...exhaustiveOutcomes].sort());
   assert.equal(reducedOutcomes.size, 2);
   assert.ok(reduced.races > 0);
-  assert.ok(reduced.backtrack_insertions > 0);
+  assert.ok(reduced.race_backtrack_insertions > 0);
 
   return {
     exhaustive_executions: exhaustive.length,
@@ -460,10 +470,75 @@ function runDependentFutureControl() {
     reduced_executions: reduced.executions.length,
     reduced_prefixes: reduced.prefixes,
     races: reduced.races,
-    backtrack_insertions: reduced.backtrack_insertions,
+    initial_backtrack_insertions: reduced.initial_backtrack_insertions,
+    race_backtrack_insertions: reduced.race_backtrack_insertions,
     outcomes: reducedOutcomes.size,
     exact_trace_class_match: true,
     race_backtracking_reaches_future_conflict: true,
+  };
+}
+
+function crossObligationCausalCounterexampleFixture(): Event[] {
+  return [
+    {
+      id: 'a/claim',
+      obligation: 'a',
+      kind: 'claim',
+      resource: 'provider/y',
+      parents: [],
+    },
+    {
+      id: 'a/reserve',
+      obligation: 'a',
+      kind: 'reserve',
+      resource: 'provider/y',
+      parents: ['a/claim'],
+    },
+    {
+      id: 'a/effect',
+      obligation: 'a',
+      kind: 'effect',
+      resource: 'provider/x',
+      parents: ['a/reserve'],
+    },
+    {
+      id: 'b/root',
+      obligation: 'b',
+      kind: 'claim',
+      resource: 'provider/y',
+      parents: [],
+    },
+    {
+      id: 'c/effect',
+      obligation: 'c',
+      kind: 'effect',
+      resource: 'provider/x',
+      parents: ['b/root'],
+    },
+  ];
+}
+
+function runCrossObligationCausalCounterexample() {
+  const events = crossObligationCausalCounterexampleFixture();
+  const oracle = conservativeOracle(events, 'safety');
+  const exhaustive = enumerateAll(events);
+  const reduced = exploreWithRaceBacktracking(events, oracle);
+  const exhaustiveKeys = traceKeys(exhaustive, oracle);
+  const reducedKeys = traceKeys(reduced.executions, oracle);
+  const missing = [...exhaustiveKeys].filter((key) => !reducedKeys.has(key)).sort();
+
+  assert.equal(exhaustive.length, 10);
+  assert.equal(exhaustiveKeys.size, 6);
+  assert.equal(reducedKeys.size, 5);
+  assert.equal(missing.length, 1);
+
+  return {
+    exhaustive_executions: exhaustive.length,
+    exhaustive_trace_classes: exhaustiveKeys.size,
+    reduced_executions: reduced.executions.length,
+    reduced_trace_classes: reducedKeys.size,
+    missing_trace_classes: missing.length,
+    current_backtracking_rule_incomplete: true,
   };
 }
 
@@ -471,6 +546,7 @@ const safety = compareCorpus('safety');
 const scheduler = compareCorpus('scheduler');
 const conflict = runConflictControl();
 const dependentFuture = runDependentFutureControl();
+const crossObligation = runCrossObligationCausalCounterexample();
 
 console.log(JSON.stringify({ kind: 'dpor-race-backtracking-corpus', ...safety }));
 console.log(JSON.stringify({ kind: 'dpor-race-backtracking-corpus', ...scheduler }));
@@ -483,8 +559,14 @@ console.log(
 );
 console.log(
   JSON.stringify({
+    kind: 'dpor-race-backtracking-cross-obligation-counterexample',
+    ...crossObligation,
+  }),
+);
+console.log(
+  JSON.stringify({
     kind: 'dpor-race-backtracking-summary',
-    result: 'supported',
+    result: 'mixed',
     safety_exhaustive_executions: safety.exhaustive_executions,
     safety_reduced_executions: safety.reduced_executions,
     scheduler_exhaustive_executions: scheduler.exhaustive_executions,
@@ -496,5 +578,7 @@ console.log(
     conflicting_race_backtracking: conflict.race_backtracking_preserves_both_outcomes,
     future_conflict_race_backtracking: dependentFuture.race_backtracking_reaches_future_conflict,
     unsound_independence_rejected: conflict.unsound_oracle_misses_outcome,
+    cross_obligation_counterexample_found:
+      crossObligation.current_backtracking_rule_incomplete,
   }),
 );
