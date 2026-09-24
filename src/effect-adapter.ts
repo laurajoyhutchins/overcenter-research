@@ -11,6 +11,8 @@ export const GITHUB_COMMIT_STATUS_EFFECT =
 export const GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT =
   'github-pull-request/update-branch' as const;
 
+export const KUBERNETES_CONFIGMAP_EFFECT = 'kubernetes-configmap/ensure' as const;
+
 export type DuplicateDeliverySemantics =
   | 'may-duplicate'
   | 'at-most-once'
@@ -85,6 +87,21 @@ export const EFFECT_ADAPTER_CAPABILITIES = [
     reservation_release: {
       kind: 'not-dispatched',
       evidence_kinds: [GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED],
+    },
+  },
+  {
+    schema: EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
+    effect_contract: KUBERNETES_CONFIGMAP_EFFECT,
+    postcondition_verifier: 'kubernetes-configmap-exists/v1',
+    duplicate_delivery: 'may-duplicate',
+    replay: {
+      kind: 'forbidden',
+      reason:
+        'ambiguous Kubernetes mutation outcomes must reconcile from authoritative LIST/WATCH evidence before any new mutation',
+    },
+    reservation_release: {
+      kind: 'forbidden',
+      reason: 'no trusted Kubernetes pre-dispatch evidence boundary is admitted',
     },
   },
   {

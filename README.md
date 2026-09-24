@@ -97,7 +97,7 @@ Run the same supported-slice proof used by CI:
 npm run proof:production
 ```
 
-Provider mutation is admitted only for one narrow path: `src/providers/github/status-effect.ts` derives a GitHub commit-status write from the exact claimed postcondition, requires the explicit status-effect grant, certifies repository identity, and crosses the provider boundary only through the kernel's durable effect reservation. The hosted trust-boundary proof invokes that production implementation under a separate `statuses: write` credential and then forces fresh-generation recovery. Other provider mutations remain outside the supported slice.
+Provider mutation is admitted for two narrow paths. `src/providers/github/status-effect.ts` derives a GitHub commit-status write from the exact claimed postcondition, requires the explicit status-effect grant, certifies repository identity, and crosses the provider boundary only through the kernel's durable effect reservation. `src/providers/kubernetes/configmap-effect.ts` derives ConfigMap `exists: true` from the exact claimed postcondition, receives only kernel-minted `EffectAuthority`, reserves before PATCH, and settles only from authoritative LIST/WATCH observation. Other provider mutations remain outside the supported slice.
 
 ## What is Overcenter?
 
@@ -157,7 +157,7 @@ The repository deliberately does **not** establish that:
 - external providers are correct, available, strongly consistent, or recoverable;
 - one generic adapter can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
-- provider mutations other than the admitted GitHub commit-status path are supported production mutation profiles;
+- provider mutations other than the admitted GitHub commit-status and Kubernetes ConfigMap `exists: true` paths are supported production mutation profiles;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
 - an inner Rust/process sandbox can revoke capabilities already held by its parent agent or supplied through host tools, MCP, provider credentials, or another out-of-band capability surface;
 - direct low-level callers outside `runCoreLoop` cannot bypass the execution-permit/effect-reservation API;
@@ -202,6 +202,7 @@ Important entry points:
 - [`src/model.ts`](./src/model.ts) - public obligation, work, run, and postcondition contracts.
 - [`src/observation/observe.ts`](./src/observation/observe.ts) - authoritative observation and verification boundary.
 - [`src/providers/github/status-effect.ts`](./src/providers/github/status-effect.ts) - narrow production GitHub commit-status mutation path: authority-derived coordinates, certified repository identity, reservation-before-POST.
+- [`src/providers/kubernetes/configmap-effect.ts`](./src/providers/kubernetes/configmap-effect.ts) - narrow production ConfigMap `exists: true` mutation path: EffectAuthority-derived coordinates, reservation-before-PATCH, authoritative LIST/WATCH settlement.
 - [`src/execution/protocol.ts`](./src/execution/protocol.ts) - exact-byte computation execution/evidence contract on the trusted TypeScript side.
 - [`src/execution/runner.ts`](./src/execution/runner.ts) - first production pure-computation cutover: TypeScript claims READY test work, delegates physical execution to Go, then settles only from independent observation.
 - [`src/execution/go-client.ts`](./src/execution/go-client.ts) - Unix-socket client for an isolated physical executor.

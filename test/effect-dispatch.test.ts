@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import { OvercenterKernel } from '../src/authority/kernel.ts';
 import { GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT } from '../src/effect-adapter.ts';
+import { kubernetesConfigMap } from '../src/providers/kubernetes/configmap-resource.ts';
 import { githubCommitStatus } from '../src/providers/github/status-resource.ts';
 import { dispatchAdmittedEffect } from '../src/providers/effect-dispatch.ts';
 
@@ -56,6 +57,102 @@ test('trusted dispatcher infers the registered provider effect from claimed work
 
     assert.equal(posts, 1);
     assert.equal(result.state, 'success');
+    assert.equal(kernel.hasUnresolvedEffect(permit.id), true);
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('trusted dispatcher admits Kubernetes ConfigMap ensure without kernel special cases', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'effect-dispatch-kubernetes-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+  let patches = 0;
+
+  try {
+    kernel.initialize();
+    kernel.define(
+      kubernetesConfigMap.ensure({
+        id: 'configmap-proof',
+        target: {
+          authority_id: 'kind:production-proof',
+          namespace: 'production',
+          name: 'api-config',
+        },
+        desired: { exists: true },
+      }),
+    );
+    const ready = kernel.deriveReadyWork();
+    assert.ok(ready);
+    const permit = kernel.claim(ready.id, ready.revision);
+
+    const result = await dispatchAdmittedEffect(kernel, permit, {
+      kubernetes: {
+        configMapApply: async (request) => {
+          patches += 1;
+          assert.equal(kernel.hasUnresolvedEffect(permit.id), true);
+          assert.deepEqual(request, {
+            authority_id: 'kind:production-proof',
+            method: 'PATCH',
+            path: '/api/v1/namespaces/production/configmaps/api-config?fieldManager=overcenter',
+            content_type: 'application/apply-patch+yaml',
+            field_manager: 'overcenter',
+            body: {
+              apiVersion: 'v1',
+              kind: 'ConfigMap',
+              metadata: {
+                namespace: 'production',
+                name: 'api-config',
+              },
+            },
+          });
+          return { status: 200, body: '{}' };
+        },
+      },
+    });
+
+    assert.equal(patches, 1);
+    assert.deepEqual(result, {
+      authority_id: 'kind:production-proof',
+      namespace: 'production',
+      name: 'api-config',
+    });
+    assert.equal(kernel.hasUnresolvedEffect(permit.id), true);
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Kubernetes mutation failure retains the reservation for observation-driven recovery', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'effect-dispatch-kubernetes-failure-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+
+  try {
+    kernel.initialize();
+    kernel.define(
+      kubernetesConfigMap.ensure({
+        id: 'configmap-proof',
+        target: {
+          authority_id: 'kind:production-proof',
+          namespace: 'production',
+          name: 'api-config',
+        },
+        desired: { exists: true },
+      }),
+    );
+    const ready = kernel.deriveReadyWork();
+    assert.ok(ready);
+    const permit = kernel.claim(ready.id, ready.revision);
+
+    await assert.rejects(
+      dispatchAdmittedEffect(kernel, permit, {
+        kubernetes: {
+          configMapApply: async () => ({ status: 409, body: 'Conflict' }),
+        },
+      }),
+      /KUBERNETES_CONFIGMAP_MUTATION_FAILED:409:Conflict/,
+    );
     assert.equal(kernel.hasUnresolvedEffect(permit.id), true);
   } finally {
     kernel.close();

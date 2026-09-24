@@ -75,11 +75,18 @@ export interface KernelOptions {
 }
 
 const effectAuthorityBrand: unique symbol = Symbol('effect-authority');
+const effectAuthorityPermits = new WeakMap<object, ExecutionPermit>();
+
 export type EffectAuthority<E extends string, V extends Postcondition['verifier']> = {
   readonly [effectAuthorityBrand]: E;
-  readonly permit: ExecutionPermit;
   readonly postcondition: Extract<Postcondition, { verifier: V }>;
 };
+
+function effectAuthorityPermit(authority: object): ExecutionPermit {
+  const permit = effectAuthorityPermits.get(authority);
+  if (!permit) throw new Error('EFFECT_AUTHORITY_INVALID');
+  return permit;
+}
 
 export interface GraphPatchInput {
   upsert?: ObligationInput[];
@@ -228,13 +235,14 @@ export class KernelCore {
       (typeof work.packet.effect_contract === 'string'
         ? work.packet.effect_contract
         : 'overcenter/execution-effect');
-    return {
+    const authority = Object.freeze({
       [effectAuthorityBrand]: authorityContract,
-      permit,
-      postcondition: work.postcondition,
-    } as E extends RegisteredEffectContract
+      postcondition: Object.freeze(work.postcondition),
+    }) as E extends RegisteredEffectContract
       ? EffectAuthority<E, EffectVerifier<Extract<E, RegisteredEffectContract>>>
       : EffectAuthority<string, Postcondition['verifier']>;
+    effectAuthorityPermits.set(authority, permit);
+    return authority;
   }
 
   deriveReadyWork(): Work | null {
@@ -401,12 +409,13 @@ export class KernelCore {
     authority: EffectAuthority<E, V>,
     effect: (attempt: EffectAttemptBinding) => Promise<T> | T,
   ): Promise<T> {
-    const reservationCommit = this.beginEffect(authority.permit);
+    const permit = effectAuthorityPermit(authority);
+    const reservationCommit = this.beginEffect(permit);
     const attempt: EffectAttemptBinding = Object.freeze({
-      run_id: authority.permit.id,
-      obligation_id: authority.permit.obligation_id,
-      execution_generation: authority.permit.execution_generation,
-      execution_authority_commit: authority.permit.execution_authority_commit,
+      run_id: permit.id,
+      obligation_id: permit.obligation_id,
+      execution_generation: permit.execution_generation,
+      execution_authority_commit: permit.execution_authority_commit,
       reservation_commit: reservationCommit,
       effect_contract: authority[effectAuthorityBrand],
     });
@@ -418,15 +427,16 @@ export class KernelCore {
     witness: TrustedEffectReleaseWitness,
     diagnostic: Data = {},
   ): Receipt {
+    const permit = effectAuthorityPermit(authority);
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const head = this.#requireHead();
       const { history, project } = this.#historicalProjection(head);
-      const run = history.runs.get(authority.permit.id);
+      const run = history.runs.get(permit.id);
       if (!run) throw new Error('UNKNOWN_RUN');
       const projectedAuthority = projectExecutionAuthority(
         run,
-        authority.permit,
-        this.#capabilityDigest(authority.permit.execution_capability),
+        permit,
+        this.#capabilityDigest(permit.execution_capability),
       );
       if (!projectedAuthority.current_authority || !projectedAuthority.exact_revision) {
         throw new Error('STALE_EXECUTION_GENERATION');
