@@ -291,7 +291,11 @@ function crashAfterDispatchCase() {
   const crashed = append(facts, { kind: 'worker-finished', worker: 'root', generation: 1 });
   assert.equal(naiveComplete(crashed), true);
   assert.equal(durablyComplete(crashed), false);
-  expectAppendFailure(facts, { kind: 'delegation-cancelled', id: 'sent' }, 'DELEGATION_MAY_HAVE_DISPATCHED');
+  expectAppendFailure(
+    facts,
+    { kind: 'delegation-cancelled', id: 'sent' },
+    'DELEGATION_MAY_HAVE_DISPATCHED',
+  );
 
   append(facts, { kind: 'delegation-delivered', id: 'sent' });
   append(facts, { kind: 'worker-finished', worker: 'child', generation: 1 });
