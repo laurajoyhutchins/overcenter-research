@@ -8,7 +8,7 @@ import {
   validateAdmission,
 } from '../src/authority/admission.ts';
 import { dependsOn } from '../src/graph/topology.ts';
-import { effectSemantics } from '../src/semantics.ts';
+import { effectSemantics, effectsConflict } from '../src/semantics.ts';
 
 const fileObligation = (id: string, dependencies: Obligation['dependencies'] = []): Obligation => ({
   id,
@@ -61,6 +61,28 @@ test('admission rejects unsupported semantic selectors before realization', () =
   );
 });
 
+test('effect conflict semantics distinguish resource and commutation identity', () => {
+  const success = effectSemantics(statusObligation('success', 'success').postcondition);
+  const sameSuccess = effectSemantics(statusObligation('same-success', 'success').postcondition);
+  const failure = effectSemantics(statusObligation('failure', 'failure').postcondition);
+  const otherResource = effectSemantics({
+    verifier: 'github-commit-status/v2',
+    provider: 'github',
+    repository_id: 123,
+    repository_full_name: 'owner/repo',
+    commit_sha: 'a'.repeat(40),
+    context: 'overcenter/other',
+    expected_state: 'success',
+  });
+  assert.ok(success);
+  assert.ok(sameSuccess);
+  assert.ok(failure);
+  assert.ok(otherResource);
+  assert.equal(effectsConflict(success, sameSuccess), false);
+  assert.equal(effectsConflict(success, failure), true);
+  assert.equal(effectsConflict(success, otherResource), false);
+});
+
 test('admission rejects unordered incompatible static effects', () => {
   const state: State = {
     obligations: {
@@ -94,14 +116,7 @@ function referenceStaticEffectConflict(state: State, workId: string): string | n
   for (const other of Object.values(state.obligations).sort((a, b) => a.id.localeCompare(b.id))) {
     if (other.id === work.id) continue;
     const otherSemantics = effectSemantics(other.postcondition);
-    if (!otherSemantics || otherSemantics.resource !== semantics.resource) continue;
-
-    if (
-      otherSemantics.desired === semantics.desired &&
-      semantics.sameDesiredCommutes &&
-      otherSemantics.sameDesiredCommutes
-    )
-      continue;
+    if (!otherSemantics || !effectsConflict(semantics, otherSemantics)) continue;
 
     if (!dependsOn(state, work.id, other.id) && !dependsOn(state, other.id, work.id)) {
       const [left, right] = [work.id, other.id].sort();

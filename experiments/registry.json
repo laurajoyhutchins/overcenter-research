@@ -1057,6 +1057,62 @@
       }
     },
     {
+      "id": "n-agent-interaction-frontier",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/n-agent-interaction-frontier",
+      "readme": "experiments/n-agent-interaction-frontier/README.md",
+      "question": "Can Overcenter mechanically reduce a 50-agent proposal set to the connected causal/effect regions that actually require joint reasoning?",
+      "claim": "For the bounded 50-obligation workload, production graph causality plus provider-effect semantics reduce 1,225 possible agent pairs to four 4-agent conflict islands and 34 singletons; a real causal bridge expands the affected reasoning frontier to eight agents.",
+      "contrast": "Treat all N-way work as one total-order conflict problem, or partition only by provider resource and miss graph-causal coupling.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:n-agent-interaction-frontier"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Current production graph topology, graph dependency, static effect conflict, and effect-semantics modules.",
+        "Bounded exhaustive enumeration is used inside each interaction component; the maintained treatment does not depend on the experimental DPOR reducer.",
+        "No network, provider credential, database, external solver, or model is required."
+      ],
+      "success_criteria": [
+        "The baseline contains exactly 50 obligations and 1,225 possible agent pairs.",
+        "Production semantics derive exactly 24 interaction edges and 38 connected components.",
+        "Baseline component sizes are four 4-agent conflict islands plus 34 singleton obligations.",
+        "Production static conflict analysis identifies exactly the 16 clustered obligations.",
+        "Baseline component-local exhaustive work is exactly 130 executions and composes to 331,776 causal trace classes.",
+        "One production control dependency merges two 4-agent islands into one 8-agent interaction component.",
+        "The bridged component has exactly 20,160 concrete topological executions and 576 causal trace classes.",
+        "Total bridged component-local exhaustive work is exactly 20,242 executions.",
+        "A conflict-only decomposition misses the causal bridge and is rejected by production graph causality."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/n-agent-interaction-frontier.yml"
+        ],
+        "pending_reason": "The original exact-head treatment passed, but review invalidated its DPOR-dependent reduced-execution metric. Fresh exact-head evidence is required for the maintained DPOR-independent frontier treatment."
+      },
+      "interpretation": "A positive result would support computing a deterministic interaction frontier before joint agent reasoning: independent proposal components can be analyzed separately, while real graph or effect coupling expands the frontier.",
+      "non_claims": [
+        "Every real code change exposes complete provider-style effect semantics.",
+        "File-level or semantic code conflicts are solved by this fixture.",
+        "Component-local verification is sufficient for arbitrary global properties.",
+        "50-agent live execution throughput is measured.",
+        "Fair scheduling across 50 live workers is proved.",
+        "Distributed authority or HA is established.",
+        "The 50-agent global trace product should be enumerated."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The 50-agent topology, 24-edge/38-component baseline, causal bridge, exhaustive component counts, trace counts, and conflict-only falsifier were preregistered. A post-hoc review falsified the stacked DPOR reducer, so its 658-execution metric was withdrawn and the maintained experiment now uses exhaustive component analysis only."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The interaction-frontier claim survived review, but fresh exact-head evidence is pending after removing the flawed DPOR-dependent reduction metric."
+      }
+    },
+    {
       "id": "production-criticality-ranking",
       "kind": "experiment",
       "status": "historical",

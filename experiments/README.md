@@ -46,6 +46,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `core-loop-concurrency/` - exact production-path bounded effect-concurrency benchmark behind one authority lane.
 - `causal-execution-quotient/` - quotient independent concrete interleavings into property-sensitive causal traces, with production conflict and scheduler-order negative controls.\n- `dpor-causal-explorer/` - use runtime independence plus sleep sets to explore one representative per causal trace, checked against exhaustive enumeration and hostile conflict controls.
 - `dpor-race-backtracking/` - discover dependent races during execution and insert ancestor backtracking choices, checked against exhaustive trace classes and future-conflict controls.
+- `n-agent-interaction-frontier/` - reduce 50 proposed obligations to causally or effect-conflict connected reasoning regions, with a hostile cross-island dependency control.
 - `scheduler-liveness/` - test conditional scheduler liveness with TLC plus an executable hostile scheduler, including fixed-set recovery fairness and continual fresh-work admission.
 - `scheduler-policy-comparison/` - compare fresh-first, recovered-first, class alternation, and replay-derived service age under hostile open-system scheduling.
 - `datalog-projection/` - declarative project-status projection from validated durable history plus recomputed semantic judgments.

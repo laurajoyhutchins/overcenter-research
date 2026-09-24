@@ -1,0 +1,38 @@
+name: N-agent interaction frontier
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - experiments/partial-order.ts
+      - .github/workflows/n-agent-interaction-frontier.yml
+      - experiments/n-agent-interaction-frontier/**
+      - src/authority/admission.ts
+      - src/graph/**
+      - src/semantics.ts
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  experiment:
+    name: Fifty-agent interaction frontier
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Exact source checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Node from repository
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - run: npm run experiment:n-agent-interaction-frontier
