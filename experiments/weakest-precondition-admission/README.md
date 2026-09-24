@@ -113,4 +113,32 @@ This experiment does not prove:
 
 ## Result
 
-Pending exact-head hosted execution.
+**Supported for the preregistered bounded treatment.** Exact revision `50df13190d6ad0c9f197249d594f3cc559c8ab87` was evaluated in GitHub Actions Merge gate run `35950477304`, rerun attempt 2, exact-head candidate job `107478480514`.
+
+The calculation exhausted all 16 initial states against four hostile baseline outcomes per state and derived exactly:
+
+~~~
+current_authority
+AND exact_revision
+AND NOT unresolved_effect
+~~~
+
+Production `mutationAdmitted()` accepted the same two ceremony-equivalent states and disagreed on zero states.
+
+Each missing-guard control exposed concrete unsafe admissions:
+
+- without current authority: `A0:R1:U0:C0` and `A0:R1:U0:C1`;
+- without exact revision: `A1:R0:U0:C0` and `A1:R0:U0:C1`;
+- without unresolved-effect exclusion: `A1:R1:U1:C0` and `A1:R1:U1:C1`.
+
+The overconstraint control behaved in the opposite direction: requiring the safety-irrelevant ceremony token admitted no unsafe state but rejected the calculated-safe state `A1:R1:U0:C0`.
+
+The specification-sensitivity controls also moved exactly as preregistered:
+
+- removing authorization derived `exact_revision && !unresolved_effect`;
+- removing exact-revision binding derived `current_authority && !unresolved_effect`;
+- removing at-most-once derived `current_authority && exact_revision`.
+
+Finally, both protocol mutants had an empty weakest precondition. Once dispatch may occur before durable reservation, an adversarial crash can always violate durable ambiguity tracking. Once an ambiguous first dispatch may be blindly replayed, an adversarial path can always violate at-most-once. Strengthening admission cannot repair either protocol.
+
+The exact-head candidate also passed the repository's deterministic experiment suite, TLA+, production computation boundary, and self-application proof.
