@@ -590,6 +590,9 @@ export async function observePostconditionAsync(
 }
 
 function assertObservationCoordinate(postcondition: Postcondition, observed: Observation): void {
+  if (postcondition.verifier === 'source-integration/v1') {
+    throw new Error('SOURCE_INTEGRATION_REQUIRES_TRUSTED_SETTLEMENT');
+  }
   validateObservationEnvelope(observed);
   if (observed.verifier !== postcondition.verifier) {
     throw new Error('OBSERVATION_VERIFIER_MISMATCH');
