@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
@@ -11,6 +10,7 @@ import {
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { sha256 } from '../digest.ts';
 
 export const ASSIGNMENT_SCHEMA = 'overcenter-agent-assignment/v2' as const;
 export const CANDIDATE_SCHEMA = 'overcenter-agent-candidate/v1' as const;
@@ -61,8 +61,6 @@ export interface Candidate {
   output_base64: string;
 }
 
-const sha256 = (bytes: string | Buffer | Uint8Array): string =>
-  createHash('sha256').update(bytes).digest('hex');
 function fail(code: string): never {
   throw new Error(code);
 }

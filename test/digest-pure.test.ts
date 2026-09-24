@@ -15,3 +15,10 @@ test('canonical digest is stable across object key order', () => {
 test('raw SHA-256 preserves the existing content identity', () => {
   assert.equal(sha256('A'), '559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd');
 });
+
+test('raw SHA-256 accepts bytes without changing content identity', () => {
+  assert.equal(
+    sha256(Buffer.from('A')),
+    '559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd',
+  );
+});

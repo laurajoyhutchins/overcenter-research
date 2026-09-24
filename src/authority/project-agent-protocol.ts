@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -12,7 +11,7 @@ import {
   validateCandidate,
   validPath,
 } from '../execution/assignment-capsule.ts';
-import { canonicalDigest } from '../digest.ts';
+import { canonicalDigest, sha256 } from '../digest.ts';
 import { buildSourceAssignment, validateSourceTaskPacket } from '../source/source-obligation.ts';
 import {
   integrateVerifiedSourceCandidate,
@@ -135,10 +134,6 @@ function validateCommandContext(context: ProjectCommandContext): void {
   if (!/^[0-9a-f]{40}$/i.test(context.command_source_sha)) {
     throw new Error('PROJECT_AGENT_COMMAND_SOURCE_INVALID');
   }
-}
-
-function sha256(bytes: Buffer): string {
-  return createHash('sha256').update(bytes).digest('hex');
 }
 
 function record(value: unknown): value is Record<string, unknown> {

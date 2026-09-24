@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { sha256 } from '../digest.ts';
 
 export interface EvidenceRef {
   algorithm: 'sha256';
@@ -10,7 +10,7 @@ export function evidenceRef(bytes: Uint8Array): EvidenceRef {
   const payload = Buffer.from(bytes);
   return {
     algorithm: 'sha256',
-    digest: createHash('sha256').update(payload).digest('hex'),
+    digest: sha256(payload),
     byte_length: payload.byteLength,
   };
 }

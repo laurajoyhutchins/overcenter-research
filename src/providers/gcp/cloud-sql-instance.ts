@@ -1,10 +1,9 @@
 import { canonicalDigest } from '../../digest.ts';
-import { projectResponseSlice } from '../../observation/response-slice.ts';
 import {
-  observeCertifiedGcpRead200,
+  observeProjectedCertifiedGcpRead200,
   type GcpObservationOperation,
 } from './certified-observation.ts';
-import type { GcpJsonGet } from './rest.ts';
+import { encodeGcpPathSegment, type GcpJsonGet } from './rest.ts';
 
 const CLOUD_SQL_INSTANCE_SCHEMA = {
   type: 'object',
@@ -102,22 +101,8 @@ export type CertifiedGcpCloudSqlInstanceResult =
       observation_error: string;
     };
 
-function segment(value: string, label: string): string {
-  const hasControlCharacter = Array.from(value).some((character) => {
-    const code = character.charCodeAt(0);
-    return code <= 0x1f || code === 0x7f;
-  });
-  if (
-    value.length === 0 ||
-    value === '.' ||
-    value === '..' ||
-    /[\\/?#]/.test(value) ||
-    hasControlCharacter
-  ) {
-    throw new Error(`GCP_CLOUD_SQL_${label}_INVALID`);
-  }
-  return encodeURIComponent(value);
-}
+const segment = (value: string, label: string): string =>
+  encodeGcpPathSegment(value, `GCP_CLOUD_SQL_${label}_INVALID`);
 
 function cloudSqlPath(coordinate: GcpCloudSqlInstanceCoordinate): string {
   return `/sql/v1beta4/projects/${segment(coordinate.project, 'PROJECT')}/instances/${segment(coordinate.instance, 'INSTANCE')}`;
@@ -137,7 +122,11 @@ export function observeCertifiedGcpCloudSqlInstance(
   } = {},
 ): CertifiedGcpCloudSqlInstanceResult {
   try {
-    const { observed_at: observedAt, certified } = observeCertifiedGcpRead200({
+    const {
+      observed_at: observedAt,
+      certified,
+      value,
+    } = observeProjectedCertifiedGcpRead200<CertifiedGcpCloudSqlInstance>({
       accessToken,
       operation: GCP_CLOUD_SQL_INSTANCE_OPERATION,
       request: {
@@ -153,11 +142,6 @@ export function observeCertifiedGcpCloudSqlInstance(
       ...(clock ? { clock } : {}),
       ...(quotaProject ? { quotaProject } : {}),
     });
-    const value = projectResponseSlice(
-      certified.outcome.value,
-      GCP_CLOUD_SQL_INSTANCE_RESPONSE_SLICE,
-    ) as CertifiedGcpCloudSqlInstance;
-
     if (
       value.kind !== 'sql#instance' ||
       value.project !== coordinate.project ||
