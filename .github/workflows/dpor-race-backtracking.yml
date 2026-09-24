@@ -5,11 +5,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
+      - experiments/partial-order.ts
       - .github/workflows/dpor-race-backtracking.yml
       - experiments/dpor-race-backtracking/**
       - experiments/dpor-causal-explorer/**
-      - package.json
-      - experiments/registry.json
 
 permissions: {}
 
