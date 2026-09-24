@@ -18,17 +18,11 @@ export function assertGcpAuthorityHost(value: string): string {
 }
 
 export function encodeGcpPathSegment(value: string, error: string): string {
-  const hasControlCharacter = Array.from(value).some((character) => {
+  const hasControlCharacter = [...value].some((character) => {
     const code = character.charCodeAt(0);
     return code <= 0x1f || code === 0x7f;
   });
-  if (
-    value.length === 0 ||
-    value === '.' ||
-    value === '..' ||
-    /[\\/?#]/.test(value) ||
-    hasControlCharacter
-  ) {
+  if (!value || value === '.' || value === '..' || /[\\/?#]/.test(value) || hasControlCharacter) {
     throw new Error(error);
   }
   return encodeURIComponent(value);
