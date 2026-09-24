@@ -83,3 +83,33 @@ npm run proof:formal
 A positive result supports a narrow design rule for future recursive delegation: descendant work must enter durable authority before it can escape into an external worker or transport, and the ability to create descendants must be fenced like other execution authority.
 
 It does not prove arbitrary evolving projects terminate. Scheduler fairness, transport delivery, provider availability, and worker progress remain separate assumptions.
+
+
+## Exact-head result
+
+Evaluated revision: `810a8194c34dcd82e60f47a4b6511cef71738e3c`
+
+GitHub Actions: Merge gate run `35950500885`, rerun attempt 2; candidate evidence job `107478307265`.
+
+The executable hostile traces all passed:
+
+- delayed child: zero active workers produced a naive false-completion witness while one delegation remained in flight;
+- recursive fan-out: completion remained false while a grandchild was outstanding;
+- pre-dispatch crash: completion required explicit safe cancellation;
+- post-dispatch crash: blind cancellation was rejected;
+- duplicate delivery and acknowledgement were idempotent;
+- stale spawn authority was rejected after generation rotation;
+- two causal delegations converging on one semantic child remained separately accounted;
+- replay reconstructed the same incomplete projection from immutable facts.
+
+The formal model agreed with the executable treatment. `DiffusingTermination.cfg` preserved `NoFalseCompletion` and satisfied terminal detection under its stated fairness assumption. The negative control `BrokenDiffusingTerminationNaive.cfg` produced the expected TLC invariant violation:
+
+```text
+Invariant NoFalseCompletion is violated.
+```
+
+### Interpretation
+
+The bounded hypothesis is supported. For recursive agent delegation, local idleness is not a safe completion criterion. Durable pre-dispatch causal accounting plus fenced descendant-creation authority is sufficient in the modeled state space to prevent premature completion and is reconstructible from immutable history.
+
+This evidence supports promoting the invariant into future recursive-delegation machinery, not adding a separate mutable swarm-completion counter.

@@ -3280,12 +3280,13 @@
         "TLC accepts the durable-accounting detector and finds a false-completion counterexample for the naive detector."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "810a8194c34dcd82e60f47a4b6511cef71738e3c",
         "artifacts": [
-          "experiments/diffusing-termination/experiment.ts",
-          "formal/DiffusingTermination.tla"
-        ],
-        "pending_reason": "The preregistered executable and formal treatment have not yet been evaluated on an exact hosted revision."
+          "GitHub Actions Merge gate run 35950500885, rerun attempt 2: exact-head candidate evidence PASS.",
+          "Candidate evidence job 107478307265: deterministic diffusing-termination hostile traces PASS.",
+          "Candidate evidence job 107478307265: TLA+ durable detector PASS and BrokenDiffusingTerminationNaive.cfg violated NoFalseCompletion as required."
+        ]
       },
       "interpretation": "A positive result would support durable causal-work accounting as the recursive-delegation completion primitive. It would not require adopting the original Dijkstra-Scholten wire protocol literally because Overcenter can reconstruct the deficit from immutable authority history.",
       "non_claims": [
@@ -3299,8 +3300,8 @@
         "note": "The hostile cases, safety criterion, replay criterion, and negative control are recorded before hosted exact-head evaluation."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The experiment is preregistered and awaiting exact-head executable and formal evidence."
+        "state": "supported",
+        "summary": "Durable causal delegation accounting rejected every bounded false-completion case, while the naive zero-active-worker detector produced the required counterexample."
       }
     }
   ]
