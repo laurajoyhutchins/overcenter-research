@@ -23,6 +23,7 @@ import {
 
 export const GRAPH_PATCH_SCHEMA = 'overcenter-graph-patch-v1' as const;
 export const CLAIM_SCHEMA = 'overcenter-git-claim-v3' as const;
+export const SOURCE_REVISION_BINDING_SCHEMA = 'overcenter-source-revision-binding/v1' as const;
 export const EXECUTION_AUTHORITY_SCHEMA = 'overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA = 'overcenter-git-effect-reservation-v1' as const;
 export const EFFECT_RELEASE_SCHEMA = 'overcenter-effect-release' as const;
@@ -71,6 +72,13 @@ export interface ClaimFact {
   claimed_revision: string;
   obligation_key: string;
   execution_capability_sha256: string;
+}
+
+export interface SourceRevisionBindingFact {
+  schema: typeof SOURCE_REVISION_BINDING_SCHEMA;
+  run_id: string;
+  obligation_id: string;
+  source_revision: string;
 }
 
 export interface ExecutionAuthorityFact {
@@ -144,6 +152,7 @@ export interface FactCommit {
   parent: string | null;
   graph_patch?: unknown | null;
   claim?: unknown | null;
+  source_revision?: unknown | null;
   execution_authority?: unknown | null;
   effect_reservation?: unknown | null;
   effect_release?: unknown | null;
@@ -156,6 +165,10 @@ export function emptyState(): State {
 
 function positiveSafeInteger(value: unknown, error: string): asserts value is number {
   if (!Number.isSafeInteger(value) || (value as number) < 1) throw new Error(error);
+}
+
+function gitObjectId(value: unknown, error: string): asserts value is string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{40}$/.test(value)) throw new Error(error);
 }
 
 function sha256Hex(value: unknown, error: string): asserts value is string {
@@ -328,6 +341,23 @@ export function validateClaimFact(value: unknown): ClaimFact {
   nonEmptyString(value.obligation_key, 'INVALID_OBLIGATION_KEY');
   sha256Hex(value.execution_capability_sha256, 'INVALID_EXECUTION_CAPABILITY_DIGEST');
   return structuredClone(value) as unknown as ClaimFact;
+}
+
+export function validateSourceRevisionBindingFact(value: unknown): SourceRevisionBindingFact {
+  if (!data(value)) throw new Error('INVALID_SOURCE_REVISION_BINDING_FACT');
+  exactKeys(
+    value,
+    ['schema', 'run_id', 'obligation_id', 'source_revision'],
+    [],
+    'INVALID_SOURCE_REVISION_BINDING_FACT',
+  );
+  if (value.schema !== SOURCE_REVISION_BINDING_SCHEMA) {
+    throw new Error('INVALID_SOURCE_REVISION_BINDING_SCHEMA');
+  }
+  nonEmptyString(value.run_id, 'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id, 'INVALID_OBLIGATION_ID');
+  gitObjectId(value.source_revision, 'INVALID_SOURCE_REVISION');
+  return structuredClone(value) as unknown as SourceRevisionBindingFact;
 }
 
 export function validateExecutionAuthorityFact(value: unknown): ExecutionAuthorityFact {
@@ -505,6 +535,7 @@ export function validateReceiptFact(value: unknown): ReceiptFact {
 export type AuthorityFact =
   | GraphPatchFact
   | ClaimFact
+  | SourceRevisionBindingFact
   | ExecutionAuthorityFact
   | EffectReservationFact
   | EffectReleaseFact
@@ -517,6 +548,8 @@ export function validateAuthorityFact(value: unknown): AuthorityFact {
       return validateGraphPatchFact(value);
     case CLAIM_SCHEMA:
       return validateClaimFact(value);
+    case SOURCE_REVISION_BINDING_SCHEMA:
+      return validateSourceRevisionBindingFact(value);
     case EXECUTION_AUTHORITY_SCHEMA:
       return validateExecutionAuthorityFact(value);
     case EFFECT_RESERVATION_SCHEMA:
