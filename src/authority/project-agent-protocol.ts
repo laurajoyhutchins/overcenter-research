@@ -401,7 +401,11 @@ function sourceSubmitReceipt(
   obligationId: string,
   claimedRevision: string,
   candidateSha: string,
-  settled: ReturnType<GitOvercenterKernel['recoverInterrupted']>,
+  settled: {
+    disposition: 'DONE' | 'READY' | 'RECOVERY_REQUIRED';
+    verified: boolean;
+    settlement_commit?: string;
+  },
   alreadySettled: boolean,
   integrationCommit?: string,
 ): ProjectSubmitReceipt {
@@ -605,19 +609,22 @@ export function submitProjectCandidate(
       );
     }
 
-    const retry = kernel.retrySourceIntegration(permit, integration.reason, {
-      candidate_sha: candidateSha,
-    });
-    return sourceSubmitReceipt(
-      context,
-      authorityRef,
-      kernel,
-      assigned.id,
-      claim.claimed_revision,
-      candidateSha,
-      retry,
-      false,
-    );
+    if (integration.state === 'REJECTED' || integration.state === 'REREALIZE_REQUIRED') {
+      const retry = kernel.retrySourceIntegration(permit, integration.reason, {
+        candidate_sha: candidateSha,
+      });
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        retry,
+        false,
+      );
+    }
+    throw new Error('SOURCE_INTEGRATION_RESULT_UNCLASSIFIED');
   }
 
   const raw = JSON.parse(gitBytes(repo, candidateSha, candidatePath).toString('utf8'));
