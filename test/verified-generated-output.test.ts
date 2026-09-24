@@ -5,10 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import {
-  OvercenterKernel,
-  type GeneratedOutputValidator,
-} from '../src/authority/kernel.ts';
+import { OvercenterKernel, type GeneratedOutputValidator } from '../src/authority/kernel.ts';
 import { FileEvidenceStore } from '../src/evidence/file-store.ts';
 import { GitOvercenterKernel } from '../src/storage/git-kernel.ts';
 
@@ -152,7 +149,9 @@ test('missing, corrupt, or differently validated retained output fails current r
   try {
     const database = join(root, 'authority.sqlite');
     const evidence = new FileEvidenceStore(join(root, 'evidence'));
-    let ref: NonNullable<ReturnType<OvercenterKernel['settleVerifiedOutput']>['verified_output']>['evidence'];
+    let ref: NonNullable<
+      ReturnType<OvercenterKernel['settleVerifiedOutput']>['verified_output']
+    >['evidence'];
 
     const kernel = new OvercenterKernel(database, {
       evidenceStore: evidence,
