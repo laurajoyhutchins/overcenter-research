@@ -208,21 +208,33 @@ export class KernelCore {
     return structuredClone(work);
   }
 
-  authorizeEffect<E extends RegisteredEffectContract>(
+  authorizeEffect<E extends RegisteredEffectContract | undefined = undefined>(
     permit: ExecutionPermit,
-    effectContract: E,
-  ): EffectAuthority<E, EffectVerifier<E>> {
+    effectContract?: E,
+  ): E extends RegisteredEffectContract
+    ? EffectAuthority<E, EffectVerifier<Extract<E, RegisteredEffectContract>>>
+    : EffectAuthority<string, Postcondition['verifier']> {
     const work = this.claimedWork(permit);
-    const capabilities = effectAdapterCapabilities(effectContract)!;
-    if (work.packet.effect_contract !== effectContract)
-      throw new Error('EFFECT_CONTRACT_NOT_AUTHORIZED');
-    if (work.postcondition.verifier !== capabilities.postcondition_verifier)
-      throw new Error('EFFECT_POSTCONDITION_MISMATCH');
+    if (effectContract !== undefined) {
+      const capabilities = effectAdapterCapabilities(effectContract);
+      if (!capabilities) throw new Error('EFFECT_CONTRACT_UNREGISTERED');
+      if (work.packet.effect_contract !== effectContract)
+        throw new Error('EFFECT_CONTRACT_NOT_AUTHORIZED');
+      if (work.postcondition.verifier !== capabilities.postcondition_verifier)
+        throw new Error('EFFECT_POSTCONDITION_MISMATCH');
+    }
+    const authorityContract =
+      effectContract ??
+      (typeof work.packet.effect_contract === 'string'
+        ? work.packet.effect_contract
+        : 'overcenter/execution-effect');
     return {
-      [effectAuthorityBrand]: effectContract,
+      [effectAuthorityBrand]: authorityContract,
       permit,
-      postcondition: work.postcondition as EffectAuthority<E, EffectVerifier<E>>['postcondition'],
-    };
+      postcondition: work.postcondition,
+    } as E extends RegisteredEffectContract
+      ? EffectAuthority<E, EffectVerifier<Extract<E, RegisteredEffectContract>>>
+      : EffectAuthority<string, Postcondition['verifier']>;
   }
 
   deriveReadyWork(): Work | null {

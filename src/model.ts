@@ -116,12 +116,23 @@ export interface PreflightOutcome extends Data {
   kind: 'execute' | 'judgment-required';
 }
 
-export interface LoopOptions {
+interface LoopCommonOptions {
   preflight?: (packet: Data) => Promise<PreflightOutcome>;
-  effect: (packet: Data) => Promise<ExecuteOutcome>;
   maxAdvances?: number;
   concurrency?: number;
 }
+
+export type LoopOptions<TTrustedEffects = never> = LoopCommonOptions &
+  (
+    | {
+        effect: (packet: Data) => Promise<ExecuteOutcome>;
+        trustedEffects?: never;
+      }
+    | {
+        effect?: never;
+        trustedEffects: TTrustedEffects;
+      }
+  );
 
 export interface LoopResult {
   state: 'IDLE' | 'BLOCKED' | 'RECOVERY_REQUIRED' | 'WAITING' | 'BUDGET_EXHAUSTED';
