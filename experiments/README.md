@@ -59,36 +59,27 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `effect-authority-decay/` - current-main production broker experiment testing whether bound authority eliminates downstream raw-coordinate reconstruction while preserving the final runtime fence.
 - `rust-exec-typestate-boundary/` - historical negative: typestate preserved the real Rust confinement proof but removed no runtime guard class and increased source complexity.
 
-## Experiment contract
+## Experiment integrity
 
-Maintained and historical experiment records are registered in [`registry.json`](./registry.json). Historical entries retain their exact evaluated revision and reproduction command even when their executable directory has been retired from `main`; check out the recorded revision to reproduce the result.
-
-The registry is the machine-readable acceptance contract for maintained and historical evidence. The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, design provenance, outcome, exact revision-bound evidence, interpretation, and non-claims must be explicit.
-
-The contract deliberately separates three questions that older entries used to blur:
+Experiments use ordinary repository machinery rather than a parallel experiment authority.
 
 ```text
-design provenance       outcome                 evidence
-preregistered           pending                 pending
-retrospective           supported               or
-mixed                   falsified               evaluated @ exact SHA
-unknown                  mixed / inconclusive
+Git commit             freezes the design
+ordinary test/benchmark executes the treatment and scorer
+GitHub Actions run      binds hosted evidence to an exact revision
+artifacts + digests     preserve raw observations when needed
+Overcenter              decides whether admitted evidence satisfies a promotion
 ```
 
-A retrospectively documented experiment can still be useful evidence, but its maintained criteria are not represented as preregistered. A falsified hypothesis is a valid experiment outcome. Evaluated evidence always names the exact revision that was run; the registry does not call old evidence "current" merely because maintainers still consider the conclusion relevant.
+`experiments/registry.json` is an archival catalog and explainability aid. It is not project truth, a preregistration authority, an experiment runner, or a merge-gate input. Historical entries retain evaluated revisions and reproduction notes because older experiments already cite the catalog.
 
-```sh
-npm run experiments:list
-npm run experiment -- <experiment-id>
-npm run experiments:deterministic
-npm run test:experiment-contract
-```
+A claim is preregistered only when the repository history demonstrates that the material design existed before the first outcome-bearing execution. The frozen design includes the question, contrast or falsifier, treatment corpus, acceptance thresholds, and scorer when those are material. Changing those after observing an outcome creates calibration or a new experiment; prose cannot retroactively make the earlier run confirmatory.
 
-CI runs the contract validator through `npm test`. Every directory carried under `experiments/` must be registered. Maintained experiments must keep their directory and README on `main`; historical records may point only to their evaluated revision after scaffolding is retired. Reusable experiment plumbing belongs in `src/` or `test/support/`, not in a `kind: support` compatibility island.
+Scientific outcomes and infrastructure outcomes remain separate. A falsified hypothesis is a valid scientific result. Broken fixtures, failed execution, missing evidence, or a scorer that cannot run are execution failures.
 
-A hosted workflow is an integration harness, not the only explanation of an experiment. Hosted claims still require an experiment-local README and a deterministic contract surface wherever one exists.
+Maintained correctness properties belong in ordinary `test/`, `src/`, or `formal/` machinery after promotion. Experiment directories preserve the bounded treatment and its explanation; they are not a second regression framework. Hosted workflows stay thin and run the experiment they exist to exercise.
 
-Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/support/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
+Reproduction commands remain in each experiment README and, where useful, as ordinary package scripts. Git history is the durable record of the exact bytes that were evaluated.
 
 ## Proof lineage
 
