@@ -3136,6 +3136,61 @@
         "state": "supported",
         "summary": "Authenticated evidence admitted only controlled isolation for confinement-sensitive obligations, rejected observed ambient authority, rejected point-in-time absence as execution authority, and passed forgery, schema, scope, issuer-authority, revision, execution, and epoch-context falsifiers."
       }
+    },
+    {
+      "id": "source-obligation-integration",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/source-obligation-integration",
+      "readme": "experiments/source-obligation-integration/README.md",
+      "question": "Can source-development work retain stable obligation identity while exact Git revisions remain claim-time execution fencing, so independent work can integrate without encoding pull-request stack topology into the graph?",
+      "claim": "Within the bounded local-Git model, stable source intent retains one semantic key across unrelated main revisions while trusted integration can validate candidate scope, reapply the exact candidate patch to current main, rerun acceptance, CAS the target ref, preserve a concurrent main advance, and detect exact replay.",
+      "contrast": "Encode mutable branch or pull-request bases into obligation identity and require downstream work to be stacked on upstream Git branches.",
+      "design": {
+        "provenance": "mixed",
+        "note": "The original six-case treatment was preregistered and supported at 83433c916eb73d636dede0c94f8dd81bc915da48. Post-result review then found that replay detection trusted forgeable commit trailers. The strengthened seven-case treatment adds the forged-marker negative control and independent replay reconstruction; that correction is post-observation and was evaluated separately at 1b6364ff9f172388f9ab956408ab81889ccb9aeb."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "The strengthened seven-case treatment is supported at exact revision 1b6364ff9f172388f9ab956408ab81889ccb9aeb. Stable identity, unrelated-main integration, scope rejection, conflict and acceptance-drift re-realization, forged-marker rejection, CAS retry, and exact replay all behaved as required."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:source-obligation-integration"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Git CLI for real commits, worktrees, cherry-pick application, and exact update-ref compare-and-swap.",
+        "No network, GitHub credential, model, or database is required."
+      ],
+      "success_criteria": [
+        "The same stable source intent claimed against two different main revisions retains one obligation key while the claim base SHA changes.",
+        "A candidate produced from an older base integrates over an unrelated main advance and preserves both source changes.",
+        "A candidate that changes any undeclared path is rejected before the authoritative target ref moves.",
+        "A current-main conflict causes re-realization to be required and leaves the authoritative target ref unchanged.",
+        "A cleanly applicable candidate whose current-source acceptance context changed fails acceptance and leaves the authoritative target ref unchanged.",
+        "If main advances after verification but before CAS, integration retries from the new head, preserves the concurrent change, and exact replay creates no second integration commit.",
+        "A forged integration trailer on an unrelated main commit is not accepted as replay evidence unless trusted reconstruction proves the exact candidate tree and current acceptance."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "1b6364ff9f172388f9ab956408ab81889ccb9aeb",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35936036219, rerun candidate job 107434114151: exact-head candidate evidence PASS.",
+          "Strengthened source-obligation-integration output: stable semantic identity PASS; unrelated-main integration PASS; SOURCE_SCOPE_VIOLATION rejection PASS; SOURCE_APPLY_CONFLICT re-realization PASS; SOURCE_ACCEPTANCE_FAILED re-realization PASS; forged replay marker rejected as replay and real integration performed; CAS race integrated on attempt 2; replay returned ALREADY_INTEGRATED; concurrent main preserved.",
+          "The same exact-head rerun passed all maintained deterministic experiments, TLA+, the production computation-boundary proof, and self-application."
+        ]
+      },
+      "interpretation": "A positive result supports a narrow source-transaction primitive in which graph intent is stable, source revision is execution fencing, verified source candidates are realizations, and integration into current source authority rather than PR topology determines downstream readiness.",
+      "non_claims": [
+        "Arbitrary source changes can be verified by the experiment's file-content acceptance checks.",
+        "GitHub remote-ref mutation has the same uncertainty and recovery semantics as local git update-ref.",
+        "Human review policy can be removed.",
+        "Merge conflicts can be resolved automatically.",
+        "Every existing open pull request can be imported without an explicit mapping step.",
+        "The current production realization fact already supports dynamic source candidates.",
+        "A local pass alone authorizes production promotion before exact-head repository evidence."
+      ]
     }
   ]
 }
