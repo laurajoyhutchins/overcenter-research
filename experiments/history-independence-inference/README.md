@@ -1,8 +1,8 @@
-# Derived history independence
+# Derived project-truth history independence
 
 ## Question
 
-Can Overcenter derive a conservative execution-history independence relation from production graph causality, provider effect coordinates, and adapter duplicate-delivery semantics, then use that relation to normalize real execution histories without a hand-written commute table?
+Can Overcenter derive a conservative **project-truth** execution-history independence relation from production graph causality, provider effect coordinates, and adapter duplicate-delivery semantics, while refusing to confuse that relation with provider-history equivalence?
 
 This experiment is stacked on the earlier semantic history-normalization treatment. It does not replace that evidence. It removes one assumption from it:
 
@@ -17,7 +17,7 @@ this treatment:
         candidate independence relation
 ```
 
-## Candidate rule
+## Candidate project-truth rule
 
 Two obligations may commute in the normalizer only when all of these hold:
 
@@ -52,7 +52,7 @@ The derived rule is checked against six preregistered classifications:
 | same coordinate, conflicting desired states | not independent |
 | one obligation without known effect semantics | not independent |
 
-The manual table is only a control oracle for this bounded corpus. It is not used by the normalizer.
+The manual table is only a control oracle for this bounded corpus. It is not used by the normalizer. These classifications are relative to Overcenter's project-truth lens, not to every externally observable provider history.
 
 ## Hostile inference mutants
 
@@ -98,20 +98,39 @@ Starting from both physical histories, the experiment enumerates every action se
 ```text
 claim A
 claim B
+acquire execution A
+acquire execution B
 defer A
 defer B
 ```
 
-There are 85 sequences including the empty continuation.
+There are 259 sequences including the empty continuation. Execution-authority rotation is therefore part of the bounded future-behavior check rather than silently omitted.
 
 For every sequence:
 
 - legality must agree in both histories;
+- if both histories reject a continuation, the failure class must also agree;
 - if legal, production replay signatures must agree;
 - the derived normalizer must produce the same canonical form and semantic digest;
 - raw provenance digests must remain different.
 
 An asymmetric legal continuation is an immediate falsifier.
+
+
+## Provider-history counterexample
+
+The review adds a deliberately stronger lens test using the same production GitHub status-effect path with a deterministic in-memory provider transport.
+
+Two successful effects target different status contexts, so the project-truth candidate relation classifies them independent. The provider transport records mutation order in an externally observable audit sequence:
+
+```text
+A then B  -> provider audit [A, B]
+B then A  -> provider audit [B, A]
+```
+
+The Overcenter replay signature and project-truth normal form are required to match, while the provider audit histories are required to differ.
+
+This is a counterexample to the stronger claim that distinct `effectSemantics.resource` values establish provider-history independence. They do not. A future independence certificate therefore needs to bind an explicit **observation lens**. Existing production metadata can support a project-truth-relative candidate relation, but a provider-history certificate would need additional adapter semantics.
 
 ## Critical-pair condition
 
@@ -131,8 +150,9 @@ The hypothesis is supported only if:
 - all six oracle classifications match the derived rule;
 - all four weakened inference mutants are caught;
 - the production admission distinction between same-desired and conflicting same-coordinate writes is observed;
-- all 85 continuation sequences have symmetric legality;
+- all 259 continuation sequences have symmetric legality;
 - every legal continuation pair agrees under production replay and canonical normalization;
+- every mutually illegal continuation has the same failure class;
 - every tested critical-pair branch joins;
 - provenance remains distinct;
 - no production source file changes.
@@ -163,6 +183,7 @@ It would not yet justify productionizing the relation. The next rung would be a 
 - The bounded continuation search proves contextual equivalence for arbitrary future behavior.
 - General Knuth-Bendix completion or global confluence is established.
 - Production scheduling, admission, effect execution, replay, or settlement is changed.
+- Distinct effect resources by themselves establish provider-history equivalence.
 
 
 ## Frozen treatment
@@ -234,3 +255,10 @@ candidate commute relation
 The experiment also identifies an important boundary: `sameDesiredCommutes` is sufficient for conflict admission but not sufficient for history equivalence when duplicate delivery may have observable consequences.
 
 This supports a next step of turning the derivation into a proof-carrying **independence certificate** bound to the exact graph revision, semantic obligation identities, effect semantics, adapter capability metadata, and normalization ruleset. It does not yet promote the inference rule into production.
+
+
+## Review correction
+
+A post-result self-review found that the original treatment established equivalence only for pre-dispatch aborted attempts and therefore did not justify a provider-history interpretation of the inferred relation. The strengthened maintained treatment adds execution-authority continuations, compares failure classes, and includes the successful provider-audit counterexample above.
+
+Because these controls were added after the first hosted result, the maintained experiment is now a **mixed-design** experiment. The original preregistered evidence remains historical context; the strengthened treatment requires a new exact-head evaluation before the maintained result is called current.
