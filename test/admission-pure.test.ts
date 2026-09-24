@@ -66,8 +66,13 @@ test('effect conflict semantics distinguish resource and commutation identity', 
   const sameSuccess = effectSemantics(statusObligation('same-success', 'success').postcondition);
   const failure = effectSemantics(statusObligation('failure', 'failure').postcondition);
   const otherResource = effectSemantics({
-    ...statusObligation('other', 'success').postcondition,
+    verifier: 'github-commit-status/v2',
+    provider: 'github',
+    repository_id: 123,
+    repository_full_name: 'owner/repo',
+    commit_sha: 'a'.repeat(40),
     context: 'overcenter/other',
+    expected_state: 'success',
   });
   assert.ok(success);
   assert.ok(sameSuccess);
