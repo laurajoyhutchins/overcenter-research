@@ -720,7 +720,10 @@ export class KernelCore {
 
   hasUnresolvedDelegation(runId: string): boolean {
     const head = this.#requireHead();
-    return (this.#historicalProjection(head).history.unresolvedDelegationsByRun.get(runId)?.size ?? 0) > 0;
+    return (
+      (this.#historicalProjection(head).history.unresolvedDelegationsByRun.get(runId)?.size ?? 0) >
+      0
+    );
   }
 
   #commitGraphPatch(
