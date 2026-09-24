@@ -16,11 +16,7 @@ import { observationVerified } from '../../src/observation/observe.ts';
 import { RECEIPT_SCHEMA, type ReceiptFact } from '../../src/authority/facts.ts';
 import { projectReceipt } from '../../src/authority/replay.ts';
 
-type Evidence =
-  | 'verified-present'
-  | 'not-dispatched'
-  | 'terminal-absence'
-  | 'ambiguous';
+type Evidence = 'verified-present' | 'not-dispatched' | 'terminal-absence' | 'ambiguous';
 
 type Action = 'SETTLE' | 'RELEASE' | 'REPLAY' | 'RECOVERY_REQUIRED';
 
@@ -104,14 +100,11 @@ function safe(action: Exclude<Action, 'RECOVERY_REQUIRED'>, state: State, outcom
   }
 
   return (
-    !outcome.provider_desired_present &&
-    (state.replay_protected || !outcome.prior_effect_occurred)
+    !outcome.provider_desired_present && (state.replay_protected || !outcome.prior_effect_occurred)
   );
 }
 
-function weakestPrecondition(
-  action: Exclude<Action, 'RECOVERY_REQUIRED'>,
-): State[] {
+function weakestPrecondition(action: Exclude<Action, 'RECOVERY_REQUIRED'>): State[] {
   return states.filter((state) =>
     hiddenOutcomes(state).every((outcome) => safe(action, state, outcome)),
   );
@@ -135,10 +128,7 @@ function derivePositiveConjunction(selected: readonly State[]): string {
   for (let mask = 0; mask < 1 << count; mask += 1) {
     const chosen = atomicPredicates.filter((_, index) => (mask & (1 << index)) !== 0);
     const accepted = states.filter((state) => chosen.every(([, predicate]) => predicate(state)));
-    if (
-      accepted.length === target.size &&
-      accepted.every((state) => target.has(stateKey(state)))
-    ) {
+    if (accepted.length === target.size && accepted.every((state) => target.has(stateKey(state)))) {
       candidates.push({
         names: chosen.map(([name]) => name),
         states: accepted,
@@ -190,18 +180,9 @@ function chooseAction(state: State): Action {
 
 const partition = states.map((state) => ({ state, action: chooseAction(state) }));
 assert.equal(partition.length, 64);
-assert.equal(
-  partition.filter(({ action }) => action === 'SETTLE').length,
-  settleWp.length,
-);
-assert.equal(
-  partition.filter(({ action }) => action === 'RELEASE').length,
-  releaseWp.length,
-);
-assert.equal(
-  partition.filter(({ action }) => action === 'REPLAY').length,
-  replayWp.length,
-);
+assert.equal(partition.filter(({ action }) => action === 'SETTLE').length, settleWp.length);
+assert.equal(partition.filter(({ action }) => action === 'RELEASE').length, releaseWp.length);
+assert.equal(partition.filter(({ action }) => action === 'REPLAY').length, replayWp.length);
 assert.equal(
   partition.filter(({ action }) => action === 'RECOVERY_REQUIRED').length,
   states.length - settleWp.length - releaseWp.length - replayWp.length,
