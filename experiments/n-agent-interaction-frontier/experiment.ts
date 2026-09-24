@@ -19,9 +19,6 @@ interface ComponentResult {
   ids: string[];
   exhaustive_executions: number;
   trace_classes: number;
-  reduced_executions: number;
-  reduced_prefixes: number;
-  races: number;
 }
 
 interface InteractionAnalysis {
@@ -316,133 +313,18 @@ function canonicalTrace(sequence: readonly Event[], oracle: IndependenceOracle):
   return normalized.join(' ');
 }
 
-function exploreWithRaceBacktracking(
-  events: readonly Event[],
-  oracle: IndependenceOracle,
-): {
-  executions: Event[][];
-  prefixes: number;
-  races: number;
-} {
-  const byId = eventMap(events);
-  const ancestors = new Map(events.map((event) => [event.id, ancestorsOf(event.id, byId)]));
-  const backtrack = new Map<string, Set<string>>();
-  const exploredChoices = new Map<string, Set<string>>();
-  const executions: Event[][] = [];
-  let prefixes = 0;
-  let races = 0;
-
-  const prefixKey = (sequence: readonly Event[]): string =>
-    sequence.map((event) => event.id).join('\u001f');
-
-  const addBacktrack = (key: string, eventId: string): void => {
-    const choices = backtrack.get(key) ?? new Set<string>();
-    choices.add(eventId);
-    backtrack.set(key, choices);
-  };
-
-  const detectRaces = (sequence: readonly Event[]): void => {
-    const currentIndex = sequence.length - 1;
-    const current = sequence[currentIndex]!;
-
-    for (let priorIndex = 0; priorIndex < currentIndex; priorIndex += 1) {
-      const prior = sequence[priorIndex]!;
-      if (oracle(prior, current)) continue;
-      if (ancestors.get(current.id)?.has(prior.id) || ancestors.get(prior.id)?.has(current.id)) {
-        continue;
-      }
-
-      races += 1;
-      const beforePrior = sequence.slice(0, priorIndex);
-      const doneBeforePrior = new Set(beforePrior.map((event) => event.id));
-      const readyBeforePrior = enabledEvents(events, doneBeforePrior, byId);
-      const reorderRoot = readyBeforePrior.find(
-        (candidate) => candidate.obligation === current.obligation,
-      );
-      if (reorderRoot) addBacktrack(prefixKey(beforePrior), reorderRoot.id);
-    }
-  };
-
-  const visit = (sequence: Event[], done: Set<string>, sleep: ReadonlySet<string>): void => {
-    prefixes += 1;
-    if (sequence.length === events.length) {
-      executions.push([...sequence]);
-      return;
-    }
-
-    const ready = enabledEvents(events, done, byId);
-    assert.ok(ready.length > 0);
-    const key = prefixKey(sequence);
-    const choices = backtrack.get(key) ?? new Set<string>();
-
-    if (choices.size === 0) {
-      const first = ready.find((event) => !sleep.has(event.id));
-      if (!first) return;
-      addBacktrack(key, first.id);
-    }
-
-    const explored = exploredChoices.get(key) ?? new Set<string>();
-    exploredChoices.set(key, explored);
-
-    while (true) {
-      const pending = [...(backtrack.get(key) ?? [])]
-        .filter((eventId) => !explored.has(eventId))
-        .sort();
-      if (pending.length === 0) break;
-
-      const eventId = pending[0]!;
-      explored.add(eventId);
-      if (sleep.has(eventId)) continue;
-
-      const event = byId.get(eventId);
-      if (!event) throw new Error('UNKNOWN_BACKTRACK_EVENT:' + eventId);
-      assert.ok(ready.some((candidate) => candidate.id === eventId));
-
-      const nextSleep = new Set<string>();
-      for (const sleepingId of sleep) {
-        const sleeping = byId.get(sleepingId);
-        if (!sleeping) throw new Error('UNKNOWN_SLEEP_EVENT:' + sleepingId);
-        if (oracle(sleeping, event)) nextSleep.add(sleepingId);
-      }
-
-      sequence.push(event);
-      done.add(event.id);
-      detectRaces(sequence);
-      visit(sequence, done, nextSleep);
-      done.delete(event.id);
-      sequence.pop();
-
-      sleep = new Set(sleep);
-      sleep.add(event.id);
-    }
-  };
-
-  visit([], new Set(), new Set());
-  return { executions, prefixes, races };
-}
-
 function analyzeComponent(state: State, ids: readonly string[]): ComponentResult {
   const events = eventsForComponent(state, ids);
   const oracle = conservativeOracle(events);
   const exhaustive = enumerateAll(events);
-  const reduced = exploreWithRaceBacktracking(events, oracle);
   const exhaustiveTraces = new Set(
     exhaustive.map((execution) => canonicalTrace(execution, oracle)),
   );
-  const reducedTraces = new Set(
-    reduced.executions.map((execution) => canonicalTrace(execution, oracle)),
-  );
-
-  assert.deepEqual([...reducedTraces].sort(), [...exhaustiveTraces].sort());
-  assert.equal(reduced.executions.length, reducedTraces.size);
 
   return {
     ids: [...ids],
     exhaustive_executions: exhaustive.length,
     trace_classes: exhaustiveTraces.size,
-    reduced_executions: reduced.executions.length,
-    reduced_prefixes: reduced.prefixes,
-    races: reduced.races,
   };
 }
 
@@ -459,14 +341,6 @@ function summarize(state: State) {
     (total, component) => total + component.exhaustive_executions,
     0,
   );
-  const localReduced = components.reduce(
-    (total, component) => total + component.reduced_executions,
-    0,
-  );
-  const localPrefixes = components.reduce(
-    (total, component) => total + component.reduced_prefixes,
-    0,
-  );
   const globalTraceProduct = components.reduce(
     (product, component) => product * BigInt(component.trace_classes),
     1n,
@@ -476,8 +350,6 @@ function summarize(state: State) {
     interactions,
     components,
     local_exhaustive_executions: localExhaustive,
-    local_reduced_executions: localReduced,
-    local_reduced_prefixes: localPrefixes,
     global_trace_product: globalTraceProduct,
     max_component_size: Math.max(...components.map((component) => component.ids.length)),
     max_component_trace_classes: Math.max(
@@ -501,7 +373,6 @@ assert.equal(baseline.interactions.conflict_edges, 24);
 assert.equal(baseline.interactions.causal_edges, 0);
 assert.equal(baseline.interactions.static_conflict_nodes, 16);
 assert.equal(baseline.local_exhaustive_executions, 130);
-assert.equal(baseline.local_reduced_executions, 130);
 assert.equal(baseline.max_component_size, 4);
 assert.equal(baseline.max_component_trace_classes, 24);
 assert.equal(baseline.global_trace_product, 331_776n);
@@ -522,7 +393,6 @@ assert.equal(bridge.interactions.conflict_edges, 24);
 assert.equal(bridge.interactions.causal_edges, 1);
 assert.equal(bridge.interactions.static_conflict_nodes, 16);
 assert.equal(bridge.local_exhaustive_executions, 20_242);
-assert.equal(bridge.local_reduced_executions, 658);
 assert.equal(bridge.max_component_size, 8);
 assert.equal(bridge.max_component_trace_classes, 576);
 assert.equal(bridge.global_trace_product, 331_776n);
@@ -536,8 +406,7 @@ assert.equal(
 );
 assert.equal(
   bridge.interactions.components.some(
-    (component) =>
-      component.includes('cluster-a-0') && component.includes('cluster-b-0'),
+    (component) => component.includes('cluster-a-0') && component.includes('cluster-b-0'),
   ),
   true,
 );
@@ -555,8 +424,6 @@ console.log(
     full_total_orders: factorial(50).toString(),
     global_trace_product: baseline.global_trace_product.toString(),
     local_exhaustive_executions: baseline.local_exhaustive_executions,
-    local_reduced_executions: baseline.local_reduced_executions,
-    local_reduced_prefixes: baseline.local_reduced_prefixes,
     max_component_size: baseline.max_component_size,
     max_component_trace_classes: baseline.max_component_trace_classes,
   }),
@@ -574,8 +441,6 @@ console.log(
     full_total_orders: factorial(50).toString(),
     global_trace_product: bridge.global_trace_product.toString(),
     local_exhaustive_executions: bridge.local_exhaustive_executions,
-    local_reduced_executions: bridge.local_reduced_executions,
-    local_reduced_prefixes: bridge.local_reduced_prefixes,
     max_component_size: bridge.max_component_size,
     max_component_trace_classes: bridge.max_component_trace_classes,
   }),
@@ -598,9 +463,7 @@ console.log(
     baseline_possible_pairs: totalPairs,
     baseline_interaction_edges: baseline.interactions.interaction_edges,
     baseline_components: baseline.interactions.components.length,
-    baseline_local_reduced_executions: baseline.local_reduced_executions,
     bridge_components: bridge.interactions.components.length,
-    bridge_local_reduced_executions: bridge.local_reduced_executions,
     bridge_max_component_size: bridge.max_component_size,
     conflict_only_negative_control_rejected: true,
   }),
