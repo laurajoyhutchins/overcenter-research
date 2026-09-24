@@ -504,6 +504,60 @@
       }
     },
     {
+      "id": "dpor-causal-explorer",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/dpor-causal-explorer",
+      "readme": "experiments/dpor-causal-explorer/README.md",
+      "question": "Can Overcenter use causal independence during exploration so it executes one representative per relevant trace class instead of enumerating every concrete serialization first?",
+      "claim": "For the preregistered bounded corpus, runtime sleep-set partial-order reduction matches exhaustive Mazurkiewicz trace classes exactly while reducing 369,600 schedules to one safety execution and 24 scheduler-sensitive executions, without losing conflicting outcomes.",
+      "contrast": "Enumerate every total-order schedule and quotient afterward, or prune by obligation identity without preserving dependent alternatives.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:dpor-causal-explorer"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "The causal-execution-quotient experiment stacked immediately below this treatment supplies the prior independence result.",
+        "No network, provider credential, database, external solver, or model is required."
+      ],
+      "success_criteria": [
+        "Exhaustive exploration visits exactly 369,600 complete schedules for four disjoint claim-reserve-receipt chains.",
+        "Safety-sensitive sleep-set exploration visits exactly one complete execution.",
+        "Scheduler-sensitive sleep-set exploration visits exactly 24 complete executions.",
+        "Reduced and exhaustive canonical trace-key sets are exactly equal in both modes.",
+        "Every reduced complete execution belongs to a distinct trace class.",
+        "Conservative reduction preserves both final outcomes of two incompatible writes to one canonical resource.",
+        "Conservative reduction preserves both outcomes and all trace classes when initially independent roots enable later conflicting effects.",
+        "The intentionally unsound different-obligation-ID oracle reduces the conflicting-write fixture to one execution and misses one final outcome."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/dpor-causal-explorer.yml"
+        ],
+        "pending_reason": "The design, exact cardinalities, equivalence checks, and hostile controls are preregistered; exact-head hosted execution has not yet been recorded."
+      },
+      "interpretation": "A positive result would support performing causal reduction during bounded exploration rather than materializing every serialized execution first, while keeping the independence relation property-sensitive and conservative.",
+      "non_claims": [
+        "The experiment is a complete or optimal Source-DPOR or Optimal-DPOR implementation.",
+        "The independence oracle is complete for arbitrary provider effects.",
+        "The bounded treatment proves unbounded POR correctness.",
+        "Liveness-preserving POR conditions have been established.",
+        "Production scheduling should use sleep sets.",
+        "Project authority serialization can be weakened.",
+        "Provider receipts or evidence can be removed."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The exact 369,600-to-1 and 369,600-to-24 targets, exhaustive trace-set equality, future-conflict control, and intentionally unsound oracle were committed before hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The preregistered dynamic causal explorer has not yet produced exact-head hosted evidence."
+      }
+    },
+    {
       "id": "eventually-consistent-readback",
       "kind": "experiment",
       "status": "historical",
