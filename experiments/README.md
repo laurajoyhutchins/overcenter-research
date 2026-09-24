@@ -42,6 +42,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
 - `substrate-capability-admission/` - authenticated, context-bound capability admission with non-authorizing point absence and hostile evidence controls.
 - `source-obligation-integration/` - stable source intent, claim-time Git fencing, trusted current-main verification, CAS integration, conflict rejection, and replay detection.
+- `research-result-obligation-integration/` - trusted research-result certificates compile supported outcomes into stable source promotions independent of PR topology.
 - `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
 - `core-loop-concurrency/` - exact production-path bounded effect-concurrency benchmark behind one authority lane.
 - `scheduler-liveness/` - test conditional scheduler liveness with TLC plus an executable hostile scheduler, including fixed-set recovery fairness and continual fresh-work admission.
