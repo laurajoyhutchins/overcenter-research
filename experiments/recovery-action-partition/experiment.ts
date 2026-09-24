@@ -356,7 +356,12 @@ const receiptFact = (observed: Observation): ReceiptFact => ({
   settled_at: '2026-09-24T00:00:00.000Z',
 });
 
-const settledWithReservation = projectReceipt(receiptFact(verifiedObservation), work, undefined, true);
+const settledWithReservation = projectReceipt(
+  receiptFact(verifiedObservation),
+  work,
+  undefined,
+  true,
+);
 assert.equal(settledWithReservation.verified, true);
 assert.equal(settledWithReservation.disposition, 'DONE');
 
@@ -373,7 +378,12 @@ const settledDespiteAdapterMismatch = projectReceipt(
 assert.equal(settledDespiteAdapterMismatch.verified, true);
 assert.equal(settledDespiteAdapterMismatch.disposition, 'DONE');
 
-const unresolvedWrongState = projectReceipt(receiptFact(wrongStateObservation), work, undefined, true);
+const unresolvedWrongState = projectReceipt(
+  receiptFact(wrongStateObservation),
+  work,
+  undefined,
+  true,
+);
 assert.equal(unresolvedWrongState.verified, false);
 assert.equal(unresolvedWrongState.disposition, 'RECOVERY_REQUIRED');
 
