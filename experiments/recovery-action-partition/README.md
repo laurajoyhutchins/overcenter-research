@@ -154,4 +154,49 @@ The experiment is deterministic, offline, TypeScript-only, and adds no runtime d
 
 ## Result
 
-Pending exact-head hosted execution.
+**Supported for the preregistered bounded treatment.** Exact revision `e62739adf3e4764167762de3e1350a5deb0b322d` was evaluated in GitHub Actions Merge gate run `35955935794`, rerun attempt 2, exact-head candidate job `107497573082`.
+
+The 64-state unresolved-effect model derived exactly:
+
+~~~
+SETTLE = current_authority
+         AND exact_attempt_binding
+         AND evidence = verified-present
+
+RELEASE = current_authority
+          AND exact_attempt_binding
+          AND adapter_match
+          AND evidence = not-dispatched
+
+REPLAY = current_authority
+         AND exact_attempt_binding
+         AND adapter_match
+         AND replay_protected
+         AND evidence = terminal-absence
+
+RECOVERY_REQUIRED = otherwise
+~~~
+
+The resulting partition was total and disjoint:
+
+- SETTLE: 4 states
+- RELEASE: 2 states
+- REPLAY: 1 state
+- RECOVERY_REQUIRED: 57 states
+- safe-action overlap: 0 states
+
+The hostile controls behaved as required. Treating verified-present as proof of non-dispatch admitted 2 unsafe RELEASE states. Treating terminal absence as proof of non-dispatch admitted another 2 unsafe RELEASE states. Removing the RECOVERY_REQUIRED fallback left all 57 conservative states unclassified.
+
+The production differential confirmed the important separation:
+
+- exact desired-state observation verified successfully;
+- a verified observation settled DONE even with an unresolved reservation;
+- the same verified observation still settled DONE when the packet effect adapter was deliberately changed to an unregistered value;
+- a wrong-state GitHub observation with an unresolved effect stayed RECOVERY_REQUIRED;
+- the exact pre-secureConnect GitHub witness remained accepted for RELEASE;
+- current GitHub terminal absence mapped to RECOVERY_REQUIRED because replay remains forbidden;
+- the replay-protected terminal-absence control mapped to REPLAY.
+
+The exact-head candidate also passed the complete deterministic experiment suite, TLA+, the production computation boundary, and self-application.
+
+The central result is that verified settlement belongs to the postcondition/evidence layer, while RELEASE and REPLAY additionally depend on mutation-adapter semantics. Those responsibilities can therefore be composed into one deterministic recovery decision without conflating them.
