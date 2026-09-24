@@ -482,8 +482,14 @@ try {
       .digest('hex');
     const closure = moduleClosure(property.entries.map((entry) => entry.path));
     const symbols = symbolClosure(property.entries);
-    if (symbols.semantic_loc > closure.semantic_loc) {
-      throw new Error(`TCB_SYMBOL_CLOSURE_EXCEEDS_MODULE_CLOSURE:${property.id}`);
+    const moduleFiles = new Set(closure.files);
+    const symbolFilesOutsideModuleClosure = symbols.files.filter((path) => !moduleFiles.has(path));
+    if (symbolFilesOutsideModuleClosure.length > 0) {
+      symbols.obligations.push(
+        ...symbolFilesOutsideModuleClosure.map((path) => `SYMBOL_OUTSIDE_MODULE_CLOSURE:${path}`),
+      );
+      symbols.obligations.sort();
+      symbols.status = 'candidate';
     }
     if (semanticLoc > property.max_semantic_loc) failed = true;
     if (property.expected_surface_sha256 && property.expected_surface_sha256 !== surfaceSha256) {
@@ -519,6 +525,7 @@ try {
       symbol_closure_status: symbols.status,
       symbol_closure_semantic_loc: symbols.semantic_loc,
       symbol_closure_files: symbols.files,
+      symbol_closure_files_outside_module_closure: symbolFilesOutsideModuleClosure,
       symbol_closure_declarations: symbols.declarations,
       symbol_closure_external_symbols: symbols.external_symbols,
       symbol_closure_obligations: symbols.obligations,
