@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { admitSourceTaskFromGithubWorkflow } from '../src/source/github-evidence-admission.ts';
-import { SOURCE_TASK_SCHEMA } from '../src/source/source-obligation.ts';
 import type { GithubJsonGet } from '../src/providers/github/rest.ts';
+import { SOURCE_TASK_SCHEMA } from '../src/source/source-obligation.ts';
 
 const TASK_PATH = '.overcenter/promotions/result-a.json';
 const WORKFLOW_RUN_ID = 7001;
@@ -50,9 +50,9 @@ function fixture() {
   );
   execFileSync('git', ['-C', root, 'add', TASK_PATH]);
   execFileSync('git', ['-C', root, 'commit', '-m', 'post-hoc task mutation']);
-  const evaluatedSha = git(root, ['rev-parse', 'HEAD']);
+  const currentSha = git(root, ['rev-parse', 'HEAD']);
 
-  return { root, original, designSha, designBlobSha, evaluatedSha };
+  return { root, original, designSha, designBlobSha, currentSha };
 }
 
 function repository() {
@@ -65,7 +65,7 @@ function repository() {
   };
 }
 
-function workflowRun(evaluatedSha: string, overrides: Record<string, unknown> = {}) {
+function workflowRun(designSha: string, overrides: Record<string, unknown> = {}) {
   return {
     id: WORKFLOW_RUN_ID,
     node_id: 'WFR_7001',
@@ -76,7 +76,7 @@ function workflowRun(evaluatedSha: string, overrides: Record<string, unknown> = 
     event: 'pull_request',
     status: 'completed',
     conclusion: 'success',
-    head_sha: evaluatedSha,
+    head_sha: designSha,
     head_branch: 'research/result-a',
     path: '.github/workflows/research.yml',
     created_at: '2026-09-24T14:00:00Z',
@@ -85,13 +85,13 @@ function workflowRun(evaluatedSha: string, overrides: Record<string, unknown> = 
   };
 }
 
-function workflowJob(evaluatedSha: string, overrides: Record<string, unknown> = {}) {
+function workflowJob(designSha: string, overrides: Record<string, unknown> = {}) {
   return {
     id: WORKFLOW_JOB_ID,
     run_id: WORKFLOW_RUN_ID,
     run_attempt: 2,
     node_id: 'WFRJ_8001',
-    head_sha: evaluatedSha,
+    head_sha: designSha,
     name: `promote:${TASK_PATH}`,
     status: 'completed',
     conclusion: 'success',
@@ -103,15 +103,12 @@ function workflowJob(evaluatedSha: string, overrides: Record<string, unknown> = 
 
 function provider(
   designSha: string,
-  evaluatedSha: string,
   {
-    run = workflowRun(evaluatedSha),
-    job = workflowJob(evaluatedSha),
-    comparison = {},
+    run = workflowRun(designSha),
+    job = workflowJob(designSha),
   }: {
     run?: unknown;
     job?: unknown;
-    comparison?: Record<string, unknown>;
   } = {},
 ): { get: GithubJsonGet; calls: string[] } {
   const calls: string[] = [];
@@ -120,27 +117,16 @@ function provider(
     if (path === '/repos/acme/widget') return repository();
     if (path === `/repos/acme/widget/actions/runs/${WORKFLOW_RUN_ID}`) return run;
     if (path === `/repos/acme/widget/actions/jobs/${WORKFLOW_JOB_ID}`) return job;
-    if (path.startsWith('/repos/acme/widget/compare/')) {
-      return {
-        status: 'ahead',
-        ahead_by: 1,
-        behind_by: 0,
-        base_commit: { sha: designSha },
-        merge_base_commit: { sha: designSha },
-        ...comparison,
-      };
-    }
     throw new Error('unexpected provider path:' + path);
   };
   return { get, calls };
 }
 
-function request(designSha: string, evaluatedSha: string) {
+function request(designSha: string) {
   return {
     repositoryId: 42,
     repositoryFullName: 'acme/widget',
     designSha,
-    evaluatedSha,
     taskPath: TASK_PATH,
     workflowRunId: WORKFLOW_RUN_ID,
     workflowJobId: WORKFLOW_JOB_ID,
@@ -150,25 +136,23 @@ function request(designSha: string, evaluatedSha: string) {
   };
 }
 
-test('exact GitHub evidence admits only the source task frozen at the design commit', () => {
+test('exact GitHub evidence admits only the source task frozen at the executed design commit', () => {
   const f = fixture();
   try {
-    const p = provider(f.designSha, f.evaluatedSha);
-    const admitted = admitSourceTaskFromGithubWorkflow(
-      f.root,
-      'token',
-      request(f.designSha, f.evaluatedSha),
-      { get: p.get, clock: () => '2026-09-24T14:06:00.000Z' },
-    );
+    assert.notEqual(f.currentSha, f.designSha);
+    const p = provider(f.designSha);
+    const admitted = admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha), {
+      get: p.get,
+      clock: () => '2026-09-24T14:06:00.000Z',
+    });
 
     assert.deepEqual(admitted.task, f.original);
     assert.equal(admitted.design.commit_sha, f.designSha);
     assert.equal(admitted.design.task_blob_sha, f.designBlobSha);
-    assert.equal(admitted.workflow_run.value.head_sha, f.evaluatedSha);
+    assert.equal(admitted.workflow_run.value.head_sha, f.designSha);
     assert.equal(admitted.workflow_run.evidence.operation_id, 'actions/get-workflow-run');
     assert.equal(admitted.promotion_job.value.name, `promote:${TASK_PATH}`);
     assert.equal(admitted.promotion_job.evidence.operation_id, 'actions/get-job-for-workflow-run');
-    assert.equal(admitted.ancestry.relation, 'ancestor');
     assert.equal(JSON.stringify(admitted.task).includes('unrelated.ts'), false);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
@@ -178,12 +162,12 @@ test('exact GitHub evidence admits only the source task frozen at the design com
 test('a green experiment does not promote when its promotion job is skipped', () => {
   const f = fixture();
   try {
-    const p = provider(f.designSha, f.evaluatedSha, {
-      job: workflowJob(f.evaluatedSha, { conclusion: 'skipped' }),
+    const p = provider(f.designSha, {
+      job: workflowJob(f.designSha, { conclusion: 'skipped' }),
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha), {
           get: p.get,
         }),
       /SOURCE_PROMOTION_JOB_NOT_SUCCESSFUL/,
@@ -193,38 +177,49 @@ test('a green experiment does not promote when its promotion job is skipped', ()
   }
 });
 
-test('workflow identity, exact revision, and explicit certification attempt all fail closed', () => {
+test('workflow identity, exact design revision, and certification attempt fail closed', () => {
   const f = fixture();
   try {
-    const stale = provider(f.designSha, f.evaluatedSha, {
+    const stale = provider(f.designSha, {
       run: workflowRun('f'.repeat(40)),
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha), {
           get: stale.get,
         }),
-      /SOURCE_PROMOTION_EVALUATED_SHA_MISMATCH/,
+      /SOURCE_PROMOTION_DESIGN_SHA_MISMATCH/,
     );
 
-    const early = provider(f.designSha, f.evaluatedSha, {
-      run: workflowRun(f.evaluatedSha, { run_attempt: 1 }),
-      job: workflowJob(f.evaluatedSha, { run_attempt: 1 }),
+    const early = provider(f.designSha, {
+      run: workflowRun(f.designSha, { run_attempt: 1 }),
+      job: workflowJob(f.designSha, { run_attempt: 1 }),
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha), {
           get: early.get,
         }),
       /SOURCE_PROMOTION_WORKFLOW_ATTEMPT_TOO_EARLY/,
     );
 
-    const wrongJob = provider(f.designSha, f.evaluatedSha, {
-      job: workflowJob(f.evaluatedSha, { name: 'ordinary-regression' }),
+    const wrongWorkflow = provider(f.designSha, {
+      run: workflowRun(f.designSha, { path: '.github/workflows/unrelated.yml' }),
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha), {
+          get: wrongWorkflow.get,
+        }),
+      /SOURCE_PROMOTION_WORKFLOW_IDENTITY_MISMATCH/,
+    );
+
+    const wrongJob = provider(f.designSha, {
+      job: workflowJob(f.designSha, { name: 'ordinary-regression' }),
+    });
+    assert.throws(
+      () =>
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha), {
           get: wrongJob.get,
         }),
       /SOURCE_PROMOTION_WORKFLOW_JOB_MISMATCH/,
@@ -234,25 +229,23 @@ test('workflow identity, exact revision, and explicit certification attempt all 
   }
 });
 
-test('a task cannot use evidence from a revision outside its frozen design ancestry', () => {
+test('workflow job must belong to the exact successful run and attempt', () => {
   const f = fixture();
   try {
-    const other = 'e'.repeat(40);
-    const p = provider(f.designSha, f.evaluatedSha, {
-      comparison: {
-        status: 'diverged',
-        ahead_by: 1,
-        behind_by: 1,
-        merge_base_commit: { sha: other },
-      },
-    });
-    assert.throws(
-      () =>
-        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
-          get: p.get,
-        }),
-      /SOURCE_PROMOTION_DESIGN_NOT_ANCESTOR/,
-    );
+    for (const job of [
+      workflowJob(f.designSha, { run_id: WORKFLOW_RUN_ID + 1 }),
+      workflowJob(f.designSha, { run_attempt: 3 }),
+      workflowJob('e'.repeat(40)),
+    ]) {
+      const p = provider(f.designSha, { job });
+      assert.throws(
+        () =>
+          admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha), {
+            get: p.get,
+          }),
+        /SOURCE_PROMOTION_WORKFLOW_JOB_MISMATCH/,
+      );
+    }
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
@@ -273,13 +266,11 @@ test('invalid frozen source task fails before any provider evidence is consulted
     execFileSync('git', ['-C', f.root, 'add', TASK_PATH]);
     execFileSync('git', ['-C', f.root, 'commit', '-m', 'bad design']);
     const badDesign = git(f.root, ['rev-parse', 'HEAD']);
-    execFileSync('git', ['-C', f.root, 'commit', '--allow-empty', '-m', 'evaluate bad design']);
-    const evaluated = git(f.root, ['rev-parse', 'HEAD']);
-    const p = provider(badDesign, evaluated);
+    const p = provider(badDesign);
 
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(badDesign, evaluated), {
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(badDesign), {
           get: p.get,
         }),
       /SOURCE_TASK_WRITABLE_PATH_INVALID/,
