@@ -167,10 +167,7 @@ test('exact GitHub evidence admits only the source task frozen at the design com
     assert.equal(admitted.workflow_run.value.head_sha, f.evaluatedSha);
     assert.equal(admitted.workflow_run.evidence.operation_id, 'actions/get-workflow-run');
     assert.equal(admitted.promotion_job.value.name, `promote:${TASK_PATH}`);
-    assert.equal(
-      admitted.promotion_job.evidence.operation_id,
-      'actions/get-job-for-workflow-run',
-    );
+    assert.equal(admitted.promotion_job.evidence.operation_id, 'actions/get-job-for-workflow-run');
     assert.equal(admitted.ancestry.relation, 'ancestor');
     assert.equal(JSON.stringify(admitted.task).includes('unrelated.ts'), false);
   } finally {
@@ -186,12 +183,9 @@ test('a green experiment does not promote when its promotion job is skipped', ()
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(
-          f.root,
-          'token',
-          request(f.designSha, f.evaluatedSha),
-          { get: p.get },
-        ),
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+          get: p.get,
+        }),
       /SOURCE_PROMOTION_JOB_NOT_SUCCESSFUL/,
     );
   } finally {
@@ -207,12 +201,9 @@ test('workflow identity, exact revision, and explicit certification attempt all 
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(
-          f.root,
-          'token',
-          request(f.designSha, f.evaluatedSha),
-          { get: stale.get },
-        ),
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+          get: stale.get,
+        }),
       /SOURCE_PROMOTION_EVALUATED_SHA_MISMATCH/,
     );
 
@@ -222,12 +213,9 @@ test('workflow identity, exact revision, and explicit certification attempt all 
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(
-          f.root,
-          'token',
-          request(f.designSha, f.evaluatedSha),
-          { get: early.get },
-        ),
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+          get: early.get,
+        }),
       /SOURCE_PROMOTION_WORKFLOW_ATTEMPT_TOO_EARLY/,
     );
 
@@ -236,12 +224,9 @@ test('workflow identity, exact revision, and explicit certification attempt all 
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(
-          f.root,
-          'token',
-          request(f.designSha, f.evaluatedSha),
-          { get: wrongJob.get },
-        ),
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+          get: wrongJob.get,
+        }),
       /SOURCE_PROMOTION_WORKFLOW_JOB_MISMATCH/,
     );
   } finally {
@@ -263,12 +248,9 @@ test('a task cannot use evidence from a revision outside its frozen design ances
     });
     assert.throws(
       () =>
-        admitSourceTaskFromGithubWorkflow(
-          f.root,
-          'token',
-          request(f.designSha, f.evaluatedSha),
-          { get: p.get },
-        ),
+        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha, f.evaluatedSha), {
+          get: p.get,
+        }),
       /SOURCE_PROMOTION_DESIGN_NOT_ANCESTOR/,
     );
   } finally {
