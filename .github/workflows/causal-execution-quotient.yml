@@ -1,15 +1,15 @@
-name: Core-loop bounded concurrency
+name: Causal execution quotient
 
 on:
   workflow_dispatch:
   pull_request:
-    types: [ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - .github/workflows/core-loop-concurrency.yml
-      - experiments/core-loop-concurrency/**
-      - src/authority/engine.ts
-      - src/authority/kernel.ts
-      - src/execution/core-loop.ts
+      - .github/workflows/causal-execution-quotient.yml
+      - experiments/causal-execution-quotient/**
+      - src/authority/admission.ts
+      - src/authority/project-state.ts
+      - src/graph/**
       - src/model.ts
 
 permissions: {}
@@ -18,8 +18,8 @@ env:
   SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  benchmark:
-    name: Production bounded effect concurrency
+  experiment:
+    name: Causal quotient exact-head experiment
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -35,4 +35,4 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .node-version
-      - run: npm run experiment:core-loop-concurrency
+      - run: node --experimental-strip-types experiments/causal-execution-quotient/experiment.ts
