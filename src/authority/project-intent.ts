@@ -6,7 +6,9 @@ import {
   SOURCE_TASK_SCHEMA,
   validateSourceTaskPacket,
 } from '../source/source-obligation.ts';
-import { assertExactKeys, isData } from '../validation.ts';
+import type { Dependency, Postcondition } from '../model.ts';
+import { validatePostcondition } from '../observation/observe.ts';
+import { assertExactKeys, assertNonEmptyString, isData } from '../validation.ts';
 import { normalizeObligation, type ObligationInput } from './facts.ts';
 
 export const PROJECT_INTENT_SCHEMA = 'overcenter-project-intent/v1' as const;
@@ -32,6 +34,7 @@ export function compileProjectIntent(value: unknown): ObligationInput[] {
       ['dependencies', 'postcondition'],
       `PROJECT_INTENT_OBLIGATION_INVALID:${index}`,
     );
+    assertNonEmptyString(candidate.id, `PROJECT_INTENT_OBLIGATION_ID_INVALID:${index}`);
     if (!isData(candidate.task)) {
       throw new Error(`PROJECT_INTENT_TASK_INVALID:${index}`);
     }
@@ -72,13 +75,15 @@ export function compileProjectIntent(value: unknown): ObligationInput[] {
       output_path: candidate.task.output_path,
     });
 
+    const postcondition = structuredClone(candidate.postcondition) as Postcondition;
+    validatePostcondition(postcondition);
     return normalizeObligation({
       id: candidate.id,
       ...(candidate.dependencies === undefined
         ? {}
-        : { dependencies: structuredClone(candidate.dependencies) }),
+        : { dependencies: structuredClone(candidate.dependencies) as Dependency[] }),
       packet: structuredClone(packet),
-      postcondition: structuredClone(candidate.postcondition),
-    } as ObligationInput);
+      postcondition,
+    });
   });
 }
