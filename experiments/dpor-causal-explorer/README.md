@@ -89,3 +89,31 @@ A positive result supports moving causal equivalence from a post-hoc normalizati
 - Production scheduling should use sleep sets.
 - Project authority serialization can be weakened.
 - Provider receipts or evidence can be removed.
+
+
+## Exact-head result
+
+Supported at exact treatment revision `74372e34c4051310e36c149e87ceb7df8804390d`.
+
+GitHub Actions run `35950392666`, job `107477474186`, passed the preregistered treatment.
+
+| Measurement | Exhaustive | Reduced |
+| --- | ---: | ---: |
+| Safety complete executions | 369,600 | 1 |
+| Safety explored prefixes | 1,107,697 | 256 |
+| Safety trace classes | 1 | 1 |
+| Scheduler complete executions | 369,600 | 24 |
+| Scheduler explored prefixes | 1,107,697 | 2,713 |
+| Scheduler trace classes | 24 | 24 |
+
+The complete-execution reductions were **369,600x** for the safety projection and **15,400x** for the scheduler-sensitive projection. In both cases the reduced canonical trace-key set exactly equaled the exhaustive trace-key set, and every reduced execution represented a distinct trace.
+
+The conflicting-write control retained both exhaustive outcomes in two reduced executions. The deliberately unsound distinct-obligation oracle reduced the same fixture to one execution and one outcome, missing the other outcome as required.
+
+The future-conflict control was also preserved: six concrete executions formed two trace classes and two final outcomes; reduced exploration visited exactly two executions and retained both classes and both outcomes.
+
+### Interpretation
+
+For this bounded corpus, causal reduction does not need to be a post-processing step. The explorer can avoid constructing almost all redundant serializations while preserving the property-sensitive distinctions established by the causal-execution-quotient experiment.
+
+The result justifies a next experiment with a fuller DPOR backtracking/race formulation against the same exhaustive oracle. It does not by itself establish liveness-preserving POR or arbitrary provider-effect independence.
