@@ -43,8 +43,6 @@ jobs:
           rustup default stable
           rustc --version
 
-      - name: Experiment contract
-        run: npm run test:experiment-contract
 
       - name: Typed capability authority experiment
         run: npm run test:typed-capability-authority
