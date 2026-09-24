@@ -3304,6 +3304,59 @@
         "state": "supported",
         "summary": "For the bounded two-obligation corpus, opposite certified-independent interleavings normalize to the same semantic form under four tested continuations while physical provenance remains distinct; the tested commutation/collapse overlap is joinable and all hostile unsafe-law controls are distinguished."
       }
+    },
+    {
+      "id": "history-independence-inference",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/history-independence-inference",
+      "readme": "experiments/history-independence-inference/README.md",
+      "question": "Can Overcenter derive a conservative execution-history independence relation from production graph causality, effect coordinates, and adapter duplicate-delivery semantics, then use it to normalize real histories without a hand-written commute table?",
+      "claim": "For the bounded GitHub-status corpus, the derived rule matches six manual control classifications, rejects four unsafe inference mutants, and preserves semantic equivalence across every legal continuation through depth three for opposite physical interleavings.",
+      "contrast": "Treat absence of graph dependency as sufficient independence, or infer commutativity from equal desired values without accounting for provider effect coordinates and duplicate-delivery semantics.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:history-independence-inference"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production graph topology, effectSemantics, adapter capability metadata, SQLite fact storage, replay/projector, and GitHub commit-status effect code.",
+        "Deterministic fresh-HTTPS pre-secureConnect failure fixture; no live provider credential or provider write is required."
+      ],
+      "success_criteria": [
+        "The derived relation matches all six preregistered manual control classifications.",
+        "Removing graph causality, ignoring effect resources, treating unknown effect semantics as independent, and treating sameDesiredCommutes as sufficient despite may-duplicate delivery each produce a caught false positive.",
+        "Production admission permits same-coordinate same-desired GitHub status obligations but rejects conflicting desired states, while the history normalizer conservatively keeps the admitted may-duplicate pair non-independent.",
+        "All 85 continuation action sequences through depth three have symmetric legality for A-first and B-first histories.",
+        "Every legal continuation pair agrees under production replay and reduces to the same canonical semantic normal form and semantic digest.",
+        "Every tested one-step critical-pair branch reduces to the base normal form.",
+        "Raw provenance digests remain distinct for equivalent semantic histories.",
+        "No production source file is modified."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/history-independence-inference.yml"
+        ],
+        "pending_reason": "The derived-independence treatment and acceptance criteria are implemented on the experiment branch; exact-head hosted evidence has not yet been recorded."
+      },
+      "interpretation": "A positive result would support mechanically proposing history-independence relations from existing Overcenter semantics, with a later certificate layer binding the decision to exact graph, obligation, adapter, and ruleset identities.",
+      "non_claims": [
+        "Unknown or arbitrary agent effects are safe to commute.",
+        "Same-resource same-desired GitHub status writes are semantically idempotent.",
+        "The bounded continuation search proves arbitrary contextual equivalence.",
+        "The inferred relation is complete rather than deliberately conservative.",
+        "General completion or global confluence is established.",
+        "Production scheduling, admission, mutation, replay, or settlement behavior is changed."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The six control classifications, conservative derivation rule, four hostile inference mutants, exhaustive depth-three continuation alphabet, critical-pair condition, and non-claims were recorded before accepted hosted treatment evidence."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The conservative derived-independence hypothesis is preregistered and awaiting exact-head execution."
+      }
     }
   ]
 }
