@@ -69,9 +69,13 @@ test('candidate transport stays internal and inert until project.submit is invok
     /startsWith\(github\.event\.workflow_run\.head_branch, 'overcenter\/candidate\/'\)/,
   );
   assert.match(submit, /COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.sha \}\}/);
+  assert.match(submit, /id: transport/);
   assert.match(submit, /if \[ "\$changed" = "\.overcenter\/candidate\.json" \]; then/);
   assert.match(submit, /test "\$branch_run_id" = "\$candidate_run_id"/);
-  assert.match(submit, /OVERCENTER_CANDIDATE_RUN_ID: \$\{\{ env\.CANDIDATE_RUN_ID \}\}/);
+  assert.match(
+    submit,
+    /OVERCENTER_CANDIDATE_RUN_ID: \$\{\{ steps\.transport\.outputs\.candidate_run_id \}\}/,
+  );
   assert.match(submit, /Download source verification/);
   assert.match(submit, /overcenter-source-verification/);
   assert.match(submit, /project-submit\.ts --receipt response\/receipt\.json/);
