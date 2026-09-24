@@ -22,6 +22,7 @@ on:
       - src/providers/github/certified-status.ts
       - src/providers/github/semantics.ts
       - src/providers/github/operations.generated.ts
+      - package.json
   pull_request:
     types: [ready_for_review]
     paths:
@@ -41,6 +42,7 @@ on:
       - src/providers/github/certified-status.ts
       - src/providers/github/semantics.ts
       - src/providers/github/operations.generated.ts
+      - package.json
 
 permissions: {}
 
