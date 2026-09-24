@@ -11,6 +11,7 @@ on:
       - src/authority/kernel.ts
       - src/execution/core-loop.ts
       - src/model.ts
+      - package.json
 
 permissions: {}
 
