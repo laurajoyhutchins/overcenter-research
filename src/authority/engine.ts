@@ -70,10 +70,7 @@ import {
   trustedSourceIntegrationEvidence,
   type TrustedSourceIntegrationWitness,
 } from '../source/source-integration.ts';
-import {
-  bindSourceClaim,
-  type SourceClaimBinding,
-} from '../source/source-obligation.ts';
+import { bindSourceClaim, type SourceClaimBinding } from '../source/source-obligation.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -329,12 +326,7 @@ export class KernelCore {
     const run = this.#historicalProjection(this.#requireHead()).history.runs.get(runId);
     if (!run) throw new Error('UNKNOWN_RUN');
     if (!run.source_revision) throw new Error('SOURCE_REVISION_MISSING');
-    return bindSourceClaim(
-      run.obligation_key,
-      run.id,
-      run.claimed_revision,
-      run.source_revision,
-    );
+    return bindSourceClaim(run.obligation_key, run.id, run.claimed_revision, run.source_revision);
   }
 
   acquireExecution(runId: string): ExecutionPermit {
@@ -557,13 +549,9 @@ export class KernelCore {
         throw new Error('SOURCE_INTEGRATION_EVIDENCE_BINDING_MISMATCH');
       }
 
-      const fact = this.#receiptFact(
-        authoritative,
-        run.obligation_id,
-        'source-integration',
-        null,
-        { source_integration: evidence },
-      );
+      const fact = this.#receiptFact(authoritative, run.obligation_id, 'source-integration', null, {
+        source_integration: evidence,
+      });
       const commit = this.#store.append(
         head,
         `overcenter: integrate source ${run.obligation_id} ${run.id}`,
@@ -579,11 +567,7 @@ export class KernelCore {
     throw new Error('SOURCE_INTEGRATION_SETTLEMENT_CONTENTION_EXHAUSTED');
   }
 
-  retrySourceIntegration(
-    permit: ExecutionPermit,
-    reason: string,
-    diagnostic: Data = {},
-  ): Receipt {
+  retrySourceIntegration(permit: ExecutionPermit, reason: string, diagnostic: Data = {}): Receipt {
     if (!reason) throw new Error('SOURCE_RETRY_REASON_INVALID');
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const head = this.#requireHead();
@@ -607,16 +591,10 @@ export class KernelCore {
         throw new Error('SOURCE_RETRY_WITH_UNRESOLVED_EFFECT');
       }
 
-      const fact = this.#receiptFact(
-        authoritative,
-        run.obligation_id,
-        'source-retry',
-        null,
-        {
-          ...structuredClone(diagnostic),
-          source_retry: { reason },
-        },
-      );
+      const fact = this.#receiptFact(authoritative, run.obligation_id, 'source-retry', null, {
+        ...structuredClone(diagnostic),
+        source_retry: { reason },
+      });
       const commit = this.#store.append(
         head,
         `overcenter: retry source ${run.obligation_id} ${run.id}`,
