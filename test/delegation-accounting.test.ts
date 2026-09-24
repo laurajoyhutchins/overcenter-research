@@ -114,8 +114,6 @@ test('replay preserves causal multiplicity and a fresh controller can discharge 
   }
 });
 
-
-
 test('replay rejects a forged terminal parent receipt with outstanding causal work', async () => {
   const fixture = new GitKernelFixture('overcenter-delegation-hostile-replay-');
   try {
