@@ -3,7 +3,8 @@ import { canonicalDigest } from './digest.ts';
 import type { ValidatedEffectReleaseWitness } from './effect-release-witness.ts';
 import { isData as data } from './validation.ts';
 
-export const EFFECT_CONTRACT_CAPABILITIES_SCHEMA = 'overcenter-effect-contract-capabilities' as const;
+export const EFFECT_CONTRACT_CAPABILITIES_SCHEMA =
+  'overcenter-effect-contract-capabilities' as const;
 
 export const GITHUB_COMMIT_STATUS_EFFECT =
   'github-commit-status/set-from-postcondition/v1' as const;
