@@ -151,7 +151,7 @@ test('dispatch failure leaves durable causal work recoverable', async () => {
   }
 });
 
-test('delegation rejects direct and transitive causal cycles', async () => {
+test('delegation rejects static and dynamic causal cycles', async () => {
   const fixture = new GitKernelFixture('overcenter-delegation-cycle-');
   try {
     fixture.defineFile('parent', { content: 'parent-done' });
@@ -167,8 +167,10 @@ test('delegation rejects direct and transitive causal cycles', async () => {
       content: 'transitive-done',
       dependencies: [controlDependency('middle')],
     });
+    fixture.defineFile('peer', { content: 'peer-done' });
 
     const parent = fixture.claim('parent');
+    const peer = fixture.claim('peer');
     const spawn = fixture.kernel.authorizeSpawn(parent);
 
     await assert.rejects(
@@ -179,7 +181,20 @@ test('delegation rejects direct and transitive causal cycles', async () => {
       () => fixture.kernel.performDelegation(spawn, 'transitive-child', async () => {}),
       /DELEGATION_CAUSAL_CYCLE/,
     );
-    assert.deepEqual(fixture.kernel.outstandingDelegations(parent.id), []);
+
+    await fixture.kernel.performDelegation(spawn, 'peer', async () => {});
+    await assert.rejects(
+      () =>
+        fixture.kernel.performDelegation(
+          fixture.kernel.authorizeSpawn(peer),
+          'parent',
+          async () => {},
+        ),
+      /DELEGATION_CAUSAL_CYCLE/,
+    );
+
+    assert.equal(fixture.kernel.outstandingDelegations(parent.id).length, 1);
+    assert.deepEqual(fixture.kernel.outstandingDelegations(peer.id), []);
   } finally {
     fixture.close();
   }
@@ -208,6 +223,43 @@ test('replay rejects a forged causal-cycle delegation reservation', () => {
         execution_generation: parent.execution_generation,
         execution_authority_commit: parent.execution_authority_commit,
         child_obligation_id: 'child',
+      },
+    });
+    assert.ok(forged);
+
+    assert.throws(() => fixture.kernel.inspect(), /DELEGATION_CAUSAL_CYCLE/);
+  } finally {
+    fixture.close();
+  }
+});
+
+test('replay rejects a forged dynamic delegation cycle', async () => {
+  const fixture = new GitKernelFixture('overcenter-delegation-dynamic-cycle-replay-');
+  try {
+    fixture.defineFile('left', { content: 'left-done' });
+    fixture.defineFile('right', { content: 'right-done' });
+    const left = fixture.claim('left');
+    const right = fixture.claim('right');
+
+    await fixture.kernel.performDelegation(
+      fixture.kernel.authorizeSpawn(left),
+      'right',
+      async () => {},
+    );
+
+    const store = new GitFactStore(fixture.authority, { ref: 'refs/overcenter/state' });
+    const head = store.head();
+    assert.ok(head);
+    const forged = store.append(head, 'hostile: dynamic causal delegation cycle', {
+      'delegation-reservation.json': {
+        schema: DELEGATION_RESERVATION_SCHEMA,
+        schema_version: DELEGATION_SCHEMA_VERSION,
+        delegation_id: 'hostile-dynamic-cycle',
+        run_id: right.id,
+        obligation_id: right.obligation_id,
+        execution_generation: right.execution_generation,
+        execution_authority_commit: right.execution_authority_commit,
+        child_obligation_id: 'left',
       },
     });
     assert.ok(forged);
@@ -269,9 +321,6 @@ test('SQLite reconstructs outstanding delegation across controller replacement',
   const childPath = join(root, 'child.txt');
   const first = new OvercenterKernel(database);
 
-  let parentRunId: string | null = null;
-  let parentGeneration: number | null = null;
-
   try {
     first.initialize();
     first.define({
@@ -294,19 +343,21 @@ test('SQLite reconstructs outstanding delegation across controller replacement',
     const parentWork = first.inspect().find((work) => work.id === 'parent');
     assert.ok(parentWork);
     const parent = first.claim('parent', parentWork.revision);
-    parentRunId = parent.id;
-    parentGeneration = parent.execution_generation;
     await first.performDelegation(first.authorizeSpawn(parent), 'child', async () => {});
     assert.equal(first.outstandingDelegations(parent.id).length, 1);
   } finally {
     first.close();
   }
 
-  assert.ok(parentRunId);
-  assert.ok(parentGeneration !== null);
-
   const recovery = new OvercenterKernel(database);
   try {
+    const recoveredParent = recovery.inspect().find((work) => work.id === 'parent');
+    assert.ok(recoveredParent);
+    assert.ok(recoveredParent.run_id);
+    assert.ok(recoveredParent.execution_generation);
+    const parentRunId = recoveredParent.run_id;
+    const parentGeneration = recoveredParent.execution_generation;
+
     const [binding] = recovery.outstandingDelegations(parentRunId);
     assert.ok(binding);
 
@@ -331,11 +382,11 @@ test('SQLite reconstructs outstanding delegation across controller replacement',
 
   const replay = new OvercenterKernel(database);
   try {
-    assert.deepEqual(replay.outstandingDelegations(parentRunId), []);
-    assert.equal(
-      replay.inspect().find((work) => work.id === 'parent')?.status,
-      'DONE',
-    );
+    const parent = replay.inspect().find((work) => work.id === 'parent');
+    assert.ok(parent);
+    assert.ok(parent.run_id);
+    assert.deepEqual(replay.outstandingDelegations(parent.run_id), []);
+    assert.equal(parent.status, 'DONE');
   } finally {
     replay.close();
     rmSync(root, { recursive: true, force: true });
