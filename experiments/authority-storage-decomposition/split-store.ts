@@ -3,7 +3,11 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { AuthorityHead, AuthorityHeadRecord, ImmutableFactObjects } from '../../src/authority/store.ts';
+import type {
+  AuthorityHead,
+  AuthorityHeadRecord,
+  ImmutableFactObjects,
+} from '../../src/authority/store.ts';
 
 interface GitResult {
   ok: boolean;
@@ -208,4 +212,3 @@ export class GitAuthorityHead implements AuthorityHead {
     }
   }
 }
-
