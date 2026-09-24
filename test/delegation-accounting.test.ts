@@ -12,10 +12,7 @@ import {
 import { OvercenterKernel } from '../src/authority/kernel.ts';
 import { observePostcondition } from '../src/observation/observe.ts';
 import { GitFactStore } from '../src/storage/git-store.ts';
-import {
-  controlDependency,
-  GitKernelFixture,
-} from './support/git-kernel-fixture.ts';
+import { controlDependency, GitKernelFixture } from './support/git-kernel-fixture.ts';
 
 function writeSatisfiedParent(fixture: GitKernelFixture, id: string): void {
   const work = fixture.work(id);
