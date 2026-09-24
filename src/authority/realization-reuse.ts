@@ -1,11 +1,11 @@
-import type { Observation, Postcondition } from '../model.ts';
+import type { Obligation, Observation, Postcondition } from '../model.ts';
 import type { HistoricalRun, Receipt, State } from './facts.ts';
 import { authoritativeAbsenceEvidence, observationVerified } from '../observation/observe.ts';
 
 export type CurrentRealizationJudgment =
   | {
       state: 'admissible';
-      reason: 'CURRENT_POSTCONDITION_VERIFIED';
+      reason: 'CURRENT_POSTCONDITION_VERIFIED' | 'CURRENT_GENERATED_OUTPUT_VERIFIED';
     }
   | {
       state: 'rejected';
@@ -66,12 +66,17 @@ export function deriveCurrentRealizationJudgments({
   receiptsByRun,
   semanticKeys,
   observe,
+  verifyGeneratedOutput,
 }: {
   state: State;
   runs: Map<string, HistoricalRun>;
   receiptsByRun: Map<string, Receipt>;
   semanticKeys: Map<string, string | null>;
   observe: (postcondition: Postcondition) => Observation;
+  verifyGeneratedOutput?: (
+    obligation: Obligation,
+    receipt: Receipt,
+  ) => CurrentRealizationJudgment;
 }): Map<string, CurrentRealizationJudgment> {
   const judgments = new Map<string, CurrentRealizationJudgment>();
 
@@ -86,6 +91,32 @@ export function deriveCurrentRealizationJudgments({
         receiptsByRun.get(run.id)?.disposition === 'DONE',
     );
     if (candidates.length === 0) continue;
+
+    if (obligation.postcondition.verifier === 'verified-generated-output/v1') {
+      for (const run of candidates) {
+        const receipt = receiptsByRun.get(run.id);
+        if (!receipt) continue;
+        let judgment: CurrentRealizationJudgment;
+        try {
+          judgment = verifyGeneratedOutput
+            ? verifyGeneratedOutput(obligation, receipt)
+            : {
+                state: 'indeterminate',
+                reason: 'CURRENT_GENERATED_OUTPUT_VERIFIER_UNAVAILABLE',
+              };
+        } catch (error: unknown) {
+          judgment = {
+            state: 'indeterminate',
+            reason:
+              error instanceof Error
+                ? error.message
+                : 'CURRENT_GENERATED_OUTPUT_VERIFICATION_FAILED',
+          };
+        }
+        judgments.set(run.id, judgment);
+      }
+      continue;
+    }
 
     let judgment: CurrentRealizationJudgment;
     try {
