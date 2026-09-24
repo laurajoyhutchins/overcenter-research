@@ -682,6 +682,9 @@ export function observationAuthoritativelyAbsent(
 
 export function observationVerified(postcondition: Postcondition, observed: Observation): boolean {
   assertObservationCoordinate(postcondition, observed);
+  if (postcondition.verifier === 'source-integration/v1') {
+    throw new Error('SOURCE_INTEGRATION_REQUIRES_TRUSTED_SETTLEMENT');
+  }
   if (observed.mutation_certainty !== 'present') return false;
 
   if (
