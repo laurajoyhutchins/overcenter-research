@@ -348,7 +348,7 @@ try {
         },
         output_sensitivity: {
           different_evidence:
-          ordinary.receipt.artifact.digest !== alternate.receipt.artifact.digest,
+            ordinary.receipt.artifact.digest !== alternate.receipt.artifact.digest,
           different_settlement: ordinary.commit !== alternate.commit,
           different_downstream_identity:
             ordinaryConsumed.downstream_identity !== consume(alternate, store).downstream_identity,
