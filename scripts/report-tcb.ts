@@ -239,8 +239,7 @@ function runtimeImports(path: string): { local: string[]; external: string[] } {
   const visitRuntimeLoads = (node: Node): void => {
     if (isCallExpression(node)) {
       const dynamicImport = node.expression.kind === SyntaxKind.ImportKeyword;
-      const commonJsRequire =
-        isIdentifier(node.expression) && node.expression.text === 'require';
+      const commonJsRequire = isIdentifier(node.expression) && node.expression.text === 'require';
       if (dynamicImport || commonJsRequire) {
         if (node.arguments.length !== 1 || !isStringLiteral(node.arguments[0])) {
           throw new Error(
