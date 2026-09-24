@@ -27,7 +27,13 @@ const A = 'a-status';
 const B = 'b-status';
 
 type Order = 'a-first' | 'b-first';
-type Action = 'claim-a' | 'claim-b' | 'defer-a' | 'defer-b';
+type Action =
+  | 'claim-a'
+  | 'claim-b'
+  | 'acquire-a'
+  | 'acquire-b'
+  | 'defer-a'
+  | 'defer-b';
 
 type SemanticEvent =
   | {
@@ -35,6 +41,12 @@ type SemanticEvent =
       obligation_id: string;
       attempt: number;
       obligation_key: string;
+      execution_generation: number;
+    }
+  | {
+      kind: 'execution-authority';
+      obligation_id: string;
+      attempt: number;
       execution_generation: number;
     }
   | {
@@ -148,7 +160,11 @@ function stateOf(obligations: Obligation[]): State {
   };
 }
 
-function deriveIndependence(state: State, leftId: string, rightId: string): IndependenceDecision {
+function deriveProjectTruthIndependence(
+  state: State,
+  leftId: string,
+  rightId: string,
+): IndependenceDecision {
   if (leftId === rightId) return { independent: false, reason: 'same-obligation' };
 
   const graph = buildGraphIndex(state);
@@ -297,7 +313,7 @@ function checkInferenceAgainstManualOracle() {
   const cases = manualOracleCases();
   for (const fixture of cases) {
     assert.equal(
-      deriveIndependence(fixture.state, fixture.left, fixture.right).independent,
+      deriveProjectTruthIndependence(fixture.state, fixture.left, fixture.right).independent,
       fixture.expected,
       fixture.name,
     );
@@ -324,7 +340,7 @@ function checkInferenceAgainstManualOracle() {
     cases: cases.map((fixture) => ({
       name: fixture.name,
       expected: fixture.expected,
-      decision: deriveIndependence(fixture.state, fixture.left, fixture.right),
+      decision: deriveProjectTruthIndependence(fixture.state, fixture.left, fixture.right),
     })),
     hostile_mutants_rejected: 4,
   };
@@ -411,6 +427,20 @@ function semanticEvents(history: FactCommit[]): SemanticEvent[] {
         execution_generation: 1,
       });
     }
+    if (record.execution_authority) {
+      const fact = record.execution_authority as {
+        run_id: string;
+        generation: number;
+      };
+      const alias = runAliases.get(fact.run_id);
+      assert.ok(alias);
+      result.push({
+        kind: 'execution-authority',
+        obligation_id: alias.obligation_id,
+        attempt: alias.attempt,
+        execution_generation: fact.generation,
+      });
+    }
     if (record.effect_reservation) {
       const fact = record.effect_reservation as {
         run_id: string;
@@ -468,14 +498,16 @@ function eventRank(event: SemanticEvent): number {
   switch (event.kind) {
     case 'claim':
       return 0;
+    case 'execution-authority':
+      return 1;
     case 'effect-reservation':
-      return 1;
-    case 'effect-release':
       return 2;
-    case 'receipt':
+    case 'effect-release':
       return 3;
+    case 'receipt':
+      return 4;
     case 'aborted-attempt':
-      return 1;
+      return 2;
   }
 }
 
@@ -505,7 +537,7 @@ function oneStepRewrites(events: SemanticEvent[], state: State): SemanticEvent[]
     const left = events[index]!;
     const right = events[index + 1]!;
     if (
-      deriveIndependence(state, left.obligation_id, right.obligation_id).independent &&
+      deriveProjectTruthIndependence(state, left.obligation_id, right.obligation_id).independent &&
       eventKey(left) > eventKey(right)
     ) {
       const next = [...events];
@@ -600,7 +632,14 @@ function replaySignature(history: FactCommit[]): unknown {
 }
 
 function actionSequences(maxDepth: number): Action[][] {
-  const alphabet: Action[] = ['claim-a', 'claim-b', 'defer-a', 'defer-b'];
+  const alphabet: Action[] = [
+    'claim-a',
+    'claim-b',
+    'acquire-a',
+    'acquire-b',
+    'defer-a',
+    'defer-b',
+  ];
   const result: Action[][] = [[]];
   let frontier: Action[][] = [[]];
   for (let depth = 1; depth <= maxDepth; depth += 1) {
@@ -630,6 +669,10 @@ function applyActions(
     }
     const permit = permits.get(id);
     if (!permit) throw new Error('CONTINUATION_PERMIT_MISSING:' + id);
+    if (action.startsWith('acquire-')) {
+      permits.set(id, kernel.acquireExecution(permit.id));
+      continue;
+    }
     kernel.deferForJudgment(permit, { source: 'history-independence-inference' });
   }
 }
@@ -679,6 +722,10 @@ async function runHistory(
   }
 }
 
+function errorClass(message: string): string {
+  return message.split(':', 1)[0] ?? message;
+}
+
 function checkCriticalPairs(base: SuccessfulHistory): number {
   const firstSteps = oneStepRewrites(base.events, base.state);
   assert.ok(firstSteps.length > 1);
@@ -689,9 +736,63 @@ function checkCriticalPairs(base: SuccessfulHistory): number {
   return firstSteps.length;
 }
 
+
+async function successfulProviderAuditCounterexample(root: string) {
+  async function run(label: string, order: Order) {
+    const store = new SqliteFactStore(join(root, 'provider-audit-' + label + '.sqlite'));
+    const kernel = new KernelCore(store);
+    const providerAudit: string[] = [];
+    try {
+      kernel.initialize();
+      const revision = kernel.head();
+      assert.ok(revision);
+      kernel.applyGraphPatch({ upsert: actualDefinitions() }, revision);
+
+      for (const id of order === 'a-first' ? [A, B] : [B, A]) {
+        const permit = claim(kernel, id);
+        await performGithubCommitStatusEffect(kernel, permit, {
+          token: 'token',
+          get: () => repository(),
+          post: async (_token, _path, body) => {
+            providerAudit.push(String(body.context));
+            return { status: 201, body: '{}' };
+          },
+        });
+      }
+
+      const head = kernel.head();
+      assert.ok(head);
+      const history = store.history(head);
+      const projection = replayProjection(history);
+      const events = semanticEvents(history);
+      return {
+        provider_audit: providerAudit,
+        replay_signature: replaySignature(history),
+        normal_form: normalForm(events, projection.state),
+      };
+    } finally {
+      store.close();
+    }
+  }
+
+  const left = await run('a-first', 'a-first');
+  const right = await run('b-first', 'b-first');
+  assert.deepEqual(left.replay_signature, right.replay_signature);
+  assert.deepEqual(left.normal_form, right.normal_form);
+  assert.notDeepEqual(left.provider_audit, right.provider_audit);
+
+  return {
+    project_truth_equivalent: true,
+    provider_audit_equivalent: false,
+    a_first_audit: left.provider_audit,
+    b_first_audit: right.provider_audit,
+  };
+}
+
 const root = mkdtempSync(join(tmpdir(), 'overcenter-history-independence-inference-'));
 try {
   const inference = checkInferenceAgainstManualOracle();
+  const providerLens = await successfulProviderAuditCounterexample(root);
   const sequences = actionSequences(3);
   let legal = 0;
   let illegal = 0;
@@ -709,6 +810,11 @@ try {
       'continuation legality diverged for ' + JSON.stringify(actions),
     );
     if (!left.ok || !right.ok) {
+      assert.equal(
+        errorClass((left as FailedHistory).error),
+        errorClass((right as FailedHistory).error),
+        'continuation failure class diverged for ' + JSON.stringify(actions),
+      );
       illegal += 1;
       continue;
     }
@@ -738,11 +844,13 @@ try {
       kind: 'history-independence-inference-summary',
       outcome: 'SUPPORTED',
       candidate_relation: {
+        lens: 'project-truth',
         graph_causality_required: true,
         known_effect_semantics_required: true,
         distinct_effect_resource_admitted: true,
         same_resource_requires_semantic_idempotence: true,
       },
+      provider_lens_counterexample: providerLens,
       continuation_sequences_examined: sequences.length,
       legal_in_both_histories: legal,
       illegal_in_both_histories: illegal,
@@ -751,7 +859,7 @@ try {
       provenance_preserved: true,
       hostile_inference_mutants_rejected: 4,
       non_claim:
-        'the derived relation is conservative and does not establish arbitrary-provider independence',
+        'the derived relation is project-truth-relative; distinct effect resources do not establish provider-history independence',
     }),
   );
 } finally {
