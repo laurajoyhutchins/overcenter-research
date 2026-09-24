@@ -209,9 +209,17 @@ interface SymbolClosure {
 }
 
 function repoPathFor(node: Node): string | null {
-  const fileName = node.getSourceFile().fileName;
-  const path = normalizedRepoPath(fileName);
-  if (path.startsWith('../') || path === '..' || path.includes('/node_modules/')) return null;
+  const source = node.getSourceFile();
+  if (source.isDeclarationFile) return null;
+  const path = normalizedRepoPath(source.fileName);
+  if (
+    path.startsWith('../') ||
+    path === '..' ||
+    path.startsWith('node_modules/') ||
+    path.includes('/node_modules/')
+  ) {
+    return null;
+  }
   return path;
 }
 
@@ -295,6 +303,18 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
     }
 
     const visit = (node: Node): void => {
+      if (
+        isTypeNode(node) ||
+        isInterfaceDeclaration(node) ||
+        isTypeAliasDeclaration(node) ||
+        (isImportDeclaration(node) &&
+          node.importClause?.phaseModifier === SyntaxKind.TypeKeyword) ||
+        (isImportSpecifier(node) && node.isTypeOnly) ||
+        (isExportSpecifier(node) && node.isTypeOnly)
+      ) {
+        return;
+      }
+
       if (isIdentifier(node)) {
         const symbol = resolvedValueSymbol(node);
         if (symbol && !visitedSymbols.has(symbol.id)) {
