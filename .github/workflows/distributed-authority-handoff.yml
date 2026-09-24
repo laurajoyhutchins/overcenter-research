@@ -9,6 +9,7 @@ on:
       - 'src/storage/git-kernel.ts'
       - 'src/storage/git-store.ts'
       - 'src/providers/github/status-effect.ts'
+      - 'package.json'
   workflow_dispatch:
 
 permissions:
