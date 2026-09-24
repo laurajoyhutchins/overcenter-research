@@ -23,6 +23,8 @@ export function factCommitFromFiles(
     execution_authority: files['execution-authority.json'] ?? null,
     effect_reservation: files['effect-reservation.json'] ?? null,
     effect_release: files['effect-release.json'] ?? null,
+    delegation_reservation: files['delegation-reservation.json'] ?? null,
+    delegation_discharge: files['delegation-discharge.json'] ?? null,
     receipt: files['receipt.json'] ?? null,
   };
 }

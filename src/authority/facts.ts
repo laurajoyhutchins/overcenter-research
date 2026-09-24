@@ -25,6 +25,9 @@ export const GRAPH_PATCH_SCHEMA = 'overcenter-graph-patch-v1' as const;
 export const CLAIM_SCHEMA = 'overcenter-git-claim-v3' as const;
 export const EXECUTION_AUTHORITY_SCHEMA = 'overcenter-git-execution-authority-v1' as const;
 export const EFFECT_RESERVATION_SCHEMA = 'overcenter-git-effect-reservation-v1' as const;
+export const DELEGATION_RESERVATION_SCHEMA = 'overcenter-delegation-reservation' as const;
+export const DELEGATION_DISCHARGE_SCHEMA = 'overcenter-delegation-discharge' as const;
+export const DELEGATION_SCHEMA_VERSION = 1 as const;
 export const EFFECT_RELEASE_SCHEMA = 'overcenter-effect-release' as const;
 export const EFFECT_RELEASE_SCHEMA_VERSION = 2 as const;
 export const RECEIPT_SCHEMA = 'overcenter-git-receipt-v5' as const;
@@ -108,6 +111,38 @@ export interface EffectReleaseFact {
   evidence_ref?: EvidenceRef;
 }
 
+export interface DelegationReservationFact {
+  schema: typeof DELEGATION_RESERVATION_SCHEMA;
+  schema_version: typeof DELEGATION_SCHEMA_VERSION;
+  delegation_id: string;
+  run_id: string;
+  obligation_id: string;
+  execution_generation: number;
+  execution_authority_commit: string;
+  child_obligation_id: string;
+}
+
+export interface DelegationReservation extends DelegationReservationFact {
+  reservation_commit: string;
+}
+
+export interface DelegationRecord extends DelegationReservation {
+  discharge_commit?: string;
+  child_run_id?: string;
+  child_settlement_commit?: string;
+}
+
+export interface DelegationDischargeFact {
+  schema: typeof DELEGATION_DISCHARGE_SCHEMA;
+  schema_version: typeof DELEGATION_SCHEMA_VERSION;
+  delegation_id: string;
+  run_id: string;
+  child_obligation_id: string;
+  reservation_commit: string;
+  child_run_id: string;
+  child_settlement_commit: string;
+}
+
 export type ReceiptKind =
   | 'observation'
   | 'judgment-required'
@@ -147,6 +182,8 @@ export interface FactCommit {
   execution_authority?: unknown | null;
   effect_reservation?: unknown | null;
   effect_release?: unknown | null;
+  delegation_reservation?: unknown | null;
+  delegation_discharge?: unknown | null;
   receipt?: unknown | null;
 }
 
@@ -454,6 +491,70 @@ export function validateEffectReleaseFact(value: unknown): EffectReleaseFact {
   };
 }
 
+export function validateDelegationReservationFact(value: unknown): DelegationReservationFact {
+  if (!data(value)) throw new Error('INVALID_DELEGATION_RESERVATION_FACT');
+  exactKeys(
+    value,
+    [
+      'schema',
+      'schema_version',
+      'delegation_id',
+      'run_id',
+      'obligation_id',
+      'execution_generation',
+      'execution_authority_commit',
+      'child_obligation_id',
+    ],
+    [],
+    'INVALID_DELEGATION_RESERVATION_FACT',
+  );
+  if (value.schema !== DELEGATION_RESERVATION_SCHEMA) {
+    throw new Error('INVALID_DELEGATION_RESERVATION_SCHEMA');
+  }
+  if (value.schema_version !== DELEGATION_SCHEMA_VERSION) {
+    throw new Error('INVALID_DELEGATION_SCHEMA_VERSION');
+  }
+  nonEmptyString(value.delegation_id, 'INVALID_DELEGATION_ID');
+  nonEmptyString(value.run_id, 'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id, 'INVALID_OBLIGATION_ID');
+  positiveSafeInteger(value.execution_generation, 'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(value.execution_authority_commit, 'INVALID_EXECUTION_AUTHORITY_COMMIT');
+  nonEmptyString(value.child_obligation_id, 'INVALID_CHILD_OBLIGATION_ID');
+  return structuredClone(value) as unknown as DelegationReservationFact;
+}
+
+export function validateDelegationDischargeFact(value: unknown): DelegationDischargeFact {
+  if (!data(value)) throw new Error('INVALID_DELEGATION_DISCHARGE_FACT');
+  exactKeys(
+    value,
+    [
+      'schema',
+      'schema_version',
+      'delegation_id',
+      'run_id',
+      'child_obligation_id',
+      'reservation_commit',
+      'child_run_id',
+      'child_settlement_commit',
+    ],
+    [],
+    'INVALID_DELEGATION_DISCHARGE_FACT',
+  );
+  if (value.schema !== DELEGATION_DISCHARGE_SCHEMA) {
+    throw new Error('INVALID_DELEGATION_DISCHARGE_SCHEMA');
+  }
+  if (value.schema_version !== DELEGATION_SCHEMA_VERSION) {
+    throw new Error('INVALID_DELEGATION_SCHEMA_VERSION');
+  }
+  nonEmptyString(value.delegation_id, 'INVALID_DELEGATION_ID');
+  nonEmptyString(value.run_id, 'INVALID_RUN_ID');
+  nonEmptyString(value.child_obligation_id, 'INVALID_CHILD_OBLIGATION_ID');
+  nonEmptyString(value.reservation_commit, 'INVALID_DELEGATION_RESERVATION_COMMIT');
+  nonEmptyString(value.child_run_id, 'INVALID_CHILD_RUN_ID');
+  nonEmptyString(value.child_settlement_commit, 'INVALID_CHILD_SETTLEMENT_COMMIT');
+  return structuredClone(value) as unknown as DelegationDischargeFact;
+}
+
 export function validateReceiptFact(value: unknown): ReceiptFact {
   if (!data(value)) throw new Error('INVALID_RECEIPT_FACT');
   exactKeys(
@@ -508,6 +609,8 @@ export type AuthorityFact =
   | ExecutionAuthorityFact
   | EffectReservationFact
   | EffectReleaseFact
+  | DelegationReservationFact
+  | DelegationDischargeFact
   | ReceiptFact;
 
 export function validateAuthorityFact(value: unknown): AuthorityFact {
@@ -523,6 +626,10 @@ export function validateAuthorityFact(value: unknown): AuthorityFact {
       return validateEffectReservationFact(value);
     case EFFECT_RELEASE_SCHEMA:
       return validateEffectReleaseFact(value);
+    case DELEGATION_RESERVATION_SCHEMA:
+      return validateDelegationReservationFact(value);
+    case DELEGATION_DISCHARGE_SCHEMA:
+      return validateDelegationDischargeFact(value);
     case RECEIPT_SCHEMA:
       return validateReceiptFact(value);
     default:

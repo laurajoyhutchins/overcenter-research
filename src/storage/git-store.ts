@@ -61,6 +61,8 @@ export class GitFactStore implements DurableFactStore {
         'claim.json',
         'execution-authority.json',
         'effect-reservation.json',
+        'delegation-reservation.json',
+        'delegation-discharge.json',
         'receipt.json',
       ]) {
         const value = this.readJson(commit, path);
