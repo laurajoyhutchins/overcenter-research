@@ -450,11 +450,8 @@ try {
 
 const conflictFixture = fixture();
 try {
-  const conflictCandidate = candidate(
-    conflictFixture,
-    workA,
-    'run-conflict',
-    (root) => writeFileSync(join(root, 'src/a.txt'), 'a:done\n'),
+  const conflictCandidate = candidate(conflictFixture, workA, 'run-conflict', (root) =>
+    writeFileSync(join(root, 'src/a.txt'), 'a:done\n'),
   );
   const conflictingMain = advance(conflictFixture, 'src/a.txt', 'a:conflicting\n');
   assert.equal(integrate(conflictFixture, workA, conflictCandidate), 'REREALIZE_REQUIRED');
