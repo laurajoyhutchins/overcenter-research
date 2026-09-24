@@ -225,10 +225,7 @@ function resolvedValueSymbol(node: Node): TypeScriptSymbol | null {
   const checker = checkerFor(node);
   const symbol = checker.getSymbolAtLocation(node);
   if (!symbol) return null;
-  const resolved =
-    symbol.flags & SymbolFlags.Alias
-      ? checker.getAliasedSymbol(symbol)
-      : symbol;
+  const resolved = symbol.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
   if (checker.isUnknownSymbol(resolved)) return null;
   return resolved.flags & SymbolFlags.Value ? resolved : null;
 }
@@ -342,9 +339,10 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
       (statement) =>
         source.getLineAndCharacterOfPosition(statement.getStart(source)).line + 1 <=
           declaration.start_line &&
-        source.getLineAndCharacterOfPosition(Math.max(statement.getStart(source), statement.getEnd() - 1))
-            .line +
-            1 >=
+        source.getLineAndCharacterOfPosition(
+          Math.max(statement.getStart(source), statement.getEnd() - 1),
+        ).line +
+          1 >=
           declaration.end_line,
     );
     if (node && isInterfaceDeclaration(node)) {
