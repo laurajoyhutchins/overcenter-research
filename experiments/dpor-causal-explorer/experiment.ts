@@ -195,10 +195,7 @@ function canonicalTrace(sequence: readonly Event[], oracle: IndependenceOracle):
   return normalized.join(' ');
 }
 
-function traceKeys(
-  executions: readonly Event[][],
-  oracle: IndependenceOracle,
-): Set<string> {
+function traceKeys(executions: readonly Event[][], oracle: IndependenceOracle): Set<string> {
   return new Set(executions.map((execution) => canonicalTrace(execution, oracle)));
 }
 
