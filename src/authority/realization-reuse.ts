@@ -5,7 +5,7 @@ import { authoritativeAbsenceEvidence, observationVerified } from '../observatio
 export type CurrentRealizationJudgment =
   | {
       state: 'admissible';
-      reason: 'CURRENT_POSTCONDITION_VERIFIED';
+      reason: 'CURRENT_POSTCONDITION_VERIFIED' | 'HISTORICAL_SOURCE_INTEGRATION';
     }
   | {
       state: 'rejected';
@@ -87,6 +87,21 @@ export function deriveCurrentRealizationJudgments({
     );
     if (candidates.length === 0) continue;
 
+    const historicalSource = candidates.filter(
+      (run) => receiptsByRun.get(run.id)?.kind === 'source-integration',
+    );
+    for (const run of historicalSource) {
+      judgments.set(run.id, {
+        state: 'admissible',
+        reason: 'HISTORICAL_SOURCE_INTEGRATION',
+      });
+    }
+
+    const observable = candidates.filter(
+      (run) => receiptsByRun.get(run.id)?.kind !== 'source-integration',
+    );
+    if (observable.length === 0) continue;
+
     let judgment: CurrentRealizationJudgment;
     try {
       judgment = classifyCurrentRealization(
@@ -100,7 +115,7 @@ export function deriveCurrentRealizationJudgments({
       };
     }
 
-    for (const run of candidates) judgments.set(run.id, judgment);
+    for (const run of observable) judgments.set(run.id, judgment);
   }
 
   return judgments;
