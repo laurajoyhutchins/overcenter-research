@@ -222,7 +222,7 @@ function runtimeImports(path: string): { local: string[]; external: string[] } {
 
   for (const statement of source.statements) {
     if (isImportDeclaration(statement)) {
-      if (statement.importClause?.isTypeOnly) continue;
+      if (statement.importClause?.phaseModifier === SyntaxKind.TypeKeyword) continue;
       addModuleSpecifier(statement.moduleSpecifier, 'TCB_IMPORT_SPECIFIER_NONLITERAL');
       continue;
     }
@@ -249,7 +249,7 @@ function runtimeImports(path: string): { local: string[]; external: string[] } {
         specifiers.add(node.arguments[0].text);
       }
     }
-    for (const child of node.getChildren(source)) visitRuntimeLoads(child);
+    for (const child of node.childrenIter()) visitRuntimeLoads(child);
   };
   visitRuntimeLoads(source);
 
