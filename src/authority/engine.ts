@@ -52,10 +52,17 @@ import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
 import {
   effectAdapterCapabilities,
-  reservedEffectReleaseSafe,
+  reservedEffectReleaseWitnessSafe,
   type EffectVerifier,
   type RegisteredEffectContract,
 } from '../effect-adapter.ts';
+import {
+  effectReleaseEvidenceRef,
+  retainEffectReleaseEvidence,
+  validateTrustedEffectReleaseWitness,
+  type EffectAttemptBinding,
+  type TrustedEffectReleaseWitness,
+} from '../effect-release-witness.ts';
 import { planGraphReconciliation } from '../graph/reconciliation.ts';
 
 export type { Receipt } from './facts.ts';
@@ -351,15 +358,23 @@ export class KernelCore {
 
   async performEffect<T, E extends string, V extends Postcondition['verifier']>(
     authority: EffectAuthority<E, V>,
-    effect: () => Promise<T> | T,
+    effect: (attempt: EffectAttemptBinding) => Promise<T> | T,
   ): Promise<T> {
-    this.beginEffect(authority.permit);
-    return await effect();
+    const reservationCommit = this.beginEffect(authority.permit);
+    const attempt: EffectAttemptBinding = Object.freeze({
+      run_id: authority.permit.id,
+      obligation_id: authority.permit.obligation_id,
+      execution_generation: authority.permit.execution_generation,
+      execution_authority_commit: authority.permit.execution_authority_commit,
+      reservation_commit: reservationCommit,
+      effect_contract: authority[effectAuthorityBrand],
+    });
+    return await effect(attempt);
   }
 
   releaseEffectReservation<E extends string, V extends Postcondition['verifier']>(
     authority: EffectAuthority<E, V>,
-    evidenceKind: string,
+    witness: TrustedEffectReleaseWitness,
     diagnostic: Data = {},
   ): Receipt {
     for (let attempt = 0; attempt < 16; attempt += 1) {
@@ -382,10 +397,23 @@ export class KernelCore {
       const reservation = history.unresolvedReservationsByRun.get(run.id);
       if (!reservation) throw new Error('NO_UNRESOLVED_EFFECT');
       const effectContract = authority[effectAuthorityBrand];
-      if (!reservedEffectReleaseSafe(run.obligation, effectContract, evidenceKind)) {
+      const validatedWitness = validateTrustedEffectReleaseWitness(witness);
+      const binding = validatedWitness.attempt;
+      if (
+        binding.run_id !== run.id ||
+        binding.obligation_id !== run.obligation_id ||
+        binding.execution_generation !== run.execution_generation ||
+        binding.execution_authority_commit !== run.execution_authority_commit ||
+        binding.reservation_commit !== reservation.reservation_commit ||
+        binding.effect_contract !== effectContract
+      ) {
+        throw new Error('EFFECT_RELEASE_EVIDENCE_BINDING_MISMATCH');
+      }
+      if (!reservedEffectReleaseWitnessSafe(run.obligation, effectContract, validatedWitness)) {
         throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
       }
 
+      const evidence = retainEffectReleaseEvidence(validatedWitness);
       const release: EffectReleaseFact = {
         schema: EFFECT_RELEASE_SCHEMA,
         schema_version: EFFECT_RELEASE_SCHEMA_VERSION,
@@ -395,7 +423,9 @@ export class KernelCore {
         execution_authority_commit: run.execution_authority_commit,
         reservation_commit: reservation.reservation_commit,
         effect_contract: effectContract,
-        evidence_kind: evidenceKind,
+        evidence_kind: validatedWitness.kind,
+        evidence,
+        evidence_ref: effectReleaseEvidenceRef(evidence),
       };
       const receiptFact = this.#receiptFact(
         run,

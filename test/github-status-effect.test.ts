@@ -12,6 +12,7 @@ import {
   performGithubCommitStatusEffect,
   type GithubStatusPost,
 } from '../src/providers/github/status-effect.ts';
+import { GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED } from '../src/effect-adapter.ts';
 import type { GithubJsonGet } from '../src/providers/github/rest.ts';
 
 const COMMIT = 'a'.repeat(40);
@@ -248,8 +249,58 @@ test('lost broker acknowledgement survives SQLite reopen and settles from author
   }
 });
 
-test('fresh HTTPS failure before secureConnect releases only the exact reservation and requires a new run', async () => {
+test('fresh canonical GitHub HTTPS failure before secureConnect releases only the exact reservation and requires a new run', async () => {
   const root = mkdtempSync(join(tmpdir(), 'github-status-not-dispatched-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+  let lookedUpHost = '';
+
+  try {
+    const first = define(kernel);
+    await assert.rejects(
+      performGithubCommitStatusEffect(kernel, first, {
+        token: 'token',
+        get: () => repository(),
+        post: createGithubStatusPost({
+          lookup: (hostname, _options, callback) => {
+            lookedUpHost = hostname;
+            callback(null, '127.0.0.2', 4);
+          },
+        }),
+      }),
+      /GITHUB_STATUS_MUTATION_NOT_DISPATCHED/,
+    );
+
+    assert.equal(lookedUpHost, 'api.github.com');
+    assert.equal(kernel.hasUnresolvedEffect(first.id), false);
+    assert.equal(kernel.inspect()[0]?.status, 'READY');
+
+    const receipts = kernel.receipts(first.id);
+    assert.equal(receipts.length, 1);
+    assert.equal(receipts[0]?.kind, 'effect-not-dispatched');
+    assert.equal(receipts[0]?.disposition, 'READY');
+
+    const reopened = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+    try {
+      assert.equal(reopened.hasUnresolvedEffect(first.id), false);
+      assert.equal(reopened.inspect()[0]?.status, 'READY');
+      assert.equal(reopened.receipts(first.id)[0]?.kind, 'effect-not-dispatched');
+    } finally {
+      reopened.close();
+    }
+
+    const retryWork = kernel.deriveReadyWork();
+    assert.ok(retryWork);
+    const second = kernel.claim(retryWork.id, retryWork.revision);
+    assert.notEqual(second.id, first.id);
+    assert.equal(second.execution_generation, 1);
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('transport-minted NOT_DISPATCHED witness from a non-GitHub origin cannot release the reservation', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'github-status-wrong-origin-'));
   const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
   let peerTlsBytes = 0;
   const reset = createTcpServer((socket) => {
@@ -261,9 +312,9 @@ test('fresh HTTPS failure before secureConnect releases only the exact reservati
   const port = await listen(reset);
 
   try {
-    const first = define(kernel);
+    const run = define(kernel);
     await assert.rejects(
-      performGithubCommitStatusEffect(kernel, first, {
+      performGithubCommitStatusEffect(kernel, run, {
         token: 'token',
         get: () => repository(),
         post: createGithubStatusPost({
@@ -271,23 +322,12 @@ test('fresh HTTPS failure before secureConnect releases only the exact reservati
           rejectUnauthorized: false,
         }),
       }),
-      /GITHUB_STATUS_MUTATION_NOT_DISPATCHED/,
+      /EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED/,
     );
 
     assert.ok(peerTlsBytes > 0);
-    assert.equal(kernel.hasUnresolvedEffect(first.id), false);
-    assert.equal(kernel.inspect()[0]?.status, 'READY');
-
-    const receipts = kernel.receipts(first.id);
-    assert.equal(receipts.length, 1);
-    assert.equal(receipts[0]?.kind, 'effect-not-dispatched');
-    assert.equal(receipts[0]?.disposition, 'READY');
-
-    const retryWork = kernel.deriveReadyWork();
-    assert.ok(retryWork);
-    const second = kernel.claim(retryWork.id, retryWork.revision);
-    assert.notEqual(second.id, first.id);
-    assert.equal(second.execution_generation, 1);
+    assert.equal(kernel.hasUnresolvedEffect(run.id), true);
+    assert.equal(kernel.inspect()[0]?.status, 'EXECUTING');
   } finally {
     await closeServer(reset);
     kernel.close();
@@ -335,4 +375,29 @@ test('HTTP 502 keeps the GitHub status reservation unresolved', async () => {
     async () => ({ status: 502, body: 'bad gateway' }),
     /GITHUB_STATUS_MUTATION_FAILED:502/,
   );
+});
+
+test('the admitted NOT_DISPATCHED token cannot release a reservation without a transport-minted witness', () => {
+  const root = mkdtempSync(join(tmpdir(), 'github-status-witness-forgery-'));
+  const kernel = new OvercenterKernel(join(root, 'overcenter.sqlite'));
+
+  try {
+    const run = define(kernel);
+    const authority = kernel.authorizeEffect(run, GITHUB_COMMIT_STATUS_EFFECT);
+    kernel.beginEffect(run);
+
+    assert.throws(
+      () =>
+        kernel.releaseEffectReservation(
+          authority,
+          GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED as never,
+        ),
+      /EFFECT_RELEASE_EVIDENCE_PROVENANCE_INVALID/,
+    );
+    assert.equal(kernel.hasUnresolvedEffect(run.id), true);
+    assert.equal(kernel.inspect()[0]?.status, 'EXECUTING');
+  } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 });
