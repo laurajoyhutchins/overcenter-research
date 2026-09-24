@@ -11,6 +11,7 @@ import {
 import type { FactCommit, GraphPatchFact, ReceiptFact } from '../src/authority/facts.ts';
 import { obligationKey } from '../src/graph/identity.ts';
 import { advanceProjection, projectReceipt, replayProjection } from '../src/authority/replay.ts';
+import { deriveClaimPrerequisites } from '../src/authority/project-state.ts';
 import type { Obligation } from '../src/model.ts';
 import { localFileEnoentEvidence } from '../src/observation/evidence.ts';
 
@@ -137,6 +138,53 @@ test('pure replay validates a graph patch after applying its complete node set',
   assert.deepEqual(projection.definitions[secondDefinition], obligationDefinition(second));
   assert.equal(projection.project.lifecycles.get('first')?.status, 'UNREALIZED');
   assert.equal(projection.project.lifecycles.get('second')?.status, 'UNREALIZED');
+});
+
+test('replay and projection share claim prerequisite semantics', () => {
+  const first: Obligation = {
+    ...obligation,
+    id: 'first',
+  };
+  const second: Obligation = {
+    ...obligation,
+    id: 'second',
+    dependencies: [{ kind: 'control', upstream: 'first' }],
+  };
+  const defineRecord: FactCommit = {
+    commit: 'define-dependent',
+    parent: null,
+    graph_patch: graphPatch(first, second),
+  };
+  const projected = replayProjection([defineRecord]);
+  const prerequisites = deriveClaimPrerequisites(
+    second,
+    projected.project.lifecycles,
+    projected.project.semanticKeys.get(second.id) ?? null,
+  );
+
+  assert.equal(prerequisites.error, 'DEPENDENCIES_NOT_DONE');
+  assert.deepEqual(prerequisites.unsatisfiedDependencies, ['first']);
+  assert.ok(prerequisites.semanticKey);
+
+  assert.throws(
+    () =>
+      replayProjection([
+        defineRecord,
+        {
+          commit: 'claim-dependent',
+          parent: 'define-dependent',
+          claim: {
+            schema: CLAIM_SCHEMA,
+            run_id: 'run-dependent',
+            obligation_id: second.id,
+            claimed_revision: 'define-dependent',
+            obligation_key: prerequisites.semanticKey!,
+            execution_capability_sha256: sha256('permit-dependent'),
+          },
+        },
+      ]),
+    /CLAIM_WITH_UNSATISFIED_DEPENDENCIES/,
+  );
 });
 
 test('replay rejects duplicate graph patch identities', () => {
