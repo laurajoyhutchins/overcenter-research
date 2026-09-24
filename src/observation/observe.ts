@@ -603,10 +603,6 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
     throw new Error('OBSERVATION_VERIFIER_MISMATCH');
   }
 
-  if (postcondition.verifier === 'verified-generated-output/v1') {
-    throw new Error('GENERATED_OUTPUT_REQUIRES_RETAINED_EVIDENCE');
-  }
-
   if (
     postcondition.verifier === 'file-content-equals/v1' ||
     postcondition.verifier === 'eventually-consistent-file-content-equals/v1'
