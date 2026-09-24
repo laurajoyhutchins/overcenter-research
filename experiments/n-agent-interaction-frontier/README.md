@@ -114,3 +114,55 @@ A positive result would support an Overcenter planning primitive that computes a
 - Fair scheduling across 50 live workers is proved.
 - Distributed authority or HA is established.
 - The 50-agent global trace product should be enumerated in production.
+
+
+## Exact-head result
+
+Supported at exact treatment revision `d9f2be76f0143d4049744ffa4985ac71f45f2c04`.
+
+GitHub Actions run `35951393837`, job `107480499860`, passed the preregistered treatment.
+
+### Baseline
+
+| Measure | Result |
+| --- | ---: |
+| Agent proposals | 50 |
+| Possible agent pairs | 1,225 |
+| Actual interaction edges | 24 |
+| Interacting pair fraction | 1.96% |
+| Connected components | 38 |
+| Static-conflict nodes | 16 |
+| Component-local complete executions | 130 |
+| Component-local explored prefixes | 328 |
+| Maximum component size | 4 |
+| Maximum component trace classes | 24 |
+| Combined causal trace product | 331,776 |
+| Naive global total orders | 50! = 30,414,093,201,713,378,043,612,608,166,064,768,844,377,641,568,960,512,000,000,000,000 |
+
+The baseline therefore reduced the pairwise interaction surface from 1,225 possible pairs to 24 actual edges, four 4-agent conflict islands, and 34 singleton proposals.
+
+### Causal bridge
+
+Adding one production control dependency between two otherwise separate conflict islands produced:
+
+| Measure | Result |
+| --- | ---: |
+| Interaction edges | 25 |
+| Provider-conflict edges | 24 |
+| Causal edges | 1 |
+| Connected components | 37 |
+| Largest component | 8 agents |
+| Largest component trace classes | 576 |
+| Component-local exhaustive executions | 20,242 |
+| Component-local race/backtracking executions | 658 |
+| Component-local explored prefixes | 1,799 |
+
+The global trace product remained 331,776, but the local reasoning frontier expanded materially because the real causal edge merged two islands. The 8-agent component's 20,160 concrete topological schedules reduced to 576 causal representatives.
+
+The negative control behaved as required: provider-conflict-only decomposition still reported 38 components and kept the two islands separate, while production graph causality reported 37 components and merged them.
+
+### Interpretation
+
+The evidence supports a deterministic **interaction frontier** as a useful N-agent planning primitive. For component-local questions, Overcenter does not need to ask a model to jointly reason over every agent pair or enumerate the 50-agent total-order space. It can derive the small coupled regions from authority-visible graph and effect semantics first.
+
+The bridge result is equally important: the partition is not merely a resource bucketization heuristic. A real graph dependency expands the frontier even when provider resources differ.
