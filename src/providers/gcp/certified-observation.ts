@@ -122,11 +122,7 @@ export function observeCertifiedGcpRead200({
 
 export function observeProjectedCertifiedGcpRead200<Value>(
   options: Parameters<typeof observeCertifiedGcpRead200>[0],
-): {
-  observed_at: string;
-  certified: CertifiedObservation<GcpRawObservation>;
-  value: Value;
-} {
+) {
   const result = observeCertifiedGcpRead200(options);
   return {
     ...result,
