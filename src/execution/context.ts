@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync, readlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { canonicalDigest } from '../digest.ts';
+import { canonicalDigest, sha256 } from '../digest.ts';
 
 interface SourceTreeFileEntry {
   path: string;
@@ -20,7 +19,7 @@ interface SourceTreeSymlinkEntry {
 type SourceTreeEntry = SourceTreeFileEntry | SourceTreeSymlinkEntry;
 
 function fileSha256(path: string): string {
-  return createHash('sha256').update(readFileSync(path)).digest('hex');
+  return sha256(readFileSync(path));
 }
 
 export function sourceTreeSha256(root: string): string {
