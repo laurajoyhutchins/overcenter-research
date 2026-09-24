@@ -3281,10 +3281,9 @@
       ],
       "evidence": {
         "status": "evaluated",
-        "evaluated_revision": "f326acb2a6b6d6ba922872d955522c94324c236b",
+        "evaluated_revision": "2b58ee515643e0975552bd2883ca0d7b5f2651cb",
         "artifacts": [
-          "GitHub Actions run 35952217348 / job 107482972290: exact-head READY treatment PASS.",
-          "GitHub Actions merge gate run 35952217573: PASS on the same exact revision.",
+          "GitHub Actions run 35955306256: exact-head READY finite-difference proof PASS on ubuntu-slim.",
           "Hostile relational corpus: 16 transitions; maximum touched obligations 3; oracle equivalence PASS.",
           "Production differential: 96 obligations and 97 execution prefixes matched deriveProjectProjection() for READY membership and selected work.",
           "Fixed four-dependent frontier: maximum touched obligations 5 at graph sizes 128, 512, 2,048, and 8,192.",
@@ -3307,7 +3306,7 @@
       },
       "outcome": {
         "state": "supported",
-        "summary": "At exact revision f326acb2a6b6d6ba922872d955522c94324c236b, the bounded READY relation matched both its declarative oracle and production projection differential while local lifecycle mutations updated only the affected reverse-dependency frontier, with indexed READY maintenance."
+        "summary": "At exact revision 2b58ee515643e0975552bd2883ca0d7b5f2651cb, the bounded READY relation matched its declarative oracle and production differential with dependency work local to the affected reverse-dependency frontier and indexed READY maintenance."
       }
     }
   ]
