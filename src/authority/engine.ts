@@ -73,7 +73,7 @@ import {
   type TrustedEffectReleaseWitness,
 } from '../effect-release-witness.ts';
 import { planGraphReconciliation } from '../graph/reconciliation.ts';
-import { dependsOn } from '../graph/topology.ts';
+import { delegationCreatesCausalCycle } from './delegation.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -432,7 +432,15 @@ export class KernelCore {
       }
       if (!state.obligations[childObligationId]) throw new Error('DELEGATION_CHILD_UNKNOWN');
       if (childObligationId === run.obligation_id) throw new Error('DELEGATION_SELF_REFERENCE');
-      if (dependsOn(state, childObligationId, run.obligation_id)) {
+      if (
+        delegationCreatesCausalCycle({
+          state,
+          runs: history.runs,
+          unresolvedDelegationsByRun: history.unresolvedDelegationsByRun,
+          parentObligationId: run.obligation_id,
+          childObligationId,
+        })
+      ) {
         throw new Error('DELEGATION_CAUSAL_CYCLE');
       }
       if (project.lifecycles.get(childObligationId)?.status === 'DONE') {
