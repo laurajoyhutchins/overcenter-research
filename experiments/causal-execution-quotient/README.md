@@ -87,3 +87,38 @@ In particular, current scheduler semantics intentionally retain some otherwise h
 - DPOR is implemented or optimal.
 - Event structures replace the existing obligation graph.
 - Liveness properties are preserved by the safety quotient.
+
+
+## Exact-head result
+
+Supported at exact treatment revision `845f58ae51190029ab9b51ab4ef8eef1bf6c2ac7`.
+
+GitHub Actions run `35948193885`, job `107470793076`, passed the preregistered treatment.
+
+| Measurement | Result |
+| --- | ---: |
+| Concrete linearizations | 369,600 |
+| Safety trace classes | 1 |
+| Safety reduction | 369,600x |
+| Scheduler-sensitive trace classes | 24 |
+| Scheduler-sensitive reduction | 15,400x |
+| Conservative conflicting-write classes | 2 |
+| Unsound distinct-ID classes | 1 |
+| Outcomes collapsed into the unsound class | 2 |
+
+Production controls also passed:
+
+- unordered incompatible GitHub-status effects on one canonical resource were detected;
+- explicit dependency ordering removed the static conflict;
+- control and semantic graph dependencies were both recognized as causal;
+- opposite READY-claim orders preserved lifecycle status and semantic identity but changed production `readyWork` from the earlier-claimed obligation to its opposite ordering.
+
+The hostile negative control behaved as required. The rule "different obligation IDs are independent" merged two executions with different final provider states into one trace class. Independence therefore cannot be inferred from graph node identity alone.
+
+### Interpretation
+
+The result supports a property-sensitive causal quotient as a model-exploration layer. For the safety projection in this bounded treatment, almost all concrete serialization was observational scaffolding: 369,600 schedules represented one causal execution.
+
+The scheduler projection demonstrates the boundary. Current replay-derived service age intentionally makes relative claim order observable, so the same concrete family has 24 scheduler-relevant trace classes rather than one.
+
+This is evidence for pursuing DPOR or another partial-order explorer next. It is not evidence for changing the serialized authority head or removing per-effect evidence.
