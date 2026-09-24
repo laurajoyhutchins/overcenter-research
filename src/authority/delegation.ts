@@ -1,8 +1,4 @@
-import type {
-  DelegationReservation,
-  HistoricalRun,
-  State,
-} from './facts.ts';
+import type { DelegationReservation, HistoricalRun, State } from './facts.ts';
 import { dependencyUpstreams } from '../graph/topology.ts';
 
 export interface DelegationCycleInput {
