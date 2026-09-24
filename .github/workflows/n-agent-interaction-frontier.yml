@@ -10,8 +10,6 @@ on:
       - src/authority/admission.ts
       - src/graph/**
       - src/semantics.ts
-      - package.json
-      - experiments/registry.json
 
 permissions: {}
 
