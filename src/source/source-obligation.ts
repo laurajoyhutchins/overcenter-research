@@ -24,6 +24,7 @@ export interface SourceAssignment {
   obligation_id: string;
   task: SourceTaskPacket;
   claim: SourceClaimBinding;
+  proposal_schema: typeof SOURCE_PROPOSAL_SCHEMA;
 }
 
 export interface SourceProposalFile {
@@ -71,7 +72,7 @@ function controlPlanePath(path: string): boolean {
     path === '.overcenter' ||
     path.startsWith('.overcenter/') ||
     path === '.github' ||
-    path.startsWith('.github/workflows/')
+    path.startsWith('.github/')
   );
 }
 
@@ -156,6 +157,7 @@ export function buildSourceAssignment(
       claim.claimed_revision,
       claim.source_sha,
     ),
+    proposal_schema: SOURCE_PROPOSAL_SCHEMA,
   };
 }
 
@@ -163,12 +165,15 @@ export function validateSourceAssignment(value: unknown): SourceAssignment {
   if (!isData(value)) throw new Error('SOURCE_ASSIGNMENT_INVALID');
   assertExactKeys(
     value,
-    ['schema', 'obligation_id', 'task', 'claim'],
+    ['schema', 'obligation_id', 'task', 'claim', 'proposal_schema'],
     [],
     'SOURCE_ASSIGNMENT_INVALID',
   );
   if (value.schema !== SOURCE_ASSIGNMENT_SCHEMA) {
     throw new Error('SOURCE_ASSIGNMENT_SCHEMA_MISMATCH');
+  }
+  if (value.proposal_schema !== SOURCE_PROPOSAL_SCHEMA) {
+    throw new Error('SOURCE_ASSIGNMENT_PROPOSAL_SCHEMA_MISMATCH');
   }
   assertNonEmptyString(value.obligation_id, 'SOURCE_ASSIGNMENT_OBLIGATION_INVALID');
   if (!isData(value.claim)) throw new Error('SOURCE_ASSIGNMENT_CLAIM_INVALID');
