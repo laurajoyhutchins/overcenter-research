@@ -183,6 +183,8 @@ function deriveProjectTruthIndependence(
     return { independent: false, reason: 'effect-semantics-unknown' };
   }
 
+  const leftCapabilities = effectAdapterCapabilities(left.packet.effect_contract);
+  const rightCapabilities = effectAdapterCapabilities(right.packet.effect_contract);
   if (
     !leftCapabilities ||
     !rightCapabilities ||
@@ -199,8 +201,6 @@ function deriveProjectTruthIndependence(
     return { independent: false, reason: 'same-resource-different-desired' };
   }
 
-  const leftCapabilities = effectAdapterCapabilities(left.packet.effect_contract);
-  const rightCapabilities = effectAdapterCapabilities(right.packet.effect_contract);
   if (
     leftEffect.sameDesiredCommutes &&
     rightEffect.sameDesiredCommutes &&
