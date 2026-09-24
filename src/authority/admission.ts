@@ -1,6 +1,7 @@
 import type { State } from './facts.ts';
 import { buildGraphIndex, type GraphIndex } from '../graph/topology.ts';
 import {
+  effectCommutationKey,
   effectSemantics,
   settlementSemantics,
   verifiedContentIdentity,
@@ -77,9 +78,10 @@ export function buildStaticEffectIndex(
       (resourceMasks.get(entry.semantics.resource) ?? 0n) | bit,
     );
 
-    if (entry.semantics.sameDesiredCommutes) {
+    const commutationKey = effectCommutationKey(entry.semantics);
+    if (commutationKey !== null) {
       const byDesired = commutingMutable.get(entry.semantics.resource) ?? new Map();
-      byDesired.set(entry.semantics.desired, (byDesired.get(entry.semantics.desired) ?? 0n) | bit);
+      byDesired.set(commutationKey, (byDesired.get(commutationKey) ?? 0n) | bit);
       commutingMutable.set(entry.semantics.resource, byDesired);
     }
   }
@@ -143,9 +145,11 @@ export function staticEffectConflict(
 
   const resource = work.semantics.resource;
   const resourceMask = index.resourceMasks.get(resource) ?? 0n;
-  const compatibleMask = work.semantics.sameDesiredCommutes
-    ? (index.commutingMasks.get(resource)?.get(work.semantics.desired) ?? 0n)
-    : 0n;
+  const commutationKey = effectCommutationKey(work.semantics);
+  const compatibleMask =
+    commutationKey === null
+      ? 0n
+      : (index.commutingMasks.get(resource)?.get(commutationKey) ?? 0n);
   const incompatibleMask = resourceMask & ~(compatibleMask | work.bit);
   const unorderedMask = incompatibleMask & ~(index.orderedBitsById.get(workId) ?? 0n);
   if (unorderedMask === 0n) return null;
