@@ -561,6 +561,60 @@
       }
     },
     {
+      "id": "dpor-race-backtracking",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/dpor-race-backtracking",
+      "readme": "experiments/dpor-race-backtracking/README.md",
+      "question": "Can Overcenter discover necessary alternative executions from dependent races and add backtracking choices at earlier reorderable prefixes?",
+      "claim": "For the preregistered bounded corpus, race-triggered ancestor backtracking matches exhaustive causal trace classes exactly, preserves immediate and later-emerging conflicting outcomes, and generates one safety execution and 24 scheduler-sensitive executions from 369,600 concrete schedules.",
+      "contrast": "Rely only on post-hoc trace normalization or sleep-set pruning without allowing a dependency race discovered later to create new exploration work at an earlier prefix.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:dpor-race-backtracking"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "The causal quotient and sleep-set experiments are stacked immediately below this treatment.",
+        "No network, provider credential, database, external solver, or model is required."
+      ],
+      "success_criteria": [
+        "Exhaustive exploration contains exactly 369,600 schedules for four disjoint claim-reserve-receipt chains.",
+        "Safety race/backtracking exploration visits exactly one complete execution and matches the exhaustive trace set.",
+        "Scheduler-sensitive race/backtracking visits exactly 24 complete executions and matches the exhaustive trace set.",
+        "Scheduler-sensitive exploration discovers dependent races and adds earlier backtracking choices.",
+        "Immediate conflicting writes preserve both exhaustive outcomes through race-induced backtracking.",
+        "The future-conflict fixture has six schedules, two trace classes, and two outcomes, all preserved by exactly two reduced executions.",
+        "The future-conflict treatment records a dependent race and an ancestor backtracking insertion.",
+        "The intentionally unsound different-obligation-ID oracle suppresses the required race, explores one conflicting execution, and misses one final outcome."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/dpor-race-backtracking.yml"
+        ],
+        "pending_reason": "The race definition, exact trace cardinalities, ancestor-backtracking rule, future-conflict control, and unsound independence falsifier are preregistered; exact-head hosted execution has not yet been recorded."
+      },
+      "interpretation": "A positive result would establish the essential dynamic race/backtracking mechanism needed to move beyond sleep-set-only reduction: dependency discovered later can create a new exploration branch at an earlier prefix.",
+      "non_claims": [
+        "The experiment implements optimal Source-DPOR.",
+        "Obligation identity is a universal process identity for arbitrary execution models.",
+        "The independence oracle is complete for arbitrary provider effects.",
+        "Liveness-preserving POR conditions are proved.",
+        "Unbounded executions are covered.",
+        "Production scheduling should use DPOR.",
+        "Project authority serialization can be weakened."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The exact 369,600-to-1 and 369,600-to-24 targets, dependent-race criterion, ancestor-backtracking rule, future-conflict fixture, and unsound independence falsifier were committed before hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The preregistered DPOR race/backtracking treatment has not yet produced exact-head hosted evidence."
+      }
+    },
+    {
       "id": "eventually-consistent-readback",
       "kind": "experiment",
       "status": "historical",
