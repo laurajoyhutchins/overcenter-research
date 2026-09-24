@@ -188,4 +188,43 @@ The experiment is deterministic, offline, TypeScript-only, and adds no runtime d
 
 ## Result
 
-Pending exact-head hosted execution of the revised treatment. The prior result at `e62739adf3e4764167762de3e1350a5deb0b322d` is superseded for the complete-partition claim.
+**Supported for the revised preregistered treatment.** Exact treatment revision `9a0ca348685ba37da7b68aa44ef9900ba03533fb` was evaluated in GitHub Actions Merge gate run `35962658407`, rerun attempt 2, exact-head candidate job `107514859180`.
+
+The 256-state model derived:
+
+~~~
+SETTLE = current_authority
+         AND exact_revision
+         AND provider_observation = verified-present
+
+RELEASE = current_authority
+          AND exact_revision
+          AND reservation_binding
+          AND adapter_match
+          AND not_dispatched
+
+REPLAY = current_authority
+         AND exact_revision
+         AND adapter_match
+         AND replay_protected
+         AND provider_observation = terminal-absence
+~~~
+
+The safe sets were deliberately not disjoint:
+
+- SETTLE safe in 16 states;
+- RELEASE safe in 8 states;
+- REPLAY safe in 4 states;
+- SETTLE + RELEASE overlap in 2 states;
+- RELEASE + REPLAY overlap in 1 state;
+- SETTLE + REPLAY overlap in 0 states.
+
+Explicit precedence `SETTLE > RELEASE > REPLAY` chose 16 SETTLE, 6 RELEASE, and 3 REPLAY states. RECOVERY_REQUIRED covered the remaining 231 states. Every affirmative choice belonged to the independently derived safe-action set, and RECOVERY_REQUIRED occurred only when that set was empty.
+
+The hostile controls behaved as intended: omitting reservation binding exposed 8 unsafe RELEASE states; collapsing verified-present or terminal-absence into non-dispatch each exposed 2 unsafe RELEASE states; requiring reservation binding incorrectly rejected 8 safe SETTLE states and 2 safe REPLAY states; omitting exact revision exposed 16 unsafe SETTLE states.
+
+The end-to-end production treatment also passed the two-clock case. Execution authority rotated while the unresolved reservation persisted. The stale predecessor permit was rejected, a successor permit with the wrong claimed revision was rejected, and the valid successor authority settled DONE and durably cleared the older reservation.
+
+The same exact treatment revision passed lint, strict TypeScript checking, experiment-contract verification, adapter diagnosability, the complete deterministic experiment suite, TLA+, the production computation boundary, and self-application.
+
+The earlier `e62739adf3e4764167762de3e1350a5deb0b322d` result remains historical context only and is superseded for the complete-partition claim.
