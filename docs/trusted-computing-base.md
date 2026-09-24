@@ -34,6 +34,16 @@ Each property has an explicit semantic-LOC ceiling. CI fails if the counted trus
 
 A LOC ceiling is not a proof. It is an architectural ratchet. The stronger evidence comes from combining this inventory with hostile tests, authority-flow analysis, exact-head CI, differential backends, and formal models.
 
+## Current baseline
+
+| Property | Trusted semantic LOC | Surface SHA-256 |
+| --- | ---: | --- |
+| Broker mutation safety | 1,108 | `098e0ce83e71…fc420` |
+| No false `DONE` | 1,501 | `62e4d7a45269…27776` |
+| GitHub commit-status provider | 2,377 | `84f0fe24a1fb…8d08e` |
+
+These numbers are property-scoped and overlap. They must not be summed into a single repository TCB figure without first deduplicating shared slices. The provider figure is deliberately conservative because several provider modules are still charged whole-file.
+
 ## External assumptions
 
 External assumptions are part of the TCB even though they have no repository LOC. The report keeps them visible instead of allowing a small source-code number to imply that SQLite, Node.js, the operating system, TLS, or provider API semantics are somehow untrusted or irrelevant.
