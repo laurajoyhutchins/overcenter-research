@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, sign, verify } from 'node:crypto';
-import { execFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 type Outcome = 'supported' | 'falsified' | 'inconclusive';
 
