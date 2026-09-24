@@ -3251,6 +3251,57 @@
         "state": "supported",
         "summary": "At exact revision 7546e2b058c8be80faebaa8900a684b794275af3, the split store matched monolithic Git kernel semantics, kept authority commits fact-id-only, admitted exactly one winner in an eight-process same-head race, left seven losing fact objects unreachable, reconstructed from a copied object replica, and failed closed when an authoritative fact object was missing."
       }
+    },
+    {
+      "id": "diffusing-termination",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/diffusing-termination",
+      "readme": "experiments/diffusing-termination/README.md",
+      "question": "Can recursive agent delegation distinguish temporary local quiescence from global completion using replayable durable causal-work accounting?",
+      "claim": "Within the bounded model, a durable delegation reservation created before dispatch plus generation-fenced spawn authority prevents false completion while a child is reserved, in flight, active, or causally unacknowledged.",
+      "contrast": "Infer completion from an empty visible frontier and zero currently active workers.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:diffusing-termination"
+      },
+      "environment": [
+        "Node.js from .node-version for the executable hostile traces.",
+        "Pinned TLA+ tools from formal/check.sh for exhaustive bounded safety and conditional completion detection."
+      ],
+      "success_criteria": [
+        "A delayed child produces a state with zero active workers where the naive detector reports completion and durable accounting does not.",
+        "A reservation created before dispatch remains nonterminal after parent loss until it is either safely cancelled or discharged.",
+        "A dispatched but unacknowledged child remains nonterminal across parent loss and delayed delivery.",
+        "Duplicate delivery and duplicate acknowledgement are idempotent and cannot make the outstanding delegation deficit negative.",
+        "A stale execution generation cannot create a new delegation after spawn authority rotates.",
+        "Two causal delegations that converge on one semantic child remain separately accounted until both causal acknowledgements are discharged.",
+        "Replaying the immutable fact history reconstructs the same termination projection without derived cache state.",
+        "TLC accepts the durable-accounting detector and finds a false-completion counterexample for the naive detector."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "experiments/diffusing-termination/experiment.ts",
+          "formal/DiffusingTermination.tla"
+        ],
+        "pending_reason": "The preregistered executable and formal treatment have not yet been evaluated on an exact hosted revision."
+      },
+      "interpretation": "A positive result would support durable causal-work accounting as the recursive-delegation completion primitive. It would not require adopting the original Dijkstra-Scholten wire protocol literally because Overcenter can reconstruct the deficit from immutable authority history.",
+      "non_claims": [
+        "Arbitrary unbounded agent swarms terminate.",
+        "Scheduler fairness, provider availability, or worker liveness follows from termination detection.",
+        "A process being idle implies it has lost authority to create descendants.",
+        "The bounded model proves correctness for unmodeled transports or delegation protocols."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The hostile cases, safety criterion, replay criterion, and negative control are recorded before hosted exact-head evaluation."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The experiment is preregistered and awaiting exact-head executable and formal evidence."
+      }
     }
   ]
 }

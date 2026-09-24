@@ -136,4 +136,7 @@ check_expected_temporal_failure "SchedulerLiveness" "SchedulerFreshFlood.cfg"
 check_good "SchedulerServiceAge" "SchedulerServiceAge.cfg" "service-age scheduler liveness"
 check_expected_temporal_failure "SchedulerServiceAge" "BrokenServiceAgeNonMonotone.cfg"
 
+check_good "DiffusingTermination" "DiffusingTermination.cfg" "durable diffusing-computation termination detection"
+check_expected_failure "DiffusingTermination" "BrokenDiffusingTerminationNaive.cfg" "NoFalseCompletion"
+
 echo "TLA+ safety and conditional-liveness models, including all negative controls, behaved as expected."
