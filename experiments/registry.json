@@ -3312,7 +3312,7 @@
       "directory": "experiments/history-independence-inference",
       "readme": "experiments/history-independence-inference/README.md",
       "question": "Can Overcenter derive a conservative project-truth history-independence relation from production graph causality, effect coordinates, and adapter duplicate-delivery semantics while preserving a strict boundary against provider-history equivalence?",
-      "claim": "For the bounded GitHub-status corpus, the derived project-truth rule should match the manual control classifications, reject unsafe inference mutants, preserve replay equivalence across every legal continuation through depth three including execution-authority rotation, preserve failure-class symmetry for illegal continuations, and fail the stronger provider-history equivalence lens.",
+      "claim": "For the bounded GitHub-status corpus, the derived project-truth rule should match the seven manual control classifications, reject unsafe inference mutants, preserve replay equivalence across every legal continuation through depth three including execution-authority rotation, preserve failure-class symmetry for illegal continuations, and fail the stronger provider-history equivalence lens.",
       "contrast": "Infer a universal history-independence relation from absence of graph dependency or distinct effect resources, thereby conflating Overcenter project truth with all externally observable provider history.",
       "reproduce": {
         "tier": "deterministic",
@@ -3320,12 +3320,12 @@
       },
       "environment": [
         "Node.js from .node-version.",
-        "Production graph topology, effectSemantics, adapter capability metadata, SQLite fact storage, replay/projector, and GitHub commit-status effect code.",
+        "Production graph topology, effectSemantics, exact effect-adapter/verifier capability metadata, SQLite fact storage, replay/projector, and GitHub commit-status effect code.",
         "Deterministic fresh-HTTPS pre-secureConnect failure fixture; no live provider credential or provider write is required."
       ],
       "success_criteria": [
-        "The derived project-truth relation matches all six control classifications.",
-        "Removing graph causality, ignoring effect resources, treating unknown effect semantics as independent, and treating sameDesiredCommutes as sufficient despite may-duplicate delivery each produce a caught false positive.",
+        "The derived project-truth relation matches all seven control classifications.",
+        "Removing graph causality, ignoring effect resources, treating unknown effect semantics as independent, and treating sameDesiredCommutes as sufficient despite may-duplicate delivery, and ignoring adapter/verifier binding each produce a caught false positive.",
         "Production admission permits same-coordinate same-desired GitHub status obligations but rejects conflicting desired states, while project-truth history normalization conservatively keeps the admitted may-duplicate pair non-independent.",
         "All 259 continuation action sequences through depth three have symmetric legality for A-first and B-first histories.",
         "Every mutually illegal continuation has the same failure class.",
@@ -3355,7 +3355,7 @@
       ],
       "design": {
         "provenance": "mixed",
-        "note": "The original six control classifications, conservative candidate rule, four hostile mutants, and depth-three continuation idea were preregistered before the first hosted result. A subsequent self-review added execution-authority actions, failure-class comparison, and a successful-provider audit-order counterexample before re-evaluation; the maintained treatment is therefore mixed-design."
+        "note": "The original seven control classifications, conservative candidate rule, five hostile mutants, and depth-three continuation idea were preregistered before the first hosted result. A subsequent self-review added execution-authority actions, failure-class comparison, and a successful-provider audit-order counterexample before re-evaluation; the maintained treatment is therefore mixed-design."
       },
       "outcome": {
         "state": "pending",
