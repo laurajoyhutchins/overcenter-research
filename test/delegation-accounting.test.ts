@@ -138,7 +138,9 @@ test('SQLite reconstructs outstanding delegation across controller replacement',
       },
     });
 
-    const parent = first.claim('parent', first.inspect().find((work) => work.id === 'parent')!.revision);
+    const parentWork = first.inspect().find((work) => work.id === 'parent');
+    assert.ok(parentWork);
+    const parent = first.claim('parent', parentWork.revision);
     parentRunId = parent.id;
     parentGeneration = parent.execution_generation;
     binding = first.reserveDelegation(first.authorizeSpawn(parent), 'child');
