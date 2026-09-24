@@ -17,15 +17,10 @@ export class GitOvercenterKernel extends KernelCore {
 
   constructor(
     repo: string,
-    {
-      ref = STATE_REF,
-      remote = null,
-      githubToken = null,
-      observationContext = {},
-    }: GitKernelOptions = {},
+    { ref = STATE_REF, remote = null, ...kernelOptions }: GitKernelOptions = {},
   ) {
     const store = new GitFactStore(repo, { ref, remote });
-    super(store, { githubToken, observationContext });
+    super(store, kernelOptions);
     this.repo = repo;
     this.ref = ref;
     this.remote = remote;

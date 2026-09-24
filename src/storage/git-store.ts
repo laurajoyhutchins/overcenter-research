@@ -62,6 +62,7 @@ export class GitFactStore implements DurableFactStore {
         'source-revision.json',
         'execution-authority.json',
         'effect-reservation.json',
+        'verified-output.json',
         'receipt.json',
       ]) {
         const value = this.readJson(commit, path);

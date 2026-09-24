@@ -4,6 +4,7 @@ import type {
   EffectReservationFact,
   ExecutionAuthorityFact,
   ReceiptFact,
+  VerifiedOutputFact,
 } from './facts.ts';
 import type { ExecutionPermit, Run } from '../model.ts';
 
@@ -102,6 +103,30 @@ export function receiptAuthorityError(run: Run, fact: ReceiptFact): ReceiptAutho
     fact.execution_authority_commit !== run.execution_authority_commit
   )
     return 'RECEIPT_EXECUTION_AUTHORITY_MISMATCH';
+  return null;
+}
+
+export type VerifiedOutputAuthorityError =
+  | 'VERIFIED_OUTPUT_RUN_MISMATCH'
+  | 'VERIFIED_OUTPUT_OBLIGATION_MISMATCH'
+  | 'VERIFIED_OUTPUT_REVISION_MISMATCH'
+  | 'VERIFIED_OUTPUT_CLAIM_MISMATCH'
+  | 'VERIFIED_OUTPUT_EXECUTION_AUTHORITY_MISMATCH'
+  | null;
+
+export function verifiedOutputAuthorityError(
+  run: Run,
+  fact: VerifiedOutputFact,
+): VerifiedOutputAuthorityError {
+  if (fact.run_id !== run.id) return 'VERIFIED_OUTPUT_RUN_MISMATCH';
+  if (fact.obligation_id !== run.obligation_id) return 'VERIFIED_OUTPUT_OBLIGATION_MISMATCH';
+  if (fact.claimed_revision !== run.claimed_revision) return 'VERIFIED_OUTPUT_REVISION_MISMATCH';
+  if (fact.claim_commit !== run.claim_commit) return 'VERIFIED_OUTPUT_CLAIM_MISMATCH';
+  if (
+    fact.execution_generation !== run.execution_generation ||
+    fact.execution_authority_commit !== run.execution_authority_commit
+  )
+    return 'VERIFIED_OUTPUT_EXECUTION_AUTHORITY_MISMATCH';
   return null;
 }
 
