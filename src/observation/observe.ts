@@ -96,6 +96,7 @@ function readLocalFile(path: string, context: ObservationContext): string {
 }
 
 export function validatePostcondition(p: Postcondition): void {
+  if (p?.verifier === 'source-integration/v1') return;
   if (
     p?.verifier === 'file-content-equals/v1' &&
     typeof p.path === 'string' &&
@@ -373,6 +374,9 @@ function githubPullRequestBranchUpdatedEvidenceMatches(
 
 export function observePostcondition(p: Postcondition, context: ObservationContext): Observation {
   validatePostcondition(p);
+  if (p.verifier === 'source-integration/v1') {
+    throw new Error('SOURCE_INTEGRATION_REQUIRES_TRUSTED_SETTLEMENT');
+  }
 
   if (p.verifier === 'github-pull-request-branch-updated/v1') {
     if (!context.githubToken) {
