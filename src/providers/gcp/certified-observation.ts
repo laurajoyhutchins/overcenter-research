@@ -1,5 +1,6 @@
 import type { ProviderObservation } from '../../observation/provider.ts';
 import {
+  projectResponseSlice,
   validateObservationSlice,
   type CertifiedObservation,
   type ResponseFieldSpec,
@@ -115,5 +116,20 @@ export function observeCertifiedGcpRead200({
   return {
     observed_at: observedAt,
     certified: validateObservationSlice(operation, raw, fields, resolveRef),
+  };
+}
+
+
+export function observeProjectedCertifiedGcpRead200<Value>(
+  options: Parameters<typeof observeCertifiedGcpRead200>[0],
+): {
+  observed_at: string;
+  certified: CertifiedObservation<GcpRawObservation>;
+  value: Value;
+} {
+  const result = observeCertifiedGcpRead200(options);
+  return {
+    ...result,
+    value: projectResponseSlice(result.certified.outcome.value, options.fields) as Value,
   };
 }
