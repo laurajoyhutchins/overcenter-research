@@ -170,3 +170,67 @@ It would not yet justify productionizing the relation. The next rung would be a 
 The treatment code, control oracle, hostile mutants, continuation alphabet, and acceptance criteria were frozen before accepted hosted evidence at source revision `0f9ace03f1bba924ba6343d6ad707bf610aabae5`.
 
 This note is documentation-only and does not change the treatment.
+
+
+## Result
+
+Supported at exact evaluated revision `2e7dcfa2c7eb5d05205630fe44feab3ea4b014b3` in GitHub Actions run `35950965066`.
+
+Observed inference control:
+
+```text
+manual classifications:  6 / 6 matched
+hostile inference mutants: 4 / 4 rejected
+
+different status context       -> independent
+different commit               -> independent
+graph dependency               -> not independent
+same coordinate + same desired
+  with may-duplicate delivery  -> not independent
+same coordinate + conflict     -> not independent
+unknown effect semantics       -> not independent
+```
+
+The distinction between admission and normalization was observed exactly as intended:
+
+```text
+same coordinate + same desired GitHub status
+    production admission:       allowed
+    history independence:       rejected
+
+same coordinate + conflicting desired state
+    production admission:       rejected
+    history independence:       rejected
+```
+
+Bounded contextual search:
+
+```text
+continuation sequences examined: 85
+legal in both histories:          15
+illegal in both histories:        70
+asymmetric legality:               0
+critical-pair first branches:      2, both join
+raw provenance:                    preserved as distinct
+```
+
+Every legal continuation pair agreed under production replay and reduced to one semantic normal form and semantic digest.
+
+### Interpretation
+
+Within this corpus, Overcenter can derive a useful conservative trace-independence relation from machinery it already owns:
+
+```text
+graph causality
+      +
+effect resource identity
+      +
+adapter duplicate-delivery semantics
+      |
+      v
+candidate commute relation
+```
+
+The experiment also identifies an important boundary: `sameDesiredCommutes` is sufficient for conflict admission but not sufficient for history equivalence when duplicate delivery may have observable consequences.
+
+This supports a next step of turning the derivation into a proof-carrying **independence certificate** bound to the exact graph revision, semantic obligation identities, effect semantics, adapter capability metadata, and normalization ruleset. It does not yet promote the inference rule into production.
