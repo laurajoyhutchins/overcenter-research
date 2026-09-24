@@ -73,6 +73,7 @@ import {
   type TrustedEffectReleaseWitness,
 } from '../effect-release-witness.ts';
 import { planGraphReconciliation } from '../graph/reconciliation.ts';
+import { dependsOn } from '../graph/topology.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -431,6 +432,9 @@ export class KernelCore {
       }
       if (!state.obligations[childObligationId]) throw new Error('DELEGATION_CHILD_UNKNOWN');
       if (childObligationId === run.obligation_id) throw new Error('DELEGATION_SELF_REFERENCE');
+      if (dependsOn(state, childObligationId, run.obligation_id)) {
+        throw new Error('DELEGATION_CAUSAL_CYCLE');
+      }
       if (project.lifecycles.get(childObligationId)?.status === 'DONE') {
         throw new Error('DELEGATION_CHILD_ALREADY_DONE');
       }
@@ -719,6 +723,25 @@ export class KernelCore {
   hasUnresolvedEffect(runId: string): boolean {
     const head = this.#requireHead();
     return this.#historicalProjection(head).history.unresolvedReservationsByRun.has(runId);
+  }
+
+  outstandingDelegations(runId: string): DelegationAttemptBinding[] {
+    const head = this.#requireHead();
+    const { history } = this.#historicalProjection(head);
+    if (!history.runs.has(runId)) throw new Error('UNKNOWN_RUN');
+    return [...(history.unresolvedDelegationsByRun.get(runId)?.values() ?? [])]
+      .map((delegation) =>
+        Object.freeze({
+          delegation_id: delegation.delegation_id,
+          run_id: delegation.run_id,
+          obligation_id: delegation.obligation_id,
+          execution_generation: delegation.execution_generation,
+          execution_authority_commit: delegation.execution_authority_commit,
+          reservation_commit: delegation.reservation_commit,
+          child_obligation_id: delegation.child_obligation_id,
+        }),
+      )
+      .sort((left, right) => left.delegation_id.localeCompare(right.delegation_id));
   }
 
   hasUnresolvedDelegation(runId: string): boolean {
