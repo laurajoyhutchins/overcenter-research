@@ -46,6 +46,27 @@ function fileObligation(
   };
 }
 
+function githubStatusObligation(
+  id: string,
+  expectedState: 'failure' | 'success',
+  dependencies: Dependency[] = [],
+): Obligation {
+  return {
+    id,
+    dependencies,
+    packet: {},
+    postcondition: {
+      verifier: 'github-commit-status/v2',
+      provider: 'github',
+      repository_id: 1,
+      repository_full_name: 'example/repo',
+      commit_sha: 'a'.repeat(40),
+      context: 'ci/overcenter',
+      expected_state: expectedState,
+    },
+  };
+}
+
 function stateOf(obligations: Obligation[]): State {
   return {
     obligations: Object.fromEntries(obligations.map((obligation) => [obligation.id, obligation])),
@@ -233,15 +254,15 @@ function runTraceReduction() {
 }
 
 function runProductionConflictAndCausalityControls() {
-  const alpha = fileObligation('alpha', '/provider/shared', 'ALPHA');
-  const beta = fileObligation('beta', '/provider/shared', 'BETA');
+  const alpha = githubStatusObligation('alpha', 'failure');
+  const beta = githubStatusObligation('beta', 'success');
   const conflictState = stateOf([alpha, beta]);
   const conflictIndex = buildStaticEffectIndex(conflictState);
   const conflict = staticEffectConflict(conflictState, 'alpha', conflictIndex);
   assert.ok(conflict);
   assert.equal(conflict.code, 'UNORDERED_EFFECT_CONFLICT:alpha:beta');
 
-  const orderedBeta = fileObligation('beta', '/provider/shared', 'BETA', [
+  const orderedBeta = githubStatusObligation('beta', 'success', [
     { kind: 'control', upstream: 'alpha' },
   ]);
   const orderedState = stateOf([alpha, orderedBeta]);
