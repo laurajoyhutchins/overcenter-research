@@ -769,10 +769,7 @@ export class KernelCore {
       'judgment-required' | 'execution-terminated' | 'source-integration' | 'source-retry'
     >,
     diagnostic: Data,
-    validate?: (context: {
-      run: HistoricalRun;
-      work: HistoricalRun['obligation'];
-    }) => void,
+    validate?: (context: { run: HistoricalRun; work: HistoricalRun['obligation'] }) => void,
   ): Receipt {
     const runId = permit.id;
     const policy =
@@ -827,11 +824,9 @@ export class KernelCore {
 
       const fact = this.#receiptFact(run, work.id, kind, null, diagnostic);
       const receipt = projectReceipt(fact, work);
-      const commit = this.#store.append(
-        head,
-        `overcenter: ${policy.action} ${work.id} ${runId}`,
-        { 'receipt.json': fact },
-      );
+      const commit = this.#store.append(head, `overcenter: ${policy.action} ${work.id} ${runId}`, {
+        'receipt.json': fact,
+      });
       if (commit) return { ...receipt, settlement_commit: commit };
     }
     throw new Error(policy.contentionError);
