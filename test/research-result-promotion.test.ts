@@ -227,8 +227,8 @@ test('evidence-only rerun retains research and promotion semantic identity', () 
   const withFirst = compileResearchPromotions(plan, [first]);
   const withRerun = compileResearchPromotions(plan, [rerun]);
   assert.deepEqual(
-    withFirst.map(({ id, semantic_key }) => ({ id, semantic_key })),
-    withRerun.map(({ id, semantic_key }) => ({ id, semantic_key })),
+    withFirst.map(({ id, promotion_identity }) => ({ id, promotion_identity })),
+    withRerun.map(({ id, promotion_identity }) => ({ id, promotion_identity })),
   );
 });
 
@@ -267,13 +267,13 @@ test('changed research meaning invalidates only semantic descendants', () => {
   const before = new Map(
     compileResearchPromotions(plan, [originalA, c]).map((promotion) => [
       promotion.id,
-      promotion.semantic_key,
+      promotion.promotion_identity,
     ]),
   );
   const after = new Map(
     compileResearchPromotions(plan, [changedA, c]).map((promotion) => [
       promotion.id,
-      promotion.semantic_key,
+      promotion.promotion_identity,
     ]),
   );
 
