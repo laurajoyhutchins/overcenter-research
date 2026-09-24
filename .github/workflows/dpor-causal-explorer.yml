@@ -5,11 +5,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
+      - experiments/partial-order.ts
       - .github/workflows/dpor-causal-explorer.yml
       - experiments/dpor-causal-explorer/**
       - experiments/causal-execution-quotient/**
-      - package.json
-      - experiments/registry.json
 
 permissions: {}
 
