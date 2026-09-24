@@ -132,6 +132,13 @@ jobs:
           rustup toolchain install "$channel" --profile minimal --component rustfmt --no-self-update
           test "$(rustc --version | awk '{print $2}')" = "$channel"
 
+      - name: Install Java for source verification
+        if: ${{ steps.prepare.outputs.state == 'ready' }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Verify source candidate
         id: verify
         if: ${{ steps.prepare.outputs.state == 'ready' }}
