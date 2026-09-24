@@ -20,7 +20,12 @@ import {
   submitProjectCandidate,
 } from '../src/authority/project-agent-protocol.ts';
 import { compileProjectIntent } from '../src/authority/project-intent.ts';
-import { SOURCE_VERIFICATION_SCHEMA } from '../src/source/source-integration.ts';
+import {
+  materializeSourceProposal,
+  publishSourceCandidate,
+  SOURCE_VERIFICATION_SCHEMA,
+} from '../src/source/source-integration.ts';
+import { SOURCE_PROPOSAL_SCHEMA } from '../src/source/source-obligation.ts';
 
 const AUTHORITY_REF = 'refs/overcenter/test-project-agent';
 
@@ -360,6 +365,54 @@ test('project.advance emits a source assignment without a worker executable', ()
   }
 });
 
+test('source proposal broker rejects control-plane mutation before candidate publication', () => {
+  const f = fixture();
+  try {
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+    const sourceSha = commitProjectIntent(f.work, [sourceIntent('source-work')]);
+    const acquired = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir: join(f.root, 'source-packet'),
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+    assert.ok(acquired.run_id);
+
+    const authority = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
+    });
+    const claim = authority.sourceClaimBinding(acquired.run_id);
+    assert.throws(
+      () =>
+        materializeSourceProposal(
+          f.work,
+          sourceIntent('source-work').task,
+          claim,
+          {
+            schema: SOURCE_PROPOSAL_SCHEMA,
+            run_id: claim.run_id,
+            claimed_revision: claim.claimed_revision,
+            claimed_source_sha: claim.source_sha,
+            files: [
+              {
+                path: '.github/workflows/evil.yml',
+                content_base64: Buffer.from('name: evil\n').toString('base64'),
+              },
+            ],
+          },
+        ),
+      /SOURCE_PROPOSAL_PATH_INVALID:0/,
+    );
+
+    const candidateRef = `refs/heads/overcenter/candidate/${claim.run_id}`;
+    assert.equal(git(f.work, ['ls-remote', 'origin', candidateRef]), '');
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
 test('project.submit integrates a verified source candidate and settles the source obligation', () => {
   const f = fixture();
   try {
@@ -373,11 +426,38 @@ test('project.submit integrates a verified source candidate and settles the sour
     });
     assert.ok(acquired.run_id);
 
-    writeFileSync(join(f.work, 'src', 'feature.txt'), 'feature:integrated\n');
-    execFileSync('git', ['-C', f.work, 'add', 'src/feature.txt'], { stdio: 'ignore' });
-    execFileSync('git', ['-C', f.work, 'commit', '-m', 'source candidate'], { stdio: 'ignore' });
-    const candidateSha = git(f.work, ['rev-parse', 'HEAD']);
-    const treeSha = git(f.work, ['rev-parse', 'HEAD^{tree}']);
+    const authority = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
+    });
+    const claim = authority.sourceClaimBinding(acquired.run_id);
+    const candidate = materializeSourceProposal(
+      f.work,
+      sourceIntent('source-work').task,
+      claim,
+      {
+        schema: SOURCE_PROPOSAL_SCHEMA,
+        run_id: claim.run_id,
+        claimed_revision: claim.claimed_revision,
+        claimed_source_sha: claim.source_sha,
+        files: [
+          {
+            path: 'src/feature.txt',
+            content_base64: Buffer.from('feature:integrated\n').toString('base64'),
+          },
+        ],
+      },
+    );
+    const published = publishSourceCandidate(
+      f.work,
+      sourceIntent('source-work').task,
+      claim,
+      candidate.commit_sha,
+      { remote: 'origin' },
+    );
+    assert.equal(published.state, 'PUBLISHED');
+    const candidateSha = candidate.commit_sha;
+    const treeSha = git(f.work, ['rev-parse', `${candidateSha}^{tree}`]);
     const verificationPath = join(f.root, 'source-verification.json');
     writeFileSync(
       verificationPath,
@@ -455,12 +535,29 @@ test('rejected source verification releases the obligation without moving source
     });
     assert.ok(acquired.run_id);
 
-    writeFileSync(join(f.work, 'src', 'feature.txt'), 'feature:rejected\n');
-    execFileSync('git', ['-C', f.work, 'add', 'src/feature.txt'], { stdio: 'ignore' });
-    execFileSync('git', ['-C', f.work, 'commit', '-m', 'rejected source candidate'], {
-      stdio: 'ignore',
+    const authority = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
     });
-    const candidateSha = git(f.work, ['rev-parse', 'HEAD']);
+    const claim = authority.sourceClaimBinding(acquired.run_id);
+    const candidate = materializeSourceProposal(
+      f.work,
+      sourceIntent('source-work').task,
+      claim,
+      {
+        schema: SOURCE_PROPOSAL_SCHEMA,
+        run_id: claim.run_id,
+        claimed_revision: claim.claimed_revision,
+        claimed_source_sha: claim.source_sha,
+        files: [
+          {
+            path: 'src/feature.txt',
+            content_base64: Buffer.from('feature:rejected\n').toString('base64'),
+          },
+        ],
+      },
+    );
+    const candidateSha = candidate.commit_sha;
     const verificationPath = join(f.root, 'source-verification.json');
     writeFileSync(
       verificationPath,
