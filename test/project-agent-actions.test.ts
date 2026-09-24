@@ -78,15 +78,14 @@ test('candidate transport stays internal and inert until project.submit is invok
   assert.doesNotMatch(submit, /issue_comment:|pull_request_review:|workflow_dispatch:/);
 });
 
-test('source candidate verification runs without repository write authority', () => {
-  assert.match(signal, /source:\n\s+name: Verify source candidate/);
-  assert.match(signal, /source:[\s\S]*permissions:\n\s+contents: read/);
-  assert.doesNotMatch(signal, /source:[\s\S]*contents:\s*write/);
-  assert.match(signal, /persist-credentials: false/);
-  assert.match(signal, /npm run test:unit/);
-  assert.match(signal, /npm run proof:formal/);
-  assert.match(signal, /npm run proof:production-boundary/);
-  assert.match(signal, /proof-self-application\.sh/);
+test('source candidate verification reuses exact evidence without repository write authority', () => {
+  assert.match(signal, /source-evidence:\n\s+name: Verify source candidate/);
+  assert.match(signal, /source-evidence:[\s\S]*permissions:\n\s+contents: read/);
+  assert.match(signal, /uses: \.\/\.github\/workflows\/tests\.yml/);
+  assert.match(signal, /expensive: true/);
+  assert.doesNotMatch(signal, /contents:\s*write|actions:\s*write/);
+  assert.match(signal, /source-record:[\s\S]*persist-credentials: false/);
+  assert.match(signal, /needs\.source-evidence\.result/);
   assert.match(signal, /source-verification\/source-verification\.json/);
 });
 
