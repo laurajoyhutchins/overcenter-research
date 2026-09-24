@@ -112,7 +112,7 @@ There are 259 sequences including the empty continuation. Execution-authority ro
 For every sequence:
 
 - legality must agree in both histories;
-- if both histories reject a continuation, the failure class must also agree;
+- if both histories reject a continuation, the exact rejection result must also agree;
 - if legal, production replay signatures must agree;
 - the derived normalizer must produce the same canonical form and semantic digest;
 - raw provenance digests must remain different.
@@ -155,7 +155,7 @@ The hypothesis is supported only if:
 - the production admission distinction between same-desired and conflicting same-coordinate writes is observed;
 - all 259 continuation sequences have symmetric legality;
 - every legal continuation pair agrees under production replay and canonical normalization;
-- every mutually illegal continuation has the same failure class;
+- every mutually illegal continuation has the same exact rejection result;
 - every tested critical-pair branch joins;
 - provenance remains distinct;
 - no production source file changes.
@@ -262,6 +262,6 @@ This supports a next step of turning the derivation into a proof-carrying **inde
 
 ## Review correction
 
-A post-result self-review found that the original treatment established equivalence only for pre-dispatch aborted attempts and therefore did not justify a provider-history interpretation of the inferred relation. The strengthened maintained treatment adds execution-authority continuations, compares failure classes, and includes the successful provider-audit counterexample above.
+A post-result self-review found that the original treatment established equivalence only for pre-dispatch aborted attempts and therefore did not justify a provider-history interpretation of the inferred relation. The strengthened maintained treatment adds execution-authority continuations, compares exact rejection resultes, and includes the successful provider-audit counterexample above.
 
 Because these controls were added after the first hosted result, the maintained experiment is now a **mixed-design** experiment. The original preregistered evidence remains historical context; the strengthened treatment requires a new exact-head evaluation before the maintained result is called current.
