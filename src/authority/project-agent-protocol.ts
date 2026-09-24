@@ -401,14 +401,13 @@ function sourceSubmitReceipt(
   obligationId: string,
   claimedRevision: string,
   candidateSha: string,
-  settled: {
-    disposition: 'DONE' | 'READY' | 'RECOVERY_REQUIRED';
-    verified: boolean;
-    settlement_commit?: string;
-  },
+  settled: ReturnType<GitOvercenterKernel['recoverInterrupted']>,
   alreadySettled: boolean,
   integrationCommit?: string,
 ): ProjectSubmitReceipt {
+  if (settled.disposition === 'WAITING') {
+    throw new Error('PROJECT_SUBMIT_SOURCE_SETTLEMENT_WAITING');
+  }
   const authorityHead = kernel.head();
   if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
   return withDigest({
