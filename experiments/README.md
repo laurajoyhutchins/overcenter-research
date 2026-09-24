@@ -80,14 +80,14 @@ Scientific outcomes and infrastructure outcomes remain separate. A falsified hyp
 
 Maintained correctness properties belong in ordinary `test/`, `src/`, or `formal/` machinery after promotion. Experiment directories preserve bounded treatments and explanations; they are not a second regression framework. Hosted workflows stay thin and run the experiment they exist to exercise.
 
-Source promotion now has one narrow production admission primitive in `src/source/github-evidence-admission.ts`. It reads an existing `SourceTaskPacket` from the exact design commit, requires that design commit to be an ancestor of the evaluated revision, and accepts promotion only when canonical GitHub Actions observations show:
+Source promotion now has one narrow production admission primitive in `src/source/github-evidence-admission.ts`. One exact Git commit freezes the promotion task and the experiment machinery that may authorize it. Admission reads the existing `SourceTaskPacket` from that commit and accepts it only when canonical GitHub Actions observations show:
 
-- the named workflow run completed successfully at the exact evaluated SHA;
+- the named workflow ran successfully on that exact same commit;
 - the exact workflow job belongs to that run and attempt;
 - that job completed successfully; and
 - its name is `promote:<task-path>`, binding the provider result to the frozen task without a parallel result manifest.
 
-A falsified experiment can therefore remain a successful workflow while its promotion job is skipped. Registry text and caller-declared outcome strings have no authority. This primitive admits the frozen source task; live source-candidate execution and integration remain separate machinery.
+Changing the task, treatment, scorer, or workflow produces a new Git identity and therefore cannot reuse evidence from the prior design. A falsified experiment can remain a successful workflow while its promotion job is skipped. Registry text and caller-declared outcome strings have no authority. This primitive admits the frozen source task; live source-candidate execution and integration remain separate machinery.
 
 ## Proof lineage
 
