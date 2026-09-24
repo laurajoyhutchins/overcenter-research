@@ -8,8 +8,6 @@ on:
       - .github/workflows/dpor-race-backtracking.yml
       - experiments/dpor-race-backtracking/**
       - experiments/dpor-causal-explorer/**
-      - package.json
-      - experiments/registry.json
 
 permissions: {}
 
