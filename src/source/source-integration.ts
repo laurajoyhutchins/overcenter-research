@@ -1,12 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { assertExactKeys, assertNonEmptyString, isData } from '../validation.ts';
 import {
   SOURCE_CANDIDATE_SCHEMA,
   validateSourceCandidate,
+  validateSourceProposal,
   validateSourceTaskPacket,
   type SourceCandidate,
   type SourceClaimBinding,
@@ -199,6 +200,99 @@ export function trustedSourceIntegrationEvidence(
   const evidence = sourceIntegrationEvidenceByWitness.get(witness);
   if (!evidence) throw new Error('SOURCE_INTEGRATION_WITNESS_INVALID');
   return structuredClone(evidence);
+}
+
+export type SourceCandidatePublicationResult =
+  | { state: 'PUBLISHED' | 'ALREADY_PUBLISHED'; ref: string; candidate_sha: string }
+  | { state: 'CONFLICT'; ref: string; observed_sha: string };
+
+function sourceCandidateMessage(claim: SourceClaimBinding): string {
+  return [
+    `source candidate ${claim.run_id}`,
+    '',
+    `Overcenter-Obligation-Key: ${claim.obligation_key}`,
+    `Overcenter-Claimed-Revision: ${claim.claimed_revision}`,
+    `Overcenter-Claimed-Source: ${claim.source_sha}`,
+  ].join('\n');
+}
+
+export function materializeSourceProposal(
+  repo: string,
+  taskValue: unknown,
+  claim: SourceClaimBinding,
+  proposalValue: unknown,
+): SourceCandidate {
+  const proposal = validateSourceProposal(proposalValue, taskValue, claim);
+  const candidateTree = worktree(repo, claim.source_sha);
+  let candidateSha = '';
+  try {
+    for (const file of proposal.files) {
+      const target = join(candidateTree.root, file.path);
+      if (file.content_base64 === null) {
+        rmSync(target, { force: true });
+      } else {
+        mkdirSync(dirname(target), { recursive: true });
+        writeFileSync(target, Buffer.from(file.content_base64, 'base64'));
+      }
+    }
+    git(candidateTree.root, ['add', '-A', '--', ...proposal.files.map((file) => file.path)]);
+    if (gitStatus(candidateTree.root, ['diff', '--cached', '--quiet']) === 0) {
+      throw new Error('SOURCE_PROPOSAL_EMPTY');
+    }
+    git(candidateTree.root, [
+      '-c',
+      'user.name=Overcenter Source Broker',
+      '-c',
+      'user.email=overcenter@local',
+      'commit',
+      '-m',
+      sourceCandidateMessage(claim),
+    ]);
+    candidateSha = git(candidateTree.root, ['rev-parse', 'HEAD']);
+  } finally {
+    candidateTree.dispose();
+  }
+
+  return inspectSourceCandidate(repo, taskValue, claim, candidateSha).candidate;
+}
+
+export function publishSourceCandidate(
+  repo: string,
+  taskValue: unknown,
+  claim: SourceClaimBinding,
+  candidateSha: string,
+  { remote = 'origin' }: { remote?: string } = {},
+): SourceCandidatePublicationResult {
+  inspectSourceCandidate(repo, taskValue, claim, candidateSha);
+  const ref = `refs/heads/overcenter/candidate/${claim.run_id}`;
+  const listed = execFileSync('git', ['-C', repo, 'ls-remote', remote, ref], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  if (listed) {
+    const observed = listed.split(/\s+/)[0] ?? '';
+    exactSha(observed, 'SOURCE_CANDIDATE_REF_INVALID');
+    if (observed === candidateSha) {
+      return { state: 'ALREADY_PUBLISHED', ref, candidate_sha: candidateSha };
+    }
+    return { state: 'CONFLICT', ref, observed_sha: observed };
+  }
+
+  if (gitStatus(repo, ['push', '--porcelain', remote, `${candidateSha}:${ref}`]) === 0) {
+    return { state: 'PUBLISHED', ref, candidate_sha: candidateSha };
+  }
+
+  const after = execFileSync('git', ['-C', repo, 'ls-remote', remote, ref], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  if (!after) throw new Error('SOURCE_CANDIDATE_PUBLICATION_UNCERTAIN');
+  const observed = after.split(/\s+/)[0] ?? '';
+  exactSha(observed, 'SOURCE_CANDIDATE_REF_INVALID');
+  if (observed === candidateSha) {
+    return { state: 'ALREADY_PUBLISHED', ref, candidate_sha: candidateSha };
+  }
+  return { state: 'CONFLICT', ref, observed_sha: observed };
 }
 
 export function inspectSourceCandidate(
