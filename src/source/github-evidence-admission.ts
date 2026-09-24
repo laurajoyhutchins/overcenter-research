@@ -31,7 +31,6 @@ export interface GithubWorkflowSourceAdmissionRequest {
   workflowJobId: number;
   workflowName: string;
   workflowPath: string;
-  promotionJobName: string;
   minimumRunAttempt?: number;
 }
 
@@ -192,8 +191,6 @@ export function admitSourceTaskFromGithubWorkflow(
   positiveSafeInteger(minimumRunAttempt, 'SOURCE_PROMOTION_MINIMUM_RUN_ATTEMPT_INVALID');
   if (!request.workflowName) throw new Error('SOURCE_PROMOTION_WORKFLOW_NAME_INVALID');
   if (!request.workflowPath) throw new Error('SOURCE_PROMOTION_WORKFLOW_PATH_INVALID');
-  if (!request.promotionJobName) throw new Error('SOURCE_PROMOTION_JOB_NAME_INVALID');
-
   const frozen = frozenSourceTask(repo, request.designSha, request.taskPath);
 
   const runRead = observeCertifiedGithubSemanticRead(token, {
@@ -245,7 +242,7 @@ export function admitSourceTaskFromGithubWorkflow(
     job.run_id !== run.id ||
     job.run_attempt !== run.run_attempt ||
     !sameGithubObjectId(job.head_sha, request.evaluatedSha) ||
-    job.name !== request.promotionJobName
+    job.name !== `promote:${request.taskPath}`
   ) {
     throw new Error('SOURCE_PROMOTION_WORKFLOW_JOB_MISMATCH');
   }
