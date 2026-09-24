@@ -55,6 +55,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `typed-capability-authority/` - preregistered Rust differential for sealed affine effect authority, compile-fail invalid states, and sequential/concurrent admission cost.
 - `authority-flow-analysis/` - static abstract interpretation of untrusted data, revision, lease, and mutation authority across serialization, queues, joins, aliases, and dynamic dispatch.
 - `effect-authority-decay/` - current-main production broker experiment testing whether bound authority eliminates downstream raw-coordinate reconstruction while preserving the final runtime fence.
+- `history-normalization/` - derived causal-history normalization over certified-independent interleavings, a trusted NOT_DISPATCHED release sequence, critical-pair overlap, and hostile unsafe-law controls.
 - `rust-exec-typestate-boundary/` - historical negative: typestate preserved the real Rust confinement proof but removed no runtime guard class and increased source complexity.
 
 ## Experiment contract
