@@ -129,6 +129,8 @@ export interface ProjectProjectionInput {
   runs: Map<string, HistoricalRun>;
   receiptsByRun: Map<string, Receipt>;
   revision: string;
+  currentBindingOrdinals?: ReadonlyMap<string, number> | null;
+  claimOrdinalsByRun?: ReadonlyMap<string, number> | null;
   currentRealizationJudgments?: ReadonlyMap<string, CurrentRealizationJudgment> | null;
 }
 
@@ -538,6 +540,8 @@ export function deriveProjectProjection({
   runs,
   receiptsByRun,
   revision,
+  currentBindingOrdinals = null,
+  claimOrdinalsByRun = null,
   currentRealizationJudgments = null,
 }: ProjectProjectionInput): ProjectProjection {
   const {
@@ -592,22 +596,36 @@ export function deriveProjectProjection({
   }
 
   const lastCurrentClaimOrdinal = new Map<string, number>();
-  let claimOrdinal = 0;
-  for (const run of runs.values()) {
+  let legacyClaimOrdinal = 0;
+  for (const [runId, run] of runs) {
     if (run.obligation_key === semanticKeys.get(run.obligation_id)) {
-      lastCurrentClaimOrdinal.set(run.obligation_id, claimOrdinal);
+      const replayOrdinal = claimOrdinalsByRun?.get(runId);
+      if (claimOrdinalsByRun && replayOrdinal === undefined) {
+        throw new Error(`CLAIM_ORDINAL_MISSING:${runId}`);
+      }
+      lastCurrentClaimOrdinal.set(run.obligation_id, replayOrdinal ?? legacyClaimOrdinal);
     }
-    claimOrdinal += 1;
+    legacyClaimOrdinal += 1;
   }
+
+  const serviceAge = (id: string): number => {
+    const claimOrdinal = lastCurrentClaimOrdinal.get(id);
+    if (claimOrdinal !== undefined) return claimOrdinal;
+
+    const bindingOrdinal = currentBindingOrdinals?.get(id);
+    if (currentBindingOrdinals && bindingOrdinal === undefined) {
+      throw new Error(`BINDING_ORDINAL_MISSING:${id}`);
+    }
+    return bindingOrdinal ?? -1;
+  };
 
   const readyWork =
     work
       .filter((candidate) => claimabilityErrors.get(candidate.id) === null)
-      .sort((a, b) => {
-        const aOrdinal = lastCurrentClaimOrdinal.get(a.id) ?? -1;
-        const bOrdinal = lastCurrentClaimOrdinal.get(b.id) ?? -1;
-        return aOrdinal - bOrdinal || a.id.localeCompare(b.id);
-      })[0] ?? null;
+      .map((candidate) => ({ candidate, serviceAge: serviceAge(candidate.id) }))
+      .sort(
+        (a, b) => a.serviceAge - b.serviceAge || a.candidate.id.localeCompare(b.candidate.id),
+      )[0]?.candidate ?? null;
 
   return {
     lifecycles,

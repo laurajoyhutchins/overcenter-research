@@ -715,6 +715,8 @@ export class KernelCore {
       runs: historical.history.runs,
       receiptsByRun: historical.history.receiptsByRun,
       revision: head,
+      currentBindingOrdinals: historical.history.currentBindingOrdinals,
+      claimOrdinalsByRun: historical.history.claimOrdinalsByRun,
       currentRealizationJudgments,
     });
     return {
