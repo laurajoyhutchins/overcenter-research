@@ -63,7 +63,8 @@
     "experiment:scheduler-policy-comparison": "node --experimental-strip-types experiments/scheduler-policy-comparison/experiment.ts",
     "test:distributed-authority-chaos": "node --experimental-strip-types experiments/distributed-authority-chaos/controller.ts local",
     "test:substrate-capability-admission": "node --experimental-strip-types experiments/substrate-capability-admission/experiment.ts",
-    "test:substrate-capability-admission:hosted": "node --experimental-strip-types experiments/substrate-capability-admission/hosted-evidence.ts"
+    "test:substrate-capability-admission:hosted": "node --experimental-strip-types experiments/substrate-capability-admission/hosted-evidence.ts",
+    "test:source-obligation-integration": "node --experimental-strip-types experiments/source-obligation-integration/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
