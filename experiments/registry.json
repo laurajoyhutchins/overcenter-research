@@ -3259,7 +3259,7 @@
       "directory": "experiments/finite-difference-ready-projection",
       "readme": "experiments/finite-difference-ready-projection/README.md",
       "question": "Can Overcenter maintain the scheduler READY relation incrementally from graph and lifecycle deltas while preserving full declarative recomputation as an exact oracle?",
-      "claim": "For the bounded READY relation, a query-directed finite-difference treatment over self predicates plus an all-dependencies aggregate maintains exact READY membership and replay-derived service-age selection with mutation work proportional to the affected reverse-dependency frontier rather than total graph size.",
+      "claim": "For the bounded READY relation, a query-directed finite-difference treatment over self predicates plus an all-dependencies aggregate maintains exact READY membership and replay-derived service-age selection with dependency work local to the affected reverse-dependency frontier plus logarithmic indexed READY maintenance, rather than project-wide recomputation.",
       "contrast": "Continue deriving the complete project READY projection after each local lifecycle change, or hand-optimize individual scheduler paths without retaining a declarative oracle.",
       "reproduce": {
         "tier": "deterministic",
@@ -3291,7 +3291,7 @@
           "Fan-out treatment: touched work exactly fanout + 1 at fan-out 1, 8, 64, and 512."
         ]
       },
-      "interpretation": "The bounded result supports finite-differenced READY membership and indexed fair selection as reconstructible acceleration. It does not yet establish incremental semantic-key propagation, current-realization observation maintenance, or the complete production ProjectProjection.",
+      "interpretation": "The bounded result supports finite-differenced READY membership and indexed fair selection as reconstructible acceleration: dependency work is frontier-local and selection maintenance is logarithmic in the READY set. It does not yet establish incremental semantic-key propagation, current-realization observation maintenance, or the complete production ProjectProjection.",
       "non_claims": [
         "The production scheduler should immediately replace deriveProjectProjection().",
         "Current-realization provider observations can be inferred from graph deltas.",
@@ -3307,7 +3307,7 @@
       },
       "outcome": {
         "state": "supported",
-        "summary": "At exact revision f326acb2a6b6d6ba922872d955522c94324c236b, the bounded READY relation matched both its declarative oracle and production projection differential while local lifecycle mutations updated only the affected reverse-dependency frontier."
+        "summary": "At exact revision f326acb2a6b6d6ba922872d955522c94324c236b, the bounded READY relation matched both its declarative oracle and production projection differential while local lifecycle mutations updated only the affected reverse-dependency frontier, with indexed READY maintenance."
       }
     }
   ]
