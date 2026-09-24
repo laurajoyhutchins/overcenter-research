@@ -9,7 +9,6 @@ on:
       - 'experiments/assignment-capsule/**'
       - 'src/**'
       - 'rust-toolchain.toml'
-      - 'package.json'
       - '.node-version'
   workflow_dispatch:
 

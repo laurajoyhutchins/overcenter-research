@@ -8,8 +8,6 @@ on:
       - 'src/authority/**'
       - 'src/storage/git-kernel.ts'
       - 'src/storage/git-store.ts'
-      - 'package.json'
-      - 'experiments/registry.json'
   workflow_dispatch:
 
 permissions:
