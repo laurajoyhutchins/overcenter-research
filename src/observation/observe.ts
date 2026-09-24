@@ -139,6 +139,12 @@ export function validatePostcondition(p: Postcondition): void {
   )
     return;
   if (
+    p?.verifier === 'verified-generated-output/v1' &&
+    typeof p.validator === 'string' &&
+    p.validator.length > 0
+  )
+    return;
+  if (
     p?.verifier === 'kubernetes-configmap-exists/v1' &&
     p.provider === 'kubernetes' &&
     typeof p.authority_id === 'string' &&
@@ -373,6 +379,9 @@ function githubPullRequestBranchUpdatedEvidenceMatches(
 
 export function observePostcondition(p: Postcondition, context: ObservationContext): Observation {
   validatePostcondition(p);
+  if (p.verifier === 'verified-generated-output/v1') {
+    throw new Error('GENERATED_OUTPUT_REQUIRES_RETAINED_EVIDENCE');
+  }
 
   if (p.verifier === 'github-pull-request-branch-updated/v1') {
     if (!context.githubToken) {
@@ -537,6 +546,9 @@ export async function observePostconditionAsync(
   context: ObservationContext,
 ): Promise<Observation> {
   validatePostcondition(p);
+  if (p.verifier === 'verified-generated-output/v1') {
+    throw new Error('GENERATED_OUTPUT_REQUIRES_RETAINED_EVIDENCE');
+  }
   if (p.verifier === 'github-pull-request-branch-updated/v1') {
     if (!context.githubToken) {
       return githubPullRequestBranchUpdatedError(p, 'GITHUB_TOKEN_UNAVAILABLE');
@@ -589,6 +601,10 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
   validateObservationEnvelope(observed);
   if (observed.verifier !== postcondition.verifier) {
     throw new Error('OBSERVATION_VERIFIER_MISMATCH');
+  }
+
+  if (postcondition.verifier === 'verified-generated-output/v1') {
+    throw new Error('GENERATED_OUTPUT_REQUIRES_RETAINED_EVIDENCE');
   }
 
   if (
