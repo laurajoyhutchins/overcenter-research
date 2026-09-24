@@ -192,10 +192,7 @@ try {
       )
       .digest('hex');
     if (semanticLoc > property.max_semantic_loc) failed = true;
-    if (
-      property.expected_surface_sha256 &&
-      property.expected_surface_sha256 !== surfaceSha256
-    ) {
+    if (property.expected_surface_sha256 && property.expected_surface_sha256 !== surfaceSha256) {
       failed = true;
     }
     return {
