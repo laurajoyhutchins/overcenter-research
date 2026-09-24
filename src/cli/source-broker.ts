@@ -16,9 +16,7 @@ const result = brokerAssignedSourceProposal(process.cwd(), assignment, proposal,
   githubToken: process.env.GITHUB_TOKEN ?? null,
 });
 if (result.publication.state === 'CONFLICT') {
-  throw new Error(
-    `SOURCE_CANDIDATE_REF_CONFLICT:${result.publication.observed_sha}`,
-  );
+  throw new Error(`SOURCE_CANDIDATE_REF_CONFLICT:${result.publication.observed_sha}`);
 }
 
 const output = `${JSON.stringify(result, null, 2)}\n`;
