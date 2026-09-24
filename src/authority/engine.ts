@@ -70,6 +70,10 @@ import {
   trustedSourceIntegrationEvidence,
   type TrustedSourceIntegrationWitness,
 } from '../source/source-integration.ts';
+import {
+  bindSourceClaim,
+  type SourceClaimBinding,
+} from '../source/source-obligation.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -319,6 +323,18 @@ export class KernelCore {
     const run = this.#historicalProjection(this.#requireHead()).history.runs.get(runId);
     if (!run) throw new Error('UNKNOWN_RUN');
     return run.source_revision ?? null;
+  }
+
+  sourceClaimBinding(runId: string): SourceClaimBinding {
+    const run = this.#historicalProjection(this.#requireHead()).history.runs.get(runId);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    if (!run.source_revision) throw new Error('SOURCE_REVISION_MISSING');
+    return bindSourceClaim(
+      run.obligation_key,
+      run.id,
+      run.claimed_revision,
+      run.source_revision,
+    );
   }
 
   acquireExecution(runId: string): ExecutionPermit {
