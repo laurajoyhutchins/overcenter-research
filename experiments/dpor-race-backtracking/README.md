@@ -77,3 +77,29 @@ A positive result establishes the essential DPOR mechanism missing from the prec
 - Unbounded executions are covered.
 - Production scheduling should use DPOR.
 - Authority serialization can be weakened.
+
+
+## Exact-head result
+
+Supported at exact treatment revision `0b0d1370bc96712cc4bef7f6c95eb13fd44fc4f5`.
+
+GitHub Actions run `35950973401`, job `107479240353`, passed the preregistered treatment.
+
+| Case | Exhaustive executions | Reduced executions | Reduced prefixes | Races | Backtrack insertions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Safety corpus | 369,600 | 1 | 13 | 0 | 12 |
+| Scheduler corpus | 369,600 | 24 | 237 | 132 | 236 |
+| Immediate conflict | 2 | 2 | 5 | 2 | 4 |
+| Future conflict | 6 | 2 | 8 | 2 | 8 |
+
+The safety and scheduler reduced trace-key sets exactly matched exhaustive enumeration, with one reduced execution per trace.
+
+The future-conflict control is the distinguishing result: the roots were initially independent, but later writes conflicted. The later dependency race inserted an earlier backtracking choice and recovered both trace classes and both final outcomes.
+
+The deliberately unsound distinct-obligation independence oracle suppressed the immediate conflicting-write race, explored one execution, and missed one of the two exhaustive outcomes.
+
+### Interpretation
+
+The result establishes a real race/backtracking rung beyond sleep-set-only reduction. In this bounded event model, later-discovered dependency can create earlier exploration work without enumerating irrelevant interleavings first.
+
+The scheduler corpus also shows that the mechanism remains property-sensitive: 132 scheduler-visible races generated the 24 required claim-order traces, while the safety projection discovered no cross-obligation races and required one execution.
