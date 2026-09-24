@@ -8,10 +8,205 @@ on:
 permissions: {}
 
 jobs:
-  signal:
-    name: Internal candidate handoff
+  classify:
+    name: Classify candidate transport
     runs-on: ubuntu-slim
     timeout-minutes: 1
+    permissions:
+      contents: read
+    outputs:
+      kind: ${{ steps.classify.outputs.kind }}
+      run_id: ${{ steps.classify.outputs.run_id }}
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Classify exact candidate
+        id: classify
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="${GITHUB_REF_NAME#overcenter/candidate/}"
+          test -n "$run_id"
+          test "$run_id" != "$GITHUB_REF_NAME"
+
+          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+          if [ "$changed" = ".overcenter/candidate.json" ]; then
+            candidate_run_id="$(git show "$GITHUB_SHA:.overcenter/candidate.json" | node -e '
+              let s="";
+              process.stdin.on("data",d=>s+=d).on("end",()=>{
+                const value=JSON.parse(s);
+                if (typeof value.run_id!=="string" || !value.run_id) process.exit(2);
+                process.stdout.write(value.run_id);
+              });
+            ')"
+            test "$candidate_run_id" = "$run_id"
+            kind="pure-candidate"
+          else
+            kind="source-change"
+          fi
+
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+  signal:
+    name: Internal candidate handoff
+    needs: classify
+    if: ${{ needs.classify.outputs.kind == 'pure-candidate' }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions: {}
     steps:
       - name: Emit no authority
         run: 'true'
+
+  source:
+    name: Verify source candidate
+    needs: classify
+    if: ${{ needs.classify.outputs.kind == 'source-change' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      CANDIDATE_SHA: ${{ github.sha }}
+      CANDIDATE_RUN_ID: ${{ needs.classify.outputs.run_id }}
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Construct current-main candidate
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          base_sha="$(git rev-parse refs/remotes/origin/main)"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+
+          git checkout --detach "$base_sha"
+          if ! git cherry-pick --no-commit "$CANDIDATE_SHA"; then
+            git cherry-pick --abort || true
+            echo "state=rejected" >> "$GITHUB_OUTPUT"
+            echo "reason=SOURCE_APPLY_CONFLICT" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git -c user.name='Overcenter Source Verifier'               -c user.email='overcenter@local'               commit -m 'overcenter source verification candidate'
+          verification_sha="$(git rev-parse HEAD)"
+          tree_sha="$(git rev-parse 'HEAD^{tree}')"
+          echo "state=ready" >> "$GITHUB_OUTPUT"
+          echo "reason=" >> "$GITHUB_OUTPUT"
+          echo "verification_sha=$verification_sha" >> "$GITHUB_OUTPUT"
+          echo "tree_sha=$tree_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Use pinned Node.js
+        if: ${{ steps.prepare.outputs.state == 'ready' }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: Use pinned Go
+        if: ${{ steps.prepare.outputs.state == 'ready' }}
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: '.go-version'
+          cache: false
+
+      - name: Install pinned Rust toolchain
+        if: ${{ steps.prepare.outputs.state == 'ready' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal --component rustfmt --no-self-update
+          test "$(rustc --version | awk '{print $2}')" = "$channel"
+
+      - name: Verify source candidate
+        id: verify
+        if: ${{ steps.prepare.outputs.state == 'ready' }}
+        continue-on-error: true
+        env:
+          SOURCE_SHA: ${{ steps.prepare.outputs.verification_sha }}
+          OVERCENTER_PREVERIFIED_COMPUTATION_EXECUTOR: '1'
+          OVERCENTER_KEEP_BUILD: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          npm run lint
+          npm install --ignore-scripts --package-lock=false
+          npm run typecheck
+          npm run check:adapter-diagnosability
+          npm run test:unit
+          npm run proof:formal
+          npm run proof:production-boundary
+          report="$RUNNER_TEMP/overcenter-source-self-application.json"
+          image="overcenter-source-self-application:${GITHUB_RUN_ID}"
+          OVERCENTER_REUSE_EXECUTOR=1 bash scripts/proof-self-application.sh "$SOURCE_SHA" "$image" "$report"
+
+      - name: Record source verification
+        if: ${{ always() }}
+        env:
+          PREPARE_STATE: ${{ steps.prepare.outputs.state }}
+          PREPARE_REASON: ${{ steps.prepare.outputs.reason }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          BASE_SHA: ${{ steps.prepare.outputs.base_sha }}
+          TREE_SHA: ${{ steps.prepare.outputs.tree_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source-verification
+          if [ "$PREPARE_STATE" != "ready" ]; then
+            state="rejected"
+            reason="${PREPARE_REASON:-SOURCE_PREPARATION_FAILED}"
+            tree_sha=""
+          elif [ "$VERIFY_OUTCOME" = "success" ]; then
+            state="verified"
+            reason=""
+            tree_sha="$TREE_SHA"
+          else
+            state="rejected"
+            reason="SOURCE_VERIFICATION_FAILED"
+            tree_sha=""
+          fi
+
+          STATE="$state" REASON="$reason" TREE_SHA="$tree_sha" node - <<'NODE'
+          const fs = require('node:fs');
+          const value = {
+            schema: 'overcenter-source-verification/v1',
+            state: process.env.STATE,
+            run_id: process.env.CANDIDATE_RUN_ID,
+            candidate_sha: process.env.CANDIDATE_SHA,
+            base_sha: process.env.BASE_SHA,
+            tree_sha: process.env.TREE_SHA || null,
+            reason: process.env.REASON || null,
+          };
+          fs.writeFileSync(
+            'source-verification/source-verification.json',
+            JSON.stringify(value, null, 2) + '\n',
+          );
+          NODE
+
+      - name: Publish source verification
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overcenter-source-verification
+          path: source-verification/source-verification.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Reject unverified source candidate
+        if: ${{ always() && (steps.prepare.outputs.state != 'ready' || steps.verify.outcome != 'success') }}
+        run: exit 1
