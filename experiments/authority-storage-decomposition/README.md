@@ -23,7 +23,7 @@ exact expected-head update-ref
 authoritative revision
 ~~~
 
-The experimental SplitAuthorityFactStore adapts those pieces back to the production DurableFactStore contract. Production storage code is not modified.
+The production `ComposedFactStore` adapts those pieces back to the `DurableFactStore` contract. The directory-backed immutable-object store and Git authority-head implementation remain experiment-only fixtures.
 
 ## Falsifiers
 
@@ -123,4 +123,4 @@ Within this bounded treatment, fact publication did not require the same seriali
 
 The losing objects were garbage, not alternate truth. A referenced object disappearing was treated as a hard integrity failure rather than an empty or skipped transition.
 
-This earns promotion of the decomposition as interfaces. Registry outcome: supported. It does not promote the directory-backed object store or Git as the final production head service.
+This earned promotion of the decomposition as production interfaces and `ComposedFactStore`. Registry outcome: supported. The directory-backed object store and Git authority-head fixture remain experimental and are not production backend selections.

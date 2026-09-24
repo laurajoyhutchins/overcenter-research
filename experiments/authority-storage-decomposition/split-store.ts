@@ -3,8 +3,11 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { factCommitFromFiles, type DurableFactStore } from '../../src/authority/store.ts';
-import type { FactCommit } from '../../src/authority/facts.ts';
+import type {
+  AuthorityHead,
+  AuthorityHeadRecord,
+  ImmutableFactObjects,
+} from '../../src/authority/store.ts';
 
 interface GitResult {
   ok: boolean;
@@ -15,12 +18,6 @@ interface GitResult {
 interface FactObject {
   schema: 'overcenter-immutable-fact-object/v1';
   files: Record<string, unknown>;
-}
-
-export interface AuthorityRecord {
-  revision: string;
-  parent: string | null;
-  factId: string;
 }
 
 function canonical(value: unknown): unknown {
@@ -39,7 +36,7 @@ function serialized(value: unknown): string {
   return JSON.stringify(canonical(value)) + '\n';
 }
 
-export class DirectoryFactObjects {
+export class DirectoryFactObjects implements ImmutableFactObjects {
   readonly root: string;
 
   constructor(root: string) {
@@ -99,7 +96,7 @@ export class DirectoryFactObjects {
   }
 }
 
-export class GitAuthorityHead {
+export class GitAuthorityHead implements AuthorityHead {
   readonly repo: string;
   readonly ref: string;
 
@@ -114,7 +111,7 @@ export class GitAuthorityHead {
     return result.ok ? result.stdout.trim() : null;
   }
 
-  append(expectedHead: string | null, factId: string, message: string): string | null {
+  advance(expectedHead: string | null, factId: string, message: string): string | null {
     if (!/^[0-9a-f]{64}$/.test(factId)) throw new Error('FACT_OBJECT_ID_INVALID');
     const blob = this.git(['hash-object', '-w', '--stdin'], { input: factId + '\n' }).stdout.trim();
     const tree = this.git(['mktree'], {
@@ -137,7 +134,7 @@ export class GitAuthorityHead {
     return updated.ok ? next : null;
   }
 
-  history(head: string): AuthorityRecord[] {
+  history(head: string): AuthorityHeadRecord[] {
     return this.git(['rev-list', '--reverse', head])
       .stdout.trim()
       .split(/\n+/)
@@ -213,35 +210,5 @@ export class GitAuthorityHead {
           String(failure.stderr ?? failure.message ?? '').trim(),
       );
     }
-  }
-}
-
-export class SplitAuthorityFactStore implements DurableFactStore {
-  readonly objects: DirectoryFactObjects;
-  readonly authority: GitAuthorityHead;
-
-  constructor(objects: DirectoryFactObjects, authority: GitAuthorityHead) {
-    this.objects = objects;
-    this.authority = authority;
-  }
-
-  head(): string | null {
-    return this.authority.head();
-  }
-
-  append(
-    expectedHead: string | null,
-    message: string,
-    files: Record<string, unknown> = {},
-  ): string | null {
-    const factId = this.objects.put(files);
-    return this.authority.append(expectedHead, factId, message);
-  }
-
-  history(head: string): FactCommit[] {
-    return this.authority.history(head).map(({ revision, parent, factId }) => {
-      const fact = this.objects.get(factId);
-      return factCommitFromFiles(revision, parent, fact.files);
-    });
   }
 }

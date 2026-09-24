@@ -116,7 +116,7 @@ deterministic kernel
 authoritative project truth
 ```
 
-The production authority store is SQLite: immutable fact-commit rows plus one compare-and-swap authority head, committed atomically in a local transaction. Git implements the same durable-fact contract as a reference and independent replay backend; project semantics do not depend on Git. Direct migration of an existing history between backends is a separate problem because some durable facts intentionally bind backend-local authority identities.
+The production authority store is SQLite: immutable fact-commit rows plus one compare-and-swap authority head, committed atomically in a local transaction. Git implements the same durable-fact contract as a reference and independent replay backend; project semantics do not depend on Git. Direct migration of an existing history between backends is a separate problem because some durable facts intentionally bind backend-local authority identities. The production storage API now also names the proven decomposition explicitly: immutable fact objects may be published independently and composed with a separate exact-head authority service, while SQLite remains the default production store.
 
 Project state such as `READY`, `EXECUTING`, `BLOCKED`, `RECOVERY_REQUIRED`, and `DONE` is reconstructed from durable facts and current authority. It is not stored as a privileged lifecycle document.
 
@@ -128,6 +128,8 @@ The executable and formal proofs currently establish bounded claims about the co
 
 - **Projection is reconstructible.** Current project state can be rebuilt from immutable obligation, claim, and receipt facts after materialized status/cache state is deleted. The authority history contains no privileged `state.json`.
 - **Projection is separable from storage transport.** Pure fact replay and lifecycle derivation are tested independently from storage mechanics, and the durable-fact contract is exercised against both SQLite and Git.
+- **Controller failover does not require a shared application database in the bounded distributed-authority treatments.** Fresh hosted controllers reconstructed authority across repeated turnover, exact-head contention, unresolved reservations, and generation rotation; 48 obligations reached `DONE` with exactly one claim each and a fresh sweeper closed the residual work in 34 of 256 allowed transitions.
+- **Immutable fact publication is separable from authority serialization.** The authority-storage decomposition matched monolithic Git kernel semantics while authority commits carried only a fact identifier; an eight-process race produced one authority winner and seven unreachable loser objects, and missing referenced objects failed closed. Production now exposes this as `ImmutableFactObjects` + `AuthorityHead` composed by `ComposedFactStore`.
 - **Claims are exact-revision bound.** Stale authority and stale semantic obligation identity are rejected rather than silently reinterpreted.
 - **Execution authority is independently fenced.** Within the kernel permit boundary, recovery can rotate an in-flight run to a new execution generation without changing its claimed revision; the old generation's ephemeral permit is then rejected.
 - **The normal core loop cannot invoke its effect handler before reservation.** Preflight judgment happens before the effect boundary; then the kernel validates the execution permit and durably reserves the effect before invoking the effect callback. The callback receives the work packet, not the `ExecutionPermit`; a failed reservation means provider code is never called.
@@ -151,7 +153,7 @@ The detailed empirical lineage and live hosted proof evidence live under [`exper
 The repository deliberately does **not** establish that:
 
 - Overcenter is a complete production orchestration system;
-- SQLite is a final distributed/HA authority substrate or suitable for every future deployment scale;
+- the fact-object/authority-head decomposition itself constitutes a production distributed/HA backend, an HA SLA, or a final choice of distributed object store or authority-head service;
 - arbitrary existing histories can be moved byte-for-byte between Git and SQLite without remapping backend-local authority identities;
 - every project eventually makes progress or completes;
 - external providers are correct, available, strongly consistent, or recoverable;
