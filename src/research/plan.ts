@@ -12,8 +12,8 @@ export const RESEARCH_PLAN_SCHEMA_VERSION = 1 as const;
 
 export interface ResearchPromotionPlan {
   id: string;
-  requires: string[];
-  after: string[];
+  requires_results: string[];
+  requires_promotions: string[];
   objective: string;
   writable_paths: string[];
 }
@@ -60,38 +60,45 @@ export function validateResearchPlan(value: unknown): ResearchPlan {
     if (!isData(candidate)) throw new Error(`RESEARCH_PROMOTION_INVALID:${index}`);
     assertExactKeys(
       candidate,
-      ['id', 'requires', 'objective', 'writable_paths'],
-      ['after'],
+      ['id', 'requires_results', 'requires_promotions', 'objective', 'writable_paths'],
+      [],
       `RESEARCH_PROMOTION_INVALID:${index}`,
     );
     assertNonEmptyString(candidate.id, `RESEARCH_PROMOTION_ID_INVALID:${index}`);
     if (seen.has(candidate.id)) throw new Error(`RESEARCH_PROMOTION_ID_DUPLICATE:${candidate.id}`);
     seen.add(candidate.id);
     assertNonEmptyString(candidate.objective, `RESEARCH_PROMOTION_OBJECTIVE_INVALID:${index}`);
-    const requires = stringArray(
-      candidate.requires,
-      `RESEARCH_PROMOTION_REQUIRES_INVALID:${index}`,
-    );
-    const after = candidate.after === undefined
-      ? []
-      : stringArray(candidate.after, `RESEARCH_PROMOTION_AFTER_INVALID:${index}`);
+
+    const requiresResults = stringArray(
+      candidate.requires_results,
+      `RESEARCH_PROMOTION_RESULTS_INVALID:${index}`,
+    ).sort();
+    const requiresPromotions = stringArray(
+      candidate.requires_promotions,
+      `RESEARCH_PROMOTION_DEPENDENCIES_INVALID:${index}`,
+    ).sort();
+    if (requiresResults.length === 0 && requiresPromotions.length === 0) {
+      throw new Error(`RESEARCH_PROMOTION_UNGROUNDED:${candidate.id}`);
+    }
+
     const task = validateSourceTaskPacket({
       schema: 'overcenter-source-task/v1',
       kind: 'source-change',
       objective: candidate.objective,
       writable_paths: candidate.writable_paths,
     });
+
     return {
       id: candidate.id,
-      requires: [...requires].sort(),
-      after: [...after].sort(),
+      requires_results: requiresResults,
+      requires_promotions: requiresPromotions,
       objective: task.objective,
       writable_paths: task.writable_paths,
     };
   });
 
   for (const promotion of promotions) {
-    for (const upstream of promotion.after) {
+    for (const upstream of promotion.requires_promotions) {
       if (!seen.has(upstream)) throw new Error(`RESEARCH_PROMOTION_DEPENDENCY_UNKNOWN:${upstream}`);
       if (upstream === promotion.id) throw new Error(`RESEARCH_PROMOTION_DEPENDENCY_SELF:${upstream}`);
     }
@@ -134,7 +141,7 @@ export function compileResearchPromotions(
     changed = false;
     for (const id of [...remaining].sort()) {
       const promotion = plans.get(id)!;
-      const resultDependencies = promotion.requires.map((experiment) => ({
+      const resultDependencies = promotion.requires_results.map((experiment) => ({
         experiment,
         result: results.get(experiment),
       }));
@@ -152,7 +159,7 @@ export function compileResearchPromotions(
       const promotionDependencies: Array<{ promotion: string; identity: string }> = [];
       let waiting = false;
       let blocked = false;
-      for (const upstream of promotion.after) {
+      for (const upstream of promotion.requires_promotions) {
         const realized = compiled.get(upstream);
         if (realized) {
           promotionDependencies.push({
