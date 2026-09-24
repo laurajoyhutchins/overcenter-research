@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -12,6 +20,7 @@ import {
   submitProjectCandidate,
 } from '../src/authority/project-agent-protocol.ts';
 import { compileProjectIntent } from '../src/authority/project-intent.ts';
+import { SOURCE_VERIFICATION_SCHEMA } from '../src/source/source-integration.ts';
 
 const AUTHORITY_REF = 'refs/overcenter/test-project-agent';
 
@@ -311,6 +320,188 @@ test('project.advance selects and claims real READY work, then emits a bounded p
     assert.equal(current[0].id, 'real-frontier-work');
     assert.equal(current[0].status, 'EXECUTING');
     assert.equal(current[0].run_id, receipt.run_id);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
+test('project.advance emits a source assignment without a worker executable', () => {
+  const f = fixture();
+  try {
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+    const sourceSha = commitProjectIntent(f.work, [sourceIntent('source-work')]);
+    const outputDir = join(f.root, 'source-packet');
+
+    const receipt = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir,
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+
+    assert.equal(receipt.state, 'AGENT_EXECUTION_REQUIRED');
+    assert.equal(receipt.obligation_id, 'source-work');
+    assert.equal(receipt.candidate_branch_base_sha, sourceSha);
+    assert.ok(receipt.run_id);
+    assert.match(receipt.assignment_sha256 ?? '', /^[0-9a-f]{64}$/);
+    assert.equal(existsSync(join(outputDir, 'overcenter')), false);
+
+    const assignment = JSON.parse(readFileSync(join(outputDir, 'assignment.json'), 'utf8'));
+    assert.equal(assignment.schema, 'overcenter-source-assignment/v1');
+    assert.equal(assignment.obligation_id, 'source-work');
+    assert.equal(assignment.task.kind, 'source-change');
+    assert.equal(assignment.claim.run_id, receipt.run_id);
+    assert.equal(assignment.claim.source_sha, sourceSha);
+    assert.equal(JSON.stringify(assignment).includes('execution_capability'), false);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
+test('project.submit integrates a verified source candidate and settles the source obligation', () => {
+  const f = fixture();
+  try {
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+    const sourceSha = commitProjectIntent(f.work, [sourceIntent('source-work')]);
+    const acquired = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir: join(f.root, 'source-packet'),
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+    assert.ok(acquired.run_id);
+
+    writeFileSync(join(f.work, 'src', 'feature.txt'), 'feature:integrated\n');
+    execFileSync('git', ['-C', f.work, 'add', 'src/feature.txt'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', f.work, 'commit', '-m', 'source candidate'], { stdio: 'ignore' });
+    const candidateSha = git(f.work, ['rev-parse', 'HEAD']);
+    const treeSha = git(f.work, ['rev-parse', 'HEAD^{tree}']);
+    const verificationPath = join(f.root, 'source-verification.json');
+    writeFileSync(
+      verificationPath,
+      `${JSON.stringify(
+        {
+          schema: SOURCE_VERIFICATION_SCHEMA,
+          state: 'verified',
+          run_id: acquired.run_id,
+          candidate_sha: candidateSha,
+          base_sha: sourceSha,
+          tree_sha: treeSha,
+          reason: null,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const settled = submitProjectCandidate(
+      f.work,
+      {
+        ...commandContext('e'.repeat(40), 9100),
+        candidate_sha: candidateSha,
+        candidate_run_id: acquired.run_id,
+      },
+      {
+        authorityRef: AUTHORITY_REF,
+        remote: 'origin',
+        sourceVerificationPath: verificationPath,
+      },
+    );
+
+    assert.equal(settled.disposition, 'DONE');
+    assert.equal(settled.verified, true);
+    assert.equal(settled.already_settled, false);
+    assert.match(settled.integration_commit ?? '', /^[0-9a-f]{40}$/);
+    const remoteMain = git(f.work, ['ls-remote', 'origin', 'refs/heads/main']).split(/\s+/)[0];
+    assert.equal(remoteMain, settled.integration_commit);
+    assert.equal(git(f.work, ['show', `${remoteMain}:src/feature.txt`]), 'feature:integrated');
+
+    const authoritative = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
+    });
+    assert.equal(authoritative.inspect()[0].status, 'DONE');
+
+    const replay = submitProjectCandidate(
+      f.work,
+      {
+        ...commandContext('f'.repeat(40), 9101),
+        candidate_sha: candidateSha,
+        candidate_run_id: acquired.run_id,
+      },
+      { authorityRef: AUTHORITY_REF, remote: 'origin' },
+    );
+    assert.equal(replay.disposition, 'DONE');
+    assert.equal(replay.already_settled, true);
+    assert.equal(replay.integration_commit, settled.integration_commit);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
+test('rejected source verification releases the obligation without moving source authority', () => {
+  const f = fixture();
+  try {
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+    const sourceSha = commitProjectIntent(f.work, [sourceIntent('source-work')]);
+    const acquired = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir: join(f.root, 'source-packet'),
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+    assert.ok(acquired.run_id);
+
+    writeFileSync(join(f.work, 'src', 'feature.txt'), 'feature:rejected\n');
+    execFileSync('git', ['-C', f.work, 'add', 'src/feature.txt'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', f.work, 'commit', '-m', 'rejected source candidate'], {
+      stdio: 'ignore',
+    });
+    const candidateSha = git(f.work, ['rev-parse', 'HEAD']);
+    const verificationPath = join(f.root, 'source-verification.json');
+    writeFileSync(
+      verificationPath,
+      `${JSON.stringify(
+        {
+          schema: SOURCE_VERIFICATION_SCHEMA,
+          state: 'rejected',
+          run_id: acquired.run_id,
+          candidate_sha: candidateSha,
+          base_sha: sourceSha,
+          tree_sha: null,
+          reason: 'SOURCE_VERIFICATION_FAILED',
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const result = submitProjectCandidate(
+      f.work,
+      {
+        ...commandContext('e'.repeat(40), 9200),
+        candidate_sha: candidateSha,
+        candidate_run_id: acquired.run_id,
+      },
+      {
+        authorityRef: AUTHORITY_REF,
+        remote: 'origin',
+        sourceVerificationPath: verificationPath,
+      },
+    );
+
+    assert.equal(result.disposition, 'READY');
+    assert.equal(result.verified, false);
+    const remoteMain = git(f.work, ['ls-remote', 'origin', 'refs/heads/main']).split(/\s+/)[0];
+    assert.equal(remoteMain, sourceSha);
+    const authoritative = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
+    });
+    assert.equal(authoritative.inspect()[0].status, 'READY');
   } finally {
     rmSync(f.root, { recursive: true, force: true });
     rmSync(f.postconditionRoot, { recursive: true, force: true });
