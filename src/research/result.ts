@@ -95,7 +95,10 @@ export function trustResearchResult(
 ): TrustedResearchResult {
   const result = validateResearchResult(value);
   verifyEvidence(structuredClone(result));
-  const trusted = Object.freeze({ result: structuredClone(result) });
+  const immutable = structuredClone(result);
+  Object.freeze(immutable.evidence);
+  Object.freeze(immutable);
+  const trusted = Object.freeze({ result: immutable });
   trustedResults.add(trusted);
   return trusted;
 }
