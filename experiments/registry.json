@@ -3261,7 +3261,7 @@
       "question": "Can a bounded weakest-precondition calculation derive the current mutation-admission predicate from an independently stated safety postcondition while exposing both missing guards and unnecessary ceremony?",
       "claim": "Across the preregistered 16-state finite domain, demonic backward reasoning over the mutation protocol should derive exactly current_authority AND exact_revision AND NOT unresolved_effect, matching production mutationAdmitted(), while hostile guard and protocol mutants expose underconstraint, overconstraint, dispatch-before-reservation, and blind replay.",
       "contrast": "Continue hand-writing admission guards and only test that they imply safety, without testing whether they are minimal or whether protocol ordering failures make any admission condition insufficient.",
-      "interpretation": "If supported, the result establishes only a bounded derivation equivalence for transaction mutation admission and motivates a richer replay/release derivation experiment; it does not make the calculator production authority.",
+      "interpretation": "The bounded calculation exactly reproduced production mutationAdmitted() across all 16 preregistered states, identified an explicit unsafe witness for each removed guard, detected the synthetic ceremony as pure overconstraint, and showed that dispatch-before-reservation and blind replay cannot be made safe by any initial-state admission condition in the modeled protocol. This supports weakest-precondition derivation as a useful design oracle for this transaction slice and motivates a richer replay/release derivation experiment; it does not make the calculator production authority.",
       "environment": [
         "Node.js from .node-version with built-in TypeScript stripping.",
         "Production mutationAdmitted() imported from src/authority/transaction-admission.ts.",
@@ -3295,19 +3295,26 @@
         "note": "The 16-state domain, four hostile outcomes, independently stated four-clause safety postcondition, three missing-guard controls, one unnecessary-ceremony control, three specification-sensitivity controls, and two protocol mutants were fixed before the first hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "Exact-head hosted execution has not yet evaluated the preregistered treatment."
+        "state": "supported",
+        "summary": "At exact revision 50df13190d6ad0c9f197249d594f3cc559c8ab87, exhaustive demonic backward evaluation derived current_authority AND exact_revision AND NOT unresolved_effect with zero mismatches against production mutationAdmitted(); every missing-guard control admitted unsafe states, the ceremony control rejected a safe state, specification weakening removed the corresponding derived conjunct, and both dispatch-before-reservation and blind-replay mutants had zero safe initial states."
       },
       "reproduce": {
         "tier": "deterministic",
         "local": "npm run test:weakest-precondition-admission"
       },
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "50df13190d6ad0c9f197249d594f3cc559c8ab87",
         "artifacts": [
-          "Pending exact-head GitHub Actions candidate evidence on the experiment pull request."
-        ],
-        "pending_reason": "The preregistered experiment has not yet been executed by hosted exact-head CI."
+          "GitHub Actions Merge gate run 35950477304, rerun attempt 2, exact-head candidate job 107478480514: candidate regressions passed.",
+          "Weakest-precondition treatment exhausted 16 initial states with four hostile baseline outcomes each and derived current_authority && exact_revision && !unresolved_effect.",
+          "Production mutationAdmitted() accepted exactly two ceremony-equivalent safe states with zero mismatches against the calculated predicate.",
+          "Removing current authority admitted A0:R1:U0:C0/C1; removing exact revision admitted A1:R0:U0:C0/C1; removing unresolved-effect exclusion admitted A1:R1:U1:C0/C1.",
+          "The synthetic ceremony token admitted no unsafe state but rejected calculated-safe state A1:R1:U0:C0.",
+          "Removing authorization, exact-revision, and at-most-once safety clauses respectively removed current_authority, exact_revision, and unresolved-effect exclusion from the derived predicate.",
+          "Dispatch-before-reservation and blind-replay protocol mutants each calculated zero safe initial states.",
+          "The same exact-head candidate passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, the complete deterministic experiment suite, TLA+, the production computation boundary, and self-application."
+        ]
       }
     }
   ]
