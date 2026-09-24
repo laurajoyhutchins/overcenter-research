@@ -3251,6 +3251,59 @@
         "state": "supported",
         "summary": "At exact revision 7546e2b058c8be80faebaa8900a684b794275af3, the split store matched monolithic Git kernel semantics, kept authority commits fact-id-only, admitted exactly one winner in an eight-process same-head race, left seven losing fact objects unreachable, reconstructed from a copied object replica, and failed closed when an authoritative fact object was missing."
       }
+    },
+    {
+      "id": "history-normalization",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/history-normalization",
+      "readme": "experiments/history-normalization/README.md",
+      "question": "Can Overcenter derive one canonical semantic history for certified-independent interleavings and a narrowly proven NOT_DISPATCHED release sequence without rewriting authoritative fact history?",
+      "claim": "For the bounded two-obligation corpus, opposite legal interleavings produce identical production-derived semantic signatures and one rewrite normal form under four bounded continuations, while physical provenance remains distinct.",
+      "contrast": "Treat the raw linear authority log as the only meaningful execution order, or erase superficially cancelling/duplicate-looking events without preserving evidence and causal distinctions.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:history-normalization"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production SQLite fact storage and replay/projection code.",
+        "Production GitHub commit-status effect path with a deterministic fresh-HTTPS pre-secureConnect failure fixture; no real provider write or provider credential is required."
+      ],
+      "success_criteria": [
+        "Status-first and work-first legal histories have identical production-derived semantic replay signatures after opaque run/commit identities are alpha-normalized.",
+        "The same interleavings reduce to byte-identical semantic normal forms and semantic digests under no continuation, defer-work, retry-status, and defer-and-retry continuations.",
+        "Raw provenance digests remain distinct rather than being replaced by the semantic digest.",
+        "The overlap between independent-event commutation and NOT_DISPATCHED attempt collapse is joinable under the finite critical-pair checker.",
+        "Production admission rejects the hostile rule that incompatible unordered writes to one GitHub status coordinate commute.",
+        "Snapshot-distinct absence evidence, a retained NOT_DISPATCHED attempt, and create/delete audit history remain distinguishable under their stronger observation lenses.",
+        "The treatment changes no production source file."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/history-normalization.yml"
+        ],
+        "pending_reason": "The preregistered treatment is implemented on its experiment branch; exact-head hosted execution has not yet been recorded."
+      },
+      "interpretation": "A positive result would support canonical semantic history as a derived, reproducible projection with a separate provenance binding. It would not authorize destructive normalization of durable authority facts.",
+      "non_claims": [
+        "General Knuth-Bendix completion is implemented.",
+        "Termination or confluence is proved for arbitrary Overcenter histories.",
+        "Independence can be inferred automatically for arbitrary obligations or provider effects.",
+        "Equal provider values from different snapshots are interchangeable.",
+        "A trusted NOT_DISPATCHED attempt can be erased from audit/provenance history.",
+        "Create/delete cancellation is safe for arbitrary real providers.",
+        "Production replay, settlement, receipt, or authority semantics are changed."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The positive rewrite laws, bounded continuations, critical-pair condition, four hostile negative controls, and non-claims were committed before hosted treatment evidence was observed."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The bounded causal-history normalization hypothesis is preregistered and awaiting exact-head execution."
+      }
     }
   ]
 }
