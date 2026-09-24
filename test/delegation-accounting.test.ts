@@ -27,13 +27,9 @@ test('delegation is durable before dispatch and blocks terminal parent settlemen
 
     const parent = fixture.claim('parent');
     const spawn = fixture.kernel.authorizeSpawn(parent);
-    let binding: DelegationAttemptBinding | null = null;
-
-    await fixture.kernel.performDelegation(spawn, 'child', async (attempt) => {
-      binding = attempt;
+    const { binding } = await fixture.kernel.performDelegation(spawn, 'child', async () => {
       assert.equal(fixture.kernel.hasUnresolvedDelegation(parent.id), true);
     });
-    assert.ok(binding);
 
     writeSatisfiedParent(fixture, 'parent');
     assert.throws(() => fixture.kernel.resolve(parent), /UNRESOLVED_DELEGATION/);
@@ -51,7 +47,7 @@ test('delegation is durable before dispatch and blocks terminal parent settlemen
   }
 });
 
-test('stale execution generation cannot reserve descendant work', () => {
+test('stale execution generation cannot reserve descendant work', async () => {
   const fixture = new GitKernelFixture('overcenter-delegation-stale-');
   try {
     fixture.defineFile('parent', { content: 'parent-done' });
@@ -66,8 +62,8 @@ test('stale execution generation cannot reserve descendant work', () => {
     const successor = fixture.kernel.acquireExecution(parent.id);
     assert.equal(successor.execution_generation, parent.execution_generation + 1);
 
-    assert.throws(
-      () => fixture.kernel.reserveDelegation(staleSpawn, 'child'),
+    await assert.rejects(
+      () => fixture.kernel.performDelegation(staleSpawn, 'child', async () => {}),
       /STALE_EXECUTION_GENERATION/,
     );
   } finally {
@@ -75,7 +71,7 @@ test('stale execution generation cannot reserve descendant work', () => {
   }
 });
 
-test('replay preserves causal multiplicity and a fresh controller can discharge it', () => {
+test('replay preserves causal multiplicity and a fresh controller can discharge it', async () => {
   const fixture = new GitKernelFixture('overcenter-delegation-replay-');
   try {
     fixture.defineFile('parent', { content: 'parent-done' });
@@ -83,8 +79,16 @@ test('replay preserves causal multiplicity and a fresh controller can discharge 
 
     const parent = fixture.claim('parent');
     const spawn = fixture.kernel.authorizeSpawn(parent);
-    const left = fixture.kernel.reserveDelegation(spawn, 'child');
-    const right = fixture.kernel.reserveDelegation(spawn, 'child');
+    const { binding: left } = await fixture.kernel.performDelegation(
+      spawn,
+      'child',
+      async () => {},
+    );
+    const { binding: right } = await fixture.kernel.performDelegation(
+      spawn,
+      'child',
+      async () => {},
+    );
 
     const freshBefore = fixture.freshKernel().kernel;
     assert.equal(freshBefore.hasUnresolvedDelegation(parent.id), true);
@@ -112,14 +116,18 @@ test('replay preserves causal multiplicity and a fresh controller can discharge 
 
 
 
-test('replay rejects a forged terminal parent receipt with outstanding causal work', () => {
+test('replay rejects a forged terminal parent receipt with outstanding causal work', async () => {
   const fixture = new GitKernelFixture('overcenter-delegation-hostile-replay-');
   try {
     fixture.defineFile('parent', { content: 'parent-done' });
     fixture.defineFile('child', { content: 'child-done' });
 
     const parent = fixture.claim('parent');
-    fixture.kernel.reserveDelegation(fixture.kernel.authorizeSpawn(parent), 'child');
+    await fixture.kernel.performDelegation(
+      fixture.kernel.authorizeSpawn(parent),
+      'child',
+      async () => {},
+    );
     writeSatisfiedParent(fixture, 'parent');
 
     const parentWork = fixture.work('parent');
@@ -152,7 +160,7 @@ test('replay rejects a forged terminal parent receipt with outstanding causal wo
   }
 });
 
-test('SQLite reconstructs outstanding delegation across controller replacement', () => {
+test('SQLite reconstructs outstanding delegation across controller replacement', async () => {
   const root = mkdtempSync(join(tmpdir(), 'overcenter-delegation-sqlite-'));
   const database = join(root, 'authority.sqlite');
   const parentPath = join(root, 'parent.txt');
@@ -187,7 +195,11 @@ test('SQLite reconstructs outstanding delegation across controller replacement',
     const parent = first.claim('parent', parentWork.revision);
     parentRunId = parent.id;
     parentGeneration = parent.execution_generation;
-    binding = first.reserveDelegation(first.authorizeSpawn(parent), 'child');
+    ({ binding } = await first.performDelegation(
+      first.authorizeSpawn(parent),
+      'child',
+      async () => {},
+    ));
     assert.equal(first.hasUnresolvedDelegation(parent.id), true);
   } finally {
     first.close();
