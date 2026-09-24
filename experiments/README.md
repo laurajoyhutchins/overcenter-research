@@ -44,6 +44,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `source-obligation-integration/` - stable source intent, claim-time Git fencing, trusted current-main verification, CAS integration, conflict rejection, and replay detection.
 - `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
 - `finite-difference-ready-projection/` - maintain declarative READY membership and fair selection from local graph deltas with full recomputation retained as the oracle.
+- `finite-difference-semantic-projection/` - extend finite differencing through semantic-key propagation and explicit current-realization observation deltas.
 - `core-loop-concurrency/` - exact production-path bounded effect-concurrency benchmark behind one authority lane.
 - `scheduler-liveness/` - test conditional scheduler liveness with TLC plus an executable hostile scheduler, including fixed-set recovery fairness and continual fresh-work admission.
 - `scheduler-policy-comparison/` - compare fresh-first, recovered-first, class alternation, and replay-derived service age under hostile open-system scheduling.
