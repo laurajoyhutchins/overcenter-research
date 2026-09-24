@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
+import type { EffectAttemptBinding } from '../../src/effect-release-witness.ts';
+
 import { OvercenterKernel } from '../../src/authority/kernel.ts';
 import {
   GITHUB_COMMIT_STATUS_EFFECT,
@@ -26,14 +28,14 @@ class TimedKernel extends OvercenterKernel {
 
   override async performEffect<T>(
     permit: Parameters<OvercenterKernel['performEffect']>[0],
-    effect: () => Promise<T> | T,
+    effect: (attempt: EffectAttemptBinding) => Promise<T> | T,
   ): Promise<T> {
     const started = performance.now();
-    return super.performEffect(permit, async () => {
+    return super.performEffect(permit, async (attempt) => {
       this.reservationMs += performance.now() - started;
       const effectStarted = performance.now();
       try {
-        return await effect();
+        return await effect(attempt);
       } finally {
         this.effectBoundaryMs += performance.now() - effectStarted;
       }
