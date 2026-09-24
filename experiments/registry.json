@@ -3259,7 +3259,7 @@
       "directory": "experiments/finite-difference-ready-projection",
       "readme": "experiments/finite-difference-ready-projection/README.md",
       "question": "Can Overcenter maintain the scheduler READY relation incrementally from graph and lifecycle deltas while preserving full declarative recomputation as an exact oracle?",
-      "claim": "For the bounded READY relation, a finite-difference treatment generated from self predicates plus an all-dependencies aggregate can maintain exact READY membership and replay-derived service-age selection with work proportional to the affected reverse-dependency frontier rather than total graph size.",
+      "claim": "For the bounded READY relation, a query-directed finite-difference treatment over self predicates plus an all-dependencies aggregate maintains exact READY membership and replay-derived service-age selection with mutation work proportional to the affected reverse-dependency frontier rather than total graph size.",
       "contrast": "Continue deriving the complete project READY projection after each local lifecycle change, or hand-optimize individual scheduler paths without retaining a declarative oracle.",
       "reproduce": {
         "tier": "deterministic",
@@ -3280,13 +3280,18 @@
         "The experiment changes no production scheduler, projection, storage, or authority semantics."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "f326acb2a6b6d6ba922872d955522c94324c236b",
         "artifacts": [
-          ".github/workflows/finite-difference-ready-projection.yml"
-        ],
-        "pending_reason": "The preregistered treatment and hosted workflow are committed on the experiment branch, but exact-head hosted evidence has not yet been recorded."
+          "GitHub Actions run 35952217348 / job 107482972290: exact-head READY treatment PASS.",
+          "GitHub Actions merge gate run 35952217573: PASS on the same exact revision.",
+          "Hostile relational corpus: 16 transitions; maximum touched obligations 3; oracle equivalence PASS.",
+          "Production differential: 96 obligations and 97 execution prefixes matched deriveProjectProjection() for READY membership and selected work.",
+          "Fixed four-dependent frontier: maximum touched obligations 5 at graph sizes 128, 512, 2,048, and 8,192.",
+          "Fan-out treatment: touched work exactly fanout + 1 at fan-out 1, 8, 64, and 512."
+        ]
       },
-      "interpretation": "A positive result would justify a next experiment that incrementally maintains the production projection itself, starting with dependency satisfaction and READY selection while retaining deriveProjectProjection() as the oracle.",
+      "interpretation": "The bounded result supports finite-differenced READY membership and indexed fair selection as reconstructible acceleration. It does not yet establish incremental semantic-key propagation, current-realization observation maintenance, or the complete production ProjectProjection.",
       "non_claims": [
         "The production scheduler should immediately replace deriveProjectProjection().",
         "Current-realization provider observations can be inferred from graph deltas.",
@@ -3301,8 +3306,8 @@
         "note": "The declarative READY relation, hostile mutation classes, production differential, omitted-derivative negative control, graph-size locality treatments, fan-out scaling treatment, acceptance criteria, and non-claims were recorded before the first hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The experiment has not yet been evaluated at an exact hosted revision."
+        "state": "supported",
+        "summary": "At exact revision f326acb2a6b6d6ba922872d955522c94324c236b, the bounded READY relation matched both its declarative oracle and production projection differential while local lifecycle mutations updated only the affected reverse-dependency frontier."
       }
     }
   ]
