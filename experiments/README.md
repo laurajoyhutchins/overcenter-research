@@ -39,6 +39,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `generated-effect-production-differential/` - historical negative adoption result: behavior matched, but first-adoption surface cost was 5.314x handwritten.
 - `git-stress/` - adversarial Git, CAS, clone, GC, and contention coverage.
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
+- `substrate-capability-admission/` - authenticated, context-bound capability admission with non-authorizing point absence and hostile evidence controls.
 - `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
 - `core-loop-concurrency/` - exact production-path bounded effect-concurrency benchmark behind one authority lane.
 - `scheduler-liveness/` - test conditional scheduler liveness with TLC plus an executable hostile scheduler, including fixed-set recovery fairness and continual fresh-work admission.

@@ -1,0 +1,84 @@
+name: Substrate capability admission
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/substrate-capability-admission.yml
+      - .github/workflows/substrate-capability-admission-treatment.yml
+      - experiments/substrate-capability-admission/**
+      - src/execution/confinement/**
+      - package.json
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  deterministic:
+    name: Deterministic evidence boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify exact revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Run preregistered evidence-boundary falsifiers
+        run: npm run test:substrate-capability-admission
+
+  controlled:
+    name: A controlled sandbox
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify exact revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Prove controlled physical confinement
+        run: npm run proof:rust-exec
+
+  foreign-status-write-denied:
+    name: B point observation is non-authorizing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Probe exact commit-status capability
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/response.json"
+          code="$(curl --silent --show-error --output "$body" --write-out '%{http_code}' \
+            --request POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/statuses/$SOURCE_SHA" \
+            --data '{"state":"success","context":"overcenter/substrate-capability-admission/denied","description":"this exact capability must be denied"}')"
+          cat "$body"
+          test "$code" = 403
+          grep -q 'Resource not accessible by integration' "$body"

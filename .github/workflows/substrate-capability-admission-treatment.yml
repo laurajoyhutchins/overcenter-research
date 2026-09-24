@@ -1,0 +1,154 @@
+name: Substrate capability admission treatment
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  SOURCE_SHA: ${{ github.sha }}
+
+jobs:
+  deterministic:
+    name: Deterministic evidence boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify exact revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Run preregistered evidence-boundary falsifiers
+        run: npm run test:substrate-capability-admission
+
+  controlled:
+    name: A controlled sandbox
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      proof: ${{ steps.proof.outputs.proof }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify exact revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Prove controlled physical confinement
+        id: proof
+        run: |
+          set -euo pipefail
+          npm run proof:rust-exec
+          echo 'proof=passed' >> "$GITHUB_OUTPUT"
+
+  foreign-status-write-denied:
+    name: B foreign status-write denied
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      http_status: ${{ steps.probe.outputs.http_status }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Probe exact commit-status capability
+        id: probe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/response.json"
+          code="$(curl --silent --show-error --output "$body" --write-out '%{http_code}' \
+            --request POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/statuses/$SOURCE_SHA" \
+            --data '{"state":"success","context":"overcenter/substrate-capability-admission/manual-denied","description":"manual exact-capability denial probe"}')"
+          cat "$body"
+          test "$code" = 403
+          grep -q 'Resource not accessible by integration' "$body"
+          echo "http_status=$code" >> "$GITHUB_OUTPUT"
+
+  foreign-ambient-status-write:
+    name: C foreign ambient status-write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    outputs:
+      http_status: ${{ steps.probe.outputs.http_status }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Probe exact commit-status capability
+        id: probe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/response.json"
+          code="$(curl --silent --show-error --output "$body" --write-out '%{http_code}' \
+            --request POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/statuses/$SOURCE_SHA" \
+            --data '{"state":"success","context":"overcenter/substrate-capability-admission/manual-treatment","description":"manual bounded ambient capability probe"}')"
+          cat "$body"
+          test "$code" = 201
+          echo "http_status=$code" >> "$GITHUB_OUTPUT"
+
+  evaluate:
+    name: Bind hosted observations to signed evidence
+    needs:
+      [
+        deterministic,
+        controlled,
+        foreign-status-write-denied,
+        foreign-ambient-status-write,
+      ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - name: Verify exact revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Evaluate evidence-bound matrix
+        env:
+          CONTROLLED_PROOF: ${{ needs.controlled.outputs.proof }}
+          STATUS_WRITE_DENIED_HTTP: ${{ needs.foreign-status-write-denied.outputs.http_status }}
+          STATUS_WRITE_AMBIENT_HTTP: ${{ needs.foreign-ambient-status-write.outputs.http_status }}
+          EXECUTION_ID: substrate-admission-${{ github.run_id }}
+          EVIDENCE_EPOCH: ${{ github.run_id }}:${{ github.run_attempt }}
+        run: npm run test:substrate-capability-admission:hosted

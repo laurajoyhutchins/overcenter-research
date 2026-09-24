@@ -3072,6 +3072,70 @@
         "state": "supported",
         "summary": "At exact revision 1d496629374cf83802680fe6ba33a35b9d17d8dc, 48 obligations survived three waves of eight fresh hosted controllers with deterministic claim, reservation, and post-rotation termination modes. Every obligation retained exactly one claim, every run at most one reservation, generation-2 and generation-3 takeover controls passed, and a fresh sweeper closed the project DONE in 34 of the allowed 256 transitions."
       }
+    },
+    {
+      "id": "substrate-capability-admission",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/substrate-capability-admission",
+      "readme": "experiments/substrate-capability-admission/README.md",
+      "question": "Can signed, context-bound substrate capability evidence safely affect admission for one exact provider capability without trusting environment declarations?",
+      "claim": "For github.commit-status.write, authenticated context-bound evidence can safely admit controlled isolation and reject ambient authority, while a point observation of absence remains informational and non-authorizing.",
+      "contrast": "Trust self-described substrate capabilities or unsigned/stale observations as sufficient admission evidence.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:substrate-capability-admission"
+      },
+      "environment": [
+        "Node.js from .node-version for the deterministic evidence-boundary model.",
+        "GitHub Actions ubuntu-24.04 for exact-revision capability probes.",
+        "Fixture A runs the production Rust confinement proof; B probes github.commit-status.write with contents:read only; C probes the same capability with statuses:write.",
+        "Ephemeral Ed25519 keys model separate trusted attestors; admission receives only the corresponding public trust roots."
+      ],
+      "success_criteria": [
+        "The preregistered A/B/C admission matrix matches exactly for github.commit-status.write.",
+        "Only the controlled sandbox satisfies either an absence-through-execution guarantee or controlled physical isolation.",
+        "A foreign substrate with a point-in-time HTTP 403 observation is rejected when an obligation requires absence throughout execution.",
+        "The hostile descriptor that claims isolation is rejected when trusted evidence reports the capability present.",
+        "Modifying a signed guarantee without the trusted private key is rejected.",
+        "An attacker cannot gain trust merely by writing the trusted issuer name into self-signed evidence.",
+        "Valid evidence for a different substrate is rejected.",
+        "Valid evidence for a different capability is rejected.",
+        "Valid evidence from a stale admission epoch is rejected as context-bound data, without claiming the epoch advances automatically when capabilities change.",
+        "Valid evidence from a different source revision is rejected.",
+        "An unrecognized signed evidence schema is rejected at runtime.",
+        "The trusted capability probe cannot assert controlled isolation.",
+        "The controlled-substrate attestor cannot assert observational absence.",
+        "Ordinary pull-request CI contains no statuses:write job; the positive ambient-write treatment is workflow_dispatch only."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "f5c080d57ab66021829978c2494bd797f2014917",
+        "artifacts": [
+          "GitHub Actions run 35930128165: exact-head pull-request-safe Substrate capability admission workflow passed the deterministic evidence boundary, production Rust controlled-substrate proof, and read-only HTTP 403 point-observation probe; ordinary PR CI had no statuses:write job.",
+          "GitHub Actions Merge gate run 35930128402: exact-head candidate and PR preflight passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability checking, and the ordinary deterministic regression suite.",
+          "Historical positive treatment run 35926698367: the same github.commit-status.write probe returned HTTP 201 when statuses:write was deliberately granted. The equivalent positive treatment is now isolated behind workflow_dispatch."
+        ]
+      },
+      "interpretation": "The bounded result supports authenticated, context-bound capability evidence as an admission representation. Controlled-isolation attestation can authorize confinement-sensitive work and observed ambient authority can reject it. A point observation of absence on a mutable foreign substrate is explicitly non-authorizing for an absence-through-execution requirement.",
+      "non_claims": [
+        "Project-truth isolation is re-proven by this experiment.",
+        "A failed request proves all provider-write capabilities are absent.",
+        "A point observation of capability absence can authorize an obligation requiring absence throughout execution.",
+        "An admission epoch automatically advances when a foreign substrate's real capabilities change.",
+        "Observed absence remains true after its observation.",
+        "The experiment's ephemeral Ed25519 key custody is the production attestation mechanism.",
+        "Every consequential capability can be discovered by probing.",
+        "Scheduler integration is justified before exact-head evaluation and review."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Before final evaluation, the experiment was narrowed so observed absence is non-authorizing; runtime schema rejection and issuer-authority negative controls were added; and the statuses:write treatment was isolated behind workflow_dispatch so ordinary PR CI remains read-only with respect to commit-status mutation. The obligation contract names this requirement absent-through-execution so the stronger temporal guarantee is explicit."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "Authenticated evidence admitted only controlled isolation for confinement-sensitive obligations, rejected observed ambient authority, rejected point-in-time absence as execution authority, and passed forgery, schema, scope, issuer-authority, revision, execution, and epoch-context falsifiers."
+      }
     }
   ]
 }

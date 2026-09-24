@@ -1,0 +1,75 @@
+{
+  "schema": "overcenter-substrate-capability-fixtures/v1",
+  "capability": "github.commit-status.write",
+  "fixtures": [
+    {
+      "id": "controlled-sandbox",
+      "kind": "controlled",
+      "claims": {
+        "projectTruth": "isolated",
+        "providerEffect": "isolated"
+      }
+    },
+    {
+      "id": "foreign-status-write-denied",
+      "kind": "foreign",
+      "claims": {
+        "projectTruth": "isolated",
+        "providerEffect": "absent"
+      }
+    },
+    {
+      "id": "foreign-ambient-status-write",
+      "kind": "foreign",
+      "claims": {
+        "projectTruth": "isolated",
+        "providerEffect": "ambient-write"
+      }
+    },
+    {
+      "id": "hostile-liar",
+      "kind": "foreign",
+      "claims": {
+        "projectTruth": "isolated",
+        "providerEffect": "isolated"
+      }
+    }
+  ],
+  "obligations": [
+    {
+      "id": "status-write-unconstrained",
+      "capability": "github.commit-status.write",
+      "providerEffect": "unconstrained"
+    },
+    {
+      "id": "requires-status-write-absent-through-execution",
+      "capability": "github.commit-status.write",
+      "providerEffect": "absent-through-execution"
+    },
+    {
+      "id": "requires-controlled-status-write-isolation",
+      "capability": "github.commit-status.write",
+      "providerEffect": "controlled-isolation"
+    }
+  ],
+  "expected": {
+    "status-write-unconstrained": {
+      "controlled-sandbox": true,
+      "foreign-status-write-denied": true,
+      "foreign-ambient-status-write": true,
+      "hostile-liar": true
+    },
+    "requires-controlled-status-write-isolation": {
+      "controlled-sandbox": true,
+      "foreign-status-write-denied": false,
+      "foreign-ambient-status-write": false,
+      "hostile-liar": false
+    },
+    "requires-status-write-absent-through-execution": {
+      "controlled-sandbox": true,
+      "foreign-status-write-denied": false,
+      "foreign-ambient-status-write": false,
+      "hostile-liar": false
+    }
+  }
+}
