@@ -16,6 +16,9 @@ import {
 } from '../observation/observe.ts';
 import {
   CLAIM_SCHEMA,
+  DELEGATION_DISCHARGE_SCHEMA,
+  DELEGATION_RESERVATION_SCHEMA,
+  DELEGATION_SCHEMA_VERSION,
   EFFECT_RELEASE_SCHEMA,
   EFFECT_RELEASE_SCHEMA_VERSION,
   EFFECT_RESERVATION_SCHEMA,
@@ -29,6 +32,8 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
+  DelegationDischargeFact,
+  DelegationReservationFact,
   EffectReleaseFact,
   EffectReservationFact,
   ExecutionAuthorityFact,
@@ -49,7 +54,11 @@ import {
 import { deriveCurrentRealizationJudgments } from './realization-reuse.ts';
 import { advanceProjection, projectReceipt, replayProjection } from './replay.ts';
 import type { Projection } from './replay.ts';
-import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
+import {
+  delegationReservationAuthorityError,
+  mutationAdmitted,
+  projectExecutionAuthority,
+} from './transaction-admission.ts';
 import {
   effectAdapterCapabilities,
   reservedEffectReleaseWitnessSafe,
@@ -64,6 +73,7 @@ import {
   type TrustedEffectReleaseWitness,
 } from '../effect-release-witness.ts';
 import { planGraphReconciliation } from '../graph/reconciliation.ts';
+import { delegationCreatesCausalCycle } from './delegation.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -78,6 +88,22 @@ export type EffectAuthority<E extends string, V extends Postcondition['verifier'
   readonly permit: ExecutionPermit;
   readonly postcondition: Extract<Postcondition, { verifier: V }>;
 };
+
+const spawnAuthorityBrand: unique symbol = Symbol('spawn-authority');
+export type SpawnAuthority = {
+  readonly [spawnAuthorityBrand]: true;
+  readonly permit: ExecutionPermit;
+};
+
+export interface DelegationAttemptBinding {
+  delegation_id: string;
+  run_id: string;
+  obligation_id: string;
+  execution_generation: number;
+  execution_authority_commit: string;
+  reservation_commit: string;
+  child_obligation_id: string;
+}
 
 export interface GraphPatchInput {
   upsert?: ObligationInput[];
@@ -216,6 +242,20 @@ export class KernelCore {
       [effectAuthorityBrand]: effectContract,
       permit,
       postcondition: work.postcondition as EffectAuthority<E, EffectVerifier<E>>['postcondition'],
+    };
+  }
+
+  authorizeSpawn(permit: ExecutionPermit): SpawnAuthority {
+    const head = this.#requireHead();
+    const { history, project } = this.#historicalProjection(head);
+    const run = this.#requireExecutionPermit(history, permit);
+    const lifecycle = project.lifecycles.get(run.obligation_id);
+    if (lifecycle?.run?.id !== run.id || lifecycle.status !== 'EXECUTING') {
+      throw new Error('RUN_NOT_EXECUTING');
+    }
+    return {
+      [spawnAuthorityBrand]: true,
+      permit,
     };
   }
 
@@ -372,6 +412,132 @@ export class KernelCore {
     return await effect(attempt);
   }
 
+  #reserveDelegation(
+    authority: SpawnAuthority,
+    childObligationId: string,
+  ): DelegationAttemptBinding {
+    if (authority[spawnAuthorityBrand] !== true) throw new Error('SPAWN_AUTHORITY_INVALID');
+    if (typeof childObligationId !== 'string' || childObligationId.length === 0) {
+      throw new Error('INVALID_CHILD_OBLIGATION_ID');
+    }
+
+    const delegationId = randomUUID();
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const head = this.#requireHead();
+      const { state, history, project } = this.#historicalProjection(head);
+      const run = this.#requireExecutionPermit(history, authority.permit);
+      const lifecycle = project.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id !== run.id || lifecycle.status !== 'EXECUTING') {
+        throw new Error('RUN_NOT_EXECUTING');
+      }
+      if (!state.obligations[childObligationId]) throw new Error('DELEGATION_CHILD_UNKNOWN');
+      if (childObligationId === run.obligation_id) throw new Error('DELEGATION_SELF_REFERENCE');
+      if (
+        delegationCreatesCausalCycle({
+          state,
+          runs: history.runs,
+          unresolvedDelegationsByRun: history.unresolvedDelegationsByRun,
+          parentObligationId: run.obligation_id,
+          childObligationId,
+        })
+      ) {
+        throw new Error('DELEGATION_CAUSAL_CYCLE');
+      }
+      if (project.lifecycles.get(childObligationId)?.status === 'DONE') {
+        throw new Error('DELEGATION_CHILD_ALREADY_DONE');
+      }
+
+      const fact: DelegationReservationFact = {
+        schema: DELEGATION_RESERVATION_SCHEMA,
+        schema_version: DELEGATION_SCHEMA_VERSION,
+        delegation_id: delegationId,
+        run_id: run.id,
+        obligation_id: run.obligation_id,
+        execution_generation: run.execution_generation,
+        execution_authority_commit: run.execution_authority_commit,
+        child_obligation_id: childObligationId,
+      };
+      const authorityError = delegationReservationAuthorityError(run, fact);
+      if (authorityError) throw new Error(authorityError);
+
+      const commit = this.#store.append(
+        head,
+        `overcenter: reserve delegation ${run.obligation_id} -> ${childObligationId} ${delegationId}`,
+        { 'delegation-reservation.json': fact },
+      );
+      if (!commit) continue;
+      return Object.freeze({
+        delegation_id: delegationId,
+        run_id: run.id,
+        obligation_id: run.obligation_id,
+        execution_generation: run.execution_generation,
+        execution_authority_commit: run.execution_authority_commit,
+        reservation_commit: commit,
+        child_obligation_id: childObligationId,
+      });
+    }
+    throw new Error('DELEGATION_RESERVATION_CONTENTION_EXHAUSTED');
+  }
+
+  async performDelegation<T>(
+    authority: SpawnAuthority,
+    childObligationId: string,
+    dispatch: (attempt: DelegationAttemptBinding) => Promise<T> | T,
+  ): Promise<{ binding: DelegationAttemptBinding; result: T }> {
+    const binding = this.#reserveDelegation(authority, childObligationId);
+    return {
+      binding,
+      result: await dispatch(binding),
+    };
+  }
+
+  dischargeDelegation(binding: DelegationAttemptBinding): string {
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const head = this.#requireHead();
+      const { history, project } = this.#historicalProjection(head);
+      const delegation = history.delegationsById.get(binding.delegation_id);
+      if (!delegation) throw new Error('DELEGATION_UNKNOWN');
+      if (
+        delegation.run_id !== binding.run_id ||
+        delegation.obligation_id !== binding.obligation_id ||
+        delegation.execution_generation !== binding.execution_generation ||
+        delegation.execution_authority_commit !== binding.execution_authority_commit ||
+        delegation.reservation_commit !== binding.reservation_commit ||
+        delegation.child_obligation_id !== binding.child_obligation_id
+      ) {
+        throw new Error('DELEGATION_BINDING_MISMATCH');
+      }
+      if (delegation.discharge_commit) return delegation.discharge_commit;
+
+      const child = project.lifecycles.get(delegation.child_obligation_id);
+      if (child?.status !== 'DONE' || !child.run) {
+        throw new Error('DELEGATION_CHILD_NOT_DONE');
+      }
+      const childReceipt = history.receiptsByRun.get(child.run.id);
+      if (childReceipt?.disposition !== 'DONE' || !childReceipt.settlement_commit) {
+        throw new Error('DELEGATION_CHILD_SETTLEMENT_MISSING');
+      }
+
+      const fact: DelegationDischargeFact = {
+        schema: DELEGATION_DISCHARGE_SCHEMA,
+        schema_version: DELEGATION_SCHEMA_VERSION,
+        delegation_id: delegation.delegation_id,
+        run_id: delegation.run_id,
+        child_obligation_id: delegation.child_obligation_id,
+        reservation_commit: delegation.reservation_commit,
+        child_run_id: child.run.id,
+        child_settlement_commit: childReceipt.settlement_commit,
+      };
+      const commit = this.#store.append(
+        head,
+        `overcenter: discharge delegation ${delegation.delegation_id}`,
+        { 'delegation-discharge.json': fact },
+      );
+      if (commit) return commit;
+    }
+    throw new Error('DELEGATION_DISCHARGE_CONTENTION_EXHAUSTED');
+  }
+
   releaseEffectReservation<E extends string, V extends Postcondition['verifier']>(
     authority: EffectAuthority<E, V>,
     witness: TrustedEffectReleaseWitness,
@@ -411,6 +577,9 @@ export class KernelCore {
       }
       if (!reservedEffectReleaseWitnessSafe(run.obligation, effectContract, validatedWitness)) {
         throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
+      }
+      if ((history.unresolvedDelegationsByRun.get(run.id)?.size ?? 0) > 0) {
+        throw new Error('UNRESOLVED_DELEGATION');
       }
 
       const evidence = retainEffectReleaseEvidence(validatedWitness);
@@ -564,6 +733,33 @@ export class KernelCore {
     return this.#historicalProjection(head).history.unresolvedReservationsByRun.has(runId);
   }
 
+  outstandingDelegations(runId: string): DelegationAttemptBinding[] {
+    const head = this.#requireHead();
+    const { history } = this.#historicalProjection(head);
+    if (!history.runs.has(runId)) throw new Error('UNKNOWN_RUN');
+    return [...(history.unresolvedDelegationsByRun.get(runId)?.values() ?? [])]
+      .map((delegation) =>
+        Object.freeze({
+          delegation_id: delegation.delegation_id,
+          run_id: delegation.run_id,
+          obligation_id: delegation.obligation_id,
+          execution_generation: delegation.execution_generation,
+          execution_authority_commit: delegation.execution_authority_commit,
+          reservation_commit: delegation.reservation_commit,
+          child_obligation_id: delegation.child_obligation_id,
+        }),
+      )
+      .sort((left, right) => left.delegation_id.localeCompare(right.delegation_id));
+  }
+
+  hasUnresolvedDelegation(runId: string): boolean {
+    const head = this.#requireHead();
+    return (
+      (this.#historicalProjection(head).history.unresolvedDelegationsByRun.get(runId)?.size ?? 0) >
+      0
+    );
+  }
+
   #commitGraphPatch(
     projection: Projection,
     upsert: Obligation[],
@@ -653,6 +849,7 @@ export class KernelCore {
         run: HistoricalRun;
         work: HistoricalRun['obligation'];
         unresolvedEffect: boolean;
+        unresolvedDelegation: boolean;
       } {
     const runId = permit.id;
     const head = this.#requireHead();
@@ -680,6 +877,7 @@ export class KernelCore {
       run,
       work,
       unresolvedEffect: history.unresolvedReservationsByRun.has(runId),
+      unresolvedDelegation: (history.unresolvedDelegationsByRun.get(runId)?.size ?? 0) > 0,
     };
   }
 
@@ -689,13 +887,17 @@ export class KernelCore {
       run: HistoricalRun;
       work: HistoricalRun['obligation'];
       unresolvedEffect: boolean;
+      unresolvedDelegation: boolean;
     },
     observed: Observation,
     diagnostic: Data,
   ): Receipt | null {
-    const { head, run, work, unresolvedEffect } = candidate;
+    const { head, run, work, unresolvedEffect, unresolvedDelegation } = candidate;
     const fact = this.#receiptFact(run, work.id, 'observation', observed, diagnostic);
     const receipt = projectReceipt(fact, work, undefined, unresolvedEffect);
+    if (unresolvedDelegation && ['DONE', 'READY'].includes(receipt.disposition)) {
+      throw new Error('UNRESOLVED_DELEGATION');
+    }
     const commit = this.#store.append(head, `overcenter: observe ${work.id} ${run.id}`, {
       'receipt.json': fact,
     });

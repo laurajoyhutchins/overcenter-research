@@ -1,7 +1,11 @@
 import { GitFactStore } from './git-store.ts';
 import { KernelCore, type KernelOptions } from '../authority/engine.ts';
 
-export type { Receipt } from '../authority/engine.ts';
+export type {
+  DelegationAttemptBinding,
+  Receipt,
+  SpawnAuthority,
+} from '../authority/engine.ts';
 
 const STATE_REF = 'refs/overcenter/state';
 

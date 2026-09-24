@@ -1,4 +1,5 @@
 import type {
+  DelegationReservationFact,
   EffectReleaseFact,
   EffectReservation,
   EffectReservationFact,
@@ -54,6 +55,29 @@ export function effectReservationAuthorityError(
   )
     return 'STALE_EFFECT_RESERVATION';
   return unresolvedEffect ? 'DUPLICATE_UNRESOLVED_EFFECT' : null;
+}
+
+export type DelegationReservationAuthorityError =
+  | 'DELEGATION_RESERVATION_RUN_MISMATCH'
+  | 'DELEGATION_RESERVATION_OBLIGATION_MISMATCH'
+  | 'STALE_DELEGATION_RESERVATION'
+  | null;
+
+export function delegationReservationAuthorityError(
+  run: Run,
+  fact: DelegationReservationFact,
+): DelegationReservationAuthorityError {
+  if (fact.run_id !== run.id) return 'DELEGATION_RESERVATION_RUN_MISMATCH';
+  if (fact.obligation_id !== run.obligation_id) {
+    return 'DELEGATION_RESERVATION_OBLIGATION_MISMATCH';
+  }
+  if (
+    fact.execution_generation !== run.execution_generation ||
+    fact.execution_authority_commit !== run.execution_authority_commit
+  ) {
+    return 'STALE_DELEGATION_RESERVATION';
+  }
+  return null;
 }
 
 export type EffectReleaseAuthorityError =

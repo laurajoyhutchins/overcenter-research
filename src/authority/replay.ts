@@ -3,6 +3,8 @@ import { authoritativeAbsenceEvidence, observationVerified } from '../observatio
 import {
   emptyState,
   validateClaimFact,
+  validateDelegationDischargeFact,
+  validateDelegationReservationFact,
   validateEffectReleaseFact,
   validateEffectReservationFact,
   materializeObligation,
@@ -12,6 +14,8 @@ import {
 } from './facts.ts';
 import type {
   ClaimFact,
+  DelegationRecord,
+  DelegationReservation,
   EffectReservation,
   EffectReservationFact,
   ExecutionAuthorityFact,
@@ -23,6 +27,7 @@ import type {
   State,
 } from './facts.ts';
 import { dependencyUpstreams, validateGraph } from '../graph/topology.ts';
+import { delegationCreatesCausalCycle } from './delegation.ts';
 import { settlementSemantics } from '../semantics.ts';
 import {
   reservedEffectReleaseSafe,
@@ -30,6 +35,7 @@ import {
   reservedEffectReplaySafe,
 } from '../effect-adapter.ts';
 import {
+  delegationReservationAuthorityError,
   effectReleaseAuthorityError,
   effectReservationAuthorityError,
   executionAuthorityAdvanceError,
@@ -45,6 +51,8 @@ export interface HistoryProjection {
   runs: Map<string, HistoricalRun>;
   receiptsByRun: Map<string, Receipt>;
   unresolvedReservationsByRun: Map<string, EffectReservation>;
+  delegationsById: Map<string, DelegationRecord>;
+  unresolvedDelegationsByRun: Map<string, Map<string, DelegationReservation>>;
   receipts: Receipt[];
   currentBindingOrdinals: Map<string, number>;
   claimOrdinalsByRun: Map<string, number>;
@@ -113,6 +121,16 @@ export function replayProjection(
   const unresolvedReservationsByRun = base
     ? new Map(base.history.unresolvedReservationsByRun)
     : new Map<string, EffectReservation>();
+  const delegationsById = base
+    ? new Map(base.history.delegationsById)
+    : new Map<string, DelegationRecord>();
+  const unresolvedDelegationsByRun = base
+    ? new Map<string, Map<string, DelegationReservation>>(
+        [...base.history.unresolvedDelegationsByRun].map(
+          ([runId, delegations]) => [runId, new Map(delegations)] as const,
+        ),
+      )
+    : new Map<string, Map<string, DelegationReservation>>();
   const receipts = base ? [...base.history.receipts] : [];
   const currentBindingOrdinals = base
     ? new Map(base.history.currentBindingOrdinals)
@@ -302,6 +320,93 @@ export function replayProjection(
       notDispatchedRelease = true;
     }
 
+    if (record.delegation_reservation != null) {
+      const fact = validateDelegationReservationFact(record.delegation_reservation);
+      const run = runs.get(fact.run_id);
+      if (!run) throw new Error('DELEGATION_RESERVATION_WITHOUT_CLAIM');
+      const authorityError = delegationReservationAuthorityError(run, fact);
+      if (authorityError) throw new Error(authorityError);
+      if (delegationsById.has(fact.delegation_id)) {
+        throw new Error('DUPLICATE_DELEGATION_ID');
+      }
+
+      refresh(record.commit);
+      const parent = project.lifecycles.get(run.obligation_id);
+      if (parent?.run?.id !== run.id || parent.status !== 'EXECUTING') {
+        throw new Error('DELEGATION_RESERVATION_WHILE_NOT_EXECUTING');
+      }
+      if (!state.obligations[fact.child_obligation_id]) {
+        throw new Error('DELEGATION_CHILD_UNKNOWN');
+      }
+      if (fact.child_obligation_id === run.obligation_id) {
+        throw new Error('DELEGATION_SELF_REFERENCE');
+      }
+      if (
+        delegationCreatesCausalCycle({
+          state,
+          runs,
+          unresolvedDelegationsByRun,
+          parentObligationId: run.obligation_id,
+          childObligationId: fact.child_obligation_id,
+        })
+      ) {
+        throw new Error('DELEGATION_CAUSAL_CYCLE');
+      }
+      if (project.lifecycles.get(fact.child_obligation_id)?.status === 'DONE') {
+        throw new Error('DELEGATION_CHILD_ALREADY_DONE');
+      }
+
+      const reservation: DelegationReservation = {
+        ...fact,
+        reservation_commit: record.commit,
+      };
+      delegationsById.set(fact.delegation_id, reservation);
+      const unresolved = unresolvedDelegationsByRun.get(run.id) ?? new Map();
+      unresolved.set(fact.delegation_id, reservation);
+      unresolvedDelegationsByRun.set(run.id, unresolved);
+    }
+
+    if (record.delegation_discharge != null) {
+      const fact = validateDelegationDischargeFact(record.delegation_discharge);
+      const delegation = delegationsById.get(fact.delegation_id);
+      if (!delegation) throw new Error('DELEGATION_DISCHARGE_WITHOUT_RESERVATION');
+      if (delegation.discharge_commit) throw new Error('DUPLICATE_DELEGATION_DISCHARGE');
+      if (
+        fact.run_id !== delegation.run_id ||
+        fact.child_obligation_id !== delegation.child_obligation_id ||
+        fact.reservation_commit !== delegation.reservation_commit
+      ) {
+        throw new Error('DELEGATION_DISCHARGE_BINDING_MISMATCH');
+      }
+
+      const unresolved = unresolvedDelegationsByRun.get(fact.run_id);
+      if (!unresolved?.has(fact.delegation_id)) {
+        throw new Error('DELEGATION_DISCHARGE_NOT_OUTSTANDING');
+      }
+
+      refresh(record.commit);
+      const child = project.lifecycles.get(fact.child_obligation_id);
+      if (child?.status !== 'DONE' || child.run?.id !== fact.child_run_id) {
+        throw new Error('DELEGATION_CHILD_NOT_DONE');
+      }
+      const childReceipt = receiptsByRun.get(fact.child_run_id);
+      if (
+        childReceipt?.disposition !== 'DONE' ||
+        childReceipt.settlement_commit !== fact.child_settlement_commit
+      ) {
+        throw new Error('DELEGATION_CHILD_SETTLEMENT_MISMATCH');
+      }
+
+      delegationsById.set(fact.delegation_id, {
+        ...delegation,
+        discharge_commit: record.commit,
+        child_run_id: fact.child_run_id,
+        child_settlement_commit: fact.child_settlement_commit,
+      });
+      unresolved.delete(fact.delegation_id);
+      if (unresolved.size === 0) unresolvedDelegationsByRun.delete(fact.run_id);
+    }
+
     if (record.receipt == null) continue;
     const fact = validateReceiptFact(record.receipt);
     const run = runs.get(fact.run_id);
@@ -343,6 +448,12 @@ export function replayProjection(
       unresolvedEffect,
       notDispatchedRelease,
     );
+    if (
+      ['DONE', 'READY'].includes(receipt.disposition) &&
+      (unresolvedDelegationsByRun.get(run.id)?.size ?? 0) > 0
+    ) {
+      throw new Error('TERMINAL_RECEIPT_WITH_UNRESOLVED_DELEGATION');
+    }
     receiptsByRun.set(run.id, receipt);
     if (receipt.disposition === 'DONE' || receipt.disposition === 'READY') {
       unresolvedReservationsByRun.delete(run.id);
@@ -360,6 +471,8 @@ export function replayProjection(
       runs,
       receiptsByRun,
       unresolvedReservationsByRun,
+      delegationsById,
+      unresolvedDelegationsByRun,
       receipts,
       currentBindingOrdinals,
       claimOrdinalsByRun,

@@ -4,9 +4,11 @@ import { SqliteFactStore } from '../storage/sqlite.ts';
 
 export type { Receipt } from './engine.ts';
 export type {
+  DelegationAttemptBinding,
   GraphPatchInput,
   GraphReconciliationResult,
   KernelOptions,
+  SpawnAuthority,
 } from './engine.ts';
 
 export class OvercenterKernel extends KernelCore {
