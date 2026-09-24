@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { canonicalDigest } from '../digest.ts';
 import type {
   Data,
   ExecutionPermit,
@@ -8,6 +9,8 @@ import type {
   Run,
   Work,
 } from '../model.ts';
+import type { EvidenceStore } from '../evidence/store.ts';
+import { isData } from '../validation.ts';
 import type { DurableFactStore } from './store.ts';
 import {
   observePostcondition,
@@ -23,6 +26,8 @@ import {
   GRAPH_PATCH_SCHEMA,
   RECEIPT_SCHEMA,
   SOURCE_REVISION_BINDING_SCHEMA,
+  VERIFIED_OUTPUT_SCHEMA,
+  VERIFIED_OUTPUT_SCHEMA_VERSION,
   materializeObligation,
   normalizeObligation,
   obligationDefinition,
@@ -40,6 +45,7 @@ import type {
   ReceiptFact,
   ReceiptKind,
   SourceRevisionBindingFact,
+  VerifiedOutputFact,
 } from './facts.ts';
 import { validateAdmission } from './admission.ts';
 import {
@@ -48,7 +54,10 @@ import {
   hasInFlight,
   type ProjectExplanation,
 } from './project-state.ts';
-import { deriveCurrentRealizationJudgments } from './realization-reuse.ts';
+import {
+  deriveCurrentRealizationJudgments,
+  type CurrentRealizationJudgment,
+} from './realization-reuse.ts';
 import { advanceProjection, projectReceipt, replayProjection } from './replay.ts';
 import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
@@ -62,9 +71,13 @@ import { planGraphReconciliation } from '../graph/reconciliation.ts';
 
 export type { Receipt } from './facts.ts';
 
+export type GeneratedOutputValidator = (bytes: Uint8Array, work: Obligation) => Data;
+
 export interface KernelOptions {
   githubToken?: string | null;
   observationContext?: Omit<ObservationContext, 'githubToken'>;
+  evidenceStore?: EvidenceStore | null;
+  generatedOutputValidators?: Readonly<Record<string, GeneratedOutputValidator>>;
 }
 
 const effectAuthorityBrand: unique symbol = Symbol('effect-authority');
@@ -94,14 +107,23 @@ export class KernelCore {
   readonly githubToken: string | null;
   readonly observationContext: ObservationContext;
   readonly #store: DurableFactStore;
+  readonly #evidenceStore: EvidenceStore | null;
+  readonly #generatedOutputValidators: Readonly<Record<string, GeneratedOutputValidator>>;
   // Reconstructible acceleration only: history(head) is still fully validated first.
   #projectionCache: { head: string; commitCount: number; projection: Projection } | null = null;
 
   constructor(
     store: DurableFactStore,
-    { githubToken = null, observationContext = {} }: KernelOptions = {},
+    {
+      githubToken = null,
+      observationContext = {},
+      evidenceStore = null,
+      generatedOutputValidators = {},
+    }: KernelOptions = {},
   ) {
     this.#store = store;
+    this.#evidenceStore = evidenceStore;
+    this.#generatedOutputValidators = generatedOutputValidators;
     this.githubToken = githubToken;
     this.observationContext = { githubToken, ...observationContext };
   }
@@ -288,6 +310,99 @@ export class KernelCore {
     const run = this.#historicalProjection(this.#requireHead()).history.runs.get(runId);
     if (!run) throw new Error('UNKNOWN_RUN');
     return run.source_revision ?? null;
+  }
+
+  settleVerifiedOutput(
+    permit: ExecutionPermit,
+    bytes: Uint8Array,
+    diagnostic: Data = {},
+  ): Receipt {
+    const evidenceStore = this.#evidenceStore;
+    if (!evidenceStore) throw new Error('GENERATED_OUTPUT_EVIDENCE_STORE_UNAVAILABLE');
+
+    const initialHead = this.#requireHead();
+    const initial = this.#historicalProjection(initialHead);
+    const initialRun = this.#requireExecutionPermit(initial.history, permit);
+    const initialLifecycle = initial.project.lifecycles.get(initialRun.obligation_id);
+    if (initialLifecycle?.run?.id !== initialRun.id || initialLifecycle.status !== 'EXECUTING') {
+      throw new Error('RUN_NOT_EXECUTING');
+    }
+    if (initial.history.unresolvedReservationsByRun.has(initialRun.id)) {
+      throw new Error('UNRESOLVED_EFFECT');
+    }
+    const work = initialRun.obligation;
+    if (work.postcondition.verifier !== 'verified-generated-output/v1') {
+      throw new Error('VERIFIED_OUTPUT_POSTCONDITION_MISMATCH');
+    }
+    const validator = this.#generatedOutputValidators[work.postcondition.validator];
+    if (!validator) throw new Error('GENERATED_OUTPUT_VALIDATOR_UNAVAILABLE');
+
+    const payload = Buffer.from(bytes);
+    const metadata = validator(payload, structuredClone(work));
+    if (!isData(metadata)) throw new Error('GENERATED_OUTPUT_VALIDATOR_METADATA_INVALID');
+
+    // Publication deliberately precedes authority. A lost CAS may orphan immutable bytes,
+    // but authority never points at bytes that were not durably published first.
+    const evidence = evidenceStore.put(payload);
+
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const head = this.#requireHead();
+      const { history, project } = this.#historicalProjection(head);
+      const prior = history.receiptsByRun.get(permit.id);
+      if (prior && prior.disposition === 'DONE') return prior;
+
+      const run = this.#requireExecutionPermit(history, permit);
+      const lifecycle = project.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id !== run.id || lifecycle.status !== 'EXECUTING') {
+        throw new Error('RUN_NOT_EXECUTING');
+      }
+      if (history.unresolvedReservationsByRun.has(run.id)) throw new Error('UNRESOLVED_EFFECT');
+      if (run.obligation.postcondition.verifier !== 'verified-generated-output/v1') {
+        throw new Error('VERIFIED_OUTPUT_POSTCONDITION_MISMATCH');
+      }
+      if (run.obligation.postcondition.validator !== work.postcondition.validator) {
+        throw new Error('VERIFIED_OUTPUT_VALIDATOR_MISMATCH');
+      }
+
+      const output: VerifiedOutputFact = {
+        schema: VERIFIED_OUTPUT_SCHEMA,
+        schema_version: VERIFIED_OUTPUT_SCHEMA_VERSION,
+        run_id: run.id,
+        obligation_id: run.obligation_id,
+        claimed_revision: run.claimed_revision,
+        claim_commit: run.claim_commit,
+        execution_generation: run.execution_generation,
+        execution_authority_commit: run.execution_authority_commit,
+        validator: work.postcondition.validator,
+        evidence,
+        metadata: structuredClone(metadata),
+      };
+      const receiptFact = this.#receiptFact(
+        run,
+        run.obligation_id,
+        'verified-output',
+        null,
+        diagnostic,
+      );
+      const projected = projectReceipt(
+        receiptFact,
+        run.obligation,
+        undefined,
+        false,
+        false,
+        output,
+      );
+      const commit = this.#store.append(
+        head,
+        `overcenter: verify output ${run.obligation_id} ${run.id}`,
+        {
+          'verified-output.json': output,
+          'receipt.json': receiptFact,
+        },
+      );
+      if (commit) return { ...projected, settlement_commit: commit };
+    }
+    throw new Error('VERIFIED_OUTPUT_CONTENTION_EXHAUSTED');
   }
 
   acquireExecution(runId: string): ExecutionPermit {
@@ -738,6 +853,8 @@ export class KernelCore {
       receiptsByRun: historical.history.receiptsByRun,
       semanticKeys: historical.project.semanticKeys,
       observe: (postcondition) => this.#observe(postcondition),
+      verifyGeneratedOutput: (obligation, receipt) =>
+        this.#verifyGeneratedOutput(obligation, receipt),
     });
     const project = deriveProjectProjection({
       state: historical.state,
@@ -750,6 +867,71 @@ export class KernelCore {
       ...historical,
       project,
     };
+  }
+
+  #verifyGeneratedOutput(
+    obligation: Obligation,
+    receipt: Receipt,
+  ): CurrentRealizationJudgment {
+    if (
+      obligation.postcondition.verifier !== 'verified-generated-output/v1' ||
+      receipt.kind !== 'verified-output' ||
+      !receipt.verified_output
+    ) {
+      return {
+        state: 'indeterminate',
+        reason: 'CURRENT_GENERATED_OUTPUT_RECEIPT_INVALID',
+      };
+    }
+    const evidenceStore = this.#evidenceStore;
+    if (!evidenceStore) {
+      return {
+        state: 'indeterminate',
+        reason: 'CURRENT_GENERATED_OUTPUT_EVIDENCE_STORE_UNAVAILABLE',
+      };
+    }
+    const validator = this.#generatedOutputValidators[obligation.postcondition.validator];
+    if (!validator) {
+      return {
+        state: 'indeterminate',
+        reason: 'CURRENT_GENERATED_OUTPUT_VALIDATOR_UNAVAILABLE',
+      };
+    }
+    if (receipt.verified_output.validator !== obligation.postcondition.validator) {
+      return {
+        state: 'indeterminate',
+        reason: 'CURRENT_GENERATED_OUTPUT_VALIDATOR_MISMATCH',
+      };
+    }
+
+    try {
+      const bytes = evidenceStore.get(receipt.verified_output.evidence);
+      const metadata = validator(bytes, structuredClone(obligation));
+      if (!isData(metadata)) {
+        return {
+          state: 'indeterminate',
+          reason: 'CURRENT_GENERATED_OUTPUT_METADATA_INVALID',
+        };
+      }
+      if (canonicalDigest(metadata) !== canonicalDigest(receipt.verified_output.metadata)) {
+        return {
+          state: 'indeterminate',
+          reason: 'CURRENT_GENERATED_OUTPUT_METADATA_MISMATCH',
+        };
+      }
+      return {
+        state: 'admissible',
+        reason: 'CURRENT_GENERATED_OUTPUT_VERIFIED',
+      };
+    } catch (error: unknown) {
+      return {
+        state: 'indeterminate',
+        reason:
+          error instanceof Error
+            ? `CURRENT_GENERATED_OUTPUT_UNAVAILABLE:${error.message}`
+            : 'CURRENT_GENERATED_OUTPUT_UNAVAILABLE',
+      };
+    }
   }
 
   #observe(postcondition: Postcondition): Observation {
