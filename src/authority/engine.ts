@@ -1,4 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { sha256 } from '../digest.ts';
 import type {
   Data,
   ExecutionPermit,
@@ -520,94 +521,54 @@ export class KernelCore {
     witness: TrustedSourceIntegrationWitness,
   ): Receipt {
     const evidence = trustedSourceIntegrationEvidence(witness);
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const head = this.#requireHead();
-      const { history, project } = this.#historicalProjection(head);
-      const run = history.runs.get(permit.id);
-      if (!run) throw new Error('UNKNOWN_RUN');
-      const prior = history.receiptsByRun.get(run.id);
-      if (prior && ['DONE', 'READY'].includes(prior.disposition)) return prior;
-      const authoritative = this.#requireExecutionPermit(history, permit);
-      const current = project.lifecycles.get(run.obligation_id);
-      if (current?.run?.id !== run.id || current.status !== 'EXECUTING') {
-        throw new Error('SOURCE_SETTLEMENT_RUN_NOT_EXECUTING');
-      }
-      if (
-        run.obligation.packet.kind !== 'source-change' ||
-        run.obligation.postcondition.verifier !== 'source-integration/v1'
-      ) {
-        throw new Error('SOURCE_SETTLEMENT_WORK_INVALID');
-      }
-      if (history.unresolvedReservationsByRun.has(run.id)) {
-        throw new Error('SOURCE_SETTLEMENT_WITH_UNRESOLVED_EFFECT');
-      }
-      if (
-        evidence.run_id !== authoritative.id ||
-        evidence.obligation_key !== authoritative.obligation_key ||
-        evidence.source_sha !== authoritative.source_revision
-      ) {
-        throw new Error('SOURCE_INTEGRATION_EVIDENCE_BINDING_MISMATCH');
-      }
-
-      const fact = this.#receiptFact(authoritative, run.obligation_id, 'source-integration', null, {
-        source_integration: evidence,
-      });
-      const commit = this.#store.append(
-        head,
-        `overcenter: integrate source ${run.obligation_id} ${run.id}`,
-        { 'receipt.json': fact },
-      );
-      if (!commit) continue;
-      const receipt = this.#historicalProjection(commit).history.receiptsByRun.get(run.id);
-      if (!receipt || receipt.disposition !== 'DONE' || !receipt.verified) {
-        throw new Error('SOURCE_INTEGRATION_PROJECTION_FAILED');
-      }
-      return receipt;
+    const receipt = this.#settleWithoutObservation(
+      permit,
+      'source-integration',
+      { source_integration: evidence },
+      ({ run, work }) => {
+        if (
+          work.packet.kind !== 'source-change' ||
+          work.postcondition.verifier !== 'source-integration/v1'
+        ) {
+          throw new Error('SOURCE_SETTLEMENT_WORK_INVALID');
+        }
+        if (
+          evidence.run_id !== run.id ||
+          evidence.obligation_key !== run.obligation_key ||
+          evidence.source_sha !== run.source_revision
+        ) {
+          throw new Error('SOURCE_INTEGRATION_EVIDENCE_BINDING_MISMATCH');
+        }
+      },
+    );
+    if (receipt.disposition !== 'DONE' || !receipt.verified) {
+      throw new Error('SOURCE_INTEGRATION_PROJECTION_FAILED');
     }
-    throw new Error('SOURCE_INTEGRATION_SETTLEMENT_CONTENTION_EXHAUSTED');
+    return receipt;
   }
 
   retrySourceIntegration(permit: ExecutionPermit, reason: string, diagnostic: Data = {}): Receipt {
     if (!reason) throw new Error('SOURCE_RETRY_REASON_INVALID');
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const head = this.#requireHead();
-      const { history, project } = this.#historicalProjection(head);
-      const run = history.runs.get(permit.id);
-      if (!run) throw new Error('UNKNOWN_RUN');
-      const prior = history.receiptsByRun.get(run.id);
-      if (prior && ['DONE', 'READY'].includes(prior.disposition)) return prior;
-      const authoritative = this.#requireExecutionPermit(history, permit);
-      const current = project.lifecycles.get(run.obligation_id);
-      if (current?.run?.id !== run.id || current.status !== 'EXECUTING') {
-        throw new Error('SOURCE_RETRY_RUN_NOT_EXECUTING');
-      }
-      if (
-        run.obligation.packet.kind !== 'source-change' ||
-        run.obligation.postcondition.verifier !== 'source-integration/v1'
-      ) {
-        throw new Error('SOURCE_RETRY_WORK_INVALID');
-      }
-      if (history.unresolvedReservationsByRun.has(run.id)) {
-        throw new Error('SOURCE_RETRY_WITH_UNRESOLVED_EFFECT');
-      }
-
-      const fact = this.#receiptFact(authoritative, run.obligation_id, 'source-retry', null, {
+    const receipt = this.#settleWithoutObservation(
+      permit,
+      'source-retry',
+      {
         ...structuredClone(diagnostic),
         source_retry: { reason },
-      });
-      const commit = this.#store.append(
-        head,
-        `overcenter: retry source ${run.obligation_id} ${run.id}`,
-        { 'receipt.json': fact },
-      );
-      if (!commit) continue;
-      const receipt = this.#historicalProjection(commit).history.receiptsByRun.get(run.id);
-      if (!receipt || receipt.disposition !== 'READY') {
-        throw new Error('SOURCE_RETRY_PROJECTION_FAILED');
-      }
-      return receipt;
+      },
+      ({ work }) => {
+        if (
+          work.packet.kind !== 'source-change' ||
+          work.postcondition.verifier !== 'source-integration/v1'
+        ) {
+          throw new Error('SOURCE_RETRY_WORK_INVALID');
+        }
+      },
+    );
+    if (receipt.disposition !== 'READY') {
+      throw new Error('SOURCE_RETRY_PROJECTION_FAILED');
     }
-    throw new Error('SOURCE_RETRY_CONTENTION_EXHAUSTED');
+    return receipt;
   }
 
   resolve(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
@@ -639,70 +600,11 @@ export class KernelCore {
   }
 
   deferForJudgment(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
-    const runId = permit.id;
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const head = this.#requireHead();
-      const { state, history, project } = this.#historicalProjection(head);
-      const known = history.runs.get(runId);
-      if (!known) throw new Error('UNKNOWN_RUN');
-      const prior = history.receiptsByRun.get(runId);
-      if (prior && ['DONE', 'READY'].includes(prior.disposition)) {
-        return prior;
-      }
-      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-      const work = known.obligation;
-      const run = this.#requireExecutionPermit(history, permit);
-      const lifecycle = project.lifecycles.get(run.obligation_id);
-      if (lifecycle?.run?.id !== runId || lifecycle.status !== 'EXECUTING') {
-        if (prior) return prior;
-        throw new Error('AUTHORITY_LOST');
-      }
-      if (history.unresolvedReservationsByRun.has(runId)) {
-        throw new Error('UNRESOLVED_EFFECT');
-      }
-
-      const fact = this.#receiptFact(run, work.id, 'judgment-required', null, diagnostic);
-      const receipt = projectReceipt(fact, work);
-      const commit = this.#store.append(
-        head,
-        `overcenter: judgment required ${work.id} ${run.id}`,
-        { 'receipt.json': fact },
-      );
-      if (commit) return { ...receipt, settlement_commit: commit };
-    }
-    throw new Error('DEFER_CONTENTION_EXHAUSTED');
+    return this.#settleWithoutObservation(permit, 'judgment-required', diagnostic);
   }
 
   recoverInterrupted(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
-    const runId = permit.id;
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const head = this.#requireHead();
-      const { state, history, project } = this.#historicalProjection(head);
-      const known = history.runs.get(runId);
-      if (!known) throw new Error('UNKNOWN_RUN');
-      const prior = history.receiptsByRun.get(runId);
-      if (prior && ['DONE', 'READY'].includes(prior.disposition)) {
-        return prior;
-      }
-      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-      const work = known.obligation;
-      const run = this.#requireExecutionPermit(history, permit);
-      const lifecycle = project.lifecycles.get(run.obligation_id);
-      if (lifecycle?.run?.id !== runId || lifecycle.status !== 'EXECUTING') {
-        if (prior) return prior;
-        throw new Error('RUN_NOT_EXECUTING');
-      }
-
-      const fact = this.#receiptFact(run, work.id, 'execution-terminated', null, diagnostic);
-      const receipt = projectReceipt(fact, work);
-      const commit = this.#store.append(
-        head,
-        `overcenter: execution terminated ${work.id} ${runId}`,
-        { 'receipt.json': fact },
-      );
-      if (commit) return { ...receipt, settlement_commit: commit };
-    }
-    throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
+    return this.#settleWithoutObservation(permit, 'execution-terminated', diagnostic);
   }
 
   reconcile(permit: ExecutionPermit): Receipt {
@@ -860,6 +762,81 @@ export class KernelCore {
     return commit ? { ...receipt, settlement_commit: commit } : null;
   }
 
+  #settleWithoutObservation(
+    permit: ExecutionPermit,
+    kind: Extract<
+      ReceiptKind,
+      'judgment-required' | 'execution-terminated' | 'source-integration' | 'source-retry'
+    >,
+    diagnostic: Data,
+    validate?: (context: {
+      run: HistoricalRun;
+      work: HistoricalRun['obligation'];
+    }) => void,
+  ): Receipt {
+    const runId = permit.id;
+    const policy =
+      kind === 'judgment-required'
+        ? {
+            action: 'judgment required',
+            lifecycleError: 'AUTHORITY_LOST',
+            unresolvedError: 'UNRESOLVED_EFFECT',
+            contentionError: 'DEFER_CONTENTION_EXHAUSTED',
+          }
+        : kind === 'execution-terminated'
+          ? {
+              action: 'execution terminated',
+              lifecycleError: 'RUN_NOT_EXECUTING',
+              unresolvedError: null,
+              contentionError: 'RECOVERY_CONTENTION_EXHAUSTED',
+            }
+          : kind === 'source-integration'
+            ? {
+                action: 'integrate source',
+                lifecycleError: 'SOURCE_SETTLEMENT_RUN_NOT_EXECUTING',
+                unresolvedError: 'SOURCE_SETTLEMENT_WITH_UNRESOLVED_EFFECT',
+                contentionError: 'SOURCE_INTEGRATION_SETTLEMENT_CONTENTION_EXHAUSTED',
+              }
+            : {
+                action: 'retry source',
+                lifecycleError: 'SOURCE_RETRY_RUN_NOT_EXECUTING',
+                unresolvedError: 'SOURCE_RETRY_WITH_UNRESOLVED_EFFECT',
+                contentionError: 'SOURCE_RETRY_CONTENTION_EXHAUSTED',
+              };
+
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const head = this.#requireHead();
+      const { state, history, project } = this.#historicalProjection(head);
+      const known = history.runs.get(runId);
+      if (!known) throw new Error('UNKNOWN_RUN');
+      const prior = history.receiptsByRun.get(runId);
+      if (prior && ['DONE', 'READY'].includes(prior.disposition)) return prior;
+      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+
+      const work = known.obligation;
+      const run = this.#requireExecutionPermit(history, permit);
+      const lifecycle = project.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id !== runId || lifecycle.status !== 'EXECUTING') {
+        if (prior) return prior;
+        throw new Error(policy.lifecycleError);
+      }
+      if (policy.unresolvedError && history.unresolvedReservationsByRun.has(runId)) {
+        throw new Error(policy.unresolvedError);
+      }
+      validate?.({ run, work });
+
+      const fact = this.#receiptFact(run, work.id, kind, null, diagnostic);
+      const receipt = projectReceipt(fact, work);
+      const commit = this.#store.append(
+        head,
+        `overcenter: ${policy.action} ${work.id} ${runId}`,
+        { 'receipt.json': fact },
+      );
+      if (commit) return { ...receipt, settlement_commit: commit };
+    }
+    throw new Error(policy.contentionError);
+  }
+
   #requireHead(): string {
     const head = this.head();
     if (!head) throw new Error('NOT_INITIALIZED');
@@ -922,7 +899,7 @@ export class KernelCore {
   }
 
   #capabilityDigest(capability: string): string {
-    return createHash('sha256').update(capability).digest('hex');
+    return sha256(capability);
   }
 
   #requireExecutionPermit(history: Projection['history'], permit: ExecutionPermit): HistoricalRun {
