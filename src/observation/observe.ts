@@ -712,5 +712,8 @@ export function observationVerified(postcondition: Postcondition, observed: Obse
   if (postcondition.verifier === 'github-pull-request-branch-updated/v1') {
     return githubPullRequestBranchUpdatedEvidenceMatches(postcondition, observed);
   }
+  if (postcondition.verifier === 'verified-generated-output/v1') {
+    throw new Error('GENERATED_OUTPUT_REQUIRES_RETAINED_EVIDENCE');
+  }
   return observed.actual_state === postcondition.expected_state;
 }
