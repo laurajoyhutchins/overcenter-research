@@ -1,0 +1,151 @@
+# DPOR race/backtracking explorer
+
+## Question
+
+Can Overcenter discover necessary alternative executions from **dependent races** and add backtracking choices at the earliest reorderable prefix, rather than relying only on sleep-set pruning over all locally enabled choices?
+
+This experiment stacks on `dpor-causal-explorer`. It keeps exhaustive enumeration as an oracle and adds an explicit race/backtracking mechanism.
+
+## Preregistered hypothesis
+
+For the existing four-obligation corpus:
+
+- exhaustive enumeration still contains exactly **369,600** schedules;
+- safety semantics require exactly **1** causal execution and should discover no cross-obligation races;
+- scheduler-sensitive semantics require exactly **24** causal executions and must discover races that add alternative claim roots to earlier backtracking sets;
+- reduced and exhaustive canonical trace sets must be identical.
+
+For conflicting effects, race detection must add a backtracking alternative and preserve both outcomes.
+
+For a future conflict, where two initially independent roots later enable dependent effects, the explorer must discover the later race and backtrack to the other obligation's earliest enabled root. That control distinguishes actual race/backtracking from merely choosing among transitions that were already known to conflict at the initial state.
+
+## Algorithm under test
+
+Each explored prefix has a backtracking set. Initially the explorer selects one enabled event.
+
+When a newly executed event is dependent with a prior event but neither event causally precedes the other, the pair is a race. The explorer inspects the state immediately before the prior event and finds the earliest enabled event from the later event's obligation. That event is inserted into the earlier prefix's backtracking set.
+
+The DFS loop observes backtracking choices added by descendants, so a race discovered deep in one execution can cause a new branch at an ancestor prefix. Sleep sets remain as duplicate-trace pruning, but they do not create alternative executions.
+
+## Hostile controls
+
+### Immediate conflicting writes
+
+Two root effects write incompatible values to the same canonical resource. The first execution must discover the dependency race and add the opposite root to the initial backtracking set.
+
+### Future conflict
+
+Two root claims commute. Each enables a later write to the same resource. The conflict is invisible at the initial state.
+
+A passing explorer must detect the later dependent race, find the other obligation's enabled root at the relevant earlier prefix, and produce both causal classes and both final outcomes.
+
+### Unsound independence
+
+The deliberately wrong rule "different obligation IDs commute" must suppress the conflicting-write race and therefore miss one final outcome.
+
+## Acceptance criteria
+
+The treatment is supported only if:
+
+1. exhaustive exploration contains exactly 369,600 schedules for the four-chain corpus;
+2. safety race/backtracking exploration visits exactly one complete execution and its trace set equals exhaustive;
+3. scheduler-sensitive race/backtracking visits exactly 24 complete executions and its trace set equals exhaustive;
+4. scheduler-sensitive exploration discovers at least one dependent race and adds backtracking choices;
+5. immediate conflicting writes produce two reduced executions and preserve both exhaustive outcomes through race-induced backtracking;
+6. the future-conflict fixture contains six concrete schedules, two trace classes, and two outcomes, all preserved by exactly two reduced executions;
+7. the future-conflict treatment records both a dependent race and an ancestor backtracking insertion;
+8. the unsound distinct-obligation oracle suppresses the necessary race, explores one conflicting execution, and misses one final outcome.
+
+## Reproduce
+
+```sh
+npm run experiment:dpor-race-backtracking
+```
+
+Hosted exact-head execution is in `.github/workflows/dpor-race-backtracking.yml`.
+
+## Interpretation boundary
+
+The preregistered positive result establishes only that the tested race/backtracking rule works for the bounded fixtures above. Post-hoc review shows that it is not a generally sound DPOR mechanism once causal enabling crosses obligation boundaries.
+
+## Non-claims
+
+- This is an optimal Source-DPOR implementation.
+- The obligation identifier is a universal process identity for arbitrary execution models.
+- The independence oracle is complete for arbitrary provider effects.
+- Liveness-preserving POR conditions have been proved.
+- Unbounded executions are covered.
+- Production scheduling should use DPOR.
+- Authority serialization can be weakened.
+
+
+## Exact-head result
+
+Supported at exact treatment revision `0b0d1370bc96712cc4bef7f6c95eb13fd44fc4f5`.
+
+GitHub Actions run `35950973401`, job `107479240353`, passed the preregistered treatment.
+
+| Case | Exhaustive executions | Reduced executions | Reduced prefixes | Races | Backtrack insertions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Safety corpus | 369,600 | 1 | 13 | 0 | 12 |
+| Scheduler corpus | 369,600 | 24 | 237 | 132 | 236 |
+| Immediate conflict | 2 | 2 | 5 | 2 | 4 |
+| Future conflict | 6 | 2 | 8 | 2 | 8 |
+
+The safety and scheduler reduced trace-key sets exactly matched exhaustive enumeration, with one reduced execution per trace.
+
+The future-conflict control is the distinguishing result: the roots were initially independent, but later writes conflicted. The later dependency race inserted an earlier backtracking choice and recovered both trace classes and both final outcomes.
+
+The deliberately unsound distinct-obligation independence oracle suppressed the immediate conflicting-write race, explored one execution, and missed one of the two exhaustive outcomes.
+
+### Interpretation
+
+The original result demonstrates race-triggered backtracking on the preregistered bounded fixtures. Post-hoc review narrows that conclusion: the current obligation-root rule is incomplete for cross-obligation causal enabling.
+
+The scheduler corpus also shows that the mechanism remains property-sensitive: 132 scheduler-visible races generated the 24 required claim-order traces, while the safety projection discovered no cross-obligation races and required one execution.
+
+
+## Post-hoc adversarial review
+
+The preregistered fixtures above pass, but a later review found a counterexample to the broader DPOR interpretation.
+
+The current backtracking rule responds to a race by looking, at the earlier prefix, for an enabled event from the **later event's obligation**. That works for the preregistered fixtures because each later conflicting event can be exposed by scheduling its own obligation root earlier.
+
+It is incomplete when the later event depends on a predecessor from a different obligation.
+
+The maintained regression is:
+
+```text
+A: a/claim -> a/reserve -> a/effect(x)
+                 |
+                 | independent causal progress
+                 |
+B: b/root -----------------------> C: c/effect(x)
+
+a/claim and a/reserve touch y
+b/root also touches y
+a/effect and c/effect conflict on x
+c/effect depends on b/root
+```
+
+For this five-event graph:
+
+- exhaustive exploration has **10** concrete executions;
+- those executions form **6** causal trace classes;
+- the current race/backtracking reducer reaches only **5** trace classes.
+
+The missing reorder requires scheduling `b/root` before the earlier A event so that `c/effect` can become enabled. The current rule searches for an enabled event from obligation C, not for a causally enabling predecessor from B, so it misses the branch.
+
+This falsifies the claim that the current rule is a generally sound DPOR backtracking algorithm. The original bounded results remain valid for their exact fixtures.
+
+### Metric correction
+
+The original `backtrack_insertions` counter also mixed ordinary first-choice initialization with race-induced insertions. The maintained experiment now reports `initial_backtrack_insertions` and `race_backtrack_insertions` separately.
+
+## Maintained interpretation
+
+The result is **mixed**:
+
+- the preregistered four-chain, immediate-conflict, and same-obligation future-conflict fixtures remain supported;
+- the generalized race/backtracking mechanism is falsified by the cross-obligation causal counterexample;
+- no production or verification machinery should adopt this reducer until the backtracking relation is replaced with a sound formulation and rechecked against exhaustive small-model search.
