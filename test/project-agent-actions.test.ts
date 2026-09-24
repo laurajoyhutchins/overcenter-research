@@ -69,10 +69,25 @@ test('candidate transport stays internal and inert until project.submit is invok
     /startsWith\(github\.event\.workflow_run\.head_branch, 'overcenter\/candidate\/'\)/,
   );
   assert.match(submit, /COMMAND_IMPLEMENTATION_SHA: \$\{\{ github\.sha \}\}/);
-  assert.match(submit, /test "\$changed" = "\.overcenter\/candidate\.json"/);
+  assert.match(submit, /if \[ "\$changed" = "\.overcenter\/candidate\.json" \]; then/);
   assert.match(submit, /test "\$branch_run_id" = "\$candidate_run_id"/);
+  assert.match(submit, /OVERCENTER_CANDIDATE_RUN_ID: \$\{\{ env\.CANDIDATE_RUN_ID \}\}/);
+  assert.match(submit, /Download source verification/);
+  assert.match(submit, /overcenter-source-verification/);
   assert.match(submit, /project-submit\.ts --receipt response\/receipt\.json/);
   assert.doesNotMatch(submit, /issue_comment:|pull_request_review:|workflow_dispatch:/);
+});
+
+test('source candidate verification runs without repository write authority', () => {
+  assert.match(signal, /source:\n\s+name: Verify source candidate/);
+  assert.match(signal, /source:[\s\S]*permissions:\n\s+contents: read/);
+  assert.doesNotMatch(signal, /source:[\s\S]*contents:\s*write/);
+  assert.match(signal, /persist-credentials: false/);
+  assert.match(signal, /npm run test:unit/);
+  assert.match(signal, /npm run proof:formal/);
+  assert.match(signal, /npm run proof:production-boundary/);
+  assert.match(signal, /proof-self-application\.sh/);
+  assert.match(signal, /source-verification\/source-verification\.json/);
 });
 
 test('routine operator commands require no GitHub App credential', () => {
