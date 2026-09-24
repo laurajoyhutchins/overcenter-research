@@ -146,10 +146,7 @@ export function staticEffectConflict(
   const resource = work.semantics.resource;
   const resourceMask = index.resourceMasks.get(resource) ?? 0n;
   const commutationKey = effectCommutationKey(work.semantics);
-  const compatibleMask =
-    commutationKey === null
-      ? 0n
-      : (index.commutingMasks.get(resource)?.get(commutationKey) ?? 0n);
+  const compatibleMask = commutationKey === null ? 0n : (index.commutingMasks.get(resource)?.get(commutationKey) ?? 0n);
   const incompatibleMask = resourceMask & ~(compatibleMask | work.bit);
   const unorderedMask = incompatibleMask & ~(index.orderedBitsById.get(workId) ?? 0n);
   if (unorderedMask === 0n) return null;
