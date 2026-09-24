@@ -3251,6 +3251,71 @@
         "state": "supported",
         "summary": "At exact revision 7546e2b058c8be80faebaa8900a684b794275af3, the split store matched monolithic Git kernel semantics, kept authority commits fact-id-only, admitted exactly one winner in an eight-process same-head race, left seven losing fact objects unreachable, reconstructed from a copied object replica, and failed closed when an authoritative fact object was missing."
       }
+    },
+    {
+      "id": "weakest-precondition-admission",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/weakest-precondition-admission",
+      "readme": "experiments/weakest-precondition-admission/README.md",
+      "question": "Can a bounded weakest-precondition calculation derive the current mutation-admission predicate from an independently stated safety postcondition while exposing both missing guards and unnecessary ceremony?",
+      "claim": "Across the preregistered 16-state finite domain, demonic backward reasoning over the mutation protocol should derive exactly current_authority AND exact_revision AND NOT unresolved_effect, matching production mutationAdmitted(), while hostile guard and protocol mutants expose underconstraint, overconstraint, dispatch-before-reservation, and blind replay.",
+      "contrast": "Continue hand-writing admission guards and only test that they imply safety, without testing whether they are minimal or whether protocol ordering failures make any admission condition insufficient.",
+      "interpretation": "The bounded calculation exactly reproduced production mutationAdmitted() across all 16 preregistered states, identified an explicit unsafe witness for each removed guard, detected the synthetic ceremony as pure overconstraint, and showed that dispatch-before-reservation and blind replay cannot be made safe by any initial-state admission condition in the modeled protocol. This supports weakest-precondition derivation as a useful design oracle for this transaction slice and motivates a richer replay/release derivation experiment; it does not make the calculator production authority.",
+      "environment": [
+        "Node.js from .node-version with built-in TypeScript stripping.",
+        "Production mutationAdmitted() imported from src/authority/transaction-admission.ts.",
+        "A preregistered Cartesian product of 16 initial states and four hostile baseline outcomes per state.",
+        "No network, provider credential, database, LLM, or runtime dependency."
+      ],
+      "success_criteria": [
+        "The calculated weakest condition is current_authority AND exact_revision AND NOT unresolved_effect and is independent of the synthetic ceremony token.",
+        "Production mutationAdmitted() is extensionally identical to the calculated predicate over all 16 initial states.",
+        "Omitting current-authority admission admits at least one state rejected by the calculated predicate.",
+        "Omitting exact-revision admission admits at least one state rejected by the calculated predicate.",
+        "Omitting unresolved-effect exclusion admits at least one state rejected by the calculated predicate.",
+        "Adding a safety-irrelevant ceremony token rejects at least one calculated-safe state without admitting a calculated-unsafe state.",
+        "Removing the authorization safety clause removes current_authority from the calculated weakest condition.",
+        "Removing the exact-revision safety clause removes exact_revision from the calculated weakest condition.",
+        "Removing the at-most-once safety clause removes unresolved-effect exclusion from the calculated weakest condition.",
+        "Dispatch-before-reservation with a crash window has an empty weakest precondition.",
+        "Blind replay after an ambiguous first dispatch has an empty weakest precondition.",
+        "The experiment remains deterministic, offline, TypeScript-only, and adds no runtime dependency."
+      ],
+      "non_claims": [
+        "The four-boolean abstraction is complete for the entire Overcenter kernel.",
+        "The experiment proves authorizeEffect(), adapter contract matching, provider identity, settlement, or graph admission.",
+        "The experiment proves liveness, eventual diagnosability, or provider availability.",
+        "Arbitrary TypeScript can be reduced to a useful symbolic weakest precondition.",
+        "A generated predicate should replace reviewed production admission code.",
+        "The derived condition remains minimal after the safety specification or protocol changes."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The 16-state domain, four hostile outcomes, independently stated four-clause safety postcondition, three missing-guard controls, one unnecessary-ceremony control, three specification-sensitivity controls, and two protocol mutants were fixed before the first hosted execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 50df13190d6ad0c9f197249d594f3cc559c8ab87, exhaustive demonic backward evaluation derived current_authority AND exact_revision AND NOT unresolved_effect with zero mismatches against production mutationAdmitted(); every missing-guard control admitted unsafe states, the ceremony control rejected a safe state, specification weakening removed the corresponding derived conjunct, and both dispatch-before-reservation and blind-replay mutants had zero safe initial states."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:weakest-precondition-admission"
+      },
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "50df13190d6ad0c9f197249d594f3cc559c8ab87",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35950477304, rerun attempt 2, exact-head candidate job 107478480514: candidate regressions passed.",
+          "Weakest-precondition treatment exhausted 16 initial states with four hostile baseline outcomes each and derived current_authority && exact_revision && !unresolved_effect.",
+          "Production mutationAdmitted() accepted exactly two ceremony-equivalent safe states with zero mismatches against the calculated predicate.",
+          "Removing current authority admitted A0:R1:U0:C0/C1; removing exact revision admitted A1:R0:U0:C0/C1; removing unresolved-effect exclusion admitted A1:R1:U1:C0/C1.",
+          "The synthetic ceremony token admitted no unsafe state but rejected calculated-safe state A1:R1:U0:C0.",
+          "Removing authorization, exact-revision, and at-most-once safety clauses respectively removed current_authority, exact_revision, and unresolved-effect exclusion from the derived predicate.",
+          "Dispatch-before-reservation and blind-replay protocol mutants each calculated zero safe initial states.",
+          "The same exact-head candidate passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, the complete deterministic experiment suite, TLA+, the production computation boundary, and self-application."
+        ]
+      }
     }
   ]
 }
