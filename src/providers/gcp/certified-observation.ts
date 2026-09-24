@@ -1,4 +1,5 @@
 import type { ProviderObservation } from '../../observation/provider.ts';
+import { isSha256Hex } from '../../validation.ts';
 import {
   projectResponseSlice,
   validateObservationSlice,
@@ -74,7 +75,7 @@ export function observeCertifiedGcpRead200({
   if (operation.path_template.length === 0 || !operation.path_template.startsWith('/')) {
     throw new Error('GCP_PATH_TEMPLATE_INVALID');
   }
-  if (!/^[0-9a-f]{64}$/.test(operation.schema_sha256)) {
+  if (!isSha256Hex(operation.schema_sha256)) {
     throw new Error('GCP_SCHEMA_DIGEST_INVALID');
   }
   const authorityHost = assertGcpAuthorityHost(operation.authority_host);
