@@ -411,7 +411,7 @@ export class KernelCore {
     return await effect(attempt);
   }
 
-  reserveDelegation(
+  #reserveDelegation(
     authority: SpawnAuthority,
     childObligationId: string,
   ): DelegationAttemptBinding {
@@ -471,9 +471,12 @@ export class KernelCore {
     authority: SpawnAuthority,
     childObligationId: string,
     dispatch: (attempt: DelegationAttemptBinding) => Promise<T> | T,
-  ): Promise<T> {
-    const attempt = this.reserveDelegation(authority, childObligationId);
-    return await dispatch(attempt);
+  ): Promise<{ binding: DelegationAttemptBinding; result: T }> {
+    const binding = this.#reserveDelegation(authority, childObligationId);
+    return {
+      binding,
+      result: await dispatch(binding),
+    };
   }
 
   dischargeDelegation(binding: DelegationAttemptBinding): string {
