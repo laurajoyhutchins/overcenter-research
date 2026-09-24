@@ -73,10 +73,7 @@ export function deriveCurrentRealizationJudgments({
   receiptsByRun: Map<string, Receipt>;
   semanticKeys: Map<string, string | null>;
   observe: (postcondition: Postcondition) => Observation;
-  verifyGeneratedOutput?: (
-    obligation: Obligation,
-    receipt: Receipt,
-  ) => CurrentRealizationJudgment;
+  verifyGeneratedOutput?: (obligation: Obligation, receipt: Receipt) => CurrentRealizationJudgment;
 }): Map<string, CurrentRealizationJudgment> {
   const judgments = new Map<string, CurrentRealizationJudgment>();
 
