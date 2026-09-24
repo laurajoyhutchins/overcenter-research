@@ -3280,11 +3280,11 @@
         "The treatment changes no production source file."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "ee77259a8db92c11f2c41de6a4cf40007d87778a",
         "artifacts": [
-          ".github/workflows/history-normalization.yml"
-        ],
-        "pending_reason": "The preregistered treatment is implemented on its experiment branch; exact-head hosted execution has not yet been recorded."
+          "GitHub Actions run 35948438715: exact-head history-normalization treatment; 8 interleaving executions across 4 bounded continuations converged to matching production-derived semantic signatures and semantic normal forms, the 4-branch critical-pair overlap joined, provenance remained distinct, and all four hostile unsafe-law controls were rejected."
+        ]
       },
       "interpretation": "A positive result would support canonical semantic history as a derived, reproducible projection with a separate provenance binding. It would not authorize destructive normalization of durable authority facts.",
       "non_claims": [
@@ -3301,8 +3301,8 @@
         "note": "The positive rewrite laws, bounded continuations, critical-pair condition, four hostile negative controls, and non-claims were committed before hosted treatment evidence was observed."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The bounded causal-history normalization hypothesis is preregistered and awaiting exact-head execution."
+        "state": "supported",
+        "summary": "For the bounded two-obligation corpus, opposite certified-independent interleavings normalize to the same semantic form under four tested continuations while physical provenance remains distinct; the tested commutation/collapse overlap is joinable and all hostile unsafe-law controls are distinguished."
       }
     }
   ]
