@@ -73,33 +73,36 @@ const plan = {
   promotions: [
     {
       id: 'promotion-a',
-      requires: ['result-a'],
+      requires_results: ['result-a'],
+      requires_promotions: [],
       objective: 'Promote result A.',
       writable_paths: ['src/a.ts'],
     },
     {
       id: 'promotion-a-child',
-      requires: [],
-      after: ['promotion-a'],
+      requires_results: [],
+      requires_promotions: ['promotion-a'],
       objective: 'Consume promotion A.',
       writable_paths: ['src/a-child.ts'],
     },
     {
       id: 'promotion-b',
-      requires: ['result-b'],
+      requires_results: ['result-b'],
+      requires_promotions: [],
       objective: 'Promote result B.',
       writable_paths: ['src/b.ts'],
     },
     {
       id: 'promotion-b-child',
-      requires: [],
-      after: ['promotion-b'],
+      requires_results: [],
+      requires_promotions: ['promotion-b'],
       objective: 'Consume promotion B.',
       writable_paths: ['src/b-child.ts'],
     },
     {
       id: 'promotion-c',
-      requires: ['result-c'],
+      requires_results: ['result-c'],
+      requires_promotions: [],
       objective: 'Promote independent result C.',
       writable_paths: ['src/c.ts'],
     },
@@ -339,6 +342,26 @@ test('research plan excludes pull request and branch topology from semantic inte
   );
 });
 
+test('research promotions cannot bypass research gating with an ungrounded root', () => {
+  assert.throws(
+    () =>
+      validateResearchPlan({
+        schema: RESEARCH_PLAN_SCHEMA,
+        schema_version: RESEARCH_PLAN_SCHEMA_VERSION,
+        promotions: [
+          {
+            id: 'ungrounded',
+            requires_results: [],
+            requires_promotions: [],
+            objective: 'Do arbitrary source work.',
+            writable_paths: ['src/arbitrary.ts'],
+          },
+        ],
+      }),
+    /RESEARCH_PROMOTION_UNGROUNDED:ungrounded/,
+  );
+});
+
 test('promotion dependency cycles fail rather than inventing an ordering', () => {
   assert.throws(
     () =>
@@ -349,15 +372,15 @@ test('promotion dependency cycles fail rather than inventing an ordering', () =>
           promotions: [
             {
               id: 'left',
-              requires: [],
-              after: ['right'],
+              requires_results: [],
+              requires_promotions: ['right'],
               objective: 'Left.',
               writable_paths: ['src/left.ts'],
             },
             {
               id: 'right',
-              requires: [],
-              after: ['left'],
+              requires_results: [],
+              requires_promotions: ['left'],
               objective: 'Right.',
               writable_paths: ['src/right.ts'],
             },
