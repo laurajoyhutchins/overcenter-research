@@ -107,7 +107,11 @@ function exactSha(value: unknown, error: string): asserts value is string {
 }
 
 function sourceControlPath(path: string): boolean {
-  return path === '.overcenter' || path.startsWith('.overcenter/') || path.startsWith('.github/workflows/');
+  return (
+    path === '.overcenter' ||
+    path.startsWith('.overcenter/') ||
+    path.startsWith('.github/workflows/')
+  );
 }
 
 export function validateSourceVerification(value: unknown): SourceVerification {
@@ -262,7 +266,11 @@ function worktree(repo: string, revision: string): { root: string; dispose: () =
   };
 }
 
-function integrationMessage(claim: SourceClaimBinding, candidateSha: string, treeSha: string): string {
+function integrationMessage(
+  claim: SourceClaimBinding,
+  candidateSha: string,
+  treeSha: string,
+): string {
   return [
     `integrate source work ${claim.run_id}`,
     '',
@@ -287,9 +295,7 @@ function validExistingIntegration(
     if (!body.includes(`Overcenter-Source-Candidate: ${candidateSha}`)) continue;
     if (!body.includes(`Overcenter-Verified-Tree: ${verification.tree_sha}`)) continue;
 
-    const parents = git(repo, ['show', '-s', '--format=%P', commit])
-      .split(/\s+/)
-      .filter(Boolean);
+    const parents = git(repo, ['show', '-s', '--format=%P', commit]).split(/\s+/).filter(Boolean);
     if (parents.length !== 1 || parents[0] !== verification.base_sha) continue;
     const tree = git(repo, ['show', '-s', '--format=%T', commit]);
     if (tree !== verification.tree_sha) continue;
