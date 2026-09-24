@@ -274,10 +274,7 @@ export function analyzeEffectProtocol(protocol: EffectProtocol): DiagnosabilityA
   };
 }
 
-export function boundedAmbiguousObservationSequences(
-  protocol: EffectProtocol,
-  depth = 12,
-): number {
+export function boundedAmbiguousObservationSequences(protocol: EffectProtocol, depth = 12): number {
   if (!Number.isSafeInteger(depth) || depth < 1) {
     throw new Error('EFFECT_PROTOCOL_ORACLE_DEPTH_INVALID');
   }
