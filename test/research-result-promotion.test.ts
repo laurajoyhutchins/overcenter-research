@@ -153,12 +153,9 @@ test('trusted research result cannot be mutated after verification', () => {
     }),
   );
 
-  assert.throws(
-    () => {
-      (value.result as { outcome: string }).outcome = 'supported';
-    },
-    TypeError,
-  );
+  assert.throws(() => {
+    (value.result as { outcome: string }).outcome = 'supported';
+  }, TypeError);
   assert.equal(value.result.outcome, 'falsified');
 });
 
@@ -199,9 +196,18 @@ test('only supported trusted results materialize promotions and semantic descend
     compiled.map((promotion) => promotion.id),
     ['promotion-a', 'promotion-a-child', 'promotion-c'],
   );
-  assert.equal(compiled.some((promotion) => promotion.id === 'promotion-b'), false);
-  assert.equal(compiled.some((promotion) => promotion.id === 'promotion-b-child'), false);
-  assert.equal(compiled.find((promotion) => promotion.id === 'promotion-a')?.task.kind, 'source-change');
+  assert.equal(
+    compiled.some((promotion) => promotion.id === 'promotion-b'),
+    false,
+  );
+  assert.equal(
+    compiled.some((promotion) => promotion.id === 'promotion-b-child'),
+    false,
+  );
+  assert.equal(
+    compiled.find((promotion) => promotion.id === 'promotion-a')?.task.kind,
+    'source-change',
+  );
 });
 
 test('evidence-only rerun retains research and promotion semantic identity', () => {
