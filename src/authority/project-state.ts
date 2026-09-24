@@ -156,6 +156,48 @@ interface Claimability {
   indeterminateRealization: RealizationJudgmentRelation | null;
 }
 
+export type ClaimPrerequisiteError =
+  | 'NOT_READY'
+  | 'DEPENDENCIES_NOT_DONE'
+  | 'SEMANTIC_DEPENDENCY_UNRESOLVED';
+
+export interface ClaimPrerequisites {
+  error: ClaimPrerequisiteError | null;
+  semanticKey: string | null;
+  unsatisfiedDependencies: string[];
+}
+
+export function deriveClaimPrerequisites(
+  work: Obligation,
+  lifecycles: ReadonlyMap<string, Lifecycle>,
+  semanticKey: string | null,
+): ClaimPrerequisites {
+  const realization = lifecycles.get(work.id)?.status ?? 'UNREALIZED';
+  if (realization !== 'UNREALIZED') {
+    return { error: 'NOT_READY', semanticKey, unsatisfiedDependencies: [] };
+  }
+
+  const unsatisfiedDependencies = dependencyUpstreams(work).filter(
+    (dependency) => lifecycles.get(dependency)?.status !== 'DONE',
+  );
+  if (unsatisfiedDependencies.length > 0) {
+    return {
+      error: 'DEPENDENCIES_NOT_DONE',
+      semanticKey,
+      unsatisfiedDependencies,
+    };
+  }
+  if (!semanticKey) {
+    return {
+      error: 'SEMANTIC_DEPENDENCY_UNRESOLVED',
+      semanticKey: null,
+      unsatisfiedDependencies: [],
+    };
+  }
+
+  return { error: null, semanticKey, unsatisfiedDependencies: [] };
+}
+
 function deriveRealizationRelations(
   state: State,
   runs: Map<string, HistoricalRun>,
@@ -263,10 +305,10 @@ function deriveClaimability(
   indeterminateRealization: RealizationJudgmentRelation | null,
   staticEffectIndex: StaticEffectIndex,
 ): Claimability {
-  const realization = lifecycles.get(work.id)?.status ?? 'UNREALIZED';
-  if (realization !== 'UNREALIZED') {
+  const prerequisites = deriveClaimPrerequisites(work, lifecycles, semanticKey);
+  if (prerequisites.error === 'NOT_READY') {
     return {
-      error: 'NOT_READY',
+      error: prerequisites.error,
       unsatisfiedDependencies: [],
       staticConflict: null,
       indeterminateRealization: null,
@@ -282,21 +324,10 @@ function deriveClaimability(
     };
   }
 
-  const unsatisfiedDependencies = dependencyUpstreams(work).filter(
-    (dependency) => lifecycles.get(dependency)?.status !== 'DONE',
-  );
-  if (unsatisfiedDependencies.length > 0) {
+  if (prerequisites.error !== null) {
     return {
-      error: 'DEPENDENCIES_NOT_DONE',
-      unsatisfiedDependencies,
-      staticConflict: null,
-      indeterminateRealization: null,
-    };
-  }
-  if (!semanticKey) {
-    return {
-      error: 'SEMANTIC_DEPENDENCY_UNRESOLVED',
-      unsatisfiedDependencies: [],
+      error: prerequisites.error,
+      unsatisfiedDependencies: prerequisites.unsatisfiedDependencies,
       staticConflict: null,
       indeterminateRealization: null,
     };
