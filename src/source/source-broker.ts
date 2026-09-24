@@ -4,10 +4,7 @@ import {
   brokerSourceProposal,
   type SourceCandidatePublicationResult,
 } from './source-integration.ts';
-import {
-  validateSourceAssignment,
-  type SourceCandidate,
-} from './source-obligation.ts';
+import { validateSourceAssignment, type SourceCandidate } from './source-obligation.ts';
 
 export interface BrokeredAssignedSourceProposal {
   authority_head: string;
@@ -41,9 +38,7 @@ export function brokerAssignedSourceProposal(
   const current = kernel
     .inspect()
     .find(
-      (work) =>
-        work.id === assignment.obligation_id &&
-        work.run_id === assignment.claim.run_id,
+      (work) => work.id === assignment.obligation_id && work.run_id === assignment.claim.run_id,
     );
   if (!current || current.status !== 'EXECUTING') {
     throw new Error('SOURCE_BROKER_RUN_NOT_EXECUTING');
@@ -68,13 +63,7 @@ export function brokerAssignedSourceProposal(
     throw new Error('SOURCE_BROKER_TASK_MISMATCH');
   }
 
-  const brokered = brokerSourceProposal(
-    repo,
-    current.packet,
-    claim,
-    proposalValue,
-    { remote },
-  );
+  const brokered = brokerSourceProposal(repo, current.packet, claim, proposalValue, { remote });
   return {
     authority_head: authorityHead,
     candidate: brokered.candidate,
