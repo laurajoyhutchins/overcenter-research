@@ -13,12 +13,7 @@ import { deriveProjectProjection } from '../../src/authority/project-state.ts';
 import { dependencyUpstreams, validateGraph } from '../../src/graph/topology.ts';
 
 type Lifecycle = 'UNREALIZED' | 'EXECUTING' | 'WAITING' | 'RECOVERY_REQUIRED' | 'DONE';
-type RelationName =
-  | 'lifecycle'
-  | 'semanticResolved'
-  | 'indeterminate'
-  | 'conflict'
-  | 'serviceAge';
+type RelationName = 'lifecycle' | 'semanticResolved' | 'indeterminate' | 'conflict' | 'serviceAge';
 
 type RelationStore = Record<RelationName, Map<string, unknown>>;
 
@@ -293,7 +288,8 @@ class FiniteDifferenceReady {
     };
     validateGraph(candidate);
 
-    for (const upstream of dependencyUpstreams(previous)) this.#downstreams.get(upstream)?.delete(id);
+    for (const upstream of dependencyUpstreams(previous))
+      this.#downstreams.get(upstream)?.delete(id);
     this.#state.obligations[id] = replacement;
     for (const upstream of dependencyUpstreams(replacement)) {
       if (!this.#downstreams.has(upstream)) this.#downstreams.set(upstream, new Set());
@@ -352,7 +348,8 @@ class FiniteDifferenceReady {
     if (!obligation) throw new Error(`UNKNOWN_OBLIGATION:${id}`);
     if ((this.#downstreams.get(id)?.size ?? 0) !== 0) throw new Error(`RETIRE_NON_LEAF:${id}`);
 
-    for (const upstream of dependencyUpstreams(obligation)) this.#downstreams.get(upstream)?.delete(id);
+    for (const upstream of dependencyUpstreams(obligation))
+      this.#downstreams.get(upstream)?.delete(id);
     this.#ready.delete(id);
     this.#heap.remove(id);
     this.#downstreams.delete(id);
@@ -627,7 +624,10 @@ function runNegativeControl(): void {
   const after = fullReadyOracle(state, relations);
   const brokenDelta = new Set(before.ready);
   brokenDelta.delete('upstream');
-  assert.ok(!sameSet(brokenDelta, after.ready), 'negative control failed to expose stale downstream');
+  assert.ok(
+    !sameSet(brokenDelta, after.ready),
+    'negative control failed to expose stale downstream',
+  );
   assert.deepEqual([...after.ready].sort(), ['downstream']);
 
   console.log(
