@@ -16,7 +16,6 @@ on:
       - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
       - ARCHITECTURE.md
-      - experiments/README.md
       - research/claims.md
       - research/proof-obligations.md
   push:
@@ -34,7 +33,6 @@ on:
       - experiments/disposable-agent/disposable-agent.test.ts
       - README.md
       - ARCHITECTURE.md
-      - experiments/README.md
       - research/claims.md
       - research/proof-obligations.md
 

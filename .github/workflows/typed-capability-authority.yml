@@ -6,9 +6,6 @@ on:
     paths:
       - .github/workflows/typed-capability-authority.yml
       - experiments/typed-capability-authority/**
-      - experiments/registry.json
-      - experiments/README.md
-      - package.json
       - src/authority/engine.ts
       - src/authority/transaction-admission.ts
       - src/model.ts
