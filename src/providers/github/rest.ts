@@ -1,6 +1,5 @@
-import { execFileSync } from 'node:child_process';
-
 import { GITHUB_API_VERSION } from './contract.ts';
+import { readJsonWithCurl } from '../curl-json.ts';
 
 export type GithubJsonGet = (token: string, path: string) => unknown;
 export type GithubJsonGetAsync = (token: string, path: string) => unknown | Promise<unknown>;
@@ -26,32 +25,11 @@ export function githubGet(token: string, path: string): unknown {
     `header = "X-GitHub-Api-Version: ${GITHUB_API_VERSION}"`,
     '',
   ].join('\n');
-  try {
-    const stdout = execFileSync(
-      'curl',
-      [
-        '--silent',
-        '--show-error',
-        '--fail-with-body',
-        '--config',
-        '-',
-        `https://api.github.com${path}`,
-      ],
-      { input: config, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
-    );
-    return JSON.parse(stdout);
-  } catch (error: unknown) {
-    const failure = error as {
-      stderr?: string | Buffer;
-      stdout?: string | Buffer;
-      message?: string;
-    };
-    throw new Error(
-      `GITHUB_PROVIDER_READ_FAILED: ${String(
-        failure.stderr ?? failure.stdout ?? failure.message ?? '',
-      ).trim()}`,
-    );
-  }
+  return readJsonWithCurl(
+    `https://api.github.com${path}`,
+    config,
+    'GITHUB_PROVIDER_READ_FAILED',
+  );
 }
 
 export async function githubGetAsync(token: string, path: string): Promise<unknown> {
