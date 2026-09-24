@@ -3,7 +3,7 @@ import { canonicalDigest } from './digest.ts';
 import type { ValidatedEffectReleaseWitness } from './effect-release-witness.ts';
 import { isData as data } from './validation.ts';
 
-export const EFFECT_ADAPTER_CAPABILITIES_SCHEMA = 'overcenter-effect-adapter-capabilities' as const;
+export const EFFECT_CONTRACT_CAPABILITIES_SCHEMA = 'overcenter-effect-contract-capabilities' as const;
 
 export const GITHUB_COMMIT_STATUS_EFFECT =
   'github-commit-status/set-from-postcondition/v1' as const;
@@ -37,8 +37,8 @@ export const GITHUB_STATUS_NOT_DISPATCHED_OBSERVATION_SCHEMA =
   'overcenter-github-status-not-dispatched-observation' as const;
 export const GITHUB_STATUS_NOT_DISPATCHED_OBSERVATION_SCHEMA_VERSION = 1 as const;
 
-export interface EffectAdapterCapabilities {
-  schema: typeof EFFECT_ADAPTER_CAPABILITIES_SCHEMA;
+export interface EffectContractCapabilities {
+  schema: typeof EFFECT_CONTRACT_CAPABILITIES_SCHEMA;
   effect_contract: string;
   postcondition_verifier: Postcondition['verifier'];
   duplicate_delivery: DuplicateDeliverySemantics;
@@ -46,12 +46,12 @@ export interface EffectAdapterCapabilities {
   reservation_release: ReservationReleaseCapability;
 }
 
-export function validateEffectAdapterCapabilities(capabilities: EffectAdapterCapabilities): void {
-  if (capabilities.schema !== EFFECT_ADAPTER_CAPABILITIES_SCHEMA) {
-    throw new Error('EFFECT_ADAPTER_CAPABILITIES_SCHEMA_INVALID');
+export function validateEffectContractCapabilities(capabilities: EffectContractCapabilities): void {
+  if (capabilities.schema !== EFFECT_CONTRACT_CAPABILITIES_SCHEMA) {
+    throw new Error('EFFECT_CONTRACT_CAPABILITIES_SCHEMA_INVALID');
   }
   if (!capabilities.effect_contract) {
-    throw new Error('EFFECT_ADAPTER_CONTRACT_INVALID');
+    throw new Error('EFFECT_CONTRACT_INVALID');
   }
   if (capabilities.replay.kind === 'forbidden') {
     if (!capabilities.replay.reason) throw new Error('FORBIDDEN_REPLAY_REQUIRES_REASON');
@@ -72,9 +72,9 @@ export function validateEffectAdapterCapabilities(capabilities: EffectAdapterCap
   }
 }
 
-export const EFFECT_ADAPTER_CAPABILITIES = [
+export const EFFECT_CONTRACT_CAPABILITIES = [
   {
-    schema: EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
+    schema: EFFECT_CONTRACT_CAPABILITIES_SCHEMA,
     effect_contract: GITHUB_COMMIT_STATUS_EFFECT,
     postcondition_verifier: 'github-commit-status/v2',
     duplicate_delivery: 'may-duplicate',
@@ -88,7 +88,7 @@ export const EFFECT_ADAPTER_CAPABILITIES = [
     },
   },
   {
-    schema: EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
+    schema: EFFECT_CONTRACT_CAPABILITIES_SCHEMA,
     effect_contract: GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
     postcondition_verifier: 'github-pull-request-branch-updated/v1',
     duplicate_delivery: 'may-duplicate',
@@ -98,27 +98,27 @@ export const EFFECT_ADAPTER_CAPABILITIES = [
     },
     reservation_release: {
       kind: 'forbidden',
-      reason: 'no trusted pre-dispatch evidence boundary is admitted for this adapter',
+      reason: 'no trusted pre-dispatch evidence boundary is admitted for this effect contract',
     },
   },
-] as const satisfies readonly EffectAdapterCapabilities[];
+] as const satisfies readonly EffectContractCapabilities[];
 
-export type RegisteredEffectAdapter = (typeof EFFECT_ADAPTER_CAPABILITIES)[number];
-export type RegisteredEffectContract = RegisteredEffectAdapter['effect_contract'];
+export type RegisteredEffectContractDefinition = (typeof EFFECT_CONTRACT_CAPABILITIES)[number];
+export type RegisteredEffectContract = RegisteredEffectContractDefinition['effect_contract'];
 export type EffectVerifier<E extends RegisteredEffectContract> = Extract<
-  RegisteredEffectAdapter,
+  RegisteredEffectContractDefinition,
   { effect_contract: E }
 >['postcondition_verifier'];
 
-for (const capabilities of EFFECT_ADAPTER_CAPABILITIES) {
-  validateEffectAdapterCapabilities(capabilities);
+for (const capabilities of EFFECT_CONTRACT_CAPABILITIES) {
+  validateEffectContractCapabilities(capabilities);
 }
 
-export function effectAdapterCapabilities(
+export function effectContractCapabilities(
   effectContract: unknown,
-): EffectAdapterCapabilities | null {
+): EffectContractCapabilities | null {
   return (
-    EFFECT_ADAPTER_CAPABILITIES.find(
+    EFFECT_CONTRACT_CAPABILITIES.find(
       (capabilities) => capabilities.effect_contract === effectContract,
     ) ?? null
   );
@@ -128,7 +128,7 @@ export function reservedEffectReplaySafe(
   work: Obligation,
   absenceEvidence: AbsenceEvidenceCertificate,
 ): boolean {
-  const capabilities = effectAdapterCapabilities(work.packet.effect_contract);
+  const capabilities = effectContractCapabilities(work.packet.effect_contract);
   if (!capabilities) return false;
   if (capabilities.postcondition_verifier !== work.postcondition.verifier) {
     return false;
@@ -142,7 +142,7 @@ export function reservedEffectReleaseSafe(
   effectContract: string,
   evidenceKind: string,
 ): boolean {
-  const capabilities = effectAdapterCapabilities(work.packet.effect_contract);
+  const capabilities = effectContractCapabilities(work.packet.effect_contract);
   if (!capabilities) return false;
   if (capabilities.effect_contract !== effectContract) return false;
   if (capabilities.postcondition_verifier !== work.postcondition.verifier) return false;

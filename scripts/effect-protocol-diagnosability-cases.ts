@@ -1,12 +1,12 @@
 import type {
-  AdapterProtocol,
+  EffectProtocol,
   MutationReality,
   ProtocolState,
   ProtocolTransition,
-} from './adapter-diagnosability.ts';
+} from './effect-protocol-diagnosability.ts';
 
-export interface AdapterDiagnosabilityCase {
-  protocol: AdapterProtocol;
+export interface EffectProtocolDiagnosabilityCase {
+  protocol: EffectProtocol;
   expected: {
     diagnosable: boolean;
     safeDiagnosable: boolean;
@@ -29,7 +29,7 @@ const transition = (
   ...(consequential === undefined ? {} : { consequential }),
 });
 
-export const ADAPTER_DIAGNOSABILITY_CASES = [
+export const EFFECT_PROTOCOL_DIAGNOSABILITY_CASES = [
   {
     protocol: {
       id: 'github-status-pre-secure-connect',
@@ -122,4 +122,4 @@ export const ADAPTER_DIAGNOSABILITY_CASES = [
       decision: 'ambiguous-do-not-release',
     },
   },
-] as const satisfies readonly AdapterDiagnosabilityCase[];
+] as const satisfies readonly EffectProtocolDiagnosabilityCase[];

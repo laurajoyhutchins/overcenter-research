@@ -13,7 +13,7 @@ export interface ProtocolTransition {
   consequential?: string;
 }
 
-export interface AdapterProtocol {
+export interface EffectProtocol {
   id: string;
   initial: string;
   states: readonly ProtocolState[];
@@ -40,7 +40,6 @@ export interface DiagnosabilityAnalysis {
   maxAmbiguousObservableDelay: number | null;
   nonDiagnosableWitness?: readonly ProductStep[];
   unsafeWitnesses: readonly UnsafeActionWitness[];
-  unsafeWitness?: UnsafeActionWitness;
 }
 
 interface ProductEdge {
@@ -59,7 +58,7 @@ function parsePair(key: string): [string, string] {
   return [pair[0]!, pair[1]!];
 }
 
-function indexProtocol(protocol: AdapterProtocol) {
+function indexProtocol(protocol: EffectProtocol) {
   const states = new Map(protocol.states.map((state) => [state.id, state]));
   const outgoing = protocol.transitions.reduce((map, transition) => {
     map.set(transition.from, [...(map.get(transition.from) ?? []), transition]);
@@ -68,40 +67,40 @@ function indexProtocol(protocol: AdapterProtocol) {
   return { states, outgoing };
 }
 
-export function validateAdapterProtocol(protocol: AdapterProtocol): void {
-  if (!protocol.id.trim()) throw new Error('ADAPTER_PROTOCOL_ID_REQUIRED');
-  if (!protocol.initial.trim()) throw new Error('ADAPTER_PROTOCOL_INITIAL_REQUIRED');
-  if (protocol.states.length === 0) throw new Error('ADAPTER_PROTOCOL_STATES_REQUIRED');
+export function validateEffectProtocol(protocol: EffectProtocol): void {
+  if (!protocol.id.trim()) throw new Error('EFFECT_PROTOCOL_ID_REQUIRED');
+  if (!protocol.initial.trim()) throw new Error('EFFECT_PROTOCOL_INITIAL_REQUIRED');
+  if (protocol.states.length === 0) throw new Error('EFFECT_PROTOCOL_STATES_REQUIRED');
 
   const ids = new Set<string>();
   for (const state of protocol.states) {
-    if (!state.id.trim()) throw new Error('ADAPTER_PROTOCOL_STATE_ID_REQUIRED');
-    if (ids.has(state.id)) throw new Error(`ADAPTER_PROTOCOL_DUPLICATE_STATE:${state.id}`);
+    if (!state.id.trim()) throw new Error('EFFECT_PROTOCOL_STATE_ID_REQUIRED');
+    if (ids.has(state.id)) throw new Error(`EFFECT_PROTOCOL_DUPLICATE_STATE:${state.id}`);
     ids.add(state.id);
   }
   if (!ids.has(protocol.initial)) {
-    throw new Error(`ADAPTER_PROTOCOL_INITIAL_UNKNOWN:${protocol.initial}`);
+    throw new Error(`EFFECT_PROTOCOL_INITIAL_UNKNOWN:${protocol.initial}`);
   }
 
   for (const transition of protocol.transitions) {
     if (!ids.has(transition.from)) {
-      throw new Error(`ADAPTER_PROTOCOL_TRANSITION_FROM_UNKNOWN:${transition.from}`);
+      throw new Error(`EFFECT_PROTOCOL_TRANSITION_FROM_UNKNOWN:${transition.from}`);
     }
     if (!ids.has(transition.to)) {
-      throw new Error(`ADAPTER_PROTOCOL_TRANSITION_TO_UNKNOWN:${transition.to}`);
+      throw new Error(`EFFECT_PROTOCOL_TRANSITION_TO_UNKNOWN:${transition.to}`);
     }
-    if (!transition.event.trim()) throw new Error('ADAPTER_PROTOCOL_EVENT_REQUIRED');
+    if (!transition.event.trim()) throw new Error('EFFECT_PROTOCOL_EVENT_REQUIRED');
     if (transition.observation !== undefined && !transition.observation.trim()) {
-      throw new Error('ADAPTER_PROTOCOL_OBSERVATION_EMPTY');
+      throw new Error('EFFECT_PROTOCOL_OBSERVATION_EMPTY');
     }
     if (transition.consequential !== undefined && !transition.consequential.trim()) {
-      throw new Error('ADAPTER_PROTOCOL_CONSEQUENTIAL_EMPTY');
+      throw new Error('EFFECT_PROTOCOL_CONSEQUENTIAL_EMPTY');
     }
   }
 }
 
-function buildProduct(protocol: AdapterProtocol) {
-  validateAdapterProtocol(protocol);
+function buildProduct(protocol: EffectProtocol) {
+  validateEffectProtocol(protocol);
   const { states, outgoing } = indexProtocol(protocol);
   const start = pairKey(protocol.initial, protocol.initial);
   const seen = new Set([start]);
@@ -217,7 +216,7 @@ function maxAmbiguousDelay(product: ReturnType<typeof buildProduct>): number {
   const visit = (state: string): number => {
     const known = memo.get(state);
     if (known !== undefined) return known;
-    if (visiting.has(state)) throw new Error('ADAPTER_PROTOCOL_UNEXPECTED_AMBIGUOUS_CYCLE');
+    if (visiting.has(state)) throw new Error('EFFECT_PROTOCOL_UNEXPECTED_AMBIGUOUS_CYCLE');
     visiting.add(state);
 
     let best = 0;
@@ -234,7 +233,7 @@ function maxAmbiguousDelay(product: ReturnType<typeof buildProduct>): number {
   return Math.max(0, ...[...product.seen].filter(product.differs).map(visit));
 }
 
-export function analyzeAdapterProtocol(protocol: AdapterProtocol): DiagnosabilityAnalysis {
+export function analyzeEffectProtocol(protocol: EffectProtocol): DiagnosabilityAnalysis {
   const product = buildProduct(protocol);
   const ambiguous = [...product.seen].filter(product.differs);
   const cycle = findAmbiguousCycle(product);
@@ -257,7 +256,6 @@ export function analyzeAdapterProtocol(protocol: AdapterProtocol): Diagnosabilit
   const unsafeWitnesses = [...unsafeByAction.values()].sort((a, b) =>
     a.action.localeCompare(b.action),
   );
-  const unsafeWitness = unsafeWitnesses[0];
 
   return {
     diagnosable: cycle === null,
@@ -273,18 +271,17 @@ export function analyzeAdapterProtocol(protocol: AdapterProtocol): Diagnosabilit
         }
       : {}),
     unsafeWitnesses,
-    ...(unsafeWitness === undefined ? {} : { unsafeWitness }),
   };
 }
 
 export function boundedAmbiguousObservationSequences(
-  protocol: AdapterProtocol,
+  protocol: EffectProtocol,
   depth = 12,
 ): number {
   if (!Number.isSafeInteger(depth) || depth < 1) {
-    throw new Error('ADAPTER_PROTOCOL_ORACLE_DEPTH_INVALID');
+    throw new Error('EFFECT_PROTOCOL_ORACLE_DEPTH_INVALID');
   }
-  validateAdapterProtocol(protocol);
+  validateEffectProtocol(protocol);
   const { states, outgoing } = indexProtocol(protocol);
   let traces = [{ state: protocol.initial, observations: [] as string[] }];
 

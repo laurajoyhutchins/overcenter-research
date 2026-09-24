@@ -5,41 +5,41 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  EFFECT_ADAPTER_CAPABILITIES,
-  EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
+  EFFECT_CONTRACT_CAPABILITIES,
+  EFFECT_CONTRACT_CAPABILITIES_SCHEMA,
   GITHUB_COMMIT_STATUS_EFFECT,
   GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
-  effectAdapterCapabilities,
-  validateEffectAdapterCapabilities,
-  type EffectAdapterCapabilities,
-} from '../src/effect-adapter.ts';
+  effectContractCapabilities,
+  validateEffectContractCapabilities,
+  type EffectContractCapabilities,
+} from '../src/effect-contract.ts';
 import { RECEIPT_SCHEMA, type ReceiptFact } from '../src/authority/facts.ts';
 import { projectReceipt } from '../src/authority/replay.ts';
 import { OvercenterKernel } from '../src/authority/kernel.ts';
 import { localFileEnoentEvidence } from '../src/observation/evidence.ts';
 import type { Obligation } from '../src/model.ts';
 
-test('effect adapter capabilities are closed machine-readable data', () => {
-  assert.equal(EFFECT_ADAPTER_CAPABILITIES.length, 2);
-  assert.doesNotThrow(() => JSON.stringify(EFFECT_ADAPTER_CAPABILITIES));
+test('effect contract capabilities are closed machine-readable data', () => {
+  assert.equal(EFFECT_CONTRACT_CAPABILITIES.length, 2);
+  assert.doesNotThrow(() => JSON.stringify(EFFECT_CONTRACT_CAPABILITIES));
 
-  for (const capabilities of EFFECT_ADAPTER_CAPABILITIES) {
-    assert.equal(capabilities.schema, EFFECT_ADAPTER_CAPABILITIES_SCHEMA);
-    assert.doesNotThrow(() => validateEffectAdapterCapabilities(capabilities));
+  for (const capabilities of EFFECT_CONTRACT_CAPABILITIES) {
+    assert.equal(capabilities.schema, EFFECT_CONTRACT_CAPABILITIES_SCHEMA);
+    assert.doesNotThrow(() => validateEffectContractCapabilities(capabilities));
   }
 
   assert.deepEqual(
-    EFFECT_ADAPTER_CAPABILITIES.map((candidate) => candidate.effect_contract).sort(),
+    EFFECT_CONTRACT_CAPABILITIES.map((candidate) => candidate.effect_contract).sort(),
     [GITHUB_COMMIT_STATUS_EFFECT, GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT].sort(),
   );
 });
 
-test('current GitHub mutation adapters do not claim replay safety they cannot prove', () => {
+test('current GitHub effect contracts do not claim replay safety they cannot prove', () => {
   for (const effectContract of [
     GITHUB_COMMIT_STATUS_EFFECT,
     GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
   ]) {
-    const capabilities = effectAdapterCapabilities(effectContract);
+    const capabilities = effectContractCapabilities(effectContract);
     assert.ok(capabilities);
     assert.equal(capabilities.duplicate_delivery, 'may-duplicate');
     assert.equal(capabilities.replay.kind, 'forbidden');
@@ -47,8 +47,8 @@ test('current GitHub mutation adapters do not claim replay safety they cannot pr
 });
 
 test('replay capability requires terminal evidence and duplicate-effect protection', () => {
-  const base: EffectAdapterCapabilities = {
-    schema: EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
+  const base: EffectContractCapabilities = {
+    schema: EFFECT_CONTRACT_CAPABILITIES_SCHEMA,
     effect_contract: 'test/effect',
     postcondition_verifier: 'file-content-equals/v1',
     duplicate_delivery: 'semantically-idempotent',
@@ -58,14 +58,14 @@ test('replay capability requires terminal evidence and duplicate-effect protecti
     },
     reservation_release: {
       kind: 'forbidden',
-      reason: 'test adapter has no trusted pre-dispatch witness',
+      reason: 'test effect contract has no trusted pre-dispatch witness',
     },
   };
-  assert.doesNotThrow(() => validateEffectAdapterCapabilities(base));
+  assert.doesNotThrow(() => validateEffectContractCapabilities(base));
 
   assert.throws(
     () =>
-      validateEffectAdapterCapabilities({
+      validateEffectContractCapabilities({
         ...base,
         duplicate_delivery: 'may-duplicate',
       }),
@@ -73,7 +73,7 @@ test('replay capability requires terminal evidence and duplicate-effect protecti
   );
   assert.throws(
     () =>
-      validateEffectAdapterCapabilities({
+      validateEffectContractCapabilities({
         ...base,
         replay: { kind: 'terminal-absence', terminal_absence_evidence_kinds: [] },
       }),

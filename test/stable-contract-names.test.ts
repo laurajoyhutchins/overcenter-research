@@ -89,3 +89,42 @@ test('stable contract names do not encode schema versions', () => {
   }
   assert.deepEqual(stalePathReferences, []);
 });
+
+
+test('current surfaces do not expose adapter compatibility vocabulary', () => {
+  const activeFiles = ['src', 'scripts', 'test']
+    .flatMap((root) => filesUnder(root))
+    .filter((path) => path !== 'test/stable-contract-names.test.ts')
+    .filter((path) => /\.(?:ts|tsx|js|json|md)$/.test(path));
+
+  const stale: string[] = [];
+  const productionPatterns = [
+    /effect-adapter/,
+    /EffectAdapter/,
+    /effectAdapter/,
+    /EFFECT_ADAPTER/,
+    /RegisteredEffectAdapter/,
+  ];
+  const toolingPatterns = [
+    /adapter-diagnosability/,
+    /AdapterProtocol/,
+    /analyzeAdapterProtocol/,
+    /validateAdapterProtocol/,
+    /ADAPTER_PROTOCOL_/,
+  ];
+
+  for (const path of activeFiles) {
+    const source = readFileSync(path, 'utf8');
+    const patterns = path.startsWith('src/') ? productionPatterns : toolingPatterns;
+    for (const pattern of patterns) {
+      if (pattern.test(source)) stale.push(`${path}: ${pattern.source}`);
+    }
+  }
+
+  const diagnoser = readFileSync('scripts/effect-protocol-diagnosability.ts', 'utf8');
+  if (/\bunsafeWitness\b/.test(diagnoser)) {
+    stale.push('scripts/effect-protocol-diagnosability.ts: singular unsafeWitness compatibility alias');
+  }
+
+  assert.deepEqual(stale, []);
+});

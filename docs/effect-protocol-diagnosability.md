@@ -1,6 +1,6 @@
-# Adapter diagnosability tooling
+# Effect-protocol diagnosability tooling
 
-Overcenter uses a small discrete-event-system checker as **development and CI tooling** for effect adapters.
+Overcenter uses a small discrete-event-system checker as **development and CI tooling** for provider effect protocols.
 
 It answers one narrow question:
 
@@ -11,7 +11,7 @@ The checker is not part of runtime authority, effect admission, recovery, or set
 ## Run it
 
 ```sh
-npm run check:adapter-diagnosability
+npm run check:effect-protocol-diagnosability
 ```
 
 The command prints a machine-readable report for each maintained analysis case and exits nonzero if a checked boundary changes or the independent depth-12 trace oracle disagrees.
@@ -29,7 +29,7 @@ A protocol description contains:
 
 The analyzer builds a synchronized product of two executions with identical observation histories. A product state is ambiguous when the two executions disagree about whether the mutation occurred.
 
-For every distinct consequential action reachable from an ambiguous product state, the analyzer retains a concrete unsafe-action witness. `unsafeWitnesses` is the complete action set for diagnostics; the legacy `unsafeWitness` is the first action in deterministic lexical order and must not be interpreted as the only hazard.
+For every distinct consequential action reachable from an ambiguous product state, the analyzer retains a concrete unsafe-action witness. `unsafeWitnesses` is the complete action set for diagnostics.
 
 A reachable cycle containing only ambiguous product states is non-diagnosable. Separately, a consequential transition reachable while the observer is still ambiguous is reported as an unsafe witness.
 
@@ -37,7 +37,7 @@ An independent bounded trace enumerator provides a second implementation for the
 
 ## Current GitHub status boundary
 
-The maintained cases encode the recovery boundary established independently by the adapter uncertainty, transport, and production-path experiments:
+The maintained cases encode the recovery boundary established independently by the provider-effect uncertainty, transport, and production-path experiments:
 
 ```text
 pre-secureConnect NOT_DISPATCHED
@@ -52,19 +52,19 @@ HTTP 502 after dispatch
 
 The ambiguous cases deliberately include a candidate `release-authority` transition. That transition is a safety probe, not production behavior. The checker must produce an ambiguity witness showing why such a release would be unsafe.
 
-## Adding or changing an adapter
+## Adding or changing a provider effect protocol
 
 1. Describe the hidden mutation worlds and the observations available to trusted recovery.
 2. Mark any action whose safety depends on knowing the mutation reality as consequential.
-3. Run `npm run check:adapter-diagnosability`.
+3. Run `npm run check:effect-protocol-diagnosability`.
 4. Inspect ambiguity and unsafe-action witnesses rather than weakening the checker to obtain a desired result.
 5. Establish separately that every modeled observation is trustworthy at the real provider boundary.
 
-The last step is essential. Static diagnosability proves properties of the supplied abstraction. It cannot prove that an adapter author described the provider honestly, that an observation is authentic, or that omitted physical worlds are impossible.
+The last step is essential. Static diagnosability proves properties of the supplied abstraction. It cannot prove that a protocol author described the provider honestly, that an observation is authentic, or that omitted physical worlds are impossible.
 
 ## Authority boundary
 
-Nothing under `scripts/adapter-diagnosability*.ts` may be imported by production `src/` code. A regression test enforces that separation.
+Nothing under `scripts/effect-protocol-diagnosability*.ts` may be imported by production `src/` code. A regression test enforces that separation.
 
 A green diagnosability check means:
 
@@ -79,6 +79,6 @@ It does **not** mean:
 - the checker may mint execution authority;
 - the checker may release a reservation;
 - the checker may settle `DONE`;
-- a new adapter is production-admitted.
+- a new provider effect is production-admitted.
 
 Those remain independent evidence and authority decisions.

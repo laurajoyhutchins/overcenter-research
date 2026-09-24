@@ -138,7 +138,7 @@ The executable and formal proofs currently establish bounded claims about the co
 - **Uncertain mutation does not authorize blind replay.** New receipt v5 replay requires a validated, provenance-bearing absence certificate whose kind is explicitly accepted by the verifier. Hostile eventually consistent and GitHub collection-negative readback mint no such certificate and remain recovery-bound.
 - **Trusted `NOT_DISPATCHED` evidence can recover one narrow GitHub status failure without replay.** The production fresh-HTTPS transport treats only a request that fails before TLS `secureConnect` as not dispatched; the kernel atomically releases that exact reservation with a `READY` receipt, and any retry requires a new run. Post-`secureConnect` transport failures and HTTP errors keep the reservation unresolved, while GitHub status replay remains forbidden.
 - **Independent effects can overlap.** Concurrent obligations can remain executing while project-authority updates still serialize through CAS.
-- **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status adapter, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
+- **Mechanically knowable conflicts fail at admission.** For the GitHub commit-status effect contract, incompatible unordered effects on the same canonical coordinate are rejected before a definition or amendment can enter authority, while explicitly identical effects may commute.
 - **Authority confinement is distinct from effect confinement.** Hosted ambient-authority run `35773715692` held the work packet fixed while changing only the worker's provider capability: the control status write returned HTTP 403, the over-capable worker's status write returned HTTP 201, and Overcenter still remained `EXECUTING` until a separate trusted recovery generation independently observed and settled the result. Project-truth correctness therefore does not require control of the worker sandbox, while prevention of undelegated effects does.
 - **One GitHub commit-status mutation path is production-carried and live-proved.** The ordinary disposable-worker boundary gives the worker `contents: read` but no `statuses: write`; its direct status-write attempt is rejected by GitHub and it emits no provider authority. The trusted broker invokes the production status-effect implementation, which requires the explicit immutable grant, derives coordinates from the exact claimed postcondition, certifies repository identity, reserves the effect, and performs the mutation before authoritative readback settles the result.
 - **The formal kernel checks the intended safety boundary.** The TLA+ model covers stale execution authority, stale revision evidence, unsafe replay, unresolved mutation reservations, and false `DONE`; paired negative controls demonstrate counterexamples when each guard is removed.
@@ -155,7 +155,7 @@ The repository deliberately does **not** establish that:
 - arbitrary existing histories can be moved byte-for-byte between Git and SQLite without remapping backend-local authority identities;
 - every project eventually makes progress or completes;
 - external providers are correct, available, strongly consistent, or recoverable;
-- one generic adapter can safely describe arbitrary external mutations;
+- one generic effect contract can safely describe arbitrary external mutations;
 - arbitrary workflow semantics are sound beyond the graph and amendment rules modeled here;
 - provider mutations other than the admitted GitHub commit-status path are supported production mutation profiles;
 - every execution substrate physically separates worker credentials from provider-mutation credentials;
@@ -193,7 +193,7 @@ Important entry points:
 - [`src/digest.ts`](./src/digest.ts) - canonical structured hashing and raw SHA-256.
 - [`src/observation/evidence.ts`](./src/observation/evidence.ts) - provider-general absence-certificate envelope plus current local-file certificate validation.
 - [`src/semantics.ts`](./src/semantics.ts) - provider-specific realization identity and effect-coordinate semantics.
-- [`scripts/check-adapter-diagnosability.ts`](./scripts/check-adapter-diagnosability.ts) - development/CI analysis of whether effect protocols can distinguish mutation from non-mutation before consequential actions; it has no runtime authority. See [`docs/adapter-diagnosability.md`](./docs/adapter-diagnosability.md).
+- [`scripts/check-effect-protocol-diagnosability.ts`](./scripts/check-effect-protocol-diagnosability.ts) - development/CI analysis of whether effect protocols can distinguish mutation from non-mutation before consequential actions; it has no runtime authority. See [`docs/effect-protocol-diagnosability.md`](./docs/effect-protocol-diagnosability.md).
 - [`src/graph/topology.ts`](./src/graph/topology.ts) - provider-agnostic dependency topology, validation, and ordering queries.
 - [`src/authority/admission.ts`](./src/authority/admission.ts) - deterministic settlement-policy, semantic-edge, and static effect-safety checks before new definitions or amendments enter authority.
 - [`src/authority/replay.ts`](./src/authority/replay.ts) - pure replay reducer from durable fact commits to historical project facts.
@@ -265,7 +265,7 @@ npm run test:handoff
 npm run test:github-observation
 npm run test:storage
 npm run test:computation-executor
-npm run check:adapter-diagnosability
+npm run check:effect-protocol-diagnosability
 npm run demo                       # production SQLite kernel
 npm run demo:git                  # Git reference backend
 ```
