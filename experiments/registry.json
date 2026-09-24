@@ -3280,11 +3280,11 @@
         "The treatment changes no production source file."
       ],
       "evidence": {
-        "status": "evaluated",
-        "evaluated_revision": "ee77259a8db92c11f2c41de6a4cf40007d87778a",
+        "status": "pending",
         "artifacts": [
-          "GitHub Actions run 35948438715: exact-head history-normalization treatment; 8 interleaving executions across 4 bounded continuations converged to matching production-derived semantic signatures and semantic normal forms, the 4-branch critical-pair overlap joined, provenance remained distinct, and all four hostile unsafe-law controls were rejected."
-        ]
+          ".github/workflows/history-normalization.yml"
+        ],
+        "pending_reason": "The maintained treatment was corrected to report first-step branches separately from pairwise join comparisons; a fresh exact-head evaluation is required."
       },
       "interpretation": "A positive result would support canonical semantic history as a derived, reproducible projection with a separate provenance binding. It would not authorize destructive normalization of durable authority facts.",
       "non_claims": [
@@ -3301,8 +3301,8 @@
         "note": "The positive rewrite laws, bounded continuations, critical-pair condition, four hostile negative controls, and non-claims were committed before hosted treatment evidence was observed."
       },
       "outcome": {
-        "state": "supported",
-        "summary": "For the bounded two-obligation corpus, opposite certified-independent interleavings normalize to the same semantic form under four tested continuations while physical provenance remains distinct; the tested commutation/collapse overlap is joinable and all hostile unsafe-law controls are distinguished."
+        "state": "pending",
+        "summary": "The earlier bounded result remains informative, but the maintained treatment is awaiting fresh exact-head evidence after correcting critical-pair accounting."
       }
     },
     {
@@ -3311,9 +3311,9 @@
       "status": "maintained",
       "directory": "experiments/history-independence-inference",
       "readme": "experiments/history-independence-inference/README.md",
-      "question": "Can Overcenter derive a conservative execution-history independence relation from production graph causality, effect coordinates, and adapter duplicate-delivery semantics, then use it to normalize real histories without a hand-written commute table?",
-      "claim": "For the bounded GitHub-status corpus, the derived rule matches six manual control classifications, rejects four unsafe inference mutants, and preserves semantic equivalence across every legal continuation through depth three for opposite physical interleavings.",
-      "contrast": "Treat absence of graph dependency as sufficient independence, or infer commutativity from equal desired values without accounting for provider effect coordinates and duplicate-delivery semantics.",
+      "question": "Can Overcenter derive a conservative project-truth history-independence relation from production graph causality, effect coordinates, and adapter duplicate-delivery semantics while preserving a strict boundary against provider-history equivalence?",
+      "claim": "For the bounded GitHub-status corpus, the derived project-truth rule should match the manual control classifications, reject unsafe inference mutants, preserve replay equivalence across every legal continuation through depth three including execution-authority rotation, preserve failure-class symmetry for illegal continuations, and fail the stronger provider-history equivalence lens.",
+      "contrast": "Infer a universal history-independence relation from absence of graph dependency or distinct effect resources, thereby conflating Overcenter project truth with all externally observable provider history.",
       "reproduce": {
         "tier": "deterministic",
         "local": "npm run test:history-independence-inference"
@@ -3324,38 +3324,42 @@
         "Deterministic fresh-HTTPS pre-secureConnect failure fixture; no live provider credential or provider write is required."
       ],
       "success_criteria": [
-        "The derived relation matches all six preregistered manual control classifications.",
+        "The derived project-truth relation matches all six control classifications.",
         "Removing graph causality, ignoring effect resources, treating unknown effect semantics as independent, and treating sameDesiredCommutes as sufficient despite may-duplicate delivery each produce a caught false positive.",
-        "Production admission permits same-coordinate same-desired GitHub status obligations but rejects conflicting desired states, while the history normalizer conservatively keeps the admitted may-duplicate pair non-independent.",
-        "All 85 continuation action sequences through depth three have symmetric legality for A-first and B-first histories.",
-        "Every legal continuation pair agrees under production replay and reduces to the same canonical semantic normal form and semantic digest.",
+        "Production admission permits same-coordinate same-desired GitHub status obligations but rejects conflicting desired states, while project-truth history normalization conservatively keeps the admitted may-duplicate pair non-independent.",
+        "All 259 continuation action sequences through depth three have symmetric legality for A-first and B-first histories.",
+        "Every mutually illegal continuation has the same failure class.",
+        "Every legal continuation pair agrees under production replay and reduces to the same project-truth normal form and semantic digest.",
+        "Execution-authority rotation is represented in the semantic event vocabulary and included in the continuation search.",
+        "The successful-provider counterexample has equal Overcenter replay signatures and project-truth normal forms but different provider audit orders.",
         "Every tested one-step critical-pair branch reduces to the base normal form.",
-        "Raw provenance digests remain distinct for equivalent semantic histories.",
+        "Raw provenance digests remain distinct for equivalent project-truth histories.",
         "No production source file is modified."
       ],
       "evidence": {
-        "status": "evaluated",
-        "evaluated_revision": "2e7dcfa2c7eb5d05205630fe44feab3ea4b014b3",
+        "status": "pending",
         "artifacts": [
-          "GitHub Actions run 35950965066: exact-head derived-independence treatment; all 6 manual classifications matched, all 4 hostile inference mutants were rejected, 85 depth-three continuation sequences produced 15 legal-in-both and 70 illegal-in-both cases with zero asymmetric legality, every legal pair matched production replay and canonical normal form, and both tested critical-pair branches joined."
-        ]
+          ".github/workflows/history-normalization.yml"
+        ],
+        "pending_reason": "Self-review added an explicit observation-lens counterexample, execution-authority continuations, and failure-class comparison after the first hosted result; the strengthened maintained treatment requires fresh exact-head evidence."
       },
-      "interpretation": "A positive result would support mechanically proposing history-independence relations from existing Overcenter semantics, with a later certificate layer binding the decision to exact graph, obligation, adapter, and ruleset identities.",
+      "interpretation": "A positive result would support mechanically proposing independence only relative to an explicit project-truth observation lens. Distinct effect resources do not establish provider-history equivalence; future certificates must bind the observation lens in addition to graph, obligation, adapter, and ruleset identities.",
       "non_claims": [
         "Unknown or arbitrary agent effects are safe to commute.",
         "Same-resource same-desired GitHub status writes are semantically idempotent.",
+        "Distinct effect resources establish provider-history equivalence.",
         "The bounded continuation search proves arbitrary contextual equivalence.",
         "The inferred relation is complete rather than deliberately conservative.",
         "General completion or global confluence is established.",
         "Production scheduling, admission, mutation, replay, or settlement behavior is changed."
       ],
       "design": {
-        "provenance": "preregistered",
-        "note": "The six control classifications, conservative derivation rule, four hostile inference mutants, exhaustive depth-three continuation alphabet, critical-pair condition, and non-claims were recorded before accepted hosted treatment evidence."
+        "provenance": "mixed",
+        "note": "The original six control classifications, conservative candidate rule, four hostile mutants, and depth-three continuation idea were preregistered before the first hosted result. A subsequent self-review added execution-authority actions, failure-class comparison, and a successful-provider audit-order counterexample before re-evaluation; the maintained treatment is therefore mixed-design."
       },
       "outcome": {
-        "state": "supported",
-        "summary": "For the bounded GitHub-status corpus, graph causality plus effect-resource identity plus duplicate-delivery semantics derived the preregistered conservative independence relation, survived all hostile mutants, and preserved contextual equivalence across every legal continuation through depth three."
+        "state": "pending",
+        "summary": "The first result supported a narrower no-dispatch project-truth relation, but the strengthened maintained treatment is pending fresh exact-head evidence after review exposed the observation-lens boundary."
       }
     }
   ]
