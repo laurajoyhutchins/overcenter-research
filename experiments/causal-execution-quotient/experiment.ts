@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 
-import {
-  buildStaticEffectIndex,
-  staticEffectConflict,
-} from '../../src/authority/admission.ts';
+import { buildStaticEffectIndex, staticEffectConflict } from '../../src/authority/admission.ts';
 import {
   RECEIPT_SCHEMA,
   type HistoricalRun,
@@ -80,7 +77,11 @@ function eventMap(events: readonly Event[]): Map<string, Event> {
   return new Map(events.map((event) => [event.id, event]));
 }
 
-function ancestorsOf(id: string, byId: ReadonlyMap<string, Event>, seen = new Set<string>()): Set<string> {
+function ancestorsOf(
+  id: string,
+  byId: ReadonlyMap<string, Event>,
+  seen = new Set<string>(),
+): Set<string> {
   const event = byId.get(id);
   if (!event) throw new Error('UNKNOWN_EVENT:' + id);
   for (const parent of event.parents) {
@@ -111,10 +112,7 @@ function unsoundDistinctObligationOracle(left: Event, right: Event): boolean {
   return left.obligation !== right.obligation;
 }
 
-function canonicalTrace(
-  sequence: readonly Event[],
-  oracle: IndependenceOracle,
-): string {
+function canonicalTrace(sequence: readonly Event[], oracle: IndependenceOracle): string {
   const ids = sequence.map((event) => event.id);
   const byId = eventMap(sequence);
   const successors = new Map<string, Set<string>>(ids.map((id) => [id, new Set()]));
@@ -462,9 +460,15 @@ const schedulerControl = runSchedulerOrderControl();
 const unsoundControl = runUnsoundOracleControl();
 
 console.log(JSON.stringify({ kind: 'causal-execution-quotient-traces', ...traceReduction }));
-console.log(JSON.stringify({ kind: 'causal-execution-quotient-production-controls', ...productionControls }));
-console.log(JSON.stringify({ kind: 'causal-execution-quotient-scheduler-control', ...schedulerControl }));
-console.log(JSON.stringify({ kind: 'causal-execution-quotient-unsound-control', ...unsoundControl }));
+console.log(
+  JSON.stringify({ kind: 'causal-execution-quotient-production-controls', ...productionControls }),
+);
+console.log(
+  JSON.stringify({ kind: 'causal-execution-quotient-scheduler-control', ...schedulerControl }),
+);
+console.log(
+  JSON.stringify({ kind: 'causal-execution-quotient-unsound-control', ...unsoundControl }),
+);
 console.log(
   JSON.stringify({
     kind: 'causal-execution-quotient-summary',
