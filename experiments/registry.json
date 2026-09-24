@@ -3355,7 +3355,7 @@
       ],
       "design": {
         "provenance": "mixed",
-        "note": "The original seven control classifications, conservative candidate rule, five hostile mutants, and depth-three continuation idea were preregistered before the first hosted result. A subsequent self-review added execution-authority actions, exact rejection comparison, and a successful-provider audit-order counterexample before re-evaluation; the maintained treatment is therefore mixed-design."
+        "note": "The original six control classifications, conservative candidate rule, four hostile mutants, and depth-three continuation idea were preregistered before the first hosted result. Self-review then added the adapter/verifier-binding control and fifth mutant, execution-authority actions, exact rejection comparison, and a successful-provider audit-order counterexample before re-evaluation; the maintained treatment is therefore mixed-design."
       },
       "outcome": {
         "state": "pending",
