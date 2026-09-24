@@ -156,6 +156,59 @@
       }
     },
     {
+      "id": "causal-execution-quotient",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/causal-execution-quotient",
+      "readme": "experiments/causal-execution-quotient/README.md",
+      "question": "Can Overcenter quotient concrete interleavings by causal independence without losing bounded safety outcomes, while retaining order when production semantics make it observable?",
+      "claim": "For the preregistered four-obligation treatment, a property-sensitive causal quotient collapses 369,600 safety-equivalent linearizations to one trace while retaining scheduler-visible claim order and refusing conflicting provider writes.",
+      "contrast": "Treat every durable linearization as semantically distinct, or declare graph-disconnected/different-ID work independent without checking causal, resource, and property-sensitive observability.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:causal-execution-quotient"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Current production graph topology, static effect-conflict analysis, semantic identity, and project projection modules.",
+        "No network, provider credential, database, external solver, or model is required."
+      ],
+      "success_criteria": [
+        "The explicit explorer visits exactly 369,600 topological linearizations of four disjoint claim-reserve-receipt chains.",
+        "The safety quotient reduces those linearizations to exactly one causal trace class.",
+        "The scheduler-sensitive quotient retains exactly 24 trace classes because current service-age selection observes claim order.",
+        "Production graph helpers identify both control and semantic causality.",
+        "Production static-effect analysis detects unordered incompatible writes to one canonical resource and reports no conflict after explicit ordering.",
+        "Opposite READY-claim orders preserve lifecycle statuses and semantic keys but select opposite readyWork obligations.",
+        "The intentionally unsound different-obligation-ID oracle collapses two conflicting writes into one trace class containing two distinct final outcomes."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/causal-execution-quotient.yml"
+        ],
+        "pending_reason": "The design and distinguishing criteria are preregistered; exact-head hosted execution has not yet been recorded."
+      },
+      "interpretation": "A positive result would support a read-only, property-sensitive causal quotient for bounded model exploration and conflict analysis while leaving serialized project authority and exact-revision fencing intact.",
+      "non_claims": [
+        "The production fact log itself is commutative.",
+        "The global authority head or CAS can be removed.",
+        "All provider effects expose complete static resource footprints.",
+        "Individual effect receipts or evidence can be deleted or aggregated.",
+        "The bounded treatment proves arbitrary concurrent execution equivalence.",
+        "The safety quotient preserves liveness or scheduler behavior.",
+        "DPOR or event-structure execution is already production machinery."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The independence rule, exact cardinalities, production semantic controls, scheduler-order negative control, and deliberately unsound oracle were committed before the hosted experiment was run."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The preregistered causal quotient has not yet produced exact-head hosted evidence."
+      }
+    },
+    {
       "id": "codex-closed-loop",
       "kind": "experiment",
       "status": "maintained",
