@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'experiments/history-normalization/**'
+      - 'experiments/history-independence-inference/**'
       - '.github/workflows/history-normalization.yml'
       - 'src/authority/**'
       - 'src/observation/**'
@@ -38,3 +39,5 @@ jobs:
       - run: npm install --ignore-scripts --package-lock=false
       - name: Run semantic history normalization treatment
         run: npm run test:history-normalization
+      - name: Run derived history independence treatment
+        run: npm run test:history-independence-inference
