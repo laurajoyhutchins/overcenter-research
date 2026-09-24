@@ -24,7 +24,7 @@ import type {
   SourceRevisionBindingFact,
   State,
 } from './facts.ts';
-import { dependencyUpstreams, validateGraph } from '../graph/topology.ts';
+import { validateGraph } from '../graph/topology.ts';
 import { settlementSemantics } from '../semantics.ts';
 import {
   reservedEffectReleaseSafe,
@@ -38,6 +38,7 @@ import {
   receiptAuthorityError,
 } from './transaction-admission.ts';
 import {
+  deriveClaimPrerequisites,
   deriveProjectProjection,
   hasInFlight,
   type ProjectProjection as WorkProjection,
@@ -205,15 +206,21 @@ export function replayProjection(
       if (record.parent !== claim.claimed_revision) throw new Error('CLAIM_REVISION_MISMATCH');
 
       refresh(record.commit);
-      const current = project.lifecycles.get(claim.obligation_id);
-      if (current?.status !== 'UNREALIZED') throw new Error('CLAIM_WHILE_NOT_READY');
-      const unsatisfied = dependencyUpstreams(obligation).filter(
-        (dependency) => project.lifecycles.get(dependency)?.status !== 'DONE',
+      const prerequisites = deriveClaimPrerequisites(
+        obligation,
+        project.lifecycles,
+        project.semanticKeys.get(claim.obligation_id) ?? null,
       );
-      if (unsatisfied.length > 0) throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
+      if (prerequisites.error === 'NOT_READY') throw new Error('CLAIM_WHILE_NOT_READY');
+      if (prerequisites.error === 'DEPENDENCIES_NOT_DONE') {
+        throw new Error('CLAIM_WITH_UNSATISFIED_DEPENDENCIES');
+      }
+      if (prerequisites.error === 'SEMANTIC_DEPENDENCY_UNRESOLVED') {
+        throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
+      }
 
-      const expectedKey = project.semanticKeys.get(claim.obligation_id);
-      if (!expectedKey) throw new Error('CLAIM_WITH_UNRESOLVED_SEMANTIC_DEPENDENCY');
+      const expectedKey = prerequisites.semanticKey;
+      if (!expectedKey) throw new Error('CLAIM_PREREQUISITES_INCONSISTENT');
       if (claim.obligation_key !== expectedKey) throw new Error('CLAIM_OBLIGATION_KEY_MISMATCH');
 
       const run: HistoricalRun = {
