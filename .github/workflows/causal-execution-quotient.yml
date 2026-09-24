@@ -11,8 +11,6 @@ on:
       - src/authority/project-state.ts
       - src/graph/**
       - src/model.ts
-      - package.json
-      - experiments/registry.json
 
 permissions: {}
 
