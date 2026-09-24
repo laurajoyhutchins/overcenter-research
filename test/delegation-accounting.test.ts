@@ -302,10 +302,7 @@ test('replay rejects a forged terminal parent receipt with outstanding causal wo
     });
     assert.ok(forged);
 
-    assert.throws(
-      () => fixture.kernel.inspect(),
-      /TERMINAL_RECEIPT_WITH_UNRESOLVED_DELEGATION/,
-    );
+    assert.throws(() => fixture.kernel.inspect(), /TERMINAL_RECEIPT_WITH_UNRESOLVED_DELEGATION/);
   } finally {
     fixture.close();
   }
