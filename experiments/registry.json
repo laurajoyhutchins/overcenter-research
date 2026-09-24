@@ -3312,7 +3312,7 @@
       "directory": "experiments/history-independence-inference",
       "readme": "experiments/history-independence-inference/README.md",
       "question": "Can Overcenter derive a conservative project-truth history-independence relation from production graph causality, effect coordinates, and adapter duplicate-delivery semantics while preserving a strict boundary against provider-history equivalence?",
-      "claim": "For the bounded GitHub-status corpus, the derived project-truth rule should match the seven manual control classifications, reject unsafe inference mutants, preserve replay equivalence across every legal continuation through depth three including execution-authority rotation, preserve failure-class symmetry for illegal continuations, and fail the stronger provider-history equivalence lens.",
+      "claim": "For the bounded GitHub-status corpus, the derived project-truth rule should match the seven manual control classifications, reject unsafe inference mutants, preserve replay equivalence across every legal continuation through depth three including execution-authority rotation, preserve exact rejection equivalence for illegal continuations, and fail the stronger provider-history equivalence lens.",
       "contrast": "Infer a universal history-independence relation from absence of graph dependency or distinct effect resources, thereby conflating Overcenter project truth with all externally observable provider history.",
       "reproduce": {
         "tier": "deterministic",
@@ -3328,7 +3328,7 @@
         "Removing graph causality, ignoring effect resources, treating unknown effect semantics as independent, and treating sameDesiredCommutes as sufficient despite may-duplicate delivery, and ignoring adapter/verifier binding each produce a caught false positive.",
         "Production admission permits same-coordinate same-desired GitHub status obligations but rejects conflicting desired states, while project-truth history normalization conservatively keeps the admitted may-duplicate pair non-independent.",
         "All 259 continuation action sequences through depth three have symmetric legality for A-first and B-first histories.",
-        "Every mutually illegal continuation has the same failure class.",
+        "Every mutually illegal continuation has the same exact rejection result.",
         "Every legal continuation pair agrees under production replay and reduces to the same project-truth normal form and semantic digest.",
         "Execution-authority rotation is represented in the semantic event vocabulary and included in the continuation search.",
         "The successful-provider counterexample has equal Overcenter replay signatures and project-truth normal forms but different provider audit orders.",
@@ -3341,7 +3341,7 @@
         "artifacts": [
           ".github/workflows/history-normalization.yml"
         ],
-        "pending_reason": "Self-review added an explicit observation-lens counterexample, execution-authority continuations, and failure-class comparison after the first hosted result; the strengthened maintained treatment requires fresh exact-head evidence."
+        "pending_reason": "Self-review added an explicit observation-lens counterexample, execution-authority continuations, and exact rejection comparison after the first hosted result; the strengthened maintained treatment requires fresh exact-head evidence."
       },
       "interpretation": "A positive result would support mechanically proposing independence only relative to an explicit project-truth observation lens. Distinct effect resources do not establish provider-history equivalence; future certificates must bind the observation lens in addition to graph, obligation, adapter, and ruleset identities.",
       "non_claims": [
@@ -3355,7 +3355,7 @@
       ],
       "design": {
         "provenance": "mixed",
-        "note": "The original seven control classifications, conservative candidate rule, five hostile mutants, and depth-three continuation idea were preregistered before the first hosted result. A subsequent self-review added execution-authority actions, failure-class comparison, and a successful-provider audit-order counterexample before re-evaluation; the maintained treatment is therefore mixed-design."
+        "note": "The original seven control classifications, conservative candidate rule, five hostile mutants, and depth-three continuation idea were preregistered before the first hosted result. A subsequent self-review added execution-authority actions, exact rejection comparison, and a successful-provider audit-order counterexample before re-evaluation; the maintained treatment is therefore mixed-design."
       },
       "outcome": {
         "state": "pending",
