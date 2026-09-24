@@ -4,7 +4,7 @@ import { buildStaticEffectIndex, staticEffectConflict } from '../../src/authorit
 import type { State } from '../../src/authority/facts.ts';
 import { buildGraphIndex, graphDependsOn } from '../../src/graph/topology.ts';
 import type { Dependency, Obligation } from '../../src/model.ts';
-import { effectSemantics } from '../../src/semantics.ts';
+import { effectSemantics, effectsConflict } from '../../src/semantics.ts';
 
 interface Event {
   id: string;
@@ -89,12 +89,7 @@ function pairConflicts(left: Obligation, right: Obligation): boolean {
   const leftSemantics = effectSemantics(left.postcondition);
   const rightSemantics = effectSemantics(right.postcondition);
   if (!leftSemantics || !rightSemantics) return false;
-  if (leftSemantics.resource !== rightSemantics.resource) return false;
-  return !(
-    leftSemantics.sameDesiredCommutes &&
-    rightSemantics.sameDesiredCommutes &&
-    leftSemantics.desired === rightSemantics.desired
-  );
+  return effectsConflict(leftSemantics, rightSemantics);
 }
 
 function connectedComponents(
