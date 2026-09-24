@@ -112,7 +112,7 @@ jobs:
           OVERCENTER_COMMAND_RUN_ATTEMPT: ${{ github.run_attempt }}
           OVERCENTER_CANDIDATE_SHA: ${{ env.CANDIDATE_SHA }}
           OVERCENTER_CANDIDATE_RUN_ID: ${{ env.CANDIDATE_RUN_ID }}
-          OVERCENTER_SOURCE_VERIFICATION_PATH: ${{ env.CANDIDATE_KIND == 'source-change' && format('{0}/source-verification/source-verification.json', github.workspace) || '' }}
+          OVERCENTER_SOURCE_VERIFICATION_PATH: ${{ github.workspace }}/source-verification/source-verification.json
           OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
           OVERCENTER_PROJECT_REMOTE: origin
         run: node --experimental-strip-types src/cli/project-submit.ts --receipt response/receipt.json
