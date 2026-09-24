@@ -33,9 +33,9 @@ export interface ResearchPromotion {
   }>;
   promotion_dependencies: Array<{
     promotion: string;
-    semantic_key: string;
+    identity: string;
   }>;
-  semantic_key: string;
+  identity: string;
 }
 
 function stringArray(value: unknown, error: string): string[] {
@@ -149,7 +149,7 @@ export function compileResearchPromotions(
         continue;
       }
 
-      const promotionDependencies: Array<{ promotion: string; semantic_key: string }> = [];
+      const promotionDependencies: Array<{ promotion: string; promotion_identity: string }> = [];
       let waiting = false;
       let blocked = false;
       for (const upstream of promotion.after) {
@@ -157,7 +157,7 @@ export function compileResearchPromotions(
         if (realized) {
           promotionDependencies.push({
             promotion: upstream,
-            semantic_key: realized.semantic_key,
+            promotion_identity: realized.promotion_identity,
           });
           continue;
         }
@@ -189,7 +189,7 @@ export function compileResearchPromotions(
         .sort((left, right) => left.experiment.localeCompare(right.experiment));
       promotionDependencies.sort((left, right) => left.promotion.localeCompare(right.promotion));
 
-      const semanticKey = canonicalDigest({
+      const promotionIdentity = canonicalDigest({
         domain: 'overcenter-research-promotion',
         id,
         task,
@@ -202,7 +202,7 @@ export function compileResearchPromotions(
         task,
         research_dependencies: researchDependencies,
         promotion_dependencies: promotionDependencies,
-        semantic_key: semanticKey,
+        promotion_identity: promotionIdentity,
       });
       remaining.delete(id);
       changed = true;
