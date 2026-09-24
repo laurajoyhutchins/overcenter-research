@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-import ts from 'typescript';
+import * as ts from 'typescript';
 
 interface SymbolEntry {
   path: string;
