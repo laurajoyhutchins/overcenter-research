@@ -115,9 +115,9 @@ test('SQLite reconstructs outstanding delegation across controller replacement',
   const childPath = join(root, 'child.txt');
   const first = new OvercenterKernel(database);
 
-  let binding: DelegationAttemptBinding;
-  let parentRunId: string;
-  let parentGeneration: number;
+  let binding: DelegationAttemptBinding | null = null;
+  let parentRunId: string | null = null;
+  let parentGeneration: number | null = null;
 
   try {
     first.initialize();
@@ -148,6 +148,10 @@ test('SQLite reconstructs outstanding delegation across controller replacement',
   } finally {
     first.close();
   }
+
+  assert.ok(binding);
+  assert.ok(parentRunId);
+  assert.notEqual(parentGeneration, null);
 
   const recovery = new OvercenterKernel(database);
   try {
