@@ -760,10 +760,6 @@ async function runHistory(
   }
 }
 
-function errorClass(message: string): string {
-  return message.split(':', 1)[0] ?? message;
-}
-
 function checkCriticalPairs(base: SuccessfulHistory): number {
   const firstSteps = oneStepRewrites(base.events, base.state);
   assert.ok(firstSteps.length > 1);
@@ -849,9 +845,9 @@ try {
     );
     if (!left.ok || !right.ok) {
       assert.equal(
-        errorClass((left as FailedHistory).error),
-        errorClass((right as FailedHistory).error),
-        'continuation failure class diverged for ' + JSON.stringify(actions),
+        (left as FailedHistory).error,
+        (right as FailedHistory).error,
+        'continuation rejection diverged for ' + JSON.stringify(actions),
       );
       illegal += 1;
       continue;
