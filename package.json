@@ -68,7 +68,8 @@
     "test:authority-storage-decomposition": "node --experimental-strip-types experiments/authority-storage-decomposition/experiment.ts",
     "experiment:causal-execution-quotient": "node --experimental-strip-types experiments/causal-execution-quotient/experiment.ts",
     "experiment:dpor-causal-explorer": "node --experimental-strip-types experiments/dpor-causal-explorer/experiment.ts",
-    "experiment:dpor-race-backtracking": "node --experimental-strip-types experiments/dpor-race-backtracking/experiment.ts"
+    "experiment:dpor-race-backtracking": "node --experimental-strip-types experiments/dpor-race-backtracking/experiment.ts",
+    "experiment:stubborn-set-partial-order": "node --experimental-strip-types experiments/stubborn-set-partial-order/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
