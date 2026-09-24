@@ -299,7 +299,6 @@ test('verified output settlement rejects stale authority, missing stores, and in
   }
 });
 
-
 test('Git authority round-trips the verified output fact and current evidence', () => {
   const root = mkdtempSync(join(tmpdir(), 'verified-output-git-'));
   try {
