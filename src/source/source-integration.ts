@@ -307,13 +307,9 @@ export function brokerSourceProposal(
   publication: SourceCandidatePublicationResult;
 } {
   const candidate = materializeSourceProposal(repo, taskValue, claim, proposalValue);
-  const publication = publishSourceCandidate(
-    repo,
-    taskValue,
-    claim,
-    candidate.commit_sha,
-    { remote },
-  );
+  const publication = publishSourceCandidate(repo, taskValue, claim, candidate.commit_sha, {
+    remote,
+  });
   return { candidate, publication };
 }
 
