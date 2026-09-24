@@ -3385,6 +3385,87 @@
           "The same exact-head candidate passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application."
         ]
       }
+    },
+    {
+      "id": "recovery-action-partition",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/recovery-action-partition",
+      "readme": "experiments/recovery-action-partition/README.md",
+      "question": "Can current execution authority, exact claim identity, unresolved-reservation identity, current provider observation, trusted transport evidence, and adapter semantics derive a safe deterministic recovery action without collapsing distinct temporal coordinates?",
+      "claim": "Across 256 preregistered unresolved-effect states, hidden-world safety should derive SETTLE from current exact authority plus verified current provider state, RELEASE from current exact authority plus exact reservation-bound non-dispatch evidence and matching adapter semantics, and REPLAY from current exact authority plus authoritative terminal absence and duplicate-safe adapter semantics. Safe actions may overlap; explicit precedence SETTLE > RELEASE > REPLAY must choose only from the independently derived safe-action set, with RECOVERY_REQUIRED exactly when that set is empty.",
+      "contrast": "Treat evidence classes as mutually exclusive and collapse execution-authority identity with unresolved-reservation identity, which can manufacture disjointness and erase the already-proved two-clock recovery distinction.",
+      "interpretation": "Supported for the revised bounded treatment. The recovery decision is best represented as an independently derived safe-action set over current authority/revision, reservation identity, current provider observation, trusted non-dispatch evidence, and adapter semantics, followed by explicit precedence. Real overlaps exist and are resolved deterministically. Production confirms that successor execution authority can settle an older unresolved reservation without sharing its mutation epoch, while stale predecessor authority and wrong claimed revision remain fenced.",
+      "environment": [
+        "Node.js from .node-version with built-in TypeScript stripping.",
+        "Production observationVerified(), projectReceipt(), OvercenterKernel execution-authority rotation, effect adapter descriptor, and GitHub semantic release predicate.",
+        "A preregistered Cartesian product of 256 unresolved-effect recovery states with independent NOT_DISPATCHED evidence and a normalized current provider observation.",
+        "No provider network call, credential, model, or added runtime dependency."
+      ],
+      "success_criteria": [
+        "The revised state space contains exactly 256 states.",
+        "SETTLE derives exactly current_authority AND exact_revision AND provider_observation=verified-present.",
+        "RELEASE derives exactly current_authority AND exact_revision AND reservation_binding AND adapter_match AND not_dispatched.",
+        "REPLAY derives exactly current_authority AND exact_revision AND adapter_match AND replay_protected AND provider_observation=terminal-absence.",
+        "The independently derived safe-action sets contain a SETTLE+RELEASE overlap and a RELEASE+REPLAY overlap.",
+        "Every affirmative chosen action belongs to the independently derived safe-action set.",
+        "RECOVERY_REQUIRED is chosen if and only if no affirmative action is safe.",
+        "Explicit precedence chooses SETTLE over RELEASE and RELEASE over REPLAY in overlap states.",
+        "Omitting reservation binding admits unsafe RELEASE states.",
+        "Evidence-collapse mutants admit unsafe RELEASE states.",
+        "Requiring reservation binding for SETTLE rejects safe states.",
+        "Requiring reservation binding for REPLAY rejects safe successor-authority states.",
+        "Omitting exact revision admits unsafe SETTLE states.",
+        "Production verified settlement remains DONE with an unresolved reservation and without adapter dependence.",
+        "Production wrong-state observation remains RECOVERY_REQUIRED.",
+        "The exact GitHub pre-secureConnect witness remains accepted for RELEASE.",
+        "End-to-end stale predecessor authority is rejected after execution-authority rotation.",
+        "End-to-end wrong claimed revision is rejected under successor authority.",
+        "Valid successor authority settles DONE while reconciling and durably clearing the older unresolved reservation.",
+        "Exact-head hosted execution passes without modifying the preregistered treatment."
+      ],
+      "non_claims": [
+        "The provider-observation classes cover every future protocol.",
+        "Arbitrary historical observations may be combined without normalization.",
+        "The experiment proves liveness or eventual recovery.",
+        "The experiment re-proves transport witness provenance.",
+        "Adapter declarations are truthful without independent evidence.",
+        "The finite calculator should become production authority.",
+        "The chosen precedence is the only safe precedence.",
+        "RECOVERY_REQUIRED is always automatically resolvable.",
+        "The bounded positive-conjunction vocabulary is a general symbolic weakest-precondition engine."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Review superseded the e62739ad treatment. Before revised hosted execution, the 256-state domain, independent NOT_DISPATCHED evidence, normalized current provider observation, separate current-authority/exact-revision/reservation-binding coordinates, expected weakest conditions, real overlap cases, explicit SETTLE > RELEASE > REPLAY precedence, hostile underconstraint/overconstraint controls, and end-to-end two-clock production differential were fixed."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact treatment revision 9a0ca348685ba37da7b68aa44ef9900ba03533fb, exhaustive evaluation of 256 unresolved-effect states derived SETTLE = current_authority AND exact_revision AND provider_observation=verified-present, RELEASE = current_authority AND exact_revision AND reservation_binding AND adapter_match AND not_dispatched, and REPLAY = current_authority AND exact_revision AND adapter_match AND replay_protected AND provider_observation=terminal-absence. The safe sets deliberately overlapped in 2 SETTLE+RELEASE states and 1 RELEASE+REPLAY state. Explicit precedence SETTLE > RELEASE > REPLAY chose only from the derived safe set, yielding 16 SETTLE, 6 RELEASE, 3 REPLAY, and 231 RECOVERY_REQUIRED states. End-to-end production treatment rotated execution authority across an unresolved reservation, rejected the stale predecessor and a wrong-revision successor permit, then settled DONE under valid successor authority and cleared the older reservation."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:recovery-action-partition"
+      },
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "9a0ca348685ba37da7b68aa44ef9900ba03533fb",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35962658407, rerun attempt 2, exact-head candidate job 107514859180: candidate regressions passed.",
+          "Revised state space: 256 states.",
+          "SETTLE weakest precondition: current_authority && exact_revision && provider_observation=verified-present; 16 states safe.",
+          "RELEASE weakest precondition: current_authority && exact_revision && reservation_binding && adapter_match && not_dispatched; 8 states safe.",
+          "REPLAY weakest precondition: current_authority && exact_revision && adapter_match && replay_protected && provider_observation=terminal-absence; 4 states safe.",
+          "Safe-action overlaps were observed rather than excluded: SETTLE+RELEASE in 2 states, RELEASE+REPLAY in 1 state, SETTLE+REPLAY in 0 states.",
+          "Explicit precedence SETTLE > RELEASE > REPLAY chose 16 SETTLE, 6 RELEASE, 3 REPLAY, and 231 RECOVERY_REQUIRED states; every affirmative choice belonged to the independently derived safe-action set and RECOVERY_REQUIRED occurred only when that set was empty.",
+          "Hostile controls exposed 8 unsafe RELEASE states without reservation binding, 2 unsafe RELEASE states from verified-present/non-dispatch collapse, 2 unsafe RELEASE states from terminal-absence/non-dispatch collapse, 8 safe SETTLE states rejected by a reservation-binding overconstraint, 2 safe REPLAY states rejected by that overconstraint, and 16 unsafe SETTLE states admitted without exact revision.",
+          "Production verified observation remained DONE with an unresolved reservation and with a deliberately mismatched packet adapter; wrong-state observation remained RECOVERY_REQUIRED.",
+          "Exact pre-secureConnect GitHub release evidence remained semantically admitted.",
+          "End-to-end two-clock production case: execution authority rotated while the unresolved reservation persisted; the stale predecessor permit and wrong-revision successor permit were rejected; valid successor authority settled DONE and cleared the older unresolved reservation.",
+          "The same exact-head candidate passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application.",
+          "The earlier e62739adf3e4764167762de3e1350a5deb0b322d result is superseded for the complete-partition claim."
+        ]
+      }
     }
   ]
 }
