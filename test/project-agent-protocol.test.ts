@@ -21,8 +21,7 @@ import {
 } from '../src/authority/project-agent-protocol.ts';
 import { compileProjectIntent } from '../src/authority/project-intent.ts';
 import {
-  materializeSourceProposal,
-  publishSourceCandidate,
+  brokerSourceProposal,
   SOURCE_VERIFICATION_SCHEMA,
 } from '../src/source/source-integration.ts';
 import { SOURCE_PROPOSAL_SCHEMA } from '../src/source/source-obligation.ts';
@@ -358,6 +357,7 @@ test('project.advance emits a source assignment without a worker executable', ()
     assert.equal(assignment.task.kind, 'source-change');
     assert.equal(assignment.claim.run_id, receipt.run_id);
     assert.equal(assignment.claim.source_sha, sourceSha);
+    assert.equal(assignment.proposal_schema, SOURCE_PROPOSAL_SCHEMA);
     assert.equal(JSON.stringify(assignment).includes('execution_capability'), false);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
@@ -385,7 +385,7 @@ test('source proposal broker rejects control-plane mutation before candidate pub
     const claim = authority.sourceClaimBinding(acquired.run_id);
     assert.throws(
       () =>
-        materializeSourceProposal(
+        brokerSourceProposal(
           f.work,
           sourceIntent('source-work').task,
           claim,
@@ -431,7 +431,7 @@ test('project.submit integrates a verified source candidate and settles the sour
       ref: AUTHORITY_REF,
     });
     const claim = authority.sourceClaimBinding(acquired.run_id);
-    const candidate = materializeSourceProposal(
+    const brokered = brokerSourceProposal(
       f.work,
       sourceIntent('source-work').task,
       claim,
@@ -447,16 +447,10 @@ test('project.submit integrates a verified source candidate and settles the sour
           },
         ],
       },
-    );
-    const published = publishSourceCandidate(
-      f.work,
-      sourceIntent('source-work').task,
-      claim,
-      candidate.commit_sha,
       { remote: 'origin' },
     );
-    assert.equal(published.state, 'PUBLISHED');
-    const candidateSha = candidate.commit_sha;
+    assert.equal(brokered.publication.state, 'PUBLISHED');
+    const candidateSha = brokered.candidate.commit_sha;
     const treeSha = git(f.work, ['rev-parse', `${candidateSha}^{tree}`]);
     const verificationPath = join(f.root, 'source-verification.json');
     writeFileSync(
@@ -540,7 +534,7 @@ test('rejected source verification releases the obligation without moving source
       ref: AUTHORITY_REF,
     });
     const claim = authority.sourceClaimBinding(acquired.run_id);
-    const candidate = materializeSourceProposal(
+    const brokered = brokerSourceProposal(
       f.work,
       sourceIntent('source-work').task,
       claim,
@@ -556,8 +550,10 @@ test('rejected source verification releases the obligation without moving source
           },
         ],
       },
+      { remote: 'origin' },
     );
-    const candidateSha = candidate.commit_sha;
+    assert.equal(brokered.publication.state, 'PUBLISHED');
+    const candidateSha = brokered.candidate.commit_sha;
     const verificationPath = join(f.root, 'source-verification.json');
     writeFileSync(
       verificationPath,
