@@ -199,9 +199,10 @@ export function admitSourceTaskFromGithubWorkflow(
     get,
     clock,
   });
-  if (runRead.state !== 'observed') {
+  if (runRead.state === 'indeterminate') {
     throw new Error(`SOURCE_PROMOTION_WORKFLOW_RUN_INDETERMINATE:${runRead.observation_error}`);
   }
+  if (runRead.state !== 'observed') throw new Error('SOURCE_PROMOTION_WORKFLOW_RUN_NOT_SINGLE');
   const run = workflowRun(runRead.value);
   if (run.id !== request.workflowRunId) throw new Error('SOURCE_PROMOTION_WORKFLOW_RUN_MISMATCH');
   if (!sameGithubObjectId(run.head_sha, request.evaluatedSha)) {
@@ -226,9 +227,10 @@ export function admitSourceTaskFromGithubWorkflow(
     get,
     clock,
   });
-  if (jobRead.state !== 'observed') {
+  if (jobRead.state === 'indeterminate') {
     throw new Error(`SOURCE_PROMOTION_WORKFLOW_JOB_INDETERMINATE:${jobRead.observation_error}`);
   }
+  if (jobRead.state !== 'observed') throw new Error('SOURCE_PROMOTION_WORKFLOW_JOB_NOT_SINGLE');
   const job = workflowJob(jobRead.value);
   if (
     job.id !== request.workflowJobId ||
