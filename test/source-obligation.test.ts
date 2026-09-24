@@ -4,8 +4,10 @@ import test from 'node:test';
 import {
   bindSourceClaim,
   SOURCE_CANDIDATE_SCHEMA,
+  SOURCE_PROPOSAL_SCHEMA,
   SOURCE_TASK_SCHEMA,
   validateSourceCandidate,
+  validateSourceProposal,
   validateSourceTaskPacket,
 } from '../src/source/source-obligation.ts';
 
@@ -72,6 +74,79 @@ test('source task rejects duplicate and unsafe repository paths', () => {
         writable_paths: ['C:/src/a.ts'],
       }),
     /SOURCE_TASK_WRITABLE_PATH_INVALID/,
+  );
+  for (const path of ['.overcenter/project-intent.json', '.github/workflows/evil.yml']) {
+    assert.throws(
+      () =>
+        validateSourceTaskPacket({
+          ...packet,
+          writable_paths: [path],
+        }),
+      /SOURCE_TASK_WRITABLE_PATH_INVALID/,
+    );
+  }
+});
+
+test('source proposal is claim-bound and cannot widen writable scope', () => {
+  const claim = bindSourceClaim('kernel-semantic-key', 'run-7', 'authority-head', 'c'.repeat(40));
+  const proposal = {
+    schema: SOURCE_PROPOSAL_SCHEMA,
+    run_id: claim.run_id,
+    claimed_revision: claim.claimed_revision,
+    claimed_source_sha: claim.source_sha,
+    files: [
+      {
+        path: 'src/authority/engine.ts',
+        content_base64: Buffer.from('replacement\n').toString('base64'),
+      },
+    ],
+  };
+
+  assert.deepEqual(validateSourceProposal(proposal, packet, claim), proposal);
+  assert.throws(
+    () =>
+      validateSourceProposal(
+        {
+          ...proposal,
+          files: [{ path: 'README.md', content_base64: Buffer.from('widened').toString('base64') }],
+        },
+        packet,
+        claim,
+      ),
+    /SOURCE_PROPOSAL_SCOPE_VIOLATION:README\.md/,
+  );
+  assert.throws(
+    () => validateSourceProposal({ ...proposal, run_id: 'other-run' }, packet, claim),
+    /SOURCE_PROPOSAL_RUN_MISMATCH/,
+  );
+  assert.throws(
+    () =>
+      validateSourceProposal(
+        {
+          ...proposal,
+          files: [
+            {
+              path: '.github/workflows/evil.yml',
+              content_base64: Buffer.from('name: evil').toString('base64'),
+            },
+          ],
+        },
+        packet,
+        claim,
+      ),
+    /SOURCE_PROPOSAL_PATH_INVALID:0/,
+  );
+  assert.throws(
+    () =>
+      validateSourceProposal(
+        {
+          ...proposal,
+          files: [{ path: 'src/authority/engine.ts', content_base64: '***not-base64***' }],
+        },
+        packet,
+        claim,
+      ),
+    /SOURCE_PROPOSAL_CONTENT_INVALID:0/,
   );
 });
 
