@@ -189,10 +189,7 @@ function exploreWithRaceBacktracking(
     for (let priorIndex = 0; priorIndex < currentIndex; priorIndex += 1) {
       const prior = sequence[priorIndex]!;
       if (oracle(prior, current)) continue;
-      if (
-        ancestors.get(current.id)?.has(prior.id) ||
-        ancestors.get(prior.id)?.has(current.id)
-      ) {
+      if (ancestors.get(current.id)?.has(prior.id) || ancestors.get(prior.id)?.has(current.id)) {
         continue;
       }
 
