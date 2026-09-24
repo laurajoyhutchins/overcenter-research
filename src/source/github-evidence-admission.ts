@@ -79,11 +79,7 @@ function frozenSourceTask(
   return { task: validateSourceTaskPacket(parsed), blobSha: blobSha.toLowerCase() };
 }
 
-function requiredString(
-  value: Record<string, unknown>,
-  name: string,
-  error: string,
-): string {
+function requiredString(value: Record<string, unknown>, name: string, error: string): string {
   const member = value[name];
   if (typeof member !== 'string' || member.length === 0) throw new Error(error);
   return member;
@@ -106,8 +102,7 @@ function requireSuccessfulWorkflowRun(
     throw new Error('SOURCE_PROMOTION_DESIGN_SHA_MISMATCH');
   }
   if (
-    requiredString(value, 'path', 'SOURCE_PROMOTION_WORKFLOW_RUN_INVALID') !==
-    request.workflowPath
+    requiredString(value, 'path', 'SOURCE_PROMOTION_WORKFLOW_RUN_INVALID') !== request.workflowPath
   ) {
     throw new Error('SOURCE_PROMOTION_WORKFLOW_IDENTITY_MISMATCH');
   }
