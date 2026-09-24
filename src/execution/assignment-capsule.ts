@@ -11,6 +11,7 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { sha256 } from '../digest.ts';
+import { isData, isPositiveSafeInteger, isSha256Hex } from '../validation.ts';
 
 export const ASSIGNMENT_SCHEMA = 'overcenter-agent-assignment/v2' as const;
 export const CANDIDATE_SCHEMA = 'overcenter-agent-candidate/v1' as const;
@@ -64,9 +65,6 @@ export interface Candidate {
 function fail(code: string): never {
   throw new Error(code);
 }
-const record = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value);
-
 export function validPath(value: unknown): value is string {
   if (typeof value !== 'string' || value.length === 0 || value.startsWith('/')) return false;
   if ([...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127))
@@ -80,7 +78,7 @@ function exactKeys(
   required: readonly string[],
   name: string,
 ): asserts value is Record<string, unknown> {
-  if (!record(value)) fail(`${name}_INVALID`);
+  if (!isData(value)) fail(`${name}_INVALID`);
   const keys = Object.keys(value).sort();
   const expected = [...required].sort();
   if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
@@ -103,7 +101,7 @@ function validateSourceRevision(value: unknown): string {
 }
 
 export function validateAgentTaskPacket(value: unknown): AssignmentTaskPacket {
-  if (!record(value) || value.schema !== AGENT_TASK_PACKET_SCHEMA) {
+  if (!isData(value) || value.schema !== AGENT_TASK_PACKET_SCHEMA) {
     fail('ASSIGNMENT_PACKET_SCHEMA_MISMATCH');
   }
   exactKeys(
@@ -140,7 +138,7 @@ export function validateAssignment(value: unknown): Assignment {
   if (value.schema !== ASSIGNMENT_SCHEMA) fail('ASSIGNMENT_SCHEMA_MISMATCH');
   const sourceRevision = validateSourceRevision(value.source_revision);
 
-  if (!record(value.work)) fail('ASSIGNMENT_WORK_INVALID');
+  if (!isData(value.work)) fail('ASSIGNMENT_WORK_INVALID');
   const work = value.work;
   for (const field of ['id', 'revision', 'run_id', 'claimed_revision'] as const) {
     if (typeof work[field] !== 'string' || work[field].length === 0) {
@@ -150,8 +148,7 @@ export function validateAssignment(value: unknown): Assignment {
   if (work.status !== 'EXECUTING') fail('ASSIGNMENT_WORK_NOT_EXECUTING');
   if (
     typeof work.execution_generation !== 'number' ||
-    !Number.isSafeInteger(work.execution_generation) ||
-    work.execution_generation < 1
+    !isPositiveSafeInteger(work.execution_generation)
   ) {
     fail('ASSIGNMENT_EXECUTION_GENERATION_INVALID');
   }
@@ -166,7 +163,7 @@ export function validateAssignment(value: unknown): Assignment {
     if (seen.has(file.path)) fail('ASSIGNMENT_FILE_PATH_DUPLICATE');
     seen.add(file.path);
     if (file.mode !== '100644' && file.mode !== '100755') fail('ASSIGNMENT_FILE_MODE_INVALID');
-    if (typeof file.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(file.sha256)) {
+    if (!isSha256Hex(file.sha256)) {
       fail('ASSIGNMENT_FILE_SHA256_INVALID');
     }
     const bytes = decodeBase64(file.content_base64);
@@ -285,7 +282,7 @@ export function validateCandidate(
   if (value.output_path !== validatedAssignment.work.packet.output_path) {
     fail('CANDIDATE_OUTPUT_PATH_MISMATCH');
   }
-  if (typeof value.output_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(value.output_sha256)) {
+  if (!isSha256Hex(value.output_sha256)) {
     fail('CANDIDATE_OUTPUT_SHA256_INVALID');
   }
   const bytes = decodeBase64(value.output_base64);

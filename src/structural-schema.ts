@@ -1,3 +1,5 @@
+import { isData } from './validation.ts';
+
 type StructuralSchema = Readonly<Record<string, unknown>>;
 type ExternalRefCheck = (ref: string, value: unknown) => boolean;
 
@@ -12,9 +14,6 @@ const allowedKeywords = new Set([
   'type',
   'x-overcenter-providerOwned',
 ]);
-
-const record = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value);
 
 export function assertSupportedStructuralSchema(schema: StructuralSchema): void {
   for (const key of Object.keys(schema)) {
@@ -36,20 +35,20 @@ export function assertSupportedStructuralSchema(schema: StructuralSchema): void 
     if (schema.required !== undefined && !Array.isArray(schema.required)) {
       throw new Error('STRUCTURAL_SCHEMA_INVALID_REQUIRED');
     }
-    if (schema.properties !== undefined && !record(schema.properties)) {
+    if (schema.properties !== undefined && !isData(schema.properties)) {
       throw new Error('STRUCTURAL_SCHEMA_INVALID_PROPERTIES');
     }
     for (const child of Object.values(schema.properties ?? {})) {
-      if (!record(child)) throw new Error('STRUCTURAL_SCHEMA_INVALID_PROPERTY');
+      if (!isData(child)) throw new Error('STRUCTURAL_SCHEMA_INVALID_PROPERTY');
       assertSupportedStructuralSchema(child);
     }
     if (
       schema.additionalProperties !== undefined &&
       typeof schema.additionalProperties !== 'boolean' &&
-      !record(schema.additionalProperties)
+      !isData(schema.additionalProperties)
     )
       throw new Error('STRUCTURAL_SCHEMA_INVALID_ADDITIONAL_PROPERTIES');
-    if (record(schema.additionalProperties)) {
+    if (isData(schema.additionalProperties)) {
       assertSupportedStructuralSchema(schema.additionalProperties);
     }
     return;
@@ -85,21 +84,21 @@ export function structurallyMatches(
     return true;
   }
 
-  if (schema.type !== 'object' || !record(value)) return false;
+  if (schema.type !== 'object' || !isData(value)) return false;
 
-  const properties = record(schema.properties) ? schema.properties : {};
+  const properties = isData(schema.properties) ? schema.properties : {};
   const required = Array.isArray(schema.required) ? schema.required : [];
   for (const key of required) {
     if (typeof key !== 'string' || !Object.hasOwn(value, key)) return false;
   }
   for (const [key, member] of Object.entries(value)) {
     const property = properties[key];
-    if (record(property)) {
+    if (isData(property)) {
       if (!structurallyMatches(property, member, externalRef)) return false;
       continue;
     }
     if (schema.additionalProperties === true) continue;
-    if (record(schema.additionalProperties)) {
+    if (isData(schema.additionalProperties)) {
       if (!structurallyMatches(schema.additionalProperties, member, externalRef)) return false;
       continue;
     }
