@@ -91,7 +91,7 @@ The bounded hypothesis is supported only if:
 - both histories reduce to byte-identical semantic normal forms and semantic digests;
 - the raw provenance digests remain distinct;
 - the critical-pair overlap is joinable;
-- all four negative controls are detected;
+- all four negative controls remain distinguishable;
 - no production source file is changed.
 
 ## Run
@@ -134,7 +134,8 @@ Observed treatment:
 ```text
 interleaving executions:       8
 bounded continuations:         4
-critical-pair branches:        4, all join
+critical-pair first branches:  2, both join
+pairwise join comparisons:      4
 raw events, base case:         5 per history
 semantic normal-form events:   3
 provenance digests:            distinct
