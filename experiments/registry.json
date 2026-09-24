@@ -1058,6 +1058,63 @@
       }
     },
     {
+      "id": "n-agent-interaction-frontier",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/n-agent-interaction-frontier",
+      "readme": "experiments/n-agent-interaction-frontier/README.md",
+      "question": "Can Overcenter mechanically reduce a 50-agent proposal set to the connected causal/effect regions that actually require joint reasoning?",
+      "claim": "For the preregistered 50-obligation workload, production graph causality plus provider-effect semantics reduce 1,225 possible agent pairs to four 4-agent conflict islands and 34 singletons; a real causal bridge correctly expands the affected reasoning frontier to eight agents.",
+      "contrast": "Treat all N-way work as one total-order conflict problem, or partition only by provider resource and miss graph-causal coupling.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:n-agent-interaction-frontier"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Current production graph topology, graph dependency, static effect conflict, and effect-semantics modules.",
+        "The race/backtracking explorer logic is exercised per interaction component against exhaustive enumeration.",
+        "No network, provider credential, database, external solver, or model is required."
+      ],
+      "success_criteria": [
+        "The baseline contains exactly 50 obligations and 1,225 possible agent pairs.",
+        "Production semantics derive exactly 24 interaction edges and 38 connected components.",
+        "Baseline component sizes are four 4-agent conflict islands plus 34 singleton obligations.",
+        "Production static conflict analysis identifies exactly the 16 clustered obligations.",
+        "Exhaustive and race/backtracking trace sets agree inside every component.",
+        "Baseline component-local exploration requires exactly 130 complete executions and composes to 331,776 global trace classes.",
+        "One production control dependency merges two 4-agent islands into one 8-agent interaction component.",
+        "The bridged component has exactly 576 causal trace classes and race/backtracking representatives.",
+        "Total bridged component-local reduced work is exactly 658 executions.",
+        "A conflict-only decomposition misses the causal bridge and is rejected by production graph causality."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/n-agent-interaction-frontier.yml"
+        ],
+        "pending_reason": "The 50-agent workload, exact interaction/component cardinalities, causal bridge, per-component exhaustive oracle, and conflict-only negative control are preregistered; exact-head hosted execution has not yet been recorded."
+      },
+      "interpretation": "A positive result would support computing a deterministic interaction frontier before joint agent reasoning: independent proposal components can be analyzed separately, while real graph or effect coupling expands the frontier.",
+      "non_claims": [
+        "Every real code change exposes complete provider-style effect semantics.",
+        "File-level or semantic code conflicts are solved by this fixture.",
+        "Component-local verification is sufficient for arbitrary global properties.",
+        "50-agent live execution throughput is measured.",
+        "Fair scheduling across 50 live workers is proved.",
+        "Distributed authority or HA is established.",
+        "The 50-agent global trace product should be enumerated."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The 50-agent topology, 24-edge/38-component baseline, 130-execution local-work target, causal bridge to an 8-agent component, 576 bridged trace classes, 658-execution treatment target, and conflict-only falsifier were committed before hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The preregistered 50-agent interaction-frontier treatment has not yet produced exact-head hosted evidence."
+      }
+    },
+    {
       "id": "production-criticality-ranking",
       "kind": "experiment",
       "status": "historical",
