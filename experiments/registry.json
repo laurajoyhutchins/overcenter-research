@@ -183,11 +183,13 @@
         "The intentionally unsound different-obligation-ID oracle collapses two conflicting writes into one trace class containing two distinct final outcomes."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "845f58ae51190029ab9b51ab4ef8eef1bf6c2ac7",
         "artifacts": [
-          ".github/workflows/causal-execution-quotient.yml"
-        ],
-        "pending_reason": "The design and distinguishing criteria are preregistered; exact-head hosted execution has not yet been recorded."
+          "GitHub Actions run 35948193885, job 107470793076: exact-head causal execution quotient treatment PASS.",
+          "369,600 concrete linearizations -> 1 safety trace and 24 scheduler-sensitive traces.",
+          "Hostile distinct-obligation independence rule collapsed two different provider outcomes into one class, as required by the negative control."
+        ]
       },
       "interpretation": "A positive result would support a read-only, property-sensitive causal quotient for bounded model exploration and conflict analysis while leaving serialized project authority and exact-revision fencing intact.",
       "non_claims": [
@@ -204,8 +206,8 @@
         "note": "The independence rule, exact cardinalities, production semantic controls, scheduler-order negative control, and deliberately unsound oracle were committed before the hosted experiment was run."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The preregistered causal quotient has not yet produced exact-head hosted evidence."
+        "state": "supported",
+        "summary": "The bounded property-sensitive quotient preserved the preregistered distinctions: 369,600 independent-chain schedules collapsed to one safety trace, scheduler-visible claim order retained 24 classes, and the naive independence rule was falsified by conflicting provider outcomes."
       }
     },
     {
