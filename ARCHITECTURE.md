@@ -853,7 +853,7 @@ The prototype demonstrates:
 - independent recovery processes can settle through one authority ref;
 - exact claim identity survives later authority movement.
 
-For the canonical GitHub commit-status adapter, effect semantics currently identify a resource by:
+For the canonical GitHub commit-status effect contract, effect semantics currently identify a resource by:
 
 ```text
 repository identity
@@ -867,7 +867,7 @@ Two effects on that coordinate:
 - must be ordered when desired states conflict;
 - otherwise become `BLOCKED` rather than racing.
 
-This is adapter-specific.
+This is provider-effect-specific.
 
 A verifier that cannot define a canonical mutation coordinate must not pretend to provide generic conflict semantics.
 
@@ -948,7 +948,7 @@ The notes remain useful for detailed prior art. This file is the canonical cross
 | **Observation** | Read of authoritative external/project state at a named exact coordinate. |
 | **Postcondition** | Predicate that must hold in authoritative reality for a candidate effect/realization to satisfy an obligation. |
 | **Projection** | Current computed view such as READY/DONE/BLOCKED over durable facts plus current authority. |
-| **Provider adapter** | Deterministic software that knows how to identify an external effect, read authoritative state, classify negative evidence, and verify a provider-specific postcondition. |
+| **Provider effect implementation** | Deterministic software that knows how to identify an external effect, read authoritative state, classify negative evidence, and verify a provider-specific postcondition. |
 | **Realization** | Concrete artifact or external state that may satisfy an obligation. |
 | **Recovery** | Deterministic continuation from durable facts after execution loss or uncertain mutation outcome. Recovery is not a reset. |
 | **Replay** | Re-attempt of effectful work. After an uncertain mutation, replay requires authoritative evidence that repetition is safe. |
