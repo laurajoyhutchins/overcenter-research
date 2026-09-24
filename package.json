@@ -65,7 +65,8 @@
     "test:substrate-capability-admission": "node --experimental-strip-types experiments/substrate-capability-admission/experiment.ts",
     "test:substrate-capability-admission:hosted": "node --experimental-strip-types experiments/substrate-capability-admission/hosted-evidence.ts",
     "test:source-obligation-integration": "node --experimental-strip-types experiments/source-obligation-integration/experiment.ts",
-    "test:authority-storage-decomposition": "node --experimental-strip-types experiments/authority-storage-decomposition/experiment.ts"
+    "test:authority-storage-decomposition": "node --experimental-strip-types experiments/authority-storage-decomposition/experiment.ts",
+    "test:proof-carrying-work": "node --experimental-strip-types experiments/proof-carrying-work/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
