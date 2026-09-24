@@ -7,8 +7,6 @@ on:
     paths:
       - .github/workflows/effect-authority-decay.yml
       - experiments/effect-authority-decay/**
-      - experiments/registry.json
-      - experiments/README.md
       - package.json
       - src/authority/engine.ts
       - src/providers/github/status-effect.ts

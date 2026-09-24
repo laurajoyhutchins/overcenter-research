@@ -12,7 +12,6 @@ on:
       - src/execution/core-loop.ts
       - src/model.ts
       - package.json
-      - experiments/registry.json
 
 permissions: {}
 

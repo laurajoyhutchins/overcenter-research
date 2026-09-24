@@ -6,8 +6,6 @@ on:
     paths:
       - .github/workflows/authority-flow-analysis.yml
       - experiments/authority-flow-analysis/**
-      - experiments/registry.json
-      - experiments/README.md
       - package.json
       - src/authority/engine.ts
       - src/providers/github/status-effect.ts

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const workflow = readFileSync(
@@ -155,6 +155,27 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
       eventBlock(source, 'pull_request'),
       /types: \[ready_for_review\]/,
       `${path} must not run expensive work on synchronize`,
+    );
+  }
+});
+
+test('experiment workflows do not fan out on shared catalog metadata', () => {
+  const workflows = new URL('../.github/workflows/', import.meta.url);
+  for (const name of readdirSync(workflows).filter((entry) => entry.endsWith('.yml'))) {
+    const source = readFileSync(new URL(name, workflows), 'utf8');
+    if (!source.includes('  pull_request:\n')) continue;
+    const pullRequest = eventBlock(source, 'pull_request');
+    if (!pullRequest.includes('experiments/')) continue;
+
+    assert.doesNotMatch(
+      pullRequest,
+      /experiments\/registry\.json/,
+      `${name} must not treat the shared experiment registry as runtime input`,
+    );
+    assert.doesNotMatch(
+      pullRequest,
+      /experiments\/README\.md/,
+      `${name} must not run for experiment index documentation`,
     );
   }
 });
