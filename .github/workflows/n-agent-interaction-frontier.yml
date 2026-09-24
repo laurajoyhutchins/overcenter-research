@@ -5,6 +5,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
+      - experiments/partial-order.ts
       - .github/workflows/n-agent-interaction-frontier.yml
       - experiments/n-agent-interaction-frontier/**
       - src/authority/admission.ts
