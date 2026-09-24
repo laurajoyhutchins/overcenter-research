@@ -3336,7 +3336,7 @@
       "evidence": {
         "status": "pending",
         "artifacts": [
-          ".github/workflows/history-independence-inference.yml"
+          ".github/workflows/history-normalization.yml"
         ],
         "pending_reason": "The derived-independence treatment and acceptance criteria are implemented on the experiment branch; exact-head hosted evidence has not yet been recorded."
       },
