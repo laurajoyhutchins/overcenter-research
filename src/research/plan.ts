@@ -35,7 +35,7 @@ export interface ResearchPromotion {
     promotion: string;
     identity: string;
   }>;
-  identity: string;
+  promotion_identity: string;
 }
 
 function stringArray(value: unknown, error: string): string[] {
@@ -149,7 +149,7 @@ export function compileResearchPromotions(
         continue;
       }
 
-      const promotionDependencies: Array<{ promotion: string; promotion_identity: string }> = [];
+      const promotionDependencies: Array<{ promotion: string; identity: string }> = [];
       let waiting = false;
       let blocked = false;
       for (const upstream of promotion.after) {
@@ -157,7 +157,7 @@ export function compileResearchPromotions(
         if (realized) {
           promotionDependencies.push({
             promotion: upstream,
-            promotion_identity: realized.promotion_identity,
+            identity: realized.promotion_identity,
           });
           continue;
         }
