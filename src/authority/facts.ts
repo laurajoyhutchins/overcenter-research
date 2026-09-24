@@ -120,7 +120,9 @@ export type ReceiptKind =
   | 'observation'
   | 'judgment-required'
   | 'execution-terminated'
-  | 'effect-not-dispatched';
+  | 'effect-not-dispatched'
+  | 'source-integration'
+  | 'source-retry';
 
 export interface ReceiptFact {
   schema: typeof RECEIPT_SCHEMA;
@@ -513,9 +515,14 @@ export function validateReceiptFact(value: unknown): ReceiptFact {
   positiveSafeInteger(value.execution_generation, 'INVALID_EXECUTION_GENERATION');
   nonEmptyString(value.execution_authority_commit, 'INVALID_EXECUTION_AUTHORITY_COMMIT');
   if (
-    !['observation', 'judgment-required', 'execution-terminated', 'effect-not-dispatched'].includes(
-      String(value.kind),
-    )
+    ![
+      'observation',
+      'judgment-required',
+      'execution-terminated',
+      'effect-not-dispatched',
+      'source-integration',
+      'source-retry',
+    ].includes(String(value.kind))
   ) {
     throw new Error('INVALID_RECEIPT_KIND');
   }
