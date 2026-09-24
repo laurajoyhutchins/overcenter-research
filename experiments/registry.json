@@ -1064,7 +1064,7 @@
       "directory": "experiments/n-agent-interaction-frontier",
       "readme": "experiments/n-agent-interaction-frontier/README.md",
       "question": "Can Overcenter mechanically reduce a 50-agent proposal set to the connected causal/effect regions that actually require joint reasoning?",
-      "claim": "For the preregistered 50-obligation workload, production graph causality plus provider-effect semantics reduce 1,225 possible agent pairs to four 4-agent conflict islands and 34 singletons; a real causal bridge correctly expands the affected reasoning frontier to eight agents.",
+      "claim": "For the bounded 50-obligation workload, production graph causality plus provider-effect semantics reduce 1,225 possible agent pairs to four 4-agent conflict islands and 34 singletons; a real causal bridge expands the affected reasoning frontier to eight agents.",
       "contrast": "Treat all N-way work as one total-order conflict problem, or partition only by provider resource and miss graph-causal coupling.",
       "reproduce": {
         "tier": "deterministic",
@@ -1073,7 +1073,7 @@
       "environment": [
         "Node.js from .node-version.",
         "Current production graph topology, graph dependency, static effect conflict, and effect-semantics modules.",
-        "The race/backtracking explorer logic is exercised per interaction component against exhaustive enumeration.",
+        "Bounded exhaustive enumeration is used inside each interaction component; the maintained treatment does not depend on the experimental DPOR reducer.",
         "No network, provider credential, database, external solver, or model is required."
       ],
       "success_criteria": [
@@ -1081,23 +1081,18 @@
         "Production semantics derive exactly 24 interaction edges and 38 connected components.",
         "Baseline component sizes are four 4-agent conflict islands plus 34 singleton obligations.",
         "Production static conflict analysis identifies exactly the 16 clustered obligations.",
-        "Exhaustive and race/backtracking trace sets agree inside every component.",
-        "Baseline component-local exploration requires exactly 130 complete executions and composes to 331,776 global trace classes.",
+        "Baseline component-local exhaustive work is exactly 130 executions and composes to 331,776 causal trace classes.",
         "One production control dependency merges two 4-agent islands into one 8-agent interaction component.",
-        "The bridged component has exactly 576 causal trace classes and race/backtracking representatives.",
-        "Total bridged component-local reduced work is exactly 658 executions.",
+        "The bridged component has exactly 20,160 concrete topological executions and 576 causal trace classes.",
+        "Total bridged component-local exhaustive work is exactly 20,242 executions.",
         "A conflict-only decomposition misses the causal bridge and is rejected by production graph causality."
       ],
       "evidence": {
-        "status": "evaluated",
-        "evaluated_revision": "d9f2be76f0143d4049744ffa4985ac71f45f2c04",
+        "status": "pending",
         "artifacts": [
-          "GitHub Actions run 35951393837, job 107480499860: exact-head 50-agent interaction-frontier treatment PASS.",
-          "Baseline: 50 proposals / 1,225 possible pairs -> 24 interaction edges, 38 components, four 4-agent conflict islands plus 34 singletons.",
-          "Baseline component-local reasoning required 130 complete executions; combined causal trace product was 331,776 while the naive global schedule space was 50!.",
-          "One production control dependency merged two islands into an 8-agent component; race/backtracking represented its 576 causal traces and total local work rose to 658 executions.",
-          "Conflict-only decomposition missed the bridge and was rejected by production graph causality."
-        ]
+          ".github/workflows/n-agent-interaction-frontier.yml"
+        ],
+        "pending_reason": "The original exact-head treatment passed, but review invalidated its DPOR-dependent reduced-execution metric. Fresh exact-head evidence is required for the maintained DPOR-independent frontier treatment."
       },
       "interpretation": "A positive result would support computing a deterministic interaction frontier before joint agent reasoning: independent proposal components can be analyzed separately, while real graph or effect coupling expands the frontier.",
       "non_claims": [
@@ -1110,12 +1105,12 @@
         "The 50-agent global trace product should be enumerated."
       ],
       "design": {
-        "provenance": "preregistered",
-        "note": "The 50-agent topology, 24-edge/38-component baseline, 130-execution local-work target, causal bridge to an 8-agent component, 576 bridged trace classes, 658-execution treatment target, and conflict-only falsifier were committed before hosted execution."
+        "provenance": "mixed",
+        "note": "The 50-agent topology, 24-edge/38-component baseline, causal bridge, exhaustive component counts, trace counts, and conflict-only falsifier were preregistered. A post-hoc review falsified the stacked DPOR reducer, so its 658-execution metric was withdrawn and the maintained experiment now uses exhaustive component analysis only."
       },
       "outcome": {
-        "state": "supported",
-        "summary": "Production graph causality plus provider-effect semantics reduced the 50-agent pair surface to four small conflict islands and singletons, then correctly expanded the reasoning frontier to eight agents when a real causal bridge connected two islands."
+        "state": "pending",
+        "summary": "The interaction-frontier claim survived review, but fresh exact-head evidence is pending after removing the flawed DPOR-dependent reduction metric."
       }
     },
     {
