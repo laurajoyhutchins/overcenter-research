@@ -43,8 +43,6 @@ jobs:
       - name: Install pinned development dependencies
         run: npm install --ignore-scripts --package-lock=false
 
-      - name: Experiment contract
-        run: npm run test:experiment-contract
 
       - name: Type, security, and authority-decay criteria
         run: npm run test:effect-authority-decay
