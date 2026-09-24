@@ -15,9 +15,7 @@ export function readJsonWithCurl(url: string, config: string, errorPrefix: strin
       message?: string;
     };
     throw new Error(
-      `${errorPrefix}: ${String(
-        failure.stderr ?? failure.stdout ?? failure.message ?? '',
-      ).trim()}`,
+      `${errorPrefix}: ${String(failure.stderr ?? failure.stdout ?? failure.message ?? '').trim()}`,
     );
   }
 }
