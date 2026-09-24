@@ -10,6 +10,7 @@ import {
   validateGraphPatchFact,
   validateReceiptFact,
   validateSourceRevisionBindingFact,
+  validateVerifiedOutputFact,
 } from './facts.ts';
 import type {
   ClaimFact,
@@ -23,6 +24,7 @@ import type {
   ReceiptFact,
   SourceRevisionBindingFact,
   State,
+  VerifiedOutputFact,
 } from './facts.ts';
 import { dependencyUpstreams, validateGraph } from '../graph/topology.ts';
 import { settlementSemantics } from '../semantics.ts';
@@ -32,6 +34,7 @@ import {
   effectReservationAuthorityError,
   executionAuthorityAdvanceError,
   receiptAuthorityError,
+  verifiedOutputAuthorityError,
 } from './transaction-admission.ts';
 import {
   deriveProjectProjection,
@@ -59,12 +62,14 @@ export function projectReceipt(
   settlementCommit?: string,
   unresolvedEffect = false,
   notDispatchedRelease = false,
+  verifiedOutput: VerifiedOutputFact | null = null,
 ): Receipt {
   let disposition: Receipt['disposition'];
   let verified = false;
 
   if (fact.kind === 'observation') {
     if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
+    if (verifiedOutput) throw new Error('OBSERVATION_RECEIPT_HAS_VERIFIED_OUTPUT');
     verified = observationVerified(work.postcondition, fact.observed);
     const policy = settlementSemantics(work.postcondition);
     const absenceEvidence = authoritativeAbsenceEvidence(work.postcondition, fact.observed);
@@ -74,8 +79,21 @@ export function projectReceipt(
       !unresolvedEffect ||
       (absenceEvidence !== null && reservedEffectReplaySafe(work, absenceEvidence));
     disposition = verified ? 'DONE' : acceptedAbsence && replaySafe ? 'READY' : 'RECOVERY_REQUIRED';
+  } else if (fact.kind === 'verified-output') {
+    if (fact.observed) throw new Error('VERIFIED_OUTPUT_RECEIPT_HAS_OBSERVATION');
+    if (!verifiedOutput) throw new Error('VERIFIED_OUTPUT_RECEIPT_MISSING_OUTPUT');
+    if (unresolvedEffect) throw new Error('VERIFIED_OUTPUT_WITH_UNRESOLVED_EFFECT');
+    if (work.postcondition.verifier !== 'verified-generated-output/v1') {
+      throw new Error('VERIFIED_OUTPUT_POSTCONDITION_MISMATCH');
+    }
+    if (verifiedOutput.validator !== work.postcondition.validator) {
+      throw new Error('VERIFIED_OUTPUT_VALIDATOR_MISMATCH');
+    }
+    disposition = 'DONE';
+    verified = true;
   } else {
     if (fact.observed) throw new Error('NONOBSERVATION_RECEIPT_HAS_EVIDENCE');
+    if (verifiedOutput) throw new Error('NONOUTPUT_RECEIPT_HAS_VERIFIED_OUTPUT');
     disposition =
       fact.kind === 'judgment-required'
         ? 'WAITING'
@@ -88,6 +106,7 @@ export function projectReceipt(
     ...fact,
     disposition,
     verified,
+    ...(verifiedOutput ? { verified_output: structuredClone(verifiedOutput) } : {}),
     ...(settlementCommit ? { settlement_commit: settlementCommit } : {}),
   };
 }
@@ -129,6 +148,7 @@ export function replayProjection(
 
   for (const record of commits) {
     let notDispatchedRelease = false;
+    let verifiedOutput: VerifiedOutputFact | null = null;
     if (record.graph_patch != null) {
       refresh(record.parent ?? '');
       if (hasInFlight(project)) throw new Error('GRAPH_PATCH_WHILE_IN_FLIGHT');
@@ -284,6 +304,39 @@ export function replayProjection(
       notDispatchedRelease = true;
     }
 
+    if (record.verified_output != null) {
+      if (record.receipt == null) throw new Error('VERIFIED_OUTPUT_WITHOUT_RECEIPT');
+      verifiedOutput = validateVerifiedOutputFact(record.verified_output);
+      const run = runs.get(verifiedOutput.run_id);
+      if (!run) throw new Error('VERIFIED_OUTPUT_WITHOUT_CLAIM');
+      const authorityError = verifiedOutputAuthorityError(run, verifiedOutput);
+      if (authorityError) throw new Error(authorityError);
+      refresh(record.commit);
+      const current = project.lifecycles.get(run.obligation_id);
+      if (current?.run?.id !== run.id || current.status !== 'EXECUTING') {
+        throw new Error('VERIFIED_OUTPUT_WHILE_NOT_EXECUTING');
+      }
+      if (unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('VERIFIED_OUTPUT_WITH_UNRESOLVED_EFFECT');
+      }
+      if (run.obligation.postcondition.verifier !== 'verified-generated-output/v1') {
+        throw new Error('VERIFIED_OUTPUT_POSTCONDITION_MISMATCH');
+      }
+      if (verifiedOutput.validator !== run.obligation.postcondition.validator) {
+        throw new Error('VERIFIED_OUTPUT_VALIDATOR_MISMATCH');
+      }
+      const paired = validateReceiptFact(record.receipt);
+      if (
+        paired.kind !== 'verified-output' ||
+        paired.run_id !== verifiedOutput.run_id ||
+        paired.obligation_id !== verifiedOutput.obligation_id ||
+        paired.execution_generation !== verifiedOutput.execution_generation ||
+        paired.execution_authority_commit !== verifiedOutput.execution_authority_commit
+      ) {
+        throw new Error('VERIFIED_OUTPUT_RECEIPT_MISMATCH');
+      }
+    }
+
     if (record.receipt == null) continue;
     const fact = validateReceiptFact(record.receipt);
     const run = runs.get(fact.run_id);
@@ -294,6 +347,15 @@ export function replayProjection(
     refresh(record.commit);
     const current = project.lifecycles.get(run.obligation_id);
     if (current?.run?.id !== run.id) throw new Error('RECEIPT_FOR_NONCURRENT_RUN');
+    if (fact.kind === 'verified-output' && !verifiedOutput) {
+      throw new Error('VERIFIED_OUTPUT_RECEIPT_WITHOUT_OUTPUT');
+    }
+    if (verifiedOutput && fact.kind !== 'verified-output') {
+      throw new Error('VERIFIED_OUTPUT_WITH_NONOUTPUT_RECEIPT');
+    }
+    if (fact.kind === 'verified-output' && current.status !== 'EXECUTING') {
+      throw new Error('VERIFIED_OUTPUT_WHILE_NOT_EXECUTING');
+    }
     if (fact.kind === 'judgment-required' && current.status !== 'EXECUTING') {
       throw new Error('JUDGMENT_REQUIRED_WHILE_NOT_EXECUTING');
     }
@@ -324,6 +386,7 @@ export function replayProjection(
       record.commit,
       unresolvedEffect,
       notDispatchedRelease,
+      verifiedOutput,
     );
     receiptsByRun.set(run.id, receipt);
     if (receipt.disposition === 'DONE' || receipt.disposition === 'READY') {
