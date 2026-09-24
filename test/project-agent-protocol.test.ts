@@ -20,10 +20,8 @@ import {
   submitProjectCandidate,
 } from '../src/authority/project-agent-protocol.ts';
 import { compileProjectIntent } from '../src/authority/project-intent.ts';
-import {
-  brokerSourceProposal,
-  SOURCE_VERIFICATION_SCHEMA,
-} from '../src/source/source-integration.ts';
+import { SOURCE_VERIFICATION_SCHEMA } from '../src/source/source-integration.ts';
+import { brokerAssignedSourceProposal } from '../src/source/source-broker.ts';
 import { SOURCE_PROPOSAL_SCHEMA } from '../src/source/source-obligation.ts';
 
 const AUTHORITY_REF = 'refs/overcenter/test-project-agent';
@@ -378,17 +376,15 @@ test('source proposal broker rejects control-plane mutation before candidate pub
     });
     assert.ok(acquired.run_id);
 
-    const authority = new GitOvercenterKernel(f.work, {
-      remote: 'origin',
-      ref: AUTHORITY_REF,
-    });
-    const claim = authority.sourceClaimBinding(acquired.run_id);
+    const assignment = JSON.parse(
+      readFileSync(join(f.root, 'source-packet', 'assignment.json'), 'utf8'),
+    );
+    const claim = assignment.claim;
     assert.throws(
       () =>
-        brokerSourceProposal(
+        brokerAssignedSourceProposal(
           f.work,
-          sourceIntent('source-work').task,
-          claim,
+          assignment,
           {
             schema: SOURCE_PROPOSAL_SCHEMA,
             run_id: claim.run_id,
@@ -401,6 +397,7 @@ test('source proposal broker rejects control-plane mutation before candidate pub
               },
             ],
           },
+          { authorityRef: AUTHORITY_REF, remote: 'origin' },
         ),
       /SOURCE_PROPOSAL_PATH_INVALID:0/,
     );
@@ -426,15 +423,13 @@ test('project.submit integrates a verified source candidate and settles the sour
     });
     assert.ok(acquired.run_id);
 
-    const authority = new GitOvercenterKernel(f.work, {
-      remote: 'origin',
-      ref: AUTHORITY_REF,
-    });
-    const claim = authority.sourceClaimBinding(acquired.run_id);
-    const brokered = brokerSourceProposal(
+    const assignment = JSON.parse(
+      readFileSync(join(f.root, 'source-packet', 'assignment.json'), 'utf8'),
+    );
+    const claim = assignment.claim;
+    const brokered = brokerAssignedSourceProposal(
       f.work,
-      sourceIntent('source-work').task,
-      claim,
+      assignment,
       {
         schema: SOURCE_PROPOSAL_SCHEMA,
         run_id: claim.run_id,
@@ -447,7 +442,7 @@ test('project.submit integrates a verified source candidate and settles the sour
           },
         ],
       },
-      { remote: 'origin' },
+      { authorityRef: AUTHORITY_REF, remote: 'origin' },
     );
     assert.equal(brokered.publication.state, 'PUBLISHED');
     const candidateSha = brokered.candidate.commit_sha;
@@ -529,15 +524,13 @@ test('rejected source verification releases the obligation without moving source
     });
     assert.ok(acquired.run_id);
 
-    const authority = new GitOvercenterKernel(f.work, {
-      remote: 'origin',
-      ref: AUTHORITY_REF,
-    });
-    const claim = authority.sourceClaimBinding(acquired.run_id);
-    const brokered = brokerSourceProposal(
+    const assignment = JSON.parse(
+      readFileSync(join(f.root, 'source-packet', 'assignment.json'), 'utf8'),
+    );
+    const claim = assignment.claim;
+    const brokered = brokerAssignedSourceProposal(
       f.work,
-      sourceIntent('source-work').task,
-      claim,
+      assignment,
       {
         schema: SOURCE_PROPOSAL_SCHEMA,
         run_id: claim.run_id,
@@ -550,7 +543,7 @@ test('rejected source verification releases the obligation without moving source
           },
         ],
       },
-      { remote: 'origin' },
+      { authorityRef: AUTHORITY_REF, remote: 'origin' },
     );
     assert.equal(brokered.publication.state, 'PUBLISHED');
     const candidateSha = brokered.candidate.commit_sha;
