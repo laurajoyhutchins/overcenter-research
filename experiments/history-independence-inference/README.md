@@ -163,3 +163,10 @@ It would not yet justify productionizing the relation. The next rung would be a 
 - The bounded continuation search proves contextual equivalence for arbitrary future behavior.
 - General Knuth-Bendix completion or global confluence is established.
 - Production scheduling, admission, effect execution, replay, or settlement is changed.
+
+
+## Frozen treatment
+
+The treatment code, control oracle, hostile mutants, continuation alphabet, and acceptance criteria were frozen before accepted hosted evidence at source revision `0f9ace03f1bba924ba6343d6ad707bf610aabae5`.
+
+This note is documentation-only and does not change the treatment.
