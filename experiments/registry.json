@@ -3251,6 +3251,59 @@
         "state": "supported",
         "summary": "At exact revision 7546e2b058c8be80faebaa8900a684b794275af3, the split store matched monolithic Git kernel semantics, kept authority commits fact-id-only, admitted exactly one winner in an eight-process same-head race, left seven losing fact objects unreachable, reconstructed from a copied object replica, and failed closed when an authoritative fact object was missing."
       }
+    },
+    {
+      "id": "research-result-obligation-integration",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/research-result-obligation-integration",
+      "readme": "experiments/research-result-obligation-integration/README.md",
+      "question": "Can exact, trusted experiment outcomes become semantic inputs to Overcenter source obligations so justified promotions become ready independently of pull-request topology?",
+      "claim": "Within the bounded treatment, authenticated research-result semantics can activate only supported promotion work, preserve promotion identity across evidence-only reruns, invalidate only semantic descendants when research meaning changes, and allow independent source candidates to integrate over unrelated current-source movement without PR restacking.",
+      "contrast": "Use pull-request ancestry, mutable branch stacks, or registry text itself as the scheduling and dependency substrate for research promotion work.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:research-result-obligation-integration"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Git CLI for local source-candidate commits, detached worktrees, cherry-pick application, and exact update-ref compare-and-swap.",
+        "Ephemeral Ed25519 keys model a trusted evaluator boundary; no production key custody is claimed.",
+        "The maintained experiment registry supplies one already-evaluated real source-obligation result as treatment input; no network or provider credential is required."
+      ],
+      "success_criteria": [
+        "Only synthetic supported result A, its semantic child, and the already-supported source-obligation-integration result materialize promotions; the falsified B result does not.",
+        "Changing a signed falsified outcome to supported without the trusted evaluator key is rejected before promotion compilation.",
+        "An unchanged experiment rerun at a different exact revision with different evidence coordinates retains the same semantic result identity and downstream promotion keys.",
+        "A materially changed research claim changes the directly dependent promotion key and its semantic descendant while leaving the unrelated real-result promotion unchanged.",
+        "Two independent source candidates bound to the same original source revision both integrate after main has moved through an earlier promotion and an unrelated source change, with neither candidate restacked.",
+        "Removing simulated pull-request projection metadata changes no compiled promotion semantic key.",
+        "A source candidate conflicting with current main returns REREALIZE_REQUIRED and leaves the authoritative ref unchanged."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "experiments/research-result-obligation-integration/README.md and experiment.ts contain the preregistered bounded treatment before first hosted execution."
+        ],
+        "pending_reason": "First exact-head hosted execution has not yet been observed."
+      },
+      "interpretation": "A positive result would support implementing a narrow trusted research-result certificate/validator and deterministic research-plan-to-obligation compiler, while keeping PRs as optional projections rather than graph authority.",
+      "non_claims": [
+        "The experiment registry is itself authoritative evidence of an experiment result.",
+        "The ephemeral Ed25519 key mechanism is the production evaluator or key-custody design.",
+        "Production project.advance already supports source-change packets.",
+        "Remote GitHub ref mutation has the same uncertainty semantics as local git update-ref.",
+        "Human review policy can be removed.",
+        "Arbitrary research claims can be promoted without a trusted validator binding exact-head evidence to the certified result."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The certificate shape, semantic identity rule, supported/falsified corpus, real-result input, localized invalidation checks, zero-restack two-candidate treatment, projection-deletion control, conflict falsifier, acceptance criteria, and non-claims were recorded on the branch before first hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The treatment is preregistered and awaiting first exact-head hosted execution."
+      }
     }
   ]
 }
