@@ -1,5 +1,5 @@
 import type { KernelCore } from '../authority/engine.ts';
-import { effectAdapterCapabilities, GITHUB_COMMIT_STATUS_EFFECT } from '../effect-adapter.ts';
+import { effectContractCapabilities, GITHUB_COMMIT_STATUS_EFFECT } from '../effect-contract.ts';
 import type { Data, ExecutionPermit } from '../model.ts';
 import { performGithubCommitStatusEffect, type GithubStatusPost } from './github/status-effect.ts';
 import type { GithubJsonGetAsync } from './github/rest.ts';
@@ -19,7 +19,7 @@ export async function dispatchAdmittedEffect(
   context: TrustedEffectDispatchContext,
 ): Promise<Data> {
   const work = kernel.claimedWork(permit);
-  const capabilities = effectAdapterCapabilities(work.packet.effect_contract);
+  const capabilities = effectContractCapabilities(work.packet.effect_contract);
   if (!capabilities) {
     throw new Error(
       `REGISTERED_EFFECT_DISPATCH_UNREGISTERED:${String(work.packet.effect_contract)}`,

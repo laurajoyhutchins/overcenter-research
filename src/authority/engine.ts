@@ -51,11 +51,11 @@ import { advanceProjection, projectReceipt, replayProjection } from './replay.ts
 import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
 import {
-  effectAdapterCapabilities,
+  effectContractCapabilities,
   reservedEffectReleaseWitnessSafe,
   type EffectVerifier,
   type RegisteredEffectContract,
-} from '../effect-adapter.ts';
+} from '../effect-contract.ts';
 import {
   effectReleaseEvidenceRef,
   retainEffectReleaseEvidence,
@@ -207,7 +207,7 @@ export class KernelCore {
     effectContract: E,
   ): EffectAuthority<E, EffectVerifier<E>> {
     const work = this.claimedWork(permit);
-    const capabilities = effectAdapterCapabilities(effectContract)!;
+    const capabilities = effectContractCapabilities(effectContract)!;
     if (work.packet.effect_contract !== effectContract)
       throw new Error('EFFECT_CONTRACT_NOT_AUTHORIZED');
     if (work.postcondition.verifier !== capabilities.postcondition_verifier)
