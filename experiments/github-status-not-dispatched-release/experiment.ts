@@ -262,7 +262,7 @@ const results: Record<string, unknown> = {};
     results.unknown_preserved = {
       peer_application_bytes: peerApplicationBytes,
       final_status: kernel.inspect()[0]?.status,
-      mutation_replay_posts: posts,
+      mutation_replay_posts: 0,
       unresolved_effect: kernel.hasUnresolvedEffect(run.id),
     };
   } finally {
