@@ -192,7 +192,9 @@ async function runWorld(world: World): Promise<Result> {
         duplicateRetryError = message(error);
       }
       const duplicateRetryBlocked =
-        duplicateRetryError === 'UNRESOLVED_EFFECT' && postCalls === postsBeforeRetry;
+        (duplicateRetryError === 'UNRESOLVED_EFFECT' ||
+          duplicateRetryError === 'RUN_NOT_EXECUTING') &&
+        postCalls === postsBeforeRetry;
       assert.equal(duplicateRetryBlocked, true);
 
       const interrupted = fresh.recoverInterrupted(recovery, {
