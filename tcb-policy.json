@@ -97,7 +97,8 @@
         "Rust worker confinement",
         "experiments and tests",
         "formal models and proof tools"
-      ]
+      ],
+      "expected_surface_sha256": "098e0ce83e71e805d61e3ea2ea0a03f88f4eb3abd1c31a2dbdc23f0ae85fc420"
     },
     {
       "id": "no-false-done",
@@ -214,7 +215,8 @@
         "Go computation executor",
         "Rust worker confinement",
         "experiments and formal models"
-      ]
+      ],
+      "expected_surface_sha256": "62e4d7a452694df75db6b700b221835b437e40ee97e5d258cc234b9f71627776"
     },
     {
       "id": "github-commit-status-provider",
@@ -294,7 +296,8 @@
         "pull-request update-branch provider profile",
         "Kubernetes and GCP providers",
         "worker credentials when they are not broker credentials"
-      ]
+      ],
+      "expected_surface_sha256": "84f0fe24a1fba0b45695052dbb1a1597048cc51d0aad3b20b914f9504868d08e"
     }
   ]
 }
