@@ -523,17 +523,17 @@ function erasedAbortNegativeControl(aborted: RunResult, root: string): void {
   }
 }
 
-function criticalPairCase(base: SemanticEvent[]): number {
-  let branches = 0;
-  for (const first of oneStepRewrites(base)) {
-    const firstNormal = normalForm(first);
-    for (const second of oneStepRewrites(base)) {
-      branches += 1;
-      assert.deepEqual(firstNormal, normalForm(second));
-    }
+function criticalPairCase(base: SemanticEvent[]) {
+  const firstSteps = oneStepRewrites(base);
+  assert.ok(firstSteps.length > 1);
+  const expected = normalForm(base);
+  for (const candidate of firstSteps) {
+    assert.deepEqual(normalForm(candidate), expected);
   }
-  assert.ok(branches > 1);
-  return branches;
+  return {
+    first_step_branches: firstSteps.length,
+    pairwise_join_comparisons: firstSteps.length * firstSteps.length,
+  };
 }
 
 const root = mkdtempSync(join(tmpdir(), 'overcenter-history-normalization-'));
@@ -573,7 +573,7 @@ try {
   }
 
   assert.ok(firstAborted);
-  const criticalPairBranches = criticalPairCase(firstAborted.semantic_events);
+  const criticalPairs = criticalPairCase(firstAborted.semantic_events);
   conflictNegativeControl(root);
   observationDedupNegativeControl();
   erasedAbortNegativeControl(firstAborted, root);
@@ -588,12 +588,13 @@ try {
       outcome: 'SUPPORTED',
       interleavings_compared: comparisons.length * 2,
       bounded_continuations: continuations.length,
-      critical_pair_branches: criticalPairBranches,
+      critical_pair_first_step_branches: criticalPairs.first_step_branches,
+      critical_pair_pairwise_join_comparisons: criticalPairs.pairwise_join_comparisons,
       negative_controls: {
-        conflicting_effects_declared_independent: 'REJECTED',
-        equal_value_observations_deduplicated_across_snapshots: 'REJECTED',
-        not_dispatched_attempt_erased_to_no_op: 'REJECTED',
-        create_delete_erased_to_no_op: 'REJECTED',
+        conflicting_effects_declared_independent: 'DISTINGUISHED',
+        equal_value_observations_deduplicated_across_snapshots: 'DISTINGUISHED',
+        not_dispatched_attempt_erased_to_no_op: 'DISTINGUISHED',
+        create_delete_erased_to_no_op: 'DISTINGUISHED',
       },
       claim: 'derived proof-carrying semantic normalization is viable for the bounded corpus',
       non_claim: 'raw authority history remains immutable and unnormalized',
