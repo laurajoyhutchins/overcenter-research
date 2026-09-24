@@ -16,13 +16,13 @@ jobs:
     name: project.submit
     if: >-
       github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
       startsWith(github.event.workflow_run.head_branch, 'overcenter/candidate/') &&
       github.event.workflow_run.actor.login == github.repository_owner
     runs-on: ubuntu-slim
     timeout-minutes: 1
     permissions:
+      actions: read
       contents: write
     env:
       COMMAND_IMPLEMENTATION_SHA: ${{ github.sha }}
@@ -60,24 +60,46 @@ jobs:
           package-manager-cache: false
 
       - name: Validate candidate transport
+        id: transport
         if: ${{ github.run_attempt > 1 }}
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin             "refs/heads/$CANDIDATE_REF:refs/overcenter/candidate-input"
+          git fetch --no-tags origin "refs/heads/$CANDIDATE_REF:refs/overcenter/candidate-input"
           test "$(git rev-parse refs/overcenter/candidate-input)" = "$CANDIDATE_SHA"
           test "$(git rev-list --parents -n1 "$CANDIDATE_SHA" | wc -w)" -eq 2
-          changed="$(git diff-tree --no-commit-id --name-only -r "$CANDIDATE_SHA")"
-          test "$changed" = ".overcenter/candidate.json"
+
           branch_run_id="${CANDIDATE_REF#overcenter/candidate/}"
-          candidate_run_id="$(git show "$CANDIDATE_SHA:.overcenter/candidate.json" | node -e '
-            let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{
-              const value=JSON.parse(s);
-              if (typeof value.run_id!=="string" || !value.run_id) process.exit(2);
-              process.stdout.write(value.run_id);
-            });
-          ')"
-          test "$branch_run_id" = "$candidate_run_id"
+          test -n "$branch_run_id"
+          test "$branch_run_id" != "$CANDIDATE_REF"
+          changed="$(git diff-tree --no-commit-id --name-only -r "$CANDIDATE_SHA")"
+
+          if [ "$changed" = ".overcenter/candidate.json" ]; then
+            candidate_kind="pure-candidate"
+            candidate_run_id="$(git show "$CANDIDATE_SHA:.overcenter/candidate.json" | node -e '
+              let s="";
+              process.stdin.on("data",d=>s+=d).on("end",()=>{
+                const value=JSON.parse(s);
+                if (typeof value.run_id!=="string" || !value.run_id) process.exit(2);
+                process.stdout.write(value.run_id);
+              });
+            ')"
+            test "$branch_run_id" = "$candidate_run_id"
+          else
+            candidate_kind="source-change"
+          fi
+
+          echo "candidate_run_id=$branch_run_id" >> "$GITHUB_OUTPUT"
+          echo "candidate_kind=$candidate_kind" >> "$GITHUB_OUTPUT"
+
+      - name: Download source verification
+        if: ${{ github.run_attempt > 1 && steps.transport.outputs.candidate_kind == 'source-change' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: overcenter-source-verification
+          path: source-verification
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
 
       - name: Invoke project.submit
         if: ${{ github.run_attempt > 1 }}
@@ -90,6 +112,8 @@ jobs:
           OVERCENTER_COMMAND_RUN_ID: ${{ github.run_id }}
           OVERCENTER_COMMAND_RUN_ATTEMPT: ${{ github.run_attempt }}
           OVERCENTER_CANDIDATE_SHA: ${{ env.CANDIDATE_SHA }}
+          OVERCENTER_CANDIDATE_RUN_ID: ${{ steps.transport.outputs.candidate_run_id }}
+          OVERCENTER_SOURCE_VERIFICATION_PATH: ${{ github.workspace }}/source-verification/source-verification.json
           OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
           OVERCENTER_PROJECT_REMOTE: origin
         run: node --experimental-strip-types src/cli/project-submit.ts --receipt response/receipt.json
@@ -112,6 +136,7 @@ jobs:
           OBLIGATION_ID: ${{ steps.invoke.outputs.obligation_id }}
           RUN_ID: ${{ steps.invoke.outputs.run_id }}
           SETTLEMENT_COMMIT: ${{ steps.invoke.outputs.settlement_commit }}
+          INTEGRATION_COMMIT: ${{ steps.invoke.outputs.integration_commit }}
           ALREADY_SETTLED: ${{ steps.invoke.outputs.already_settled }}
           RECEIPT_DIGEST: ${{ steps.invoke.outputs.receipt_digest }}
         run: |
@@ -127,6 +152,7 @@ jobs:
             echo "- obligation: ${OBLIGATION_ID:-none}"
             echo "- run: ${RUN_ID:-none}"
             echo "- settlement commit: ${SETTLEMENT_COMMIT:-none}"
+            echo "- source integration: ${INTEGRATION_COMMIT:-none}"
             echo "- replay: ${ALREADY_SETTLED:-false}"
             echo "- receipt digest: ${RECEIPT_DIGEST:-none}"
           } >> "$GITHUB_STEP_SUMMARY"

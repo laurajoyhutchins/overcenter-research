@@ -48,6 +48,10 @@ export interface GitHubPullRequestBranchUpdatedPostcondition {
   expected_base_sha: string;
 }
 
+export interface SourceIntegrationPostcondition {
+  verifier: 'source-integration/v1';
+}
+
 export interface KubernetesConfigMapExistsPostcondition {
   verifier: 'kubernetes-configmap-exists/v1';
   provider: 'kubernetes';
@@ -63,6 +67,7 @@ export type Postcondition =
   | EventuallyConsistentFilePostcondition
   | GitHubCommitStatusPostcondition
   | GitHubPullRequestBranchUpdatedPostcondition
+  | SourceIntegrationPostcondition
   | KubernetesConfigMapExistsPostcondition;
 
 export type { Observation } from '../contracts/observation-evidence/settlement-observation.typebox.ts';
