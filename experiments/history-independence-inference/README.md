@@ -23,11 +23,12 @@ Two obligations may commute in the normalizer only when all of these hold:
 
 1. neither obligation graph-depends on the other;
 2. both obligations expose known production `effectSemantics()`;
-3. their canonical effect resources differ;
+3. each obligation's declared effect adapter exists and is bound to that postcondition verifier;
+4. their canonical effect resources differ;
 
 or, for a future same-resource case:
 
-4. their desired values agree, both effects declare `sameDesiredCommutes`, and both adapters promise `duplicate_delivery = semantically-idempotent`.
+5. their desired values agree, both effects declare `sameDesiredCommutes`, and both adapters promise `duplicate_delivery = semantically-idempotent`.
 
 The current GitHub commit-status adapter declares `duplicate_delivery = may-duplicate`. Therefore two same-coordinate writes with the same desired state remain **non-independent for history normalization**, even though production admission permits them as a non-conflicting pair.
 
@@ -41,7 +42,7 @@ safe to erase ordering/provenance distinctions
 
 ## Manual control oracle
 
-The derived rule is checked against six preregistered classifications:
+The derived rule is checked against seven control classifications:
 
 | pair | expected |
 | --- | --- |
@@ -51,17 +52,19 @@ The derived rule is checked against six preregistered classifications:
 | same coordinate, same desired state, may-duplicate adapter | not independent |
 | same coordinate, conflicting desired states | not independent |
 | one obligation without known effect semantics | not independent |
+| known effect semantics but unknown/mismatched effect adapter | not independent |
 
 The manual table is only a control oracle for this bounded corpus. It is not used by the normalizer. These classifications are relative to Overcenter's project-truth lens, not to every externally observable provider history.
 
 ## Hostile inference mutants
 
-Four deliberately weakened inference rules must produce false positives that the control oracle catches:
+Five deliberately weakened inference rules must produce false positives that the control oracle catches:
 
 1. remove graph causality;
 2. ignore effect resources;
 3. treat unknown effect semantics as independent;
-4. interpret `sameDesiredCommutes` as sufficient even when duplicate delivery may have externally visible consequences.
+4. interpret `sameDesiredCommutes` as sufficient even when duplicate delivery may have externally visible consequences;
+5. ignore adapter/verifier binding and trust postcondition-shaped effect semantics alone.
 
 The production admission checker is also used to show the intended difference between conflict admission and normalization equivalence:
 
@@ -147,8 +150,8 @@ This remains a bounded local critical-pair search, not general completion.
 
 The hypothesis is supported only if:
 
-- all six oracle classifications match the derived rule;
-- all four weakened inference mutants are caught;
+- all seven oracle classifications match the derived rule;
+- all five weakened inference mutants are caught;
 - the production admission distinction between same-desired and conflicting same-coordinate writes is observed;
 - all 259 continuation sequences have symmetric legality;
 - every legal continuation pair agrees under production replay and canonical normalization;
