@@ -131,25 +131,21 @@ assert.deepEqual(
 
 const results: Record<string, unknown> = {};
 
-// Case 1: handshake failure proves no HTTP mutation crossed the TLS boundary.
-// The reservation release and READY receipt must be one durable commit, and retry
-// must become a new run rather than reopening the old execution.
+// Case 1: a canonical GitHub request that fails before secureConnect proves no
+// HTTP mutation crossed the TLS boundary. The reservation release and READY
+// receipt must be one durable commit, and retry must become a new run rather
+// than reopening the old execution.
 {
   const root = mkdtempSync(join(tmpdir(), 'status-release-safe-'));
   const kernel = kernelAt(root);
-  let peerTlsBytes = 0;
-  const reset = createTcpServer((socket) => {
-    socket.once('data', (chunk) => {
-      peerTlsBytes += chunk.length;
-      socket.destroy();
-    });
-  });
-  const port = await listen(reset);
+  let lookedUpHost = '';
   try {
     const first = define(kernel);
     const post = createGithubStatusPost({
-      baseUrl: `https://127.0.0.1:${port}`,
-      rejectUnauthorized: false,
+      lookup: (hostname, _options, callback) => {
+        lookedUpHost = hostname;
+        callback(null, '127.0.0.2', 4);
+      },
     });
     await assert.rejects(
       performGithubCommitStatusEffect(kernel, first, {
@@ -159,7 +155,7 @@ const results: Record<string, unknown> = {};
       }),
       /GITHUB_STATUS_MUTATION_NOT_DISPATCHED/,
     );
-    assert.ok(peerTlsBytes > 0);
+    assert.equal(lookedUpHost, 'api.github.com');
     assert.equal(kernel.hasUnresolvedEffect(first.id), false);
     assert.equal(kernel.inspect()[0].status, 'READY');
     const receipts = kernel.receipts(first.id);
@@ -201,14 +197,14 @@ const results: Record<string, unknown> = {};
     }
 
     results.safe_release = {
-      peer_tls_bytes: peerTlsBytes,
+      provider_origin: 'https://api.github.com',
+      lookup_host: lookedUpHost,
       old_run_status: 'READY',
       old_run_reservation_released: true,
       retry_is_new_run: second.id !== first.id,
       successful_retry_reserved_until_readback: kernel.hasUnresolvedEffect(second.id),
     };
   } finally {
-    await close(reset);
     kernel.close();
     rmSync(root, { recursive: true, force: true });
   }
@@ -318,7 +314,7 @@ const results: Record<string, unknown> = {};
   }
 }
 
-// Case 4: neither a forged evidence kind nor stale authority can clear a reservation.
+// Case 4: neither the exact admitted token without provenance nor stale authority can clear a reservation.
 {
   const root = mkdtempSync(join(tmpdir(), 'status-release-adversary-'));
   const kernel = kernelAt(root);
@@ -331,8 +327,8 @@ const results: Record<string, unknown> = {};
     );
     kernel.beginEffect(run);
     assert.throws(
-      () => kernel.releaseEffectReservation(authority, 'forged/not-dispatched'),
-      /EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED/,
+      () => kernel.releaseEffectReservation(authority, GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED),
+      /EFFECT_RELEASE_EVIDENCE_PROVENANCE_INVALID/,
     );
     assert.equal(kernel.hasUnresolvedEffect(run.id), true);
 
@@ -349,6 +345,48 @@ const results: Record<string, unknown> = {};
       unresolved_effect: true,
     };
   } finally {
+    kernel.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+// Case 5: a genuine transport-minted pre-secureConnect witness from a
+// non-GitHub origin is insufficient release authority.
+{
+  const root = mkdtempSync(join(tmpdir(), 'status-release-wrong-origin-'));
+  const kernel = kernelAt(root);
+  let peerTlsBytes = 0;
+  const reset = createTcpServer((socket) => {
+    socket.once('data', (chunk) => {
+      peerTlsBytes += chunk.length;
+      socket.destroy();
+    });
+  });
+  const port = await listen(reset);
+  try {
+    const run = define(kernel);
+    await assert.rejects(
+      performGithubCommitStatusEffect(kernel, run, {
+        token: 'token',
+        get: () => repository(),
+        post: createGithubStatusPost({
+          baseUrl: `https://127.0.0.1:${port}`,
+          rejectUnauthorized: false,
+        }),
+      }),
+      /EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED/,
+    );
+    assert.ok(peerTlsBytes > 0);
+    assert.equal(kernel.hasUnresolvedEffect(run.id), true);
+    assert.equal(kernel.inspect()[0]?.status, 'EXECUTING');
+
+    results.wrong_origin = {
+      transport_minted_witness: true,
+      release: 'BLOCKED',
+      unresolved_effect: true,
+    };
+  } finally {
+    await close(reset);
     kernel.close();
     rmSync(root, { recursive: true, force: true });
   }

@@ -1,4 +1,7 @@
 import type { AbsenceEvidenceCertificate, Obligation, Postcondition } from './model.ts';
+import { canonicalDigest } from './digest.ts';
+import type { ValidatedEffectReleaseWitness } from './effect-release-witness.ts';
+import { isData as data } from './validation.ts';
 
 export const EFFECT_ADAPTER_CAPABILITIES_SCHEMA = 'overcenter-effect-adapter-capabilities' as const;
 
@@ -29,6 +32,10 @@ export type ReservationReleaseCapability =
 
 export const GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED =
   'github-status/fresh-https-pre-secure-connect' as const;
+export const GITHUB_STATUS_PROVIDER_ORIGIN = 'https://api.github.com' as const;
+export const GITHUB_STATUS_NOT_DISPATCHED_OBSERVATION_SCHEMA =
+  'overcenter-github-status-not-dispatched-observation' as const;
+export const GITHUB_STATUS_NOT_DISPATCHED_OBSERVATION_SCHEMA_VERSION = 1 as const;
 
 export interface EffectAdapterCapabilities {
   schema: typeof EFFECT_ADAPTER_CAPABILITIES_SCHEMA;
@@ -142,5 +149,40 @@ export function reservedEffectReleaseSafe(
   return (
     capabilities.reservation_release.kind === 'not-dispatched' &&
     capabilities.reservation_release.evidence_kinds.includes(evidenceKind)
+  );
+}
+
+export function reservedEffectReleaseWitnessSafe(
+  work: Obligation,
+  effectContract: string,
+  witness: ValidatedEffectReleaseWitness,
+): boolean {
+  if (!reservedEffectReleaseSafe(work, effectContract, witness.kind)) return false;
+  if (witness.kind !== GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED) return false;
+  if (work.postcondition.verifier !== 'github-commit-status/v2') return false;
+  if (!data(witness.observation)) return false;
+
+  const [owner, repo, ...extra] = work.postcondition.repository_full_name.split('/');
+  if (!owner || !repo || extra.length > 0) return false;
+  const expectedPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/statuses/${encodeURIComponent(
+    work.postcondition.commit_sha,
+  )}`;
+  const expectedBodyDigest = canonicalDigest({
+    state: work.postcondition.expected_state,
+    context: work.postcondition.context,
+    description: 'Overcenter trusted effect broker',
+  });
+
+  return (
+    witness.observation.schema === GITHUB_STATUS_NOT_DISPATCHED_OBSERVATION_SCHEMA &&
+    witness.observation.schema_version ===
+      GITHUB_STATUS_NOT_DISPATCHED_OBSERVATION_SCHEMA_VERSION &&
+    witness.observation.transport === 'https' &&
+    witness.observation.fresh_socket === true &&
+    witness.observation.secure_connected === false &&
+    witness.observation.method === 'POST' &&
+    witness.observation.origin === GITHUB_STATUS_PROVIDER_ORIGIN &&
+    witness.observation.path === expectedPath &&
+    witness.observation.body_sha256 === expectedBodyDigest
   );
 }

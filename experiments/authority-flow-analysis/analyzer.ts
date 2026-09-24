@@ -429,10 +429,19 @@ function methodNamed(source: SourceFile, name: string): MethodDeclaration | null
 }
 
 function isDirectCallStatement(statement: Statement, name: string): boolean {
-  return (
+  if (
     isExpressionStatement(statement) &&
     isCallExpression(statement.expression) &&
     callName(statement.expression) === name
+  ) {
+    return true;
+  }
+  if (!isVariableStatement(statement)) return false;
+  return statement.declarationList.declarations.some(
+    (declaration) =>
+      !!declaration.initializer &&
+      isCallExpression(declaration.initializer) &&
+      callName(declaration.initializer) === name,
   );
 }
 
