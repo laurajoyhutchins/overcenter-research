@@ -3255,7 +3255,7 @@
     {
       "id": "research-result-obligation-integration",
       "kind": "experiment",
-      "status": "maintained",
+      "status": "historical",
       "directory": "experiments/research-result-obligation-integration",
       "readme": "experiments/research-result-obligation-integration/README.md",
       "question": "Can exact, trusted experiment outcomes become semantic inputs to Overcenter source obligations so justified promotions become ready independently of pull-request topology?",
@@ -3289,7 +3289,7 @@
           "The same exact-head candidate job passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, TLA+, the production computation-boundary proof, and self-application."
         ]
       },
-      "interpretation": "The bounded result supports implementing a narrow trusted research-result representation plus a deterministic research-plan-to-source-promotion compiler. Pull-request ancestry need not be project truth: research meaning can drive stable promotion intent while exact source revision remains an execution fence. Production evidence authentication, live project graph wiring, and remote source integration remain separate promotion steps.",
+      "interpretation": "The bounded result established useful promotion semantics under a synthetic trusted evaluator, but it did not establish production evidence authentication. The later production ResearchResult/ResearchPlan candidate was removed rather than treating an arbitrary verifier callback as authority. Any future promotion bridge must consume canonical exact-revision provider evidence directly.",
       "non_claims": [
         "The experiment registry is itself authoritative evidence of an experiment result.",
         "The ephemeral Ed25519 key mechanism is the production evaluator or key-custody design.",
