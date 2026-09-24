@@ -90,7 +90,6 @@ test('stable contract names do not encode schema versions', () => {
   assert.deepEqual(stalePathReferences, []);
 });
 
-
 test('current surfaces do not expose adapter compatibility vocabulary', () => {
   const activeFiles = ['src', 'scripts', 'test']
     .flatMap((root) => filesUnder(root))
@@ -123,7 +122,9 @@ test('current surfaces do not expose adapter compatibility vocabulary', () => {
 
   const diagnoser = readFileSync('scripts/effect-protocol-diagnosability.ts', 'utf8');
   if (/\bunsafeWitness\b/.test(diagnoser)) {
-    stale.push('scripts/effect-protocol-diagnosability.ts: singular unsafeWitness compatibility alias');
+    stale.push(
+      'scripts/effect-protocol-diagnosability.ts: singular unsafeWitness compatibility alias',
+    );
   }
 
   assert.deepEqual(stale, []);
