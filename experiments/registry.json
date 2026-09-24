@@ -3251,6 +3251,61 @@
         "state": "supported",
         "summary": "At exact revision 7546e2b058c8be80faebaa8900a684b794275af3, the split store matched monolithic Git kernel semantics, kept authority commits fact-id-only, admitted exactly one winner in an eight-process same-head race, left seven losing fact objects unreachable, reconstructed from a copied object replica, and failed closed when an authoritative fact object was missing."
       }
+    },
+    {
+      "id": "research-result-obligation-integration",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/research-result-obligation-integration",
+      "readme": "experiments/research-result-obligation-integration/README.md",
+      "question": "Can exact, trusted experiment outcomes become semantic inputs to Overcenter source obligations so justified promotions become ready independently of pull-request topology?",
+      "claim": "Within the bounded treatment, authenticated research-result semantics can activate only supported promotion work, preserve promotion identity across evidence-only reruns, invalidate only semantic descendants when research meaning changes, and allow independent source candidates to integrate over unrelated current-source movement without PR restacking.",
+      "contrast": "Use pull-request ancestry, mutable branch stacks, or registry text itself as the scheduling and dependency substrate for research promotion work.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:research-result-obligation-integration"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Git CLI for local source-candidate commits, detached worktrees, cherry-pick application, and exact update-ref compare-and-swap.",
+        "Ephemeral Ed25519 keys model a trusted evaluator boundary; no production key custody is claimed.",
+        "The maintained experiment registry supplies one already-evaluated real source-obligation result as treatment input; no network or provider credential is required."
+      ],
+      "success_criteria": [
+        "Only synthetic supported result A, its semantic child, and the already-supported source-obligation-integration result materialize promotions; the falsified B result does not.",
+        "Changing a signed falsified outcome to supported without the trusted evaluator key is rejected before promotion compilation.",
+        "An unchanged experiment rerun at a different exact revision with different evidence coordinates retains the same semantic result identity and downstream promotion keys.",
+        "A materially changed research claim changes the directly dependent promotion key and its semantic descendant while leaving the unrelated real-result promotion unchanged.",
+        "Two independent source candidates bound to the same original source revision both integrate after main has moved through an earlier promotion and an unrelated source change, with neither candidate restacked.",
+        "Removing simulated pull-request projection metadata changes no compiled promotion semantic key.",
+        "A source candidate conflicting with current main returns REREALIZE_REQUIRED and leaves the authoritative ref unchanged."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "49765f430199ba5445a78235afcdce575d76341d",
+        "artifacts": [
+          "GitHub Actions Merge gate run 35958931929, exact-head candidate job 107503479211: maintained deterministic experiments passed at treatment revision 49765f430199ba5445a78235afcdce575d76341d.",
+          "Hosted experiment output materialized only promotion-a, promotion-a-child, and promotion-c; falsified promotion B did not materialize; forged result rejection, evidence-only rerun identity stability, localized semantic invalidation, zero-restack independent candidate integration, projection non-authority, and conflict-to-rerealization controls all passed.",
+          "The same exact-head candidate job passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, TLA+, the production computation-boundary proof, and self-application."
+        ]
+      },
+      "interpretation": "The bounded result supports implementing a narrow trusted research-result representation plus a deterministic research-plan-to-source-promotion compiler. Pull-request ancestry need not be project truth: research meaning can drive stable promotion intent while exact source revision remains an execution fence. Production evidence authentication, live project graph wiring, and remote source integration remain separate promotion steps.",
+      "non_claims": [
+        "The experiment registry is itself authoritative evidence of an experiment result.",
+        "The ephemeral Ed25519 key mechanism is the production evaluator or key-custody design.",
+        "Production project.advance already supports source-change packets.",
+        "Remote GitHub ref mutation has the same uncertainty semantics as local git update-ref.",
+        "Human review policy can be removed.",
+        "Arbitrary research claims can be promoted without a trusted validator binding exact-head evidence to the certified result."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The certificate shape, semantic identity rule, supported/falsified corpus, real-result input, localized invalidation checks, zero-restack two-candidate treatment, projection-deletion control, conflict falsifier, acceptance criteria, and non-claims were recorded on the branch before first hosted execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 49765f430199ba5445a78235afcdce575d76341d, trusted research results activated only justified promotions; falsified and forged results could not activate work; evidence-only reruns preserved semantic identity; changed research meaning invalidated only semantic descendants; two independently produced old-base source candidates integrated after current-source movement without restacking; projection metadata remained non-authoritative; and conflicting current source required re-realization."
+      }
     }
   ]
 }
