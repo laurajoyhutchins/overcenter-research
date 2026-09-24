@@ -35,4 +35,4 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .node-version
-      - run: npm run experiment:causal-execution-quotient
+      - run: node --experimental-strip-types experiments/causal-execution-quotient/experiment.ts
