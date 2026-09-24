@@ -3,10 +3,6 @@ import { execFileSync } from 'node:child_process';
 import { validPath } from '../execution/assignment-capsule.ts';
 import { validateSourceTaskPacket, type SourceTaskPacket } from './source-obligation.ts';
 import {
-  observeCertifiedGithubCommitAncestry,
-  type CertifiedGithubCommitAncestryEvidence,
-} from '../providers/github/certified-ancestry.ts';
-import {
   observeCertifiedGithubSemanticRead,
   type CertifiedGithubSemanticReadEvidence,
 } from '../providers/github/certified-read.ts';
@@ -22,7 +18,6 @@ export interface GithubWorkflowSourceAdmissionRequest {
   repositoryId: number;
   repositoryFullName: string;
   designSha: string;
-  evaluatedSha: string;
   taskPath: string;
   workflowRunId: number;
   workflowJobId: number;
@@ -67,7 +62,6 @@ export interface AdmittedGithubWorkflowSourceTask {
     value: WorkflowJobObservation;
     evidence: CertifiedGithubSemanticReadEvidence;
   };
-  ancestry: CertifiedGithubCommitAncestryEvidence;
 }
 
 function positiveSafeInteger(value: unknown, error: string): asserts value is number {
@@ -181,7 +175,6 @@ export function admitSourceTaskFromGithubWorkflow(
   } = {},
 ): AdmittedGithubWorkflowSourceTask {
   exactGithubObjectId(request.designSha, 'SOURCE_PROMOTION_DESIGN_SHA_INVALID');
-  exactGithubObjectId(request.evaluatedSha, 'SOURCE_PROMOTION_EVALUATED_SHA_INVALID');
   positiveSafeInteger(request.workflowRunId, 'SOURCE_PROMOTION_WORKFLOW_RUN_ID_INVALID');
   positiveSafeInteger(request.workflowJobId, 'SOURCE_PROMOTION_WORKFLOW_JOB_ID_INVALID');
   const minimumRunAttempt = request.minimumRunAttempt ?? 1;
@@ -205,8 +198,8 @@ export function admitSourceTaskFromGithubWorkflow(
   if (runRead.state !== 'observed') throw new Error('SOURCE_PROMOTION_WORKFLOW_RUN_NOT_SINGLE');
   const run = workflowRun(runRead.value);
   if (run.id !== request.workflowRunId) throw new Error('SOURCE_PROMOTION_WORKFLOW_RUN_MISMATCH');
-  if (!sameGithubObjectId(run.head_sha, request.evaluatedSha)) {
-    throw new Error('SOURCE_PROMOTION_EVALUATED_SHA_MISMATCH');
+  if (!sameGithubObjectId(run.head_sha, request.designSha)) {
+    throw new Error('SOURCE_PROMOTION_DESIGN_SHA_MISMATCH');
   }
   if (run.name !== request.workflowName || run.path !== request.workflowPath) {
     throw new Error('SOURCE_PROMOTION_WORKFLOW_IDENTITY_MISMATCH');
@@ -236,24 +229,13 @@ export function admitSourceTaskFromGithubWorkflow(
     job.id !== request.workflowJobId ||
     job.run_id !== run.id ||
     job.run_attempt !== run.run_attempt ||
-    !sameGithubObjectId(job.head_sha, request.evaluatedSha) ||
+    !sameGithubObjectId(job.head_sha, request.designSha) ||
     job.name !== `promote:${request.taskPath}`
   ) {
     throw new Error('SOURCE_PROMOTION_WORKFLOW_JOB_MISMATCH');
   }
   if (job.status !== 'completed' || job.conclusion !== 'success') {
     throw new Error('SOURCE_PROMOTION_JOB_NOT_SUCCESSFUL');
-  }
-
-  const ancestry = observeCertifiedGithubCommitAncestry(token, {
-    repositoryFullName: request.repositoryFullName,
-    ancestorSha: request.designSha,
-    descendantSha: request.evaluatedSha,
-    get,
-    clock,
-  });
-  if (ancestry.state !== 'ancestor') {
-    throw new Error('SOURCE_PROMOTION_DESIGN_NOT_ANCESTOR');
   }
 
   return {
@@ -271,6 +253,5 @@ export function admitSourceTaskFromGithubWorkflow(
       value: job,
       evidence: structuredClone(jobRead.evidence),
     },
-    ancestry: structuredClone(ancestry.evidence),
   };
 }
