@@ -19,6 +19,8 @@ import {
   assertExactKeys as exactKeys,
   assertNonEmptyString as nonEmptyString,
   isData as data,
+  isPositiveSafeInteger,
+  isSha256Hex,
 } from '../validation.ts';
 
 export const GRAPH_PATCH_SCHEMA = 'overcenter-graph-patch-v1' as const;
@@ -164,7 +166,7 @@ export function emptyState(): State {
 }
 
 function positiveSafeInteger(value: unknown, error: string): asserts value is number {
-  if (!Number.isSafeInteger(value) || (value as number) < 1) throw new Error(error);
+  if (!isPositiveSafeInteger(value)) throw new Error(error);
 }
 
 function gitObjectId(value: unknown, error: string): asserts value is string {
@@ -172,7 +174,7 @@ function gitObjectId(value: unknown, error: string): asserts value is string {
 }
 
 function sha256Hex(value: unknown, error: string): asserts value is string {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw new Error(error);
+  if (!isSha256Hex(value)) throw new Error(error);
 }
 
 export function validateDependencies(dependencies: Dependency[]): void {
