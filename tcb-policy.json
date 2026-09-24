@@ -1,0 +1,116 @@
+{
+  "schema": "overcenter-tcb-policy",
+  "schema_version": 1,
+  "properties": [
+    {
+      "id": "broker-mutation-safety",
+      "statement": "A broker-owned provider mutation cannot execute through an admitted Overcenter effect path unless execution authority and exact claimed revision are current, a durable effect reservation has succeeded, and no prior unresolved effect exists for that run.",
+      "max_semantic_loc": 5000,
+      "entries": [
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.claimedWork","reason":"reconstruct the exact claimed work before minting effect authority"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.authorizeEffect","reason":"mint non-forgeable in-process effect authority from the exact claim"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.claim","reason":"mint initial execution authority bound to the exact authority head"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.acquireExecution","reason":"rotate execution generation while invalidating stale permits"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.beginEffect","reason":"revalidate authority and durably reserve before mutation"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.performEffect","reason":"make reservation dominate the provider callback"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.releaseEffectReservation","reason":"permit retry only from trusted not-dispatched evidence"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.#requireExecutionPermit","reason":"reject forged or stale execution capabilities"},
+        {"path":"src/authority/transaction-admission.ts","whole_file":true,"reason":"authority-generation, exact-revision, reservation, release, and receipt admission predicates"},
+        {"path":"src/authority/replay.ts","symbol":"replayProjection","reason":"reconstruct current execution generation and unresolved reservations from durable facts"},
+        {"path":"src/effect-adapter.ts","whole_file":true,"reason":"effect-specific replay and reservation-release semantics"},
+        {"path":"src/effect-release-witness.ts","whole_file":true,"reason":"trusted release witness validation and exact-attempt binding"},
+        {"path":"src/storage/sqlite.ts","symbol":"SqliteFactStore.head","reason":"read current durable authority head"},
+        {"path":"src/storage/sqlite.ts","symbol":"SqliteFactStore.append","reason":"atomic expected-head append is the durable serialization point"},
+        {"path":"src/storage/sqlite.ts","symbol":"SqliteFactStore.history","reason":"reconstruct the durable fact chain consumed by replay"}
+      ],
+      "external_assumptions": [
+        "Node.js runtime preserves JavaScript/TypeScript execution semantics used by the trusted slice.",
+        "node:crypto SHA-256 and randomUUID behave as specified.",
+        "node:sqlite provides the documented transaction, WAL, and synchronous=FULL semantics.",
+        "The operating system and filesystem correctly implement the durability guarantees requested by SQLite."
+      ],
+      "excluded": [
+        "reasoning agents and their prompts",
+        "scheduler prioritization policy",
+        "CLI presentation",
+        "Go computation executor",
+        "Rust worker confinement",
+        "experiments and tests",
+        "formal models and proof tools"
+      ]
+    },
+    {
+      "id": "no-false-done",
+      "statement": "Overcenter cannot derive DONE for a run unless an admitted receipt and exact postcondition observation justify it, and replay cannot reinterpret unresolved or mismatched mutation evidence as success.",
+      "max_semantic_loc": 7000,
+      "entries": [
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.resolve","reason":"synchronous authoritative observation and settlement entrypoint"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.resolveAsync","reason":"asynchronous authoritative observation and settlement entrypoint"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.#resolutionCandidate","reason":"require the current resolvable run and execution permit"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.#commitObservation","reason":"settle observation only through expected-head durable append"},
+        {"path":"src/authority/engine.ts","symbol":"KernelCore.#receiptFact","reason":"bind receipts to exact run, generation, and execution authority"},
+        {"path":"src/authority/replay.ts","symbol":"projectReceipt","reason":"the only receipt-to-DONE decision"},
+        {"path":"src/authority/replay.ts","symbol":"replayProjection","reason":"validate durable history before projecting terminal state"},
+        {"path":"src/authority/project-state.ts","symbol":"deriveRealizationRelations","reason":"select only DONE receipts matching current semantic identity and realization judgment"},
+        {"path":"src/authority/project-state.ts","symbol":"deriveProjectProjection","reason":"derive public project state from validated history"},
+        {"path":"src/authority/realization-reuse.ts","whole_file":true,"reason":"fresh-authority admissibility for historical mutable realizations"},
+        {"path":"src/authority/facts.ts","whole_file":true,"reason":"runtime validation of claims, authority facts, reservations, releases, and receipts"},
+        {"path":"src/observation/observe.ts","symbol":"validateObservationEnvelope","reason":"reject structurally invalid observations"},
+        {"path":"src/observation/observe.ts","symbol":"assertObservationCoordinate","reason":"bind observation to the exact postcondition coordinate"},
+        {"path":"src/observation/observe.ts","symbol":"authoritativeAbsenceEvidence","reason":"recognize only verifier-specific authoritative absence"},
+        {"path":"src/observation/observe.ts","symbol":"observationVerified","reason":"exact postcondition verification gate for DONE"},
+        {"path":"src/semantics.ts","symbol":"settlementSemantics","reason":"define verifier-specific accepted negative evidence"},
+        {"path":"src/graph/identity.ts","whole_file":true,"reason":"semantic obligation identity controls historical realization reuse"},
+        {"path":"src/storage/sqlite.ts","symbol":"SqliteFactStore.append","reason":"atomic settlement append against the expected authority head"},
+        {"path":"src/storage/sqlite.ts","symbol":"SqliteFactStore.history","reason":"history integrity is required for replay correctness"}
+      ],
+      "external_assumptions": [
+        "Node.js runtime preserves JavaScript/TypeScript execution semantics used by the trusted slice.",
+        "Provider observations supplied to the verifier obey the provider-profile assumptions documented separately.",
+        "node:crypto SHA-256 behaves as specified.",
+        "node:sqlite and the operating system preserve committed authority history according to the requested durability mode."
+      ],
+      "excluded": [
+        "worker assertions of success",
+        "reasoning-agent judgment",
+        "scheduler fairness and throughput",
+        "CLI and operator UX",
+        "Go computation executor",
+        "Rust worker confinement",
+        "experiments and formal models"
+      ]
+    },
+    {
+      "id": "github-commit-status-provider",
+      "statement": "For the admitted GitHub commit-status mutation profile, repository identity, transport dispatch certainty, authoritative status observation, and exact provider coordinates are interpreted correctly.",
+      "max_semantic_loc": 5000,
+      "entries": [
+        {"path":"src/providers/github/status-effect.ts","whole_file":true,"reason":"admitted GitHub status mutation boundary"},
+        {"path":"src/providers/github/status-transport.ts","whole_file":true,"reason":"fresh-HTTPS dispatch certainty and trusted not-dispatched witness minting"},
+        {"path":"src/providers/github/certified-status.ts","whole_file":true,"reason":"authoritative commit-status observation and pagination interpretation"},
+        {"path":"src/providers/github/certified-repository.ts","whole_file":true,"reason":"canonical repository identity certification"},
+        {"path":"src/providers/github/certified-observation.ts","whole_file":true,"reason":"certified response envelope and structural evidence"},
+        {"path":"src/providers/github/certified-read.ts","whole_file":true,"reason":"schema-bound GitHub read interpretation used by certified observations"},
+        {"path":"src/providers/github/page-collection.ts","whole_file":true,"reason":"complete paginated collection semantics"},
+        {"path":"src/providers/github/openapi.ts","whole_file":true,"reason":"materialize pinned operation coordinates from the generated contract"},
+        {"path":"src/providers/github/semantics.ts","whole_file":true,"reason":"provider response-slice semantics used by certification"},
+        {"path":"src/providers/github/rest.ts","whole_file":true,"reason":"GitHub request boundary used by certified observation"},
+        {"path":"src/observation/provider.ts","whole_file":true,"reason":"provider observation envelope validation"},
+        {"path":"src/observation/response-slice.ts","whole_file":true,"reason":"structural response projection validated before semantic use"}
+      ],
+      "external_assumptions": [
+        "GitHub repository IDs and commit-status coordinates have the documented API meaning.",
+        "GitHub HTTPS responses correspond to the authenticated api.github.com endpoint reached by the transport.",
+        "TLS, DNS, sockets, and Node.js HTTPS correctly distinguish failure before secureConnect from failures after secureConnect.",
+        "The pinned GitHub API/OpenAPI contract accurately describes the response fields consumed by the verifier."
+      ],
+      "excluded": [
+        "other GitHub automation",
+        "GitHub Actions scheduling",
+        "pull-request update-branch provider profile",
+        "Kubernetes and GCP providers",
+        "worker credentials when they are not broker credentials"
+      ]
+    }
+  ]
+}
