@@ -166,7 +166,7 @@
       "contrast": "Treat every durable linearization as semantically distinct, or declare graph-disconnected/different-ID work independent without checking causal, resource, and property-sensitive observability.",
       "reproduce": {
         "tier": "deterministic",
-        "local": "npm run experiment:causal-execution-quotient"
+        "local": "node --experimental-strip-types experiments/causal-execution-quotient/experiment.ts"
       },
       "environment": [
         "Node.js from .node-version.",
