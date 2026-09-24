@@ -134,13 +134,17 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
   );
   for (const command of [
     'npm run test:unit',
-    'npm run test:experiments',
     'npm run proof:formal',
     'npm run proof:production-boundary',
     'scripts/proof-self-application.sh',
   ]) {
     assert.ok(evidenceWorkflow.includes(command), `candidate evidence is missing ${command}`);
   }
+  assert.doesNotMatch(
+    evidenceWorkflow,
+    /test:experiments|test:experiment-contract|scripts\/experiments\.ts/,
+    'candidate evidence must not depend on the archival experiment catalog or a parallel runner',
+  );
   assert.doesNotMatch(
     mergeGate,
     /production-computation:|self-application:/,
