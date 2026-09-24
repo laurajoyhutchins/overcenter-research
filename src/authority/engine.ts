@@ -1,4 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { sha256 } from '../digest.ts';
 import type {
   Data,
   ExecutionPermit,
@@ -532,70 +533,23 @@ export class KernelCore {
   }
 
   deferForJudgment(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
-    const runId = permit.id;
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const head = this.#requireHead();
-      const { state, history, project } = this.#historicalProjection(head);
-      const known = history.runs.get(runId);
-      if (!known) throw new Error('UNKNOWN_RUN');
-      const prior = history.receiptsByRun.get(runId);
-      if (prior && ['DONE', 'READY'].includes(prior.disposition)) {
-        return prior;
-      }
-      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-      const work = known.obligation;
-      const run = this.#requireExecutionPermit(history, permit);
-      const lifecycle = project.lifecycles.get(run.obligation_id);
-      if (lifecycle?.run?.id !== runId || lifecycle.status !== 'EXECUTING') {
-        if (prior) return prior;
-        throw new Error('AUTHORITY_LOST');
-      }
-      if (history.unresolvedReservationsByRun.has(runId)) {
-        throw new Error('UNRESOLVED_EFFECT');
-      }
-
-      const fact = this.#receiptFact(run, work.id, 'judgment-required', null, diagnostic);
-      const receipt = projectReceipt(fact, work);
-      const commit = this.#store.append(
-        head,
-        `overcenter: judgment required ${work.id} ${run.id}`,
-        { 'receipt.json': fact },
-      );
-      if (commit) return { ...receipt, settlement_commit: commit };
-    }
-    throw new Error('DEFER_CONTENTION_EXHAUSTED');
+    return this.#settleWithoutObservation(permit, diagnostic, {
+      kind: 'judgment-required',
+      action: 'judgment required',
+      inactiveError: 'AUTHORITY_LOST',
+      rejectUnresolvedEffect: true,
+      contentionError: 'DEFER_CONTENTION_EXHAUSTED',
+    });
   }
 
   recoverInterrupted(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
-    const runId = permit.id;
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const head = this.#requireHead();
-      const { state, history, project } = this.#historicalProjection(head);
-      const known = history.runs.get(runId);
-      if (!known) throw new Error('UNKNOWN_RUN');
-      const prior = history.receiptsByRun.get(runId);
-      if (prior && ['DONE', 'READY'].includes(prior.disposition)) {
-        return prior;
-      }
-      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
-      const work = known.obligation;
-      const run = this.#requireExecutionPermit(history, permit);
-      const lifecycle = project.lifecycles.get(run.obligation_id);
-      if (lifecycle?.run?.id !== runId || lifecycle.status !== 'EXECUTING') {
-        if (prior) return prior;
-        throw new Error('RUN_NOT_EXECUTING');
-      }
-
-      const fact = this.#receiptFact(run, work.id, 'execution-terminated', null, diagnostic);
-      const receipt = projectReceipt(fact, work);
-      const commit = this.#store.append(
-        head,
-        `overcenter: execution terminated ${work.id} ${runId}`,
-        { 'receipt.json': fact },
-      );
-      if (commit) return { ...receipt, settlement_commit: commit };
-    }
-    throw new Error('RECOVERY_CONTENTION_EXHAUSTED');
+    return this.#settleWithoutObservation(permit, diagnostic, {
+      kind: 'execution-terminated',
+      action: 'execution terminated',
+      inactiveError: 'RUN_NOT_EXECUTING',
+      rejectUnresolvedEffect: false,
+      contentionError: 'RECOVERY_CONTENTION_EXHAUSTED',
+    });
   }
 
   reconcile(permit: ExecutionPermit): Receipt {
@@ -753,6 +707,54 @@ export class KernelCore {
     return commit ? { ...receipt, settlement_commit: commit } : null;
   }
 
+  #settleWithoutObservation(
+    permit: ExecutionPermit,
+    diagnostic: Data,
+    {
+      kind,
+      action,
+      inactiveError,
+      rejectUnresolvedEffect,
+      contentionError,
+    }: {
+      kind: Extract<ReceiptKind, 'judgment-required' | 'execution-terminated'>;
+      action: 'judgment required' | 'execution terminated';
+      inactiveError: 'AUTHORITY_LOST' | 'RUN_NOT_EXECUTING';
+      rejectUnresolvedEffect: boolean;
+      contentionError: 'DEFER_CONTENTION_EXHAUSTED' | 'RECOVERY_CONTENTION_EXHAUSTED';
+    },
+  ): Receipt {
+    const runId = permit.id;
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const head = this.#requireHead();
+      const { state, history, project } = this.#historicalProjection(head);
+      const known = history.runs.get(runId);
+      if (!known) throw new Error('UNKNOWN_RUN');
+      const prior = history.receiptsByRun.get(runId);
+      if (prior && ['DONE', 'READY'].includes(prior.disposition)) return prior;
+      if (!state.obligations[known.obligation_id]) throw new Error('UNKNOWN_OBLIGATION');
+
+      const work = known.obligation;
+      const run = this.#requireExecutionPermit(history, permit);
+      const lifecycle = project.lifecycles.get(run.obligation_id);
+      if (lifecycle?.run?.id !== runId || lifecycle.status !== 'EXECUTING') {
+        if (prior) return prior;
+        throw new Error(inactiveError);
+      }
+      if (rejectUnresolvedEffect && history.unresolvedReservationsByRun.has(runId)) {
+        throw new Error('UNRESOLVED_EFFECT');
+      }
+
+      const fact = this.#receiptFact(run, work.id, kind, null, diagnostic);
+      const receipt = projectReceipt(fact, work);
+      const commit = this.#store.append(head, `overcenter: ${action} ${work.id} ${runId}`, {
+        'receipt.json': fact,
+      });
+      if (commit) return { ...receipt, settlement_commit: commit };
+    }
+    throw new Error(contentionError);
+  }
+
   #requireHead(): string {
     const head = this.head();
     if (!head) throw new Error('NOT_INITIALIZED');
@@ -815,7 +817,7 @@ export class KernelCore {
   }
 
   #capabilityDigest(capability: string): string {
-    return createHash('sha256').update(capability).digest('hex');
+    return sha256(capability);
   }
 
   #requireExecutionPermit(history: Projection['history'], permit: ExecutionPermit): HistoricalRun {
