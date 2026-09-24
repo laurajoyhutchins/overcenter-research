@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +10,7 @@ import {
   type GeneratedOutputValidator,
 } from '../src/authority/kernel.ts';
 import { FileEvidenceStore } from '../src/evidence/file-store.ts';
+import { GitOvercenterKernel } from '../src/storage/git-kernel.ts';
 
 const VALIDATOR = 'source-proposal-scope/v1';
 
@@ -293,6 +295,51 @@ test('verified output settlement rejects stale authority, missing stores, and in
     } finally {
       noStore.close();
     }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test('Git authority round-trips the verified output fact and current evidence', () => {
+  const root = mkdtempSync(join(tmpdir(), 'verified-output-git-'));
+  try {
+    const repo = join(root, 'authority.git');
+    execFileSync('git', ['init', '--bare', repo], { stdio: 'ignore' });
+    const evidence = new FileEvidenceStore(join(root, 'evidence'));
+    const options = {
+      evidenceStore: evidence,
+      generatedOutputValidators: { [VALIDATOR]: sourceProposalValidator },
+    };
+
+    const kernel = new GitOvercenterKernel(repo, options);
+    kernel.initialize();
+    kernel.define({
+      id: 'source-proposal',
+      packet: { writable_paths: ['src/feature.ts'] },
+      postcondition: {
+        verifier: 'verified-generated-output/v1',
+        validator: VALIDATOR,
+      },
+    });
+    const ready = kernel.deriveReadyWork()!;
+    const permit = kernel.claim(ready.id, ready.revision);
+    const receipt = kernel.settleVerifiedOutput(permit, sourceOutput('git-backed\n'));
+    assert.equal(receipt.disposition, 'DONE');
+
+    const persisted = JSON.parse(
+      execFileSync(
+        'git',
+        ['-C', repo, 'show', `${receipt.settlement_commit}:verified-output.json`],
+        { encoding: 'utf8' },
+      ),
+    ) as Record<string, unknown>;
+    assert.equal(persisted.schema, 'overcenter-verified-output');
+    assert.equal(persisted.validator, VALIDATOR);
+
+    const reopened = new GitOvercenterKernel(repo, options);
+    assert.equal(reopened.inspect()[0]?.status, 'DONE');
+    assert.equal(reopened.receipts()[0]?.verified_output?.validator, VALIDATOR);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
