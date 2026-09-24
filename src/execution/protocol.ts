@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { sha256 } from '../digest.ts';
 import { posix as path } from 'node:path';
 import type { ExecutionPermit } from '../model.ts';
 
@@ -85,12 +85,8 @@ export interface ComputationAttemptEvidence {
   error?: string;
 }
 
-function sha256Hex(bytes: Uint8Array | string): string {
-  return createHash('sha256').update(bytes).digest('hex');
-}
-
 function sha256Tagged(bytes: Uint8Array | string): string {
-  return 'sha256:' + sha256Hex(bytes);
+  return 'sha256:' + sha256(bytes);
 }
 
 function assertPlainObject(value: unknown, name: string): asserts value is Record<string, unknown> {
@@ -321,7 +317,7 @@ export function validateComputationExecution(value: unknown): ComputationExecuti
   assertBoundedString(value.execution_authority_commit, 'execution_authority_commit', 256);
   assertBoundedString(value.execution_capability, 'execution_capability', 4096);
   assertSha256Hex(value.execution_capability_sha256, 'execution_capability_sha256');
-  if (sha256Hex(value.execution_capability) !== value.execution_capability_sha256) {
+  if (sha256(value.execution_capability) !== value.execution_capability_sha256) {
     throw new Error('EXECUTION_CAPABILITY_DIGEST_MISMATCH');
   }
 
