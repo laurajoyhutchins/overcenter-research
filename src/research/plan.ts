@@ -39,7 +39,10 @@ export interface ResearchPromotion {
 }
 
 function stringArray(value: unknown, error: string): string[] {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || item.length === 0)) {
+  if (
+    !Array.isArray(value) ||
+    value.some((item) => typeof item !== 'string' || item.length === 0)
+  ) {
     throw new Error(error);
   }
   if (new Set(value).size !== value.length) throw new Error(`${error}_DUPLICATE`);
@@ -100,7 +103,8 @@ export function validateResearchPlan(value: unknown): ResearchPlan {
   for (const promotion of promotions) {
     for (const upstream of promotion.requires_promotions) {
       if (!seen.has(upstream)) throw new Error(`RESEARCH_PROMOTION_DEPENDENCY_UNKNOWN:${upstream}`);
-      if (upstream === promotion.id) throw new Error(`RESEARCH_PROMOTION_DEPENDENCY_SELF:${upstream}`);
+      if (upstream === promotion.id)
+        throw new Error(`RESEARCH_PROMOTION_DEPENDENCY_SELF:${upstream}`);
     }
   }
 
