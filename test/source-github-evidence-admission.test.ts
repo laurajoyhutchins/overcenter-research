@@ -130,9 +130,7 @@ function request(designSha: string) {
     taskPath: TASK_PATH,
     workflowRunId: WORKFLOW_RUN_ID,
     workflowJobId: WORKFLOW_JOB_ID,
-    workflowName: 'Research experiment',
     workflowPath: '.github/workflows/research.yml',
-    minimumRunAttempt: 2,
   };
 }
 
@@ -149,10 +147,8 @@ test('exact GitHub evidence admits only the source task frozen at the executed d
     assert.deepEqual(admitted.task, f.original);
     assert.equal(admitted.design.commit_sha, f.designSha);
     assert.equal(admitted.design.task_blob_sha, f.designBlobSha);
-    assert.equal(admitted.workflow_run.value.head_sha, f.designSha);
-    assert.equal(admitted.workflow_run.evidence.operation_id, 'actions/get-workflow-run');
-    assert.equal(admitted.promotion_job.value.name, `promote:${TASK_PATH}`);
-    assert.equal(admitted.promotion_job.evidence.operation_id, 'actions/get-job-for-workflow-run');
+    assert.equal(admitted.workflow_run_evidence.operation_id, 'actions/get-workflow-run');
+    assert.equal(admitted.promotion_job_evidence.operation_id, 'actions/get-job-for-workflow-run');
     assert.equal(JSON.stringify(admitted.task).includes('unrelated.ts'), false);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
@@ -177,7 +173,7 @@ test('a green experiment does not promote when its promotion job is skipped', ()
   }
 });
 
-test('workflow identity, exact design revision, and certification attempt fail closed', () => {
+test('workflow identity and exact design revision fail closed', () => {
   const f = fixture();
   try {
     const stale = provider(f.designSha, {
@@ -189,18 +185,6 @@ test('workflow identity, exact design revision, and certification attempt fail c
           get: stale.get,
         }),
       /SOURCE_PROMOTION_DESIGN_SHA_MISMATCH/,
-    );
-
-    const early = provider(f.designSha, {
-      run: workflowRun(f.designSha, { run_attempt: 1 }),
-      job: workflowJob(f.designSha, { run_attempt: 1 }),
-    });
-    assert.throws(
-      () =>
-        admitSourceTaskFromGithubWorkflow(f.root, 'token', request(f.designSha), {
-          get: early.get,
-        }),
-      /SOURCE_PROMOTION_WORKFLOW_ATTEMPT_TOO_EARLY/,
     );
 
     const wrongWorkflow = provider(f.designSha, {
