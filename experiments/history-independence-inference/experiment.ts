@@ -86,6 +86,7 @@ interface IndependenceDecision {
     | 'same-obligation'
     | 'graph-causal'
     | 'effect-semantics-unknown'
+    | 'effect-adapter-unknown-or-mismatched'
     | 'distinct-effect-resource'
     | 'same-resource-different-desired'
     | 'same-resource-duplicate-delivery-not-proven'
@@ -182,6 +183,15 @@ function deriveProjectTruthIndependence(
     return { independent: false, reason: 'effect-semantics-unknown' };
   }
 
+  if (
+    !leftCapabilities ||
+    !rightCapabilities ||
+    leftCapabilities.postcondition_verifier !== left.postcondition.verifier ||
+    rightCapabilities.postcondition_verifier !== right.postcondition.verifier
+  ) {
+    return { independent: false, reason: 'effect-adapter-unknown-or-mismatched' };
+  }
+
   if (leftEffect.resource !== rightEffect.resource) {
     return { independent: true, reason: 'distinct-effect-resource' };
   }
@@ -219,6 +229,10 @@ function manualOracleCases() {
     expectedState: 'failure',
   });
   const unknown = unknownEffect('unknown-effect');
+  const mismatchedAdapter = status('mismatched-adapter', {
+    context: 'overcenter/history-inference/mismatched-adapter',
+  });
+  mismatchedAdapter.packet.effect_contract = 'provider/unknown-effect';
 
   return [
     {
@@ -263,6 +277,13 @@ function manualOracleCases() {
       right: unknown.id,
       expected: false,
     },
+    {
+      name: 'mismatched-effect-adapter',
+      state: stateOf([a, mismatchedAdapter]),
+      left: A,
+      right: mismatchedAdapter.id,
+      expected: false,
+    },
   ];
 }
 
@@ -288,6 +309,14 @@ function unknownMeansIndependent(state: State, leftId: string, rightId: string):
   const right = effectSemantics(state.obligations[rightId]!.postcondition);
   if (!left || !right) return true;
   return left.resource !== right.resource;
+}
+
+function ignoresAdapterBinding(state: State, leftId: string, rightId: string): boolean {
+  const graph = buildGraphIndex(state);
+  if (graphDependsOn(graph, leftId, rightId) || graphDependsOn(graph, rightId, leftId)) return false;
+  const left = effectSemantics(state.obligations[leftId]!.postcondition);
+  const right = effectSemantics(state.obligations[rightId]!.postcondition);
+  return Boolean(left && right && left.resource !== right.resource);
 }
 
 function sameDesiredCommutesMeansIndependent(
@@ -324,12 +353,21 @@ function checkInferenceAgainstManualOracle() {
   const conflict = byName.get('same-coordinate-conflicting-desired')!;
   const unknown = byName.get('unknown-effect-semantics')!;
   const sameDesired = byName.get('same-coordinate-same-desired-may-duplicate')!;
+  const mismatchedAdapter = byName.get('mismatched-effect-adapter')!;
 
   assert.equal(noGraphGuard(dependent.state, dependent.left, dependent.right), true);
   assert.equal(resourceBlind(conflict.state, conflict.left, conflict.right), true);
   assert.equal(unknownMeansIndependent(unknown.state, unknown.left, unknown.right), true);
   assert.equal(
     sameDesiredCommutesMeansIndependent(sameDesired.state, sameDesired.left, sameDesired.right),
+    true,
+  );
+  assert.equal(
+    ignoresAdapterBinding(
+      mismatchedAdapter.state,
+      mismatchedAdapter.left,
+      mismatchedAdapter.right,
+    ),
     true,
   );
 
@@ -342,7 +380,7 @@ function checkInferenceAgainstManualOracle() {
       expected: fixture.expected,
       decision: deriveProjectTruthIndependence(fixture.state, fixture.left, fixture.right),
     })),
-    hostile_mutants_rejected: 4,
+    hostile_mutants_rejected: 5,
   };
 }
 
@@ -847,6 +885,7 @@ try {
         lens: 'project-truth',
         graph_causality_required: true,
         known_effect_semantics_required: true,
+        exact_adapter_verifier_binding_required: true,
         distinct_effect_resource_admitted: true,
         same_resource_requires_semantic_idempotence: true,
       },
@@ -857,7 +896,7 @@ try {
       asymmetric_legality: 0,
       critical_pair_branches: criticalPairBranches,
       provenance_preserved: true,
-      hostile_inference_mutants_rejected: 4,
+      hostile_inference_mutants_rejected: 5,
       non_claim:
         'the derived relation is project-truth-relative; distinct effect resources do not establish provider-history independence',
     }),
