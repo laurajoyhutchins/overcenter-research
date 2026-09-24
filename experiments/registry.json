@@ -1089,11 +1089,15 @@
         "A conflict-only decomposition misses the causal bridge and is rejected by production graph causality."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "d9f2be76f0143d4049744ffa4985ac71f45f2c04",
         "artifacts": [
-          ".github/workflows/n-agent-interaction-frontier.yml"
-        ],
-        "pending_reason": "The 50-agent workload, exact interaction/component cardinalities, causal bridge, per-component exhaustive oracle, and conflict-only negative control are preregistered; exact-head hosted execution has not yet been recorded."
+          "GitHub Actions run 35951393837, job 107480499860: exact-head 50-agent interaction-frontier treatment PASS.",
+          "Baseline: 50 proposals / 1,225 possible pairs -> 24 interaction edges, 38 components, four 4-agent conflict islands plus 34 singletons.",
+          "Baseline component-local reasoning required 130 complete executions; combined causal trace product was 331,776 while the naive global schedule space was 50!.",
+          "One production control dependency merged two islands into an 8-agent component; race/backtracking represented its 576 causal traces and total local work rose to 658 executions.",
+          "Conflict-only decomposition missed the bridge and was rejected by production graph causality."
+        ]
       },
       "interpretation": "A positive result would support computing a deterministic interaction frontier before joint agent reasoning: independent proposal components can be analyzed separately, while real graph or effect coupling expands the frontier.",
       "non_claims": [
@@ -1110,8 +1114,8 @@
         "note": "The 50-agent topology, 24-edge/38-component baseline, 130-execution local-work target, causal bridge to an 8-agent component, 576 bridged trace classes, 658-execution treatment target, and conflict-only falsifier were committed before hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The preregistered 50-agent interaction-frontier treatment has not yet produced exact-head hosted evidence."
+        "state": "supported",
+        "summary": "Production graph causality plus provider-effect semantics reduced the 50-agent pair surface to four small conflict islands and singletons, then correctly expanded the reasoning frontier to eight agents when a real causal bridge connected two islands."
       }
     },
     {
