@@ -179,7 +179,8 @@ async function runWorld(world: World): Promise<Result> {
       const postsBeforeRetry = postCalls;
       let duplicateRetryError = '';
       try {
-        await performGithubCommitStatusEffect(fresh, recovery, {
+        const authority = fresh.authorizeEffect(recovery, GITHUB_COMMIT_STATUS_EFFECT);
+        await performGithubCommitStatusEffect(fresh, authority, {
           token: 'token',
           get: async () => repository(),
           post: async () => {
