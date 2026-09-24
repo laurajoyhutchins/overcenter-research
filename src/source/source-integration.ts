@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { GitFactStore } from '../storage/git-store.ts';
 import { assertExactKeys, assertNonEmptyString, isData } from '../validation.ts';
 import {
   SOURCE_CANDIDATE_SCHEMA,
@@ -67,6 +66,40 @@ function git(repo: string, args: string[]): string {
 
 function gitStatus(repo: string, args: string[]): number {
   return spawnSync('git', ['-C', repo, ...args], { stdio: 'ignore' }).status ?? 1;
+}
+
+function remoteRefHead(repo: string, remote: string, ref: string): string | null {
+  const listed = execFileSync('git', ['-C', repo, 'ls-remote', remote, ref], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  if (!listed) return null;
+  const sha = listed.split(/\s+/)[0] ?? '';
+  exactSha(sha, 'SOURCE_AUTHORITY_HEAD_INVALID');
+  execFileSync(
+    'git',
+    ['-C', repo, 'fetch', '--no-tags', remote, `+${ref}:refs/overcenter/source-main-observed`],
+    { stdio: 'ignore' },
+  );
+  return sha;
+}
+
+function remoteRefCas(
+  repo: string,
+  remote: string,
+  ref: string,
+  next: string,
+  expected: string,
+): boolean {
+  return (
+    gitStatus(repo, [
+      'push',
+      '--porcelain',
+      `--force-with-lease=${ref}:${expected}`,
+      remote,
+      `${next}:${ref}`,
+    ]) === 0
+  );
 }
 
 function exactSha(value: unknown, error: string): asserts value is string {
@@ -279,9 +312,8 @@ export function integrateVerifiedSourceCandidate(
     ref?: string;
   } = {},
 ): SourceIntegrationResult {
-  let task: SourceTaskPacket;
   try {
-    task = inspectSourceCandidate(repo, taskValue, claim, candidateSha).task;
+    inspectSourceCandidate(repo, taskValue, claim, candidateSha);
   } catch (error: unknown) {
     return {
       state: 'REJECTED',
@@ -311,10 +343,9 @@ export function integrateVerifiedSourceCandidate(
     };
   }
 
-  const source = new GitFactStore(repo, { ref, remote });
   let current: string;
   try {
-    current = source.head() ?? '';
+    current = remoteRefHead(repo, remote, ref) ?? '';
   } catch {
     return { state: 'RECOVERY_REQUIRED', reason: 'SOURCE_AUTHORITY_UNREACHABLE' };
   }
@@ -369,7 +400,7 @@ export function integrateVerifiedSourceCandidate(
     candidateTree.dispose();
   }
 
-  if (source.cas(integrated, current)) {
+  if (remoteRefCas(repo, remote, ref, integrated, current)) {
     const evidence: SourceIntegrationEvidence = {
       schema: SOURCE_INTEGRATION_EVIDENCE_SCHEMA,
       run_id: claim.run_id,
@@ -390,7 +421,7 @@ export function integrateVerifiedSourceCandidate(
 
   let observed: string;
   try {
-    observed = source.head() ?? '';
+    observed = remoteRefHead(repo, remote, ref) ?? '';
   } catch {
     return { state: 'RECOVERY_REQUIRED', reason: 'SOURCE_CAS_OUTCOME_UNCERTAIN' };
   }
