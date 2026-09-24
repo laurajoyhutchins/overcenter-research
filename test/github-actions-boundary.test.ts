@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const workflow = readFileSync(
@@ -14,20 +14,6 @@ const evidenceWorkflow = readFileSync(
   new URL('../.github/workflows/tests.yml', import.meta.url),
   'utf8',
 );
-const experimentWorkflowPaths = [
-  '../.github/workflows/authority-flow-analysis.yml',
-  '../.github/workflows/authority-storage-decomposition.yml',
-  '../.github/workflows/distributed-authority-chaos.yml',
-  '../.github/workflows/distributed-authority-handoff.yml',
-  '../.github/workflows/effect-authority-decay.yml',
-  '../.github/workflows/typed-capability-authority.yml',
-  '../.github/workflows/core-loop-concurrency.yml',
-  '../.github/workflows/production-latency.yml',
-  '../.github/workflows/disposable-agent-proof.yml',
-  '../.github/workflows/typebox-production-contract.yml',
-  '../.github/workflows/assignment-capsule-proof.yml',
-];
-
 const candidateOnlyWorkflowPaths = [
   '../.github/workflows/assignment-capsule-proof.yml',
   '../.github/workflows/disposable-agent-proof.yml',
@@ -175,23 +161,27 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
 
 
 test('experiment workflows do not fan out on shared catalog metadata', () => {
-  for (const path of experimentWorkflowPaths) {
-    const source = readFileSync(new URL(path, import.meta.url), 'utf8');
+  const workflows = new URL('../.github/workflows/', import.meta.url);
+  for (const name of readdirSync(workflows).filter((entry) => entry.endsWith('.yml'))) {
+    const source = readFileSync(new URL(name, workflows), 'utf8');
+    if (!source.includes('  pull_request:\n')) continue;
     const pullRequest = eventBlock(source, 'pull_request');
+    if (!pullRequest.includes('experiments/')) continue;
+
     assert.doesNotMatch(
       pullRequest,
       /experiments\/registry\.json/,
-      `${path} must not treat the shared experiment registry as runtime input`,
+      `${name} must not treat the shared experiment registry as runtime input`,
     );
     assert.doesNotMatch(
       pullRequest,
       /experiments\/README\.md/,
-      `${path} must not run for experiment index documentation`,
+      `${name} must not run for experiment index documentation`,
     );
     assert.doesNotMatch(
       pullRequest,
       /- ['"]?package\.json['"]?/,
-      `${path} must not rerun for unrelated npm script metadata`,
+      `${name} must not rerun for unrelated npm script metadata`,
     );
   }
 });
