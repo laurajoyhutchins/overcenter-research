@@ -19,6 +19,7 @@ import {
 } from '../source/source-obligation.ts';
 import {
   integrateVerifiedSourceCandidate,
+  validateSourceIntegrationEvidence,
   validateSourceVerification,
 } from '../source/source-integration.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
@@ -389,6 +390,46 @@ function safeLocalObservationRoot(path: string): string {
   return root;
 }
 
+function assertNonEmptyCandidateRun(value: string): void {
+  if (!value) throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_REQUIRED');
+}
+
+function sourceSubmitReceipt(
+  context: ProjectSubmitContext,
+  authorityRef: string,
+  kernel: GitOvercenterKernel,
+  obligationId: string,
+  claimedRevision: string,
+  candidateSha: string,
+  settled: ReturnType<GitOvercenterKernel['recoverInterrupted']>,
+  alreadySettled: boolean,
+  integrationCommit?: string,
+): ProjectSubmitReceipt {
+  const authorityHead = kernel.head();
+  if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
+  return withDigest({
+    schema: PROJECT_SUBMIT_RECEIPT_SCHEMA,
+    command: PROJECT_SUBMIT_COMMAND,
+    transport: 'github-actions-job-rerun' as const,
+    repository_id: context.repository_id,
+    repository_full_name: context.repository_full_name,
+    command_source_sha: context.command_source_sha.toLowerCase(),
+    command_run_id: context.command_run_id,
+    command_run_attempt: context.command_run_attempt,
+    authority_ref: authorityRef,
+    authority_head: authorityHead,
+    candidate_sha: candidateSha,
+    obligation_id: obligationId,
+    run_id: context.candidate_run_id,
+    claimed_revision: claimedRevision,
+    ...(integrationCommit ? { integration_commit: integrationCommit } : {}),
+    disposition: settled.disposition,
+    verified: settled.verified,
+    settlement_commit: settled.settlement_commit ?? null,
+    already_settled: alreadySettled,
+  });
+}
+
 export function submitProjectCandidate(
   repo: string,
   context: ProjectSubmitContext,
@@ -397,17 +438,14 @@ export function submitProjectCandidate(
     remote = DEFAULT_REMOTE,
     githubToken = null,
     candidatePath = DEFAULT_CANDIDATE_PATH,
+    sourceVerificationPath,
   }: SubmitOptions = {},
 ): ProjectSubmitReceipt {
   validateCommandContext(context);
+  assertNonEmptyCandidateRun(context.candidate_run_id);
   const candidateSha = context.candidate_sha.toLowerCase();
-  if (!/^[0-9a-f]{40}$/i.test(candidateSha)) {
+  if (!/^[0-9a-f]{40}$/.test(candidateSha)) {
     throw new Error('PROJECT_SUBMIT_CANDIDATE_SHA_INVALID');
-  }
-
-  const raw = JSON.parse(gitBytes(repo, candidateSha, candidatePath).toString('utf8'));
-  if (!record(raw) || typeof raw.run_id !== 'string') {
-    throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_INVALID');
   }
 
   const kernel = new GitOvercenterKernel(repo, {
@@ -417,9 +455,175 @@ export function submitProjectCandidate(
   });
   if (!kernel.head()) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
 
-  const assigned = kernel.claimedWork(raw.run_id);
-  const sourceRevision = kernel.claimedSourceRevision(raw.run_id);
+  const runId = context.candidate_run_id;
+  const assigned = kernel.claimedWork(runId);
+  const sourceRevision = kernel.claimedSourceRevision(runId);
   if (!sourceRevision) throw new Error('PROJECT_SUBMIT_SOURCE_REVISION_MISSING');
+
+  if (assigned.packet.kind === 'source-change') {
+    const claim = kernel.sourceClaimBinding(runId);
+    const prior = kernel.receipts(runId).at(-1);
+    if (prior?.disposition === 'DONE' && prior.kind === 'source-integration') {
+      const diagnostic = record(prior.diagnostic) ? prior.diagnostic.source_integration : null;
+      const evidence = validateSourceIntegrationEvidence(diagnostic);
+      if (evidence.candidate_sha !== candidateSha) {
+        throw new Error('PROJECT_SUBMIT_SETTLED_SOURCE_MISMATCH');
+      }
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
+      return withDigest({
+        schema: PROJECT_SUBMIT_RECEIPT_SCHEMA,
+        command: PROJECT_SUBMIT_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        candidate_sha: candidateSha,
+        obligation_id: assigned.id,
+        run_id: runId,
+        claimed_revision: claim.claimed_revision,
+        integration_commit: evidence.integration_commit,
+        disposition: 'DONE' as const,
+        verified: true,
+        settlement_commit: prior.settlement_commit ?? null,
+        already_settled: true,
+      });
+    }
+    if (prior?.disposition === 'READY' && prior.kind === 'source-retry') {
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
+      return withDigest({
+        schema: PROJECT_SUBMIT_RECEIPT_SCHEMA,
+        command: PROJECT_SUBMIT_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        candidate_sha: candidateSha,
+        obligation_id: assigned.id,
+        run_id: runId,
+        claimed_revision: claim.claimed_revision,
+        disposition: 'READY' as const,
+        verified: false,
+        settlement_commit: prior.settlement_commit ?? null,
+        already_settled: true,
+      });
+    }
+
+    const current = kernel.inspect().find((work) => work.id === assigned.id);
+    if (!current || current.run_id !== runId) {
+      throw new Error('PROJECT_SUBMIT_AUTHORITY_RUN_MISMATCH');
+    }
+    if (!['EXECUTING', 'RECOVERY_REQUIRED'].includes(current.status)) {
+      throw new Error(`PROJECT_SUBMIT_RUN_NOT_SETTLEABLE:${current.status}`);
+    }
+
+    const permit = kernel.acquireExecution(runId);
+    if (!sourceVerificationPath) {
+      const recovered = kernel.recoverInterrupted(permit, {
+        source_verification: { reason: 'SOURCE_VERIFICATION_MISSING', candidate_sha: candidateSha },
+      });
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        recovered,
+        false,
+      );
+    }
+
+    let verification: ReturnType<typeof validateSourceVerification>;
+    try {
+      verification = validateSourceVerification(
+        JSON.parse(readFileSync(sourceVerificationPath, 'utf8')),
+      );
+    } catch (error: unknown) {
+      const reason = error instanceof Error ? error.message : String(error);
+      const recovered = kernel.recoverInterrupted(permit, {
+        source_verification: { reason, candidate_sha: candidateSha },
+      });
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        recovered,
+        false,
+      );
+    }
+
+    const integration = integrateVerifiedSourceCandidate(
+      repo,
+      assigned.packet,
+      claim,
+      candidateSha,
+      verification,
+      { remote },
+    );
+
+    if (integration.state === 'INTEGRATED' || integration.state === 'ALREADY_INTEGRATED') {
+      const settled = kernel.settleSourceIntegration(permit, integration.witness);
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        settled,
+        integration.state === 'ALREADY_INTEGRATED',
+        integration.commit_sha,
+      );
+    }
+
+    if (integration.state === 'RECOVERY_REQUIRED') {
+      const recovered = kernel.recoverInterrupted(permit, {
+        source_integration: { reason: integration.reason, candidate_sha: candidateSha },
+      });
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        recovered,
+        false,
+      );
+    }
+
+    const retry = kernel.retrySourceIntegration(permit, integration.reason, {
+      candidate_sha: candidateSha,
+    });
+    return sourceSubmitReceipt(
+      context,
+      authorityRef,
+      kernel,
+      assigned.id,
+      claim.claimed_revision,
+      candidateSha,
+      retry,
+      false,
+    );
+  }
+
+  const raw = JSON.parse(gitBytes(repo, candidateSha, candidatePath).toString('utf8'));
+  if (!record(raw) || raw.run_id !== runId) {
+    throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_INVALID');
+  }
   const rebuilt = agentAssignment(assigned, prepareAgentPacket(repo, assigned, sourceRevision));
   const candidate = validateCandidate(
     raw,
@@ -463,7 +667,7 @@ export function submitProjectCandidate(
       assignment_sha256: candidate.assignment_sha256,
       output_sha256: candidate.output_sha256,
       disposition: 'DONE' as const,
-      verified: true as const,
+      verified: true,
       settlement_commit: priorDone.settlement_commit ?? null,
       already_settled: true,
     });
@@ -538,7 +742,7 @@ export function submitProjectCandidate(
     assignment_sha256: candidate.assignment_sha256,
     output_sha256: candidate.output_sha256,
     disposition: 'DONE' as const,
-    verified: true as const,
+    verified: true,
     settlement_commit: settled.settlement_commit ?? null,
     already_settled: false,
   });
