@@ -119,7 +119,6 @@ export function observeCertifiedGcpRead200({
   };
 }
 
-
 export function observeProjectedCertifiedGcpRead200<Value>(
   options: Parameters<typeof observeCertifiedGcpRead200>[0],
 ) {
