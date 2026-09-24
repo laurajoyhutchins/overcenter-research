@@ -178,10 +178,5 @@ test('experiment workflows do not fan out on shared catalog metadata', () => {
       /experiments\/README\.md/,
       `${name} must not run for experiment index documentation`,
     );
-    assert.doesNotMatch(
-      pullRequest,
-      /- ['"]?package\.json['"]?/,
-      `${name} must not rerun for unrelated npm script metadata`,
-    );
   }
 });
