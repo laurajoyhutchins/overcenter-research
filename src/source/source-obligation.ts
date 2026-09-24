@@ -142,6 +142,12 @@ export function validateSourceAssignment(value: unknown): SourceAssignment {
     [],
     'SOURCE_ASSIGNMENT_CLAIM_INVALID',
   );
+  assertNonEmptyString(value.claim.obligation_key, 'SOURCE_ASSIGNMENT_CLAIM_KEY_INVALID');
+  assertNonEmptyString(value.claim.run_id, 'SOURCE_ASSIGNMENT_CLAIM_RUN_INVALID');
+  assertNonEmptyString(value.claim.claimed_revision, 'SOURCE_ASSIGNMENT_CLAIM_REVISION_INVALID');
+  if (typeof value.claim.source_sha !== 'string') {
+    throw new Error('SOURCE_ASSIGNMENT_CLAIM_SOURCE_INVALID');
+  }
   return buildSourceAssignment(
     value.obligation_id,
     value.task,
