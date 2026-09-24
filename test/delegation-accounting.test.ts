@@ -5,7 +5,10 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import type { DelegationAttemptBinding } from '../src/authority/engine.ts';
+import { RECEIPT_SCHEMA } from '../src/authority/facts.ts';
 import { OvercenterKernel } from '../src/authority/kernel.ts';
+import { observePostcondition } from '../src/observation/observe.ts';
+import { GitFactStore } from '../src/storage/git-store.ts';
 import { GitKernelFixture } from './support/git-kernel-fixture.ts';
 
 function writeSatisfiedParent(fixture: GitKernelFixture, id: string): void {
@@ -107,6 +110,47 @@ test('replay preserves causal multiplicity and a fresh controller can discharge 
   }
 });
 
+
+
+test('replay rejects a forged terminal parent receipt with outstanding causal work', () => {
+  const fixture = new GitKernelFixture('overcenter-delegation-hostile-replay-');
+  try {
+    fixture.defineFile('parent', { content: 'parent-done' });
+    fixture.defineFile('child', { content: 'child-done' });
+
+    const parent = fixture.claim('parent');
+    fixture.kernel.reserveDelegation(fixture.kernel.authorizeSpawn(parent), 'child');
+    writeSatisfiedParent(fixture, 'parent');
+
+    const parentWork = fixture.work('parent');
+    const observed = observePostcondition(parentWork.postcondition, { githubToken: null });
+    const store = new GitFactStore(fixture.authority, { ref: 'refs/overcenter/state' });
+    const head = store.head();
+    assert.ok(head);
+    const forged = store.append(head, 'hostile: terminal parent before child discharge', {
+      'receipt.json': {
+        schema: RECEIPT_SCHEMA,
+        run_id: parent.id,
+        obligation_id: parent.obligation_id,
+        claimed_revision: parent.claimed_revision,
+        claim_commit: parent.claim_commit,
+        execution_generation: parent.execution_generation,
+        execution_authority_commit: parent.execution_authority_commit,
+        kind: 'observation',
+        observed,
+        settled_at: '2026-09-23T00:00:00.000Z',
+      },
+    });
+    assert.ok(forged);
+
+    assert.throws(
+      () => fixture.kernel.inspect(),
+      /TERMINAL_RECEIPT_WITH_UNRESOLVED_DELEGATION/,
+    );
+  } finally {
+    fixture.close();
+  }
+});
 
 test('SQLite reconstructs outstanding delegation across controller replacement', () => {
   const root = mkdtempSync(join(tmpdir(), 'overcenter-delegation-sqlite-'));
