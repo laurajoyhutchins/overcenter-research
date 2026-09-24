@@ -3334,11 +3334,11 @@
         "No production source file is modified."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "2e7dcfa2c7eb5d05205630fe44feab3ea4b014b3",
         "artifacts": [
-          ".github/workflows/history-normalization.yml"
-        ],
-        "pending_reason": "The derived-independence treatment and acceptance criteria are implemented on the experiment branch; exact-head hosted evidence has not yet been recorded."
+          "GitHub Actions run 35950965066: exact-head derived-independence treatment; all 6 manual classifications matched, all 4 hostile inference mutants were rejected, 85 depth-three continuation sequences produced 15 legal-in-both and 70 illegal-in-both cases with zero asymmetric legality, every legal pair matched production replay and canonical normal form, and both tested critical-pair branches joined."
+        ]
       },
       "interpretation": "A positive result would support mechanically proposing history-independence relations from existing Overcenter semantics, with a later certificate layer binding the decision to exact graph, obligation, adapter, and ruleset identities.",
       "non_claims": [
@@ -3354,8 +3354,8 @@
         "note": "The six control classifications, conservative derivation rule, four hostile inference mutants, exhaustive depth-three continuation alphabet, critical-pair condition, and non-claims were recorded before accepted hosted treatment evidence."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The conservative derived-independence hypothesis is preregistered and awaiting exact-head execution."
+        "state": "supported",
+        "summary": "For the bounded GitHub-status corpus, graph causality plus effect-resource identity plus duplicate-delivery semantics derived the preregistered conservative independence relation, survived all hostile mutants, and preserved contextual equivalence across every legal continuation through depth three."
       }
     }
   ]
