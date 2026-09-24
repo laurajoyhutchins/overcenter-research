@@ -32,9 +32,11 @@ If the exact trusted command source contains `.overcenter/project-intent.json`, 
 
 The file is producer input to `project.advance`, not another agent-facing command. A future deterministic or reasoning-backed graph producer can emit the same narrow contract without gaining graph-patch, claim, or settlement authority.
 
-The result is either current project state or an immutable work packet when reasoning is required. A reasoning packet contains `assignment.json`, the command receipt, and a capability-free native `overcenter` worker executable. The executable validates and materializes the assignment, runs the declared task, and emits candidate bytes bound to the exact assignment/run/revision.
+The result is either current project state or an immutable work packet when reasoning is required. Pure-candidate packets contain `assignment.json`, the command receipt, and a capability-free native `overcenter` worker executable. The executable validates and materializes the assignment, runs the declared task, and emits candidate bytes bound to the exact assignment/run/revision.
 
-The worker executable carries no project-settlement or provider authority. The current published binary target is statically linked Linux x86-64; portability across trust domains is independent of adding further OS/architecture builds. It can be handed to either an Overcenter-controlled sandbox or a foreign sandbox whose ambient capabilities Overcenter cannot revoke; in the latter case Overcenter still protects project truth, but cannot prevent effects independently authorized by that host.
+Source-change packets instead carry a bounded source assignment: semantic objective, exact claim binding, and the only repository paths the worker may replace or delete. Reasoning returns a `SourceProposal` describing those file bytes. It does not receive Git publication authority. Trusted broker software re-establishes the live run and exact source claim, rejects stale or out-of-scope proposals, forbids the `.overcenter/**` and `.github/**` control planes, materializes a one-parent candidate commit, and only then publishes the internal candidate ref.
+
+The worker executable and source proposal protocol carry no project-settlement or provider authority. The current published binary target for pure-candidate work is statically linked Linux x86-64; portability across trust domains is independent of adding further OS/architecture builds. Either packet kind can be handed to an Overcenter-controlled sandbox or a foreign sandbox whose ambient capabilities Overcenter cannot revoke; in the latter case Overcenter still protects project truth, but cannot prevent effects independently authorized by that host.
 
 A reasoning agent does not select or claim its own work.
 
@@ -42,7 +44,9 @@ A reasoning agent does not select or claim its own work.
 
 Return the candidate produced from a work packet.
 
-Overcenter binds the candidate to the original assignment, reconstructs authoritative run identity, acquires fresh execution authority, observes the required postcondition independently, and settles only if verification succeeds.
+For pure-candidate work, Overcenter binds the returned candidate bytes to the original assignment and independently observes the required postcondition. For source-change work, trusted software first brokers the bounded proposal into an internal candidate commit; candidate code is then verified with read-only repository authority, and the write-capable submit path only reconstructs that verified tree and attempts an exact-base Git CAS.
+
+In both cases Overcenter reconstructs authoritative run identity, acquires fresh execution authority, and settles only from trusted verification evidence. A moved source base returns source work to `READY`; an ambiguous mutation outcome remains `RECOVERY_REQUIRED` rather than being replayed blindly.
 
 A reasoning agent does not declare success or settle its own run.
 
@@ -92,7 +96,7 @@ The remaining semantic command workflows are:
 | `project.advance` | Let Overcenter make progress and return reasoning work only when needed. |
 | `project.submit` | Validate and settle a candidate produced from an assigned packet. |
 
-The internal candidate handoff workflow has no write authority. It exists only to materialize a trusted `project.submit` command anchor and is not part of the operator surface.
+The internal candidate handoff workflow has no write authority. For source work it reuses the repository's exact-candidate evidence suite and records the result as verifier evidence; it never publishes or integrates source. It exists only to materialize a trusted `project.submit` command anchor and is not part of the operator surface.
 
 ## Extension rule
 
