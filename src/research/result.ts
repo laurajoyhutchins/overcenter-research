@@ -23,9 +23,11 @@ export type ResearchResultVerifier = (result: ResearchResult) => void;
 
 const trustedResults = new WeakSet<object>();
 
-export interface TrustedResearchResult {
-  readonly result: ResearchResult;
-}
+export type TrustedResearchResult = {
+  readonly result: Readonly<Omit<ResearchResult, 'evidence'>> & {
+    readonly evidence: Readonly<EvidenceRef>;
+  };
+};
 
 function sha256Hex(value: unknown, error: string): asserts value is string {
   if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw new Error(error);
