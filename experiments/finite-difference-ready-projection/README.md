@@ -22,7 +22,7 @@ next =
   minimum READY by (serviceAge, obligation id)
 ```
 
-The treatment compiles that relation into reconstructible auxiliary state:
+The treatment maps that relation into reconstructible auxiliary state:
 
 ```text
 reverse dependency index
@@ -82,6 +82,6 @@ The experiment is supported only if:
 
 ## Non-claims
 
-A positive result does not establish that the production scheduler should immediately replace `deriveProjectProjection()`; that current-realization provider observations can be inferred from graph deltas; that semantic-key propagation is fully incrementalized; that static effect-conflict indexes have already been mechanically differentiated; that graph replacement is always sublinear; that wall-clock speedups are portable across hosts; or that the experimental query compiler is a general-purpose incremental-view-maintenance engine.
+A positive result does not establish that the production scheduler should immediately replace `deriveProjectProjection()`; that current-realization provider observations can be inferred from graph deltas; that semantic-key propagation is fully incrementalized; that static effect-conflict indexes have already been mechanically differentiated; that graph replacement is always sublinear; that wall-clock speedups are portable across hosts; or that the experimental query-directed treatment is a general-purpose incremental-view-maintenance engine.
 
 The promotion question comes later: first establish exact semantics and the dependency-local cost law.
