@@ -2,14 +2,14 @@
 import assert from 'node:assert/strict';
 
 import {
-  analyzeAdapterProtocol,
+  analyzeEffectProtocol,
   boundedAmbiguousObservationSequences,
   releaseDecision,
-} from './adapter-diagnosability.ts';
-import { ADAPTER_DIAGNOSABILITY_CASES } from './adapter-diagnosability-cases.ts';
+} from './effect-protocol-diagnosability.ts';
+import { EFFECT_PROTOCOL_DIAGNOSABILITY_CASES } from './effect-protocol-diagnosability-cases.ts';
 
-const reports = ADAPTER_DIAGNOSABILITY_CASES.map(({ protocol, expected }) => {
-  const analysis = analyzeAdapterProtocol(protocol);
+const reports = EFFECT_PROTOCOL_DIAGNOSABILITY_CASES.map(({ protocol, expected }) => {
+  const analysis = analyzeEffectProtocol(protocol);
   const depth12AmbiguousSequences = boundedAmbiguousObservationSequences(protocol, 12);
   const decision = releaseDecision(analysis);
 
@@ -52,7 +52,7 @@ const reports = ADAPTER_DIAGNOSABILITY_CASES.map(({ protocol, expected }) => {
 console.log(
   JSON.stringify(
     {
-      check: 'adapter-diagnosability',
+      check: 'effect-protocol-diagnosability',
       authority: 'development-tooling-only',
       reports,
     },

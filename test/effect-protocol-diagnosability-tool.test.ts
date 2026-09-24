@@ -4,16 +4,16 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-  analyzeAdapterProtocol,
+  analyzeEffectProtocol,
   boundedAmbiguousObservationSequences,
   releaseDecision,
-  type AdapterProtocol,
-} from '../scripts/adapter-diagnosability.ts';
-import { ADAPTER_DIAGNOSABILITY_CASES } from '../scripts/adapter-diagnosability-cases.ts';
+  type EffectProtocol,
+} from '../scripts/effect-protocol-diagnosability.ts';
+import { EFFECT_PROTOCOL_DIAGNOSABILITY_CASES } from '../scripts/effect-protocol-diagnosability-cases.ts';
 
-test('maintained adapter diagnosability cases match their independently established boundary', () => {
-  for (const { protocol, expected } of ADAPTER_DIAGNOSABILITY_CASES) {
-    const analysis = analyzeAdapterProtocol(protocol);
+test('maintained effect-protocol diagnosability cases match their independently established boundary', () => {
+  for (const { protocol, expected } of EFFECT_PROTOCOL_DIAGNOSABILITY_CASES) {
+    const analysis = analyzeEffectProtocol(protocol);
     assert.deepEqual(
       {
         diagnosable: analysis.diagnosable,
@@ -32,7 +32,7 @@ test('maintained adapter diagnosability cases match their independently establis
 });
 
 test('broadening NOT_DISPATCHED to a possibly-mutated world blocks release', () => {
-  const hostile: AdapterProtocol = {
+  const hostile: EffectProtocol = {
     id: 'hostile-broad-not-dispatched',
     initial: 's',
     states: [
@@ -78,11 +78,11 @@ test('broadening NOT_DISPATCHED to a possibly-mutated world blocks release', () 
     ],
   };
 
-  const analysis = analyzeAdapterProtocol(hostile);
+  const analysis = analyzeEffectProtocol(hostile);
   assert.equal(analysis.diagnosable, false);
   assert.equal(analysis.safeDiagnosable, false);
   assert.equal(releaseDecision(analysis), 'ambiguous-do-not-release');
-  assert.equal(analysis.unsafeWitness?.action, 'release-authority');
+  assert.equal(analysis.unsafeWitnesses[0]?.action, 'release-authority');
   assert.deepEqual(
     analysis.unsafeWitnesses.map((witness) => witness.action),
     ['release-authority'],
@@ -92,7 +92,7 @@ test('broadening NOT_DISPATCHED to a possibly-mutated world blocks release', () 
 });
 
 test('a trusted distinguishing observation can make the same release point diagnosable', () => {
-  const protocol: AdapterProtocol = {
+  const protocol: EffectProtocol = {
     id: 'distinguished-reset',
     initial: 's',
     states: [
@@ -124,16 +124,16 @@ test('a trusted distinguishing observation can make the same release point diagn
     ],
   };
 
-  const analysis = analyzeAdapterProtocol(protocol);
+  const analysis = analyzeEffectProtocol(protocol);
   assert.equal(analysis.diagnosable, true);
   assert.equal(analysis.safeDiagnosable, true);
-  assert.equal(analysis.unsafeWitness, undefined);
+  assert.equal(analysis.unsafeWitnesses[0], undefined);
   assert.deepEqual(analysis.unsafeWitnesses, []);
   assert.equal(boundedAmbiguousObservationSequences(protocol, 12), 0);
 });
 
 test('all distinct consequential actions reachable while ambiguous get witnesses', () => {
-  const protocol: AdapterProtocol = {
+  const protocol: EffectProtocol = {
     id: 'multiple-unsafe-actions',
     initial: 's',
     states: [
@@ -161,14 +161,14 @@ test('all distinct consequential actions reachable while ambiguous get witnesses
     ],
   };
 
-  const analysis = analyzeAdapterProtocol(protocol);
+  const analysis = analyzeEffectProtocol(protocol);
   assert.equal(analysis.diagnosable, true);
   assert.equal(analysis.safeDiagnosable, false);
   assert.deepEqual(
     analysis.unsafeWitnesses.map((witness) => witness.action),
     ['release-authority', 'settle-done'],
   );
-  assert.equal(analysis.unsafeWitness?.action, 'release-authority');
+  assert.equal(analysis.unsafeWitnesses[0]?.action, 'release-authority');
   assert.ok(
     analysis.unsafeWitnesses.every(
       (witness) => witness.pair.length === 2 && Array.isArray(witness.trace),
@@ -176,8 +176,8 @@ test('all distinct consequential actions reachable while ambiguous get witnesses
   );
 });
 
-test('malformed protocol descriptions fail before analysis', () => {
-  const malformed: AdapterProtocol = {
+test('malformed effect protocol descriptions fail before analysis', () => {
+  const malformed: EffectProtocol = {
     id: 'malformed',
     initial: 's',
     states: [{ id: 's', mutation: 'not-occurred' }],
@@ -185,8 +185,8 @@ test('malformed protocol descriptions fail before analysis', () => {
   };
 
   assert.throws(
-    () => analyzeAdapterProtocol(malformed),
-    /ADAPTER_PROTOCOL_TRANSITION_TO_UNKNOWN:missing/,
+    () => analyzeEffectProtocol(malformed),
+    /EFFECT_PROTOCOL_TRANSITION_TO_UNKNOWN:missing/,
   );
 });
 
@@ -201,7 +201,7 @@ function TypeScriptFiles(root: string): string[] {
 test('diagnosability tooling has no production runtime import', () => {
   for (const path of TypeScriptFiles('src')) {
     assert.equal(
-      readFileSync(path, 'utf8').includes('adapter-diagnosability'),
+      readFileSync(path, 'utf8').includes('effect-protocol-diagnosability'),
       false,
       `${path}: production source imports development-only diagnosability tooling`,
     );
