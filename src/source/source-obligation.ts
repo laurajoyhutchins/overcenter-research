@@ -1,6 +1,7 @@
 import { assertExactKeys, assertNonEmptyString, isData } from '../validation.ts';
 
 export const SOURCE_TASK_SCHEMA = 'overcenter-source-task/v1' as const;
+export const SOURCE_ASSIGNMENT_SCHEMA = 'overcenter-source-assignment/v1' as const;
 export const SOURCE_CANDIDATE_SCHEMA = 'overcenter-source-candidate/v1' as const;
 
 export interface SourceTaskPacket extends Record<string, unknown> {
@@ -15,6 +16,13 @@ export interface SourceClaimBinding {
   run_id: string;
   claimed_revision: string;
   source_sha: string;
+}
+
+export interface SourceAssignment {
+  schema: typeof SOURCE_ASSIGNMENT_SCHEMA;
+  obligation_id: string;
+  task: SourceTaskPacket;
+  claim: SourceClaimBinding;
 }
 
 export interface SourceCandidate {
@@ -94,6 +102,56 @@ export function bindSourceClaim(
     claimed_revision: claimedRevision,
     source_sha: sourceSha,
   };
+}
+
+export function buildSourceAssignment(
+  obligationId: string,
+  task: unknown,
+  claim: SourceClaimBinding,
+): SourceAssignment {
+  assertNonEmptyString(obligationId, 'SOURCE_ASSIGNMENT_OBLIGATION_INVALID');
+  return {
+    schema: SOURCE_ASSIGNMENT_SCHEMA,
+    obligation_id: obligationId,
+    task: validateSourceTaskPacket(task),
+    claim: bindSourceClaim(
+      claim.obligation_key,
+      claim.run_id,
+      claim.claimed_revision,
+      claim.source_sha,
+    ),
+  };
+}
+
+export function validateSourceAssignment(value: unknown): SourceAssignment {
+  if (!isData(value)) throw new Error('SOURCE_ASSIGNMENT_INVALID');
+  assertExactKeys(
+    value,
+    ['schema', 'obligation_id', 'task', 'claim'],
+    [],
+    'SOURCE_ASSIGNMENT_INVALID',
+  );
+  if (value.schema !== SOURCE_ASSIGNMENT_SCHEMA) {
+    throw new Error('SOURCE_ASSIGNMENT_SCHEMA_MISMATCH');
+  }
+  assertNonEmptyString(value.obligation_id, 'SOURCE_ASSIGNMENT_OBLIGATION_INVALID');
+  if (!isData(value.claim)) throw new Error('SOURCE_ASSIGNMENT_CLAIM_INVALID');
+  assertExactKeys(
+    value.claim,
+    ['obligation_key', 'run_id', 'claimed_revision', 'source_sha'],
+    [],
+    'SOURCE_ASSIGNMENT_CLAIM_INVALID',
+  );
+  return buildSourceAssignment(
+    value.obligation_id,
+    value.task,
+    bindSourceClaim(
+      value.claim.obligation_key,
+      value.claim.run_id,
+      value.claim.claimed_revision,
+      value.claim.source_sha,
+    ),
+  );
 }
 
 export function validateSourceCandidate(
