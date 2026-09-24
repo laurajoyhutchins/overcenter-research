@@ -1,4 +1,5 @@
-import { DirectoryFactObjects, GitAuthorityHead, SplitAuthorityFactStore } from './split-store.ts';
+import { ComposedFactStore } from '../../src/authority/store.ts';
+import { DirectoryFactObjects, GitAuthorityHead } from './split-store.ts';
 
 const [headRepo, objectRoot, ref, expectedHead, indexText] = process.argv.slice(2);
 if (!headRepo || !objectRoot || !ref || !expectedHead || indexText === undefined) {
@@ -8,7 +9,7 @@ if (!headRepo || !objectRoot || !ref || !expectedHead || indexText === undefined
 const index = Number(indexText);
 if (!Number.isInteger(index) || index < 0) throw new Error('INVALID_CONTENDER_INDEX');
 
-const store = new SplitAuthorityFactStore(
+const store = new ComposedFactStore(
   new DirectoryFactObjects(objectRoot),
   new GitAuthorityHead(headRepo, ref),
 );

@@ -7,8 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 import type { FactCommit } from '../../src/authority/facts.ts';
 import { KernelCore, runCoreLoop } from '../../src/authority/engine.ts';
+import { ComposedFactStore } from '../../src/authority/store.ts';
 import { GitOvercenterKernel } from '../../src/storage/git-kernel.ts';
-import { DirectoryFactObjects, GitAuthorityHead, SplitAuthorityFactStore } from './split-store.ts';
+import { DirectoryFactObjects, GitAuthorityHead } from './split-store.ts';
 
 const REF = 'refs/overcenter/state';
 
@@ -72,7 +73,7 @@ function contractAndOrphanCase(root: string): void {
 
   const objects = new DirectoryFactObjects(objectsRoot);
   const authority = new GitAuthorityHead(headRepo, REF);
-  const store = new SplitAuthorityFactStore(objects, authority);
+  const store = new ComposedFactStore(objects, authority);
 
   const initial = store.append(null, 'initialize');
   assert.ok(initial);
@@ -113,7 +114,7 @@ function contractAndOrphanCase(root: string): void {
 
   const replicaRoot = join(root, 'contract-objects-replica');
   cpSync(objectsRoot, replicaRoot, { recursive: true });
-  const replica = new SplitAuthorityFactStore(
+  const replica = new ComposedFactStore(
     new DirectoryFactObjects(replicaRoot),
     new GitAuthorityHead(headRepo, REF),
   );
@@ -137,7 +138,7 @@ function missingObjectCase(root: string): void {
   initBare(headRepo);
 
   const authority = new GitAuthorityHead(headRepo, REF);
-  const store = new SplitAuthorityFactStore(objects, authority);
+  const store = new ComposedFactStore(objects, authority);
   const initial = store.append(null, 'initialize');
   assert.ok(initial);
 
@@ -216,7 +217,7 @@ async function kernelDifferentialCase(root: string): Promise<void> {
   initBare(splitHeadRepo);
 
   const monolithic = new GitOvercenterKernel(monolithicRepo, { ref: REF });
-  const splitStore = new SplitAuthorityFactStore(
+  const splitStore = new ComposedFactStore(
     new DirectoryFactObjects(splitObjects),
     new GitAuthorityHead(splitHeadRepo, REF),
   );
@@ -251,7 +252,7 @@ async function raceCase(root: string): Promise<void> {
   const objectRoot = join(root, 'race-objects');
   initBare(headRepo);
 
-  const store = new SplitAuthorityFactStore(
+  const store = new ComposedFactStore(
     new DirectoryFactObjects(objectRoot),
     new GitAuthorityHead(headRepo, REF),
   );

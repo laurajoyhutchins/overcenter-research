@@ -129,6 +129,29 @@ history(head)
 
 The production implementation is SQLite. It stores immutable fact commits plus one authority row. Each transition runs under `BEGIN IMMEDIATE`: validate the exact expected head, insert the immutable fact commit, advance the authority head, then commit. WAL mode and `synchronous=FULL` are enabled. A stale expected head rolls the transaction back and leaves no durable fact behind.
 
+The storage-neutral production API also exposes the decomposition established by the authority-storage experiment:
+
+```text
+ImmutableFactObjects
+  put(files) -> fact id
+  get(fact id) -> immutable payload
+        +
+AuthorityHead
+  head()
+  advance(expected head, fact id, message)
+  history(head)
+        |
+        v
+ComposedFactStore
+        |
+        v
+DurableFactStore
+```
+
+Only `AuthorityHead.advance` decides which published fact becomes project truth. An immutable object may therefore be published before a losing CAS and remain unreachable garbage without affecting replay. Conversely, an authority record whose referenced object cannot be read is an integrity failure; composition does not reinterpret a missing fact as an empty transition.
+
+SQLite remains the production reference store and keeps its stronger local atomic transaction. The decomposition is production machinery for future backends, not a claim that the experimental directory object store or Git authority-head fixture is an admitted distributed/HA deployment.
+
 ```text
 fact_commits
   sequence
