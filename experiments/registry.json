@@ -3191,6 +3191,66 @@
         "The current production realization fact already supports dynamic source candidates.",
         "A local pass alone authorizes production promotion before exact-head repository evidence."
       ]
+    },
+    {
+      "id": "authority-storage-decomposition",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/authority-storage-decomposition",
+      "readme": "experiments/authority-storage-decomposition/README.md",
+      "question": "Can Overcenter factor durable project authority into immutable content-addressed fact objects plus a separately linearizable authority-head CAS without changing project semantics?",
+      "claim": "For the bounded treatment, semantic fact payloads can live in an independently addressed immutable object store while Git stores only one fact-id pointer per authority revision and supplies exact-head CAS. The composed store preserves the DurableFactStore contract, matches the monolithic Git kernel's logical transitions, fails closed when an authoritative fact object is missing, and admits exactly one winner under an eight-process same-head race even though losing immutable objects remain published but unreachable.",
+      "contrast": "Keep semantic fact payload and serialization authority inseparable inside one monolithic strongly consistent database or Git history.",
+      "reproduce": {
+        "tier": "hosted",
+        "local": "npm run test:authority-storage-decomposition"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production DurableFactStore, KernelCore, runCoreLoop, and monolithic GitOvercenterKernel are used for the differential.",
+        "The candidate immutable fact store is a SHA-256 content-addressed directory with idempotent create-only writes.",
+        "The candidate authority-head service is a Git ref whose commits contain only one fact-id pointer and whose expected-old-value update-ref operation is the serialization point.",
+        "Eight child processes share the immutable object directory and authority repository for the same-head contention treatment."
+      ],
+      "success_criteria": [
+        "The composed split store satisfies initialize, append, stale-writer rejection, historical replay, reopen, and current-head behavior equivalent to the DurableFactStore contract.",
+        "Every reachable authority-head commit tree contains exactly one file named fact-id and no semantic graph, claim, execution-authority, reservation, release, or receipt payload.",
+        "A stale append may leave an immutable content object behind, but that orphan is absent from authoritative history and cannot affect project projection.",
+        "Eight processes racing one exact expected head produce exactly one authority winner, one authoritative claim, and seven losing immutable fact objects that remain unreachable.",
+        "If a fact object referenced by authoritative head history is removed, replay fails closed with FACT_OBJECT_MISSING rather than silently skipping or reconstructing an empty transition.",
+        "A fresh replica of the immutable object directory reconstructs byte-equivalent normalized authoritative history through the same authority-head service.",
+        "The split-store KernelCore and the monolithic GitOvercenterKernel derive identical normalized project state, explanations, and receipts before and after a two-obligation production core-loop workload."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "7546e2b058c8be80faebaa8900a684b794275af3",
+        "artifacts": [
+          "GitHub Actions run 35939753458, job 107444816800: exact-head authority-storage-decomposition proof PASS.",
+          "Durable-store contract: 3 authoritative commits, 4 immutable objects, exactly 1 unreachable stale-writer object, authority tree paths = fact-id only, and fresh object-directory replica replay PASS.",
+          "Missing referenced immutable object failed closed with FACT_OBJECT_MISSING while the authority head remained intact.",
+          "Kernel differential: split-store KernelCore and monolithic GitOvercenterKernel were logically equivalent before and after the same two-obligation production core-loop workload.",
+          "Eight-process same-head race: 8 contenders, exactly 1 winner, 1 authoritative claim, 9 immutable objects total, and 7 unreachable loser objects.",
+          "Merge gate run 35939753680 passed lint, typecheck, experiment contracts, adapter diagnosability, and deterministic regression on the same exact revision."
+        ]
+      },
+      "interpretation": "The bounded result supports the decomposition itself: immutable semantic fact publication and project-authority serialization need not share one transaction boundary. The authority-head CAS remained the sole operation deciding project truth, while losing content objects were harmless unreachable garbage and missing referenced objects failed closed. This justifies promoting separate ImmutableFactObjects and AuthorityHead interfaces, not the directory-backed experimental implementation.",
+      "non_claims": [
+        "A directory is an appropriate production distributed object store.",
+        "The immutable object store requires no durability, replication, integrity, or availability guarantees.",
+        "The authority-head service is consensus-free or highly available merely because its state is small.",
+        "Git is the preferred production authority-head implementation.",
+        "Garbage collection of unreachable fact objects is safe without a separate publication/retention protocol.",
+        "The experiment proves multi-region partition tolerance, Byzantine behavior, or an HA SLA.",
+        "Backend-local revision identities become portable or byte-identical across authority-head implementations."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The split responsibilities, semantic differential, head-payload restriction, missing-object negative control, eight-process same-head race, orphan-object expectation, and replica reconstruction criterion were recorded before first execution."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 7546e2b058c8be80faebaa8900a684b794275af3, the split store matched monolithic Git kernel semantics, kept authority commits fact-id-only, admitted exactly one winner in an eight-process same-head race, left seven losing fact objects unreachable, reconstructed from a copied object replica, and failed closed when an authoritative fact object was missing."
+      }
     }
   ]
 }
