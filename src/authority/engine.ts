@@ -22,6 +22,7 @@ import {
   EXECUTION_AUTHORITY_SCHEMA,
   GRAPH_PATCH_SCHEMA,
   RECEIPT_SCHEMA,
+  SOURCE_REVISION_BINDING_SCHEMA,
   materializeObligation,
   normalizeObligation,
   obligationDefinition,
@@ -38,6 +39,7 @@ import type {
   Receipt,
   ReceiptFact,
   ReceiptKind,
+  SourceRevisionBindingFact,
 } from './facts.ts';
 import { validateAdmission } from './admission.ts';
 import {
@@ -82,6 +84,10 @@ export type EffectAuthority<E extends string, V extends Postcondition['verifier'
 export interface GraphPatchInput {
   upsert?: ObligationInput[];
   retire?: string[];
+}
+
+export interface ClaimOptions {
+  sourceRevision?: string;
 }
 
 export interface GraphReconciliationResult {
@@ -229,7 +235,11 @@ export class KernelCore {
     return explainProjectWork(this.#currentProjection(head).project, id);
   }
 
-  claim(id: string, expectedRevision: string): ExecutionPermit {
+  claim(
+    id: string,
+    expectedRevision: string,
+    { sourceRevision }: ClaimOptions = {},
+  ): ExecutionPermit {
     const head = this.#requireHead();
     if (head !== expectedRevision) throw new Error('STALE_REVISION');
     const { state, project } = this.#currentProjection(head);
@@ -251,8 +261,20 @@ export class KernelCore {
       obligation_key: key,
       execution_capability_sha256: executionCapabilitySha256,
     };
+    let sourceBinding: SourceRevisionBindingFact | null = null;
+    if (sourceRevision !== undefined) {
+      const normalized = sourceRevision.toLowerCase();
+      if (!/^[0-9a-f]{40}$/.test(normalized)) throw new Error('SOURCE_REVISION_INVALID');
+      sourceBinding = {
+        schema: SOURCE_REVISION_BINDING_SCHEMA,
+        run_id: runId,
+        obligation_id: id,
+        source_revision: normalized,
+      };
+    }
     const commit = this.#store.append(head, `overcenter: claim ${id} ${runId}`, {
       'claim.json': claim,
+      ...(sourceBinding ? { 'source-revision.json': sourceBinding } : {}),
     });
     if (!commit) throw new Error('CLAIM_LOST');
     return {
@@ -265,7 +287,14 @@ export class KernelCore {
       execution_authority_commit: commit,
       execution_capability_sha256: executionCapabilitySha256,
       execution_capability: executionCapability,
+      ...(sourceBinding ? { source_revision: sourceBinding.source_revision } : {}),
     };
+  }
+
+  claimedSourceRevision(runId: string): string | null {
+    const run = this.#historicalProjection(this.#requireHead()).history.runs.get(runId);
+    if (!run) throw new Error('UNKNOWN_RUN');
+    return run.source_revision ?? null;
   }
 
   acquireExecution(runId: string): ExecutionPermit {
