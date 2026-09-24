@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict';
 
+import {
+  ancestorsOf,
+  canonicalTrace,
+  enumerateAll,
+  eventMap,
+  exploreWithSleepSets,
+  traceKeys,
+  type IndependenceOracle,
+} from '../partial-order.ts';
+
 type EventKind = 'claim' | 'reserve' | 'receipt' | 'effect';
 type QuotientMode = 'safety' | 'scheduler';
 
@@ -10,33 +20,6 @@ interface Event {
   resource: string;
   parents: string[];
   outcome?: string;
-}
-
-interface ExplorationResult {
-  executions: Event[][];
-  prefixes: number;
-  sleep_prunes: number;
-}
-
-type IndependenceOracle = (left: Event, right: Event) => boolean;
-
-function eventMap(events: readonly Event[]): Map<string, Event> {
-  return new Map(events.map((event) => [event.id, event]));
-}
-
-function ancestorsOf(
-  id: string,
-  byId: ReadonlyMap<string, Event>,
-  seen = new Set<string>(),
-): Set<string> {
-  const event = byId.get(id);
-  if (!event) throw new Error('UNKNOWN_EVENT:' + id);
-  for (const parent of event.parents) {
-    if (seen.has(parent)) continue;
-    seen.add(parent);
-    ancestorsOf(parent, byId, seen);
-  }
-  return seen;
 }
 
 function conservativeOracle(events: readonly Event[], mode: QuotientMode): IndependenceOracle {
@@ -57,146 +40,6 @@ function conservativeOracle(events: readonly Event[], mode: QuotientMode): Indep
 
 function unsoundDistinctObligationOracle(left: Event, right: Event): boolean {
   return left.obligation !== right.obligation;
-}
-
-function enabledEvents(
-  events: readonly Event[],
-  done: ReadonlySet<string>,
-  byId: ReadonlyMap<string, Event>,
-): Event[] {
-  return events
-    .filter(
-      (event) =>
-        !done.has(event.id) &&
-        event.parents.every((parent) => {
-          if (!byId.has(parent)) throw new Error('UNKNOWN_PARENT:' + parent);
-          return done.has(parent);
-        }),
-    )
-    .sort((left, right) => left.id.localeCompare(right.id));
-}
-
-function enumerateAll(events: readonly Event[]): ExplorationResult {
-  const byId = eventMap(events);
-  const executions: Event[][] = [];
-  let prefixes = 0;
-
-  const visit = (done: Set<string>, sequence: Event[]): void => {
-    prefixes += 1;
-    if (sequence.length === events.length) {
-      executions.push([...sequence]);
-      return;
-    }
-
-    const ready = enabledEvents(events, done, byId);
-    assert.ok(ready.length > 0);
-    for (const event of ready) {
-      done.add(event.id);
-      sequence.push(event);
-      visit(done, sequence);
-      sequence.pop();
-      done.delete(event.id);
-    }
-  };
-
-  visit(new Set(), []);
-  return { executions, prefixes, sleep_prunes: 0 };
-}
-
-function exploreWithSleepSets(
-  events: readonly Event[],
-  oracle: IndependenceOracle,
-): ExplorationResult {
-  const byId = eventMap(events);
-  const executions: Event[][] = [];
-  let prefixes = 0;
-  let sleepPrunes = 0;
-
-  const visit = (done: Set<string>, sequence: Event[], sleep: ReadonlySet<string>): void => {
-    prefixes += 1;
-    if (sequence.length === events.length) {
-      executions.push([...sequence]);
-      return;
-    }
-
-    const ready = enabledEvents(events, done, byId);
-    assert.ok(ready.length > 0);
-
-    const localSleep = new Set(sleep);
-    for (const event of ready) {
-      if (localSleep.has(event.id)) {
-        sleepPrunes += 1;
-        continue;
-      }
-
-      const nextSleep = new Set<string>();
-      for (const sleepingId of localSleep) {
-        const sleeping = byId.get(sleepingId);
-        if (!sleeping) throw new Error('UNKNOWN_SLEEP_EVENT:' + sleepingId);
-        if (oracle(sleeping, event)) nextSleep.add(sleepingId);
-      }
-
-      done.add(event.id);
-      sequence.push(event);
-      visit(done, sequence, nextSleep);
-      sequence.pop();
-      done.delete(event.id);
-
-      localSleep.add(event.id);
-    }
-  };
-
-  visit(new Set(), [], new Set());
-  return { executions, prefixes, sleep_prunes: sleepPrunes };
-}
-
-function canonicalTrace(sequence: readonly Event[], oracle: IndependenceOracle): string {
-  const ids = sequence.map((event) => event.id);
-  const successors = new Map<string, Set<string>>(ids.map((id) => [id, new Set()]));
-  const indegree = new Map<string, number>(ids.map((id) => [id, 0]));
-
-  const addEdge = (from: string, to: string): void => {
-    if (from === to) return;
-    const set = successors.get(from);
-    if (!set) throw new Error('UNKNOWN_EVENT:' + from);
-    if (set.has(to)) return;
-    set.add(to);
-    indegree.set(to, (indegree.get(to) ?? 0) + 1);
-  };
-
-  for (const event of sequence) {
-    for (const parent of event.parents) addEdge(parent, event.id);
-  }
-
-  for (let leftIndex = 0; leftIndex < sequence.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < sequence.length; rightIndex += 1) {
-      const left = sequence[leftIndex]!;
-      const right = sequence[rightIndex]!;
-      if (!oracle(left, right)) addEdge(left.id, right.id);
-    }
-  }
-
-  const ready = ids.filter((id) => indegree.get(id) === 0).sort();
-  const normalized: string[] = [];
-  while (ready.length > 0) {
-    const id = ready.shift()!;
-    normalized.push(id);
-    for (const successor of [...(successors.get(id) ?? [])].sort()) {
-      const next = (indegree.get(successor) ?? 0) - 1;
-      indegree.set(successor, next);
-      if (next === 0) {
-        ready.push(successor);
-        ready.sort();
-      }
-    }
-  }
-
-  if (normalized.length !== sequence.length) throw new Error('TRACE_DEPENDENCY_CYCLE');
-  return normalized.join(' ');
-}
-
-function traceKeys(executions: readonly Event[][], oracle: IndependenceOracle): Set<string> {
-  return new Set(executions.map((execution) => canonicalTrace(execution, oracle)));
 }
 
 function independentChainsFixture(): Event[] {
