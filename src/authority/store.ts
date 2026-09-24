@@ -24,6 +24,7 @@ export function factCommitFromFiles(
     execution_authority: files['execution-authority.json'] ?? null,
     effect_reservation: files['effect-reservation.json'] ?? null,
     effect_release: files['effect-release.json'] ?? null,
+    verified_output: files['verified-output.json'] ?? null,
     receipt: files['receipt.json'] ?? null,
   };
 }
