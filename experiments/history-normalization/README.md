@@ -123,3 +123,47 @@ Canonicalization could become a reproducible projection with a semantic digest p
 - It does not erase `NOT_DISPATCHED` attempts from audit or provenance history.
 - It does not prove create/delete cancellation safe for real providers.
 - It does not change production replay, settlement, receipts, or authority.
+
+
+## Result
+
+Supported at exact preregistered treatment revision `ee77259a8db92c11f2c41de6a4cf40007d87778a` in GitHub Actions run `35948438715`.
+
+Observed treatment:
+
+```text
+interleaving executions:       8
+bounded continuations:         4
+critical-pair branches:        4, all join
+raw events, base case:         5 per history
+semantic normal-form events:   3
+provenance digests:            distinct
+semantic normal forms:         identical within each continuation
+```
+
+The four continuation-specific semantic digests were:
+
+```text
+none              b2823ff7031a1bf8ee3ea26f809d5e14869336fa25b9f407ff2f7afc96d1e3eb
+defer-work        712e254fd9a9f1bed6f647efcc8748064f781dc01bd92cb6c05b85260e21616a
+retry-status      3ba1ccf459a2dd606d0663d16379fe5f5c9f0bb09a21de5a589609b54ecd9fd9
+defer-and-retry   cb7bf23995dceab519e8635f9d61fe63c6c27346e21fe76e507efa4ed5bc656f
+```
+
+All hostile controls were distinguished:
+
+- incompatible unordered status effects were rejected by production admission;
+- snapshot-distinct absence evidence retained distinct digests;
+- a released `NOT_DISPATCHED` attempt differed from a never-attempted history despite both exposing `READY`;
+- create/delete retained audit distinction despite matching empty final visibility.
+
+### Interpretation
+
+Within this bounded corpus, a semantic normal form can quotient away one real independent interleaving and compress one proven aborted effect sequence without conflating physical provenance. The result supports keeping two identities:
+
+```text
+semantic digest   = digest(canonical semantic normal form)
+provenance digest = digest(raw authoritative fact history)
+```
+
+This is evidence for a derived canonical-causal receipt layer, not evidence for rewriting the authority log. General completion, automatically derived independence, and arbitrary provider cancellation remain open.
