@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
 
 import { API } from 'typescript/unstable/sync';
 import {
@@ -26,6 +26,8 @@ interface TcbProperty {
   statement: string;
   max_semantic_loc: number;
   expected_surface_sha256?: string;
+  max_module_closure_semantic_loc?: number;
+  expected_module_closure_sha256?: string;
   entries: SymbolEntry[];
   external_assumptions: string[];
   excluded: string[];
@@ -178,6 +180,92 @@ function uniqueSemanticLoc(slices: Slice[]): number {
   return [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0);
 }
 
+interface ModuleClosure {
+  files: string[];
+  semantic_loc: number;
+  bytes: number;
+  sha256: string;
+  external_modules: string[];
+}
+
+function normalizedRepoPath(path: string): string {
+  return relative(process.cwd(), resolve(path)).replaceAll('\\\\', '/');
+}
+
+function resolveLocalImport(fromPath: string, specifier: string): string {
+  const base = resolve(dirname(resolve(fromPath)), specifier);
+  const candidates = [
+    base,
+    base.endsWith('.js') ? `${base.slice(0, -3)}.ts` : '',
+    `${base}.ts`,
+    resolve(base, 'index.ts'),
+  ].filter(Boolean);
+  const found = candidates.find((candidate) => existsSync(candidate));
+  if (!found) throw new Error(`TCB_LOCAL_IMPORT_UNRESOLVED:${fromPath}:${specifier}`);
+  return normalizedRepoPath(found);
+}
+
+function runtimeImports(path: string): { local: string[]; external: string[] } {
+  const text = readFileSync(path, 'utf8');
+  const specifiers = new Set<string>();
+
+  const fromImport = /\bimport\s+(?!type\b)[\s\S]*?\s+from\s+['"]([^'"]+)['"]/g;
+  for (const match of text.matchAll(fromImport)) specifiers.add(match[1] as string);
+
+  const sideEffectImport = /\bimport\s+['"]([^'"]+)['"]/g;
+  for (const match of text.matchAll(sideEffectImport)) specifiers.add(match[1] as string);
+
+  const reexport = /\bexport\s+(?:\*|\{[\s\S]*?\})\s+from\s+['"]([^'"]+)['"]/g;
+  for (const match of text.matchAll(reexport)) specifiers.add(match[1] as string);
+
+  const dynamicImport = /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g;
+  for (const match of text.matchAll(dynamicImport)) specifiers.add(match[1] as string);
+
+  const local: string[] = [];
+  const external: string[] = [];
+  for (const specifier of specifiers) {
+    if (specifier.startsWith('.')) local.push(resolveLocalImport(path, specifier));
+    else external.push(specifier);
+  }
+  return { local, external };
+}
+
+function moduleClosure(rootPaths: string[]): ModuleClosure {
+  const pending = [...new Set(rootPaths.map(normalizedRepoPath))];
+  const visited = new Set<string>();
+  const external = new Set<string>();
+
+  while (pending.length > 0) {
+    const path = pending.pop();
+    if (!path || visited.has(path)) continue;
+    visited.add(path);
+    const imports = runtimeImports(path);
+    for (const module of imports.external) external.add(module);
+    for (const dependency of imports.local) {
+      if (!visited.has(dependency)) pending.push(dependency);
+    }
+  }
+
+  const files = [...visited].sort();
+  let semanticLoc = 0;
+  let bytes = 0;
+  const hashes: string[] = [];
+  for (const path of files) {
+    const text = readFileSync(path, 'utf8');
+    semanticLoc += text.split('\n').filter(semanticLine).length;
+    bytes += Buffer.byteLength(text);
+    hashes.push(`${path}:${createHash('sha256').update(text).digest('hex')}`);
+  }
+
+  return {
+    files,
+    semantic_loc: semanticLoc,
+    bytes,
+    sha256: createHash('sha256').update(hashes.join('\n')).digest('hex'),
+    external_modules: [...external].sort(),
+  };
+}
+
 try {
   let failed = false;
   const reports = policy.properties.map((property) => {
@@ -191,8 +279,21 @@ try {
           .join('\n'),
       )
       .digest('hex');
+    const closure = moduleClosure(property.entries.map((entry) => entry.path));
     if (semanticLoc > property.max_semantic_loc) failed = true;
     if (property.expected_surface_sha256 && property.expected_surface_sha256 !== surfaceSha256) {
+      failed = true;
+    }
+    if (
+      property.max_module_closure_semantic_loc !== undefined &&
+      closure.semantic_loc > property.max_module_closure_semantic_loc
+    ) {
+      failed = true;
+    }
+    if (
+      property.expected_module_closure_sha256 &&
+      property.expected_module_closure_sha256 !== closure.sha256
+    ) {
       failed = true;
     }
     return {
@@ -203,6 +304,13 @@ try {
       budget_remaining: property.max_semantic_loc - semanticLoc,
       surface_sha256: surfaceSha256,
       expected_surface_sha256: property.expected_surface_sha256 ?? null,
+      module_closure_semantic_loc: closure.semantic_loc,
+      max_module_closure_semantic_loc: property.max_module_closure_semantic_loc ?? null,
+      module_closure_bytes: closure.bytes,
+      module_closure_sha256: closure.sha256,
+      expected_module_closure_sha256: property.expected_module_closure_sha256 ?? null,
+      module_closure_files: closure.files,
+      external_module_imports: closure.external_modules,
       slices,
       external_assumptions: property.external_assumptions,
       excluded: property.excluded,
