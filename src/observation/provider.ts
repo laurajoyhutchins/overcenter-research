@@ -2,6 +2,7 @@ import {
   assertExactKeys as exactKeys,
   assertNonEmptyString as nonEmptyString,
   isData as data,
+  isSha256Hex,
 } from '../validation.ts';
 
 // Provider-neutral evidence envelope only. Provider-specific identity, freshness,
@@ -100,11 +101,9 @@ export function validateProviderObservationEnvelope(
   nonEmptyString(value.contract.provider, 'PROVIDER_OBSERVATION_PROVIDER_INVALID');
   nonEmptyString(value.contract.api_version, 'PROVIDER_OBSERVATION_API_VERSION_INVALID');
   nonEmptyString(value.contract.operation_id, 'PROVIDER_OBSERVATION_OPERATION_ID_INVALID');
-  if (
-    typeof value.contract.schema_sha256 !== 'string' ||
-    !/^[0-9a-f]{64}$/.test(value.contract.schema_sha256)
-  )
+  if (!isSha256Hex(value.contract.schema_sha256)) {
     throw new Error('PROVIDER_OBSERVATION_SCHEMA_DIGEST_INVALID');
+  }
 
   if (!data(value.observer)) throw new Error('PROVIDER_OBSERVATION_OBSERVER_INVALID');
   exactKeys(value.observer, ['kind', 'id'], [], 'PROVIDER_OBSERVATION_OBSERVER_SHAPE_INVALID');
@@ -163,8 +162,7 @@ export function validateProviderObservationEnvelope(
       !value.structural_validation.optional_absent_paths.every(
         (path) => typeof path === 'string',
       ) ||
-      typeof value.structural_validation.schema_sha256 !== 'string' ||
-      !/^[0-9a-f]{64}$/.test(value.structural_validation.schema_sha256)
+      !isSha256Hex(value.structural_validation.schema_sha256)
     ) {
       throw new Error('PROVIDER_OBSERVATION_STRUCTURAL_VALIDATION_INVALID');
     }
