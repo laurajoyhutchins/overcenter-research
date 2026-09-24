@@ -66,7 +66,7 @@ The experiment is intentionally exact rather than threshold-based: every expecte
 ## Reproduce
 
 ```sh
-npm run experiment:causal-execution-quotient
+node --experimental-strip-types experiments/causal-execution-quotient/experiment.ts
 ```
 
 Hosted execution is in `.github/workflows/causal-execution-quotient.yml`.
