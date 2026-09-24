@@ -1,12 +1,27 @@
-import type { KernelCore } from '../authority/engine.ts';
+import type { KernelCore, Receipt } from '../authority/engine.ts';
 import type { ExecuteOutcome, ExecutionPermit, LoopOptions, LoopResult, Work } from '../model.ts';
+import {
+  dispatchAdmittedEffect,
+  type TrustedEffectDispatchContext,
+} from '../providers/effect-dispatch.ts';
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export async function runCoreLoop(
   kernel: KernelCore,
-  { preflight, effect, maxAdvances = 100, concurrency = 1 }: LoopOptions,
+  options: LoopOptions<TrustedEffectDispatchContext>,
 ): Promise<LoopResult> {
+  const { preflight, maxAdvances = 100, concurrency = 1 } = options;
+  const effect =
+    'effect' in options && typeof options.effect === 'function' ? options.effect : null;
+  const trustedEffects =
+    'trustedEffects' in options && options.trustedEffects !== undefined
+      ? options.trustedEffects
+      : null;
+
+  if ((effect === null) === (trustedEffects === null)) {
+    throw new Error('INVALID_EFFECT_EXECUTION_MODE');
+  }
   if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
     throw new Error('INVALID_CONCURRENCY');
   }
@@ -42,6 +57,7 @@ export async function runCoreLoop(
       }
       advances += 1;
 
+      let outcome: Promise<ExecuteOutcome>;
       try {
         if (preflight) {
           const decision = await preflight(work.packet);
@@ -60,29 +76,50 @@ export async function runCoreLoop(
           }
         }
 
-        // The deterministic kernel retains permit and reservation authority.
-        // Effect handlers receive packet bytes only.
-        kernel.beginEffect(run);
+        if (effect) {
+          // Packet callbacks never receive execution authority. The trusted
+          // loop mints EffectAuthority and reserves through performEffect.
+          const authority = kernel.authorizeEffect(run);
+          outcome = kernel.performEffect(authority, async () => {
+            try {
+              return await effect(work.packet);
+            } catch (error: unknown) {
+              return {
+                kind: 'execution-error',
+                error: errorMessage(error),
+                may_have_mutated: true,
+              };
+            }
+          });
+        } else {
+          // Registered provider dispatch owns the permit → EffectAuthority
+          // transition and therefore remains the single reservation owner.
+          outcome = (async () => {
+            try {
+              await dispatchAdmittedEffect(kernel, run, trustedEffects!);
+              return { kind: 'admitted-effect-dispatched' };
+            } catch (error: unknown) {
+              let mayHaveMutated = true;
+              try {
+                mayHaveMutated = kernel.hasUnresolvedEffect(run.id);
+              } catch {
+                // Authority uncertainty must fail closed without preventing the
+                // loop from draining effects that already started.
+              }
+              return {
+                kind: 'execution-error',
+                error: errorMessage(error),
+                may_have_mutated: mayHaveMutated,
+              };
+            }
+          })();
+        }
       } catch (error: unknown) {
         pendingError = { error };
         break;
       }
 
-      active.push({
-        work,
-        run,
-        outcome: (async () => {
-          try {
-            return await effect(work.packet);
-          } catch (error: unknown) {
-            return {
-              kind: 'execution-error',
-              error: errorMessage(error),
-              may_have_mutated: true,
-            };
-          }
-        })(),
-      });
+      active.push({ work, run, outcome });
     }
 
     let recovery: LoopResult | null = null;
@@ -110,7 +147,41 @@ export async function runCoreLoop(
             continue;
           }
 
-          const receipt = await kernel.resolveAsync(run);
+          let receipt: Receipt;
+          try {
+            receipt = await kernel.resolveAsync(
+              run,
+              outcome.kind === 'execution-error' ? { outcome } : {},
+            );
+          } catch (error: unknown) {
+            if (outcome.kind === 'execution-error' && outcome.may_have_mutated === false) {
+              drainError ??= {
+                error: new Error(
+                  typeof outcome.error === 'string'
+                    ? outcome.error
+                    : 'TRUSTED_EFFECT_EXECUTION_ERROR',
+                ),
+              };
+            } else {
+              drainError ??= { error };
+            }
+            continue;
+          }
+          if (
+            outcome.kind === 'execution-error' &&
+            outcome.may_have_mutated === false &&
+            receipt.disposition !== 'DONE' &&
+            !(receipt.kind === 'effect-not-dispatched' && receipt.disposition === 'READY')
+          ) {
+            drainError ??= {
+              error: new Error(
+                typeof outcome.error === 'string'
+                  ? outcome.error
+                  : 'TRUSTED_EFFECT_EXECUTION_ERROR',
+              ),
+            };
+            continue;
+          }
           if (receipt.disposition !== 'DONE' && receipt.disposition !== 'READY') {
             recovery ??= {
               state: 'RECOVERY_REQUIRED',
