@@ -25,11 +25,7 @@ export function githubGet(token: string, path: string): unknown {
     `header = "X-GitHub-Api-Version: ${GITHUB_API_VERSION}"`,
     '',
   ].join('\n');
-  return readJsonWithCurl(
-    `https://api.github.com${path}`,
-    config,
-    'GITHUB_PROVIDER_READ_FAILED',
-  );
+  return readJsonWithCurl(`https://api.github.com${path}`, config, 'GITHUB_PROVIDER_READ_FAILED');
 }
 
 export async function githubGetAsync(token: string, path: string): Promise<unknown> {
