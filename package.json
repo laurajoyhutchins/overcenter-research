@@ -66,7 +66,8 @@
     "test:substrate-capability-admission:hosted": "node --experimental-strip-types experiments/substrate-capability-admission/hosted-evidence.ts",
     "test:source-obligation-integration": "node --experimental-strip-types experiments/source-obligation-integration/experiment.ts",
     "test:authority-storage-decomposition": "node --experimental-strip-types experiments/authority-storage-decomposition/experiment.ts",
-    "experiment:causal-execution-quotient": "node --experimental-strip-types experiments/causal-execution-quotient/experiment.ts"
+    "experiment:causal-execution-quotient": "node --experimental-strip-types experiments/causal-execution-quotient/experiment.ts",
+    "experiment:dpor-causal-explorer": "node --experimental-strip-types experiments/dpor-causal-explorer/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
