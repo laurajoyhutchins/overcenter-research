@@ -97,10 +97,8 @@ function safetyPredicate(omitted: ReadonlySet<Clause> = new Set()): Predicate {
     const clauses: Record<Clause, boolean> = {
       authorized: outcome.new_effects === 0 || initial.current_authority,
       'exact-revision': outcome.new_effects === 0 || initial.exact_revision,
-      'at-most-once':
-        (initial.unresolved_effect ? 1 : 0) + outcome.new_effects <= 1,
-      'durable-ambiguity':
-        !outcome.ambiguous || outcome.reservation_precedes_uncertainty,
+      'at-most-once': (initial.unresolved_effect ? 1 : 0) + outcome.new_effects <= 1,
+      'durable-ambiguity': !outcome.ambiguous || outcome.reservation_precedes_uncertainty,
     };
     return (Object.entries(clauses) as [Clause, boolean][]).every(
       ([name, holds]) => omitted.has(name) || holds,
@@ -157,7 +155,10 @@ function deriveConjunction(selected: readonly InitialState[]): string {
   }
 
   assert.ok(matches.length > 0, 'target is not representable as a conjunction of literals');
-  matches.sort((left, right) => left.length - right.length || left.join(' && ').localeCompare(right.join(' && ')));
+  matches.sort(
+    (left, right) =>
+      left.length - right.length || left.join(' && ').localeCompare(right.join(' && ')),
+  );
   return matches[0]!.join(' && ');
 }
 
@@ -235,11 +236,7 @@ const protocolMutants = {
 const protocolMutantResults: Record<string, { safe_initial_states: number }> = {};
 for (const [name, protocol] of Object.entries(protocolMutants)) {
   const derived = weakestPrecondition(protocol, safetyPredicate());
-  assert.equal(
-    derived.length,
-    0,
-    name + ' unexpectedly retained a safe initial state',
-  );
+  assert.equal(derived.length, 0, name + ' unexpectedly retained a safe initial state');
   protocolMutantResults[name] = { safe_initial_states: derived.length };
 }
 
@@ -250,9 +247,8 @@ const result = {
   weakest_precondition_states: baseline.map(key),
   production_equivalence: {
     accepted_states: productionAccepted.length,
-    mismatches: states.filter(
-      (state) => productionGuard(state) !== baselineKeys.has(key(state)),
-    ).length,
+    mismatches: states.filter((state) => productionGuard(state) !== baselineKeys.has(key(state)))
+      .length,
   },
   missing_guard_controls: guardMutantResults,
   unnecessary_ceremony_control: {
