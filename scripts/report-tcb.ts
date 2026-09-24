@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 
-import { API } from 'typescript/unstable/sync';
+import { API, SymbolFlags, type Symbol as TypeScriptSymbol } from 'typescript/unstable/sync';
 import {
   SyntaxKind,
   isClassDeclaration,
@@ -10,6 +10,7 @@ import {
   isExportDeclaration,
   isFunctionDeclaration,
   isImportDeclaration,
+  isIdentifier,
   isInterfaceDeclaration,
   isStringLiteral,
   isTypeAliasDeclaration,
@@ -192,6 +193,181 @@ interface ModuleClosure {
   external_modules: string[];
 }
 
+interface SymbolClosure {
+  semantic_loc: number;
+  files: string[];
+  declarations: Array<{
+    path: string;
+    start_line: number;
+    end_line: number;
+    semantic_loc: number;
+    symbol: string;
+  }>;
+  external_symbols: string[];
+  obligations: string[];
+  status: 'candidate' | 'sound';
+}
+
+function repoPathFor(node: Node): string | null {
+  const fileName = node.getSourceFile().fileName;
+  const path = normalizedRepoPath(fileName);
+  if (path.startsWith('../') || path === '..' || path.includes('/node_modules/')) return null;
+  return path;
+}
+
+function checkerFor(node: Node) {
+  const project = snapshot.getDefaultProjectForFile(node.getSourceFile().fileName);
+  if (!project) throw new Error(`TCB_PROJECT_UNAVAILABLE:${node.getSourceFile().fileName}`);
+  return project.checker;
+}
+
+function resolvedValueSymbol(node: Node): TypeScriptSymbol | null {
+  const checker = checkerFor(node);
+  const symbol = checker.getSymbolAtLocation(node);
+  if (!symbol) return null;
+  const resolved =
+    symbol.flags & SymbolFlags.Alias
+      ? checker.getAliasedSymbol(symbol)
+      : symbol;
+  if (checker.isUnknownSymbol(resolved)) return null;
+  return resolved.flags & SymbolFlags.Value ? resolved : null;
+}
+
+function lineRange(node: Node): {
+  path: string;
+  start_line: number;
+  end_line: number;
+  semantic_loc: number;
+} | null {
+  const path = repoPathFor(node);
+  if (!path) return null;
+  const { text, source } = sourceFor(path);
+  const start = node.getStart(source);
+  const end = node.getEnd();
+  const startLine = source.getLineAndCharacterOfPosition(start).line + 1;
+  const endLine = source.getLineAndCharacterOfPosition(Math.max(start, end - 1)).line + 1;
+  return {
+    path,
+    start_line: startLine,
+    end_line: endLine,
+    semantic_loc: text
+      .split('\n')
+      .slice(startLine - 1, endLine)
+      .filter(semanticLine).length,
+  };
+}
+
+function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
+  const queue: Array<{ node: Node; symbol: string }> = entries.map((entry) => {
+    const { source } = sourceFor(entry.path);
+    return {
+      node:
+        entry.whole_file === true
+          ? source
+          : declarationFor(
+              entry.path,
+              entry.symbol ??
+                (() => {
+                  throw new Error('TCB_SYMBOL_REQUIRED');
+                })(),
+            ),
+      symbol: entry.whole_file === true ? `${entry.path}#*` : `${entry.path}#${entry.symbol}`,
+    };
+  });
+  const visitedSymbols = new Set<number>();
+  const declarations = new Map<
+    string,
+    {
+      path: string;
+      start_line: number;
+      end_line: number;
+      semantic_loc: number;
+      symbol: string;
+    }
+  >();
+  const externalSymbols = new Set<string>();
+  const obligations = new Set<string>();
+
+  while (queue.length > 0) {
+    const current = queue.pop();
+    if (!current) continue;
+    const range = lineRange(current.node);
+    if (range) {
+      const key = `${range.path}:${range.start_line}:${range.end_line}`;
+      declarations.set(key, { ...range, symbol: current.symbol });
+    }
+
+    const visit = (node: Node): void => {
+      if (isIdentifier(node)) {
+        const symbol = resolvedValueSymbol(node);
+        if (symbol && !visitedSymbols.has(symbol.id)) {
+          visitedSymbols.add(symbol.id);
+          const resolvedDeclarations = symbol.declarations
+            .map((handle) => handle.resolve())
+            .filter((declaration): declaration is Node => declaration !== undefined);
+          const repositoryDeclarations = resolvedDeclarations.filter(
+            (declaration) => repoPathFor(declaration) !== null,
+          );
+          if (repositoryDeclarations.length === 0) {
+            externalSymbols.add(symbol.name);
+          } else {
+            for (const declaration of repositoryDeclarations) {
+              queue.push({
+                node: declaration,
+                symbol: symbol.name,
+              });
+            }
+          }
+        }
+      }
+      node.forEachChild(visit);
+    };
+    visit(current.node);
+  }
+
+  const trusted = new Map<string, Set<number>>();
+  for (const declaration of declarations.values()) {
+    const { text } = sourceFor(declaration.path);
+    const lines = text.split('\n');
+    const selected = trusted.get(declaration.path) ?? new Set<number>();
+    for (let line = declaration.start_line; line <= declaration.end_line; line += 1) {
+      if (semanticLine(lines[line - 1] ?? '')) selected.add(line);
+    }
+    trusted.set(declaration.path, selected);
+  }
+
+  for (const declaration of declarations.values()) {
+    const { source } = sourceFor(declaration.path);
+    const node = source.statements.find(
+      (statement) =>
+        source.getLineAndCharacterOfPosition(statement.getStart(source)).line + 1 <=
+          declaration.start_line &&
+        source.getLineAndCharacterOfPosition(Math.max(statement.getStart(source), statement.getEnd() - 1))
+            .line +
+            1 >=
+          declaration.end_line,
+    );
+    if (node && isInterfaceDeclaration(node)) {
+      obligations.add(`TYPE_ONLY_RUNTIME_TARGET:${declaration.path}:${declaration.start_line}`);
+    }
+  }
+
+  const output = [...declarations.values()].sort(
+    (left, right) =>
+      left.path.localeCompare(right.path) ||
+      left.start_line - right.start_line ||
+      left.end_line - right.end_line,
+  );
+  return {
+    semantic_loc: [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0),
+    files: [...trusted.keys()].sort(),
+    declarations: output,
+    external_symbols: [...externalSymbols].sort(),
+    obligations: [...obligations].sort(),
+    status: obligations.size === 0 ? 'sound' : 'candidate',
+  };
+}
+
 function normalizedRepoPath(path: string): string {
   return relative(process.cwd(), resolve(path)).replaceAll('\\\\', '/');
 }
@@ -307,6 +483,10 @@ try {
       )
       .digest('hex');
     const closure = moduleClosure(property.entries.map((entry) => entry.path));
+    const symbols = symbolClosure(property.entries);
+    if (symbols.semantic_loc > closure.semantic_loc) {
+      throw new Error(`TCB_SYMBOL_CLOSURE_EXCEEDS_MODULE_CLOSURE:${property.id}`);
+    }
     if (semanticLoc > property.max_semantic_loc) failed = true;
     if (property.expected_surface_sha256 && property.expected_surface_sha256 !== surfaceSha256) {
       failed = true;
@@ -338,6 +518,12 @@ try {
       expected_module_closure_sha256: property.expected_module_closure_sha256 ?? null,
       module_closure_files: closure.files,
       external_module_imports: closure.external_modules,
+      symbol_closure_status: symbols.status,
+      symbol_closure_semantic_loc: symbols.semantic_loc,
+      symbol_closure_files: symbols.files,
+      symbol_closure_declarations: symbols.declarations,
+      symbol_closure_external_symbols: symbols.external_symbols,
+      symbol_closure_obligations: symbols.obligations,
       slices,
       external_assumptions: property.external_assumptions,
       excluded: property.excluded,
