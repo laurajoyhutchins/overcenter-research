@@ -1,6 +1,7 @@
 import { appendFileSync } from 'node:fs';
 
 import type { ProjectCommandContext } from '../authority/project-agent-protocol.ts';
+import { isPositiveSafeInteger } from '../validation.ts';
 
 export function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -10,7 +11,7 @@ export function requiredEnv(name: string): string {
 
 function positiveIntegerEnv(name: string): number {
   const value = Number(requiredEnv(name));
-  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${name}_INVALID`);
+  if (!isPositiveSafeInteger(value)) throw new Error(`${name}_INVALID`);
   return value;
 }
 

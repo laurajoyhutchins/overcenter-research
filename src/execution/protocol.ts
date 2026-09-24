@@ -1,4 +1,5 @@
 import { sha256 } from '../digest.ts';
+import { isData, isSha256Hex } from '../validation.ts';
 import { posix as path } from 'node:path';
 import type { ExecutionPermit } from '../model.ts';
 
@@ -90,9 +91,7 @@ function sha256Tagged(bytes: Uint8Array | string): string {
 }
 
 function assertPlainObject(value: unknown, name: string): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${name.toUpperCase()}_INVALID`);
-  }
+  if (!isData(value)) throw new Error(`${name.toUpperCase()}_INVALID`);
 }
 
 function assertExactKeys(
@@ -137,9 +136,7 @@ function assertSafeIntegerRange(
 }
 
 function assertSha256Hex(value: unknown, name: string): asserts value is string {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${name.toUpperCase()}_INVALID`);
-  }
+  if (!isSha256Hex(value)) throw new Error(`${name.toUpperCase()}_INVALID`);
 }
 
 function assertSha256Tagged(value: unknown, name: string): asserts value is string {

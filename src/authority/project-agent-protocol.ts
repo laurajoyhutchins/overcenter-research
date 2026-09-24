@@ -12,6 +12,7 @@ import {
   validPath,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest, sha256 } from '../digest.ts';
+import { isData, isPositiveSafeInteger } from '../validation.ts';
 import { buildSourceAssignment, validateSourceTaskPacket } from '../source/source-obligation.ts';
 import {
   integrateVerifiedSourceCandidate,
@@ -116,7 +117,7 @@ const DEFAULT_REMOTE = 'origin';
 const DEFAULT_CANDIDATE_PATH = '.overcenter/candidate.json';
 
 function positiveInteger(value: number, name: string): void {
-  if (!Number.isSafeInteger(value) || value <= 0) {
+  if (!isPositiveSafeInteger(value)) {
     throw new Error(`PROJECT_AGENT_INTEGER_INVALID:${name}`);
   }
 }
@@ -134,10 +135,6 @@ function validateCommandContext(context: ProjectCommandContext): void {
   if (!/^[0-9a-f]{40}$/i.test(context.command_source_sha)) {
     throw new Error('PROJECT_AGENT_COMMAND_SOURCE_INVALID');
   }
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function gitBytes(repo: string, commit: string, path: string): Buffer {
@@ -622,7 +619,7 @@ export function submitProjectCandidate(
   }
 
   const raw = JSON.parse(gitBytes(repo, candidateSha, candidatePath).toString('utf8'));
-  if (!record(raw) || raw.run_id !== runId) {
+  if (!isData(raw) || raw.run_id !== runId) {
     throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_INVALID');
   }
   const rebuilt = agentAssignment(assigned, prepareAgentPacket(repo, assigned, sourceRevision));
@@ -638,7 +635,7 @@ export function submitProjectCandidate(
     .at(-1);
   if (priorDone) {
     const diagnostic =
-      record(priorDone.diagnostic) && record(priorDone.diagnostic.agent_candidate)
+      isData(priorDone.diagnostic) && isData(priorDone.diagnostic.agent_candidate)
         ? priorDone.diagnostic.agent_candidate
         : null;
     if (

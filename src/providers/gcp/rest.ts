@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { readJsonWithCurl } from '../curl-json.ts';
 
 export interface GcpJsonGetRequest {
   authority_host: string;
@@ -48,30 +48,9 @@ export function gcpGet(accessToken: string, request: GcpJsonGetRequest): unknown
     '',
   ].join('\n');
 
-  try {
-    const stdout = execFileSync(
-      'curl',
-      [
-        '--silent',
-        '--show-error',
-        '--fail-with-body',
-        '--config',
-        '-',
-        `https://${authorityHost}${request.path}`,
-      ],
-      { input: config, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
-    );
-    return JSON.parse(stdout);
-  } catch (error: unknown) {
-    const failure = error as {
-      stderr?: string | Buffer;
-      stdout?: string | Buffer;
-      message?: string;
-    };
-    throw new Error(
-      `GCP_PROVIDER_READ_FAILED: ${String(
-        failure.stderr ?? failure.stdout ?? failure.message ?? '',
-      ).trim()}`,
-    );
-  }
+  return readJsonWithCurl(
+    `https://${authorityHost}${request.path}`,
+    config,
+    'GCP_PROVIDER_READ_FAILED',
+  );
 }
