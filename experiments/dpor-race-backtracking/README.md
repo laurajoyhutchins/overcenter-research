@@ -66,7 +66,7 @@ Hosted exact-head execution is in `.github/workflows/dpor-race-backtracking.yml`
 
 ## Interpretation boundary
 
-A positive result establishes the essential DPOR mechanism missing from the preceding sleep-set experiment: later dependency races can create new backtracking work at earlier prefixes.
+The preregistered positive result establishes only that the tested race/backtracking rule works for the bounded fixtures above. Post-hoc review shows that it is not a generally sound DPOR mechanism once causal enabling crosses obligation boundaries.
 
 ## Non-claims
 
@@ -100,6 +100,52 @@ The deliberately unsound distinct-obligation independence oracle suppressed the 
 
 ### Interpretation
 
-The result establishes a real race/backtracking rung beyond sleep-set-only reduction. In this bounded event model, later-discovered dependency can create earlier exploration work without enumerating irrelevant interleavings first.
+The original result demonstrates race-triggered backtracking on the preregistered bounded fixtures. Post-hoc review narrows that conclusion: the current obligation-root rule is incomplete for cross-obligation causal enabling.
 
 The scheduler corpus also shows that the mechanism remains property-sensitive: 132 scheduler-visible races generated the 24 required claim-order traces, while the safety projection discovered no cross-obligation races and required one execution.
+
+
+## Post-hoc adversarial review
+
+The preregistered fixtures above pass, but a later review found a counterexample to the broader DPOR interpretation.
+
+The current backtracking rule responds to a race by looking, at the earlier prefix, for an enabled event from the **later event's obligation**. That works for the preregistered fixtures because each later conflicting event can be exposed by scheduling its own obligation root earlier.
+
+It is incomplete when the later event depends on a predecessor from a different obligation.
+
+The maintained regression is:
+
+```text
+A: a/claim -> a/reserve -> a/effect(x)
+                 |
+                 | independent causal progress
+                 |
+B: b/root -----------------------> C: c/effect(x)
+
+a/claim and a/reserve touch y
+b/root also touches y
+a/effect and c/effect conflict on x
+c/effect depends on b/root
+```
+
+For this five-event graph:
+
+- exhaustive exploration has **10** concrete executions;
+- those executions form **6** causal trace classes;
+- the current race/backtracking reducer reaches only **5** trace classes.
+
+The missing reorder requires scheduling `b/root` before the earlier A event so that `c/effect` can become enabled. The current rule searches for an enabled event from obligation C, not for a causally enabling predecessor from B, so it misses the branch.
+
+This falsifies the claim that the current rule is a generally sound DPOR backtracking algorithm. The original bounded results remain valid for their exact fixtures.
+
+### Metric correction
+
+The original `backtrack_insertions` counter also mixed ordinary first-choice initialization with race-induced insertions. The maintained experiment now reports `initial_backtrack_insertions` and `race_backtrack_insertions` separately.
+
+## Maintained interpretation
+
+The result is **mixed**:
+
+- the preregistered four-chain, immediate-conflict, and same-obligation future-conflict fixtures remain supported;
+- the generalized race/backtracking mechanism is falsified by the cross-obligation causal counterexample;
+- no production or verification machinery should adopt this reducer until the backtracking relation is replaced with a sound formulation and rechecked against exhaustive small-model search.
