@@ -66,7 +66,8 @@
     "test:substrate-capability-admission:hosted": "node --experimental-strip-types experiments/substrate-capability-admission/hosted-evidence.ts",
     "test:source-obligation-integration": "node --experimental-strip-types experiments/source-obligation-integration/experiment.ts",
     "test:authority-storage-decomposition": "node --experimental-strip-types experiments/authority-storage-decomposition/experiment.ts",
-    "test:weakest-precondition-admission": "node --experimental-strip-types experiments/weakest-precondition-admission/experiment.ts"
+    "test:weakest-precondition-admission": "node --experimental-strip-types experiments/weakest-precondition-admission/experiment.ts",
+    "test:adapter-recovery-weakest-preconditions": "node --experimental-strip-types experiments/adapter-recovery-weakest-preconditions/experiment.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.4",

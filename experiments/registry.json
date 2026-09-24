@@ -3316,6 +3316,67 @@
           "The same exact-head candidate passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, the complete deterministic experiment suite, TLA+, the production computation boundary, and self-application."
         ]
       }
+    },
+    {
+      "id": "adapter-recovery-weakest-preconditions",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/adapter-recovery-weakest-preconditions",
+      "readme": "experiments/adapter-recovery-weakest-preconditions/README.md",
+      "question": "Can weakest-precondition calculation derive reservation-release and ambiguous-effect replay guards from evidence semantics plus adapter guarantees?",
+      "claim": "Across a preregistered 64-state recovery model, release should require current authority, exact attempt binding, adapter match, and proof of non-dispatch; replay should require current authority, exact attempt binding, adapter match, authoritative terminal absence, and duplicate-safe replay semantics. Instantiating those predicates with the GitHub status adapter should reproduce the established pre-secureConnect release boundary and reject GitHub replay.",
+      "contrast": "Continue encoding provider recovery branches as hand-written special cases without checking whether they are the weakest consequences of adapter semantics and trusted evidence.",
+      "interpretation": "If supported, the experiment would show that GitHub release and replay policy can be reconstructed from a small declarative semantic contract, motivating generated recovery-guard tooling without making the finite calculator production authority.",
+      "environment": [
+        "Node.js from .node-version with built-in TypeScript stripping.",
+        "Production GitHub effect-adapter capability descriptor and semantic release/replay predicates.",
+        "A preregistered Cartesian product of 64 recovery states over six booleans.",
+        "Previously established GitHub transport semantics are consumed as inputs; no provider network call or credential is used.",
+        "No database, LLM, external network, or runtime dependency."
+      ],
+      "success_criteria": [
+        "RELEASE derives exactly current_authority AND exact_attempt_binding AND adapter_match AND not_dispatched_certificate.",
+        "REPLAY derives exactly current_authority AND exact_attempt_binding AND adapter_match AND terminal_absence_certificate AND replay_protected.",
+        "Each omitted RELEASE guard admits at least one state rejected by the calculated predicate.",
+        "Each omitted REPLAY guard admits at least one state rejected by the calculated predicate.",
+        "The GitHub status adapter remains may-duplicate, replay-forbidden, and admits only not-dispatched reservation release.",
+        "The production semantic release predicate accepts the exact pre-secureConnect GitHub witness and rejects post-secureConnect, wrong-origin, wrong-path, and wrong-body variants.",
+        "HTTP 502 remains outside the derived release predicate because it supplies no proof of non-dispatch.",
+        "Production reservedEffectReplaySafe() rejects authoritative terminal absence for GitHub status.",
+        "The calculated replay predicate rejects GitHub terminal absence because replay protection is false.",
+        "A semantically-idempotent synthetic adapter with terminal-absence replay capability is replay-safe only when terminal absence is present.",
+        "Changing the synthetic adapter to may-duplicate while retaining replay capability is rejected by production capability validation.",
+        "Exact-head hosted execution passes without modifying the preregistered treatment."
+      ],
+      "non_claims": [
+        "The experiment re-proves transport witness provenance or the secureConnect boundary.",
+        "The six-boolean recovery abstraction is complete for every provider.",
+        "Terminal absence proves a prior mutation never happened.",
+        "GitHub commit-status replay is safe.",
+        "The experiment proves liveness or eventual provider observation.",
+        "Syntactically valid adapter declarations are necessarily truthful.",
+        "The calculator should generate production authority code.",
+        "Settlement-to-DONE is derived by this treatment."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The 64-state domain, RELEASE and REPLAY postconditions, exact expected formulas, four release mutants, five replay mutants, six GitHub evidence variants, GitHub terminal-absence negative control, and semantically-idempotent replay positive control were fixed before the first hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Exact-head hosted execution has not yet evaluated the preregistered recovery treatment."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:adapter-recovery-weakest-preconditions"
+      },
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "Pending exact-head GitHub Actions candidate evidence on the stacked experiment pull request."
+        ],
+        "pending_reason": "The preregistered experiment has not yet been executed by hosted exact-head CI."
+      }
     }
   ]
 }
