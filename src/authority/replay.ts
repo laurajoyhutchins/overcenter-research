@@ -26,7 +26,8 @@ import type {
   ReceiptFact,
   State,
 } from './facts.ts';
-import { dependencyUpstreams, dependsOn, validateGraph } from '../graph/topology.ts';
+import { dependencyUpstreams, validateGraph } from '../graph/topology.ts';
+import { delegationCreatesCausalCycle } from './delegation.ts';
 import { settlementSemantics } from '../semantics.ts';
 import {
   reservedEffectReleaseSafe,
@@ -340,7 +341,15 @@ export function replayProjection(
       if (fact.child_obligation_id === run.obligation_id) {
         throw new Error('DELEGATION_SELF_REFERENCE');
       }
-      if (dependsOn(state, fact.child_obligation_id, run.obligation_id)) {
+      if (
+        delegationCreatesCausalCycle({
+          state,
+          runs,
+          unresolvedDelegationsByRun,
+          parentObligationId: run.obligation_id,
+          childObligationId: fact.child_obligation_id,
+        })
+      ) {
         throw new Error('DELEGATION_CAUSAL_CYCLE');
       }
       if (project.lifecycles.get(fact.child_obligation_id)?.status === 'DONE') {
