@@ -1,7 +1,18 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-import * as ts from 'typescript';
+import { API } from 'typescript/unstable/sync';
+import {
+  isClassDeclaration,
+  isEnumDeclaration,
+  isFunctionDeclaration,
+  isInterfaceDeclaration,
+  isTypeAliasDeclaration,
+  isVariableStatement,
+  type Node,
+  type SourceFile,
+} from 'typescript/unstable/ast';
 
 interface SymbolEntry {
   path: string;
@@ -41,37 +52,47 @@ if (policy.schema !== 'overcenter-tcb-policy' || policy.schema_version !== 1) {
   throw new Error('TCB_POLICY_SCHEMA_UNSUPPORTED');
 }
 
-const sourceCache = new Map<string, { text: string; source: ts.SourceFile }>();
+const openFiles = [
+  ...new Set(
+    policy.properties.flatMap((property) => property.entries.map((entry) => resolve(entry.path))),
+  ),
+];
+const api = new API({ cwd: process.cwd() });
+const snapshot = api.updateSnapshot({ openFiles });
+const sourceCache = new Map<string, { text: string; source: SourceFile }>();
 
 function sourceFor(path: string) {
   const cached = sourceCache.get(path);
   if (cached) return cached;
+  const absolute = resolve(path);
+  const project = snapshot.getDefaultProjectForFile(absolute);
+  const source = project?.program.getSourceFile(absolute);
+  if (!source) throw new Error(`TCB_SOURCE_UNAVAILABLE:${path}`);
   const text = readFileSync(path, 'utf8');
-  const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const loaded = { text, source };
   sourceCache.set(path, loaded);
   return loaded;
 }
 
-function nodeName(node: ts.Node, source: ts.SourceFile): string | null {
-  const named = node as ts.Node & { name?: ts.Node };
+function nodeName(node: Node, source: SourceFile): string | null {
+  const named = node as Node & { name?: Node };
   if (!named.name) return null;
   return named.name.getText(source);
 }
 
-function topLevelNamed(source: ts.SourceFile, name: string): ts.Node | null {
+function topLevelNamed(source: SourceFile, name: string): Node | null {
   for (const statement of source.statements) {
     if (
-      (ts.isFunctionDeclaration(statement) ||
-        ts.isClassDeclaration(statement) ||
-        ts.isInterfaceDeclaration(statement) ||
-        ts.isTypeAliasDeclaration(statement) ||
-        ts.isEnumDeclaration(statement)) &&
+      (isFunctionDeclaration(statement) ||
+        isClassDeclaration(statement) ||
+        isInterfaceDeclaration(statement) ||
+        isTypeAliasDeclaration(statement) ||
+        isEnumDeclaration(statement)) &&
       nodeName(statement, source) === name
     ) {
       return statement;
     }
-    if (ts.isVariableStatement(statement)) {
+    if (isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
         if (declaration.name.getText(source) === name) return declaration;
       }
@@ -80,7 +101,7 @@ function topLevelNamed(source: ts.SourceFile, name: string): ts.Node | null {
   return null;
 }
 
-function declarationFor(path: string, symbol: string): ts.Node {
+function declarationFor(path: string, symbol: string): Node {
   const { source } = sourceFor(path);
   const dot = symbol.indexOf('.');
   if (dot < 0) {
@@ -92,7 +113,7 @@ function declarationFor(path: string, symbol: string): ts.Node {
   const ownerName = symbol.slice(0, dot);
   const memberName = symbol.slice(dot + 1);
   const owner = topLevelNamed(source, ownerName);
-  if (!owner || !ts.isClassDeclaration(owner)) {
+  if (!owner || !isClassDeclaration(owner)) {
     throw new Error(`TCB_OWNER_NOT_FOUND:${path}#${ownerName}`);
   }
   for (const member of owner.members) {
@@ -156,31 +177,36 @@ function uniqueSemanticLoc(slices: Slice[]): number {
   return [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0);
 }
 
-let failed = false;
-const reports = policy.properties.map((property) => {
-  const slices = property.entries.map(sliceFor);
-  const semanticLoc = uniqueSemanticLoc(slices);
-  if (semanticLoc > property.max_semantic_loc) failed = true;
-  return {
-    id: property.id,
-    statement: property.statement,
-    semantic_loc: semanticLoc,
-    max_semantic_loc: property.max_semantic_loc,
-    budget_remaining: property.max_semantic_loc - semanticLoc,
-    slices,
-    external_assumptions: property.external_assumptions,
-    excluded: property.excluded,
+try {
+  let failed = false;
+  const reports = policy.properties.map((property) => {
+    const slices = property.entries.map(sliceFor);
+    const semanticLoc = uniqueSemanticLoc(slices);
+    if (semanticLoc > property.max_semantic_loc) failed = true;
+    return {
+      id: property.id,
+      statement: property.statement,
+      semantic_loc: semanticLoc,
+      max_semantic_loc: property.max_semantic_loc,
+      budget_remaining: property.max_semantic_loc - semanticLoc,
+      slices,
+      external_assumptions: property.external_assumptions,
+      excluded: property.excluded,
+    };
+  });
+
+  const report = {
+    schema: 'overcenter-tcb-report',
+    schema_version: 1,
+    generated_from_policy: 'tcb-policy.json',
+    properties: reports,
   };
-});
+  console.log(JSON.stringify(report, null, 2));
 
-const report = {
-  schema: 'overcenter-tcb-report',
-  schema_version: 1,
-  generated_from_policy: 'tcb-policy.json',
-  properties: reports,
-};
-console.log(JSON.stringify(report, null, 2));
-
-if (failed) {
-  throw new Error('TCB_BUDGET_EXCEEDED');
+  if (failed) {
+    throw new Error('TCB_BUDGET_EXCEEDED');
+  }
+} finally {
+  snapshot.dispose();
+  api.close();
 }
