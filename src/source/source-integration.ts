@@ -111,7 +111,8 @@ function sourceControlPath(path: string): boolean {
   return (
     path === '.overcenter' ||
     path.startsWith('.overcenter/') ||
-    path.startsWith('.github/workflows/')
+    path === '.github' ||
+    path.startsWith('.github/')
   );
 }
 
