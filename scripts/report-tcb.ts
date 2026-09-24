@@ -5,12 +5,10 @@ import { dirname, relative, resolve } from 'node:path';
 import { API } from 'typescript/unstable/sync';
 import {
   SyntaxKind,
-  isCallExpression,
   isClassDeclaration,
   isEnumDeclaration,
   isExportDeclaration,
   isFunctionDeclaration,
-  isIdentifier,
   isImportDeclaration,
   isInterfaceDeclaration,
   isStringLiteral,
@@ -236,22 +234,19 @@ function runtimeImports(path: string): { local: string[]; external: string[] } {
     }
   }
 
-  const visitRuntimeLoads = (node: Node): void => {
-    if (isCallExpression(node)) {
-      const dynamicImport = node.expression.kind === SyntaxKind.ImportKeyword;
-      const commonJsRequire = isIdentifier(node.expression) && node.expression.text === 'require';
-      if (dynamicImport || commonJsRequire) {
-        if (node.arguments.length !== 1 || !isStringLiteral(node.arguments[0])) {
-          throw new Error(
-            `${dynamicImport ? 'TCB_DYNAMIC_IMPORT_NONLITERAL' : 'TCB_REQUIRE_NONLITERAL'}:${path}`,
-          );
-        }
-        specifiers.add(node.arguments[0].text);
-      }
+  const text = readFileSync(path, 'utf8');
+  const runtimeLoad = /\b(import|require)\s*\(/g;
+  for (const match of text.matchAll(runtimeLoad)) {
+    const start = match.index;
+    const tail = text.slice(start);
+    const literal = /^(import|require)\s*\(\s*(['"])([^'"]+)\2\s*\)/.exec(tail);
+    if (!literal) {
+      throw new Error(
+        `${match[1] === 'import' ? 'TCB_DYNAMIC_IMPORT_NONLITERAL' : 'TCB_REQUIRE_NONLITERAL'}:${path}`,
+      );
     }
-    for (const child of node.childrenIter()) visitRuntimeLoads(child);
-  };
-  visitRuntimeLoads(source);
+    specifiers.add(literal[3] as string);
+  }
 
   const local: string[] = [];
   const external: string[] = [];
