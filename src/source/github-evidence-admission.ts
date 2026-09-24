@@ -1,10 +1,7 @@
 import { execFileSync } from 'node:child_process';
 
 import { validPath } from '../execution/assignment-capsule.ts';
-import {
-  validateSourceTaskPacket,
-  type SourceTaskPacket,
-} from './source-obligation.ts';
+import { validateSourceTaskPacket, type SourceTaskPacket } from './source-obligation.ts';
 import {
   observeCertifiedGithubCommitAncestry,
   type CertifiedGithubCommitAncestryEvidence,
@@ -203,9 +200,7 @@ export function admitSourceTaskFromGithubWorkflow(
     clock,
   });
   if (runRead.state !== 'observed') {
-    throw new Error(
-      `SOURCE_PROMOTION_WORKFLOW_RUN_INDETERMINATE:${runRead.observation_error}`,
-    );
+    throw new Error(`SOURCE_PROMOTION_WORKFLOW_RUN_INDETERMINATE:${runRead.observation_error}`);
   }
   const run = workflowRun(runRead.value);
   if (run.id !== request.workflowRunId) throw new Error('SOURCE_PROMOTION_WORKFLOW_RUN_MISMATCH');
@@ -232,9 +227,7 @@ export function admitSourceTaskFromGithubWorkflow(
     clock,
   });
   if (jobRead.state !== 'observed') {
-    throw new Error(
-      `SOURCE_PROMOTION_WORKFLOW_JOB_INDETERMINATE:${jobRead.observation_error}`,
-    );
+    throw new Error(`SOURCE_PROMOTION_WORKFLOW_JOB_INDETERMINATE:${jobRead.observation_error}`);
   }
   const job = workflowJob(jobRead.value);
   if (
