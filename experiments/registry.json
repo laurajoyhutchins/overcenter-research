@@ -1035,6 +1035,59 @@
       }
     },
     {
+      "id": "proof-carrying-work",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/proof-carrying-work",
+      "readme": "experiments/proof-carrying-work/README.md",
+      "question": "Can an untrusted worker return a candidate plus a compact proof whose consumer-owned checker establishes bounded work admissibility without trusting worker assertions or re-running the worker's reasoning?",
+      "claim": "For a bounded source-work model, a small dependency-free checker accepts the valid proof-carrying candidate, rejects hostile candidate/proof substitutions, agrees with an independent certificate-free verifier on semantic cases, and refuses to derive effect confinement from worker assertions.",
+      "contrast": "Trust the worker's success declaration or re-run all task-specific reasoning inside the trusted consumer rather than checking a compact producer-supplied derivation over consumer-owned facts.",
+      "design": {
+        "provenance": "mixed",
+        "note": "The proof-carrying-work boundary, trusted-leaf requirement, independent verifier, ambient-authority negative control, and bounded-checker goal preceded execution. The first local harness run incorrectly required the certificate-free verifier to reject certificate-only corruption; the harness was corrected to distinguish semantic falsifiers from certificate-integrity falsifiers without weakening either result."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The corrected local developmental run passed 18 cases with zero false acceptance; exact-head repository evidence is pending."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:proof-carrying-work"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Node built-in assert and crypto only; no npm runtime dependency is required.",
+        "No network, provider credential, model, database, proof assistant, or external solver is required."
+      ],
+      "success_criteria": [
+        "The valid candidate is accepted by both the certificate-free control and proof-carrying treatment.",
+        "Every semantic hostile case produces the same fail-closed result from the independent control and the proof checker.",
+        "Every certificate-integrity hostile case is rejected by the proof checker even when the certificate-independent control still accepts the underlying candidate.",
+        "False acceptance is exactly zero across the bounded corpus.",
+        "The proof checker remains at or below 100 nonblank function lines.",
+        "Worker-supplied assertions cannot mint trusted acceptance or effect-confinement leaves.",
+        "The ambient-provider-capability negative control is rejected because the trusted effect-confinement premise is absent."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "Developmental local run before repository-hosted evaluation: 18 cases, 17 hostile; 13/13 semantic control-treatment agreement; 5/5 certificate-integrity corruptions rejected; zero false acceptance; 41 nonblank checker lines."
+        ],
+        "pending_reason": "Exact-head GitHub Actions candidate evidence has not yet run for the repository commit containing this experiment."
+      },
+      "interpretation": "A positive exact-head result would establish a narrow proof-carrying admissibility mechanism: an untrusted producer may construct the derivation, while the consumer trusts only a bounded checker and independently sourced facts. It would justify testing policy derivation from the production source-obligation contract, not replacing production postcondition verification yet.",
+      "non_claims": [
+        "Arbitrary software correctness is proved.",
+        "A worker can prove that it did not exercise ambient authority.",
+        "Proof-carrying work replaces capability confinement or trusted observation.",
+        "The five-rule proof language is complete for real Overcenter obligations.",
+        "The bounded checker is smaller than every task-specific verifier.",
+        "Graph acyclicity needs proof-carrying machinery in production rather than ordinary deterministic recomputation.",
+        "Local developmental success is exact-head production evidence."
+      ]
+    },
+    {
       "id": "scheduler-bottleneck",
       "kind": "experiment",
       "status": "historical",
