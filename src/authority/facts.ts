@@ -28,6 +28,8 @@ export const EXECUTION_AUTHORITY_SCHEMA = 'overcenter-git-execution-authority-v1
 export const EFFECT_RESERVATION_SCHEMA = 'overcenter-git-effect-reservation-v1' as const;
 export const EFFECT_RELEASE_SCHEMA = 'overcenter-effect-release' as const;
 export const EFFECT_RELEASE_SCHEMA_VERSION = 2 as const;
+export const VERIFIED_OUTPUT_SCHEMA = 'overcenter-verified-output' as const;
+export const VERIFIED_OUTPUT_SCHEMA_VERSION = 1 as const;
 export const RECEIPT_SCHEMA = 'overcenter-git-receipt-v5' as const;
 
 export interface ObligationInput {
@@ -116,8 +118,23 @@ export interface EffectReleaseFact {
   evidence_ref?: EvidenceRef;
 }
 
+export interface VerifiedOutputFact {
+  schema: typeof VERIFIED_OUTPUT_SCHEMA;
+  schema_version: typeof VERIFIED_OUTPUT_SCHEMA_VERSION;
+  run_id: string;
+  obligation_id: string;
+  claimed_revision: string;
+  claim_commit: string;
+  execution_generation: number;
+  execution_authority_commit: string;
+  validator: string;
+  evidence: EvidenceRef;
+  metadata: Data;
+}
+
 export type ReceiptKind =
   | 'observation'
+  | 'verified-output'
   | 'judgment-required'
   | 'execution-terminated'
   | 'effect-not-dispatched';
@@ -139,6 +156,7 @@ export interface ReceiptFact {
 export interface Receipt extends ReceiptFact {
   disposition: Disposition;
   verified: boolean;
+  verified_output?: VerifiedOutputFact;
   settlement_commit?: string;
 }
 
@@ -156,6 +174,7 @@ export interface FactCommit {
   execution_authority?: unknown | null;
   effect_reservation?: unknown | null;
   effect_release?: unknown | null;
+  verified_output?: unknown | null;
   receipt?: unknown | null;
 }
 
@@ -484,6 +503,54 @@ export function validateEffectReleaseFact(value: unknown): EffectReleaseFact {
   };
 }
 
+export function validateVerifiedOutputFact(value: unknown): VerifiedOutputFact {
+  if (!data(value)) throw new Error('INVALID_VERIFIED_OUTPUT_FACT');
+  exactKeys(
+    value,
+    [
+      'schema',
+      'schema_version',
+      'run_id',
+      'obligation_id',
+      'claimed_revision',
+      'claim_commit',
+      'execution_generation',
+      'execution_authority_commit',
+      'validator',
+      'evidence',
+      'metadata',
+    ],
+    [],
+    'INVALID_VERIFIED_OUTPUT_FACT',
+  );
+  if (value.schema !== VERIFIED_OUTPUT_SCHEMA) throw new Error('INVALID_VERIFIED_OUTPUT_SCHEMA');
+  if (value.schema_version !== VERIFIED_OUTPUT_SCHEMA_VERSION) {
+    throw new Error('INVALID_VERIFIED_OUTPUT_SCHEMA_VERSION');
+  }
+  nonEmptyString(value.run_id, 'INVALID_RUN_ID');
+  nonEmptyString(value.obligation_id, 'INVALID_OBLIGATION_ID');
+  nonEmptyString(value.claimed_revision, 'INVALID_CLAIMED_REVISION');
+  nonEmptyString(value.claim_commit, 'INVALID_CLAIM_COMMIT');
+  positiveSafeInteger(value.execution_generation, 'INVALID_EXECUTION_GENERATION');
+  nonEmptyString(value.execution_authority_commit, 'INVALID_EXECUTION_AUTHORITY_COMMIT');
+  nonEmptyString(value.validator, 'INVALID_VERIFIED_OUTPUT_VALIDATOR');
+  const evidence = validateEvidenceRef(value.evidence);
+  if (!data(value.metadata)) throw new Error('INVALID_VERIFIED_OUTPUT_METADATA');
+  return {
+    schema: VERIFIED_OUTPUT_SCHEMA,
+    schema_version: VERIFIED_OUTPUT_SCHEMA_VERSION,
+    run_id: value.run_id,
+    obligation_id: value.obligation_id,
+    claimed_revision: value.claimed_revision,
+    claim_commit: value.claim_commit,
+    execution_generation: value.execution_generation,
+    execution_authority_commit: value.execution_authority_commit,
+    validator: value.validator,
+    evidence,
+    metadata: structuredClone(value.metadata),
+  };
+}
+
 export function validateReceiptFact(value: unknown): ReceiptFact {
   if (!data(value)) throw new Error('INVALID_RECEIPT_FACT');
   exactKeys(
@@ -513,9 +580,13 @@ export function validateReceiptFact(value: unknown): ReceiptFact {
   positiveSafeInteger(value.execution_generation, 'INVALID_EXECUTION_GENERATION');
   nonEmptyString(value.execution_authority_commit, 'INVALID_EXECUTION_AUTHORITY_COMMIT');
   if (
-    !['observation', 'judgment-required', 'execution-terminated', 'effect-not-dispatched'].includes(
-      String(value.kind),
-    )
+    ![
+      'observation',
+      'verified-output',
+      'judgment-required',
+      'execution-terminated',
+      'effect-not-dispatched',
+    ].includes(String(value.kind))
   ) {
     throw new Error('INVALID_RECEIPT_KIND');
   }
@@ -539,6 +610,7 @@ export type AuthorityFact =
   | ExecutionAuthorityFact
   | EffectReservationFact
   | EffectReleaseFact
+  | VerifiedOutputFact
   | ReceiptFact;
 
 export function validateAuthorityFact(value: unknown): AuthorityFact {
@@ -556,6 +628,8 @@ export function validateAuthorityFact(value: unknown): AuthorityFact {
       return validateEffectReservationFact(value);
     case EFFECT_RELEASE_SCHEMA:
       return validateEffectReleaseFact(value);
+    case VERIFIED_OUTPUT_SCHEMA:
+      return validateVerifiedOutputFact(value);
     case RECEIPT_SCHEMA:
       return validateReceiptFact(value);
     default:
