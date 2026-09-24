@@ -5,6 +5,7 @@ import {
   assertExactKeys as exactKeys,
   assertNonEmptyString as nonEmptyString,
   isData as data,
+  isPositiveSafeInteger,
 } from './validation.ts';
 import { consumeGithubStatusNotDispatchedWitness } from './providers/github/status-transport.ts';
 
@@ -41,10 +42,6 @@ export interface EffectReleaseEvidence {
   observation: Data;
 }
 
-function positiveSafeInteger(value: unknown, error: string): asserts value is number {
-  if (!Number.isSafeInteger(value) || (value as number) < 1) throw new Error(error);
-}
-
 function validateAttemptBinding(value: unknown): EffectAttemptBinding {
   if (!data(value)) throw new Error('INVALID_EFFECT_RELEASE_EVIDENCE_ATTEMPT');
   exactKeys(
@@ -62,10 +59,9 @@ function validateAttemptBinding(value: unknown): EffectAttemptBinding {
   );
   nonEmptyString(value.run_id, 'INVALID_EFFECT_RELEASE_EVIDENCE_RUN');
   nonEmptyString(value.obligation_id, 'INVALID_EFFECT_RELEASE_EVIDENCE_OBLIGATION');
-  positiveSafeInteger(
-    value.execution_generation,
-    'INVALID_EFFECT_RELEASE_EVIDENCE_EXECUTION_GENERATION',
-  );
+  if (!isPositiveSafeInteger(value.execution_generation)) {
+    throw new Error('INVALID_EFFECT_RELEASE_EVIDENCE_EXECUTION_GENERATION');
+  }
   nonEmptyString(
     value.execution_authority_commit,
     'INVALID_EFFECT_RELEASE_EVIDENCE_EXECUTION_AUTHORITY',

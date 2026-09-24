@@ -1,4 +1,5 @@
 import { once } from 'node:events';
+import { isPositiveSafeInteger, isSha256Tagged } from '../validation.ts';
 import { createConnection, type Socket } from 'node:net';
 import { createInterface } from 'node:readline';
 import {
@@ -56,13 +57,10 @@ export class GoExecutorClient {
     if (!socketPath.startsWith('/')) {
       throw new Error('GO_EXECUTOR_SOCKET_MUST_BE_ABSOLUTE');
     }
-    if (!Number.isSafeInteger(maxConcurrency) || maxConcurrency <= 0) {
+    if (!isPositiveSafeInteger(maxConcurrency)) {
       throw new Error('GO_EXECUTOR_CONCURRENCY_INVALID');
     }
-    if (
-      executionContextSha256 !== undefined &&
-      !/^sha256:[0-9a-f]{64}$/.test(executionContextSha256)
-    ) {
+    if (executionContextSha256 !== undefined && !isSha256Tagged(executionContextSha256)) {
       throw new Error('GO_EXECUTOR_EXECUTION_CONTEXT_INVALID');
     }
     if (

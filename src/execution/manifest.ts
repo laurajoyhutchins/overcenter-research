@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { sha256 } from '../digest.ts';
+import { isPositiveSafeInteger } from '../validation.ts';
 
 export interface ExecutionManifestInput {
   task_id: string;
@@ -53,7 +54,7 @@ const positiveSafeInteger = (
   value: number,
   max = Number.MAX_SAFE_INTEGER,
 ): number => {
-  if (!Number.isSafeInteger(value) || value <= 0 || value > max) {
+  if (!isPositiveSafeInteger(value) || value > max) {
     throw new Error(`${name.toUpperCase()}_INVALID`);
   }
   return value;
