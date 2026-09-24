@@ -42,6 +42,8 @@ function fixture(): {
     "import fs from 'node:fs';\nconst input=fs.readFileSync(process.argv[2],'utf8').trim();\nfs.writeFileSync(process.argv[3],'completed:'+input+'\\n');\n",
   );
   writeFileSync(join(work, 'input.txt'), 'hello\n');
+  mkdirSync(join(work, 'src'));
+  writeFileSync(join(work, 'src', 'feature.txt'), 'feature:base\n');
   execFileSync('git', ['-C', work, 'add', '.'], { stdio: 'ignore' });
   execFileSync('git', ['-C', work, 'commit', '-m', 'seed task source'], { stdio: 'ignore' });
   execFileSync('git', ['-C', work, 'remote', 'add', 'origin', remote], { stdio: 'ignore' });
@@ -114,6 +116,18 @@ function agentIntent(id: string, postconditionPath: string) {
       verifier: 'file-content-equals/v1',
       path: postconditionPath,
       content: 'completed:hello\n',
+    },
+  };
+}
+
+function sourceIntent(id: string) {
+  return {
+    id,
+    task: {
+      schema: 'overcenter-source-task/v1',
+      kind: 'source-change',
+      objective: 'Update the bounded source feature.',
+      writable_paths: ['src/feature.txt'],
     },
   };
 }
@@ -405,6 +419,7 @@ test('project.submit validates exact packet identity and settles independently',
       {
         ...commandContext('e'.repeat(40), 9002),
         candidate_sha: candidateSha,
+        candidate_run_id: acquired.run_id,
       },
       { authorityRef: AUTHORITY_REF, remote: 'origin' },
     );
@@ -425,6 +440,7 @@ test('project.submit validates exact packet identity and settles independently',
       {
         ...commandContext('f'.repeat(40), 9003),
         candidate_sha: candidateSha,
+        candidate_run_id: acquired.run_id,
       },
       { authorityRef: AUTHORITY_REF, remote: 'origin' },
     );
