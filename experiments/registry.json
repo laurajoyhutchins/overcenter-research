@@ -162,7 +162,7 @@
       "directory": "experiments/causal-execution-quotient",
       "readme": "experiments/causal-execution-quotient/README.md",
       "question": "Can Overcenter quotient concrete interleavings by causal independence without losing bounded safety outcomes, while retaining order when production semantics make it observable?",
-      "claim": "For the preregistered four-obligation treatment, a property-sensitive causal quotient collapses 369,600 safety-equivalent linearizations to one trace while retaining scheduler-visible claim order and refusing conflicting provider writes.",
+      "claim": "For the fixed four-obligation acceptance criteria, a property-sensitive causal quotient collapses 369,600 safety-equivalent linearizations to one trace while retaining scheduler-visible claim order and refusing conflicting provider writes.",
       "contrast": "Treat every durable linearization as semantically distinct, or declare graph-disconnected/different-ID work independent without checking causal, resource, and property-sensitive observability.",
       "reproduce": {
         "tier": "deterministic",
@@ -188,7 +188,8 @@
         "artifacts": [
           "GitHub Actions run 35948193885, job 107470793076: exact-head causal execution quotient treatment PASS.",
           "369,600 concrete linearizations -> 1 safety trace and 24 scheduler-sensitive traces.",
-          "Hostile distinct-obligation independence rule collapsed two different provider outcomes into one class, as required by the negative control."
+          "Hostile distinct-obligation independence rule collapsed two different provider outcomes into one class, as required by the negative control.",
+          "GitHub Actions run 35948133861: initial hosted run failed because the static-conflict control was wired to a non-effect local-file postcondition; the fixture was corrected without changing its acceptance criterion."
         ]
       },
       "interpretation": "A positive result would support a read-only, property-sensitive causal quotient for bounded model exploration and conflict analysis while leaving serialized project authority and exact-revision fencing intact.",
@@ -202,8 +203,8 @@
         "DPOR or event-structure execution is already production machinery."
       ],
       "design": {
-        "provenance": "preregistered",
-        "note": "The independence rule, exact cardinalities, production semantic controls, scheduler-order negative control, and deliberately unsound oracle were committed before the hosted experiment was run."
+        "provenance": "mixed",
+        "note": "The independence rule, exact cardinalities, production semantic criteria, scheduler-order negative control, and deliberately unsound oracle were committed before hosted execution. The first hosted run then exposed a fixture-wiring mistake: local file postconditions do not participate in production effect-conflict indexing. The fixture was corrected to use a real GitHub-status effect without changing the preregistered distinguishing criterion."
       },
       "outcome": {
         "state": "supported",
