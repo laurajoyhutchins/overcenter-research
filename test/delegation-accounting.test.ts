@@ -151,7 +151,7 @@ test('SQLite reconstructs outstanding delegation across controller replacement',
 
   assert.ok(binding);
   assert.ok(parentRunId);
-  assert.notEqual(parentGeneration, null);
+  assert.ok(parentGeneration !== null);
 
   const recovery = new OvercenterKernel(database);
   try {
