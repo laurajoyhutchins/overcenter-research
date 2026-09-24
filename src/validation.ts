@@ -40,3 +40,11 @@ export function assertNonEmptyString(value: unknown, error: string): asserts val
     throw new Error(error);
   }
 }
+
+export function isSha256Hex(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+}
+
+export function isPositiveSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) > 0;
+}
