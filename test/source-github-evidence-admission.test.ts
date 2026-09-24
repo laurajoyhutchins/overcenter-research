@@ -92,7 +92,7 @@ function workflowJob(evaluatedSha: string, overrides: Record<string, unknown> = 
     run_attempt: 2,
     node_id: 'WFRJ_8001',
     head_sha: evaluatedSha,
-    name: 'promotion-admissible',
+    name: `promote:${TASK_PATH}`,
     status: 'completed',
     conclusion: 'success',
     started_at: '2026-09-24T14:01:00Z',
@@ -146,7 +146,6 @@ function request(designSha: string, evaluatedSha: string) {
     workflowJobId: WORKFLOW_JOB_ID,
     workflowName: 'Research experiment',
     workflowPath: '.github/workflows/research.yml',
-    promotionJobName: 'promotion-admissible',
     minimumRunAttempt: 2,
   };
 }
@@ -167,7 +166,7 @@ test('exact GitHub evidence admits only the source task frozen at the design com
     assert.equal(admitted.design.task_blob_sha, f.designBlobSha);
     assert.equal(admitted.workflow_run.value.head_sha, f.evaluatedSha);
     assert.equal(admitted.workflow_run.evidence.operation_id, 'actions/get-workflow-run');
-    assert.equal(admitted.promotion_job.value.name, 'promotion-admissible');
+    assert.equal(admitted.promotion_job.value.name, `promote:${TASK_PATH}`);
     assert.equal(
       admitted.promotion_job.evidence.operation_id,
       'actions/get-job-for-workflow-run',
