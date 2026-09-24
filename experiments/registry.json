@@ -589,11 +589,15 @@
         "The intentionally unsound different-obligation-ID oracle suppresses the required race, explores one conflicting execution, and misses one final outcome."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "0b0d1370bc96712cc4bef7f6c95eb13fd44fc4f5",
         "artifacts": [
-          ".github/workflows/dpor-race-backtracking.yml"
-        ],
-        "pending_reason": "The race definition, exact trace cardinalities, ancestor-backtracking rule, future-conflict control, and unsound independence falsifier are preregistered; exact-head hosted execution has not yet been recorded."
+          "GitHub Actions run 35950973401, job 107479240353: exact-head DPOR race/backtracking treatment PASS.",
+          "Safety: 369,600 exhaustive schedules -> 1 execution in 13 explored prefixes, exact trace-set match.",
+          "Scheduler-sensitive: 369,600 exhaustive schedules -> 24 executions in 237 prefixes, with 132 detected races and exact trace-set match.",
+          "Future conflict: six schedules -> two reduced executions; later dependency race inserted ancestor backtracking and preserved both outcomes.",
+          "Unsound distinct-obligation independence suppressed the required race and missed one conflicting outcome."
+        ]
       },
       "interpretation": "A positive result would establish the essential dynamic race/backtracking mechanism needed to move beyond sleep-set-only reduction: dependency discovered later can create a new exploration branch at an earlier prefix.",
       "non_claims": [
@@ -610,8 +614,8 @@
         "note": "The exact 369,600-to-1 and 369,600-to-24 targets, dependent-race criterion, ancestor-backtracking rule, future-conflict fixture, and unsound independence falsifier were committed before hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The preregistered DPOR race/backtracking treatment has not yet produced exact-head hosted evidence."
+        "state": "supported",
+        "summary": "Race-triggered ancestor backtracking matched exhaustive trace classes, preserved immediate and later-emerging conflicts, and generated one safety execution and 24 scheduler-sensitive executions from the 369,600-schedule corpus."
       }
     },
     {
