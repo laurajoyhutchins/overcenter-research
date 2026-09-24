@@ -21,6 +21,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `adapter-diagnosability/` - finite-state diagnosability and safe-diagnosability analysis for mutation ambiguity.
 - `weakest-precondition-admission/` - bounded backward derivation of the minimal mutation-admission predicate, with underconstraint and overconstraint controls.
 - `adapter-recovery-weakest-preconditions/` - derive reservation-release and ambiguous-effect replay guards from evidence semantics plus adapter capabilities.
+- `recovery-action-partition/` - derive a complete SETTLE / RELEASE / REPLAY / RECOVERY_REQUIRED partition for unresolved effects.
 - `github-status-not-dispatched-release/` - production-path treatment for exact reservation release from trusted pre-dispatch transport evidence.
 - `attempt-unification/` - falsifies the single recovery-clock simplification and proves authority fencing and unresolved mutation identity require distinct temporal dimensions.
 - `codex-closed-loop/` - bounded reasoning-worker transaction with trusted claim, verification, settlement, publication, and readback kept outside the worker.

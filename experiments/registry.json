@@ -3385,6 +3385,69 @@
           "The same exact-head candidate passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, all maintained deterministic experiments, TLA+, the production computation boundary, and self-application."
         ]
       }
+    },
+    {
+      "id": "recovery-action-partition",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/recovery-action-partition",
+      "readme": "experiments/recovery-action-partition/README.md",
+      "question": "Can one bounded weakest-precondition model derive a complete mutually exclusive unresolved-effect recovery action: SETTLE, RELEASE, REPLAY, or RECOVERY_REQUIRED?",
+      "claim": "Across 64 preregistered unresolved-effect states, SETTLE should derive from exact authoritative verified-present evidence without adapter dependence; RELEASE from exact trusted non-dispatch evidence plus adapter match; REPLAY from exact terminal absence plus duplicate-safe replay semantics; and RECOVERY_REQUIRED should cover every remaining state with no overlap.",
+      "contrast": "Continue implementing settlement, release, replay, and recovery-required as separately reasoned branches without mechanically checking that their evidence domains form a complete disjoint decision partition.",
+      "interpretation": "If supported, the result would show that the current recovery decision can be expressed as one derived partition over evidence, authority, attempt identity, and adapter semantics, while preserving postcondition-centric settlement.",
+      "environment": [
+        "Node.js from .node-version with built-in TypeScript stripping.",
+        "Production observationVerified(), projectReceipt(), effect adapter descriptor, and GitHub semantic release predicate.",
+        "A preregistered Cartesian product of 64 unresolved-effect recovery states.",
+        "No provider network call, database, credential, LLM, or runtime dependency."
+      ],
+      "success_criteria": [
+        "SETTLE derives exactly current_authority AND exact_attempt_binding AND evidence=verified-present.",
+        "RELEASE derives exactly current_authority AND exact_attempt_binding AND adapter_match AND evidence=not-dispatched.",
+        "REPLAY derives exactly current_authority AND exact_attempt_binding AND adapter_match AND replay_protected AND evidence=terminal-absence.",
+        "The three affirmative action safe sets are pairwise disjoint.",
+        "RECOVERY_REQUIRED covers every remaining state, producing exactly one action for all 64 states.",
+        "SETTLE remains admissible with adapter mismatch when exact verified-present evidence exists.",
+        "Evidence-collapse mutants for verified-present and terminal-absence each admit unsafe RELEASE states.",
+        "Removing RECOVERY_REQUIRED leaves states unclassified.",
+        "Production observation verification and projectReceipt settlement agree with the derived SETTLE boundary.",
+        "Production verified settlement remains DONE despite an unresolved reservation and despite packet adapter mismatch.",
+        "Production wrong-state observation remains RECOVERY_REQUIRED.",
+        "The exact GitHub pre-secureConnect witness remains accepted for RELEASE.",
+        "Current GitHub terminal absence remains RECOVERY_REQUIRED because replay protection is absent.",
+        "A replay-protected terminal-absence control maps to REPLAY.",
+        "Exact-head hosted execution passes without modifying the preregistered treatment."
+      ],
+      "non_claims": [
+        "The four evidence classes cover every future provider protocol.",
+        "Evidence from different times may be freely combined.",
+        "The experiment proves liveness or eventual recovery.",
+        "The experiment re-proves transport witness provenance.",
+        "Adapter declarations are truthful without independent evidence.",
+        "The calculator should become production authority.",
+        "Generated code is preferable to reviewed predicates.",
+        "RECOVERY_REQUIRED is always automatically resolvable."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The 64-state unresolved-effect domain, hidden-world evidence semantics, three expected weakest conditions, exact-action partition, two evidence-collapse mutants, missing-fallback control, adapter-independence falsifier, and production differential were fixed before the first hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Exact-head hosted execution has not yet evaluated the preregistered recovery action partition."
+      },
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run test:recovery-action-partition"
+      },
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "Pending exact-head GitHub Actions candidate evidence on the stacked experiment pull request."
+        ],
+        "pending_reason": "The preregistered experiment has not yet been executed by hosted exact-head CI."
+      }
     }
   ]
 }
