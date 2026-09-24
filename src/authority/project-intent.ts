@@ -2,8 +2,12 @@ import {
   AGENT_TASK_PACKET_SCHEMA,
   validateAgentTaskPacket,
 } from '../execution/assignment-capsule.ts';
-import { normalizeObligation, type ObligationInput } from './facts.ts';
+import {
+  SOURCE_TASK_SCHEMA,
+  validateSourceTaskPacket,
+} from '../source/source-obligation.ts';
 import { assertExactKeys, isData } from '../validation.ts';
+import { normalizeObligation, type ObligationInput } from './facts.ts';
 
 export const PROJECT_INTENT_SCHEMA = 'overcenter-project-intent/v1' as const;
 export const PROJECT_INTENT_PATH = '.overcenter/project-intent.json' as const;
@@ -24,12 +28,34 @@ export function compileProjectIntent(value: unknown): ObligationInput[] {
     }
     assertExactKeys(
       candidate,
-      ['id', 'task', 'postcondition'],
-      ['dependencies'],
+      ['id', 'task'],
+      ['dependencies', 'postcondition'],
       `PROJECT_INTENT_OBLIGATION_INVALID:${index}`,
     );
     if (!isData(candidate.task)) {
       throw new Error(`PROJECT_INTENT_TASK_INVALID:${index}`);
+    }
+
+    if (
+      candidate.task.schema === SOURCE_TASK_SCHEMA ||
+      candidate.task.kind === 'source-change'
+    ) {
+      if (candidate.postcondition !== undefined) {
+        throw new Error(`PROJECT_INTENT_SOURCE_POSTCONDITION_FORBIDDEN:${index}`);
+      }
+      const packet = validateSourceTaskPacket(candidate.task);
+      return normalizeObligation({
+        id: candidate.id,
+        ...(candidate.dependencies === undefined
+          ? {}
+          : { dependencies: structuredClone(candidate.dependencies) }),
+        packet: structuredClone(packet),
+        postcondition: { verifier: 'source-integration/v1' },
+      } as ObligationInput);
+    }
+
+    if (candidate.postcondition === undefined) {
+      throw new Error(`PROJECT_INTENT_POSTCONDITION_REQUIRED:${index}`);
     }
     assertExactKeys(
       candidate.task,
