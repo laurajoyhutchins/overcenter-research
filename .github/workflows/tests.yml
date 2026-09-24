@@ -54,6 +54,8 @@ jobs:
         run: npm install --ignore-scripts --package-lock=false
       - name: Type-check repository
         run: npm run typecheck
+      - name: Check trusted computing base budget
+        run: npm run check:tcb
       - name: Check adapter diagnosability
         run: npm run check:adapter-diagnosability
       - name: Run deterministic regression
