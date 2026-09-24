@@ -25,6 +25,7 @@ interface TcbProperty {
   id: string;
   statement: string;
   max_semantic_loc: number;
+  expected_surface_sha256?: string;
   entries: SymbolEntry[];
   external_assumptions: string[];
   excluded: string[];
@@ -182,13 +183,29 @@ try {
   const reports = policy.properties.map((property) => {
     const slices = property.entries.map(sliceFor);
     const semanticLoc = uniqueSemanticLoc(slices);
+    const surfaceSha256 = createHash('sha256')
+      .update(
+        slices
+          .map((slice) => `${slice.path}#${slice.symbol}:${slice.sha256}`)
+          .sort()
+          .join('\n'),
+      )
+      .digest('hex');
     if (semanticLoc > property.max_semantic_loc) failed = true;
+    if (
+      property.expected_surface_sha256 &&
+      property.expected_surface_sha256 !== surfaceSha256
+    ) {
+      failed = true;
+    }
     return {
       id: property.id,
       statement: property.statement,
       semantic_loc: semanticLoc,
       max_semantic_loc: property.max_semantic_loc,
       budget_remaining: property.max_semantic_loc - semanticLoc,
+      surface_sha256: surfaceSha256,
+      expected_surface_sha256: property.expected_surface_sha256 ?? null,
       slices,
       external_assumptions: property.external_assumptions,
       excluded: property.excluded,
