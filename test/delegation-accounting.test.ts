@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import type { DelegationAttemptBinding } from '../src/authority/engine.ts';
+import { OvercenterKernel } from '../src/authority/kernel.ts';
 import { GitKernelFixture } from './support/git-kernel-fixture.ts';
 
 function writeSatisfiedParent(fixture: GitKernelFixture, id: string): void {
@@ -101,5 +104,81 @@ test('replay preserves causal multiplicity and a fresh controller can discharge 
     assert.equal(reconstructed.hasUnresolvedDelegation(parent.id), false);
   } finally {
     fixture.close();
+  }
+});
+
+
+test('SQLite reconstructs outstanding delegation across controller replacement', () => {
+  const root = mkdtempSync(join(tmpdir(), 'overcenter-delegation-sqlite-'));
+  const database = join(root, 'authority.sqlite');
+  const parentPath = join(root, 'parent.txt');
+  const childPath = join(root, 'child.txt');
+  const first = new OvercenterKernel(database);
+
+  let binding: DelegationAttemptBinding;
+  let parentRunId: string;
+  let parentGeneration: number;
+
+  try {
+    first.initialize();
+    first.define({
+      id: 'parent',
+      postcondition: {
+        verifier: 'file-content-equals/v1',
+        path: parentPath,
+        content: 'parent-done',
+      },
+    });
+    first.define({
+      id: 'child',
+      postcondition: {
+        verifier: 'file-content-equals/v1',
+        path: childPath,
+        content: 'child-done',
+      },
+    });
+
+    const parent = first.claim('parent', first.inspect().find((work) => work.id === 'parent')!.revision);
+    parentRunId = parent.id;
+    parentGeneration = parent.execution_generation;
+    binding = first.reserveDelegation(first.authorizeSpawn(parent), 'child');
+    assert.equal(first.hasUnresolvedDelegation(parent.id), true);
+  } finally {
+    first.close();
+  }
+
+  const recovery = new OvercenterKernel(database);
+  try {
+    assert.equal(recovery.hasUnresolvedDelegation(parentRunId), true);
+
+    const child = recovery.inspect().find((work) => work.id === 'child');
+    assert.ok(child);
+    assert.equal(child.status, 'READY');
+    const childRun = recovery.claim(child.id, child.revision);
+    recovery.beginEffect(childRun);
+    writeFileSync(childPath, 'child-done');
+    assert.equal(recovery.resolve(childRun).disposition, 'DONE');
+
+    recovery.dischargeDelegation(binding);
+    assert.equal(recovery.hasUnresolvedDelegation(parentRunId), false);
+
+    const resumedParent = recovery.acquireExecution(parentRunId);
+    assert.equal(resumedParent.execution_generation, parentGeneration + 1);
+    writeFileSync(parentPath, 'parent-done');
+    assert.equal(recovery.resolve(resumedParent).disposition, 'DONE');
+  } finally {
+    recovery.close();
+  }
+
+  const replay = new OvercenterKernel(database);
+  try {
+    assert.equal(replay.hasUnresolvedDelegation(parentRunId), false);
+    assert.equal(
+      replay.inspect().find((work) => work.id === 'parent')?.status,
+      'DONE',
+    );
+  } finally {
+    replay.close();
+    rmSync(root, { recursive: true, force: true });
   }
 });
