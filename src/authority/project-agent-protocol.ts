@@ -459,7 +459,7 @@ export function submitProjectCandidate(
     const claim = kernel.sourceClaimBinding(runId);
     const prior = kernel.receipts(runId).at(-1);
     if (prior?.disposition === 'DONE' && prior.kind === 'source-integration') {
-      const diagnostic = record(prior.diagnostic) ? prior.diagnostic.source_integration : null;
+      const diagnostic = isData(prior.diagnostic) ? prior.diagnostic.source_integration : null;
       const evidence = validateSourceIntegrationEvidence(diagnostic);
       if (evidence.candidate_sha !== candidateSha) {
         throw new Error('PROJECT_SUBMIT_SETTLED_SOURCE_MISMATCH');
