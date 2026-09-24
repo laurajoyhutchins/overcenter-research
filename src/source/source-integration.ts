@@ -216,7 +216,7 @@ function sourceCandidateMessage(claim: SourceClaimBinding): string {
   ].join('\n');
 }
 
-export function materializeSourceProposal(
+function materializeSourceProposal(
   repo: string,
   taskValue: unknown,
   claim: SourceClaimBinding,
@@ -256,7 +256,7 @@ export function materializeSourceProposal(
   return inspectSourceCandidate(repo, taskValue, claim, candidateSha).candidate;
 }
 
-export function publishSourceCandidate(
+function publishSourceCandidate(
   repo: string,
   taskValue: unknown,
   claim: SourceClaimBinding,
@@ -293,6 +293,27 @@ export function publishSourceCandidate(
     return { state: 'ALREADY_PUBLISHED', ref, candidate_sha: candidateSha };
   }
   return { state: 'CONFLICT', ref, observed_sha: observed };
+}
+
+export function brokerSourceProposal(
+  repo: string,
+  taskValue: unknown,
+  claim: SourceClaimBinding,
+  proposalValue: unknown,
+  { remote = 'origin' }: { remote?: string } = {},
+): {
+  candidate: SourceCandidate;
+  publication: SourceCandidatePublicationResult;
+} {
+  const candidate = materializeSourceProposal(repo, taskValue, claim, proposalValue);
+  const publication = publishSourceCandidate(
+    repo,
+    taskValue,
+    claim,
+    candidate.commit_sha,
+    { remote },
+  );
+  return { candidate, publication };
 }
 
 export function inspectSourceCandidate(
