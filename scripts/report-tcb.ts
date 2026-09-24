@@ -117,7 +117,13 @@ function sliceFor(entry: SymbolEntry): Slice {
   const node =
     entry.whole_file === true
       ? source
-      : declarationFor(entry.path, entry.symbol ?? (() => { throw new Error('TCB_SYMBOL_REQUIRED'); })());
+      : declarationFor(
+          entry.path,
+          entry.symbol ??
+            (() => {
+              throw new Error('TCB_SYMBOL_REQUIRED');
+            })(),
+        );
   const start = entry.whole_file === true ? 0 : node.getStart(source);
   const end = entry.whole_file === true ? text.length : node.getEnd();
   const startLine = source.getLineAndCharacterOfPosition(start).line + 1;
