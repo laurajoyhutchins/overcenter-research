@@ -10,6 +10,16 @@ export interface EffectSemantics {
   sameDesiredCommutes: boolean;
 }
 
+export function effectCommutationKey(effect: EffectSemantics): string | null {
+  return effect.sameDesiredCommutes ? effect.desired : null;
+}
+
+export function effectsConflict(left: EffectSemantics, right: EffectSemantics): boolean {
+  if (left.resource !== right.resource) return false;
+  const leftKey = effectCommutationKey(left);
+  return leftKey === null || leftKey !== effectCommutationKey(right);
+}
+
 export interface SettlementSemantics {
   verifier: Postcondition['verifier'];
   acceptedAbsenceEvidenceKinds: readonly string[];
