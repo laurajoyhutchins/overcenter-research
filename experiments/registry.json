@@ -532,11 +532,14 @@
         "The intentionally unsound different-obligation-ID oracle reduces the conflicting-write fixture to one execution and misses one final outcome."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "74372e34c4051310e36c149e87ceb7df8804390d",
         "artifacts": [
-          ".github/workflows/dpor-causal-explorer.yml"
-        ],
-        "pending_reason": "The design, exact cardinalities, equivalence checks, and hostile controls are preregistered; exact-head hosted execution has not yet been recorded."
+          "GitHub Actions run 35950392666, job 107477474186: exact-head dynamic causal explorer treatment PASS.",
+          "Safety: 369,600 exhaustive executions / 1,107,697 prefixes -> 1 reduced execution / 256 prefixes with exact trace-set equality.",
+          "Scheduler-sensitive: 369,600 exhaustive executions / 1,107,697 prefixes -> 24 reduced executions / 2,713 prefixes with exact trace-set equality.",
+          "Conflicting-write and future-conflict controls preserved both outcomes; the unsound distinct-ID oracle missed one outcome as preregistered."
+        ]
       },
       "interpretation": "A positive result would support performing causal reduction during bounded exploration rather than materializing every serialized execution first, while keeping the independence relation property-sensitive and conservative.",
       "non_claims": [
@@ -553,8 +556,8 @@
         "note": "The exact 369,600-to-1 and 369,600-to-24 targets, exhaustive trace-set equality, future-conflict control, and intentionally unsound oracle were committed before hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The preregistered dynamic causal explorer has not yet produced exact-head hosted evidence."
+        "state": "supported",
+        "summary": "Bounded runtime sleep-set reduction matched exhaustive causal trace classes exactly, reduced the main corpus to one safety execution and 24 scheduler-sensitive executions, and preserved immediate and later-emerging conflicting outcomes."
       }
     },
     {
