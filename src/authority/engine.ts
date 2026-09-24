@@ -66,6 +66,10 @@ import {
   type TrustedEffectReleaseWitness,
 } from '../effect-release-witness.ts';
 import { planGraphReconciliation } from '../graph/reconciliation.ts';
+import {
+  trustedSourceIntegrationEvidence,
+  type TrustedSourceIntegrationWitness,
+} from '../source/source-integration.ts';
 
 export type { Receipt } from './facts.ts';
 
@@ -501,6 +505,115 @@ export class KernelCore {
       return receipt;
     }
     throw new Error('EFFECT_RELEASE_CONTENTION_EXHAUSTED');
+  }
+
+  settleSourceIntegration(
+    permit: ExecutionPermit,
+    witness: TrustedSourceIntegrationWitness,
+  ): Receipt {
+    const evidence = trustedSourceIntegrationEvidence(witness);
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const head = this.#requireHead();
+      const { history, project } = this.#historicalProjection(head);
+      const run = history.runs.get(permit.id);
+      if (!run) throw new Error('UNKNOWN_RUN');
+      const prior = history.receiptsByRun.get(run.id);
+      if (prior && ['DONE', 'READY'].includes(prior.disposition)) return prior;
+      const authoritative = this.#requireExecutionPermit(history, permit);
+      const current = project.lifecycles.get(run.obligation_id);
+      if (current?.run?.id !== run.id || current.status !== 'EXECUTING') {
+        throw new Error('SOURCE_SETTLEMENT_RUN_NOT_EXECUTING');
+      }
+      if (
+        run.obligation.packet.kind !== 'source-change' ||
+        run.obligation.postcondition.verifier !== 'source-integration/v1'
+      ) {
+        throw new Error('SOURCE_SETTLEMENT_WORK_INVALID');
+      }
+      if (history.unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('SOURCE_SETTLEMENT_WITH_UNRESOLVED_EFFECT');
+      }
+      if (
+        evidence.run_id !== authoritative.id ||
+        evidence.obligation_key !== authoritative.obligation_key ||
+        evidence.source_sha !== authoritative.source_revision
+      ) {
+        throw new Error('SOURCE_INTEGRATION_EVIDENCE_BINDING_MISMATCH');
+      }
+
+      const fact = this.#receiptFact(
+        authoritative,
+        run.obligation_id,
+        'source-integration',
+        null,
+        { source_integration: evidence },
+      );
+      const commit = this.#store.append(
+        head,
+        `overcenter: integrate source ${run.obligation_id} ${run.id}`,
+        { 'receipt.json': fact },
+      );
+      if (!commit) continue;
+      const receipt = this.#historicalProjection(commit).history.receiptsByRun.get(run.id);
+      if (!receipt || receipt.disposition !== 'DONE' || !receipt.verified) {
+        throw new Error('SOURCE_INTEGRATION_PROJECTION_FAILED');
+      }
+      return receipt;
+    }
+    throw new Error('SOURCE_INTEGRATION_SETTLEMENT_CONTENTION_EXHAUSTED');
+  }
+
+  retrySourceIntegration(
+    permit: ExecutionPermit,
+    reason: string,
+    diagnostic: Data = {},
+  ): Receipt {
+    if (!reason) throw new Error('SOURCE_RETRY_REASON_INVALID');
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const head = this.#requireHead();
+      const { history, project } = this.#historicalProjection(head);
+      const run = history.runs.get(permit.id);
+      if (!run) throw new Error('UNKNOWN_RUN');
+      const prior = history.receiptsByRun.get(run.id);
+      if (prior && ['DONE', 'READY'].includes(prior.disposition)) return prior;
+      const authoritative = this.#requireExecutionPermit(history, permit);
+      const current = project.lifecycles.get(run.obligation_id);
+      if (current?.run?.id !== run.id || current.status !== 'EXECUTING') {
+        throw new Error('SOURCE_RETRY_RUN_NOT_EXECUTING');
+      }
+      if (
+        run.obligation.packet.kind !== 'source-change' ||
+        run.obligation.postcondition.verifier !== 'source-integration/v1'
+      ) {
+        throw new Error('SOURCE_RETRY_WORK_INVALID');
+      }
+      if (history.unresolvedReservationsByRun.has(run.id)) {
+        throw new Error('SOURCE_RETRY_WITH_UNRESOLVED_EFFECT');
+      }
+
+      const fact = this.#receiptFact(
+        authoritative,
+        run.obligation_id,
+        'source-retry',
+        null,
+        {
+          ...structuredClone(diagnostic),
+          source_retry: { reason },
+        },
+      );
+      const commit = this.#store.append(
+        head,
+        `overcenter: retry source ${run.obligation_id} ${run.id}`,
+        { 'receipt.json': fact },
+      );
+      if (!commit) continue;
+      const receipt = this.#historicalProjection(commit).history.receiptsByRun.get(run.id);
+      if (!receipt || receipt.disposition !== 'READY') {
+        throw new Error('SOURCE_RETRY_PROJECTION_FAILED');
+      }
+      return receipt;
+    }
+    throw new Error('SOURCE_RETRY_CONTENTION_EXHAUSTED');
   }
 
   resolve(permit: ExecutionPermit, diagnostic: Data = {}): Receipt {
