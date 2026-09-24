@@ -144,4 +144,40 @@ This experiment does not prove:
 
 ## Result
 
-Pending exact-head hosted execution.
+**Supported for the preregistered bounded treatment.** Exact revision `986e45c975e09525812e1698bbf5d6f6de1476f5` was evaluated in GitHub Actions Merge gate run `35953291246`, rerun attempt 2, exact-head candidate job `107487330596`.
+
+The experiment exhausted 64 recovery states and derived exactly:
+
+~~~
+RELEASE =
+  current_authority
+  AND exact_attempt_binding
+  AND adapter_match
+  AND not_dispatched_certificate
+
+REPLAY =
+  current_authority
+  AND exact_attempt_binding
+  AND adapter_match
+  AND terminal_absence_certificate
+  AND replay_protected
+~~~
+
+RELEASE had 4 safe states; REPLAY had 2. Every preregistered single-guard omission admitted explicit states outside the calculated safe set.
+
+The GitHub production differential matched the derivation:
+
+- exact pre-secureConnect NOT_DISPATCHED evidence was accepted;
+- post-secureConnect reset was rejected;
+- HTTP 502 supplied no non-dispatch certificate and was rejected by the derivation;
+- wrong provider origin was rejected;
+- wrong status path was rejected;
+- wrong mutation-body digest was rejected.
+
+For replay, the current GitHub adapter remained `duplicate_delivery: may-duplicate` with `replay: forbidden`. Therefore even authoritative terminal absence did not authorize replay. The production `reservedEffectReplaySafe()` predicate agreed.
+
+The positive control separated that from an accidentally universal prohibition. A synthetic semantically-idempotent adapter with terminal-absence replay capability became replay-safe only when terminal absence was present. Mutating that adapter to `may-duplicate` while retaining replay capability was rejected by production capability validation.
+
+The same exact-head candidate passed the complete deterministic experiment suite, TLA+, the production computation boundary, and self-application.
+
+The result supports a concrete architectural direction: recovery policy can be derived from adapter semantics and trusted evidence. A provider-specific adapter need not hand-author the logical shape of RELEASE versus REPLAY if it supplies the semantic facts from which those guards follow.
