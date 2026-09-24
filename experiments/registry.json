@@ -3281,13 +3281,15 @@
         "A source candidate conflicting with current main returns REREALIZE_REQUIRED and leaves the authoritative ref unchanged."
       ],
       "evidence": {
-        "status": "pending",
+        "status": "evaluated",
+        "evaluated_revision": "49765f430199ba5445a78235afcdce575d76341d",
         "artifacts": [
-          "experiments/research-result-obligation-integration/README.md and experiment.ts contain the preregistered bounded treatment before first hosted execution."
-        ],
-        "pending_reason": "First exact-head hosted execution has not yet been observed."
+          "GitHub Actions Merge gate run 35958931929, exact-head candidate job 107503479211: maintained deterministic experiments passed at treatment revision 49765f430199ba5445a78235afcdce575d76341d.",
+          "Hosted experiment output materialized only promotion-a, promotion-a-child, and promotion-c; falsified promotion B did not materialize; forged result rejection, evidence-only rerun identity stability, localized semantic invalidation, zero-restack independent candidate integration, projection non-authority, and conflict-to-rerealization controls all passed.",
+          "The same exact-head candidate job passed lint, strict TypeScript type checking, experiment-contract verification, adapter diagnosability, TLA+, the production computation-boundary proof, and self-application."
+        ]
       },
-      "interpretation": "A positive result would support implementing a narrow trusted research-result certificate/validator and deterministic research-plan-to-obligation compiler, while keeping PRs as optional projections rather than graph authority.",
+      "interpretation": "The bounded result supports implementing a narrow trusted research-result representation plus a deterministic research-plan-to-source-promotion compiler. Pull-request ancestry need not be project truth: research meaning can drive stable promotion intent while exact source revision remains an execution fence. Production evidence authentication, live project graph wiring, and remote source integration remain separate promotion steps.",
       "non_claims": [
         "The experiment registry is itself authoritative evidence of an experiment result.",
         "The ephemeral Ed25519 key mechanism is the production evaluator or key-custody design.",
@@ -3301,8 +3303,8 @@
         "note": "The certificate shape, semantic identity rule, supported/falsified corpus, real-result input, localized invalidation checks, zero-restack two-candidate treatment, projection-deletion control, conflict falsifier, acceptance criteria, and non-claims were recorded on the branch before first hosted execution."
       },
       "outcome": {
-        "state": "pending",
-        "summary": "The treatment is preregistered and awaiting first exact-head hosted execution."
+        "state": "supported",
+        "summary": "At exact revision 49765f430199ba5445a78235afcdce575d76341d, trusted research results activated only justified promotions; falsified and forged results could not activate work; evidence-only reruns preserved semantic identity; changed research meaning invalidated only semantic descendants; two independently produced old-base source candidates integrated after current-source movement without restacking; projection metadata remained non-authoritative; and conflicting current source required re-realization."
       }
     }
   ]
