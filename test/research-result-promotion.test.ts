@@ -138,6 +138,27 @@ test('trusted verifier gates promotion activation', () => {
   );
 });
 
+test('trusted research result cannot be mutated after verification', () => {
+  const value = trusted(
+    rawResult({
+      experiment: 'result-a',
+      design: designA,
+      revision: 'a'.repeat(40),
+      outcome: 'falsified',
+      claim: 'A is falsified.',
+      evidence: 'sealed',
+    }),
+  );
+
+  assert.throws(
+    () => {
+      (value.result as { outcome: string }).outcome = 'supported';
+    },
+    TypeError,
+  );
+  assert.equal(value.result.outcome, 'falsified');
+});
+
 test('only supported trusted results materialize promotions and semantic descendants', () => {
   const a = trusted(
     rawResult({
