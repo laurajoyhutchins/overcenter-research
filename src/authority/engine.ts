@@ -312,11 +312,7 @@ export class KernelCore {
     return run.source_revision ?? null;
   }
 
-  settleVerifiedOutput(
-    permit: ExecutionPermit,
-    bytes: Uint8Array,
-    diagnostic: Data = {},
-  ): Receipt {
+  settleVerifiedOutput(permit: ExecutionPermit, bytes: Uint8Array, diagnostic: Data = {}): Receipt {
     const evidenceStore = this.#evidenceStore;
     if (!evidenceStore) throw new Error('GENERATED_OUTPUT_EVIDENCE_STORE_UNAVAILABLE');
 
@@ -869,10 +865,7 @@ export class KernelCore {
     };
   }
 
-  #verifyGeneratedOutput(
-    obligation: Obligation,
-    receipt: Receipt,
-  ): CurrentRealizationJudgment {
+  #verifyGeneratedOutput(obligation: Obligation, receipt: Receipt): CurrentRealizationJudgment {
     if (
       obligation.postcondition.verifier !== 'verified-generated-output/v1' ||
       receipt.kind !== 'verified-output' ||
