@@ -13,6 +13,14 @@ import {
   validPath,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest } from '../digest.ts';
+import {
+  buildSourceAssignment,
+  validateSourceTaskPacket,
+} from '../source/source-obligation.ts';
+import {
+  integrateVerifiedSourceCandidate,
+  validateSourceVerification,
+} from '../source/source-integration.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
 import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
 import type { Work } from '../model.ts';
@@ -62,6 +70,7 @@ export interface ProjectAdvanceReceipt {
 
 export interface ProjectSubmitContext extends ProjectCommandContext {
   candidate_sha: string;
+  candidate_run_id: string;
 }
 
 export interface ProjectSubmitReceipt {
@@ -79,10 +88,11 @@ export interface ProjectSubmitReceipt {
   obligation_id: string;
   run_id: string;
   claimed_revision: string;
-  assignment_sha256: string;
-  output_sha256: string;
-  disposition: 'DONE';
-  verified: true;
+  assignment_sha256?: string;
+  output_sha256?: string;
+  integration_commit?: string;
+  disposition: 'DONE' | 'READY' | 'RECOVERY_REQUIRED';
+  verified: boolean;
   settlement_commit: string | null;
   already_settled: boolean;
   receipt_digest: string;
@@ -101,6 +111,7 @@ interface AdvanceOptions extends ProtocolOptions {
 
 interface SubmitOptions extends ProtocolOptions {
   candidatePath?: string;
+  sourceVerificationPath?: string;
 }
 
 const DEFAULT_AUTHORITY_REF = 'refs/overcenter/state';
