@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 
-import {
-  buildStaticEffectIndex,
-  staticEffectConflict,
-} from '../../src/authority/admission.ts';
+import { buildStaticEffectIndex, staticEffectConflict } from '../../src/authority/admission.ts';
 import type { State } from '../../src/authority/facts.ts';
 import { buildGraphIndex, graphDependsOn } from '../../src/graph/topology.ts';
 import type { Dependency, Obligation } from '../../src/model.ts';
@@ -64,9 +61,7 @@ function makeBaselineState(): State {
   const obligations: Obligation[] = [];
 
   for (let index = 0; index < 34; index += 1) {
-    obligations.push(
-      prUpdateObligation('solo-' + String(index).padStart(2, '0'), 1_000 + index),
-    );
+    obligations.push(prUpdateObligation('solo-' + String(index).padStart(2, '0'), 1_000 + index));
   }
 
   for (let cluster = 0; cluster < 4; cluster += 1) {
@@ -230,11 +225,7 @@ function conservativeOracle(events: readonly Event[]): IndependenceOracle {
       return false;
     }
     if (left.resource !== right.resource) return true;
-    return (
-      left.sameDesiredCommutes &&
-      right.sameDesiredCommutes &&
-      left.desired === right.desired
-    );
+    return left.sameDesiredCommutes && right.sameDesiredCommutes && left.desired === right.desired;
   };
 }
 
@@ -357,10 +348,7 @@ function exploreWithRaceBacktracking(
     for (let priorIndex = 0; priorIndex < currentIndex; priorIndex += 1) {
       const prior = sequence[priorIndex]!;
       if (oracle(prior, current)) continue;
-      if (
-        ancestors.get(current.id)?.has(prior.id) ||
-        ancestors.get(prior.id)?.has(current.id)
-      ) {
+      if (ancestors.get(current.id)?.has(prior.id) || ancestors.get(prior.id)?.has(current.id)) {
         continue;
       }
 
@@ -542,8 +530,7 @@ assert.equal(bridge.global_trace_product, 331_776n);
 assert.equal(conflictOnly.components.length, 38);
 assert.equal(
   conflictOnly.components.some(
-    (component) =>
-      component.includes('cluster-a-0') && component.includes('cluster-b-0'),
+    (component) => component.includes('cluster-a-0') && component.includes('cluster-b-0'),
   ),
   false,
 );
