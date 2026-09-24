@@ -567,7 +567,7 @@
       "directory": "experiments/dpor-race-backtracking",
       "readme": "experiments/dpor-race-backtracking/README.md",
       "question": "Can Overcenter discover necessary alternative executions from dependent races and add backtracking choices at earlier reorderable prefixes?",
-      "claim": "For the preregistered bounded corpus, race-triggered ancestor backtracking matches exhaustive causal trace classes exactly, preserves immediate and later-emerging conflicting outcomes, and generates one safety execution and 24 scheduler-sensitive executions from 369,600 concrete schedules.",
+      "claim": "For the preregistered bounded fixtures, race-triggered backtracking matches exhaustive trace classes; post-hoc adversarial review shows the obligation-root backtracking rule is incomplete when causal enabling crosses obligation boundaries.",
       "contrast": "Rely only on post-hoc trace normalization or sleep-set pruning without allowing a dependency race discovered later to create new exploration work at an earlier prefix.",
       "reproduce": {
         "tier": "deterministic",
@@ -586,20 +586,17 @@
         "Immediate conflicting writes preserve both exhaustive outcomes through race-induced backtracking.",
         "The future-conflict fixture has six schedules, two trace classes, and two outcomes, all preserved by exactly two reduced executions.",
         "The future-conflict treatment records a dependent race and an ancestor backtracking insertion.",
-        "The intentionally unsound different-obligation-ID oracle suppresses the required race, explores one conflicting execution, and misses one final outcome."
+        "The intentionally unsound different-obligation-ID oracle suppresses the required race, explores one conflicting execution, and misses one final outcome.",
+        "Post-hoc review regression: the five-event cross-obligation causal fixture must expose the current limitation by producing six exhaustive trace classes and only five reduced trace classes."
       ],
       "evidence": {
-        "status": "evaluated",
-        "evaluated_revision": "0b0d1370bc96712cc4bef7f6c95eb13fd44fc4f5",
+        "status": "pending",
         "artifacts": [
-          "GitHub Actions run 35950973401, job 107479240353: exact-head DPOR race/backtracking treatment PASS.",
-          "Safety: 369,600 exhaustive schedules -> 1 execution in 13 explored prefixes, exact trace-set match.",
-          "Scheduler-sensitive: 369,600 exhaustive schedules -> 24 executions in 237 prefixes, with 132 detected races and exact trace-set match.",
-          "Future conflict: six schedules -> two reduced executions; later dependency race inserted ancestor backtracking and preserved both outcomes.",
-          "Unsound distinct-obligation independence suppressed the required race and missed one conflicting outcome."
-        ]
+          ".github/workflows/dpor-race-backtracking.yml"
+        ],
+        "pending_reason": "The original preregistered treatment passed at 0b0d1370bc96712cc4bef7f6c95eb13fd44fc4f5. A post-hoc adversarial review added a cross-obligation counterexample and corrected backtracking metrics; fresh exact-head evidence is pending."
       },
-      "interpretation": "A positive result would establish the essential dynamic race/backtracking mechanism needed to move beyond sleep-set-only reduction: dependency discovered later can create a new exploration branch at an earlier prefix.",
+      "interpretation": "The preregistered fixtures support bounded race-triggered backtracking, but the maintained experiment now explicitly demonstrates that the current obligation-root rule is not a generally sound DPOR algorithm when a later conflicting event is enabled through another obligation.",
       "non_claims": [
         "The experiment implements optimal Source-DPOR.",
         "Obligation identity is a universal process identity for arbitrary execution models.",
@@ -607,15 +604,16 @@
         "Liveness-preserving POR conditions are proved.",
         "Unbounded executions are covered.",
         "Production scheduling should use DPOR.",
-        "Project authority serialization can be weakened."
+        "Project authority serialization can be weakened.",
+        "The current race/backtracking reducer is sound for arbitrary cross-obligation causal graphs."
       ],
       "design": {
-        "provenance": "preregistered",
-        "note": "The exact 369,600-to-1 and 369,600-to-24 targets, dependent-race criterion, ancestor-backtracking rule, future-conflict fixture, and unsound independence falsifier were committed before hosted execution."
+        "provenance": "mixed",
+        "note": "The original exact cardinalities, race criterion, same-obligation future-conflict fixture, and unsound independence falsifier were preregistered. Post-hoc adversarial review added a cross-obligation causal counterexample that falsifies the broader DPOR interpretation and separates race-induced from initialization backtracking metrics."
       },
       "outcome": {
-        "state": "supported",
-        "summary": "Race-triggered ancestor backtracking matched exhaustive trace classes, preserved immediate and later-emerging conflicts, and generated one safety execution and 24 scheduler-sensitive executions from the 369,600-schedule corpus."
+        "state": "pending",
+        "summary": "The original bounded fixtures remain supported, but fresh exact-head evidence is pending for the maintained mixed result that records the cross-obligation DPOR counterexample."
       }
     },
     {
