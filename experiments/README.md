@@ -43,7 +43,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `storage-backend-comparison/` - append-only Git versus SQLite authority performance, replay, CAS, and crash-prefix comparison.
 - `substrate-capability-admission/` - authenticated, context-bound capability admission with non-authorizing point absence and hostile evidence controls.
 - `source-obligation-integration/` - stable source intent, claim-time Git fencing, trusted current-main verification, CAS integration, conflict rejection, and replay detection.
-- `research-result-obligation-integration/` - trusted research-result certificates compile supported outcomes into stable source promotions independent of PR topology.
+- `research-result-obligation-integration/` - historical bounded experiment showing promotion semantics under a synthetic trusted evaluator; it did not establish a production evidence-authentication boundary.
 - `verified-generated-output/` - preregistered test of evidence-backed generated artifact identity and downstream settlement-receipt semantics.
 - `scheduler-bottleneck/` - decompose history scan, semantic replay, READY-read, and bare SQLite authority-CAS costs.
 - `core-loop-concurrency/` - exact production-path bounded effect-concurrency benchmark behind one authority lane.
@@ -60,36 +60,27 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `effect-authority-decay/` - current-main production broker experiment testing whether bound authority eliminates downstream raw-coordinate reconstruction while preserving the final runtime fence.
 - `rust-exec-typestate-boundary/` - historical negative: typestate preserved the real Rust confinement proof but removed no runtime guard class and increased source complexity.
 
-## Experiment contract
+## Experiment integrity
 
-Maintained and historical experiment records are registered in [`registry.json`](./registry.json). Historical entries retain their exact evaluated revision and reproduction command even when their executable directory has been retired from `main`; check out the recorded revision to reproduce the result.
-
-The registry is the machine-readable acceptance contract for maintained and historical evidence. The registry is the machine-readable acceptance contract for explainability and reproducibility: question, bounded claim, plausible contrast, reproduction command, material environment, success criteria, design provenance, outcome, exact revision-bound evidence, interpretation, and non-claims must be explicit.
-
-The contract deliberately separates three questions that older entries used to blur:
+Experiments use ordinary repository machinery rather than a parallel experiment authority.
 
 ```text
-design provenance       outcome                 evidence
-preregistered           pending                 pending
-retrospective           supported               or
-mixed                   falsified               evaluated @ exact SHA
-unknown                  mixed / inconclusive
+Git commit             freezes the design
+ordinary test/benchmark executes the treatment and scorer
+GitHub Actions run      binds hosted evidence to an exact revision
+artifacts + digests     preserve raw observations when needed
+Overcenter              may consume that evidence only through a separately implemented trusted boundary
 ```
 
-A retrospectively documented experiment can still be useful evidence, but its maintained criteria are not represented as preregistered. A falsified hypothesis is a valid experiment outcome. Evaluated evidence always names the exact revision that was run; the registry does not call old evidence "current" merely because maintainers still consider the conclusion relevant.
+`experiments/registry.json` is an archival catalog and explainability aid. It is not project truth, a preregistration authority, an experiment runner, or a merge-gate input. Historical entries retain evaluated revisions and reproduction notes because older experiments already cite the catalog.
 
-```sh
-npm run experiments:list
-npm run experiment -- <experiment-id>
-npm run experiments:deterministic
-npm run test:experiment-contract
-```
+A claim is preregistered only when repository history demonstrates that the material design existed before the first outcome-bearing execution. The frozen design includes the question, contrast or falsifier, treatment corpus, acceptance thresholds, and scorer when those are material. Changing those after observing an outcome creates calibration or a new experiment; prose cannot retroactively make the earlier run confirmatory.
 
-CI runs the contract validator through `npm test`. Every directory carried under `experiments/` must be registered. Maintained experiments must keep their directory and README on `main`; historical records may point only to their evaluated revision after scaffolding is retired. Reusable experiment plumbing belongs in `src/` or `test/support/`, not in a `kind: support` compatibility island.
+Scientific outcomes and infrastructure outcomes remain separate. A falsified hypothesis is a valid scientific result. Broken fixtures, failed execution, missing evidence, or a scorer that cannot run are execution failures.
 
-A hosted workflow is an integration harness, not the only explanation of an experiment. Hosted claims still require an experiment-local README and a deterministic contract surface wherever one exists.
+Maintained correctness properties belong in ordinary `test/`, `src/`, or `formal/` machinery after promotion. Experiment directories preserve bounded treatments and explanations; they are not a second regression framework. Hosted workflows stay thin and run the experiment they exist to exercise.
 
-Reusable mechanism belongs in `src/`. Reusable test plumbing belongs in `test/support/`. Focused mechanism invariants belong in `test/`. Machine-checked models belong in `formal/`. Literature and synthesis belong in `research/`.
+There is currently no production research-result promotion bridge. A future bridge must consume canonical exact-revision provider evidence directly rather than trusting registry text or an agent-authored result object.
 
 ## Proof lineage
 
@@ -255,7 +246,6 @@ The evidence classes are deliberately separate:
 
 ```sh
 npm test                              # fast deterministic regression only
-npm run proof:local                  # adversarial local experiments
 npm run test:kubernetes-observation # focused deterministic Kubernetes semantics
 npm run test:lisp-semantics          # focused semantic-coherence experiment
 npm run test:datalog                # Soufflé projection differential

@@ -1,5 +1,8 @@
 # Research-result obligation integration
 
+> Historical evidence only. Evaluated at exact revision `49765f430199ba5445a78235afcdce575d76341d`. The production `ResearchResult` / `ResearchPlan` candidate that followed this experiment was later removed because it did not authenticate canonical exact-revision provider evidence. Reproduce the original treatment by checking out the evaluated revision.
+
+
 ## Question
 
 Can exact, trusted experiment outcomes become semantic inputs to Overcenter source obligations so justified promotions become READY independently of pull-request topology?
@@ -57,4 +60,4 @@ This is a deterministic composition experiment. It does not modify production pr
 
 The signing key is ephemeral experiment machinery, not a proposed production key-custody design. The maintained registry is used only as input for one already-supported real result; the experiment does not make registry text authoritative. A production bridge still requires trusted result construction from exact-head evidence.
 
-A positive result supports the next implementation step: a narrow research-result certificate/validator plus a deterministic research-plan-to-obligation compiler, followed separately by wiring 'source-change' through the live 'project.advance' path.
+The positive result established the bounded semantic idea, not a production trust boundary. A future promotion path should use ordinary Git history plus canonical exact-revision provider evidence directly, with Overcenter only deciding whether that admitted evidence satisfies a source obligation.

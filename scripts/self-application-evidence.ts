@@ -92,8 +92,6 @@ chmodSync(control, 0o750);
 
 let sequence = 0;
 const label = `overcenter.self-application=${process.pid}`;
-const npmCli = '/usr/local/lib/node_modules/npm/bin/npm-cli.js';
-
 function docker(args: string[]): string {
   return execFileSync('docker', args, { encoding: 'utf8' });
 }
@@ -109,18 +107,15 @@ function executionContextSha256(): string {
   });
 }
 
-function processSpec(tier: 'regression' | 'experiments'): ProcessSpec {
+function processSpec(): ProcessSpec {
   // Exhaustive repository coverage belongs to the independent Evidence
   // producer. Self-application proves the execution/settlement mechanism with
-  // two small, real workloads from the exact mounted source revision instead
-  // of recertifying the same full suites a second time.
+  // one small, real workload from the exact mounted source revision instead
+  // of recertifying repository suites a second time.
   return {
     schema: PROCESS_SPEC_SCHEMA,
     executable: '/usr/local/bin/node',
-    argv:
-      tier === 'regression'
-        ? ['--experimental-strip-types', '--test', 'test/digest-pure.test.ts']
-        : [npmCli, 'run', 'experiments:deterministic'],
+    argv: ['--experimental-strip-types', '--test', 'test/digest-pure.test.ts'],
     cwd: 'source',
     env: {
       HOME: '/tmp',
@@ -304,8 +299,6 @@ function summarize(kernel: OvercenterKernel) {
 
 const regressionMarker = join(attestations, 'regression.passed');
 const regressionContent = `passed:regression:${sourceSha}\n`;
-const experimentsMarker = join(attestations, 'experiments.passed');
-const experimentsContent = `passed:experiments:${sourceSha}\n`;
 const selfApplicationSourceTreeSha256 = sourceTreeSha256(sourceRoot);
 const selfApplicationExecutionContextSha256 = executionContextSha256();
 
@@ -317,27 +310,12 @@ kernel.define({
     schema: REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
     kind: 'test',
     execution_context_sha256: selfApplicationExecutionContextSha256,
-    process_spec: processSpec('regression'),
+    process_spec: processSpec(),
   },
   postcondition: {
     verifier: 'file-content-equals/v1',
     path: regressionMarker,
     content: regressionContent,
-  },
-});
-kernel.define({
-  id: 'self-experiments',
-  dependencies: [{ kind: 'control', upstream: 'self-regression' }],
-  packet: {
-    schema: REPLAY_SAFE_TEST_COMPUTATION_PACKET_SCHEMA,
-    kind: 'test',
-    execution_context_sha256: selfApplicationExecutionContextSha256,
-    process_spec: processSpec('experiments'),
-  },
-  postcondition: {
-    verifier: 'file-content-equals/v1',
-    path: experimentsMarker,
-    content: experimentsContent,
   },
 });
 
@@ -366,14 +344,11 @@ try {
     }
     attempted.add(ready.id);
 
-    const [marker, content] =
-      ready.id === 'self-regression'
-        ? [regressionMarker, regressionContent]
-        : ready.id === 'self-experiments'
-          ? [experimentsMarker, experimentsContent]
-          : (() => {
-              throw new Error(`unexpected self-application obligation: ${ready.id}`);
-            })();
+    if (ready.id !== 'self-regression') {
+      throw new Error(`unexpected self-application obligation: ${ready.id}`);
+    }
+    const marker = regressionMarker;
+    const content = regressionContent;
 
     const result = await runReadyTestComputation(
       kernel,
@@ -453,7 +428,7 @@ try {
     execution_generation: receipt.execution_generation,
     settlement_commit: receipt.settlement_commit ?? null,
   }));
-  assert.equal(receipts.length, 2);
+  assert.equal(receipts.length, 1);
   assert.ok(receipts.every((receipt) => receipt.disposition === 'DONE' && receipt.verified));
 
   const report = {

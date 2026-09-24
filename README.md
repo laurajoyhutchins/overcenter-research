@@ -222,7 +222,6 @@ The command name states what kind of evidence a green check supports:
 | Command | Evidence |
 | --- | --- |
 | `npm test` | Fast deterministic regression: focused unit/integration invariants only. |
-| `npm run proof:local` | Maintained deterministic local experiments at the current revision. |
 | `npm run proof:formal` | Model checking of the formal transaction/recovery model. |
 | `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression, including the production GitHub status-effect contract with a fake provider. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
@@ -231,7 +230,7 @@ The former Lean semantic-oracle differential is retained as historical exact-rev
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
-`.github/workflows/tests.yml` enforces the first three tiers on every pull request and every push to `main`. The live tier remains separate because it exercises real provider boundaries and permissions.
+`.github/workflows/tests.yml` always enforces deterministic regression. Candidate certification additionally runs the formal and production-boundary proofs on the exact source revision. Live provider proofs remain separate because they exercise real provider boundaries and permissions.
 
 ### Operator commands
 
