@@ -2,10 +2,7 @@ import {
   AGENT_TASK_PACKET_SCHEMA,
   validateAgentTaskPacket,
 } from '../execution/assignment-capsule.ts';
-import {
-  SOURCE_TASK_SCHEMA,
-  validateSourceTaskPacket,
-} from '../source/source-obligation.ts';
+import { SOURCE_TASK_SCHEMA, validateSourceTaskPacket } from '../source/source-obligation.ts';
 import type { Dependency, Postcondition } from '../model.ts';
 import { validatePostcondition } from '../observation/observe.ts';
 import { assertExactKeys, assertNonEmptyString, isData } from '../validation.ts';
@@ -39,10 +36,7 @@ export function compileProjectIntent(value: unknown): ObligationInput[] {
       throw new Error(`PROJECT_INTENT_TASK_INVALID:${index}`);
     }
 
-    if (
-      candidate.task.schema === SOURCE_TASK_SCHEMA ||
-      candidate.task.kind === 'source-change'
-    ) {
+    if (candidate.task.schema === SOURCE_TASK_SCHEMA || candidate.task.kind === 'source-change') {
       if (candidate.postcondition !== undefined) {
         throw new Error(`PROJECT_INTENT_SOURCE_POSTCONDITION_FORBIDDEN:${index}`);
       }
