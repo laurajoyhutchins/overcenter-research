@@ -30,7 +30,7 @@ The generic core depends on provider-specific facts being interpreted correctly.
 
 ## Budget rule
 
-Each property has an explicit semantic-LOC ceiling. CI fails if the counted trusted slice exceeds it. The initial ceilings are intentionally loose while the first exact-head report establishes the baseline. They should then be tightened to the measured value so that future TCB growth requires an explicit policy change.
+Each property has an explicit semantic-LOC ceiling. CI fails if the counted trusted slice exceeds it. The baseline is ratcheted to the exact hosted measurement, so future TCB growth requires an explicit policy change. A whole-surface SHA-256 fingerprint also makes same-LOC trusted-code edits visible once the baseline fingerprint is recorded.
 
 A LOC ceiling is not a proof. It is an architectural ratchet. The stronger evidence comes from combining this inventory with hostile tests, authority-flow analysis, exact-head CI, differential backends, and formal models.
 
