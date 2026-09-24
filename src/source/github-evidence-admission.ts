@@ -97,10 +97,18 @@ function requireSuccessfulWorkflowRun(
   positiveSafeInteger(value.id, 'SOURCE_PROMOTION_WORKFLOW_RUN_ID_INVALID');
   positiveSafeInteger(value.run_attempt, 'SOURCE_PROMOTION_WORKFLOW_RUN_ATTEMPT_INVALID');
   if (value.id !== request.workflowRunId) throw new Error('SOURCE_PROMOTION_WORKFLOW_RUN_MISMATCH');
-  if (!sameGithubObjectId(requiredString(value, 'head_sha', 'SOURCE_PROMOTION_WORKFLOW_RUN_INVALID'), request.designSha)) {
+  if (
+    !sameGithubObjectId(
+      requiredString(value, 'head_sha', 'SOURCE_PROMOTION_WORKFLOW_RUN_INVALID'),
+      request.designSha,
+    )
+  ) {
     throw new Error('SOURCE_PROMOTION_DESIGN_SHA_MISMATCH');
   }
-  if (requiredString(value, 'path', 'SOURCE_PROMOTION_WORKFLOW_RUN_INVALID') !== request.workflowPath) {
+  if (
+    requiredString(value, 'path', 'SOURCE_PROMOTION_WORKFLOW_RUN_INVALID') !==
+    request.workflowPath
+  ) {
     throw new Error('SOURCE_PROMOTION_WORKFLOW_IDENTITY_MISMATCH');
   }
   if (value.status !== 'completed' || value.conclusion !== 'success') {
