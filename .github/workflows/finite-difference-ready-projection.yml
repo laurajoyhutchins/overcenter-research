@@ -34,5 +34,9 @@ jobs:
         with:
           node-version-file: '.node-version'
       - run: npm install --ignore-scripts --package-lock=false
+      - name: Check finite-difference READY source
+        run: |
+          npm run typecheck
+          npx --yes @biomejs/biome@2.5.14 format experiments/finite-difference-ready-projection/experiment.ts package.json
       - name: Run finite-difference READY treatment
         run: npm run experiment:finite-difference-ready-projection
