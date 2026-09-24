@@ -5,6 +5,7 @@ import { join } from 'node:path';
 
 import { KernelCore } from '../../src/authority/engine.ts';
 import type { FactCommit } from '../../src/authority/facts.ts';
+import type { ExecutionPermit } from '../../src/model.ts';
 import { replayProjection } from '../../src/authority/replay.ts';
 import { canonicalDigest } from '../../src/digest.ts';
 import {
@@ -389,7 +390,7 @@ async function buildHistory(
     assert.ok(revision);
     kernel.applyGraphPatch({ upsert: [statusDefinition(), workDefinition()] }, revision);
 
-    let workPermit;
+    let workPermit: ExecutionPermit | undefined;
     if (interleaving === 'work-first') workPermit = claim(kernel, WORK);
 
     const statusPermit = claim(kernel, STATUS);
@@ -493,7 +494,10 @@ function createDeleteNegativeControl(): void {
   ];
   const noOp: typeof history = [];
   const visibleAfter = (events: typeof history) =>
-    events.reduce((visible, event) => (event.kind === 'create' ? true : false), false);
+    events.reduce(
+      (visible, event) => (event.kind === 'create' ? true : event.kind === 'delete' ? false : visible),
+      false,
+    );
   assert.equal(visibleAfter(history), visibleAfter(noOp));
   assert.notEqual(canonicalDigest(history), canonicalDigest(noOp));
 }
