@@ -1,10 +1,9 @@
 import { canonicalDigest } from '../../digest.ts';
-import { projectResponseSlice } from '../../observation/response-slice.ts';
 import {
-  observeCertifiedGcpRead200,
+  observeProjectedCertifiedGcpRead200,
   type GcpObservationOperation,
 } from './certified-observation.ts';
-import type { GcpJsonGet } from './rest.ts';
+import { encodeGcpPathSegment, type GcpJsonGet } from './rest.ts';
 
 const CLOUD_RUN_SERVICE_SCHEMA = {
   type: 'object',
@@ -102,22 +101,8 @@ export type CertifiedGcpCloudRunServiceResult =
       observation_error: string;
     };
 
-function segment(value: string, label: string): string {
-  const hasControlCharacter = Array.from(value).some((character) => {
-    const code = character.charCodeAt(0);
-    return code <= 0x1f || code === 0x7f;
-  });
-  if (
-    value.length === 0 ||
-    value === '.' ||
-    value === '..' ||
-    /[\\/?#]/.test(value) ||
-    hasControlCharacter
-  ) {
-    throw new Error(`GCP_CLOUD_RUN_${label}_INVALID`);
-  }
-  return encodeURIComponent(value);
-}
+const segment = (value: string, label: string): string =>
+  encodeGcpPathSegment(value, `GCP_CLOUD_RUN_${label}_INVALID`);
 
 function validatedCoordinate(
   coordinate: GcpCloudRunServiceCoordinate,
@@ -167,7 +152,11 @@ export function observeCertifiedGcpCloudRunService(
 ): CertifiedGcpCloudRunServiceResult {
   try {
     const requestedName = gcpCloudRunServiceName(coordinate);
-    const { observed_at: observedAt, certified } = observeCertifiedGcpRead200({
+    const {
+      observed_at: observedAt,
+      certified,
+      value,
+    } = observeProjectedCertifiedGcpRead200<CertifiedGcpCloudRunService>({
       accessToken,
       operation: GCP_CLOUD_RUN_SERVICE_OPERATION,
       request: {
@@ -180,11 +169,6 @@ export function observeCertifiedGcpCloudRunService(
       ...(clock ? { clock } : {}),
       ...(quotaProject ? { quotaProject } : {}),
     });
-    const value = projectResponseSlice(
-      certified.outcome.value,
-      GCP_CLOUD_RUN_SERVICE_RESPONSE_SLICE,
-    ) as CertifiedGcpCloudRunService;
-
     if (value.name !== requestedName) {
       throw new Error('GCP_CLOUD_RUN_SERVICE_COORDINATE_MISMATCH');
     }
