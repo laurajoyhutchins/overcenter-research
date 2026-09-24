@@ -280,24 +280,15 @@ try {
   // Competing verified outputs may both publish bytes, but only one exact-head authority CAS wins.
   const raceAuthority = new Authority();
   const raceHead = raceAuthority.head;
-  const raceA = validatePublishAndSettle(
-    ordinaryCandidate,
-    claim,
-    store,
-    raceAuthority,
-    raceHead,
-  );
+  const raceA = validatePublishAndSettle(ordinaryCandidate, claim, store, raceAuthority, raceHead);
   assert.ok(raceA);
-  const raceB = validatePublishAndSettle(
-    alternateCandidate,
-    claim,
-    store,
-    raceAuthority,
-    raceHead,
-  );
+  const raceB = validatePublishAndSettle(alternateCandidate, claim, store, raceAuthority, raceHead);
   assert.equal(raceB, null);
   assert.equal(raceAuthority.settlements.size, 1);
-  assert.equal(consume(raceA, store).downstream_identity, consume(raceA, store).downstream_identity);
+  assert.equal(
+    consume(raceA, store).downstream_identity,
+    consume(raceA, store).downstream_identity,
+  );
 
   // Corruption at an authoritative evidence coordinate makes downstream consumption fail closed.
   const corruptRoot = join(root, 'corrupt-evidence');
@@ -356,7 +347,8 @@ try {
           downstream_identity: ordinaryConsumed.downstream_identity,
         },
         output_sensitivity: {
-          different_evidence: ordinary.receipt.artifact.digest !== alternate.receipt.artifact.digest,
+          different_evidence:
+          ordinary.receipt.artifact.digest !== alternate.receipt.artifact.digest,
           different_settlement: ordinary.commit !== alternate.commit,
           different_downstream_identity:
             ordinaryConsumed.downstream_identity !== consume(alternate, store).downstream_identity,
