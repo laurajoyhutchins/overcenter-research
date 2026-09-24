@@ -1,0 +1,44 @@
+name: Finite difference semantic projection
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/finite-difference-semantic-projection/**'
+      - '.github/workflows/finite-difference-semantic-projection.yml'
+      - 'src/authority/project-state.ts'
+      - 'src/authority/realization-reuse.ts'
+      - 'src/graph/identity.ts'
+      - 'src/graph/topology.ts'
+      - 'src/semantics.ts'
+      - 'package.json'
+      - 'experiments/registry.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-slim
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$expected"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - run: npm install --ignore-scripts --package-lock=false
+      - name: Check finite-difference semantic source
+        run: |
+          npm run typecheck
+          npx --yes @biomejs/biome@2.5.14 format experiments/finite-difference-ready-projection/experiment.ts experiments/finite-difference-semantic-projection/experiment.ts package.json
+      - name: Run finite-difference semantic treatment
+        run: npm run experiment:finite-difference-semantic-projection

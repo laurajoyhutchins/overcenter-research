@@ -3308,6 +3308,69 @@
         "state": "supported",
         "summary": "At exact revision 2b58ee515643e0975552bd2883ca0d7b5f2651cb, the bounded READY relation matched its declarative oracle and production differential with dependency work local to the affected reverse-dependency frontier and indexed READY maintenance."
       }
+    },
+    {
+      "id": "finite-difference-semantic-projection",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/finite-difference-semantic-projection",
+      "readme": "experiments/finite-difference-semantic-projection/README.md",
+      "question": "Can the finite-difference READY treatment extend through semantic-key propagation and current-realization validity while keeping provider observation as an explicit authority input?",
+      "claim": "For the bounded semantic projection, explicit current-realization deltas can maintain exact semantic identity, realization reuse, lifecycle, claimability, and indexed READY selection through a change-driven semantic frontier, with mutation work independent of unrelated graph padding and historical-run count after reconstruction.",
+      "contrast": "Recompute the complete project projection after every current-realization observation, or cache provider conclusions as implicit scheduler authority.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:finite-difference-semantic-projection"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production obligationKey(), classifyCurrentRealization(), graph indexing, and deriveProjectProjection() are used directly.",
+        "Provider observation is modeled as an explicit Observation input; no network, credential, database, model, or external solver is required.",
+        "Hosted reference is expected from GitHub Actions ubuntu-slim at the exact experiment head."
+      ],
+      "success_criteria": [
+        "Every hostile transition exactly matches production semantic keys, lifecycle status, selected historical run, claimability error, READY membership, and replay-derived service-age READY selection.",
+        "Verified-content consumers retain semantic identity and reusable realization across an upstream resettlement with unchanged desired content.",
+        "Settlement-receipt consumers acquire a new semantic identity and invalidate historical realization when the upstream settlement commit changes.",
+        "Indeterminate current realization blocks reuse, while authoritative contradiction makes the exact semantic identity unrealized rather than silently DONE.",
+        "Omitting semantic-descendant propagation is detected by the production oracle.",
+        "At 128, 512, 2,048, and 8,192 obligations containing one five-node semantic chain plus unrelated padding, each root observation mutation examines exactly five semantic nodes rather than scanning the global topological order.",
+        "READY selection is maintained through an indexed min-heap and stays within the declared logarithmic candidate-comparison bound rather than rescanning and sorting all READY work.",
+        "At 1, 10, 100, and 1,000 exact-key historical DONE runs, each current-realization mutation examines one history bucket and zero individual historical runs.",
+        "The experiment changes no production scheduler, projection, provider, storage, or authority code."
+      ],
+      "evidence": {
+        "status": "evaluated",
+        "evaluated_revision": "30a97cbee850b4c02bf0900486433617281bb932",
+        "artifacts": [
+          "GitHub Actions run 35955334392 / job 107492354682: exact-head repaired semantic finite-difference proof PASS on ubuntu-slim.",
+          "Hostile production differential: 10 transitions; production semantic keys, lifecycles, selected runs, claimability, READY membership, and READY selection all matched.",
+          "DONE-to-DONE upstream resettlement examined exactly 3 semantic nodes, skipping the verified-content branch while invalidating the settlement-receipt branch.",
+          "Fixed five-node semantic chain: semantic nodes examined = 5, dependency edges examined <= 16, historical runs examined = 0 at 128, 512, 2,048, and 8,192 obligations.",
+          "Indexed READY selection examined at most 1 ready candidate in the padded treatment; declared logarithmic bounds were 320, 400, 480, and 560.",
+          "History scaling at 1, 10, 100, and 1,000 exact-key DONE runs examined exactly 1 history bucket and 0 individual historical runs per mutation.",
+          "Omitted semantic-descendant derivative negative control diverged as required."
+        ]
+      },
+      "interpretation": "The repaired result supports change-driven semantic projection with explicit observation inputs: semantic propagation is frontier-local, selector-sensitive, READY selection is indexed rather than globally rescanned, and mutation-time realization lookup is independent of historical-run count after reconstruction. The earlier global-scan locality claim is superseded.",
+      "non_claims": [
+        "Live provider observation can itself be inferred from graph deltas.",
+        "Reconstruction is sublinear in total graph or history size.",
+        "Static effect-conflict maintenance is incrementalized.",
+        "Graph-patch topology mutation is incrementalized.",
+        "Every ProjectExplanation field is incrementally maintained.",
+        "Arbitrary adapter semantics are covered by the bounded local-file observation treatment.",
+        "The full production recomputation oracle should be deleted.",
+        "Wall-clock speedups are portable performance guarantees."
+      ],
+      "design": {
+        "provenance": "mixed",
+        "note": "The semantic-equivalence corpus and selector-sensitive falsifiers were preregistered. After the first successful run, review found hidden global topological, READY-selection, and history scans. The repaired change-driven frontier, full examined-work metrics, indexed READY selection, and history-length treatment were added in response and must be evaluated on a fresh exact head."
+      },
+      "outcome": {
+        "state": "supported",
+        "summary": "At exact revision 30a97cbee850b4c02bf0900486433617281bb932, the repaired treatment matched production semantics while removing the hidden topological, READY-selection, and per-obligation history scans identified in review."
+      }
     }
   ]
 }
