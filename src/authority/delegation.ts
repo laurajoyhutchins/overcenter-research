@@ -4,10 +4,7 @@ import { dependencyUpstreams } from '../graph/topology.ts';
 export interface DelegationCycleInput {
   state: State;
   runs: ReadonlyMap<string, HistoricalRun>;
-  unresolvedDelegationsByRun: ReadonlyMap<
-    string,
-    ReadonlyMap<string, DelegationReservation>
-  >;
+  unresolvedDelegationsByRun: ReadonlyMap<string, ReadonlyMap<string, DelegationReservation>>;
   parentObligationId: string;
   childObligationId: string;
 }
