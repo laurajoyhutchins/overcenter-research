@@ -122,16 +122,16 @@ An asymmetric legal continuation is an immediate falsifier.
 
 ## Provider-history counterexample
 
-The review adds a deliberately stronger lens test using the same production GitHub status-effect path with a deterministic in-memory provider transport.
+The review adds a deliberately stronger lens test using the same production GitHub status-effect path, certified GitHub status readback, and a deterministic in-memory provider transport.
 
-Two successful effects target different status contexts, so the project-truth candidate relation classifies them independent. The provider transport records mutation order in an externally observable audit sequence:
+Two successful effects target different status contexts, so the project-truth candidate relation classifies them independent. Each write is then settled `DONE` from certified provider readback. The provider transport separately records mutation order in an externally observable audit sequence:
 
 ```text
 A then B  -> provider audit [A, B]
 B then A  -> provider audit [B, A]
 ```
 
-The Overcenter replay signature and project-truth normal form are required to match, while the provider audit histories are required to differ.
+Both obligations must be historically settled `DONE`; the Overcenter replay signature and project-truth normal form are required to match, while the provider audit histories are required to differ.
 
 This is a counterexample to the stronger claim that distinct `effectSemantics.resource` values establish provider-history independence. They do not. A future independence certificate therefore needs to bind an explicit **observation lens**. Existing production metadata can support a project-truth-relative candidate relation, but a provider-history certificate would need additional adapter semantics.
 

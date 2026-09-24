@@ -774,8 +774,35 @@ function checkCriticalPairs(base: SuccessfulHistory): number {
 async function successfulProviderAuditCounterexample(root: string) {
   async function run(label: string, order: Order) {
     const store = new SqliteFactStore(join(root, 'provider-audit-' + label + '.sqlite'));
-    const kernel = new KernelCore(store);
     const providerAudit: string[] = [];
+    const providerContexts = new Set<string>();
+    const observedAt = '2026-09-23T21:00:00.000Z';
+    const get = (_token: string, path: string) => {
+      if (path === '/repos/acme/widget') return repository();
+      if (path === `/repos/acme/widget/commits/${COMMIT_A}/status?page=1&per_page=100`) {
+        const statuses = [...providerContexts].map((context, index) => ({
+          id: index + 1,
+          node_id: 'STATUS_' + String(index + 1),
+          state: 'success' as const,
+          context,
+          target_url: null,
+          created_at: observedAt,
+          updated_at: observedAt,
+        }));
+        return {
+          state: 'success',
+          sha: COMMIT_A,
+          total_count: statuses.length,
+          repository: repository(),
+          statuses,
+        };
+      }
+      throw new Error('UNEXPECTED_GITHUB_GET:' + path);
+    };
+    const kernel = new KernelCore(store, {
+      githubToken: 'token',
+      observationContext: { githubGet: get, clock: () => observedAt },
+    });
     try {
       kernel.initialize();
       const revision = kernel.head();
@@ -786,13 +813,31 @@ async function successfulProviderAuditCounterexample(root: string) {
         const permit = claim(kernel, id);
         await performGithubCommitStatusEffect(kernel, permit, {
           token: 'token',
-          get: () => repository(),
+          get,
           post: async (_token, _path, body) => {
-            providerAudit.push(String(body.context));
+            const context = String(body.context);
+            providerAudit.push(context);
+            providerContexts.add(context);
             return { status: 201, body: '{}' };
           },
         });
+        const settled = kernel.resolve(permit, {
+          source: 'history-independence-provider-audit',
+        });
+        assert.equal(settled.disposition, 'DONE');
+        assert.equal(settled.verified, true);
       }
+
+      assert.deepEqual(
+        kernel
+          .inspect()
+          .map((work) => ({ id: work.id, status: work.status }))
+          .sort((left, right) => left.id.localeCompare(right.id)),
+        [
+          { id: A, status: 'DONE' },
+          { id: B, status: 'DONE' },
+        ],
+      );
 
       const head = kernel.head();
       assert.ok(head);

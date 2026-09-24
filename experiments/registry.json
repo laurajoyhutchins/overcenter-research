@@ -3321,7 +3321,7 @@
       "environment": [
         "Node.js from .node-version.",
         "Production graph topology, effectSemantics, exact effect-adapter/verifier capability metadata, SQLite fact storage, replay/projector, and GitHub commit-status effect code.",
-        "Deterministic fresh-HTTPS pre-secureConnect failure fixture; no live provider credential or provider write is required."
+        "Deterministic fresh-HTTPS pre-secureConnect failure fixture plus deterministic in-memory GitHub status mutation/readback transport; no live provider credential or provider write is required."
       ],
       "success_criteria": [
         "The derived project-truth relation matches all seven control classifications.",
@@ -3331,7 +3331,7 @@
         "Every mutually illegal continuation has the same exact rejection result.",
         "Every legal continuation pair agrees under production replay and reduces to the same project-truth normal form and semantic digest.",
         "Execution-authority rotation is represented in the semantic event vocabulary and included in the continuation search.",
-        "The successful-provider counterexample has equal Overcenter replay signatures and project-truth normal forms but different provider audit orders.",
+        "The successful-provider counterexample settles both obligations DONE from certified provider readback, has equal Overcenter replay signatures and project-truth normal forms, and retains different provider audit orders.",
         "Every tested one-step critical-pair branch reduces to the base normal form.",
         "Raw provenance digests remain distinct for equivalent project-truth histories.",
         "No production source file is modified."
@@ -3341,7 +3341,7 @@
         "artifacts": [
           ".github/workflows/history-normalization.yml"
         ],
-        "pending_reason": "Self-review added an explicit observation-lens counterexample, execution-authority continuations, and exact rejection comparison after the first hosted result; the strengthened maintained treatment requires fresh exact-head evidence."
+        "pending_reason": "Self-review strengthened the provider-history falsifier so both successful writes must settle DONE from certified readback; fresh exact-head evidence is required."
       },
       "interpretation": "A positive result would support mechanically proposing independence only relative to an explicit project-truth observation lens. Distinct effect resources do not establish provider-history equivalence; future certificates must bind the observation lens in addition to graph, obligation, adapter, and ruleset identities.",
       "non_claims": [
@@ -3359,7 +3359,7 @@
       },
       "outcome": {
         "state": "pending",
-        "summary": "The first result supported a narrower no-dispatch project-truth relation, but the strengthened maintained treatment is pending fresh exact-head evidence after review exposed the observation-lens boundary."
+        "summary": "The review-corrected project-truth independence treatment is awaiting fresh exact-head evidence after strengthening the provider-history counterexample through DONE settlement."
       }
     }
   ]
