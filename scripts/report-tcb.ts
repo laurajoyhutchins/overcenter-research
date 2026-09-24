@@ -4,10 +4,14 @@ import { dirname, relative, resolve } from 'node:path';
 
 import { API } from 'typescript/unstable/sync';
 import {
+  SyntaxKind,
   isClassDeclaration,
   isEnumDeclaration,
+  isExportDeclaration,
   isFunctionDeclaration,
+  isImportDeclaration,
   isInterfaceDeclaration,
+  isStringLiteral,
   isTypeAliasDeclaration,
   isVariableStatement,
   type Node,
@@ -206,20 +210,43 @@ function resolveLocalImport(fromPath: string, specifier: string): string {
 }
 
 function runtimeImports(path: string): { local: string[]; external: string[] } {
-  const text = readFileSync(path, 'utf8');
+  const { source } = sourceFor(path);
   const specifiers = new Set<string>();
 
-  const fromImport = /\bimport\s+(?!type\b)[\s\S]*?\s+from\s+['"]([^'"]+)['"]/g;
-  for (const match of text.matchAll(fromImport)) specifiers.add(match[1] as string);
+  const addModuleSpecifier = (node: Node | undefined, error: string): void => {
+    if (!node || !isStringLiteral(node)) throw new Error(`${error}:${path}`);
+    specifiers.add(node.text);
+  };
 
-  const sideEffectImport = /\bimport\s+['"]([^'"]+)['"]/g;
-  for (const match of text.matchAll(sideEffectImport)) specifiers.add(match[1] as string);
+  for (const statement of source.statements) {
+    if (isImportDeclaration(statement)) {
+      if (statement.importClause?.phaseModifier === SyntaxKind.TypeKeyword) continue;
+      addModuleSpecifier(statement.moduleSpecifier, 'TCB_IMPORT_SPECIFIER_NONLITERAL');
+      continue;
+    }
+    if (isExportDeclaration(statement)) {
+      if (statement.isTypeOnly || !statement.moduleSpecifier) continue;
+      addModuleSpecifier(statement.moduleSpecifier, 'TCB_EXPORT_SPECIFIER_NONLITERAL');
+      continue;
+    }
+    if (statement.kind === SyntaxKind.ImportEqualsDeclaration) {
+      throw new Error(`TCB_IMPORT_EQUALS_UNSUPPORTED:${path}`);
+    }
+  }
 
-  const reexport = /\bexport\s+(?:\*|\{[\s\S]*?\})\s+from\s+['"]([^'"]+)['"]/g;
-  for (const match of text.matchAll(reexport)) specifiers.add(match[1] as string);
-
-  const dynamicImport = /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g;
-  for (const match of text.matchAll(dynamicImport)) specifiers.add(match[1] as string);
+  const text = readFileSync(path, 'utf8');
+  const runtimeLoad = /\b(import|require)\s*\(/g;
+  for (const match of text.matchAll(runtimeLoad)) {
+    const start = match.index;
+    const tail = text.slice(start);
+    const literal = /^(import|require)\s*\(\s*(['"])([^'"]+)\2\s*\)/.exec(tail);
+    if (!literal) {
+      throw new Error(
+        `${match[1] === 'import' ? 'TCB_DYNAMIC_IMPORT_NONLITERAL' : 'TCB_REQUIRE_NONLITERAL'}:${path}`,
+      );
+    }
+    specifiers.add(literal[3] as string);
+  }
 
   const local: string[] = [];
   const external: string[] = [];
