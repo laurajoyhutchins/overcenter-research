@@ -124,11 +124,10 @@ export function replayProjection(
     ? new Map(base.history.delegationsById)
     : new Map<string, DelegationRecord>();
   const unresolvedDelegationsByRun = base
-    ? new Map(
-        [...base.history.unresolvedDelegationsByRun].map(([runId, delegations]) => [
-          runId,
-          new Map(delegations),
-        ]),
+    ? new Map<string, Map<string, DelegationReservation>>(
+        [...base.history.unresolvedDelegationsByRun].map(
+          ([runId, delegations]) => [runId, new Map(delegations)] as const,
+        ),
       )
     : new Map<string, Map<string, DelegationReservation>>();
   const receipts = base ? [...base.history.receipts] : [];
