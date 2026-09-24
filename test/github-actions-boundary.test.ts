@@ -159,7 +159,6 @@ test('standalone expensive workflows only run for candidate PR heads', () => {
   }
 });
 
-
 test('experiment workflows do not fan out on shared catalog metadata', () => {
   const workflows = new URL('../.github/workflows/', import.meta.url);
   for (const name of readdirSync(workflows).filter((entry) => entry.endsWith('.yml'))) {
