@@ -81,7 +81,9 @@ function releaseOutcomes(state: State): readonly ReleaseOutcome[] {
 
 function replayOutcomes(state: State): readonly ReplayOutcome[] {
   const prior = [false, true] as const;
-  const conflicts = state.terminal_absence_certificate ? ([false] as const) : ([false, true] as const);
+  const conflicts = state.terminal_absence_certificate
+    ? ([false] as const)
+    : ([false, true] as const);
   return prior.flatMap((prior_effect_occurred) =>
     conflicts.map((provider_state_conflict) => ({
       prior_effect_occurred,
@@ -113,7 +115,9 @@ function weakestPrecondition<T>(
   outcomes: (state: State) => readonly T[],
   postcondition: (state: State, outcome: T) => boolean,
 ): State[] {
-  return states.filter((state) => outcomes(state).every((outcome) => postcondition(state, outcome)));
+  return states.filter((state) =>
+    outcomes(state).every((outcome) => postcondition(state, outcome)),
+  );
 }
 
 function deriveConjunction(selected: readonly State[]): string {
@@ -130,10 +134,7 @@ function deriveConjunction(selected: readonly State[]): string {
           return choice === 0 || state[variable] === (choice === 1);
         }),
       );
-      if (
-        accepted.length === target.size &&
-        accepted.every((state) => target.has(key(state)))
-      ) {
+      if (accepted.length === target.size && accepted.every((state) => target.has(key(state)))) {
         matches.push(
           variables.flatMap((variable, i) => {
             const choice = vector[i]!;
@@ -170,10 +171,7 @@ assert.equal(
   'current_authority && exact_attempt_binding && adapter_match && terminal_absence_certificate && replay_protected',
 );
 
-function omittedGuardWitness(
-  safe: readonly State[],
-  guard: (state: State) => boolean,
-): string[] {
+function omittedGuardWitness(safe: readonly State[], guard: (state: State) => boolean): string[] {
   const safeKeys = new Set(safe.map(key));
   return states.filter((state) => guard(state) && !safeKeys.has(key(state))).map(key);
 }
@@ -202,10 +200,7 @@ const replayMutants = {
     s.terminal_absence_certificate &&
     s.replay_protected,
   missing_exact_attempt_binding: (s: State) =>
-    s.current_authority &&
-    s.adapter_match &&
-    s.terminal_absence_certificate &&
-    s.replay_protected,
+    s.current_authority && s.adapter_match && s.terminal_absence_certificate && s.replay_protected,
   missing_adapter_match: (s: State) =>
     s.current_authority &&
     s.exact_attempt_binding &&
@@ -419,7 +414,10 @@ const githubReplayState: State = {
   terminal_absence_certificate: true,
   replay_protected: githubReplayProtected,
 };
-assert.equal(replayWp.some((state) => key(state) === key(githubReplayState)), false);
+assert.equal(
+  replayWp.some((state) => key(state) === key(githubReplayState)),
+  false,
+);
 
 const syntheticReplayable: EffectAdapterCapabilities = {
   schema: EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
@@ -453,8 +451,14 @@ const syntheticWithoutAbsence: State = {
   ...syntheticWithAbsence,
   terminal_absence_certificate: false,
 };
-assert.equal(replayWp.some((state) => key(state) === key(syntheticWithAbsence)), true);
-assert.equal(replayWp.some((state) => key(state) === key(syntheticWithoutAbsence)), false);
+assert.equal(
+  replayWp.some((state) => key(state) === key(syntheticWithAbsence)),
+  true,
+);
+assert.equal(
+  replayWp.some((state) => key(state) === key(syntheticWithoutAbsence)),
+  false,
+);
 
 assert.throws(
   () =>
