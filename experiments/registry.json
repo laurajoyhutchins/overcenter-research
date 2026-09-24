@@ -3251,6 +3251,59 @@
         "state": "supported",
         "summary": "At exact revision 7546e2b058c8be80faebaa8900a684b794275af3, the split store matched monolithic Git kernel semantics, kept authority commits fact-id-only, admitted exactly one winner in an eight-process same-head race, left seven losing fact objects unreachable, reconstructed from a copied object replica, and failed closed when an authoritative fact object was missing."
       }
+    },
+    {
+      "id": "finite-difference-ready-projection",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/finite-difference-ready-projection",
+      "readme": "experiments/finite-difference-ready-projection/README.md",
+      "question": "Can Overcenter maintain the scheduler READY relation incrementally from graph and lifecycle deltas while preserving full declarative recomputation as an exact oracle?",
+      "claim": "For the bounded READY relation, a finite-difference treatment generated from self predicates plus an all-dependencies aggregate can maintain exact READY membership and replay-derived service-age selection with work proportional to the affected reverse-dependency frontier rather than total graph size.",
+      "contrast": "Continue deriving the complete project READY projection after each local lifecycle change, or hand-optimize individual scheduler paths without retaining a declarative oracle.",
+      "reproduce": {
+        "tier": "deterministic",
+        "local": "npm run experiment:finite-difference-ready-projection"
+      },
+      "environment": [
+        "Node.js from .node-version.",
+        "Production Obligation, State, graph validation, dependency traversal, Receipt/HistoricalRun types, and deriveProjectProjection() are used by the differential.",
+        "No provider credential, database, model, or external solver is required.",
+        "Hosted reference is expected from GitHub Actions ubuntu-24.04 at the exact experiment head."
+      ],
+      "success_criteria": [
+        "The incremental treatment and declarative oracle have exactly identical READY membership, cardinality, and selected work after every hostile mutation.",
+        "A 96-obligation control-dependency execution agrees with production deriveProjectProjection() after every execution prefix.",
+        "Omitting reverse-dependency propagation in the negative control produces a detectable stale READY mismatch.",
+        "At 128, 512, 2,048, and 8,192 obligations with a fixed four-node downstream frontier, the treatment touches at most five obligations per anchor lifecycle mutation while the full oracle examines every obligation.",
+        "At fan-out 1, 8, 64, and 512, one upstream completion touches exactly fanout + 1 obligations.",
+        "The experiment changes no production scheduler, projection, storage, or authority semantics."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          ".github/workflows/finite-difference-ready-projection.yml"
+        ],
+        "pending_reason": "The preregistered treatment and hosted workflow are committed on the experiment branch, but exact-head hosted evidence has not yet been recorded."
+      },
+      "interpretation": "A positive result would justify a next experiment that incrementally maintains the production projection itself, starting with dependency satisfaction and READY selection while retaining deriveProjectProjection() as the oracle.",
+      "non_claims": [
+        "The production scheduler should immediately replace deriveProjectProjection().",
+        "Current-realization provider observations can be inferred from graph deltas.",
+        "Semantic-key propagation is fully incrementalized.",
+        "Static effect-conflict indexes have already been mechanically differentiated.",
+        "Graph replacement is always sublinear.",
+        "Wall-clock speedups are portable across hosts.",
+        "The experimental query compiler is a general-purpose incremental-view-maintenance engine."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "The declarative READY relation, hostile mutation classes, production differential, omitted-derivative negative control, graph-size locality treatments, fan-out scaling treatment, acceptance criteria, and non-claims were recorded before the first hosted execution."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "The experiment has not yet been evaluated at an exact hosted revision."
+      }
     }
   ]
 }
