@@ -2,7 +2,7 @@ import {
   observeCertifiedGithubSemanticRead,
   type CertifiedGithubSemanticReadEvidence,
 } from './certified-read.ts';
-import type { GithubJsonGet } from './rest.ts';
+import { githubGet, type GithubJsonGet } from './rest.ts';
 
 const ACTIONS_PAGE_SIZE = 100;
 
@@ -128,11 +128,11 @@ export function observeGithubActionsLoad(
   token: string,
   {
     repositories,
-    get,
+    get = githubGet,
     clock = () => new Date().toISOString(),
   }: {
     repositories: readonly GithubActionsRepositoryScope[];
-    get: GithubJsonGet;
+    get?: GithubJsonGet;
     clock?: () => string;
   },
 ): GithubActionsLoadObservation {
