@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { observeCertifiedGithubSemanticRead } from '../src/providers/github/certified-read.ts';
+import {
+  observeGithubActionsLoad,
+  projectGithubActionsCapacity,
+} from '../src/providers/github/actions-capacity.ts';
 
 const SHA = 'a'.repeat(40);
 const repository = () => ({
@@ -298,4 +302,144 @@ test('generic read fails closed before provider access when credential permissio
   assert.equal(called, false);
   if (result.state !== 'indeterminate') return;
   assert.equal(result.observation_error, 'GITHUB_SEMANTIC_READ_PERMISSION_NOT_GRANTED:issues:read');
+});
+
+
+test('certified Actions load drives conservative account-capacity admission', () => {
+  const observation = observeGithubActionsLoad('token', {
+    repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+    scopeCompleteness: 'account-complete',
+    get: (_token, path) => {
+      if (path === '/repos/acme/widget') return repository();
+      if (path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress') {
+        return {
+          total_count: 1,
+          workflow_runs: [
+            {
+              id: 7001,
+              node_id: 'WFR_7001',
+              workflow_id: 88,
+              run_number: 12,
+              run_attempt: 1,
+              status: 'in_progress',
+              conclusion: null,
+              head_sha: SHA,
+              head_branch: 'main',
+              updated_at: '2026-09-24T21:00:00Z',
+            },
+          ],
+        };
+      }
+      if (
+        path ===
+        '/repos/acme/widget/actions/runs/7001/jobs?filter=latest&page=1&per_page=100'
+      ) {
+        return {
+          total_count: 2,
+          jobs: [
+            {
+              id: 9001,
+              run_id: 7001,
+              run_attempt: 1,
+              node_id: 'WFJ_9001',
+              head_sha: SHA,
+              name: 'unit',
+              status: 'in_progress',
+              conclusion: null,
+              started_at: '2026-09-24T21:00:00Z',
+              completed_at: null,
+            },
+            {
+              id: 9002,
+              run_id: 7001,
+              run_attempt: 1,
+              node_id: 'WFJ_9002',
+              head_sha: SHA,
+              name: 'queued',
+              status: 'queued',
+              conclusion: null,
+              started_at: '2026-09-24T21:00:00Z',
+              completed_at: null,
+            },
+          ],
+        };
+      }
+      throw new Error('unexpected path:' + path);
+    },
+  });
+
+  assert.equal(observation.in_progress_jobs.length, 1);
+  assert.equal(observation.in_progress_jobs[0]?.job_id, 9001);
+
+  const capacity = projectGithubActionsCapacity({
+    observation,
+    limit: 20,
+    locallyReservedJobs: 17,
+    safetyReserveJobs: 1,
+  });
+  assert.deepEqual(capacity, {
+    limit: 20,
+    observed_in_progress_jobs: 1,
+    locally_reserved_jobs: 17,
+    safety_reserve_jobs: 1,
+    committed_jobs: 19,
+    available_jobs: 1,
+    state: 'available',
+    reason: null,
+    conservative_runner_classification: true,
+  });
+
+  assert.deepEqual(
+    projectGithubActionsCapacity({
+      observation: { ...observation, scope_completeness: 'partial' },
+      limit: 20,
+    }),
+    {
+      limit: 20,
+      observed_in_progress_jobs: 1,
+      locally_reserved_jobs: 0,
+      safety_reserve_jobs: 0,
+      committed_jobs: 1,
+      available_jobs: 0,
+      state: 'indeterminate',
+      reason: 'repository-scope-incomplete',
+      conservative_runner_classification: true,
+    },
+  );
+});
+
+test('Actions capacity observation refuses partial provider collections', () => {
+  assert.throws(
+    () =>
+      observeGithubActionsLoad('token', {
+        repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+        scopeCompleteness: 'account-complete',
+        get: (_token, path) => {
+          if (path === '/repos/acme/widget') return repository();
+          if (
+            path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress'
+          ) {
+            return {
+              total_count: 2,
+              workflow_runs: [
+                {
+                  id: 7001,
+                  node_id: 'WFR_7001',
+                  workflow_id: 88,
+                  run_number: 12,
+                  run_attempt: 1,
+                  status: 'in_progress',
+                  conclusion: null,
+                  head_sha: SHA,
+                  head_branch: 'main',
+                  updated_at: '2026-09-24T21:00:00Z',
+                },
+              ],
+            };
+          }
+          throw new Error('unexpected path:' + path);
+        },
+      }),
+    /GITHUB_ACTIONS_CAPACITY_COLLECTION_NOT_SINGLE_PAGE_COMPLETE/,
+  );
 });
