@@ -63,7 +63,14 @@ export function brokerAssignedSourceProposal(
     throw new Error('SOURCE_BROKER_TASK_MISMATCH');
   }
 
-  const brokered = brokerSourceProposal(repo, current.packet, claim, proposalValue, { remote });
+  const brokered = brokerSourceProposal(
+    repo,
+    assignment.obligation_id,
+    current.packet,
+    claim,
+    proposalValue,
+    { remote },
+  );
   return {
     authority_head: authorityHead,
     candidate: brokered.candidate,

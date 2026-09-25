@@ -6,12 +6,19 @@ export const SOURCE_ASSIGNMENT_SCHEMA = 'overcenter-source-assignment/v1' as con
 export const SOURCE_PROPOSAL_SCHEMA = 'overcenter-source-proposal/v1' as const;
 export const SOURCE_CANDIDATE_SCHEMA = 'overcenter-source-candidate/v1' as const;
 
+export interface SourceTaskAcceptance extends Record<string, unknown> {
+  verifier: 'tcb-finding-absent/v1';
+  finding_id: string;
+}
+
 export interface SourceTaskPacket extends Record<string, unknown> {
   schema: typeof SOURCE_TASK_SCHEMA;
   kind: 'source-change';
   objective: string;
   writable_paths: string[];
   effect_contract: typeof GITHUB_SOURCE_INTEGRATION_EFFECT;
+  acceptance?: SourceTaskAcceptance;
+  context?: Record<string, unknown>;
 }
 
 export interface SourceClaimBinding {
@@ -100,7 +107,7 @@ export function validateSourceTaskPacket(value: unknown): SourceTaskPacket {
   assertExactKeys(
     value,
     ['schema', 'kind', 'objective', 'writable_paths'],
-    ['effect_contract'],
+    ['effect_contract', 'acceptance', 'context'],
     'SOURCE_TASK_INVALID',
   );
   if (value.schema !== SOURCE_TASK_SCHEMA) throw new Error('SOURCE_TASK_SCHEMA_MISMATCH');
@@ -123,12 +130,39 @@ export function validateSourceTaskPacket(value: unknown): SourceTaskPacket {
     throw new Error('SOURCE_TASK_WRITABLE_PATH_DUPLICATE');
   }
 
+  let acceptance: SourceTaskAcceptance | undefined;
+  if (value.acceptance !== undefined) {
+    if (!isData(value.acceptance)) throw new Error('SOURCE_TASK_ACCEPTANCE_INVALID');
+    assertExactKeys(
+      value.acceptance,
+      ['verifier', 'finding_id'],
+      [],
+      'SOURCE_TASK_ACCEPTANCE_INVALID',
+    );
+    if (value.acceptance.verifier !== 'tcb-finding-absent/v1') {
+      throw new Error('SOURCE_TASK_ACCEPTANCE_VERIFIER_INVALID');
+    }
+    assertNonEmptyString(value.acceptance.finding_id, 'SOURCE_TASK_ACCEPTANCE_FINDING_INVALID');
+    if (!value.acceptance.finding_id.startsWith('tcb:')) {
+      throw new Error('SOURCE_TASK_ACCEPTANCE_FINDING_INVALID');
+    }
+    acceptance = {
+      verifier: 'tcb-finding-absent/v1',
+      finding_id: value.acceptance.finding_id,
+    };
+  }
+  if (value.context !== undefined && !isData(value.context)) {
+    throw new Error('SOURCE_TASK_CONTEXT_INVALID');
+  }
+
   return {
     schema: SOURCE_TASK_SCHEMA,
     kind: 'source-change',
     objective: value.objective,
     writable_paths: [...value.writable_paths].sort(),
     effect_contract: GITHUB_SOURCE_INTEGRATION_EFFECT,
+    ...(acceptance ? { acceptance } : {}),
+    ...(value.context === undefined ? {} : { context: structuredClone(value.context) }),
   };
 }
 

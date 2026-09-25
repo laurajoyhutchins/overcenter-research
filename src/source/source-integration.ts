@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import { assertExactKeys, assertNonEmptyString, isData } from '../validation.ts';
 import {
@@ -207,10 +207,11 @@ export type SourceCandidatePublicationResult =
   | { state: 'PUBLISHED' | 'ALREADY_PUBLISHED'; ref: string; candidate_sha: string }
   | { state: 'CONFLICT'; ref: string; observed_sha: string };
 
-function sourceCandidateMessage(claim: SourceClaimBinding): string {
+function sourceCandidateMessage(obligationId: string, claim: SourceClaimBinding): string {
   return [
     `source candidate ${claim.run_id}`,
     '',
+    `Overcenter-Obligation-Id: ${obligationId}`,
     `Overcenter-Obligation-Key: ${claim.obligation_key}`,
     `Overcenter-Claimed-Revision: ${claim.claimed_revision}`,
     `Overcenter-Claimed-Source: ${claim.source_sha}`,
@@ -219,6 +220,7 @@ function sourceCandidateMessage(claim: SourceClaimBinding): string {
 
 function materializeSourceProposal(
   repo: string,
+  obligationId: string,
   taskValue: unknown,
   claim: SourceClaimBinding,
   proposalValue: unknown,
@@ -247,14 +249,14 @@ function materializeSourceProposal(
       'user.email=overcenter@local',
       'commit',
       '-m',
-      sourceCandidateMessage(claim),
+      sourceCandidateMessage(obligationId, claim),
     ]);
     candidateSha = git(candidateTree.root, ['rev-parse', 'HEAD']);
   } finally {
     candidateTree.dispose();
   }
 
-  return inspectSourceCandidate(repo, taskValue, claim, candidateSha).candidate;
+  return inspectSourceCandidate(repo, taskValue, claim, candidateSha, obligationId).candidate;
 }
 
 function publishSourceCandidate(
@@ -298,6 +300,7 @@ function publishSourceCandidate(
 
 export function brokerSourceProposal(
   repo: string,
+  obligationId: string,
   taskValue: unknown,
   claim: SourceClaimBinding,
   proposalValue: unknown,
@@ -306,7 +309,7 @@ export function brokerSourceProposal(
   candidate: SourceCandidate;
   publication: SourceCandidatePublicationResult;
 } {
-  const candidate = materializeSourceProposal(repo, taskValue, claim, proposalValue);
+  const candidate = materializeSourceProposal(repo, obligationId, taskValue, claim, proposalValue);
   const publication = publishSourceCandidate(repo, taskValue, claim, candidate.commit_sha, {
     remote,
   });
@@ -318,6 +321,7 @@ export function inspectSourceCandidate(
   taskValue: unknown,
   claim: SourceClaimBinding,
   candidateSha: string,
+  expectedObligationId?: string,
 ): { task: SourceTaskPacket; candidate: SourceCandidate; changed_paths: string[] } {
   const task = validateSourceTaskPacket(taskValue);
   exactSha(candidateSha, 'SOURCE_CANDIDATE_COMMIT_SHA_INVALID');
@@ -327,6 +331,14 @@ export function inspectSourceCandidate(
     .filter(Boolean);
   if (parents.length !== 2 || parents[1] !== claim.source_sha) {
     throw new Error('SOURCE_CANDIDATE_PARENT_MISMATCH');
+  }
+
+  if (expectedObligationId !== undefined) {
+    assertNonEmptyString(expectedObligationId, 'SOURCE_CANDIDATE_OBLIGATION_INVALID');
+    const body = git(repo, ['show', '-s', '--format=%B', candidateSha]);
+    if (!body.split('\n').includes(`Overcenter-Obligation-Id: ${expectedObligationId}`)) {
+      throw new Error('SOURCE_CANDIDATE_OBLIGATION_MISMATCH');
+    }
   }
 
   const candidate = validateSourceCandidate(
@@ -420,6 +432,7 @@ export function integrateVerifiedSourceCandidate(
   repo: string,
   taskValue: unknown,
   claim: SourceClaimBinding,
+  obligationId: string,
   candidateSha: string,
   verificationValue: unknown,
   {
@@ -433,7 +446,7 @@ export function integrateVerifiedSourceCandidate(
   },
 ): SourceIntegrationResult {
   try {
-    inspectSourceCandidate(repo, taskValue, claim, candidateSha);
+    inspectSourceCandidate(repo, taskValue, claim, candidateSha, obligationId);
   } catch (error: unknown) {
     return {
       state: 'REJECTED',
@@ -500,6 +513,31 @@ export function integrateVerifiedSourceCandidate(
   try {
     if (gitStatus(candidateTree.root, ['cherry-pick', '--no-commit', candidateSha]) !== 0) {
       return { state: 'REREALIZE_REQUIRED', reason: 'SOURCE_APPLY_CONFLICT' };
+    }
+    const task = validateSourceTaskPacket(taskValue);
+    if (task.acceptance?.verifier === 'tcb-finding-absent/v1') {
+      const normalizer = resolve(repo, 'scripts/normalize-tcb-candidate.ts');
+      const normalized = spawnSync(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          normalizer,
+          '--root',
+          candidateTree.root,
+          '--finding',
+          task.acceptance.finding_id,
+          '--baseline',
+          claim.source_sha,
+        ],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+      if (normalized.status !== 0) {
+        return {
+          state: 'REJECTED',
+          reason: `SOURCE_TCB_ACCEPTANCE_FAILED:${(normalized.stderr || normalized.stdout || '').trim()}`,
+        };
+      }
+      git(candidateTree.root, ['add', '-A']);
     }
     const tree = git(candidateTree.root, ['write-tree']);
     if (tree !== verification.tree_sha) {

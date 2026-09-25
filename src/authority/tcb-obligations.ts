@@ -17,6 +17,12 @@ const FINDING_KINDS = new Set([
   'trust-concentration',
 ]);
 
+const EXECUTABLE_FINDING_KINDS = new Set([
+  'tcb-growth',
+  'hostile-evidence-stale',
+  'trust-concentration',
+]);
+
 export function compileTcbObligations(value: unknown): ObligationInput[] {
   if (!isData(value)) throw new Error('TCB_OBLIGATIONS_INVALID');
   assertExactKeys(value, ['schema', 'obligations'], [], 'TCB_OBLIGATIONS_INVALID');
@@ -49,6 +55,25 @@ export function compileTcbObligations(value: unknown): ObligationInput[] {
       throw new Error(`TCB_OBLIGATION_EVIDENCE_INVALID:${index}`);
     }
     const task = validateSourceTaskPacket(candidate.task);
+    if (EXECUTABLE_FINDING_KINDS.has(candidate.kind)) {
+      return normalizeObligation({
+        id: candidate.id,
+        packet: validateSourceTaskPacket({
+          ...task,
+          acceptance: {
+            verifier: 'tcb-finding-absent/v1',
+            finding_id: candidate.id,
+          },
+          context: {
+            schema: 'overcenter-tcb-finding/v1',
+            finding_kind: candidate.kind,
+            scope: candidate.scope,
+            evidence: structuredClone(candidate.evidence),
+          },
+        }),
+        postcondition: { verifier: 'source-integration/v1' },
+      });
+    }
 
     return normalizeObligation({
       id: candidate.id,

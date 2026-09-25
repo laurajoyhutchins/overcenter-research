@@ -1023,6 +1023,7 @@ try {
           `Add a hostile mutation probe that can falsify the ${property.id} property at its current trusted boundary.`,
           [
             'experiments/production-criticality-ranking/mutation-evidence.json',
+            'experiments/production-criticality-ranking/mutation-probes.json',
             ...property.hybrid_closure_files,
           ],
           {
