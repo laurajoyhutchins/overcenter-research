@@ -939,7 +939,7 @@ try {
   const documentationPath = 'docs/trusted-computing-base.md';
   const documentation = readFileSync(documentationPath, 'utf8');
   const generatedBlockPattern =
-    /<!-- BEGIN GENERATED TCB BASELINE -->[\\s\\S]*?<!-- END GENERATED TCB BASELINE -->/;
+    /<!-- BEGIN GENERATED TCB BASELINE -->[\s\S]*?<!-- END GENERATED TCB BASELINE -->/;
   if (!generatedBlockPattern.test(documentation)) {
     throw new Error('TCB_DOC_GENERATED_BLOCK_MISSING');
   }
