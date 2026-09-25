@@ -87,11 +87,3 @@ export function bootstrapMedianInterval(
     resamples,
   };
 }
-
-export function zeroFailureUpperBound(trials: number, confidence = 0.95): number {
-  if (!Number.isSafeInteger(trials) || trials < 1) throw new Error('ZERO_FAILURE:INVALID_TRIALS');
-  if (!(confidence > 0 && confidence < 1)) {
-    throw new Error('ZERO_FAILURE:INVALID_CONFIDENCE');
-  }
-  return 1 - (1 - confidence) ** (1 / trials);
-}

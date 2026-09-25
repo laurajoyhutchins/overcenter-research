@@ -91,29 +91,19 @@ Changing the task, treatment, scorer, or workflow produces a new Git identity an
 
 ## Statistical evidence
 
-Statistical machinery is claim-specific rather than experiment-wide. One experiment may contain an
-exhaustive safety differential and a sampled performance claim, and those claims require different
-evidence.
+Statistical requirements belong to the executable experiment design, not to the archival registry.
+When sampling or stochastic behavior is material, the frozen experiment should state the estimand,
+sampling unit and count, uncertainty method, stopping rule, and any confirmatory decision threshold
+before outcome-bearing execution.
 
-The registry uses four evidence classes:
+The experiment's scorer must compute those quantities from raw observations. Git history freezes that
+design, and hosted GitHub Actions evidence binds the resulting treatment to an exact revision.
+Promotion, when justified, uses the existing certified provider-evidence and source-obligation
+boundary described above. `experiments/registry.json` remains explanatory metadata and has no
+authority over merge or promotion decisions.
 
-- `exhaustive`: every state in the declared bounded model is enumerated; report the bound and
-  coverage rather than a sampling interval.
-- `deterministic-corpus`: every case in a fixed corpus is evaluated; conclusions remain bounded to
-  that corpus unless separate generalization evidence exists.
-- `performance`: timing, throughput, or resource measurements vary across runs and require an
-  explicit sampling and uncertainty plan for confirmatory claims.
-- `stochastic`: model or randomized behavior varies across invocations and requires explicit
-  sampling and uncertainty machinery before making population/generalization claims.
-
-A `performance` or `stochastic` registry analysis must declare its estimand, sampling unit,
-planned or actual sample count, uncertainty method, and stopping rule. A confirmatory claim must also
-declare a decision rule and may not use `uncertainty.method = "none"`.
-
-`npm run check:experiment-statistics` enforces that contract for the statistical experiment claims
-currently under the ratchet. Shared helpers in `scripts/experiment-statistics.ts` provide paired
-ratios, deterministic percentile-bootstrap intervals, and the one-sided exact upper bound for zero
-observed failures.
+Exhaustive and deterministic-corpus treatments should continue to make bounded coverage claims
+directly rather than manufacture sampling statistics where none are meaningful.
 
 ## Proof lineage
 
