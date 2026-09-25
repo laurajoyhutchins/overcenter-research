@@ -13,6 +13,7 @@ import {
 import { obligationDefinition, obligationDefinitionId } from '../src/authority/facts.ts';
 import type { GithubHostileMutationEvidencePostcondition } from '../src/model.ts';
 import { observationVerified, observePostcondition } from '../src/observation/observe.ts';
+import { observeGithubHostileMutationEvidence } from '../src/providers/github/hostile-mutation-evidence.ts';
 
 function git(cwd: string, args: string[]): string {
   return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();
@@ -202,10 +203,15 @@ test('GitHub hostile evidence observation fails currentness on source drift', ()
     return responses.get(path);
   };
 
-  const current = observePostcondition(postcondition, {
+  const context = {
     githubToken: 'token',
     githubGet: get,
-  });
+    observeGithubHostileMutationEvidence: (
+      candidate: GithubHostileMutationEvidencePostcondition,
+    ) => observeGithubHostileMutationEvidence('token', candidate, get),
+  };
+
+  const current = observePostcondition(postcondition, context);
   assert.equal(current.actual_state, 'current');
   assert.equal(observationVerified(postcondition, current), true);
 
@@ -215,10 +221,7 @@ test('GitHub hostile evidence observation fails currentness on source drift', ()
     encoding: 'base64',
     content: Buffer.from('export const core = false;\n').toString('base64'),
   });
-  const stale = observePostcondition(postcondition, {
-    githubToken: 'token',
-    githubGet: get,
-  });
+  const stale = observePostcondition(postcondition, context);
   assert.equal(stale.actual_state, 'stale');
   assert.equal(stale.mutation_certainty, 'present');
   assert.equal(observationVerified(postcondition, stale), false);
@@ -234,10 +237,7 @@ test('GitHub hostile evidence observation fails currentness on source drift', ()
     head_sha: revision,
     conclusion: 'failure',
   });
-  const invalidAuthority = observePostcondition(postcondition, {
-    githubToken: 'token',
-    githubGet: get,
-  });
+  const invalidAuthority = observePostcondition(postcondition, context);
   assert.equal(invalidAuthority.mutation_certainty, 'uncertain');
   assert.equal(observationVerified(postcondition, invalidAuthority), false);
 });
