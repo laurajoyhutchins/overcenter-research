@@ -1,0 +1,92 @@
+name: Recover failed foreign worker run
+
+on:
+  push:
+    branches:
+      - maintenance/recover-failed-foreign-worker
+    paths:
+      - .github/workflows/recover-foreign-worker.yml
+
+permissions: {}
+
+jobs:
+  recover:
+    name: Recover exact failed pure-candidate run
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions:
+      contents: write
+    env:
+      AUTHORITY_REF: refs/overcenter/state
+      EXPECTED_HEAD: 8c23b3a404f50dc6453028f5113b43d62e200719
+      RUN_ID: cd642fc8-6761-4aa8-8b08-f28d311d8cbd
+    steps:
+      - name: Check out trusted recovery implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: 28e26ed22da1395fab118c54fef03d729d4248d1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Use pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: Recover terminated worker and return replay-safe work to READY
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'NODE'
+          import { GitOvercenterKernel } from './src/storage/git-kernel.ts';
+
+          const authorityRef = process.env.AUTHORITY_REF;
+          const expectedHead = process.env.EXPECTED_HEAD;
+          const runId = process.env.RUN_ID;
+          if (!authorityRef || !expectedHead || !runId) throw new Error('RECOVERY_ENV_MISSING');
+
+          const kernel = new GitOvercenterKernel(process.cwd(), {
+            ref: authorityRef,
+            remote: 'origin',
+            githubToken: process.env.GITHUB_TOKEN ?? null,
+          });
+
+          if (kernel.head() !== expectedHead) throw new Error('RECOVERY_AUTHORITY_HEAD_DRIFT');
+          const before = kernel.inspect().find((work) => work.run_id === runId);
+          if (!before || before.status !== 'EXECUTING') {
+            throw new Error('RECOVERY_RUN_NOT_EXECUTING');
+          }
+
+          const permit = kernel.acquireExecution(runId);
+          const interrupted = kernel.recoverInterrupted(permit, {
+            source: 'foreign-worker',
+            error: 'ASSIGNMENT_COMMAND_FAILED:1',
+            candidate_present: false,
+            provider_effect_reserved: false,
+          });
+          if (interrupted.disposition !== 'RECOVERY_REQUIRED' || interrupted.verified !== false) {
+            throw new Error('RECOVERY_TERMINATION_NOT_RECORDED');
+          }
+
+          const reconciled = kernel.reconcile(permit);
+          if (reconciled.disposition !== 'READY' || reconciled.verified !== false) {
+            throw new Error('RECOVERY_NOT_REPLAY_SAFE');
+          }
+
+          const after = kernel.inspect().find((work) => work.id === before.id);
+          if (!after || after.status !== 'READY' || after.run_id !== undefined) {
+            throw new Error('RECOVERY_READY_PROJECTION_FAILED');
+          }
+
+          console.log(JSON.stringify({
+            run_id: runId,
+            execution_generation: permit.execution_generation,
+            termination_commit: interrupted.settlement_commit,
+            ready_commit: reconciled.settlement_commit,
+            authority_head: kernel.head(),
+            state: after.status,
+          }));
+          NODE
