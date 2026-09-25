@@ -162,42 +162,7 @@ export function validatePostcondition(p: Postcondition): void {
     !p.evidence_path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
     typeof p.expected_sha256 === 'string' &&
     /^[0-9a-f]{64}$/i.test(p.expected_sha256) &&
-    data(p.source_blobs) &&
-    Object.keys(p.source_blobs).length > 0 &&
-    Object.entries(p.source_blobs).every(
-      ([path, blob]) =>
-        path.length > 0 &&
-        !path.startsWith('/') &&
-        !path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
-        typeof blob === 'string' &&
-        /^[0-9a-f]{40}$/i.test(blob),
-    ) &&
-    data(p.evidence_source_blobs) &&
-    Object.entries(p.evidence_source_blobs).every(
-      ([path, blob]) =>
-        path.length > 0 &&
-        !path.startsWith('/') &&
-        !path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
-        typeof blob === 'string' &&
-        /^[0-9a-f]{40}$/i.test(blob),
-    ) &&
-    Array.isArray(p.source_runs) &&
-    p.source_runs.every(
-      (run) =>
-        data(run) &&
-        Number.isSafeInteger(run.workflow_run_id) &&
-        run.workflow_run_id > 0 &&
-        typeof run.revision === 'string' &&
-        /^[0-9a-f]{40}$/i.test(run.revision) &&
-        typeof run.artifact_digest === 'string' &&
-        /^sha256:[0-9a-f]{64}$/i.test(run.artifact_digest),
-    ) &&
-    typeof p.workflow_path === 'string' &&
-    p.workflow_path.length > 0 &&
-    typeof p.job_name === 'string' &&
-    p.job_name.length > 0 &&
-    typeof p.artifact_name === 'string' &&
-    p.artifact_name.length > 0
+    data(p.binding)
   )
     return;
   if (
@@ -259,15 +224,7 @@ const githubStatusError = (
 
 const githubSourceBoundEvidenceBindingDigest = (
   p: GithubSourceBoundEvidencePostcondition,
-): string =>
-  canonicalDigest({
-    source_blobs: p.source_blobs,
-    evidence_source_blobs: p.evidence_source_blobs,
-    source_runs: p.source_runs,
-    workflow_path: p.workflow_path,
-    job_name: p.job_name,
-    artifact_name: p.artifact_name,
-  });
+): string => canonicalDigest(p.binding);
 
 const githubSourceBoundEvidenceError = (
   p: GithubSourceBoundEvidencePostcondition,
