@@ -8,8 +8,10 @@ import {
   assignmentSha256,
   buildAssignment,
   encodeAssignment,
+  validateAgentTaskDefinition,
+  validateAgentTaskPacket,
   validateCandidate,
-  validPath,
+  type AssignmentTaskPacket,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest, sha256 } from '../digest.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
@@ -143,6 +145,91 @@ function gitOptionalBytes(repo: string, commit: string, path: string): Buffer | 
   return gitBytes(repo, commit, path);
 }
 
+interface GitTreeEntry {
+  mode: '100644' | '100755' | '040000';
+  type: 'blob' | 'tree';
+  path: string;
+}
+
+function parseGitTree(raw: string): GitTreeEntry[] {
+  return raw
+    .split('\0')
+    .filter((record) => record.length > 0)
+    .map((record) => {
+      const tab = record.indexOf('\t');
+      if (tab < 0) throw new Error('PROJECT_ADVANCE_GIT_TREE_INVALID');
+      const [mode, type] = record.slice(0, tab).split(' ');
+      const path = record.slice(tab + 1);
+      if (
+        (mode !== '100644' && mode !== '100755' && mode !== '040000') ||
+        (type !== 'blob' && type !== 'tree') ||
+        path.length === 0
+      ) {
+        throw new Error('PROJECT_ADVANCE_GIT_TREE_UNSUPPORTED_ENTRY');
+      }
+      return { mode, type, path };
+    });
+}
+
+function gitTreeEntries(repo: string, commit: string, path?: string): GitTreeEntry[] {
+  const args = ['-C', repo, 'ls-tree', '-rz', '--full-tree', commit];
+  if (path !== undefined) args.push('--', path);
+  return parseGitTree(execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+}
+
+function gitSourceFile(
+  repo: string,
+  commit: string,
+  path: string,
+): ReturnType<typeof assignmentFile> {
+  const entries = parseGitTree(
+    execFileSync('git', ['-C', repo, 'ls-tree', '-z', commit, '--', path], {
+      encoding: 'utf8',
+    }),
+  );
+  if (entries.length !== 1 || entries[0]!.path !== path || entries[0]!.type !== 'blob') {
+    throw new Error(`PROJECT_ADVANCE_REQUIRED_FILE_MISSING:${path}`);
+  }
+  const entry = entries[0]!;
+  if (entry.mode !== '100644' && entry.mode !== '100755') {
+    throw new Error(`PROJECT_ADVANCE_REQUIRED_FILE_MODE_UNSUPPORTED:${path}`);
+  }
+  return assignmentFile(path, gitBytes(repo, commit, path), entry.mode);
+}
+
+function gitSourceTree(
+  repo: string,
+  commit: string,
+  treePath: string,
+): ReturnType<typeof assignmentFile>[] {
+  if (treePath !== '.') {
+    const root = parseGitTree(
+      execFileSync('git', ['-C', repo, 'ls-tree', '-z', commit, '--', treePath], {
+        encoding: 'utf8',
+      }),
+    );
+    if (
+      root.length !== 1 ||
+      root[0]!.path !== treePath ||
+      root[0]!.type !== 'tree' ||
+      root[0]!.mode !== '040000'
+    ) {
+      throw new Error(`PROJECT_ADVANCE_REQUIRED_TREE_MISSING:${treePath}`);
+    }
+  }
+
+  const entries = gitTreeEntries(repo, commit, treePath === '.' ? undefined : treePath);
+  if (entries.length === 0) {
+    throw new Error(`PROJECT_ADVANCE_REQUIRED_TREE_EMPTY:${treePath}`);
+  }
+  return entries.map((entry) => {
+    if (entry.type !== 'blob' || (entry.mode !== '100644' && entry.mode !== '100755')) {
+      throw new Error(`PROJECT_ADVANCE_REQUIRED_TREE_ENTRY_UNSUPPORTED:${entry.path}`);
+    }
+    return assignmentFile(entry.path, gitBytes(repo, commit, entry.path), entry.mode);
+  });
+}
+
 function desiredProjectGraph(repo: string, sourceSha: string) {
   const bytes = gitOptionalBytes(repo, sourceSha, PROJECT_INTENT_PATH);
   if (!bytes) return null;
@@ -162,52 +249,61 @@ function prepareAgentPacket(
 ): {
   sourceRevision: string;
   files: ReturnType<typeof assignmentFile>[];
+  packet: AssignmentTaskPacket;
 } {
-  const packet = work.packet;
-  if (packet.schema !== AGENT_TASK_PACKET_SCHEMA || packet.kind !== 'pure-candidate') {
+  if (work.packet.schema !== AGENT_TASK_PACKET_SCHEMA || work.packet.kind !== 'pure-candidate') {
     throw new Error('PROJECT_ADVANCE_AGENT_PACKET_UNSUPPORTED');
   }
+  const definition = validateAgentTaskDefinition(work.packet);
 
   const source = sourceRevision.toLowerCase();
   if (!/^[0-9a-f]{40}$/.test(source)) {
     throw new Error('PROJECT_ADVANCE_SOURCE_REVISION_INVALID');
   }
-  if (
-    !Array.isArray(packet.command) ||
-    packet.command.length === 0 ||
-    packet.command.some((part) => typeof part !== 'string' || part.length === 0)
-  ) {
-    throw new Error('PROJECT_ADVANCE_COMMAND_INVALID');
+
+  const byPath = new Map<string, ReturnType<typeof assignmentFile>>();
+  for (const path of definition.required_paths) {
+    byPath.set(path, gitSourceFile(repo, source, path));
   }
-  if (
-    !Array.isArray(packet.required_paths) ||
-    packet.required_paths.length === 0 ||
-    packet.required_paths.some((path) => typeof path !== 'string' || !validPath(path))
-  ) {
-    throw new Error('PROJECT_ADVANCE_REQUIRED_PATHS_INVALID');
+  for (const tree of definition.required_trees ?? []) {
+    for (const file of gitSourceTree(repo, source, tree)) {
+      byPath.set(file.path, file);
+    }
   }
-  const requiredPaths = packet.required_paths as string[];
-  if (new Set(requiredPaths).size !== requiredPaths.length) {
-    throw new Error('PROJECT_ADVANCE_REQUIRED_PATHS_DUPLICATE');
-  }
-  if (typeof packet.output_path !== 'string' || !validPath(packet.output_path)) {
-    throw new Error('PROJECT_ADVANCE_OUTPUT_PATH_INVALID');
-  }
+  const files = [...byPath.values()].sort((left, right) => left.path.localeCompare(right.path));
+  if (files.length === 0) throw new Error('PROJECT_ADVANCE_SOURCE_INPUTS_EMPTY');
+
+  const packet = validateAgentTaskPacket({
+    schema: AGENT_TASK_PACKET_SCHEMA,
+    kind: 'pure-candidate',
+    command: definition.command,
+    required_paths: files.map((file) => file.path),
+    output_path: definition.output_path,
+  });
 
   return {
     sourceRevision: source,
-    files: requiredPaths.map((path) => assignmentFile(path, gitBytes(repo, source, path))),
+    files,
+    packet,
   };
 }
 
 function agentAssignment(
   work: Work,
-  prepared: { sourceRevision: string; files: ReturnType<typeof assignmentFile>[] },
+  prepared: {
+    sourceRevision: string;
+    files: ReturnType<typeof assignmentFile>[];
+    packet: AssignmentTaskPacket;
+  },
 ): {
   bytes: Buffer;
   source_sha: string;
 } {
-  const assignment = buildAssignment(work, prepared.files, prepared.sourceRevision);
+  const assignment = buildAssignment(
+    { ...structuredClone(work), packet: structuredClone(prepared.packet) },
+    prepared.files,
+    prepared.sourceRevision,
+  );
   const bytes = encodeAssignment(assignment);
   if (bytes.includes(Buffer.from('execution_capability'))) {
     throw new Error('PROJECT_ADVANCE_PACKET_LEAKED_EXECUTION_CAPABILITY');
