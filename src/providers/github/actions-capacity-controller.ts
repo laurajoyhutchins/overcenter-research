@@ -244,7 +244,7 @@ export class GithubActionsCapacityController {
     return this.#remove(reservationId, 'reserved', 'GITHUB_ACTIONS_CAPACITY_ALREADY_DISPATCHED');
   }
 
-  releaseDispatch(reservationId: string): string | null {
+  completeDispatch(reservationId: string): string | null {
     return this.#remove(reservationId, 'dispatched', 'GITHUB_ACTIONS_CAPACITY_NOT_DISPATCHED');
   }
 
