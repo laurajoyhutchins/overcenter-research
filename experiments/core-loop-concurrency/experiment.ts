@@ -132,9 +132,7 @@ for (const effectMs of EFFECT_MS) {
       median_elapsed_ms: Number(elapsed.toFixed(3)),
       tasks_per_second: Number((TASKS / (elapsed / 1000)).toFixed(3)),
       max_active_effects: Math.max(...samples.map((sample) => sample.max_active_effects)),
-      sample_tasks_per_second: samples.map((sample) =>
-        Number(sample.tasks_per_second.toFixed(3)),
-      ),
+      sample_tasks_per_second: samples.map((sample) => Number(sample.tasks_per_second.toFixed(3))),
       paired_speedup_median: Number(median(ratios).toFixed(3)),
       paired_speedup_interval: {
         lower: Number(interval.lower.toFixed(3)),
