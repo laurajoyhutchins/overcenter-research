@@ -208,6 +208,32 @@ interface SymbolClosure {
   status: 'candidate' | 'sound';
 }
 
+function isTypeSpaceNode(node: Node): boolean {
+  return (
+    (node.kind >= SyntaxKind.FirstTypeNode && node.kind <= SyntaxKind.LastTypeNode) ||
+    node.kind === SyntaxKind.AnyKeyword ||
+    node.kind === SyntaxKind.UnknownKeyword ||
+    node.kind === SyntaxKind.NumberKeyword ||
+    node.kind === SyntaxKind.BigIntKeyword ||
+    node.kind === SyntaxKind.ObjectKeyword ||
+    node.kind === SyntaxKind.BooleanKeyword ||
+    node.kind === SyntaxKind.StringKeyword ||
+    node.kind === SyntaxKind.SymbolKeyword ||
+    node.kind === SyntaxKind.VoidKeyword ||
+    node.kind === SyntaxKind.UndefinedKeyword ||
+    node.kind === SyntaxKind.NeverKeyword ||
+    node.kind === SyntaxKind.IntrinsicKeyword ||
+    node.kind === SyntaxKind.ExpressionWithTypeArguments
+  );
+}
+
+function isTypeOnlySpecifier(node: Node): boolean {
+  if (node.kind !== SyntaxKind.ImportSpecifier && node.kind !== SyntaxKind.ExportSpecifier) {
+    return false;
+  }
+  return (node as Node & { isTypeOnly?: boolean }).isTypeOnly === true;
+}
+
 function repoPathFor(node: Node): string | null {
   const source = node.getSourceFile();
   if (source.isDeclarationFile) return null;
@@ -304,13 +330,12 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
 
     const visit = (node: Node): void => {
       if (
-        isTypeNode(node) ||
+        isTypeSpaceNode(node) ||
         isInterfaceDeclaration(node) ||
         isTypeAliasDeclaration(node) ||
         (isImportDeclaration(node) &&
           node.importClause?.phaseModifier === SyntaxKind.TypeKeyword) ||
-        (isImportSpecifier(node) && node.isTypeOnly) ||
-        (isExportSpecifier(node) && node.isTypeOnly)
+        isTypeOnlySpecifier(node)
       ) {
         return;
       }
