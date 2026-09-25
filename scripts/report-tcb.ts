@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 
 import { API, SymbolFlags, type Symbol as TypeScriptSymbol } from 'typescript/unstable/sync';
@@ -892,11 +892,18 @@ try {
       failed = true;
     }
     const memberEvidence = members.map((member) => member.hostile_evidence);
-    const hostileEvidenceStatus = memberEvidence.some((evidence) => evidence.status === 'stale')
-      ? 'stale'
-      : memberEvidence.some((evidence) => evidence.status === 'unconfigured')
-        ? 'incomplete'
-        : 'current';
+    const hasStaleEvidence = memberEvidence.some((evidence) => evidence.status === 'stale');
+    const hasUnconfiguredEvidence = memberEvidence.some(
+      (evidence) => evidence.status === 'unconfigured',
+    );
+    const hostileEvidenceStatus =
+      hasStaleEvidence && hasUnconfiguredEvidence
+        ? 'stale-and-incomplete'
+        : hasStaleEvidence
+          ? 'stale'
+          : hasUnconfiguredEvidence
+            ? 'incomplete'
+            : 'current';
     return {
       id: composition.id,
       statement: composition.statement,
@@ -909,6 +916,55 @@ try {
       hostile_evidence_status: hostileEvidenceStatus,
     };
   });
+
+  const number = (value: number): string => value.toLocaleString('en-US');
+  const shortHash = (value: string): string => `${value.slice(0, 12)}…${value.slice(-5)}`;
+  const generatedBaseline = [
+    '<!-- BEGIN GENERATED TCB BASELINE -->',
+    '| Property | Explicit slice | Runtime symbols | Import envelope | Hybrid TCB | Hostile evidence | Hybrid SHA-256 |',
+    '| --- | ---: | ---: | ---: | ---: | --- | --- |',
+    ...reports.map(
+      (property) =>
+        `| \`${property.id}\` | ${number(property.semantic_loc)} | ${number(property.symbol_closure_semantic_loc)} | ${number(property.module_closure_semantic_loc)} | **${number(property.hybrid_closure_semantic_loc)}** | ${property.hostile_evidence.status} | \`${shortHash(property.hybrid_closure_sha256)}\` |`,
+    ),
+    '',
+    '| Composition | Deduplicated hybrid union | Hostile evidence | Union SHA-256 |',
+    '| --- | ---: | --- | --- |',
+    ...compositions.map(
+      (composition) =>
+        `| \`${composition.id}\` | **${number(composition.hybrid_union_semantic_loc)}** | ${composition.hostile_evidence_status} | \`${shortHash(composition.hybrid_union_sha256)}\` |`,
+    ),
+    '<!-- END GENERATED TCB BASELINE -->',
+  ].join('\n');
+  const documentationPath = 'docs/trusted-computing-base.md';
+  const documentation = readFileSync(documentationPath, 'utf8');
+  const generatedBlockPattern =
+    /<!-- BEGIN GENERATED TCB BASELINE -->[\\s\\S]*?<!-- END GENERATED TCB BASELINE -->/;
+  if (!generatedBlockPattern.test(documentation)) {
+    throw new Error('TCB_DOC_GENERATED_BLOCK_MISSING');
+  }
+  if (process.argv.includes('--write-doc')) {
+    writeFileSync(
+      documentationPath,
+      documentation.replace(generatedBlockPattern, generatedBaseline),
+      'utf8',
+    );
+  } else {
+    const currentBaseline = documentation.match(generatedBlockPattern)?.[0];
+    if (currentBaseline !== generatedBaseline) {
+      failed = true;
+      console.error(
+        JSON.stringify(
+          {
+            check: 'tcb-doc-drift',
+            expected: generatedBaseline,
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  }
 
   const report = {
     schema: 'overcenter-tcb-report',
