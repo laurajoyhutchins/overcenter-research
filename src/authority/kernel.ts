@@ -5,6 +5,7 @@ import { SqliteFactStore } from '../storage/sqlite.ts';
 export type { Receipt } from './engine.ts';
 export type {
   GraphPatchInput,
+  GeneratedOutputValidator,
   GraphReconciliationResult,
   KernelOptions,
 } from './engine.ts';

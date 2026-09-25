@@ -58,12 +58,18 @@ export interface KubernetesConfigMapExistsPostcondition {
   name: string;
 }
 
+export interface VerifiedGeneratedOutputPostcondition {
+  verifier: 'verified-generated-output/v1';
+  validator: string;
+}
+
 export type Postcondition =
   | FileContentPostcondition
   | EventuallyConsistentFilePostcondition
   | GitHubCommitStatusPostcondition
   | GitHubPullRequestBranchUpdatedPostcondition
-  | KubernetesConfigMapExistsPostcondition;
+  | KubernetesConfigMapExistsPostcondition
+  | VerifiedGeneratedOutputPostcondition;
 
 export type { Observation } from '../contracts/observation-evidence/settlement-observation.typebox.ts';
 

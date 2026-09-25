@@ -41,7 +41,8 @@ export function settlementSemantics(postcondition: Postcondition): SettlementSem
   if (
     postcondition.verifier === 'eventually-consistent-file-content-equals/v1' ||
     postcondition.verifier === 'github-commit-status/v2' ||
-    postcondition.verifier === 'github-pull-request-branch-updated/v1'
+    postcondition.verifier === 'github-pull-request-branch-updated/v1' ||
+    postcondition.verifier === 'verified-generated-output/v1'
   ) {
     return {
       verifier: postcondition.verifier,
