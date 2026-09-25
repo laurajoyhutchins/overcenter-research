@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 
 import { evidenceRef, validateEvidenceRef, type EvidenceRef } from './reference.ts';
 import type { EvidenceStore } from './store.ts';
+import { isPositiveSafeInteger } from '../validation.ts';
 
 export class FileEvidenceStore implements EvidenceStore {
   readonly root: string;
@@ -75,7 +76,7 @@ export class FileEvidenceStore implements EvidenceStore {
   }
 
   sweepStaleTemps(olderThanMs: number): number {
-    if (!Number.isSafeInteger(olderThanMs) || olderThanMs < 1) {
+    if (!isPositiveSafeInteger(olderThanMs)) {
       throw new Error('INVALID_EVIDENCE_TEMP_AGE');
     }
     const now = Date.now();

@@ -1,4 +1,5 @@
 import type { KernelCore, Receipt } from '../authority/engine.ts';
+import { isPositiveSafeInteger } from '../validation.ts';
 import type { ExecuteOutcome, ExecutionPermit, LoopOptions, LoopResult, Work } from '../model.ts';
 import {
   dispatchAdmittedEffect,
@@ -22,7 +23,7 @@ export async function runCoreLoop(
   if ((effect === null) === (trustedEffects === null)) {
     throw new Error('INVALID_EFFECT_EXECUTION_MODE');
   }
-  if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
+  if (!isPositiveSafeInteger(concurrency)) {
     throw new Error('INVALID_CONCURRENCY');
   }
 

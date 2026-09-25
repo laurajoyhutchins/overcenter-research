@@ -1,5 +1,5 @@
 import { sha256 } from '../digest.ts';
-import { isData, isSha256Hex } from '../validation.ts';
+import { isData, isSha256Hex, isSha256Tagged } from '../validation.ts';
 import { posix as path } from 'node:path';
 import type { ExecutionPermit } from '../model.ts';
 
@@ -140,9 +140,7 @@ function assertSha256Hex(value: unknown, name: string): asserts value is string 
 }
 
 function assertSha256Tagged(value: unknown, name: string): asserts value is string {
-  if (typeof value !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${name.toUpperCase()}_INVALID`);
-  }
+  if (!isSha256Tagged(value)) throw new Error(`${name.toUpperCase()}_INVALID`);
 }
 
 export function validateExecutorHello(value: unknown): ExecutorHello {
