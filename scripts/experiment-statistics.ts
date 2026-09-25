@@ -5,6 +5,12 @@ export interface ConfidenceInterval {
   resamples: number;
 }
 
+export interface UpperConfidenceBound {
+  upper: number;
+  confidence: number;
+  resamples: number;
+}
+
 function requireFiniteValues(values: readonly number[], name: string): void {
   if (values.length === 0) throw new Error(`${name}:EMPTY`);
   if (values.some((value) => !Number.isFinite(value))) {
@@ -85,6 +91,30 @@ export function bootstrapMedianInterval(
     upper: quantile(estimates, 1 - alpha),
     confidence,
     resamples,
+  };
+}
+
+export function bootstrapMedianUpperBound(
+  values: readonly number[],
+  options: {
+    confidence?: number;
+    resamples?: number;
+    seed?: number;
+  } = {},
+): UpperConfidenceBound {
+  const confidence = options.confidence ?? 0.95;
+  if (!(confidence > 0.5 && confidence < 1)) {
+    throw new Error('BOOTSTRAP_UPPER:INVALID_CONFIDENCE');
+  }
+  const interval = bootstrapMedianInterval(values, {
+    confidence: 2 * confidence - 1,
+    resamples: options.resamples,
+    seed: options.seed,
+  });
+  return {
+    upper: interval.upper,
+    confidence,
+    resamples: interval.resamples,
   };
 }
 
