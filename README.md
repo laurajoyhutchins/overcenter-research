@@ -173,7 +173,7 @@ src/          all production implementation, including operator CLIs and native 
 contracts/    versioned machine-readable data contracts
 test/         focused invariants of production mechanisms
 scripts/      repository tooling and proof/evidence entrypoints
-experiments/  maintained executable proofs + historical exact-revision evidence
+experiments/  maintained executable proofs
 formal/       machine-checked safety model and negative controls
 research/     prior art, synthesis, claims, and design arguments
 docs/adr/     durable architecture decisions
@@ -211,7 +211,7 @@ Important entry points:
 - [`src/execution/confinement/`](./src/execution/confinement/README.md) - Rust Landlock/seccomp worker-confinement substrate; physical confinement only, with no project-state authority.
 - [`contracts/computation-execution/`](./contracts/computation-execution/) - shared versioned wire contract and conformance corpus.
 - [`src/execution/executor/`](./src/execution/executor/README.md) - Go physical computation executor, containment boundary, and recovery rules.
-- [`experiments/README.md`](./experiments/README.md) - proof inventory and experiment history.
+- [`experiments/README.md`](./experiments/README.md) - maintained proof inventory.
 - [`formal/`](./formal/) - TLA+ transaction/recovery kernel.
 - [`research/README.md`](./research/README.md) - research map.
 - [`docs/adr/README.md`](./docs/adr/README.md) - durable architecture decisions.
@@ -227,7 +227,7 @@ The command name states what kind of evidence a green check supports:
 | `npm run proof:production` | Supported SQLite + Go computation slice, Rust native confinement substrate, containment, recovery, and deterministic regression, including the production GitHub status-effect contract with a fake provider. |
 | `npm run proof:live` | All hosted real-provider proofs, waited to completion at one exact source revision. |
 
-The former Lean semantic-oracle differential is retained as historical exact-revision evidence at `766f581c1592f7f3193b95b3d18f47f7c5b22234`; see [its experiment record](./experiments/lean-semantic-oracle/README.md). It is no longer a current merge gate.
+Retired experiment implementations live in Git history rather than the current source tree.
 
 These are different evidence classes, not cumulative certification levels. A live provider proof does not replace deterministic regression or model checking, and a checked model does not prove that the implementation or provider boundary is correct.
 
