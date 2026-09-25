@@ -4,7 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { bootstrapMedianInterval, median, pairedRatios } from '../../scripts/experiment-statistics.ts';
+import {
+  bootstrapMedianInterval,
+  median,
+  pairedRatios,
+} from '../../scripts/experiment-statistics.ts';
 import { OvercenterKernel, runCoreLoop } from '../../src/authority/kernel.ts';
 
 const TASKS = 32;
