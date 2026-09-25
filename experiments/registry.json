@@ -983,7 +983,25 @@
       "outcome": {
         "state": "supported",
         "summary": "The benchmark separates Overcenter-local correctness work from provider-facing latency for the bounded successful GitHub status transaction."
-      }
+      },
+      "analysis": [
+        {
+          "claim_id": "live-github-latency-decomposition",
+          "evidence_class": "performance",
+          "inference": "descriptive",
+          "estimand": "Observed successful single-transaction latency decomposition on the exact hosted GitHub treatment.",
+          "sampling": {
+            "unit": "live GitHub transaction",
+            "actual_n": 3,
+            "paired": false
+          },
+          "uncertainty": {
+            "method": "none",
+            "reason": "The evaluated live result contains only three samples and is intentionally descriptive rather than a population latency estimate."
+          },
+          "stopping_rule": "The historical evaluated treatment used exactly three live GitHub samples."
+        }
+      ]
     },
     {
       "id": "projection-comparison",
@@ -1131,6 +1149,27 @@
         "Fairness is proved by the performance benchmark.",
         "Zero-cost work benefits from additional effect concurrency.",
         "Evidence-only commits after the evaluated treatment revision change the measured result."
+      ],
+      "analysis": [
+        {
+          "claim_id": "material-effect-speedup",
+          "evidence_class": "performance",
+          "inference": "confirmatory",
+          "estimand": "Median within-round throughput ratio for concurrency 8 relative to concurrency 1, separately at 25 ms and 100 ms artificial effect cost.",
+          "sampling": {
+            "unit": "counterbalanced paired round",
+            "planned_n": 15,
+            "paired": true,
+            "order": "alternate forward and reverse concurrency order each round"
+          },
+          "uncertainty": {
+            "method": "percentile-bootstrap",
+            "confidence": 0.95,
+            "resamples": 20000
+          },
+          "stopping_rule": "Collect exactly 15 paired rounds per effect cost; do not stop early on observed speedup.",
+          "decision_rule": "Support material bounded-concurrency speedup only when the lower 95% bootstrap bound exceeds 2.0x for concurrency 8 at both 25 ms and 100 ms effect cost."
+        }
       ]
     },
     {
@@ -1815,7 +1854,26 @@
       "outcome": {
         "state": "falsified",
         "summary": "The one-shot reasoning worker recovered 3/7 recoverable cases versus the locked deterministic baseline of 4/7, for a recovery delta of -1 with zero false certainty and zero permanent-uncertainty violations."
-      }
+      },
+      "analysis": [
+        {
+          "claim_id": "bounded-recovery-yield",
+          "evidence_class": "stochastic",
+          "inference": "bounded-corpus",
+          "estimand": "Recovery successes and false-certainty outcomes on the frozen seven-case recovery corpus.",
+          "sampling": {
+            "unit": "frozen recovery case",
+            "actual_n": 7,
+            "paired": true,
+            "held_out": false
+          },
+          "uncertainty": {
+            "method": "none",
+            "reason": "The result is a bounded-corpus falsification, not an estimate of reasoning-worker population capability."
+          },
+          "stopping_rule": "Evaluate exactly the preregistered seven-case corpus once."
+        }
+      ]
     },
     {
       "id": "recovery-agent-refinement",
@@ -1872,7 +1930,26 @@
       "outcome": {
         "state": "mixed",
         "summary": "One bounded refinement round improved the frozen model result from 3/7 to cumulative 4/7 (refinement gain +1) with zero false certainty, but only tied the deterministic 4/7 baseline (baseline gain 0), so refinement helped the known model failure without earning inference a recovery-yield advantage over deterministic search."
-      }
+      },
+      "analysis": [
+        {
+          "claim_id": "bounded-refinement-yield",
+          "evidence_class": "stochastic",
+          "inference": "bounded-corpus",
+          "estimand": "Cumulative recovery successes and false-certainty outcomes after the fixed second refinement round on the frozen seven-case corpus.",
+          "sampling": {
+            "unit": "frozen recovery case",
+            "actual_n": 7,
+            "paired": true,
+            "held_out": false
+          },
+          "uncertainty": {
+            "method": "none",
+            "reason": "The result is explicitly bounded to the seven-case corpus; generalization requires a held-out corpus and repeated model invocations."
+          },
+          "stopping_rule": "Run exactly one additional refinement call for each eligible frozen case."
+        }
+      ]
     },
     {
       "id": "git-metadata-independence",
