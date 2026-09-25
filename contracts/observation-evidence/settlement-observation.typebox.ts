@@ -10,7 +10,7 @@ export const VerifierKind = stringEnum([
   'eventually-consistent-file-content-equals/v1',
   'github-commit-status/v2',
   'github-pull-request-branch-updated/v1',
-  'github-hostile-mutation-evidence/v1',
+  'github-source-bound-evidence/v1',
   'kubernetes-configmap-exists/v1',
 ] as const);
 
