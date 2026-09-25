@@ -1,8 +1,0 @@
-{
-  "schema": "overcenter-git-claim-v3",
-  "run_id": "13325cc6-0be8-431d-b295-32d214fdc9ad",
-  "obligation_id": "hostile-mutation-evidence-current",
-  "claimed_revision": "fdf9d115cd6c8fd40bea146236f9ae864bd1e98e",
-  "obligation_key": "316785acffc44df2ff967a46520a7dbd305f0473e8afc135dca72bc4c1a57da4",
-  "execution_capability_sha256": "deca6e0348223e0e145f093bcaa8a2b0364a23a79003e9c2266ef116435b9e3a"
-}

@@ -1,0 +1,76 @@
+{
+  "schema": "overcenter-git-receipt-v5",
+  "run_id": "13325cc6-0be8-431d-b295-32d214fdc9ad",
+  "obligation_id": "hostile-mutation-evidence-current",
+  "claimed_revision": "fdf9d115cd6c8fd40bea146236f9ae864bd1e98e",
+  "claim_commit": "ada1a12e0f0c8abec1711f57bfc6e3782dc86400",
+  "execution_generation": 1,
+  "execution_authority_commit": "ada1a12e0f0c8abec1711f57bfc6e3782dc86400",
+  "kind": "observation",
+  "observed": {
+    "verifier": "github-hostile-mutation-evidence/v1",
+    "provider": "github",
+    "repository_id": 1354872053,
+    "repository_full_name": "laurajoyhutchins/overcenter-research",
+    "ref": "main",
+    "evidence_path": "experiments/production-criticality-ranking/mutation-evidence.json",
+    "expected_sha256": "6197f6f6f3562881ffe13dee7d90f5bea541208c23fc86bc71938401b1fb6297",
+    "source_binding_sha256": "979d7c66dc0d51115a8021f8ccf4036c75b5a07722446fbcb9b5421580edee05",
+    "actual_sha256": "6197f6f6f3562881ffe13dee7d90f5bea541208c23fc86bc71938401b1fb6297",
+    "actual_state": "current",
+    "mutation_certainty": "present",
+    "provider_evidence": {
+      "evidence_blob": "4068adebddd7d7d0d2739fda4dbe54a9ceba8663",
+      "source_blobs": {
+        "src/authority/engine.ts": {
+          "expected_blob": "8c3f536642e26e0186631e81764319cf4bdb5cdd",
+          "committed_evidence_blob": "8c3f536642e26e0186631e81764319cf4bdb5cdd",
+          "observed_blob": "8c3f536642e26e0186631e81764319cf4bdb5cdd"
+        },
+        "src/authority/project-state.ts": {
+          "expected_blob": "2de78f62bade23251b7daf98e1c92407d55cce8f",
+          "committed_evidence_blob": "2de78f62bade23251b7daf98e1c92407d55cce8f",
+          "observed_blob": "2de78f62bade23251b7daf98e1c92407d55cce8f"
+        },
+        "src/authority/transaction-admission.ts": {
+          "expected_blob": "90a63386e49a2142aba1bae5b19efc0fa2f54cf0",
+          "committed_evidence_blob": "90a63386e49a2142aba1bae5b19efc0fa2f54cf0",
+          "observed_blob": "90a63386e49a2142aba1bae5b19efc0fa2f54cf0"
+        },
+        "src/digest.ts": {
+          "expected_blob": "1b6e9d1ec4353f48add1b0d8ac35ce5c92471e1e",
+          "committed_evidence_blob": "1b6e9d1ec4353f48add1b0d8ac35ce5c92471e1e",
+          "observed_blob": "1b6e9d1ec4353f48add1b0d8ac35ce5c92471e1e"
+        },
+        "src/graph/identity.ts": {
+          "expected_blob": "b5224f4c6c7b4626d3ae3698425303f1cf9d50bd",
+          "committed_evidence_blob": "b5224f4c6c7b4626d3ae3698425303f1cf9d50bd",
+          "observed_blob": "b5224f4c6c7b4626d3ae3698425303f1cf9d50bd"
+        },
+        "src/observation/observe.ts": {
+          "expected_blob": "ddf142f25516587578836e7f0bab0b37cd15562a",
+          "committed_evidence_blob": "ddf142f25516587578836e7f0bab0b37cd15562a",
+          "observed_blob": "ddf142f25516587578836e7f0bab0b37cd15562a"
+        }
+      },
+      "source_runs": [
+        {
+          "workflow_run_id": 36158913285,
+          "revision": "97966148b53b4bf66772776e26800d5ff4611e38",
+          "artifact_digest": "sha256:f68ecda2bc718569e166667366371e141a8b79817bce7df821889847a6440940"
+        },
+        {
+          "workflow_run_id": 36180436806,
+          "revision": "122210bd2d744d3be4066017964f17891bf0a3a4",
+          "artifact_digest": "sha256:ed9ada39e707aeef29951169d407f9774891871d461cd19bf91f81452a5ec259"
+        }
+      ]
+    }
+  },
+  "diagnostic": {
+    "hostile_mutation_evidence": {
+      "verifier": "verify-mutation-evidence-sources.ts"
+    }
+  },
+  "settled_at": "2026-09-25T19:35:03.102Z"
+}
