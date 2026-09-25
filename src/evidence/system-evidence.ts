@@ -1,19 +1,16 @@
 import type { Obligation, Work } from '../model.ts';
-import type { Receipt } from '../authority/engine.ts';
+import type { KernelCore, Receipt } from '../authority/engine.ts';
 
 export const SYSTEM_EVIDENCE_KIND = 'system-evidence' as const;
+
+type ClaimPermit = ReturnType<KernelCore['claim']>;
 
 export interface SystemEvidenceAuthority {
   head(): string | null;
   reconcileGraph(desired: Obligation[], expectedRevision: string): unknown;
   inspect(): Work[];
-  claim(id: string, expectedRevision: string): ReturnType<
-    import('../authority/engine.ts').KernelCore['claim']
-  >;
-  resolveAsync(
-    permit: ReturnType<import('../authority/engine.ts').KernelCore['claim']>,
-    diagnostic?: Record<string, unknown>,
-  ): Promise<Receipt>;
+  claim(id: string, expectedRevision: string): ClaimPermit;
+  resolveAsync(permit: ClaimPermit, diagnostic?: Record<string, unknown>): Promise<Receipt>;
 }
 
 export interface SystemEvidenceDefinition {
