@@ -102,6 +102,17 @@ test('hostile evidence obligation changes only with protected semantics or evide
     assert.equal(obligation.id, HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID);
     assert.equal(obligation.packet.kind, 'system-evidence');
     assert.deepEqual(Object.keys(obligation.packet.source_blobs as object), ['src/protected.ts']);
+    assert.equal(obligation.postcondition.verifier, 'github-hostile-mutation-evidence/v1');
+    assert.deepEqual(Object.keys(obligation.postcondition).sort(), [
+      'evidence_path',
+      'expected_sha256',
+      'provider',
+      'ref',
+      'repository_full_name',
+      'repository_id',
+      'source_blobs',
+      'verifier',
+    ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
