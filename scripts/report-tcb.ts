@@ -1015,11 +1015,15 @@ try {
         composition.hybrid_union_sha256 === composition.expected_hybrid_union_sha256;
       return sizeCurrent && fingerprintCurrent ? 'current' : 'changed';
     };
-    const assumptionCount = new Set(reports.flatMap((property) => property.external_assumptions)).size;
+    const assumptionCount = new Set(reports.flatMap((property) => property.external_assumptions))
+      .size;
     const staleProbeRows = reports.flatMap((property) =>
       property.hostile_evidence.probes
         .filter((probe) => probe.status !== 'current')
-        .map((probe) => `| \`${property.id}\` | \`${probe.id}\` | ${probe.status} | ${probe.mutation_score.toFixed(3)} |`),
+        .map(
+          (probe) =>
+            `| \`${property.id}\` | \`${probe.id}\` | ${probe.status} | ${probe.mutation_score.toFixed(3)} |`,
+        ),
     );
     const hotspotRows = compositions.flatMap((composition) =>
       composition.hybrid_union_file_semantic_loc.slice(0, 10).map((file) => {
@@ -1065,9 +1069,7 @@ try {
       '',
       '| Property | Probe | Freshness | Mutation score |',
       '| --- | --- | --- | ---: |',
-      ...(staleProbeRows.length > 0
-        ? staleProbeRows
-        : ['| _none_ | _none_ | current | 1.000 |']),
+      ...(staleProbeRows.length > 0 ? staleProbeRows : ['| _none_ | _none_ | current | 1.000 |']),
       '',
       '### Ratchet state',
       '',
