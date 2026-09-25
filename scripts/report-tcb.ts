@@ -43,6 +43,9 @@ interface TcbProperty {
   expected_surface_sha256?: string;
   max_module_closure_semantic_loc?: number;
   expected_module_closure_sha256?: string;
+  max_hybrid_closure_semantic_loc?: number;
+  expected_hybrid_closure_sha256?: string;
+  require_sound_symbol_closure?: boolean;
   entries: SymbolEntry[];
   composes_with?: string[];
   trusted_symbol_boundaries?: string[];
@@ -585,8 +588,21 @@ function runtimeImports(path: string): { local: string[]; external: string[] } {
   return { local, external };
 }
 
-function hybridClosureSemanticLoc(module: ModuleClosure, symbols: SymbolClosure): number {
+interface HybridClosure {
+  semantic_loc: number;
+  files: string[];
+  sha256: string;
+}
+
+function hybridClosure(
+  module: ModuleClosure,
+  symbols: SymbolClosure,
+  property: TcbProperty,
+): HybridClosure {
   const trusted = new Map<string, Set<number>>();
+  const fingerprintMaterial = [`module:${module.sha256}`];
+  const moduleFiles = new Set(module.files);
+
   for (const path of module.files) {
     const { text } = sourceFor(path);
     const selected = trusted.get(path) ?? new Set<number>();
@@ -595,6 +611,7 @@ function hybridClosureSemanticLoc(module: ModuleClosure, symbols: SymbolClosure)
     });
     trusted.set(path, selected);
   }
+
   for (const declaration of symbols.declarations) {
     const { text } = sourceFor(declaration.path);
     const lines = text.split('\n');
@@ -603,8 +620,36 @@ function hybridClosureSemanticLoc(module: ModuleClosure, symbols: SymbolClosure)
       if (semanticLine(lines[line - 1] ?? '')) selected.add(line);
     }
     trusted.set(declaration.path, selected);
+
+    if (!moduleFiles.has(declaration.path)) {
+      const source = sourceFor(declaration.path).source;
+      const start = source.getPositionOfLineAndCharacter(declaration.start_line - 1, 0);
+      const end =
+        declaration.end_line < lines.length
+          ? source.getPositionOfLineAndCharacter(declaration.end_line, 0)
+          : text.length;
+      const body = text.slice(start, end);
+      fingerprintMaterial.push(
+        `symbol:${declaration.path}:${declaration.start_line}-${declaration.end_line}:${createHash('sha256').update(body).digest('hex')}`,
+      );
+    }
   }
-  return [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0);
+
+  for (const boundary of symbols.composed_boundaries) {
+    fingerprintMaterial.push(`composition:${boundary}`);
+  }
+  for (const binding of symbols.resolved_dispatch_bindings) {
+    fingerprintMaterial.push(`dispatch:${binding}`);
+  }
+  for (const propertyId of property.composes_with ?? []) {
+    fingerprintMaterial.push(`composes-with:${propertyId}`);
+  }
+
+  return {
+    semantic_loc: [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0),
+    files: [...trusted.keys()].sort(),
+    sha256: createHash('sha256').update(fingerprintMaterial.sort().join('\n')).digest('hex'),
+  };
 }
 
 function moduleClosure(rootPaths: string[]): ModuleClosure {
@@ -658,7 +703,7 @@ try {
       .digest('hex');
     const closure = moduleClosure(property.entries.map((entry) => entry.path));
     const symbols = symbolClosure(property);
-    const hybridSemanticLoc = hybridClosureSemanticLoc(closure, symbols);
+    const hybrid = hybridClosure(closure, symbols, property);
     const moduleFiles = new Set(closure.files);
     const symbolFilesOutsideModuleClosure = symbols.files.filter((path) => !moduleFiles.has(path));
     if (semanticLoc > property.max_semantic_loc) failed = true;
@@ -675,6 +720,21 @@ try {
       property.expected_module_closure_sha256 &&
       property.expected_module_closure_sha256 !== closure.sha256
     ) {
+      failed = true;
+    }
+    if (
+      property.max_hybrid_closure_semantic_loc !== undefined &&
+      hybrid.semantic_loc > property.max_hybrid_closure_semantic_loc
+    ) {
+      failed = true;
+    }
+    if (
+      property.expected_hybrid_closure_sha256 &&
+      property.expected_hybrid_closure_sha256 !== hybrid.sha256
+    ) {
+      failed = true;
+    }
+    if (property.require_sound_symbol_closure && symbols.status !== 'sound') {
       failed = true;
     }
     return {
@@ -694,7 +754,12 @@ try {
       external_module_imports: closure.external_modules,
       symbol_closure_status: symbols.status,
       symbol_closure_semantic_loc: symbols.semantic_loc,
-      hybrid_closure_semantic_loc: hybridSemanticLoc,
+      require_sound_symbol_closure: property.require_sound_symbol_closure ?? false,
+      hybrid_closure_semantic_loc: hybrid.semantic_loc,
+      max_hybrid_closure_semantic_loc: property.max_hybrid_closure_semantic_loc ?? null,
+      hybrid_closure_sha256: hybrid.sha256,
+      expected_hybrid_closure_sha256: property.expected_hybrid_closure_sha256 ?? null,
+      hybrid_closure_files: hybrid.files,
       symbol_closure_files: symbols.files,
       symbol_closure_files_outside_module_closure: symbolFilesOutsideModuleClosure,
       symbol_closure_declarations: symbols.declarations,
