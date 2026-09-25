@@ -73,9 +73,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     return {
       probeId,
       report: JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8')),
-      ranges: JSON.parse(
-        fs.readFileSync(path.join(directory, `${probeId}.ranges.json`), 'utf8'),
-      ),
+      ranges: JSON.parse(fs.readFileSync(path.join(directory, `${probeId}.ranges.json`), 'utf8')),
     };
   });
   const combined = combineMutationShards(shards);
