@@ -1,4 +1,5 @@
 import { hostileMutationEvidenceGraphProducer } from '../evidence/hostile-mutation-obligation.ts';
+import { tcbObligationsGraphProducer } from './tcb-obligations.ts';
 import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
 import type { RepositorySnapshot } from '../evidence/repository-snapshot.ts';
 import type { ProjectGraphProducer } from './project-graph.ts';
@@ -20,4 +21,5 @@ export const projectIntentGraphProducer: ProjectGraphProducer = Object.freeze({
 export const DEFAULT_PROJECT_GRAPH_PRODUCERS = Object.freeze([
   projectIntentGraphProducer,
   hostileMutationEvidenceGraphProducer,
+  tcbObligationsGraphProducer,
 ]);
