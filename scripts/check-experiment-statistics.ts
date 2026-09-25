@@ -79,10 +79,7 @@ for (const entry of registry.entries) {
     }
 
     const uncertainty = record(claim.uncertainty, `${label}:${claimId}:uncertainty`);
-    const method = nonEmptyString(
-      uncertainty.method,
-      `${label}:${claimId}:uncertainty.method`,
-    );
+    const method = nonEmptyString(uncertainty.method, `${label}:${claimId}:uncertainty.method`);
     if (!uncertaintyMethods.has(method)) {
       throw new Error(`${label}:${claimId}:INVALID_UNCERTAINTY_METHOD`);
     }
