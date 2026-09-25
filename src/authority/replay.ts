@@ -37,6 +37,7 @@ import {
   executionAuthorityAdvanceError,
   receiptAuthorityError,
 } from './transaction-admission.ts';
+import { validateSourceIntegrationEvidence } from '../source/source-integration.ts';
 import {
   deriveClaimPrerequisites,
   deriveProjectProjection,
@@ -71,7 +72,15 @@ export function projectReceipt(
   let disposition: Receipt['disposition'];
   let verified = false;
 
-  if (fact.kind === 'observation') {
+  if (fact.kind === 'source-integration') {
+    if (fact.observed) throw new Error('SOURCE_INTEGRATION_RECEIPT_HAS_OBSERVATION');
+    validateSourceIntegrationEvidence(fact.diagnostic?.source_integration);
+    disposition = 'DONE';
+    verified = true;
+  } else if (fact.kind === 'source-retry') {
+    if (fact.observed) throw new Error('SOURCE_RETRY_RECEIPT_HAS_OBSERVATION');
+    disposition = 'READY';
+  } else if (fact.kind === 'observation') {
     if (!fact.observed) throw new Error('OBSERVATION_RECEIPT_MISSING_EVIDENCE');
     verified = observationVerified(work.postcondition, fact.observed);
     const policy = settlementSemantics(work.postcondition);
@@ -343,6 +352,25 @@ export function replayProjection(
     }
     if (fact.kind === 'execution-terminated' && current.status !== 'EXECUTING') {
       throw new Error('EXECUTION_TERMINATED_WHILE_NOT_EXECUTING');
+    }
+    if (
+      (fact.kind === 'source-integration' || fact.kind === 'source-retry') &&
+      current.status !== 'EXECUTING'
+    ) {
+      throw new Error('SOURCE_RECEIPT_WHILE_NOT_EXECUTING');
+    }
+    if (
+      (fact.kind === 'source-integration' || fact.kind === 'source-retry') &&
+      (run.obligation.packet.kind !== 'source-change' ||
+        run.obligation.postcondition.verifier !== 'source-integration/v1')
+    ) {
+      throw new Error('SOURCE_RECEIPT_FOR_NON_SOURCE_WORK');
+    }
+    if (
+      (fact.kind === 'source-integration' || fact.kind === 'source-retry') &&
+      unresolvedReservationsByRun.has(run.id)
+    ) {
+      throw new Error('SOURCE_RECEIPT_WITH_UNRESOLVED_EFFECT');
     }
     if (fact.kind === 'effect-not-dispatched' && !notDispatchedRelease) {
       throw new Error('EFFECT_NOT_DISPATCHED_RECEIPT_WITHOUT_RELEASE');

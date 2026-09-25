@@ -59,6 +59,10 @@ export interface GithubHostileMutationEvidencePostcondition {
   source_blobs: Record<string, string>;
 }
 
+export interface SourceIntegrationPostcondition {
+  verifier: 'source-integration/v1';
+}
+
 export interface KubernetesConfigMapExistsPostcondition {
   verifier: 'kubernetes-configmap-exists/v1';
   provider: 'kubernetes';
@@ -80,6 +84,7 @@ export type Postcondition =
   | GitHubCommitStatusPostcondition
   | GitHubPullRequestBranchUpdatedPostcondition
   | GithubHostileMutationEvidencePostcondition
+  | SourceIntegrationPostcondition
   | KubernetesConfigMapExistsPostcondition
   | OperatorJudgmentPostcondition;
 
