@@ -28,6 +28,23 @@ For each non-baseline width, a deterministic 20,000-resample percentile bootstra
 npm run experiment:core-loop-concurrency
 ```
 
+## Confirmatory result
+
+Supported at exact treatment revision `e7989ee1b8b806045d381d16570914467fe940ae` in GitHub Actions run `36084917077`.
+
+The preregistered concurrency-8 decision cleared its 2.0x lower-bound criterion at both material
+effect costs:
+
+| Effect cost | C1 median | C8 median | Paired speedup | 95% bootstrap interval |
+| --- | ---: | ---: | ---: | ---: |
+| 0 ms | 129.418 tasks/s | 133.106 tasks/s | 1.002x | 0.677–1.036x |
+| 25 ms | 29.155 tasks/s | 92.662 tasks/s | 3.181x | 3.150–3.289x |
+| 100 ms | 9.255 tasks/s | 51.849 tasks/s | 5.594x | 5.463–5.675x |
+
+The zero-cost control remained near 1x and never overlapped more than one effect. At 25 ms and
+100 ms, observed overlap reached the requested concurrency of 8 while every obligation still
+settled DONE through the production API.
+
 ## Prior calibration result
 
 The earlier three-trial treatment was **supported under its original bounded criterion** at exact revision `11170182c7f16d216834c2453889f8ecb95adbf6`.
