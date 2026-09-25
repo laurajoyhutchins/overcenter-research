@@ -2,11 +2,7 @@ import { sha256 } from '../../digest.ts';
 import { GitFactStore } from '../../storage/git-store.ts';
 import { observeCertifiedGithubRepository } from './certified-repository.ts';
 import { GITHUB_API_VERSION } from './contract.ts';
-import {
-  githubGetAsync,
-  runGithubReadObserverAsync,
-  type GithubJsonGetAsync,
-} from './rest.ts';
+import { githubGetAsync, runGithubReadObserverAsync, type GithubJsonGetAsync } from './rest.ts';
 
 const STATE_SCHEMA = 'overcenter-github-actions-runner-backend/v1' as const;
 const STATE_FILE = 'github-actions-runners.json';
@@ -136,7 +132,9 @@ function normalizeLabels(value: readonly string[]): string[] {
     if (
       label.length === 0 ||
       label.length > 255 ||
-      [...label].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+      [...label].some(
+        (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+      )
     ) {
       throw new Error('GITHUB_ACTIONS_RUNNER_LABELS_INVALID');
     }
@@ -220,7 +218,8 @@ function sameIdentity(
   return (
     registration.lease_id === expected.lease_id &&
     registration.repository_id === expected.repository_id &&
-    registration.repository_full_name.toLowerCase() === expected.repository_full_name.toLowerCase() &&
+    registration.repository_full_name.toLowerCase() ===
+      expected.repository_full_name.toLowerCase() &&
     registration.runner_name === expected.runner_name &&
     registration.runner_group_id === expected.runner_group_id &&
     JSON.stringify(registration.labels) === JSON.stringify(expected.labels) &&
