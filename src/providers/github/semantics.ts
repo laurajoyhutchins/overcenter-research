@@ -89,7 +89,6 @@ const WORKFLOW_JOB_FIELDS = fields(
   'conclusion',
   'started_at',
   'completed_at',
-  'labels[]',
 );
 const COMMIT_FIELDS = fields('sha', 'node_id', 'commit.tree.sha', 'parents[].sha');
 const ARTIFACT_FIELDS = fields(
