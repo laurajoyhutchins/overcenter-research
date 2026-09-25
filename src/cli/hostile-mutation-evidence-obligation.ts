@@ -6,7 +6,7 @@ import {
 import {
   reconcileSystemEvidence,
   settleSystemEvidence,
-} from '../evidence/system-evidence.ts';
+} from '../evidence/system-evidence-lifecycle.ts';
 import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
 import { requiredEnv } from './project-command-runtime.ts';
