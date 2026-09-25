@@ -6,6 +6,7 @@ import {
   HOSTILE_MUTATION_EVIDENCE_PATH,
 } from '../evidence/hostile-mutation-obligation.ts';
 import { observationVerified, observePostconditionAsync } from '../observation/observe.ts';
+import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
 import { requiredEnv } from './project-command-runtime.ts';
 
 const mode = process.argv[2];
@@ -45,6 +46,10 @@ const kernel = new GitOvercenterKernel(repo, {
   ref: authorityRef,
   remote,
   githubToken: token,
+  observationContext: {
+    observeGithubHostileMutationEvidence: (postcondition) =>
+      observeGithubHostileMutationEvidence(token, postcondition),
+  },
 });
 
 if (!kernel.head()) throw new Error('HOSTILE_MUTATION_AUTHORITY_MISSING');
@@ -96,6 +101,8 @@ if (mode === 'reconcile') {
   const desired = obligation();
   const observed = await observePostconditionAsync(desired.postcondition, {
     githubToken: token,
+    observeGithubHostileMutationEvidence: (postcondition) =>
+      observeGithubHostileMutationEvidence(token, postcondition),
   });
   if (!observationVerified(desired.postcondition, observed)) {
     throw new Error(
