@@ -22,6 +22,7 @@ export interface GithubActionsInProgressJob {
 
 export interface GithubActionsLoadObservation {
   repositories: readonly GithubActionsRepositoryScope[];
+  scope_completeness: 'account-complete' | 'partial';
   in_progress_jobs: readonly GithubActionsInProgressJob[];
   evidence: readonly CertifiedGithubSemanticReadEvidence[];
   observed_from: string;
@@ -36,7 +37,8 @@ export interface GithubActionsCapacityProjection {
   safety_reserve_jobs: number;
   committed_jobs: number;
   available_jobs: number;
-  state: 'available' | 'saturated';
+  state: 'available' | 'saturated' | 'indeterminate';
+  reason: 'repository-scope-incomplete' | null;
   conservative_runner_classification: true;
 }
 
@@ -128,10 +130,12 @@ export function observeGithubActionsLoad(
   token: string,
   {
     repositories,
+    scopeCompleteness,
     get = githubGet,
     clock = () => new Date().toISOString(),
   }: {
     repositories: readonly GithubActionsRepositoryScope[];
+    scopeCompleteness: 'account-complete' | 'partial';
     get?: GithubJsonGet;
     clock?: () => string;
   },
@@ -239,6 +243,7 @@ export function observeGithubActionsLoad(
 
   return {
     repositories: ordered,
+    scope_completeness: scopeCompleteness,
     in_progress_jobs: jobs,
     evidence,
     observed_from: observedTimes[0]!,
@@ -267,8 +272,21 @@ export function projectGithubActionsCapacity({
 
   const observed = observation.in_progress_jobs.length;
   const committed = observed + locallyReservedJobs + safetyReserveJobs;
-  const available = Math.max(0, limit - committed);
+  if (observation.scope_completeness !== 'account-complete') {
+    return {
+      limit,
+      observed_in_progress_jobs: observed,
+      locally_reserved_jobs: locallyReservedJobs,
+      safety_reserve_jobs: safetyReserveJobs,
+      committed_jobs: committed,
+      available_jobs: 0,
+      state: 'indeterminate',
+      reason: 'repository-scope-incomplete',
+      conservative_runner_classification: true,
+    };
+  }
 
+  const available = Math.max(0, limit - committed);
   return {
     limit,
     observed_in_progress_jobs: observed,
@@ -277,6 +295,7 @@ export function projectGithubActionsCapacity({
     committed_jobs: committed,
     available_jobs: available,
     state: available > 0 ? 'available' : 'saturated',
+    reason: null,
     // The current certified workflow-job slice does not include runner labels.
     // Counting every in-progress job therefore fails safe when self-hosted jobs exist.
     conservative_runner_classification: true,
