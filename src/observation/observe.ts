@@ -2,7 +2,12 @@ import { createHash } from 'node:crypto';
 import { canonicalDigest } from '../digest.ts';
 import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import type { AbsenceEvidenceCertificate, Observation, Postcondition } from '../model.ts';
+import type {
+  AbsenceEvidenceCertificate,
+  GithubHostileMutationEvidencePostcondition,
+  Observation,
+  Postcondition,
+} from '../model.ts';
 import {
   localFileEnoentEvidence,
   localFileEnoentEvidenceMatches,
@@ -24,7 +29,6 @@ import {
   runGithubReadObserverAsync,
   type GithubJsonGetAsync,
 } from '../providers/github/rest.ts';
-import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
 import {
   kubernetesConfigMapAbsenceEvidenceMatches,
   observeCertifiedKubernetesConfigMap,
@@ -35,6 +39,9 @@ export interface ObservationContext {
   githubToken: string | null;
   githubGet?: GithubJsonGet;
   githubGetAsync?: GithubJsonGetAsync;
+  observeGithubHostileMutationEvidence?: (
+    postcondition: GithubHostileMutationEvidencePostcondition,
+  ) => Observation;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
   // Optional trusted confinement root for local-file observations. In confined
@@ -441,14 +448,17 @@ export function observePostcondition(p: Postcondition, context: ObservationConte
   }
 
   if (p.verifier === 'github-hostile-mutation-evidence/v1') {
-    if (!context.githubToken) {
-      return githubHostileMutationEvidenceError(p, 'GITHUB_TOKEN_UNAVAILABLE');
+    if (!context.observeGithubHostileMutationEvidence) {
+      return githubHostileMutationEvidenceError(
+        p,
+        'GITHUB_HOSTILE_MUTATION_EVIDENCE_OBSERVER_UNAVAILABLE',
+      );
     }
-    return observeGithubHostileMutationEvidence(
-      context.githubToken,
-      p,
-      context.githubGet ?? githubGet,
-    );
+    try {
+      return context.observeGithubHostileMutationEvidence(p);
+    } catch (e: unknown) {
+      return githubHostileMutationEvidenceError(p, errorMessage(e));
+    }
   }
 
   if (p.verifier === 'github-commit-status/v2') {
@@ -615,25 +625,6 @@ export async function observePostconditionAsync(
       );
     } catch (e: unknown) {
       return githubPullRequestBranchUpdatedError(p, errorMessage(e));
-    }
-  }
-  if (p.verifier === 'github-hostile-mutation-evidence/v1') {
-    if (!context.githubToken) {
-      return githubHostileMutationEvidenceError(p, 'GITHUB_TOKEN_UNAVAILABLE');
-    }
-    const getAsync =
-      context.githubGetAsync ??
-      (context.githubGet
-        ? async (token: string, path: string) => context.githubGet!(token, path)
-        : githubGetAsync);
-    try {
-      return await runGithubReadObserverAsync(
-        context.githubToken,
-        (get) => observeGithubHostileMutationEvidence(context.githubToken!, p, get),
-        getAsync,
-      );
-    } catch (e: unknown) {
-      return githubHostileMutationEvidenceError(p, errorMessage(e));
     }
   }
   if (p.verifier !== 'github-commit-status/v2') return observePostcondition(p, context);
