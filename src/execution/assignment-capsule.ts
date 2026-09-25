@@ -27,6 +27,15 @@ export interface AssignmentTaskPacket extends Record<string, unknown> {
   output_path: string;
 }
 
+export interface AgentTaskDefinition extends Record<string, unknown> {
+  schema: typeof AGENT_TASK_PACKET_SCHEMA;
+  kind: 'pure-candidate';
+  command: string[];
+  required_paths: string[];
+  required_trees?: string[];
+  output_path: string;
+}
+
 export interface AssignmentWork extends Record<string, unknown> {
   id: string;
   revision: string;
@@ -77,11 +86,12 @@ function exactKeys(
   value: unknown,
   required: readonly string[],
   name: string,
+  optional: readonly string[] = [],
 ): asserts value is Record<string, unknown> {
   if (!isData(value)) fail(`${name}_INVALID`);
   const keys = Object.keys(value).sort();
-  const expected = [...required].sort();
-  if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
+  const allowed = new Set([...required, ...optional]);
+  if (required.some((key) => !Object.hasOwn(value, key)) || keys.some((key) => !allowed.has(key))) {
     fail(`${name}_SHAPE_INVALID`);
   }
 }
@@ -100,7 +110,11 @@ function validateSourceRevision(value: unknown): string {
   return value;
 }
 
-export function validateAgentTaskPacket(value: unknown): AssignmentTaskPacket {
+export function validSourceTreePath(value: unknown): value is string {
+  return value === '.' || validPath(value);
+}
+
+export function validateAgentTaskDefinition(value: unknown): AgentTaskDefinition {
   if (!isData(value) || value.schema !== AGENT_TASK_PACKET_SCHEMA) {
     fail('ASSIGNMENT_PACKET_SCHEMA_MISMATCH');
   }
@@ -108,6 +122,7 @@ export function validateAgentTaskPacket(value: unknown): AssignmentTaskPacket {
     value,
     ['schema', 'kind', 'command', 'required_paths', 'output_path'],
     'ASSIGNMENT_PACKET',
+    ['required_trees'],
   );
   if (value.kind !== 'pure-candidate') fail('ASSIGNMENT_PACKET_KIND_INVALID');
   if (
@@ -119,18 +134,51 @@ export function validateAgentTaskPacket(value: unknown): AssignmentTaskPacket {
   ) {
     fail('ASSIGNMENT_COMMAND_INVALID');
   }
-  if (
-    !Array.isArray(value.required_paths) ||
-    value.required_paths.length === 0 ||
-    !value.required_paths.every(validPath)
-  ) {
+  if (!Array.isArray(value.required_paths) || !value.required_paths.every(validPath)) {
     fail('ASSIGNMENT_REQUIRED_PATHS_INVALID');
   }
   if (new Set(value.required_paths).size !== value.required_paths.length) {
     fail('ASSIGNMENT_REQUIRED_PATHS_DUPLICATE');
   }
+
+  let requiredTrees: string[] | undefined;
+  if (value.required_trees !== undefined) {
+    if (
+      !Array.isArray(value.required_trees) ||
+      value.required_trees.length === 0 ||
+      !value.required_trees.every(validSourceTreePath)
+    ) {
+      fail('ASSIGNMENT_REQUIRED_TREES_INVALID');
+    }
+    if (new Set(value.required_trees).size !== value.required_trees.length) {
+      fail('ASSIGNMENT_REQUIRED_TREES_DUPLICATE');
+    }
+    requiredTrees = [...value.required_trees];
+  }
+  if (value.required_paths.length === 0 && requiredTrees === undefined) {
+    fail('ASSIGNMENT_SOURCE_INPUTS_EMPTY');
+  }
   if (!validPath(value.output_path)) fail('ASSIGNMENT_OUTPUT_PATH_INVALID');
-  return value as unknown as AssignmentTaskPacket;
+
+  return {
+    schema: AGENT_TASK_PACKET_SCHEMA,
+    kind: 'pure-candidate',
+    command: [...value.command],
+    required_paths: [...value.required_paths],
+    ...(requiredTrees === undefined ? {} : { required_trees: requiredTrees }),
+    output_path: value.output_path,
+  };
+}
+
+export function validateAgentTaskPacket(value: unknown): AssignmentTaskPacket {
+  const definition = validateAgentTaskDefinition(value);
+  if (definition.required_trees !== undefined) {
+    fail('ASSIGNMENT_PACKET_SOURCE_SELECTORS_UNRESOLVED');
+  }
+  if (definition.required_paths.length === 0) {
+    fail('ASSIGNMENT_REQUIRED_PATHS_INVALID');
+  }
+  return definition;
 }
 
 export function validateAssignment(value: unknown): Assignment {

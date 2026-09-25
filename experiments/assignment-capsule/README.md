@@ -57,6 +57,8 @@ trusted observation + settlement
 
 The task-specific bytes are self-contained. The reusable native worker implementation lives in `src/execution/worker-client/`; production `project.advance` packages its `overcenter` binary beside the assignment. The packet can therefore be handed to an otherwise empty compatible worker without a repository checkout or Node/TypeScript runtime for the client itself. Task-specific commands may still require their own declared runtime.
 
+Project task definitions may select exact repository trees with `required_trees` in addition to exact `required_paths`. The special tree `.` means the complete tracked repository tree at the claimed source revision. `project.advance` expands those selectors deterministically, preserves tracked executable modes, excludes untracked ambient workspace bytes, and emits only the resulting concrete `required_paths` plus digest-bound file bytes. Repository-tree selectors never cross the worker boundary.
+
 ## Non-claims
 
 This does not establish a general artifact distribution service, arbitrary toolchain portability, confidential payload transport, provider mutation authority, or that every future obligation can be represented by the proof packet. It also does not make the candidate worker authoritative for success; settlement remains an independent deterministic decision.

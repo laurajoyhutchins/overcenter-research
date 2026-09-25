@@ -1,6 +1,6 @@
 import {
   AGENT_TASK_PACKET_SCHEMA,
-  validateAgentTaskPacket,
+  validateAgentTaskDefinition,
 } from '../execution/assignment-capsule.ts';
 import { normalizeObligation, type ObligationInput } from './facts.ts';
 import { assertExactKeys, isData } from '../validation.ts';
@@ -34,15 +34,18 @@ export function compileProjectIntent(value: unknown): ObligationInput[] {
     assertExactKeys(
       candidate.task,
       ['command', 'required_paths', 'output_path'],
-      [],
+      ['required_trees'],
       `PROJECT_INTENT_TASK_INVALID:${index}`,
     );
 
-    const packet = validateAgentTaskPacket({
+    const packet = validateAgentTaskDefinition({
       schema: AGENT_TASK_PACKET_SCHEMA,
       kind: 'pure-candidate',
       command: structuredClone(candidate.task.command),
       required_paths: structuredClone(candidate.task.required_paths),
+      ...(candidate.task.required_trees === undefined
+        ? {}
+        : { required_trees: structuredClone(candidate.task.required_trees) }),
       output_path: candidate.task.output_path,
     });
 
