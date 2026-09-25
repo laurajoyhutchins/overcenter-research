@@ -79,3 +79,34 @@ test('graph reconciliation rejects duplicate desired identities', () => {
     /DUPLICATE_DESIRED_OBLIGATION:a/,
   );
 });
+
+test('managed reconciliation retires only missing obligations in its namespace', () => {
+  const managed = normalizeObligation({
+    id: 'tcb:stale',
+    postcondition: {
+      verifier: 'operator-judgment/v1',
+      subject: { kind: 'tcb-remediation' },
+    },
+  });
+  const ordinary = normalizeObligation({
+    id: 'ordinary',
+    postcondition: pc('/tmp/ordinary', 'A'),
+  });
+  const state: State = {
+    obligations: { [managed.id]: managed, [ordinary.id]: ordinary },
+    definition_ids: {
+      [managed.id]: obligationDefinitionId(obligationDefinition(managed)),
+      [ordinary.id]: obligationDefinitionId(obligationDefinition(ordinary)),
+    },
+  };
+
+  const plan = planGraphReconciliation(
+    state,
+    [{ id: 'ordinary', postcondition: pc('/tmp/ordinary', 'A') }],
+    ['tcb:'],
+  );
+
+  assert.deepEqual(plan.retire, ['tcb:stale']);
+  assert.deepEqual(plan.unchanged, ['ordinary']);
+  assert.deepEqual(plan.upsert, []);
+});
