@@ -152,27 +152,25 @@ export class GithubActionsCapacityController {
   readonly #clock: () => number;
   readonly #store: ReservationStore;
 
-  constructor(
-    {
-      budget,
-      reservationTtlMs = DEFAULT_RESERVATION_TTL_MS,
-      handoffTtlMs = DEFAULT_HANDOFF_TTL_MS,
-      clock = () => Date.now(),
-      store,
-      repo,
-      ref,
-      remote,
-    }: {
-      budget: number;
-      reservationTtlMs?: number;
-      handoffTtlMs?: number;
-      clock?: () => number;
-      store?: ReservationStore;
-      repo?: string;
-      ref?: string;
-      remote?: string | null;
-    },
-  ) {
+  constructor({
+    budget,
+    reservationTtlMs = DEFAULT_RESERVATION_TTL_MS,
+    handoffTtlMs = DEFAULT_HANDOFF_TTL_MS,
+    clock = () => Date.now(),
+    store,
+    repo,
+    ref,
+    remote,
+  }: {
+    budget: number;
+    reservationTtlMs?: number;
+    handoffTtlMs?: number;
+    clock?: () => number;
+    store?: ReservationStore;
+    repo?: string;
+    ref?: string;
+    remote?: string | null;
+  }) {
     positiveInteger(budget, 'GITHUB_ACTIONS_CAPACITY_BUDGET_INVALID');
     positiveInteger(reservationTtlMs, 'GITHUB_ACTIONS_CAPACITY_RESERVATION_TTL_INVALID');
     positiveInteger(handoffTtlMs, 'GITHUB_ACTIONS_CAPACITY_HANDOFF_TTL_INVALID');
