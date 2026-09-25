@@ -42,6 +42,8 @@ Trusted deterministic graph producers may also materialize **system evidence obl
 
 Provider-backed evidence reuses generic source-bound GitHub observation machinery beneath its persisted postcondition schema. The persisted verifier and coordinate shape remain stable because authority history is durable; provider adapters supply domain-specific evidence parsing while shared machinery verifies repository identity, evidence bytes, current source blobs, workflow/job success, and artifact digests. Hostile mutation freshness is one adapter. A protected source change reopens its obligation; unrelated source movement does not.
 
+Persisted obligation definitions are replay protocol, not disposable implementation detail. Refactoring an observer may replace internal machinery, but changing a stored verifier or coordinate shape requires an explicit authority-history migration rather than silently teaching current code to forget old facts.
+
 ## `project.submit`
 
 Return the candidate produced from a work packet.
