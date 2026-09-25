@@ -1,4 +1,4 @@
-import type { Obligation } from '../model.ts';
+import type { ObligationInput } from './facts.ts';
 import type { RepositorySnapshot } from '../evidence/repository-snapshot.ts';
 
 export interface ProjectGraphContext {
@@ -9,15 +9,15 @@ export interface ProjectGraphContext {
 export interface ProjectGraphProducer {
   readonly id: string;
   readonly input_paths: readonly string[];
-  produce(snapshot: RepositorySnapshot, context: ProjectGraphContext): Obligation[];
+  produce(snapshot: RepositorySnapshot, context: ProjectGraphContext): ObligationInput[];
 }
 
 export function compileProjectGraph(
   snapshot: RepositorySnapshot,
   context: ProjectGraphContext,
   producers: readonly ProjectGraphProducer[],
-): Obligation[] {
-  const desired: Obligation[] = [];
+): ObligationInput[] {
+  const desired: ObligationInput[] = [];
 
   for (const producer of producers) {
     const presence = producer.input_paths.map((path) => snapshot.optionalBytes(path) !== null);
