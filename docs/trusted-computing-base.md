@@ -36,9 +36,11 @@ Each property has explicit-slice, import-envelope, and hybrid semantic-LOC ceili
 
 A LOC ceiling or static dependency closure is not a proof. It is an architectural ratchet. The stronger evidence comes from combining this inventory with hostile tests, authority-flow analysis, exact-head CI, differential backends, and formal models.
 
+Hard ratchets and attention baselines are intentionally different. Hard ratchets fence the exact trusted surface admitted by the current revision. Attention baselines preserve the architectural target across intentional ratchet updates. If the measured TCB grows above an attention baseline, updating the hard fingerprint does not erase the debt: the reporter derives a stable `tcb-growth` obligation until the trusted surface is reduced or the attention baseline is deliberately changed.
+
 ## Current baseline
 
-The table below is generated from the executable report. Run `npm run update:tcb-doc` after an intentional ratchet change; `npm run check:tcb` fails if the checked-in block drifts from the measured policy.
+The table below and `.overcenter/tcb-obligations.json` are generated from the executable report. Run `npm run update:tcb` after an intentional ratchet change; `npm run check:tcb` fails if either generated artifact drifts from the measured policy.
 
 <!-- BEGIN GENERATED TCB BASELINE -->
 | Property | Explicit slice | Runtime symbols | Import envelope | Hybrid TCB | Hostile evidence | Hybrid SHA-256 |
@@ -55,6 +57,14 @@ The table below is generated from the executable report. Run `npm run update:tcb
 The property scopes overlap and must not be summed. The composed GitHub status path is the deduplicated end-to-end trust surface for mutation admission through authoritative settlement. The two core properties share most of the same broad authority, graph, observation, and provider cone; adding the GitHub commit-status profile increases the composed hybrid surface by only 185 semantic lines above broker mutation safety.
 
 Hostile-evidence freshness is deliberately separate from the TCB size ratchet. A stale mutation probe remains visible as debt but does not make unrelated source changes fail the merge gate; an unknown configured probe still fails closed. `unconfigured` means the property does not yet have a dedicated hostile mutation probe.
+
+## Derived obligations
+
+The reporter deterministically projects actionable TCB findings into `.overcenter/tcb-obligations.json`. Current finding classes are TCB growth above an attention baseline, stale or missing hostile evidence, newly introduced external assumptions, and excessive trusted-file concentration.
+
+The TCB manifest is an ordinary managed project-graph producer. `project.advance` reconciles only its `tcb:` namespace when that exact-source manifest is present. A finding that disappears from the executable analysis is retired; unrelated project obligations remain ensure-only and are never retired by this mechanism.
+
+These findings are **judgment work**, not executable effect packets. They use the `operator-judgment/v1` postcondition, project as `BLOCKED` with `JUDGMENT_REQUIRED`, and automatic observation rejects them. The deterministic layer therefore decides that evidence requires attention and preserves the evidence; a reasoning agent or operator decides what source change, if any, is the right remedy.
 
 The core properties explicitly bind the `DurableFactStore.append` dispatch edge to `SqliteFactStore.append`. The GitHub provider profile composes with broker mutation safety at `KernelCore.authorizeEffect`, `performEffect`, and `releaseEffectReservation`; those core methods are not charged again to the provider-specific delta.
 
