@@ -15,6 +15,7 @@ import {
 } from './evidence.ts';
 import { SettlementObservationSchema } from '../generated/settlement-observation-schema.ts';
 import { assertSupportedStructuralSchema, structurallyMatches } from '../structural-schema.ts';
+import { isPositiveSafeInteger, isSha256Hex } from '../validation.ts';
 import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
@@ -58,6 +59,12 @@ const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e)
 function data(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
+
+const repositoryRelativePath = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  value.length > 0 &&
+  !value.startsWith('/') &&
+  !value.split('/').some((part) => part === '' || part === '.' || part === '..');
 
 assertSupportedStructuralSchema(SettlementObservationSchema);
 
@@ -150,27 +157,17 @@ export function validatePostcondition(p: Postcondition): void {
   if (
     p?.verifier === 'github-hostile-mutation-evidence/v1' &&
     p.provider === 'github' &&
-    Number.isSafeInteger(p.repository_id) &&
-    p.repository_id > 0 &&
+    isPositiveSafeInteger(p.repository_id) &&
     typeof p.repository_full_name === 'string' &&
     /^[^/]+\/[^/]+$/.test(p.repository_full_name) &&
     typeof p.ref === 'string' &&
     p.ref.length > 0 &&
-    typeof p.evidence_path === 'string' &&
-    p.evidence_path.length > 0 &&
-    !p.evidence_path.startsWith('/') &&
-    !p.evidence_path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
-    typeof p.expected_sha256 === 'string' &&
-    /^[0-9a-f]{64}$/i.test(p.expected_sha256) &&
+    repositoryRelativePath(p.evidence_path) &&
+    isSha256Hex(p.expected_sha256) &&
     data(p.source_blobs) &&
     Object.keys(p.source_blobs).length > 0 &&
     Object.entries(p.source_blobs).every(
-      ([path, blob]) =>
-        path.length > 0 &&
-        !path.startsWith('/') &&
-        !path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
-        typeof blob === 'string' &&
-        /^[0-9a-f]{40}$/i.test(blob),
+      ([path, blob]) => repositoryRelativePath(path) && isGithubObjectId(blob),
     )
   )
     return;
