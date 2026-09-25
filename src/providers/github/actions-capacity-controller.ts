@@ -4,13 +4,13 @@ const STATE_SCHEMA = 'overcenter-github-actions-capacity/v1' as const;
 const STATE_FILE = 'github-actions-capacity.json';
 const DEFAULT_REF = 'refs/overcenter/github-actions-capacity';
 const DEFAULT_RESERVATION_TTL_MS = 5 * 60 * 1000;
-const DEFAULT_HANDOFF_TTL_MS = 5 * 60 * 1000;
 
 type ReservationPhase = 'reserved' | 'dispatched';
 
 interface Reservation {
   id: string;
   capacity_cost: number;
+  capacity_lease_ms: number;
   phase: ReservationPhase;
   expires_at_ms: number;
 }
@@ -79,6 +79,7 @@ function validateReservation(value: unknown): Reservation {
     throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
   }
   positiveInteger(raw.capacity_cost, 'GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
+  positiveInteger(raw.capacity_lease_ms, 'GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
   if (raw.phase !== 'reserved' && raw.phase !== 'dispatched') {
     throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
   }
@@ -86,6 +87,7 @@ function validateReservation(value: unknown): Reservation {
   return {
     id: raw.id,
     capacity_cost: raw.capacity_cost,
+    capacity_lease_ms: raw.capacity_lease_ms,
     phase: raw.phase,
     expires_at_ms: raw.expires_at_ms,
   };
@@ -124,6 +126,7 @@ export interface GithubActionsCapacity {
 export interface GithubActionsCapacityReservation {
   reservation_id: string;
   capacity_cost: number;
+  capacity_lease_ms: number;
   phase: ReservationPhase;
   expires_at_ms: number;
   authority_head: string;
@@ -132,6 +135,7 @@ export interface GithubActionsCapacityReservation {
 export interface GithubActionsDispatchContract {
   reservation_id: string;
   capacity_cost: number;
+  capacity_lease_ms: number;
 }
 
 export type GithubActionsDispatchReservation =
@@ -148,14 +152,12 @@ export type GithubActionsDispatchReservation =
 export class GithubActionsCapacityController {
   readonly budget: number;
   readonly #reservationTtlMs: number;
-  readonly #handoffTtlMs: number;
   readonly #clock: () => number;
   readonly #store: ReservationStore;
 
   constructor({
     budget,
     reservationTtlMs = DEFAULT_RESERVATION_TTL_MS,
-    handoffTtlMs = DEFAULT_HANDOFF_TTL_MS,
     clock = () => Date.now(),
     store,
     repo,
@@ -164,7 +166,6 @@ export class GithubActionsCapacityController {
   }: {
     budget: number;
     reservationTtlMs?: number;
-    handoffTtlMs?: number;
     clock?: () => number;
     store?: ReservationStore;
     repo?: string;
@@ -173,11 +174,9 @@ export class GithubActionsCapacityController {
   }) {
     positiveInteger(budget, 'GITHUB_ACTIONS_CAPACITY_BUDGET_INVALID');
     positiveInteger(reservationTtlMs, 'GITHUB_ACTIONS_CAPACITY_RESERVATION_TTL_INVALID');
-    positiveInteger(handoffTtlMs, 'GITHUB_ACTIONS_CAPACITY_HANDOFF_TTL_INVALID');
     if (!store && !repo) throw new Error('GITHUB_ACTIONS_CAPACITY_AUTHORITY_REQUIRED');
     this.budget = budget;
     this.#reservationTtlMs = reservationTtlMs;
-    this.#handoffTtlMs = handoffTtlMs;
     this.#clock = clock;
     this.#store = store ?? new GitReservationStore(repo!, { ref, remote });
   }
@@ -202,8 +201,10 @@ export class GithubActionsCapacityController {
   reserveDispatch(contract: GithubActionsDispatchContract): GithubActionsDispatchReservation {
     const reservationId = contract.reservation_id;
     const capacityCost = contract.capacity_cost;
+    const capacityLeaseMs = contract.capacity_lease_ms;
     if (!reservationId) throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_ID_REQUIRED');
     positiveInteger(capacityCost, 'GITHUB_ACTIONS_CAPACITY_COST_INVALID');
+    positiveInteger(capacityLeaseMs, 'GITHUB_ACTIONS_CAPACITY_LEASE_INVALID');
 
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const now = this.#clock();
@@ -212,7 +213,10 @@ export class GithubActionsCapacityController {
       const reservations = active(current, now);
       const existing = reservations.find((reservation) => reservation.id === reservationId);
       if (existing) {
-        if (existing.capacity_cost !== capacityCost) {
+        if (
+          existing.capacity_cost !== capacityCost ||
+          existing.capacity_lease_ms !== capacityLeaseMs
+        ) {
           throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_ID_CONFLICT');
         }
         return {
@@ -230,6 +234,7 @@ export class GithubActionsCapacityController {
       const reservation: Reservation = {
         id: reservationId,
         capacity_cost: capacityCost,
+        capacity_lease_ms: capacityLeaseMs,
         phase: 'reserved',
         expires_at_ms: now + this.#reservationTtlMs,
       };
@@ -267,7 +272,7 @@ export class GithubActionsCapacityController {
       const dispatched: Reservation = {
         ...existing,
         phase: 'dispatched',
-        expires_at_ms: now + this.#handoffTtlMs,
+        expires_at_ms: now + existing.capacity_lease_ms,
       };
       const nextReservations = [...reservations];
       nextReservations[index] = dispatched;
@@ -325,6 +330,7 @@ export class GithubActionsCapacityController {
     return {
       reservation_id: reservation.id,
       capacity_cost: reservation.capacity_cost,
+      capacity_lease_ms: reservation.capacity_lease_ms,
       phase: reservation.phase,
       expires_at_ms: reservation.expires_at_ms,
       authority_head: authorityHead,
