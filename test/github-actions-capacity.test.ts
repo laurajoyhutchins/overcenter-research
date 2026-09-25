@@ -185,6 +185,7 @@ test('capacity observation fails closed on a partial Actions collection', () => 
     () =>
       observeGithubActionsLoad('token', {
         repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+        scopeCompleteness: 'account-complete',
         get: (_token, path) => {
           if (path === '/repos/acme/widget') return repository(42, 'acme/widget');
           if (
