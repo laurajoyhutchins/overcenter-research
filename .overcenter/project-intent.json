@@ -6,6 +6,7 @@
       "task": {
         "command": [
           "node",
+          "--experimental-strip-types",
           "experiments/assignment-capsule/fixture-task.ts",
           "experiments/assignment-capsule/fixture-input.txt",
           "result.txt"
