@@ -10,6 +10,8 @@ The machine-readable policy is [`tcb-policy.json`](../tcb-policy.json). Reproduc
 npm run check:tcb
 ```
 
+CI runs the same reporter on every evidence candidate and writes a compact analysis to the GitHub job summary: property and composition sizes, ratchet deltas, symbol-closure status, hostile-evidence freshness, and the largest files in each composed trust surface. The workflow also materializes the complete JSON report at `$RUNNER_TEMP/overcenter-tcb-report.json` for later steps without introducing a second analysis implementation.
+
 The report gives every trusted slice an exact path, symbol or whole-file boundary, source-line range, semantic LOC count, and SHA-256 fingerprint. It then computes two independent dependency views: a transitive runtime-import envelope and a TypeScript-checker runtime-symbol closure. The import envelope is **not** an upper bound: hosted measurement falsified that assumption because injected runtime objects can call trusted code without importing its module. The ratcheted hybrid envelope therefore charges whole runtime-imported files plus runtime declarations reached across those non-import symbol edges.
 
 ## Properties

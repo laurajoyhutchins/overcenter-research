@@ -54,8 +54,8 @@ jobs:
         run: npm install --ignore-scripts --package-lock=false
       - name: Type-check repository
         run: npm run typecheck
-      - name: Check trusted computing base budget
-        run: npm run check:tcb
+      - name: Analyze trusted computing base
+        run: npm run check:tcb -- --summary "$GITHUB_STEP_SUMMARY" --output "$RUNNER_TEMP/overcenter-tcb-report.json"
       - name: Check adapter diagnosability
         run: npm run check:adapter-diagnosability
       - name: Check experiment statistics contract

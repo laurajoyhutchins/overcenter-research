@@ -913,6 +913,12 @@ try {
       hybrid_union_sha256: sha256,
       expected_hybrid_union_sha256: composition.expected_hybrid_union_sha256 ?? null,
       hybrid_union_files: [...trusted.keys()].sort(),
+      hybrid_union_file_semantic_loc: [...trusted.entries()]
+        .map(([path, lines]) => ({ path, semantic_loc: lines.size }))
+        .sort(
+          (left, right) =>
+            right.semantic_loc - left.semantic_loc || left.path.localeCompare(right.path),
+        ),
       hostile_evidence_status: hostileEvidenceStatus,
     };
   });
@@ -973,6 +979,112 @@ try {
     properties: reports,
     compositions,
   };
+
+  const optionValue = (name: string): string | null => {
+    const index = process.argv.indexOf(name);
+    if (index < 0) return null;
+    const value = process.argv[index + 1];
+    if (!value || value.startsWith('--')) throw new Error(`TCB_OPTION_VALUE_REQUIRED:${name}`);
+    return value;
+  };
+  const outputPath = optionValue('--output');
+  if (outputPath) {
+    writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  }
+
+  const summaryPath = optionValue('--summary');
+  if (summaryPath) {
+    const signed = (value: number): string => (value > 0 ? `+${number(value)}` : number(value));
+    const propertyStatus = (property: (typeof reports)[number]): string => {
+      const sizeCurrent =
+        property.max_hybrid_closure_semantic_loc === null ||
+        property.hybrid_closure_semantic_loc <= property.max_hybrid_closure_semantic_loc;
+      const fingerprintCurrent =
+        property.expected_hybrid_closure_sha256 === null ||
+        property.hybrid_closure_sha256 === property.expected_hybrid_closure_sha256;
+      const symbolsCurrent =
+        !property.require_sound_symbol_closure || property.symbol_closure_status === 'sound';
+      return sizeCurrent && fingerprintCurrent && symbolsCurrent ? 'current' : 'changed';
+    };
+    const compositionStatus = (composition: (typeof compositions)[number]): string => {
+      const sizeCurrent =
+        composition.max_hybrid_union_semantic_loc === null ||
+        composition.hybrid_union_semantic_loc <= composition.max_hybrid_union_semantic_loc;
+      const fingerprintCurrent =
+        composition.expected_hybrid_union_sha256 === null ||
+        composition.hybrid_union_sha256 === composition.expected_hybrid_union_sha256;
+      return sizeCurrent && fingerprintCurrent ? 'current' : 'changed';
+    };
+    const assumptionCount = new Set(reports.flatMap((property) => property.external_assumptions))
+      .size;
+    const staleProbeRows = reports.flatMap((property) =>
+      property.hostile_evidence.probes
+        .filter((probe) => probe.status !== 'current')
+        .map(
+          (probe) =>
+            `| \`${property.id}\` | \`${probe.id}\` | ${probe.status} | ${probe.mutation_score.toFixed(3)} |`,
+        ),
+    );
+    const hotspotRows = compositions.flatMap((composition) =>
+      composition.hybrid_union_file_semantic_loc.slice(0, 10).map((file) => {
+        const share =
+          composition.hybrid_union_semantic_loc === 0
+            ? '0.0%'
+            : `${((100 * file.semantic_loc) / composition.hybrid_union_semantic_loc).toFixed(1)}%`;
+        return `| \`${composition.id}\` | \`${file.path}\` | ${number(file.semantic_loc)} | ${share} |`;
+      }),
+    );
+    const summary = [
+      '## Trusted computing base analysis',
+      '',
+      `Overall ratchet: **${failed ? 'changed' : 'current'}**. Unique external assumptions: **${assumptionCount}**.`,
+      '',
+      '| Property | Hybrid TCB | Ratchet | Delta | Symbol closure | Hostile evidence |',
+      '| --- | ---: | ---: | ---: | --- | --- |',
+      ...reports.map((property) => {
+        const baseline = property.max_hybrid_closure_semantic_loc;
+        const delta =
+          baseline === null ? 'n/a' : signed(property.hybrid_closure_semantic_loc - baseline);
+        const ratchet = baseline === null ? 'n/a' : number(baseline);
+        return `| \`${property.id}\` | **${number(property.hybrid_closure_semantic_loc)}** | ${ratchet} | ${delta} | ${property.symbol_closure_status} | ${property.hostile_evidence.status} |`;
+      }),
+      '',
+      '| Composition | Deduplicated hybrid union | Ratchet | Delta | Hostile evidence |',
+      '| --- | ---: | ---: | ---: | --- |',
+      ...compositions.map((composition) => {
+        const baseline = composition.max_hybrid_union_semantic_loc;
+        const delta =
+          baseline === null ? 'n/a' : signed(composition.hybrid_union_semantic_loc - baseline);
+        const ratchet = baseline === null ? 'n/a' : number(baseline);
+        return `| \`${composition.id}\` | **${number(composition.hybrid_union_semantic_loc)}** | ${ratchet} | ${delta} | ${composition.hostile_evidence_status} |`;
+      }),
+      '',
+      '### Largest trusted files in composed properties',
+      '',
+      '| Composition | File | Semantic LOC | Share |',
+      '| --- | --- | ---: | ---: |',
+      ...(hotspotRows.length > 0 ? hotspotRows : ['| _none_ | _none_ | 0 | 0.0% |']),
+      '',
+      '### Hostile-evidence debt',
+      '',
+      '| Property | Probe | Freshness | Mutation score |',
+      '| --- | --- | --- | ---: |',
+      ...(staleProbeRows.length > 0 ? staleProbeRows : ['| _none_ | _none_ | current | 1.000 |']),
+      '',
+      '### Ratchet state',
+      '',
+      ...reports.map(
+        (property) =>
+          `- \`${property.id}\`: ${propertyStatus(property)}; hybrid fingerprint \`${shortHash(property.hybrid_closure_sha256)}\`.`,
+      ),
+      ...compositions.map(
+        (composition) =>
+          `- \`${composition.id}\`: ${compositionStatus(composition)}; union fingerprint \`${shortHash(composition.hybrid_union_sha256)}\`.`,
+      ),
+      '',
+    ].join('\n');
+    writeFileSync(summaryPath, summary, { encoding: 'utf8', flag: 'a' });
+  }
   if (failed) {
     console.error(
       JSON.stringify(
