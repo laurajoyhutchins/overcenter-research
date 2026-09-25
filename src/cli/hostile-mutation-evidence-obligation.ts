@@ -58,7 +58,7 @@ if (mode === 'reconcile') {
   console.log(JSON.stringify(await reconcileSystemEvidence(kernel, definition), null, 2));
 } else {
   const receipt = await settleSystemEvidence(kernel, definition, {
-    verify: () =>
+    verify: () => {
       execFileSync(
         process.execPath,
         [
@@ -74,7 +74,8 @@ if (mode === 'reconcile') {
             GITHUB_TOKEN: token,
           },
         },
-      ),
+      );
+    },
     diagnostic: {
       hostile_mutation_evidence: {
         verifier: 'verify-mutation-evidence-sources.ts',
