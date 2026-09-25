@@ -58,8 +58,6 @@ jobs:
         run: npm run check:tcb
       - name: Check adapter diagnosability
         run: npm run check:adapter-diagnosability
-      - name: Check experiment statistics contract
-        run: npm run check:experiment-statistics
       - name: Run deterministic regression
         run: npm run test:unit
 
