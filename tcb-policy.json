@@ -352,7 +352,9 @@
       "components": [
         "broker-mutation-safety",
         "no-false-done"
-      ]
+      ],
+      "max_hybrid_closure_semantic_loc": 8059,
+      "expected_hybrid_closure_sha256": "44cdb15907a4c6b7333ad508bc4cd2c631e9b450166cd24fd512622b6c711119"
     },
     {
       "id": "github-commit-status-end-to-end",
@@ -361,7 +363,9 @@
         "broker-mutation-safety",
         "no-false-done",
         "github-commit-status-provider"
-      ]
+      ],
+      "max_hybrid_closure_semantic_loc": 8243,
+      "expected_hybrid_closure_sha256": "a340d94df02803cde0f29661505047a2def16d8e9e49e02d3b18ac66c367203c"
     }
   ]
 }
