@@ -44,6 +44,17 @@ A LOC ceiling or static dependency closure is not a proof. It is an architectura
 
 The hybrid counts are property-scoped and overlap. Do not sum them into one repository number. The core properties explicitly bind the `DurableFactStore.append` dispatch edge to `SqliteFactStore.append`. The GitHub provider profile composes with broker mutation safety at `KernelCore.authorizeEffect`, `performEffect`, and `releaseEffectReservation`; those core methods are not charged again to the provider-specific delta. Six provider-profile lines beyond the import envelope remain deliberately charged: the effect authority's `postcondition` field and the five GitHub commit-status coordinates it consumes.
 
+## Headline unions
+
+The property-scoped numbers overlap heavily, so the report also computes deduplicated composites from the already-ratcheted hybrid line sets.
+
+| Composite | Components | Deduplicated TCB | SHA-256 |
+| --- | --- | ---: | --- |
+| Project-truth safety | broker mutation safety + no false `DONE` | **8,059** | `44cdb15907a4…11119` |
+| GitHub status end-to-end | project-truth safety + GitHub commit-status provider | **8,243** | `a340d94df028…7203c` |
+
+The project-truth composite is the current repository answer to “what code must collectively be right for the headline safety property?” The GitHub end-to-end profile adds only 184 unique semantic LOC to that union. That small delta is partly an architectural warning: the current core runtime-import envelope already reaches substantial provider machinery through shared dispatch and observation paths. Treat provider code appearing in the core TCB as coupling pressure to remove, not as evidence that provider-specific semantics are free.
+
 ## External assumptions
 
 External assumptions are part of the TCB even though they have no repository LOC. The report keeps them visible instead of allowing a small source-code number to imply that SQLite, Node.js, the operating system, TLS, the system `curl` executable used by GitHub certified reads, or provider API semantics are somehow irrelevant. The report also lists external runtime modules and symbols reached by the analysis; those lists are dependency evidence, not repository LOC.
