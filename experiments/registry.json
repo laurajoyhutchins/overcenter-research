@@ -983,7 +983,25 @@
       "outcome": {
         "state": "supported",
         "summary": "The benchmark separates Overcenter-local correctness work from provider-facing latency for the bounded successful GitHub status transaction."
-      }
+      },
+      "analysis": [
+        {
+          "claim_id": "live-github-latency-decomposition",
+          "evidence_class": "performance",
+          "inference": "descriptive",
+          "estimand": "Observed successful single-transaction latency decomposition on the exact hosted GitHub treatment.",
+          "sampling": {
+            "unit": "live GitHub transaction",
+            "actual_n": 3,
+            "paired": false
+          },
+          "uncertainty": {
+            "method": "none",
+            "reason": "The evaluated live result contains only three samples and is intentionally descriptive rather than a population latency estimate."
+          },
+          "stopping_rule": "The historical evaluated treatment used exactly three live GitHub samples."
+        }
+      ]
     },
     {
       "id": "projection-comparison",
@@ -1093,11 +1111,11 @@
       "contrast": "Infer production scaling from a hand-built concurrency harness instead of measuring the core-loop API that would ship.",
       "design": {
         "provenance": "mixed",
-        "note": "The workload and distinguishing criteria were established in the earlier #204 run; this restack ports the same benchmark to the current TypeScript-only tree and requires fresh exact-head evidence before drawing a current result."
+        "note": "The workload descends from the earlier bounded-concurrency treatment. The 15-round paired sampling plan, counterbalanced order, bootstrap interval, fixed stopping rule, and 2.0x lower-bound decision criterion were committed before the exact-head confirmatory run."
       },
       "outcome": {
         "state": "supported",
-        "summary": "At material effect cost, production runCoreLoop bounded concurrency improved median throughput while observed overlap never exceeded the configured bound; zero-cost work provided the expected negative control."
+        "summary": "The preregistered fixed-N paired treatment cleared the 2.0x lower-confidence-bound criterion at both material effect costs while the zero-cost negative control remained near 1x."
       },
       "reproduce": {
         "tier": "benchmark",
@@ -1111,26 +1129,48 @@
       "success_criteria": [
         "All 32 obligations settle DONE through production runCoreLoop for every case.",
         "Reported max_active_effects never exceeds requested concurrency.",
-        "At material artificial effect cost, at least one concurrency greater than one improves median throughput over concurrency one.",
+        "For both 25 ms and 100 ms artificial effect cost, the concurrency-8 median paired throughput ratio has a 95% bootstrap lower bound greater than 2.0x versus concurrency 1.",
         "Only packet-level effects overlap; exact claims, reservations, observation, and settlement remain kernel-owned."
       ],
       "evidence": {
         "status": "evaluated",
-        "evaluated_revision": "11170182c7f16d216834c2453889f8ecb95adbf6",
+        "evaluated_revision": "e7989ee1b8b806045d381d16570914467fe940ae",
         "artifacts": [
-          "GitHub Actions Core-loop bounded concurrency run 35898137522, job 107307123548: exact treatment head passed all 12 benchmark cases.",
-          "25 ms effects: concurrency 8 reached 85.907 tasks/s versus 22.183 at concurrency 1 (3.873x); max_active_effects=8.",
-          "100 ms effects: concurrency 8 reached 31.408 tasks/s versus 8.144 at concurrency 1 (3.857x); max_active_effects=8.",
-          "0 ms negative control: additional concurrency did not improve throughput and max_active_effects remained 1."
+          "GitHub Actions Core-loop bounded concurrency run 36084917077: exact-head 15-round counterbalanced paired treatment passed.",
+          "25 ms effects: concurrency 8 median paired speedup 3.181x, 95% percentile-bootstrap interval [3.150x, 3.289x], median throughput 92.662 tasks/s versus 29.155 at concurrency 1.",
+          "100 ms effects: concurrency 8 median paired speedup 5.594x, 95% percentile-bootstrap interval [5.463x, 5.675x], median throughput 51.849 tasks/s versus 9.255 at concurrency 1.",
+          "0 ms negative control: concurrency 8 median paired speedup 1.002x with 95% interval [0.677x, 1.036x]; max_active_effects remained 1."
         ]
       },
-      "interpretation": "The exact treatment supports bounded packet-level effect concurrency behind one serialized authority lane when effect cost is material. Zero-cost work remains authority-dominated, so concurrency is a bounded latency-hiding mechanism rather than a universal throughput multiplier.",
+      "interpretation": "On the exact hosted treatment, bounded packet-level effect concurrency behind one serialized authority lane produced a statistically separated material speedup when effect cost was nontrivial. The zero-cost control remained consistent with no throughput benefit, so concurrency acts as latency hiding rather than a universal multiplier.",
       "non_claims": [
         "Artificial delay models a particular provider.",
         "SQLite is distributed or highly available.",
         "Fairness is proved by the performance benchmark.",
         "Zero-cost work benefits from additional effect concurrency.",
         "Evidence-only commits after the evaluated treatment revision change the measured result."
+      ],
+      "analysis": [
+        {
+          "claim_id": "material-effect-speedup",
+          "evidence_class": "performance",
+          "inference": "confirmatory",
+          "estimand": "Median within-round throughput ratio for concurrency 8 relative to concurrency 1, separately at 25 ms and 100 ms artificial effect cost.",
+          "sampling": {
+            "unit": "counterbalanced paired round",
+            "planned_n": 15,
+            "paired": true,
+            "order": "alternate forward and reverse concurrency order each round",
+            "actual_n": 15
+          },
+          "uncertainty": {
+            "method": "percentile-bootstrap",
+            "confidence": 0.95,
+            "resamples": 20000
+          },
+          "stopping_rule": "Collect exactly 15 paired rounds per effect cost; do not stop early on observed speedup.",
+          "decision_rule": "Support material bounded-concurrency speedup only when the lower 95% bootstrap bound exceeds 2.0x for concurrency 8 at both 25 ms and 100 ms effect cost."
+        }
       ]
     },
     {
@@ -1815,7 +1855,26 @@
       "outcome": {
         "state": "falsified",
         "summary": "The one-shot reasoning worker recovered 3/7 recoverable cases versus the locked deterministic baseline of 4/7, for a recovery delta of -1 with zero false certainty and zero permanent-uncertainty violations."
-      }
+      },
+      "analysis": [
+        {
+          "claim_id": "bounded-recovery-yield",
+          "evidence_class": "stochastic",
+          "inference": "bounded-corpus",
+          "estimand": "Recovery successes and false-certainty outcomes on the frozen seven-case recovery corpus.",
+          "sampling": {
+            "unit": "frozen recovery case",
+            "actual_n": 7,
+            "paired": true,
+            "held_out": false
+          },
+          "uncertainty": {
+            "method": "none",
+            "reason": "The result is a bounded-corpus falsification, not an estimate of reasoning-worker population capability."
+          },
+          "stopping_rule": "Evaluate exactly the preregistered seven-case corpus once."
+        }
+      ]
     },
     {
       "id": "recovery-agent-refinement",
@@ -1872,7 +1931,26 @@
       "outcome": {
         "state": "mixed",
         "summary": "One bounded refinement round improved the frozen model result from 3/7 to cumulative 4/7 (refinement gain +1) with zero false certainty, but only tied the deterministic 4/7 baseline (baseline gain 0), so refinement helped the known model failure without earning inference a recovery-yield advantage over deterministic search."
-      }
+      },
+      "analysis": [
+        {
+          "claim_id": "bounded-refinement-yield",
+          "evidence_class": "stochastic",
+          "inference": "bounded-corpus",
+          "estimand": "Cumulative recovery successes and false-certainty outcomes after the fixed second refinement round on the frozen seven-case corpus.",
+          "sampling": {
+            "unit": "frozen recovery case",
+            "actual_n": 7,
+            "paired": true,
+            "held_out": false
+          },
+          "uncertainty": {
+            "method": "none",
+            "reason": "The result is explicitly bounded to the seven-case corpus; generalization requires a held-out corpus and repeated model invocations."
+          },
+          "stopping_rule": "Run exactly one additional refinement call for each eligible frozen case."
+        }
+      ]
     },
     {
       "id": "git-metadata-independence",

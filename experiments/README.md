@@ -89,6 +89,32 @@ Source promotion now has one narrow production admission primitive in `src/sourc
 
 Changing the task, treatment, scorer, or workflow produces a new Git identity and therefore cannot reuse evidence from the prior design. A falsified experiment can remain a successful workflow while its promotion job is skipped. Registry text and caller-declared outcome strings have no authority. This primitive admits the frozen source task; live source-candidate execution and integration remain separate machinery.
 
+## Statistical evidence
+
+Statistical machinery is claim-specific rather than experiment-wide. One experiment may contain an
+exhaustive safety differential and a sampled performance claim, and those claims require different
+evidence.
+
+The registry uses four evidence classes:
+
+- `exhaustive`: every state in the declared bounded model is enumerated; report the bound and
+  coverage rather than a sampling interval.
+- `deterministic-corpus`: every case in a fixed corpus is evaluated; conclusions remain bounded to
+  that corpus unless separate generalization evidence exists.
+- `performance`: timing, throughput, or resource measurements vary across runs and require an
+  explicit sampling and uncertainty plan for confirmatory claims.
+- `stochastic`: model or randomized behavior varies across invocations and requires explicit
+  sampling and uncertainty machinery before making population/generalization claims.
+
+A `performance` or `stochastic` registry analysis must declare its estimand, sampling unit,
+planned or actual sample count, uncertainty method, and stopping rule. A confirmatory claim must also
+declare a decision rule and may not use `uncertainty.method = "none"`.
+
+`npm run check:experiment-statistics` enforces that contract for the statistical experiment claims
+currently under the ratchet. Shared helpers in `scripts/experiment-statistics.ts` provide paired
+ratios, deterministic percentile-bootstrap intervals, and the one-sided exact upper bound for zero
+observed failures.
+
 ## Proof lineage
 
 The original standalone SQLite baseline is retained as a historical registry record at its evaluated revision rather than as executable scaffolding on `main`. The current architecture is described in [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
