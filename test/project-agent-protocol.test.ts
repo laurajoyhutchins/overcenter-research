@@ -373,7 +373,10 @@ test('project.advance materializes an exact tracked repository tree into a concr
       files.map((file) => file.path),
       ['bin/tool.sh', 'input.txt', 'lib/nested.txt', 'task.mjs'],
     );
-    assert.deepEqual(assignment.work.packet.required_paths, files.map((file) => file.path));
+    assert.deepEqual(
+      assignment.work.packet.required_paths,
+      files.map((file) => file.path),
+    );
     assert.equal(files.find((file) => file.path === 'bin/tool.sh')?.mode, '100755');
     assert.equal(files.find((file) => file.path === 'lib/nested.txt')?.mode, '100644');
     assert.equal(
@@ -383,7 +386,10 @@ test('project.advance materializes an exact tracked repository tree into a concr
       ).toString('utf8'),
       'tracked-tree-byte\n',
     );
-    assert.equal(files.some((file) => file.path === 'untracked-secret.txt'), false);
+    assert.equal(
+      files.some((file) => file.path === 'untracked-secret.txt'),
+      false,
+    );
   } finally {
     rmSync(f.root, { recursive: true, force: true });
     rmSync(f.postconditionRoot, { recursive: true, force: true });
