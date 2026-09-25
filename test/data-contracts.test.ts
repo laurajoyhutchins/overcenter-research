@@ -6,11 +6,13 @@ import test from 'node:test';
 
 import {
   CLAIM_SCHEMA,
+  EFFECT_RELEASE_SCHEMA,
   EFFECT_RESERVATION_SCHEMA,
   EXECUTION_AUTHORITY_SCHEMA,
   GRAPH_PATCH_SCHEMA,
   RECEIPT_SCHEMA,
   validateAuthorityFact,
+  validateEffectReleaseFact,
 } from '../src/authority/facts.ts';
 
 import { validateAbsenceEvidenceEnvelope } from '../src/observation/evidence.ts';
@@ -251,6 +253,10 @@ test('removed schema variants fail closed', () => {
   assert.throws(
     () => validateAuthorityFact({ schema: 'overcenter-git-receipt-v4' }),
     /UNKNOWN_AUTHORITY_FACT_SCHEMA/,
+  );
+  assert.throws(
+    () => validateEffectReleaseFact({ schema: EFFECT_RELEASE_SCHEMA, schema_version: 1 }),
+    /INVALID_EFFECT_RELEASE_SCHEMA_VERSION/,
   );
   assert.throws(
     () =>

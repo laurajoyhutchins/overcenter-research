@@ -5,7 +5,7 @@ import { sha256 } from '../digest.ts';
 import { repositorySnapshot, type RepositorySnapshot } from './repository-snapshot.ts';
 import { SYSTEM_EVIDENCE_KIND, SYSTEM_EVIDENCE_PACKET_SCHEMA } from './system-evidence.ts';
 
-export const HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID = 'hostile-mutation-evidence-current' as const;
+export const HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID = 'system-evidence:hostile-mutation' as const;
 export const HOSTILE_MUTATION_EVIDENCE_PATH =
   'experiments/production-criticality-ranking/mutation-evidence.json' as const;
 export const HOSTILE_MUTATION_PROBES_PATH =
@@ -115,6 +115,7 @@ export function compileHostileMutationEvidenceFromRepository({
 export const hostileMutationEvidenceGraphProducer: ProjectGraphProducer = Object.freeze({
   id: 'hostile-mutation-evidence',
   input_paths: [HOSTILE_MUTATION_PROBES_PATH, HOSTILE_MUTATION_EVIDENCE_PATH],
+  managed_prefixes: ['system-evidence:hostile-mutation'],
   produce(snapshot: RepositorySnapshot, context: ProjectGraphContext) {
     return [
       compileHostileMutationEvidenceObligation({
