@@ -58,9 +58,9 @@
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8220,
+        "measured_semantic_loc": 8203,
         "attention_semantic_loc": 8163,
-        "hybrid_sha256": "77f45375a90ea78d819bb5116042e08ed1f0684f83a666da826bdbaa39f9ac6f"
+        "hybrid_sha256": "413f6296b4ef875e53bc1bdafe5e8b2589a5d912164e35cdf6314caa6e6e246e"
       }
     },
     {
@@ -121,9 +121,9 @@
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8405,
+        "measured_semantic_loc": 8388,
         "attention_semantic_loc": 8348,
-        "hybrid_union_sha256": "76a3dec214dffb2adf239afa4e4434542645047d43b6aebe333a7f28685d27ec"
+        "hybrid_union_sha256": "def24e4ae41a3cc22c0b6758f2e064c79c56ff5f06d486c2f4de9716be5500c2"
       }
     },
     {
@@ -183,9 +183,9 @@
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8217,
+        "measured_semantic_loc": 8200,
         "attention_semantic_loc": 8160,
-        "hybrid_sha256": "eeac55cffc30e5ae864fcce53467cee6f54af51f61001b03e4dc5333e1e04368"
+        "hybrid_sha256": "88c5220a6443612055f426f77be1f6e6b5baab869ca4150e209c715bcfd0225b"
       }
     },
     {
@@ -222,7 +222,7 @@
       },
       "evidence": {
         "property_id": "github-commit-status-provider",
-        "hybrid_sha256": "6d7c785ce55bacad547c9359159185f8ccd9146e6d88a92a62881ba9b6030ba7"
+        "hybrid_sha256": "23e5572885aba775bbb74eb8f127776a265d6af37171f15ae3d4a65a791a1835"
       }
     },
     {

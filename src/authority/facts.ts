@@ -106,7 +106,7 @@ export interface EffectReservation extends EffectReservationFact {
 
 export interface EffectReleaseFact {
   schema: typeof EFFECT_RELEASE_SCHEMA;
-  schema_version: 1 | typeof EFFECT_RELEASE_SCHEMA_VERSION;
+  schema_version: typeof EFFECT_RELEASE_SCHEMA_VERSION;
   run_id: string;
   obligation_id: string;
   execution_generation: number;
@@ -114,8 +114,8 @@ export interface EffectReleaseFact {
   reservation_commit: string;
   effect_contract: string;
   evidence_kind: string;
-  evidence?: EffectReleaseEvidence;
-  evidence_ref?: EvidenceRef;
+  evidence: EffectReleaseEvidence;
+  evidence_ref: EvidenceRef;
 }
 
 export type ReceiptKind =
@@ -410,30 +410,27 @@ export function validateEffectReleaseFact(value: unknown): EffectReleaseFact {
   if (!data(value)) throw new Error('INVALID_EFFECT_RELEASE_FACT');
   if (value.schema !== EFFECT_RELEASE_SCHEMA) throw new Error('INVALID_EFFECT_RELEASE_SCHEMA');
 
-  const commonKeys = [
-    'schema',
-    'schema_version',
-    'run_id',
-    'obligation_id',
-    'execution_generation',
-    'execution_authority_commit',
-    'reservation_commit',
-    'effect_contract',
-    'evidence_kind',
-  ] as const;
-
-  if (value.schema_version === 1) {
-    exactKeys(value, [...commonKeys], [], 'INVALID_EFFECT_RELEASE_FACT');
-  } else if (value.schema_version === EFFECT_RELEASE_SCHEMA_VERSION) {
-    exactKeys(
-      value,
-      [...commonKeys, 'evidence', 'evidence_ref'],
-      [],
-      'INVALID_EFFECT_RELEASE_FACT',
-    );
-  } else {
+  if (value.schema_version !== EFFECT_RELEASE_SCHEMA_VERSION) {
     throw new Error('INVALID_EFFECT_RELEASE_SCHEMA_VERSION');
   }
+  exactKeys(
+    value,
+    [
+      'schema',
+      'schema_version',
+      'run_id',
+      'obligation_id',
+      'execution_generation',
+      'execution_authority_commit',
+      'reservation_commit',
+      'effect_contract',
+      'evidence_kind',
+      'evidence',
+      'evidence_ref',
+    ],
+    [],
+    'INVALID_EFFECT_RELEASE_FACT',
+  );
 
   nonEmptyString(value.run_id, 'INVALID_RUN_ID');
   nonEmptyString(value.obligation_id, 'INVALID_OBLIGATION_ID');
@@ -442,10 +439,6 @@ export function validateEffectReleaseFact(value: unknown): EffectReleaseFact {
   nonEmptyString(value.reservation_commit, 'INVALID_RESERVATION_COMMIT');
   nonEmptyString(value.effect_contract, 'INVALID_EFFECT_CONTRACT');
   nonEmptyString(value.evidence_kind, 'INVALID_EFFECT_RELEASE_EVIDENCE_KIND');
-
-  if (value.schema_version === 1) {
-    return structuredClone(value) as unknown as EffectReleaseFact;
-  }
 
   const evidence = validateEffectReleaseEvidence(value.evidence);
   if (evidence.kind !== value.evidence_kind) {
