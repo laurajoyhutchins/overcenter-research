@@ -107,7 +107,9 @@ export function observeGithubActionsLoad(
   const evidence: CertifiedGithubSemanticReadEvidence[] = [];
   const jobs: GithubActionsObservedJob[] = [];
   const uniqueRepositories = [
-    ...new Map(repositories.map((repository) => [repository.repository_full_name, repository])).values(),
+    ...new Map(
+      repositories.map((repository) => [repository.repository_full_name, repository]),
+    ).values(),
   ];
 
   for (const repository of uniqueRepositories) {
@@ -170,10 +172,7 @@ export function projectGithubActionsCapacity({
   if (!Number.isSafeInteger(limit) || limit < 1) {
     throw new Error('GITHUB_ACTIONS_CAPACITY_LIMIT_INVALID');
   }
-  nonnegativeInteger(
-    locallyReservedJobs,
-    'GITHUB_ACTIONS_CAPACITY_LOCAL_RESERVATIONS_INVALID',
-  );
+  nonnegativeInteger(locallyReservedJobs, 'GITHUB_ACTIONS_CAPACITY_LOCAL_RESERVATIONS_INVALID');
   nonnegativeInteger(safetyReserveJobs, 'GITHUB_ACTIONS_CAPACITY_SAFETY_RESERVE_INVALID');
 
   const observed = observation.in_progress_jobs.length;
