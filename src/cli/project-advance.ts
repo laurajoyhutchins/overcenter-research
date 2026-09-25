@@ -1,4 +1,6 @@
 import { advanceProjectForAgent } from '../authority/project-agent-protocol.ts';
+import { DEFAULT_PROJECT_GRAPH_PRODUCERS } from '../authority/default-project-graph.ts';
+import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
 import {
   appendGithubOutputs,
   commandOption,
@@ -11,12 +13,23 @@ if (!outputDir) {
   throw new Error('usage: project-advance.ts --output-dir <dir>');
 }
 
+const githubToken = process.env.GITHUB_TOKEN ?? null;
 const receipt = advanceProjectForAgent(process.cwd(), projectCommandContext(), {
   outputDir,
   workerClientPath: requiredEnv('OVERCENTER_WORKER_CLIENT'),
   authorityRef: process.env.OVERCENTER_PROJECT_AUTHORITY_REF,
   remote: process.env.OVERCENTER_PROJECT_REMOTE,
-  githubToken: process.env.GITHUB_TOKEN ?? null,
+  githubToken,
+  graphProducers: DEFAULT_PROJECT_GRAPH_PRODUCERS,
+  observationContext: {
+    githubToken,
+    ...(githubToken
+      ? {
+          observeGithubHostileMutationEvidence: (postcondition) =>
+            observeGithubHostileMutationEvidence(githubToken, postcondition),
+        }
+      : {}),
+  },
 });
 console.log(JSON.stringify(receipt, null, 2));
 
