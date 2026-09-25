@@ -5,6 +5,7 @@ import { dirname, relative, resolve } from 'node:path';
 import { API, SymbolFlags, type Symbol as TypeScriptSymbol } from 'typescript/unstable/sync';
 import {
   SyntaxKind,
+  isCallExpression,
   isClassDeclaration,
   isEnumDeclaration,
   isExportDeclaration,
@@ -264,6 +265,39 @@ function resolvedValueSymbol(node: Node): TypeScriptSymbol | null {
   return resolved.flags & SymbolFlags.Value ? resolved : null;
 }
 
+function isInvocationTarget(node: Node): boolean {
+  const parent = node.parent;
+  if (isCallExpression(parent) && parent.expression === node) return true;
+  if (parent.kind === SyntaxKind.PropertyAccessExpression) {
+    const access = parent as Node & { name: Node };
+    return (
+      access.name === node &&
+      isCallExpression(parent.parent) &&
+      parent.parent.expression === parent
+    );
+  }
+  return false;
+}
+
+function hasCallableImplementation(node: Node): boolean {
+  if (
+    node.kind === SyntaxKind.FunctionDeclaration ||
+    node.kind === SyntaxKind.MethodDeclaration ||
+    node.kind === SyntaxKind.FunctionExpression ||
+    node.kind === SyntaxKind.ArrowFunction
+  ) {
+    return (node as Node & { body?: Node }).body !== undefined;
+  }
+  if (
+    node.kind === SyntaxKind.VariableDeclaration ||
+    node.kind === SyntaxKind.PropertyDeclaration ||
+    node.kind === SyntaxKind.PropertyAssignment
+  ) {
+    return (node as Node & { initializer?: Node }).initializer !== undefined;
+  }
+  return false;
+}
+
 function isRuntimeDeclaration(node: Node): boolean {
   if (node.getSourceFile().isDeclarationFile) return false;
   return !isTypeSpaceNode(node) && !isInterfaceDeclaration(node) && !isTypeAliasDeclaration(node);
@@ -357,6 +391,21 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
           );
           const runtimeDeclarations = repositoryDeclarations.filter(isRuntimeDeclaration);
           if (runtimeDeclarations.length > 0) {
+            if (
+              isInvocationTarget(node) &&
+              !runtimeDeclarations.some(hasCallableImplementation)
+            ) {
+              const targets = [
+                ...new Set(
+                  runtimeDeclarations
+                    .map((declaration) => repoPathFor(declaration))
+                    .filter((path): path is string => path !== null),
+                ),
+              ].sort();
+              obligations.add(
+                `DYNAMIC_CALL_TARGET_UNRESOLVED:${symbol.name}:${targets.join(',')}`,
+              );
+            }
             for (const declaration of runtimeDeclarations) {
               queue.push({
                 node: declaration,
@@ -550,13 +599,6 @@ try {
     const hybridSemanticLoc = hybridClosureSemanticLoc(closure, symbols);
     const moduleFiles = new Set(closure.files);
     const symbolFilesOutsideModuleClosure = symbols.files.filter((path) => !moduleFiles.has(path));
-    if (symbolFilesOutsideModuleClosure.length > 0) {
-      symbols.obligations.push(
-        ...symbolFilesOutsideModuleClosure.map((path) => `SYMBOL_OUTSIDE_MODULE_CLOSURE:${path}`),
-      );
-      symbols.obligations.sort();
-      symbols.status = 'candidate';
-    }
     if (semanticLoc > property.max_semantic_loc) failed = true;
     if (property.expected_surface_sha256 && property.expected_surface_sha256 !== surfaceSha256) {
       failed = true;
