@@ -1,13 +1,8 @@
 import { hostileMutationEvidenceGraphProducer } from '../evidence/hostile-mutation-obligation.ts';
-import { repositorySnapshot } from '../evidence/repository-snapshot.ts';
 import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
-import {
-  compileProjectGraph,
-  type ProjectGraphContext,
-  type ProjectGraphProducer,
-} from './project-graph.ts';
+import type { ProjectGraphProducer } from './project-graph.ts';
 
-const projectIntentGraphProducer: ProjectGraphProducer = Object.freeze({
+export const projectIntentGraphProducer: ProjectGraphProducer = Object.freeze({
   id: 'project-intent',
   input_paths: [PROJECT_INTENT_PATH],
   produce(snapshot) {
@@ -21,19 +16,7 @@ const projectIntentGraphProducer: ProjectGraphProducer = Object.freeze({
   },
 });
 
-const DEFAULT_PROJECT_GRAPH_PRODUCERS = Object.freeze([
+export const DEFAULT_PROJECT_GRAPH_PRODUCERS = Object.freeze([
   projectIntentGraphProducer,
   hostileMutationEvidenceGraphProducer,
 ]);
-
-export function compileDefaultProjectGraph(
-  repo: string,
-  sourceSha: string,
-  context: ProjectGraphContext,
-) {
-  return compileProjectGraph(
-    repositorySnapshot(repo, sourceSha),
-    context,
-    DEFAULT_PROJECT_GRAPH_PRODUCERS,
-  );
-}
