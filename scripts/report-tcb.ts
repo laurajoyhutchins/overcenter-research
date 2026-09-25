@@ -27,6 +27,15 @@ interface SymbolEntry {
   reason: string;
 }
 
+interface RuntimeDispatchBinding {
+  target: string;
+  implementation: {
+    path: string;
+    symbol: string;
+  };
+  reason: string;
+}
+
 interface TcbProperty {
   id: string;
   statement: string;
@@ -35,6 +44,9 @@ interface TcbProperty {
   max_module_closure_semantic_loc?: number;
   expected_module_closure_sha256?: string;
   entries: SymbolEntry[];
+  composes_with?: string[];
+  trusted_symbol_boundaries?: string[];
+  runtime_dispatch_bindings?: RuntimeDispatchBinding[];
   external_assumptions: string[];
   excluded: string[];
 }
@@ -206,6 +218,8 @@ interface SymbolClosure {
   }>;
   external_symbols: string[];
   obligations: string[];
+  composed_boundaries: string[];
+  resolved_dispatch_bindings: string[];
   status: 'candidate' | 'sound';
 }
 
@@ -325,8 +339,15 @@ function lineRange(node: Node): {
   };
 }
 
-function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
-  const queue: Array<{ node: Node; symbol: string }> = entries.map((entry) => {
+function symbolClosure(property: TcbProperty): SymbolClosure {
+  if ((property.trusted_symbol_boundaries?.length ?? 0) > 0 && !property.composes_with?.length) {
+    throw new Error(`TCB_COMPOSITION_REQUIRED:${property.id}`);
+  }
+  const boundaries = new Set(property.trusted_symbol_boundaries ?? []);
+  const dispatchBindings = new Map(
+    (property.runtime_dispatch_bindings ?? []).map((binding) => [binding.target, binding]),
+  );
+  const queue: Array<{ node: Node; symbol: string }> = property.entries.map((entry) => {
     const { source } = sourceFor(entry.path);
     return {
       node:
@@ -355,6 +376,8 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
   >();
   const externalSymbols = new Set<string>();
   const obligations = new Set<string>();
+  const composedBoundaries = new Set<string>();
+  const resolvedDispatchBindings = new Set<string>();
 
   while (queue.length > 0) {
     const current = queue.pop();
@@ -388,31 +411,75 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
             (declaration) => repoPathFor(declaration) !== null,
           );
           const runtimeDeclarations = repositoryDeclarations.filter(isRuntimeDeclaration);
-          if (runtimeDeclarations.length > 0) {
-            if (isInvocationTarget(node) && !runtimeDeclarations.some(hasCallableImplementation)) {
-              const targets = [
-                ...new Set(
-                  runtimeDeclarations
-                    .map((declaration) => repoPathFor(declaration))
-                    .filter((path): path is string => path !== null),
-                ),
-              ].sort();
-              obligations.add(`DYNAMIC_CALL_TARGET_UNRESOLVED:${symbol.name}:${targets.join(',')}`);
+          const declarationKeys = repositoryDeclarations
+            .map((declaration) => repoPathFor(declaration))
+            .filter((path): path is string => path !== null)
+            .map((path) => `${path}#${symbol.name}`);
+          const boundaryDeclarations = runtimeDeclarations.filter((declaration) => {
+            const path = repoPathFor(declaration);
+            return path !== null && boundaries.has(`${path}#${symbol.name}`);
+          });
+          for (const declaration of boundaryDeclarations) {
+            const path = repoPathFor(declaration) as string;
+            composedBoundaries.add(`${path}#${symbol.name}`);
+          }
+          const activeRuntimeDeclarations = runtimeDeclarations.filter(
+            (declaration) => !boundaryDeclarations.includes(declaration),
+          );
+          const dispatchBinding = declarationKeys
+            .map((key) => dispatchBindings.get(key))
+            .find((binding): binding is RuntimeDispatchBinding => binding !== undefined);
+
+          if (activeRuntimeDeclarations.length > 0) {
+            if (
+              isInvocationTarget(node) &&
+              !activeRuntimeDeclarations.some(hasCallableImplementation)
+            ) {
+              if (dispatchBinding) {
+                queue.push({
+                  node: declarationFor(
+                    dispatchBinding.implementation.path,
+                    dispatchBinding.implementation.symbol,
+                  ),
+                  symbol: dispatchBinding.implementation.symbol,
+                });
+                resolvedDispatchBindings.add(
+                  `${dispatchBinding.target}->${dispatchBinding.implementation.path}#${dispatchBinding.implementation.symbol}`,
+                );
+              } else {
+                const targets = [
+                  ...new Set(
+                    activeRuntimeDeclarations
+                      .map((declaration) => repoPathFor(declaration))
+                      .filter((path): path is string => path !== null),
+                  ),
+                ].sort();
+                obligations.add(
+                  `DYNAMIC_CALL_TARGET_UNRESOLVED:${symbol.name}:${targets.join(',')}`,
+                );
+              }
             }
-            for (const declaration of runtimeDeclarations) {
+            for (const declaration of activeRuntimeDeclarations) {
               queue.push({
                 node: declaration,
                 symbol: symbol.name,
               });
             }
-          } else if (repositoryDeclarations.length > 0) {
-            const targets = [
-              ...new Set(
-                repositoryDeclarations
-                  .map((declaration) => repoPathFor(declaration))
-                  .filter((path): path is string => path !== null),
+          } else if (boundaryDeclarations.length > 0) {
+            // The implementation is deliberately supplied by a separately measured TCB property.
+          } else if (repositoryDeclarations.length > 0 && dispatchBinding) {
+            queue.push({
+              node: declarationFor(
+                dispatchBinding.implementation.path,
+                dispatchBinding.implementation.symbol,
               ),
-            ].sort();
+              symbol: dispatchBinding.implementation.symbol,
+            });
+            resolvedDispatchBindings.add(
+              `${dispatchBinding.target}->${dispatchBinding.implementation.path}#${dispatchBinding.implementation.symbol}`,
+            );
+          } else if (repositoryDeclarations.length > 0) {
+            const targets = [...new Set(declarationKeys.map((key) => key.split('#')[0]))].sort();
             obligations.add(`DYNAMIC_DISPATCH_UNRESOLVED:${symbol.name}:${targets.join(',')}`);
           } else {
             externalSymbols.add(symbol.name);
@@ -447,6 +514,8 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
     declarations: output,
     external_symbols: [...externalSymbols].sort(),
     obligations: [...obligations].sort(),
+    composed_boundaries: [...composedBoundaries].sort(),
+    resolved_dispatch_bindings: [...resolvedDispatchBindings].sort(),
     status: obligations.size === 0 ? 'sound' : 'candidate',
   };
 }
@@ -588,7 +657,7 @@ try {
       )
       .digest('hex');
     const closure = moduleClosure(property.entries.map((entry) => entry.path));
-    const symbols = symbolClosure(property.entries);
+    const symbols = symbolClosure(property);
     const hybridSemanticLoc = hybridClosureSemanticLoc(closure, symbols);
     const moduleFiles = new Set(closure.files);
     const symbolFilesOutsideModuleClosure = symbols.files.filter((path) => !moduleFiles.has(path));
@@ -631,6 +700,9 @@ try {
       symbol_closure_declarations: symbols.declarations,
       symbol_closure_external_symbols: symbols.external_symbols,
       symbol_closure_obligations: symbols.obligations,
+      symbol_closure_composed_boundaries: symbols.composed_boundaries,
+      symbol_closure_resolved_dispatch_bindings: symbols.resolved_dispatch_bindings,
+      composes_with: property.composes_with ?? [],
       slices,
       external_assumptions: property.external_assumptions,
       excluded: property.excluded,
