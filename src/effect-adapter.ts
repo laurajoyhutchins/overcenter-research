@@ -11,8 +11,7 @@ export const GITHUB_COMMIT_STATUS_EFFECT =
 export const GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT =
   'github-pull-request/update-branch' as const;
 
-export const GITHUB_SOURCE_INTEGRATION_EFFECT =
-  'github-source/integrate-verified-tree/v1' as const;
+export const GITHUB_SOURCE_INTEGRATION_EFFECT = 'github-source/integrate-verified-tree/v1' as const;
 
 export const KUBERNETES_CONFIGMAP_EFFECT = 'kubernetes-configmap/ensure' as const;
 
