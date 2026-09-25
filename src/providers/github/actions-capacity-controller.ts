@@ -129,6 +129,11 @@ export interface GithubActionsCapacityReservation {
   authority_head: string;
 }
 
+export interface GithubActionsDispatchContract {
+  reservation_id: string;
+  capacity_cost: number;
+}
+
 export type GithubActionsDispatchReservation =
   | {
       state: 'reserved';
@@ -196,13 +201,9 @@ export class GithubActionsCapacityController {
     return found ? this.#publicReservation(found, head) : null;
   }
 
-  reserveDispatch({
-    reservationId,
-    capacityCost,
-  }: {
-    reservationId: string;
-    capacityCost: number;
-  }): GithubActionsDispatchReservation {
+  reserveDispatch(contract: GithubActionsDispatchContract): GithubActionsDispatchReservation {
+    const reservationId = contract.reservation_id;
+    const capacityCost = contract.capacity_cost;
     if (!reservationId) throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_ID_REQUIRED');
     positiveInteger(capacityCost, 'GITHUB_ACTIONS_CAPACITY_COST_INVALID');
 
