@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import type { GithubHostileMutationEvidencePostcondition, Observation } from '../../model.ts';
 import { canonicalDigest } from '../../digest.ts';
-import type { GithubJsonGet } from './rest.ts';
+import { githubGet, type GithubJsonGet } from './rest.ts';
 
 const WORKFLOW_PATH = '.github/workflows/production-criticality-mutation-probe.yml';
 const ARTIFACT_NAME = 'production-criticality-mutation-probe';
@@ -114,7 +114,7 @@ function common(p: GithubHostileMutationEvidencePostcondition) {
 export function observeGithubHostileMutationEvidence(
   token: string,
   p: GithubHostileMutationEvidencePostcondition,
-  get: GithubJsonGet,
+  get: GithubJsonGet = githubGet,
 ): Observation {
   const base = common(p);
   try {
