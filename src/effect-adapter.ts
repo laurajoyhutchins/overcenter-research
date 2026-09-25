@@ -154,7 +154,8 @@ export function reservedEffectReplaySafe(
   return capabilities.replay.terminal_absence_evidence_kinds.includes(absenceEvidence.kind);
 }
 
-export function reservedEffectReleaseSafe(
+/** Historical schema-v1 replay compatibility only; not live release authorization. */
+export function legacyReleaseSafe(
   work: Obligation,
   effectContract: string,
   evidenceKind: string,
@@ -174,7 +175,7 @@ export function reservedEffectReleaseWitnessSafe(
   effectContract: string,
   witness: ValidatedEffectReleaseWitness,
 ): boolean {
-  if (!reservedEffectReleaseSafe(work, effectContract, witness.kind)) return false;
+  if (!legacyReleaseSafe(work, effectContract, witness.kind)) return false;
   if (witness.kind !== GITHUB_STATUS_FRESH_HTTPS_NOT_DISPATCHED) return false;
   if (work.postcondition.verifier !== 'github-commit-status/v2') return false;
   if (!data(witness.observation)) return false;

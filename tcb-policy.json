@@ -5,7 +5,7 @@
     {
       "id": "broker-mutation-safety",
       "statement": "A broker-owned provider mutation cannot execute through an admitted Overcenter effect path unless execution authority and exact claimed revision are current, a durable effect reservation has succeeded, and no prior unresolved effect exists for that run.",
-      "max_semantic_loc": 1108,
+      "max_semantic_loc": 1106,
       "entries": [
         {
           "path": "src/authority/engine.ts",
@@ -98,9 +98,9 @@
         "experiments and tests",
         "formal models and proof tools"
       ],
-      "expected_surface_sha256": "098e0ce83e71e805d61e3ea2ea0a03f88f4eb3abd1c31a2dbdc23f0ae85fc420",
-      "max_module_closure_semantic_loc": 7947,
-      "expected_module_closure_sha256": "d52fd14cf1ca5bef15ec29a8f6244f08f73df1270ef18686b9fcd2e30c15df87",
+      "expected_surface_sha256": "a87cfcadedea7d764e8c7dbda88c56d5cc45884864865c9824e2c2539a526541",
+      "max_module_closure_semantic_loc": 7945,
+      "expected_module_closure_sha256": "f2dd2dc8a2942385ebcb052b76ab9325254b0d3dd22f6af7f63c4e163a5742ee",
       "runtime_dispatch_bindings": [
         {
           "target": "src/authority/store.ts#append",
@@ -111,14 +111,14 @@
           "reason": "production authority persistence is the SQLite durable fact store"
         }
       ],
-      "max_hybrid_closure_semantic_loc": 8058,
-      "expected_hybrid_closure_sha256": "1e1c53ff04f63edfb154469f28878fa3b95c89052e40fb216ab2cf9d9f3ed1ed",
+      "max_hybrid_closure_semantic_loc": 8056,
+      "expected_hybrid_closure_sha256": "594dcfeaf9af3671cbcd8ed77c523bc0f4ba788df6f6760604818d5d2f448db2",
       "require_sound_symbol_closure": true
     },
     {
       "id": "no-false-done",
       "statement": "Overcenter cannot derive DONE for a run unless an admitted receipt and exact postcondition observation justify it, and replay cannot reinterpret unresolved or mismatched mutation evidence as success.",
-      "max_semantic_loc": 1501,
+      "max_semantic_loc": 1499,
       "entries": [
         {
           "path": "src/authority/engine.ts",
@@ -232,9 +232,9 @@
         "Rust worker confinement",
         "experiments and formal models"
       ],
-      "expected_surface_sha256": "62e4d7a452694df75db6b700b221835b437e40ee97e5d258cc234b9f71627776",
-      "max_module_closure_semantic_loc": 7947,
-      "expected_module_closure_sha256": "d52fd14cf1ca5bef15ec29a8f6244f08f73df1270ef18686b9fcd2e30c15df87",
+      "expected_surface_sha256": "38864533b0ec79c957cb3065340a0aba48ff44335801581616425b29a9532f77",
+      "max_module_closure_semantic_loc": 7945,
+      "expected_module_closure_sha256": "f2dd2dc8a2942385ebcb052b76ab9325254b0d3dd22f6af7f63c4e163a5742ee",
       "runtime_dispatch_bindings": [
         {
           "target": "src/authority/store.ts#append",
@@ -245,8 +245,8 @@
           "reason": "production authority persistence is the SQLite durable fact store"
         }
       ],
-      "max_hybrid_closure_semantic_loc": 8055,
-      "expected_hybrid_closure_sha256": "401fbf9b746fe3a8b2c2e0d94460c16a0da80e08667a56a7787b7037969c3ddb",
+      "max_hybrid_closure_semantic_loc": 8053,
+      "expected_hybrid_closure_sha256": "db07a0ab87f5e4c802a25ab65903d962f60efdd726bc41372cc4784a04b80569",
       "require_sound_symbol_closure": true
     },
     {
@@ -331,7 +331,7 @@
       ],
       "expected_surface_sha256": "84f0fe24a1fba0b45695052dbb1a1597048cc51d0aad3b20b914f9504868d08e",
       "max_module_closure_semantic_loc": 2740,
-      "expected_module_closure_sha256": "8f572e9d658f7d98bb490782972b5e9967617997486e0b273f1d02ec555e00a3",
+      "expected_module_closure_sha256": "a244356793429f2c3de1bea89a75a316cc40f19f4d2d13eefa19e702bbf2f0ec",
       "composes_with": [
         "broker-mutation-safety"
       ],
@@ -341,7 +341,7 @@
         "src/authority/engine.ts#releaseEffectReservation"
       ],
       "max_hybrid_closure_semantic_loc": 2746,
-      "expected_hybrid_closure_sha256": "4a2a068440cff2687b765c7ad0708d708ce7c747f0fc69745dfea4137bf67d3e",
+      "expected_hybrid_closure_sha256": "6d7c785ce55bacad547c9359159185f8ccd9146e6d88a92a62881ba9b6030ba7",
       "require_sound_symbol_closure": true
     }
   ]

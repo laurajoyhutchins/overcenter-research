@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import * as effectAdapter from '../src/effect-adapter.ts';
 import {
   EFFECT_ADAPTER_CAPABILITIES,
   EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
@@ -37,6 +38,11 @@ test('effect adapter capabilities are closed machine-readable data', () => {
       KUBERNETES_CONFIGMAP_EFFECT,
     ].sort(),
   );
+});
+
+test('reservation release public API requires a validated witness', () => {
+  assert.equal('reservedEffectReleaseSafe' in effectAdapter, false);
+  assert.equal(typeof effectAdapter.reservedEffectReleaseWitnessSafe, 'function');
 });
 
 test('current production mutation adapters do not claim replay safety they cannot prove', () => {

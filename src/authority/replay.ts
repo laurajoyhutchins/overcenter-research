@@ -27,7 +27,7 @@ import type {
 import { validateGraph } from '../graph/topology.ts';
 import { settlementSemantics } from '../semantics.ts';
 import {
-  reservedEffectReleaseSafe,
+  legacyReleaseSafe,
   reservedEffectReleaseWitnessSafe,
   reservedEffectReplaySafe,
 } from '../effect-adapter.ts';
@@ -295,9 +295,7 @@ export function replayProjection(
         throw new Error('EFFECT_RELEASE_CONTRACT_MISMATCH');
       }
       if (release.schema_version === 1) {
-        if (
-          !reservedEffectReleaseSafe(run.obligation, release.effect_contract, release.evidence_kind)
-        ) {
+        if (!legacyReleaseSafe(run.obligation, release.effect_contract, release.evidence_kind)) {
           throw new Error('EFFECT_RELEASE_EVIDENCE_NOT_AUTHORIZED');
         }
       } else {
