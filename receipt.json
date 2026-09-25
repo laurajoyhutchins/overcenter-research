@@ -6,13 +6,38 @@
   "claim_commit": "8c23b3a404f50dc6453028f5113b43d62e200719",
   "execution_generation": 2,
   "execution_authority_commit": "b0a8d6cc3fbef80fda247038daba25f678317fa9",
-  "kind": "execution-terminated",
-  "observed": null,
-  "diagnostic": {
-    "source": "foreign-worker",
-    "error": "ASSIGNMENT_COMMAND_FAILED:1",
-    "candidate_present": false,
-    "provider_effect_reserved": false
+  "kind": "observation",
+  "observed": {
+    "verifier": "file-content-equals/v1",
+    "path": "/tmp/overcenter-live-agent-loop/result.txt",
+    "expected_sha256": "f0e31416fe8a45dbc5d1b36c28dddd0f3f968b76ffc092c25ef30e24b6614b30",
+    "mutation_certainty": "absent",
+    "absence_evidence": {
+      "schema": "overcenter-absence-evidence-v1",
+      "kind": "local-file-enoent/v1",
+      "subject": {
+        "kind": "file-path",
+        "path": "/tmp/overcenter-live-agent-loop/result.txt"
+      },
+      "scope": {
+        "kind": "exact-coordinate",
+        "coordinate": {
+          "kind": "file-path",
+          "path": "/tmp/overcenter-live-agent-loop/result.txt"
+        }
+      },
+      "snapshot": null,
+      "completeness": {
+        "kind": "direct-coordinate-read",
+        "result": "ENOENT"
+      },
+      "provenance": {
+        "adapter": "node:fs",
+        "operation": "readFileSync",
+        "error_code": "ENOENT"
+      }
+    }
   },
-  "settled_at": "2026-09-25T05:07:21.765Z"
+  "diagnostic": {},
+  "settled_at": "2026-09-25T05:07:24.174Z"
 }
