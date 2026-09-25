@@ -14,7 +14,6 @@ import {
 import type {
   ClaimFact,
   EffectReservation,
-  EffectReservationFact,
   ExecutionAuthorityFact,
   FactCommit,
   HistoricalRun,
@@ -26,10 +25,7 @@ import type {
 } from './facts.ts';
 import { validateGraph } from '../graph/topology.ts';
 import { settlementSemantics } from '../semantics.ts';
-import {
-  reservedEffectReleaseWitnessSafe,
-  reservedEffectReplaySafe,
-} from '../effect-adapter.ts';
+import { reservedEffectReleaseWitnessSafe, reservedEffectReplaySafe } from '../effect-adapter.ts';
 import {
   effectReleaseAuthorityError,
   effectReservationAuthorityError,
