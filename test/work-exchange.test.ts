@@ -1,13 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -18,10 +11,7 @@ import {
   buildAssignment,
   encodeAssignment,
 } from '../src/execution/assignment-capsule.ts';
-import {
-  executeWorkPacket,
-  type WorkExchangeRun,
-} from '../src/execution/work-exchange.ts';
+import { executeWorkPacket, type WorkExchangeRun } from '../src/execution/work-exchange.ts';
 import { canonicalDigest, sha256 } from '../src/digest.ts';
 
 function assignmentBytes(): Buffer {
@@ -242,10 +232,7 @@ test('hostile worker candidate is rejected and never published', () => {
       return { status: 0, signal: null };
     };
 
-    assert.throws(
-      () => executeWorkPacket(f.packet, f.output, { run }),
-      /CANDIDATE_RUN_MISMATCH/,
-    );
+    assert.throws(() => executeWorkPacket(f.packet, f.output, { run }), /CANDIDATE_RUN_MISMATCH/);
     assert.equal(readFileSync(join(f.packet, 'assignment.json')).equals(f.assignment), true);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
