@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-  compileHostileMutationEvidenceObligation,
+  compileHostileMutationEvidenceFromRepository,
   HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID,
 } from '../src/evidence/hostile-mutation-obligation.ts';
 import { obligationDefinition, obligationDefinitionId } from '../src/authority/facts.ts';
@@ -28,7 +28,7 @@ function commit(repo: string, message: string): string {
 function definitionId(repo: string, sourceSha: string): string {
   return obligationDefinitionId(
     obligationDefinition(
-      compileHostileMutationEvidenceObligation({
+      compileHostileMutationEvidenceFromRepository({
         repo,
         sourceSha,
         repositoryId: 42,
@@ -93,7 +93,7 @@ test('hostile evidence obligation changes only with protected semantics or evide
     const evidenceChange = commit(root, 'evidence change');
     assert.notEqual(definitionId(root, evidenceChange), changedSource);
 
-    const obligation = compileHostileMutationEvidenceObligation({
+    const obligation = compileHostileMutationEvidenceFromRepository({
       repo: root,
       sourceSha: evidenceChange,
       repositoryId: 42,
