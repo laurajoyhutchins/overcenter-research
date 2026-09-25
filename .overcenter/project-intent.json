@@ -10,11 +10,11 @@
           "experiments/assignment-capsule/fixture-input.txt",
           "result.txt"
         ],
-        "required_paths": [
-          "experiments/assignment-capsule/fixture-task.ts",
-          "experiments/assignment-capsule/fixture-input.txt"
-        ],
-        "output_path": "result.txt"
+        "required_paths": [],
+        "output_path": "result.txt",
+        "required_trees": [
+          "."
+        ]
       },
       "postcondition": {
         "verifier": "file-content-equals/v1",

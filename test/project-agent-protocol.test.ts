@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -301,6 +309,118 @@ test('project.advance selects and claims real READY work, then emits a bounded p
     rmSync(f.root, { recursive: true, force: true });
     rmSync(f.postconditionRoot, { recursive: true, force: true });
   }
+});
+
+test('project.advance materializes an exact tracked repository tree into a concrete packet', () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.work, 'bin'), { recursive: true });
+    mkdirSync(join(f.work, 'lib'), { recursive: true });
+    writeFileSync(join(f.work, 'bin', 'tool.sh'), '#!/bin/sh\nprintf tree-tool\\n');
+    chmodSync(join(f.work, 'bin', 'tool.sh'), 0o755);
+    writeFileSync(join(f.work, 'lib', 'nested.txt'), 'tracked-tree-byte\n');
+    execFileSync('git', ['-C', f.work, 'add', 'bin/tool.sh', 'lib/nested.txt'], {
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['-C', f.work, 'commit', '-m', 'add tracked source tree'], {
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['-C', f.work, 'push', 'origin', 'main'], { stdio: 'ignore' });
+    const sourceSha = git(f.work, ['rev-parse', 'HEAD']);
+
+    // Ambient workspace bytes are deliberately not authority for the packet.
+    writeFileSync(join(f.work, 'untracked-secret.txt'), 'must-not-cross-boundary\n');
+
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+    kernel.define({
+      id: 'repository-tree-work',
+      packet: {
+        schema: 'overcenter-agent-task/v2',
+        kind: 'pure-candidate',
+        command: ['/bin/true'],
+        required_paths: [],
+        required_trees: ['.'],
+        output_path: 'result.txt',
+      },
+      postcondition: {
+        verifier: 'file-content-equals/v1',
+        path: f.postconditionPath,
+        content: 'done\n',
+      },
+    });
+
+    const outputDir = join(f.root, 'tree-packet');
+    const receipt = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir,
+      workerClientPath: workerClientFixture(f.root),
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+
+    assert.equal(receipt.state, 'AGENT_EXECUTION_REQUIRED');
+    assert.equal(receipt.candidate_branch_base_sha, sourceSha);
+    const assignment = JSON.parse(readFileSync(join(outputDir, 'assignment.json'), 'utf8'));
+    assert.equal(assignment.source_revision, sourceSha);
+    assert.equal('required_trees' in assignment.work.packet, false);
+
+    const files = assignment.files as Array<{
+      path: string;
+      mode: string;
+      content_base64: string;
+    }>;
+    assert.deepEqual(
+      files.map((file) => file.path),
+      ['bin/tool.sh', 'input.txt', 'lib/nested.txt', 'task.mjs'],
+    );
+    assert.deepEqual(
+      assignment.work.packet.required_paths,
+      files.map((file) => file.path),
+    );
+    assert.equal(files.find((file) => file.path === 'bin/tool.sh')?.mode, '100755');
+    assert.equal(files.find((file) => file.path === 'lib/nested.txt')?.mode, '100644');
+    assert.equal(
+      Buffer.from(
+        files.find((file) => file.path === 'lib/nested.txt')!.content_base64,
+        'base64',
+      ).toString('utf8'),
+      'tracked-tree-byte\n',
+    );
+    assert.equal(
+      files.some((file) => file.path === 'untracked-secret.txt'),
+      false,
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
+test('project intent accepts repository-tree selectors without embedding a source revision', () => {
+  const compiled = compileProjectIntent({
+    schema: 'overcenter-project-intent/v1',
+    obligations: [
+      {
+        id: 'tree-intent',
+        task: {
+          command: ['/bin/true'],
+          required_paths: [],
+          required_trees: ['src'],
+          output_path: 'result.txt',
+        },
+        postcondition: {
+          verifier: 'file-content-equals/v1',
+          path: '/tmp/overcenter-tree-intent/result.txt',
+          content: 'done\n',
+        },
+      },
+    ],
+  });
+  assert.equal(compiled.length, 1);
+  const compiledTask = compiled[0];
+  assert.ok(compiledTask?.packet);
+  assert.deepEqual(compiledTask.packet.required_trees, ['src']);
+  assert.equal(JSON.stringify(compiledTask.packet).includes('source_sha'), false);
 });
 
 test('project.advance requires native client bytes before claiming reasoning work', () => {

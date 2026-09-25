@@ -9,6 +9,7 @@ import {
   buildAssignment,
   encodeAssignment,
   materializeAssignment,
+  validateAgentTaskDefinition,
   validateAssignment,
   validateCandidate,
 } from '../../src/execution/assignment-capsule.ts';
@@ -41,6 +42,33 @@ const files = () => [
   assignmentFile('task.ts', Buffer.from('process.exit(0)\n')),
   assignmentFile('input.txt', Buffer.from('payload\n')),
 ];
+
+test('authority-side task definitions may request exact repository trees', () => {
+  const definition = validateAgentTaskDefinition({
+    schema: 'overcenter-agent-task/v2',
+    kind: 'pure-candidate',
+    command: ['/bin/true'],
+    required_paths: [],
+    required_trees: ['.'],
+    output_path: 'result.txt',
+  });
+  assert.deepEqual(definition.required_trees, ['.']);
+  assert.deepEqual(definition.required_paths, []);
+});
+
+test('repository-tree selectors must be resolved before the worker assignment boundary', () => {
+  const unresolved = {
+    ...work(),
+    packet: {
+      ...work().packet,
+      required_trees: ['src'],
+    },
+  };
+  assert.throws(
+    () => buildAssignment(unresolved, files(), '1'.repeat(40)),
+    /ASSIGNMENT_PACKET_SOURCE_SELECTORS_UNRESOLVED/,
+  );
+});
 
 test('claimed work plus exact bytes forms a valid self-contained assignment', () => {
   const assignment = buildAssignment(work(), files(), '1'.repeat(40));
