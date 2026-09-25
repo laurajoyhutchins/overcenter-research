@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   bootstrapMedianInterval,
+  bootstrapMedianUpperBound,
   median,
   pairedRatios,
   zeroFailureUpperBound,
@@ -24,6 +25,18 @@ test('bootstrap median interval is exact for a degenerate sample', () => {
     confidence: 0.95,
     resamples: 1000,
   });
+});
+
+test('bootstrap median upper bound exposes a one-sided confidence contract', () => {
+  assert.deepEqual(bootstrapMedianUpperBound([2, 2, 2, 2], { resamples: 1000 }), {
+    upper: 2,
+    confidence: 0.95,
+    resamples: 1000,
+  });
+  assert.throws(
+    () => bootstrapMedianUpperBound([1, 2, 3], { confidence: 0.5 }),
+    /BOOTSTRAP_UPPER:INVALID_CONFIDENCE/,
+  );
 });
 
 test('zero-failure bound reports residual sampled risk rather than zero', () => {
