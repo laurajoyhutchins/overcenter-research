@@ -231,11 +231,6 @@ const githubStatusError = (
   observation_error: error,
 });
 
-type GithubHostileMutationEvidencePostcondition = Extract<
-  Postcondition,
-  { verifier: 'github-hostile-mutation-evidence/v1' }
->;
-
 const githubHostileMutationEvidenceError = (
   p: GithubHostileMutationEvidencePostcondition,
   error: string,
