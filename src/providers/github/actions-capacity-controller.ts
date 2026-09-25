@@ -3,16 +3,13 @@ import { GitFactStore } from '../../storage/git-store.ts';
 const STATE_SCHEMA = 'overcenter-github-actions-capacity/v1' as const;
 const STATE_FILE = 'github-actions-capacity.json';
 const DEFAULT_REF = 'refs/overcenter/github-actions-capacity';
-const DEFAULT_RESERVATION_TTL_MS = 5 * 60 * 1000;
 
 type ReservationPhase = 'reserved' | 'dispatched';
 
 interface Reservation {
   id: string;
   capacity_cost: number;
-  capacity_lease_ms: number;
   phase: ReservationPhase;
-  expires_at_ms: number;
 }
 
 interface ReservationState {
@@ -64,12 +61,6 @@ function positiveInteger(value: unknown, code: string): asserts value is number 
   }
 }
 
-function nonnegativeInteger(value: unknown, code: string): asserts value is number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error(code);
-  }
-}
-
 function validateReservation(value: unknown): Reservation {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
@@ -79,18 +70,10 @@ function validateReservation(value: unknown): Reservation {
     throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
   }
   positiveInteger(raw.capacity_cost, 'GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
-  positiveInteger(raw.capacity_lease_ms, 'GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
   if (raw.phase !== 'reserved' && raw.phase !== 'dispatched') {
     throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
   }
-  nonnegativeInteger(raw.expires_at_ms, 'GITHUB_ACTIONS_CAPACITY_RESERVATION_INVALID');
-  return {
-    id: raw.id,
-    capacity_cost: raw.capacity_cost,
-    capacity_lease_ms: raw.capacity_lease_ms,
-    phase: raw.phase,
-    expires_at_ms: raw.expires_at_ms,
-  };
+  return { id: raw.id, capacity_cost: raw.capacity_cost, phase: raw.phase };
 }
 
 function state(value: unknown, budget: number): ReservationState {
@@ -109,10 +92,6 @@ function state(value: unknown, budget: number): ReservationState {
   return { schema: STATE_SCHEMA, budget, reservations };
 }
 
-function active(state: ReservationState, nowMs: number): Reservation[] {
-  return state.reservations.filter((reservation) => reservation.expires_at_ms > nowMs);
-}
-
 function committedCapacity(reservations: readonly Reservation[]): number {
   return reservations.reduce((sum, reservation) => sum + reservation.capacity_cost, 0);
 }
@@ -126,16 +105,13 @@ export interface GithubActionsCapacity {
 export interface GithubActionsCapacityReservation {
   reservation_id: string;
   capacity_cost: number;
-  capacity_lease_ms: number;
   phase: ReservationPhase;
-  expires_at_ms: number;
   authority_head: string;
 }
 
 export interface GithubActionsDispatchContract {
   reservation_id: string;
   capacity_cost: number;
-  capacity_lease_ms: number;
 }
 
 export type GithubActionsDispatchReservation =
@@ -151,40 +127,31 @@ export type GithubActionsDispatchReservation =
 
 export class GithubActionsCapacityController {
   readonly budget: number;
-  readonly #reservationTtlMs: number;
-  readonly #clock: () => number;
   readonly #store: ReservationStore;
 
   constructor({
     budget,
-    reservationTtlMs = DEFAULT_RESERVATION_TTL_MS,
-    clock = () => Date.now(),
     store,
     repo,
     ref,
     remote,
   }: {
     budget: number;
-    reservationTtlMs?: number;
-    clock?: () => number;
     store?: ReservationStore;
     repo?: string;
     ref?: string;
     remote?: string | null;
   }) {
     positiveInteger(budget, 'GITHUB_ACTIONS_CAPACITY_BUDGET_INVALID');
-    positiveInteger(reservationTtlMs, 'GITHUB_ACTIONS_CAPACITY_RESERVATION_TTL_INVALID');
     if (!store && !repo) throw new Error('GITHUB_ACTIONS_CAPACITY_AUTHORITY_REQUIRED');
     this.budget = budget;
-    this.#reservationTtlMs = reservationTtlMs;
-    this.#clock = clock;
     this.#store = store ?? new GitReservationStore(repo!, { ref, remote });
   }
 
   capacity(): GithubActionsCapacity {
     const head = this.#store.head();
     const current = state(head ? this.#store.read(head) : null, this.budget);
-    return this.#capacity(active(current, this.#clock()));
+    return this.#capacity(current.reservations);
   }
 
   reservation(reservationId: string): GithubActionsCapacityReservation | null {
@@ -192,41 +159,34 @@ export class GithubActionsCapacityController {
     const head = this.#store.head();
     if (!head) return null;
     const current = state(this.#store.read(head), this.budget);
-    const found = active(current, this.#clock()).find(
-      (reservation) => reservation.id === reservationId,
-    );
+    const found = current.reservations.find((reservation) => reservation.id === reservationId);
     return found ? this.#publicReservation(found, head) : null;
   }
 
   reserveDispatch(contract: GithubActionsDispatchContract): GithubActionsDispatchReservation {
     const reservationId = contract.reservation_id;
     const capacityCost = contract.capacity_cost;
-    const capacityLeaseMs = contract.capacity_lease_ms;
     if (!reservationId) throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_ID_REQUIRED');
     positiveInteger(capacityCost, 'GITHUB_ACTIONS_CAPACITY_COST_INVALID');
-    positiveInteger(capacityLeaseMs, 'GITHUB_ACTIONS_CAPACITY_LEASE_INVALID');
 
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      const now = this.#clock();
       const head = this.#store.head();
       const current = state(head ? this.#store.read(head) : null, this.budget);
-      const reservations = active(current, now);
-      const existing = reservations.find((reservation) => reservation.id === reservationId);
+      const existing = current.reservations.find(
+        (reservation) => reservation.id === reservationId,
+      );
       if (existing) {
-        if (
-          existing.capacity_cost !== capacityCost ||
-          existing.capacity_lease_ms !== capacityLeaseMs
-        ) {
+        if (existing.capacity_cost !== capacityCost) {
           throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_ID_CONFLICT');
         }
         return {
           state: 'reserved',
           reservation: this.#publicReservation(existing, head!),
-          capacity: this.#capacity(reservations),
+          capacity: this.#capacity(current.reservations),
         };
       }
 
-      const before = this.#capacity(reservations);
+      const before = this.#capacity(current.reservations);
       if (before.available_capacity < capacityCost) {
         return { state: 'saturated', capacity: before };
       }
@@ -234,14 +194,12 @@ export class GithubActionsCapacityController {
       const reservation: Reservation = {
         id: reservationId,
         capacity_cost: capacityCost,
-        capacity_lease_ms: capacityLeaseMs,
         phase: 'reserved',
-        expires_at_ms: now + this.#reservationTtlMs,
       };
       const next = {
         schema: STATE_SCHEMA,
         budget: this.budget,
-        reservations: [...reservations, reservation],
+        reservations: [...current.reservations, reservation],
       } satisfies ReservationState;
       const commit = this.#store.append(head, next);
       if (commit) {
@@ -259,55 +217,58 @@ export class GithubActionsCapacityController {
     if (!reservationId) throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_ID_REQUIRED');
 
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      const now = this.#clock();
       const head = this.#store.head();
       if (!head) throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_MISSING');
       const current = state(this.#store.read(head), this.budget);
-      const reservations = active(current, now);
-      const index = reservations.findIndex((reservation) => reservation.id === reservationId);
+      const index = current.reservations.findIndex(
+        (reservation) => reservation.id === reservationId,
+      );
       if (index < 0) throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_MISSING');
-      const existing = reservations[index]!;
+      const existing = current.reservations[index]!;
       if (existing.phase === 'dispatched') return this.#publicReservation(existing, head);
 
-      const dispatched: Reservation = {
-        ...existing,
-        phase: 'dispatched',
-        expires_at_ms: now + existing.capacity_lease_ms,
-      };
-      const nextReservations = [...reservations];
-      nextReservations[index] = dispatched;
+      const dispatched: Reservation = { ...existing, phase: 'dispatched' };
+      const reservations = [...current.reservations];
+      reservations[index] = dispatched;
       const commit = this.#store.append(head, {
         schema: STATE_SCHEMA,
         budget: this.budget,
-        reservations: nextReservations,
+        reservations,
       });
       if (commit) return this.#publicReservation(dispatched, commit);
     }
     throw new Error('GITHUB_ACTIONS_CAPACITY_DISPATCH_CONTENTION_EXHAUSTED');
   }
 
+  cancelReservation(reservationId: string): string | null {
+    return this.#remove(reservationId, 'reserved', 'GITHUB_ACTIONS_CAPACITY_ALREADY_DISPATCHED');
+  }
+
   releaseDispatch(reservationId: string): string | null {
+    return this.#remove(reservationId, 'dispatched', 'GITHUB_ACTIONS_CAPACITY_NOT_DISPATCHED');
+  }
+
+  #remove(
+    reservationId: string,
+    requiredPhase: ReservationPhase,
+    phaseError: string,
+  ): string | null {
     if (!reservationId) throw new Error('GITHUB_ACTIONS_CAPACITY_RESERVATION_ID_REQUIRED');
 
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      const now = this.#clock();
       const head = this.#store.head();
       if (!head) return null;
       const current = state(this.#store.read(head), this.budget);
-      const reservations = active(current, now);
-      const nextReservations = reservations.filter(
-        (reservation) => reservation.id !== reservationId,
-      );
-      if (
-        nextReservations.length === reservations.length &&
-        reservations.length === current.reservations.length
-      ) {
-        return head;
-      }
+      const found = current.reservations.find((reservation) => reservation.id === reservationId);
+      if (!found) return head;
+      if (found.phase !== requiredPhase) throw new Error(phaseError);
+
       const commit = this.#store.append(head, {
         schema: STATE_SCHEMA,
         budget: this.budget,
-        reservations: nextReservations,
+        reservations: current.reservations.filter(
+          (reservation) => reservation.id !== reservationId,
+        ),
       });
       if (commit) return commit;
     }
@@ -330,9 +291,7 @@ export class GithubActionsCapacityController {
     return {
       reservation_id: reservation.id,
       capacity_cost: reservation.capacity_cost,
-      capacity_lease_ms: reservation.capacity_lease_ms,
       phase: reservation.phase,
-      expires_at_ms: reservation.expires_at_ms,
       authority_head: authorityHead,
     };
   }
