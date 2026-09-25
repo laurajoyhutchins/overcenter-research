@@ -79,7 +79,7 @@ jobs:
           name: recovery-semantic-assignment
           path: ${{ runner.temp }}/recovery-semantic-assignment
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
   worker:
     name: Untrusted Google-free reasoner - choose semantics
@@ -212,7 +212,7 @@ jobs:
             ${{ runner.temp }}/recovery-semantic-google-free/out/candidate.json
             ${{ runner.temp }}/recovery-semantic-google-free/out/provenance.json
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
   verify:
     name: Trusted benchmark - compile, observe, and score
