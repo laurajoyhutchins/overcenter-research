@@ -110,7 +110,10 @@
           },
           "reason": "production authority persistence is the SQLite durable fact store"
         }
-      ]
+      ],
+      "max_hybrid_closure_semantic_loc": 8058,
+      "expected_hybrid_closure_sha256": "1e1c53ff04f63edfb154469f28878fa3b95c89052e40fb216ab2cf9d9f3ed1ed",
+      "require_sound_symbol_closure": true
     },
     {
       "id": "no-false-done",
@@ -241,7 +244,10 @@
           },
           "reason": "production authority persistence is the SQLite durable fact store"
         }
-      ]
+      ],
+      "max_hybrid_closure_semantic_loc": 8055,
+      "expected_hybrid_closure_sha256": "401fbf9b746fe3a8b2c2e0d94460c16a0da80e08667a56a7787b7037969c3ddb",
+      "require_sound_symbol_closure": true
     },
     {
       "id": "github-commit-status-provider",
@@ -333,7 +339,10 @@
         "src/authority/engine.ts#authorizeEffect",
         "src/authority/engine.ts#performEffect",
         "src/authority/engine.ts#releaseEffectReservation"
-      ]
+      ],
+      "max_hybrid_closure_semantic_loc": 2746,
+      "expected_hybrid_closure_sha256": "4a2a068440cff2687b765c7ad0708d708ce7c747f0fc69745dfea4137bf67d3e",
+      "require_sound_symbol_closure": true
     }
   ]
 }
