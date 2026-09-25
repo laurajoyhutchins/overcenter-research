@@ -1,0 +1,64 @@
+name: Repair invalid completed-work claim
+
+on:
+  push:
+    branches:
+      - maintenance/repair-invalid-done-claim
+    paths:
+      - .github/workflows/repair-overcenter-authority.yml
+
+permissions: {}
+
+jobs:
+  repair:
+    name: Remove exact invalid DONE claim
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions:
+      contents: write
+    env:
+      AUTHORITY_REF: refs/overcenter/state
+      EXPECTED_HEAD: 8b4d2b50def29c2a1f7d9933a97322e8e1a7c79f
+      TARGET_HEAD: 9edd0336c13d6649ec035132c12000fbcb918af8
+      INVALID_RUN: 461d526c-1a9c-4ea4-9b4d-992d44046aad
+    steps:
+      - name: Check out maintenance code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Prove exact invalid authority suffix
+        shell: bash
+        run: |
+          set -euo pipefail
+          observed="$(git ls-remote origin "$AUTHORITY_REF" | awk '{print $1}')"
+          test "$observed" = "$EXPECTED_HEAD"
+
+          git fetch --no-tags origin "+$AUTHORITY_REF:$AUTHORITY_REF"
+          test "$(git rev-parse "$AUTHORITY_REF")" = "$EXPECTED_HEAD"
+          test "$(git rev-parse "$EXPECTED_HEAD^")" = "$TARGET_HEAD"
+          test "$(git show -s --format=%s "$EXPECTED_HEAD")" = "overcenter: claim live-agent-loop-witness $INVALID_RUN"
+
+          actual="$(git diff-tree --no-commit-id --name-status -r "$EXPECTED_HEAD" | LC_ALL=C sort)"
+          expected="$(printf 'A\tclaim.json\nD\treceipt.json\n' | LC_ALL=C sort)"
+          test "$actual" = "$expected"
+
+          git show "$EXPECTED_HEAD:claim.json" | grep -F "\"run_id\": \"$INVALID_RUN\""
+          git show "$EXPECTED_HEAD:claim.json" | grep -F '"obligation_id": "live-agent-loop-witness"'
+          git cat-file -e "$TARGET_HEAD:receipt.json"
+
+      - name: Restore last replay-valid authority head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --porcelain \
+            --force-with-lease="$AUTHORITY_REF:$EXPECTED_HEAD" \
+            origin "$TARGET_HEAD:$AUTHORITY_REF"
+
+      - name: Verify exact repaired head
+        shell: bash
+        run: |
+          set -euo pipefail
+          observed="$(git ls-remote origin "$AUTHORITY_REF" | awk '{print $1}')"
+          test "$observed" = "$TARGET_HEAD"
