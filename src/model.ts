@@ -48,12 +48,6 @@ export interface GitHubPullRequestBranchUpdatedPostcondition {
   expected_base_sha: string;
 }
 
-export interface GithubSourceBoundEvidenceRun {
-  workflow_run_id: number;
-  revision: string;
-  artifact_digest: string;
-}
-
 export interface GithubSourceBoundEvidencePostcondition {
   verifier: 'github-source-bound-evidence/v1';
   provider: 'github';
@@ -62,12 +56,7 @@ export interface GithubSourceBoundEvidencePostcondition {
   ref: string;
   evidence_path: string;
   expected_sha256: string;
-  source_blobs: Record<string, string>;
-  evidence_source_blobs: Record<string, string>;
-  source_runs: GithubSourceBoundEvidenceRun[];
-  workflow_path: string;
-  job_name: string;
-  artifact_name: string;
+  binding: Data;
 }
 
 export interface KubernetesConfigMapExistsPostcondition {
