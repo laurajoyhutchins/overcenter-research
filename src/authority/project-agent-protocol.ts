@@ -14,6 +14,10 @@ import {
   type AssignmentTaskPacket,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest, sha256 } from '../digest.ts';
+import {
+  compileHostileMutationEvidenceObligation,
+  isSystemEvidenceObligation,
+} from '../evidence/hostile-mutation-obligation.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
 import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
@@ -230,16 +234,31 @@ function gitSourceTree(
   });
 }
 
-function desiredProjectGraph(repo: string, sourceSha: string) {
+function desiredProjectGraph(
+  repo: string,
+  sourceSha: string,
+  context: ProjectCommandContext,
+) {
   const bytes = gitOptionalBytes(repo, sourceSha, PROJECT_INTENT_PATH);
-  if (!bytes) return null;
-  let value: unknown;
-  try {
-    value = JSON.parse(bytes.toString('utf8'));
-  } catch {
-    throw new Error('PROJECT_INTENT_JSON_INVALID');
+  let intent = [];
+  if (bytes) {
+    let value: unknown;
+    try {
+      value = JSON.parse(bytes.toString('utf8'));
+    } catch {
+      throw new Error('PROJECT_INTENT_JSON_INVALID');
+    }
+    intent = compileProjectIntent(value);
   }
-  return compileProjectIntent(value);
+  return [
+    ...intent,
+    compileHostileMutationEvidenceObligation({
+      repo,
+      sourceSha,
+      repositoryId: context.repository_id,
+      repositoryFullName: context.repository_full_name,
+    }),
+  ];
 }
 
 function prepareAgentPacket(
@@ -346,7 +365,11 @@ export function advanceProjectForAgent(
     githubToken,
   });
   if (!kernel.head()) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
-  const desired = desiredProjectGraph(repo, context.command_source_sha.toLowerCase());
+  const desired = desiredProjectGraph(
+    repo,
+    context.command_source_sha.toLowerCase(),
+    context,
+  );
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
     if (desired) {
@@ -377,6 +400,25 @@ export function advanceProjectForAgent(
         authority_ref: authorityRef,
         authority_head: authorityHead,
         state: visibleState(kernel.inspect()),
+      });
+    }
+
+    if (isSystemEvidenceObligation(ready)) {
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
+      return withDigest({
+        schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
+        command: PROJECT_ADVANCE_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        state: 'READY' as const,
+        obligation_id: ready.id,
       });
     }
 
