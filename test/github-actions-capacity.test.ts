@@ -56,6 +56,7 @@ test('certified Actions observations project account-scope in-progress job load'
       { repository_id: 42, repository_full_name: 'acme/widget' },
       { repository_id: 43, repository_full_name: 'acme/gadget' },
     ],
+    scopeCompleteness: 'account-complete',
     clock: () => `2026-09-24T21:00:0${tick++}.000Z`,
     get: (_token, path) => {
       paths.push(path);
@@ -106,6 +107,7 @@ test('certified Actions observations project account-scope in-progress job load'
 test('capacity subtracts provider-observed occupancy, local reservations, and safety reserve', () => {
   const observation = {
     repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+    scope_completeness: 'account-complete' as const,
     in_progress_jobs: Array.from({ length: 17 }, (_, index) => ({
       repository_id: 42,
       repository_full_name: 'acme/widget',
@@ -135,6 +137,7 @@ test('capacity subtracts provider-observed occupancy, local reservations, and sa
       committed_jobs: 19,
       available_jobs: 1,
       state: 'available',
+      reason: null,
       conservative_runner_classification: true,
     },
   );
@@ -153,6 +156,7 @@ test('capacity subtracts provider-observed occupancy, local reservations, and sa
 test('queued jobs do not consume the observed concurrency budget', () => {
   const observation = observeGithubActionsLoad('token', {
     repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+    scopeCompleteness: 'account-complete',
     get: (_token, path) => {
       if (path === '/repos/acme/widget') return repository(42, 'acme/widget');
       if (path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress') {
@@ -195,9 +199,35 @@ test('capacity observation fails closed on a partial Actions collection', () => 
   );
 });
 
+
+test('partial repository scope cannot claim account runner capacity', () => {
+  const observation = {
+    repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+    scope_completeness: 'partial' as const,
+    in_progress_jobs: [],
+    evidence: [],
+    observed_from: '2026-09-24T21:00:00.000Z',
+    observed_through: '2026-09-24T21:00:00.000Z',
+    completeness: 'single-page-certified' as const,
+  };
+
+  assert.deepEqual(projectGithubActionsCapacity({ observation, limit: 20 }), {
+    limit: 20,
+    observed_in_progress_jobs: 0,
+    locally_reserved_jobs: 0,
+    safety_reserve_jobs: 0,
+    committed_jobs: 0,
+    available_jobs: 0,
+    state: 'indeterminate',
+    reason: 'repository-scope-incomplete',
+    conservative_runner_classification: true,
+  });
+});
+
 test('capacity projection rejects invalid limits and reservation counts', () => {
   const observation = {
     repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+    scope_completeness: 'account-complete' as const,
     in_progress_jobs: [],
     evidence: [],
     observed_from: '2026-09-24T21:00:00.000Z',
