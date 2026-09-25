@@ -1,11 +1,12 @@
 import { hostileMutationEvidenceGraphProducer } from '../evidence/hostile-mutation-obligation.ts';
 import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
+import type { RepositorySnapshot } from '../evidence/repository-snapshot.ts';
 import type { ProjectGraphProducer } from './project-graph.ts';
 
 export const projectIntentGraphProducer: ProjectGraphProducer = Object.freeze({
   id: 'project-intent',
   input_paths: [PROJECT_INTENT_PATH],
-  produce(snapshot) {
+  produce(snapshot: RepositorySnapshot) {
     let value: unknown;
     try {
       value = JSON.parse(snapshot.bytes(PROJECT_INTENT_PATH).toString('utf8'));
