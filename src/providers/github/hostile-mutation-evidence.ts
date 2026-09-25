@@ -1,7 +1,4 @@
-import type {
-  GithubHostileMutationEvidencePostcondition,
-  Observation,
-} from '../../model.ts';
+import type { GithubHostileMutationEvidencePostcondition, Observation } from '../../model.ts';
 import {
   observeGithubSourceBoundEvidence,
   type GithubSourceBoundEvidenceBinding,
