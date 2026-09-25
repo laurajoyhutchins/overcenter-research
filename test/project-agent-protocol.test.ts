@@ -21,6 +21,7 @@ import {
   submitProjectCandidate,
 } from '../src/authority/project-agent-protocol.ts';
 import { compileProjectIntent } from '../src/authority/project-intent.ts';
+import { hostileMutationEvidenceGraphProducer } from '../src/evidence/hostile-mutation-obligation.ts';
 
 const AUTHORITY_REF = 'refs/overcenter/test-project-agent';
 
@@ -237,6 +238,7 @@ test('project.advance surfaces READY system evidence without claiming agent work
       outputDir,
       authorityRef: AUTHORITY_REF,
       remote: 'origin',
+      graphProducers: [hostileMutationEvidenceGraphProducer],
     });
 
     assert.equal(receipt.state, 'READY');
