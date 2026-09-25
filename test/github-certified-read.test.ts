@@ -318,8 +318,7 @@ test('GitHub derives an account-complete owned-repository inventory from user id
       seen.push(path);
       if (path === '/user') return { login: 'acme' };
       if (
-        path ===
-        '/user/repos?affiliation=owner&direction=asc&page=1&per_page=100&sort=full_name'
+        path === '/user/repos?affiliation=owner&direction=asc&page=1&per_page=100&sort=full_name'
       ) {
         return [
           { id: 42, full_name: 'acme/widget', owner: { login: 'acme' } },
