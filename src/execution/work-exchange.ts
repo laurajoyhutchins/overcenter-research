@@ -93,7 +93,11 @@ function fail(code: string): never {
   throw new Error(code);
 }
 
-function exactKeys(value: Record<string, unknown>, expected: readonly string[], code: string): void {
+function exactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+  code: string,
+): void {
   const keys = Object.keys(value).sort();
   const wanted = [...expected].sort();
   if (JSON.stringify(keys) !== JSON.stringify(wanted)) fail(code);
@@ -312,7 +316,9 @@ export function executeWorkPacket(
   const receiptPath = packetFile(root, 'receipt.json');
 
   const assignmentBytes = readFileSync(assignmentPath);
-  const assignment = validateAssignment(parseJson(assignmentBytes, 'WORK_EXCHANGE_ASSIGNMENT_JSON_INVALID'));
+  const assignment = validateAssignment(
+    parseJson(assignmentBytes, 'WORK_EXCHANGE_ASSIGNMENT_JSON_INVALID'),
+  );
   const assignmentDigest = assignmentSha256(assignmentBytes);
 
   const receiptBytes = readFileSync(receiptPath);
