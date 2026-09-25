@@ -1,6 +1,6 @@
 import { advanceProjectForAgent } from '../authority/project-agent-protocol.ts';
 import { DEFAULT_PROJECT_GRAPH_PRODUCERS } from '../authority/default-project-graph.ts';
-import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
+import { observeGithubSourceBoundEvidence } from '../providers/github/source-bound-evidence.ts';
 import {
   appendGithubOutputs,
   commandOption,
@@ -25,8 +25,8 @@ const receipt = advanceProjectForAgent(process.cwd(), projectCommandContext(), {
     githubToken,
     ...(githubToken
       ? {
-          observeGithubHostileMutationEvidence: (postcondition) =>
-            observeGithubHostileMutationEvidence(githubToken, postcondition),
+          observeGithubSourceBoundEvidence: (postcondition) =>
+            observeGithubSourceBoundEvidence(githubToken, postcondition),
         }
       : {}),
   },
