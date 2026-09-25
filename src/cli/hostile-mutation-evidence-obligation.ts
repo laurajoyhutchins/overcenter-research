@@ -1,8 +1,6 @@
 import { execFileSync } from 'node:child_process';
 
-import {
-  compileHostileMutationEvidenceFromRepository,
-} from '../evidence/hostile-mutation-obligation.ts';
+import { compileHostileMutationEvidenceFromRepository } from '../evidence/hostile-mutation-obligation.ts';
 import {
   reconcileSystemEvidence,
   settleSystemEvidence,

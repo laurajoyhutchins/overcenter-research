@@ -482,10 +482,7 @@ export function observePostcondition(p: Postcondition, context: ObservationConte
 
   if (p.verifier === 'github-source-bound-evidence/v1') {
     if (!context.observeGithubSourceBoundEvidence) {
-      return githubSourceBoundEvidenceError(
-        p,
-        'GITHUB_SOURCE_BOUND_EVIDENCE_OBSERVER_UNAVAILABLE',
-      );
+      return githubSourceBoundEvidenceError(p, 'GITHUB_SOURCE_BOUND_EVIDENCE_OBSERVER_UNAVAILABLE');
     }
     try {
       return context.observeGithubSourceBoundEvidence(p);

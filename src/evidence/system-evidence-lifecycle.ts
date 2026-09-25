@@ -30,7 +30,9 @@ export async function reconcileSystemEvidence(
     attempts?: number;
     retryDelayMs?: number;
   } = {},
-): Promise<{ state: 'reconciled'; result: unknown } | { state: 'deferred'; reason: 'PROJECT_BUSY' }> {
+): Promise<
+  { state: 'reconciled'; result: unknown } | { state: 'deferred'; reason: 'PROJECT_BUSY' }
+> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const expectedRevision = authority.head();
     if (!expectedRevision) throw new Error('SYSTEM_EVIDENCE_AUTHORITY_MISSING');

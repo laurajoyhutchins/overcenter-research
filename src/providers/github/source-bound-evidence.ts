@@ -1,7 +1,4 @@
-import type {
-  GithubSourceBoundEvidencePostcondition,
-  Observation,
-} from '../../model.ts';
+import type { GithubSourceBoundEvidencePostcondition, Observation } from '../../model.ts';
 import { canonicalDigest, sha256 } from '../../digest.ts';
 import {
   readGithubEvidenceFile,
