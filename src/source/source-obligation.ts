@@ -1,3 +1,4 @@
+import { GITHUB_SOURCE_INTEGRATION_EFFECT } from '../effect-adapter.ts';
 import { assertExactKeys, assertNonEmptyString, isData } from '../validation.ts';
 
 export const SOURCE_TASK_SCHEMA = 'overcenter-source-task/v1' as const;
@@ -10,6 +11,7 @@ export interface SourceTaskPacket extends Record<string, unknown> {
   kind: 'source-change';
   objective: string;
   writable_paths: string[];
+  effect_contract: typeof GITHUB_SOURCE_INTEGRATION_EFFECT;
 }
 
 export interface SourceClaimBinding {
@@ -98,12 +100,18 @@ export function validateSourceTaskPacket(value: unknown): SourceTaskPacket {
   assertExactKeys(
     value,
     ['schema', 'kind', 'objective', 'writable_paths'],
-    [],
+    ['effect_contract'],
     'SOURCE_TASK_INVALID',
   );
   if (value.schema !== SOURCE_TASK_SCHEMA) throw new Error('SOURCE_TASK_SCHEMA_MISMATCH');
   if (value.kind !== 'source-change') throw new Error('SOURCE_TASK_KIND_INVALID');
   assertNonEmptyString(value.objective, 'SOURCE_TASK_OBJECTIVE_INVALID');
+  if (
+    value.effect_contract !== undefined &&
+    value.effect_contract !== GITHUB_SOURCE_INTEGRATION_EFFECT
+  ) {
+    throw new Error('SOURCE_TASK_EFFECT_CONTRACT_INVALID');
+  }
 
   if (!Array.isArray(value.writable_paths) || value.writable_paths.length === 0) {
     throw new Error('SOURCE_TASK_WRITABLE_PATHS_INVALID');
@@ -120,6 +128,7 @@ export function validateSourceTaskPacket(value: unknown): SourceTaskPacket {
     kind: 'source-change',
     objective: value.objective,
     writable_paths: [...value.writable_paths].sort(),
+    effect_contract: GITHUB_SOURCE_INTEGRATION_EFFECT,
   };
 }
 

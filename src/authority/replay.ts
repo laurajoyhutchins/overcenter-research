@@ -366,11 +366,11 @@ export function replayProjection(
     ) {
       throw new Error('SOURCE_RECEIPT_FOR_NON_SOURCE_WORK');
     }
-    if (
-      (fact.kind === 'source-integration' || fact.kind === 'source-retry') &&
-      unresolvedReservationsByRun.has(run.id)
-    ) {
-      throw new Error('SOURCE_RECEIPT_WITH_UNRESOLVED_EFFECT');
+    if (fact.kind === 'source-integration' && !unresolvedReservationsByRun.has(run.id)) {
+      throw new Error('SOURCE_INTEGRATION_WITHOUT_RESERVED_EFFECT');
+    }
+    if (fact.kind === 'source-retry' && unresolvedReservationsByRun.has(run.id)) {
+      throw new Error('SOURCE_RETRY_WITH_UNRESOLVED_EFFECT');
     }
     if (fact.kind === 'effect-not-dispatched' && !notDispatchedRelease) {
       throw new Error('EFFECT_NOT_DISPATCHED_RECEIPT_WITHOUT_RELEASE');

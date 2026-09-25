@@ -11,6 +11,9 @@ export const GITHUB_COMMIT_STATUS_EFFECT =
 export const GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT =
   'github-pull-request/update-branch' as const;
 
+export const GITHUB_SOURCE_INTEGRATION_EFFECT =
+  'github-source/integrate-verified-tree/v1' as const;
+
 export const KUBERNETES_CONFIGMAP_EFFECT = 'kubernetes-configmap/ensure' as const;
 
 export type DuplicateDeliverySemantics =
@@ -116,6 +119,21 @@ export const EFFECT_ADAPTER_CAPABILITIES = [
     reservation_release: {
       kind: 'forbidden',
       reason: 'no trusted pre-dispatch evidence boundary is admitted for this adapter',
+    },
+  },
+  {
+    schema: EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
+    effect_contract: GITHUB_SOURCE_INTEGRATION_EFFECT,
+    postcondition_verifier: 'source-integration/v1',
+    duplicate_delivery: 'may-duplicate',
+    replay: {
+      kind: 'forbidden',
+      reason:
+        'an ambiguous source-ref mutation must be reconciled from authoritative ref readback before any retry',
+    },
+    reservation_release: {
+      kind: 'forbidden',
+      reason: 'no trusted pre-dispatch release boundary is admitted for source integration',
     },
   },
 ] as const satisfies readonly EffectAdapterCapabilities[];

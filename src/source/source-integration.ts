@@ -428,7 +428,8 @@ export function integrateVerifiedSourceCandidate(
   }: {
     remote?: string;
     ref?: string;
-  } = {},
+    performReservedMutation: (mutation: () => boolean) => boolean;
+  },
 ): SourceIntegrationResult {
   try {
     inspectSourceCandidate(repo, taskValue, claim, candidateSha);
@@ -518,7 +519,22 @@ export function integrateVerifiedSourceCandidate(
     candidateTree.dispose();
   }
 
-  if (remoteRefCas(repo, remote, ref, integrated, current)) {
+  let mutationReportedSuccess = false;
+  try {
+    mutationReportedSuccess = performReservedMutation(() =>
+      remoteRefCas(repo, remote, ref, integrated, current),
+    );
+  } catch {
+    return { state: 'RECOVERY_REQUIRED', reason: 'SOURCE_CAS_OUTCOME_UNCERTAIN' };
+  }
+
+  let observed: string;
+  try {
+    observed = remoteRefHead(repo, remote, ref) ?? '';
+  } catch {
+    return { state: 'RECOVERY_REQUIRED', reason: 'SOURCE_CAS_READBACK_UNAVAILABLE' };
+  }
+  if (observed === integrated) {
     const evidence: SourceIntegrationEvidence = {
       schema: SOURCE_INTEGRATION_EVIDENCE_SCHEMA,
       run_id: claim.run_id,
@@ -528,20 +544,13 @@ export function integrateVerifiedSourceCandidate(
       verification_base_sha: verification.base_sha,
       verified_tree_sha: verification.tree_sha,
       integration_commit: integrated,
-      state: 'integrated',
+      state: mutationReportedSuccess ? 'integrated' : 'already-integrated',
     };
     return {
-      state: 'INTEGRATED',
+      state: mutationReportedSuccess ? 'INTEGRATED' : 'ALREADY_INTEGRATED',
       witness: mintSourceIntegrationWitness(evidence),
       commit_sha: integrated,
     };
-  }
-
-  let observed: string;
-  try {
-    observed = remoteRefHead(repo, remote, ref) ?? '';
-  } catch {
-    return { state: 'RECOVERY_REQUIRED', reason: 'SOURCE_CAS_OUTCOME_UNCERTAIN' };
   }
   const after = observed
     ? validExistingIntegration(repo, observed, claim, candidateSha, verification)
@@ -564,5 +573,5 @@ export function integrateVerifiedSourceCandidate(
       commit_sha: after,
     };
   }
-  return { state: 'REREALIZE_REQUIRED', reason: 'SOURCE_MAIN_CAS_LOST' };
+  return { state: 'RECOVERY_REQUIRED', reason: 'SOURCE_MAIN_CAS_NOT_CONFIRMED' };
 }

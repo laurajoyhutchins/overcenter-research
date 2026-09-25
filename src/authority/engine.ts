@@ -55,6 +55,7 @@ import type { Projection } from './replay.ts';
 import { mutationAdmitted, projectExecutionAuthority } from './transaction-admission.ts';
 import {
   effectAdapterCapabilities,
+  GITHUB_SOURCE_INTEGRATION_EFFECT,
   reservedEffectReleaseWitnessSafe,
   type EffectVerifier,
   type RegisteredEffectContract,
@@ -446,6 +447,23 @@ export class KernelCore {
     return await effect(attempt);
   }
 
+  performEffectSync<T, E extends string, V extends Postcondition['verifier']>(
+    authority: EffectAuthority<E, V>,
+    effect: (attempt: EffectAttemptBinding) => T,
+  ): T {
+    const permit = effectAuthorityPermit(authority);
+    const reservationCommit = this.beginEffect(permit);
+    const attempt: EffectAttemptBinding = Object.freeze({
+      run_id: permit.id,
+      obligation_id: permit.obligation_id,
+      execution_generation: permit.execution_generation,
+      execution_authority_commit: permit.execution_authority_commit,
+      reservation_commit: reservationCommit,
+      effect_contract: authority[effectAuthorityBrand],
+    });
+    return effect(attempt);
+  }
+
   releaseEffectReservation<E extends string, V extends Postcondition['verifier']>(
     authority: EffectAuthority<E, V>,
     witness: TrustedEffectReleaseWitness,
@@ -539,6 +557,7 @@ export class KernelCore {
       ({ run, work }) => {
         if (
           work.packet.kind !== 'source-change' ||
+          work.packet.effect_contract !== GITHUB_SOURCE_INTEGRATION_EFFECT ||
           work.postcondition.verifier !== 'source-integration/v1'
         ) {
           throw new Error('SOURCE_SETTLEMENT_WORK_INVALID');
@@ -802,7 +821,7 @@ export class KernelCore {
             ? {
                 action: 'integrate source',
                 lifecycleError: 'SOURCE_SETTLEMENT_RUN_NOT_EXECUTING',
-                unresolvedError: 'SOURCE_SETTLEMENT_WITH_UNRESOLVED_EFFECT',
+                unresolvedError: null,
                 contentionError: 'SOURCE_INTEGRATION_SETTLEMENT_CONTENTION_EXHAUSTED',
               }
             : {
@@ -828,7 +847,11 @@ export class KernelCore {
         if (prior) return prior;
         throw new Error(policy.lifecycleError);
       }
-      if (policy.unresolvedError && history.unresolvedReservationsByRun.has(runId)) {
+      const unresolvedEffect = history.unresolvedReservationsByRun.has(runId);
+      if (kind === 'source-integration' && !unresolvedEffect) {
+        throw new Error('SOURCE_SETTLEMENT_WITHOUT_RESERVED_EFFECT');
+      }
+      if (policy.unresolvedError && unresolvedEffect) {
         throw new Error(policy.unresolvedError);
       }
       validate?.({ run, work });

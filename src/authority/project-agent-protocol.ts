@@ -14,6 +14,7 @@ import {
   type AssignmentTaskPacket,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest, sha256 } from '../digest.ts';
+import { GITHUB_SOURCE_INTEGRATION_EFFECT } from '../effect-adapter.ts';
 import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
 import { buildSourceAssignment, validateSourceTaskPacket } from '../source/source-obligation.ts';
@@ -671,13 +672,18 @@ export function submitProjectCandidate(
       );
     }
 
+    const sourceAuthority = kernel.authorizeEffect(permit, GITHUB_SOURCE_INTEGRATION_EFFECT);
     const integration = integrateVerifiedSourceCandidate(
       repo,
       assigned.packet,
       claim,
       candidateSha,
       verification,
-      { remote },
+      {
+        remote,
+        performReservedMutation: (mutation) =>
+          kernel.performEffectSync(sourceAuthority, () => mutation()),
+      },
     );
 
     if (integration.state === 'INTEGRATED' || integration.state === 'ALREADY_INTEGRATED') {
