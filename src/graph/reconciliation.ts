@@ -8,6 +8,7 @@ import {
 
 export interface GraphReconciliationPlan {
   upsert: Obligation[];
+  retire: string[];
   added: string[];
   rebound: string[];
   unchanged: string[];
@@ -16,6 +17,7 @@ export interface GraphReconciliationPlan {
 export function planGraphReconciliation(
   state: State,
   desired: ObligationInput[],
+  managedPrefixes: readonly string[] = [],
 ): GraphReconciliationPlan {
   const normalized = desired.map(normalizeObligation).sort((a, b) => a.id.localeCompare(b.id));
 
@@ -24,6 +26,10 @@ export function planGraphReconciliation(
   const added: string[] = [];
   const rebound: string[] = [];
   const unchanged: string[] = [];
+
+  for (const prefix of managedPrefixes) {
+    if (prefix.length === 0) throw new Error('MANAGED_OBLIGATION_PREFIX_EMPTY');
+  }
 
   for (const obligation of normalized) {
     if (seen.has(obligation.id)) {
@@ -47,5 +53,10 @@ export function planGraphReconciliation(
     rebound.push(obligation.id);
   }
 
-  return { upsert, added, rebound, unchanged };
+  const desiredIds = new Set(normalized.map((obligation) => obligation.id));
+  const retire = Object.keys(state.obligations)
+    .filter((id) => managedPrefixes.some((prefix) => id.startsWith(prefix)) && !desiredIds.has(id))
+    .sort();
+
+  return { upsert, retire, added, rebound, unchanged };
 }
