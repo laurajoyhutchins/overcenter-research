@@ -16,7 +16,8 @@ if (requested.size !== 0 && selected.probes.length !== requested.size) {
   const unknown = [...requested].filter((id) => !found.has(id));
   throw new Error(`unknown mutation probe: ${unknown.join(',')}`);
 }
-fs.writeFileSync('mutation-ranges.json', JSON.stringify(selected, null, 2) + '\n');
+const rangesOutput = process.env.MUTATION_RANGES ?? 'mutation-ranges.json';
+fs.writeFileSync(rangesOutput, JSON.stringify(selected, null, 2) + '\n');
 
 const testFiles = [...new Set(selected.probes.flatMap((probe) => probe.tests ?? []))];
 if (testFiles.length === 0) throw new Error('selected mutation probes have no tests');
@@ -34,7 +35,7 @@ const config = {
   timeoutFactor: 2,
   reporters: ['clear-text', 'json'],
   jsonReporter: {
-    fileName: 'mutation.json',
+    fileName: process.env.MUTATION_REPORT ?? 'mutation.json',
   },
   thresholds: {
     high: 80,
