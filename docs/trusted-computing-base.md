@@ -43,13 +43,13 @@ The table below is generated from the executable report. Run `npm run update:tcb
 <!-- BEGIN GENERATED TCB BASELINE -->
 | Property | Explicit slice | Runtime symbols | Import envelope | Hybrid TCB | Hostile evidence | Hybrid SHA-256 |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
-| `broker-mutation-safety` | 1,106 | 3,266 | 8,043 | **8,167** | current | `2ec31c7dc165…ba9a0` |
-| `no-false-done` | 1,523 | 3,107 | 8,043 | **8,164** | stale | `97240fabb514…6de8c` |
+| `broker-mutation-safety` | 1,106 | 3,260 | 8,034 | **8,158** | current | `8b871ade819d…39920` |
+| `no-false-done` | 1,523 | 3,101 | 8,034 | **8,155** | stale | `c4d27ca65d4f…c5298` |
 | `github-commit-status-provider` | 2,377 | 2,550 | 2,740 | **2,746** | unconfigured | `6d7c785ce55b…30ba7` |
 
 | Composition | Deduplicated hybrid union | Hostile evidence | Union SHA-256 |
 | --- | ---: | --- | --- |
-| `github-status-safe-settlement` | **8,352** | stale-and-incomplete | `45cc6f256cef…f0756` |
+| `github-status-safe-settlement` | **8,343** | stale-and-incomplete | `dd7042f9b7ed…fc628` |
 <!-- END GENERATED TCB BASELINE -->
 
 The property scopes overlap and must not be summed. The composed GitHub status path is the deduplicated end-to-end trust surface for mutation admission through authoritative settlement. The two core properties share most of the same broad authority, graph, observation, and provider cone; adding the GitHub commit-status profile increases the composed hybrid surface by only 185 semantic lines above broker mutation safety.
