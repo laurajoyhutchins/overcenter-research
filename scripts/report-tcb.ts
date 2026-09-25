@@ -371,9 +371,7 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
                   .filter((path): path is string => path !== null),
               ),
             ].sort();
-            obligations.add(
-              `DYNAMIC_DISPATCH_UNRESOLVED:${symbol.name}:${targets.join(',')}`,
-            );
+            obligations.add(`DYNAMIC_DISPATCH_UNRESOLVED:${symbol.name}:${targets.join(',')}`);
           } else {
             externalSymbols.add(symbol.name);
           }
