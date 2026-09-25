@@ -21,6 +21,7 @@ import {
   isSystemEvidenceObligation,
 } from '../evidence/hostile-mutation-obligation.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
+import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
 import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
 import type { Work } from '../model.ts';
@@ -370,6 +371,14 @@ export function advanceProjectForAgent(
     ref: authorityRef,
     remote,
     githubToken,
+    observationContext: {
+      ...(githubToken
+        ? {
+            observeGithubHostileMutationEvidence: (postcondition) =>
+              observeGithubHostileMutationEvidence(githubToken, postcondition),
+          }
+        : {}),
+    },
   });
   if (!kernel.head()) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
   const desired = desiredProjectGraph(repo, context.command_source_sha.toLowerCase(), context);
