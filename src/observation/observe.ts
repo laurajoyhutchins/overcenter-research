@@ -4,7 +4,7 @@ import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync }
 import { dirname, resolve } from 'node:path';
 import type {
   AbsenceEvidenceCertificate,
-  GithubSourceBoundEvidencePostcondition,
+  GithubHostileMutationEvidencePostcondition,
   Observation,
   Postcondition,
 } from '../model.ts';
@@ -15,6 +15,7 @@ import {
 } from './evidence.ts';
 import { SettlementObservationSchema } from '../generated/settlement-observation-schema.ts';
 import { assertSupportedStructuralSchema, structurallyMatches } from '../structural-schema.ts';
+import { isPositiveSafeInteger, isSha256Hex } from '../validation.ts';
 import {
   observeCertifiedGithubCommitStatus,
   type GithubJsonGet,
@@ -39,8 +40,8 @@ export interface ObservationContext {
   githubToken: string | null;
   githubGet?: GithubJsonGet;
   githubGetAsync?: GithubJsonGetAsync;
-  observeGithubSourceBoundEvidence?: (
-    postcondition: GithubSourceBoundEvidencePostcondition,
+  observeGithubHostileMutationEvidence?: (
+    postcondition: GithubHostileMutationEvidencePostcondition,
   ) => Observation;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
@@ -58,6 +59,12 @@ const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e)
 function data(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
+
+const repositoryRelativePath = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  value.length > 0 &&
+  !value.startsWith('/') &&
+  !value.split('/').some((part) => part === '' || part === '.' || part === '..');
 
 assertSupportedStructuralSchema(SettlementObservationSchema);
 
@@ -148,21 +155,20 @@ export function validatePostcondition(p: Postcondition): void {
   )
     return;
   if (
-    p?.verifier === 'github-source-bound-evidence/v1' &&
+    p?.verifier === 'github-hostile-mutation-evidence/v1' &&
     p.provider === 'github' &&
-    Number.isSafeInteger(p.repository_id) &&
-    p.repository_id > 0 &&
+    isPositiveSafeInteger(p.repository_id) &&
     typeof p.repository_full_name === 'string' &&
     /^[^/]+\/[^/]+$/.test(p.repository_full_name) &&
     typeof p.ref === 'string' &&
     p.ref.length > 0 &&
-    typeof p.evidence_path === 'string' &&
-    p.evidence_path.length > 0 &&
-    !p.evidence_path.startsWith('/') &&
-    !p.evidence_path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
-    typeof p.expected_sha256 === 'string' &&
-    /^[0-9a-f]{64}$/i.test(p.expected_sha256) &&
-    data(p.binding)
+    repositoryRelativePath(p.evidence_path) &&
+    isSha256Hex(p.expected_sha256) &&
+    data(p.source_blobs) &&
+    Object.keys(p.source_blobs).length > 0 &&
+    Object.entries(p.source_blobs).every(
+      ([path, blob]) => repositoryRelativePath(path) && isGithubObjectId(blob),
+    )
   )
     return;
   if (
@@ -222,12 +228,8 @@ const githubStatusError = (
   observation_error: error,
 });
 
-const githubSourceBoundEvidenceBindingDigest = (
-  p: GithubSourceBoundEvidencePostcondition,
-): string => canonicalDigest(p.binding);
-
-const githubSourceBoundEvidenceError = (
-  p: GithubSourceBoundEvidencePostcondition,
+const githubHostileMutationEvidenceError = (
+  p: GithubHostileMutationEvidencePostcondition,
   error: string,
 ): Observation => ({
   verifier: p.verifier,
@@ -237,7 +239,7 @@ const githubSourceBoundEvidenceError = (
   ref: p.ref,
   evidence_path: p.evidence_path,
   expected_sha256: p.expected_sha256,
-  source_binding_sha256: githubSourceBoundEvidenceBindingDigest(p),
+  source_binding_sha256: canonicalDigest(p.source_blobs),
   mutation_certainty: 'uncertain',
   observation_error: error,
 });
@@ -437,14 +439,17 @@ export function observePostcondition(p: Postcondition, context: ObservationConte
     }
   }
 
-  if (p.verifier === 'github-source-bound-evidence/v1') {
-    if (!context.observeGithubSourceBoundEvidence) {
-      return githubSourceBoundEvidenceError(p, 'GITHUB_SOURCE_BOUND_EVIDENCE_OBSERVER_UNAVAILABLE');
+  if (p.verifier === 'github-hostile-mutation-evidence/v1') {
+    if (!context.observeGithubHostileMutationEvidence) {
+      return githubHostileMutationEvidenceError(
+        p,
+        'GITHUB_HOSTILE_MUTATION_EVIDENCE_OBSERVER_UNAVAILABLE',
+      );
     }
     try {
-      return context.observeGithubSourceBoundEvidence(p);
+      return context.observeGithubHostileMutationEvidence(p);
     } catch (e: unknown) {
-      return githubSourceBoundEvidenceError(p, errorMessage(e));
+      return githubHostileMutationEvidenceError(p, errorMessage(e));
     }
   }
 
@@ -673,7 +678,7 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
     return;
   }
 
-  if (postcondition.verifier === 'github-source-bound-evidence/v1') {
+  if (postcondition.verifier === 'github-hostile-mutation-evidence/v1') {
     if (
       observed.provider !== 'github' ||
       observed.repository_id !== postcondition.repository_id ||
@@ -683,7 +688,7 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
       observed.ref !== postcondition.ref ||
       observed.evidence_path !== postcondition.evidence_path ||
       observed.expected_sha256 !== postcondition.expected_sha256 ||
-      observed.source_binding_sha256 !== githubSourceBoundEvidenceBindingDigest(postcondition)
+      observed.source_binding_sha256 !== canonicalDigest(postcondition.source_blobs)
     ) {
       throw new Error('OBSERVATION_COORDINATE_MISMATCH');
     }
@@ -768,11 +773,11 @@ export function observationVerified(postcondition: Postcondition, observed: Obse
     );
   }
 
-  if (postcondition.verifier === 'github-source-bound-evidence/v1') {
+  if (postcondition.verifier === 'github-hostile-mutation-evidence/v1') {
     return (
       observed.actual_state === 'current' &&
       observed.actual_sha256 === postcondition.expected_sha256 &&
-      observed.source_binding_sha256 === githubSourceBoundEvidenceBindingDigest(postcondition)
+      observed.source_binding_sha256 === canonicalDigest(postcondition.source_blobs)
     );
   }
 
