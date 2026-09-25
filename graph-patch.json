@@ -2,7 +2,7 @@
   "schema": "overcenter-graph-patch-v1",
   "definitions": [
     {
-      "id": "d8c09a735dc3923ba7fe924dccd4975f2b484478dddee304e44b916f96cd99fa",
+      "id": "e74f36b8a72c293b7f77d4269ca2f9fb7fec244558285819252079b9b4cd5d7b",
       "definition": {
         "dependencies": [],
         "packet": {
@@ -34,7 +34,7 @@
           "repository_full_name": "laurajoyhutchins/overcenter-research",
           "ref": "main",
           "evidence_path": "experiments/production-criticality-ranking/mutation-evidence.json",
-          "expected_sha256": "4ffe8f8932c3d822e9fbf2c313ad8545366105d80c13ed5755a3b6ca5a8bd74a",
+          "expected_sha256": "09fb9b4d3410420670db266855e46808f212e83dc35044fc00f7a9258ddef032",
           "source_blobs": {
             "src/authority/engine.ts": "8c3f536642e26e0186631e81764319cf4bdb5cdd",
             "src/authority/project-state.ts": "2de78f62bade23251b7daf98e1c92407d55cce8f",
@@ -50,7 +50,7 @@
   "bindings": [
     {
       "node_id": "hostile-mutation-evidence-current",
-      "definition_id": "d8c09a735dc3923ba7fe924dccd4975f2b484478dddee304e44b916f96cd99fa"
+      "definition_id": "e74f36b8a72c293b7f77d4269ca2f9fb7fec244558285819252079b9b4cd5d7b"
     }
   ],
   "retire": []
