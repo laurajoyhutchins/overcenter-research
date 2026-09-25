@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           mkdir -p worker-client
           src/execution/worker-client/build.sh worker-client/overcenter
-          sha256sum worker-client/overcenter > worker-client/overcenter.sha256
+          (cd worker-client && sha256sum overcenter > overcenter.sha256)
 
       - name: Publish exact worker client
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
