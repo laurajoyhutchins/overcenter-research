@@ -4,6 +4,10 @@ import { isAbsolute, join, resolve } from 'node:path';
 
 import { sha256 } from '../../digest.ts';
 import type { GithubActionsRunnerConnection } from '../../providers/github/actions-runner-backend.ts';
+import {
+  assertNoProviderCredentials,
+  minimalExecutionEnvironment,
+} from './environment.ts';
 
 export interface GithubActionsRunnerLaunchResult {
   runner_id: number;
@@ -19,28 +23,6 @@ export type GithubActionsRunnerSpawn = (
     env: NodeJS.ProcessEnv;
   },
 ) => Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
-
-function minimalProcessEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {};
-  for (const name of [
-    'HOME',
-    'LANG',
-    'LC_ALL',
-    'PATH',
-    'SHELL',
-    'TMP',
-    'TMPDIR',
-    'TEMP',
-    'USER',
-  ]) {
-    const value = source[name];
-    if (value !== undefined) env[name] = value;
-  }
-  for (const [name, value] of Object.entries(source)) {
-    if (name.startsWith('LC_') && value !== undefined) env[name] = value;
-  }
-  return env;
-}
 
 async function spawnRunner(
   command: string,
@@ -112,20 +94,10 @@ export async function launchGithubActionsJitRunner(
   }
 
   const env = {
-    ...minimalProcessEnvironment(processEnv),
+    ...minimalExecutionEnvironment(processEnv),
     ...extraEnv,
   };
-  for (const forbidden of [
-    'GITHUB_TOKEN',
-    'GH_TOKEN',
-    'ACTIONS_RUNTIME_TOKEN',
-    'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
-    'OVERCENTER_GITHUB_TOKEN',
-  ]) {
-    if (Object.hasOwn(env, forbidden)) {
-      throw new Error(`GITHUB_ACTIONS_RUNNER_ENVIRONMENT_FORBIDDEN:${forbidden}`);
-    }
-  }
+  assertNoProviderCredentials(env, 'GITHUB_ACTIONS_RUNNER');
 
   const outcome = await spawnProcess(
     script,
