@@ -112,6 +112,7 @@ function readLocalFile(path: string, context: ObservationContext): string {
 }
 
 export function validatePostcondition(p: Postcondition): void {
+  if (p?.verifier === 'operator-judgment/v1' && data(p.subject)) return;
   if (
     p?.verifier === 'file-content-equals/v1' &&
     typeof p.path === 'string' &&
@@ -423,6 +424,10 @@ function githubPullRequestBranchUpdatedEvidenceMatches(
 export function observePostcondition(p: Postcondition, context: ObservationContext): Observation {
   validatePostcondition(p);
 
+  if (p.verifier === 'operator-judgment/v1') {
+    throw new Error('OPERATOR_JUDGMENT_NOT_AUTOMATICALLY_OBSERVABLE');
+  }
+
   if (p.verifier === 'github-pull-request-branch-updated/v1') {
     if (!context.githubToken) {
       return githubPullRequestBranchUpdatedError(p, 'GITHUB_TOKEN_UNAVAILABLE');
@@ -649,6 +654,9 @@ export async function observePostconditionAsync(
 }
 
 function assertObservationCoordinate(postcondition: Postcondition, observed: Observation): void {
+  if (postcondition.verifier === 'operator-judgment/v1') {
+    throw new Error('OPERATOR_JUDGMENT_NOT_AUTOMATICALLY_OBSERVABLE');
+  }
   validateObservationEnvelope(observed);
   if (observed.verifier !== postcondition.verifier) {
     throw new Error('OBSERVATION_VERIFIER_MISMATCH');
@@ -754,6 +762,9 @@ export function observationAuthoritativelyAbsent(
 }
 
 export function observationVerified(postcondition: Postcondition, observed: Observation): boolean {
+  if (postcondition.verifier === 'operator-judgment/v1') {
+    throw new Error('OPERATOR_JUDGMENT_NOT_AUTOMATICALLY_OBSERVABLE');
+  }
   assertObservationCoordinate(postcondition, observed);
   if (observed.mutation_certainty !== 'present') return false;
 
