@@ -1,0 +1,51 @@
+{
+  "schema": "overcenter-authority-roles",
+  "schema_version": 1,
+  "roles": [
+    {
+      "concept": "durable-project-facts",
+      "authority": "src/authority/facts.ts",
+      "projections": [
+        "src/authority/project-state.ts"
+      ],
+      "verifiers": [
+        "src/authority/replay.ts"
+      ]
+    },
+    {
+      "concept": "project-lifecycle-projection",
+      "authority": "src/authority/project-state.ts",
+      "projections": [],
+      "verifiers": [
+        "test/projector-pure.test.ts",
+        "test/projection-reconstruction.test.ts"
+      ]
+    },
+    {
+      "concept": "provider-observation-semantics",
+      "authority": "src/observation/observe.ts",
+      "projections": [],
+      "verifiers": [
+        "test/provider-observation.test.ts"
+      ]
+    },
+    {
+      "concept": "effect-reservation-and-settlement",
+      "authority": "src/authority/engine.ts",
+      "projections": [
+        "src/authority/project-state.ts"
+      ],
+      "verifiers": [
+        "test/trusted-effect-core-loop.test.ts"
+      ]
+    },
+    {
+      "concept": "canonical-content-identity",
+      "authority": "src/digest.ts",
+      "projections": [],
+      "verifiers": [
+        "test/digest-pure.test.ts"
+      ]
+    }
+  ]
+}
