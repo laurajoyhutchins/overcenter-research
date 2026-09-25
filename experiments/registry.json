@@ -3509,6 +3509,102 @@
         "state": "supported",
         "summary": "At exact revision 1bcce9df74b40875797ac4f1fd4441b578da4f27, all preregistered Kubernetes ConfigMap mutation falsifiers passed using the generic reservation and settlement machinery: ambiguous commit recovered by observation without replay, UID replacement was preserved, resourceVersion conflict deferred to fresh state, stale WATCH absence failed closed, retry performed zero provider mutations, and the kernel required no Kubernetes-specific branch."
       }
+    },
+    {
+      "id": "rust-executor-consolidation",
+      "kind": "experiment",
+      "status": "maintained",
+      "directory": "experiments/rust-executor-consolidation",
+      "readme": "experiments/rust-executor-consolidation/README.md",
+      "question": "Does the long-lived Go executor still earn its production role as a bounded concurrent execution fabric once Rust owns per-attempt confinement, or can TypeScript dispatch directly to Rust without materially degrading saturated execution?",
+      "claim": "The Go executor can be deleted only if direct bounded Rust dispatch preserves the existing semantic/recovery boundary and remains near-parity with the Go fabric under saturated concurrency, tail latency, memory pressure, and cancellation.",
+      "contrast": "Keep Go as the long-lived bounded concurrency/backpressure fabric while Rust remains the per-attempt confinement primitive.",
+      "reproduce": {
+        "tier": "toolchain",
+        "local": "npm run experiment:rust-executor-consolidation"
+      },
+      "environment": [
+        "GitHub Actions ubuntu-24.04 is the reference environment.",
+        "Node.js from .node-version.",
+        "Go from .go-version for the existing executor control.",
+        "Rust from rust-toolchain.toml for the candidate confinement path.",
+        "Linux cgroup v2 and the Landlock ABI required by the maintained Rust proof."
+      ],
+      "success_criteria": [
+        "The retained Phase 1 semantic corpus still preserves exact authority/spec binding, evidence, raw-byte capture, cwd confinement, timeout containment, descendant cleanup, and fresh-authority recovery.",
+        "At concurrency 32 and 128, the upper one-sided 95% bootstrap bound for the median paired Go/Rust throughput ratio is no more than 1.25x for no-op/10 ms work and no more than 1.10x for 100 ms/mixed work.",
+        "At concurrency 32 and 128, the upper one-sided 95% bootstrap bound for the median paired Rust/Go p95 ratio is no more than 1.25x for no-op/10 ms work and no more than 1.10x for 100 ms/mixed work.",
+        "Across five counterbalanced 4,000-attempt blocks at concurrency 64, totaling 20,000 attempts per architecture, the upper one-sided 95% bootstrap bound for median paired Go/Rust throughput remains below the original 2x material-advantage threshold.",
+        "Under equal 4-CPU, 2 GiB, 4096-PID cgroup envelopes, direct Rust peak memory is no more than 1.25x the Go fabric.",
+        "A 32-way mixed cancellation load produces exact expected outcomes and both paths remain usable afterward.",
+        "Only after the concurrent gates pass may source deletion be counted as evidence for removing Go."
+      ],
+      "evidence": {
+        "status": "pending",
+        "artifacts": [
+          "GitHub Actions run 35774841870 at e36e429ea03fc431772867a76bc4e50348eeeb02 remains Phase 1 semantic/recovery evidence only.",
+          "PR #66 is retained as the admission prior: its 20,000-envelope concurrency-64 synthetic stream measured a 2.72x Go throughput advantage and 13.37x lower peak RSS; Phase 2 now includes a scale-matched 20,000-attempt current-architecture retention stress.",
+          ".github/workflows/rust-executor-consolidation.yml runs the preregistered Phase 2 concurrent fabric comparison."
+        ],
+        "pending_reason": "Phase-2 hosted attempt at 631f5131a8804de3fa7a81f5e5a4c32ee281ca30 was setup-only: the source-layout reorganization removed runtime/overcenter-exec/main.rs before any measurement. The treatment is mechanically recut onto current src/execution paths without changing the preregistered workload matrix or gates."
+      },
+      "interpretation": "Phase 1 proved that one-attempt Rust can preserve the tested execution semantics, but it did not test Go's long-lived concurrent-fabric role. The architectural deletion conclusion is reopened pending the saturated Phase 2 comparison.",
+      "non_claims": [
+        "Rust should replace TypeScript graph, projection, provider, recovery-policy, or settlement logic.",
+        "Rust is generally preferable to Go.",
+        "Serial one-attempt latency establishes concurrent-fabric equivalence.",
+        "Source-line reduction justifies deleting a component that retains a material throughput, tail-latency, memory, backpressure, or cancellation advantage."
+      ],
+      "design": {
+        "provenance": "preregistered",
+        "note": "Phase 1 criteria predated its hosted result. The Phase 2 saturation, 20,000-attempt retention, tail-latency, memory, and cancellation gates are committed before any Phase 2 hosted result is accepted."
+      },
+      "outcome": {
+        "state": "pending",
+        "summary": "Semantic viability is supported, but the Go-deletion conclusion is reopened because the original experiment did not exercise the concurrent execution-fabric role."
+      },
+      "analysis": [
+        {
+          "claim_id": "execution-fabric-noninferiority",
+          "evidence_class": "performance",
+          "inference": "confirmatory",
+          "estimand": "Median within-round Go/Rust throughput ratio and Rust/Go p95 completion-latency ratio, separately for each preregistered profile at concurrency 32 and 128.",
+          "sampling": {
+            "unit": "counterbalanced paired hosted round",
+            "planned_n": 9,
+            "paired": true,
+            "order": "alternate Go-first and Rust-first within each profile; profile start order is counterbalanced"
+          },
+          "uncertainty": {
+            "method": "percentile-bootstrap",
+            "confidence": 0.95,
+            "sidedness": "upper",
+            "resamples": 20000
+          },
+          "stopping_rule": "Collect exactly 9 paired rounds for every deletion-gated profile/concurrency cell; do not stop early on observed ratios.",
+          "decision_rule": "Deletion remains eligible only when the upper one-sided 95% bootstrap bound is within the existing 1.25x margin for no-op/10 ms and 1.10x margin for 100 ms/mixed, for both throughput and p95."
+        },
+        {
+          "claim_id": "retention-scale-noninferiority",
+          "evidence_class": "performance",
+          "inference": "confirmatory",
+          "estimand": "Median paired Go/Rust throughput ratio across five 4,000-attempt blocks at concurrency 64, totaling 20,000 current execution attempts per architecture.",
+          "sampling": {
+            "unit": "counterbalanced 4,000-attempt paired block",
+            "planned_n": 5,
+            "paired": true,
+            "order": "alternate Go-first and Rust-first by block"
+          },
+          "uncertainty": {
+            "method": "percentile-bootstrap",
+            "confidence": 0.95,
+            "sidedness": "upper",
+            "resamples": 20000
+          },
+          "stopping_rule": "Run exactly five paired 4,000-attempt blocks per architecture; do not stop early.",
+          "decision_rule": "The upper one-sided 95% bootstrap bound for median Go/Rust throughput advantage must remain below 2.0x."
+        }
+      ]
     }
   ]
 }
