@@ -3,7 +3,6 @@ import { GitOvercenterKernel } from '../storage/git-kernel.ts';
 import {
   compileHostileMutationEvidenceObligation,
   HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID,
-  HOSTILE_MUTATION_EVIDENCE_PATH,
 } from '../evidence/hostile-mutation-obligation.ts';
 import { observationVerified, observePostconditionAsync } from '../observation/observe.ts';
 import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
