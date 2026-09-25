@@ -63,7 +63,8 @@
     "test:verified-generated-output": "node --experimental-strip-types experiments/verified-generated-output/experiment.ts",
     "test:kubernetes-configmap-effect": "node --experimental-strip-types experiments/kubernetes-configmap-effect/experiment.ts",
     "check:tcb": "node --experimental-strip-types scripts/report-tcb.ts",
-    "check:experiment-statistics": "node --experimental-strip-types scripts/check-experiment-statistics.ts"
+    "check:experiment-statistics": "node --experimental-strip-types scripts/check-experiment-statistics.ts",
+    "experiment:rust-executor-consolidation": "bash experiments/rust-executor-consolidation/run.sh"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
