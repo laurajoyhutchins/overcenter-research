@@ -17,8 +17,12 @@ import { canonicalDigest, sha256 } from '../digest.ts';
 import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
-import { projectIntentGraphProducer } from './default-project-graph.ts';
-import { compileProjectGraph, type ProjectGraphProducer } from './project-graph.ts';
+import { DEFAULT_PROJECT_GRAPH_PRODUCERS } from './default-project-graph.ts';
+import {
+  compileProjectGraph,
+  managedProjectGraphPrefixes,
+  type ProjectGraphProducer,
+} from './project-graph.ts';
 import { repositorySnapshot } from '../evidence/repository-snapshot.ts';
 import type { ObservationContext } from '../observation/observe.ts';
 import type { Work } from '../model.ts';
@@ -322,7 +326,7 @@ export function advanceProjectForAgent(
     authorityRef = DEFAULT_AUTHORITY_REF,
     remote = DEFAULT_REMOTE,
     githubToken = null,
-    graphProducers = [projectIntentGraphProducer],
+    graphProducers = DEFAULT_PROJECT_GRAPH_PRODUCERS,
     observationContext = { githubToken },
   }: AdvanceOptions,
 ): ProjectAdvanceReceipt {
@@ -334,18 +338,18 @@ export function advanceProjectForAgent(
     observationContext,
   });
   if (!kernel.head()) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
-  const desired = compileProjectGraph(
-    repositorySnapshot(repo, context.command_source_sha.toLowerCase()),
-    context,
-    graphProducers,
-  );
+  const snapshot = repositorySnapshot(repo, context.command_source_sha.toLowerCase());
+  const desired = compileProjectGraph(snapshot, context, graphProducers);
+  const managedPrefixes = managedProjectGraphPrefixes(snapshot, graphProducers);
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
-    if (desired.length > 0) {
+    if (desired.length > 0 || managedPrefixes.length > 0) {
       const expectedRevision = kernel.head();
       if (!expectedRevision) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
       try {
-        kernel.reconcileGraph(desired, expectedRevision);
+        kernel.reconcileGraph(desired, expectedRevision, {
+          retireMissingPrefixes: managedPrefixes,
+        });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         if (message === 'STALE_REVISION') continue;
