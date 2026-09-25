@@ -8,17 +8,7 @@ const FORBIDDEN_PROVIDER_CREDENTIALS = [
 
 export function minimalExecutionEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const name of [
-    'HOME',
-    'LANG',
-    'LC_ALL',
-    'PATH',
-    'SHELL',
-    'TMP',
-    'TMPDIR',
-    'TEMP',
-    'USER',
-  ]) {
+  for (const name of ['HOME', 'LANG', 'LC_ALL', 'PATH', 'SHELL', 'TMP', 'TMPDIR', 'TEMP', 'USER']) {
     const value = source[name];
     if (value !== undefined) env[name] = value;
   }
