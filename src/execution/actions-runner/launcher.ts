@@ -4,10 +4,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 
 import { sha256 } from '../../digest.ts';
 import type { GithubActionsRunnerConnection } from '../../providers/github/actions-runner-backend.ts';
-import {
-  assertNoProviderCredentials,
-  minimalExecutionEnvironment,
-} from './environment.ts';
+import { assertNoProviderCredentials, minimalExecutionEnvironment } from './environment.ts';
 
 export interface GithubActionsRunnerLaunchResult {
   runner_id: number;
@@ -99,11 +96,10 @@ export async function launchGithubActionsJitRunner(
   };
   assertNoProviderCredentials(env, 'GITHUB_ACTIONS_RUNNER');
 
-  const outcome = await spawnProcess(
-    script,
-    ['--jitconfig', connection.encoded_jit_config],
-    { cwd: root, env },
-  );
+  const outcome = await spawnProcess(script, ['--jitconfig', connection.encoded_jit_config], {
+    cwd: root,
+    env,
+  });
   if (outcome.code !== 0) {
     const detail = outcome.signal ?? outcome.code ?? 'unknown';
     throw new Error(`GITHUB_ACTIONS_RUNNER_EXIT_FAILED:${detail}`);
