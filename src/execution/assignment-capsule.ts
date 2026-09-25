@@ -91,10 +91,7 @@ function exactKeys(
   if (!isData(value)) fail(`${name}_INVALID`);
   const keys = Object.keys(value).sort();
   const allowed = new Set([...required, ...optional]);
-  if (
-    required.some((key) => !Object.hasOwn(value, key)) ||
-    keys.some((key) => !allowed.has(key))
-  ) {
+  if (required.some((key) => !Object.hasOwn(value, key)) || keys.some((key) => !allowed.has(key))) {
     fail(`${name}_SHAPE_INVALID`);
   }
 }
