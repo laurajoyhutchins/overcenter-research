@@ -22,6 +22,8 @@ candidate.json
 project.submit
 ```
 
+The authority side may derive those files from exact repository paths or tracked repository trees, but the worker client receives only the flattened concrete file set. It never needs Git metadata, repository access, or source-selection logic.
+
 The client owns only packet-local mechanics:
 
 - parse and validate the immutable assignment;
