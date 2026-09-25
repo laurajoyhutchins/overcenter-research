@@ -163,6 +163,34 @@ export class GithubActionsCapacityController {
     return observeGithubActionsLoad(token, { inventory, get, clock });
   }
 
+  observeAndReserve(
+    token: string,
+    {
+      reservationId,
+      jobs,
+      limit,
+      safetyReserveJobs = 0,
+      get = githubGet,
+      clock = () => new Date().toISOString(),
+    }: {
+      reservationId: string;
+      jobs: number;
+      limit: number;
+      safetyReserveJobs?: number;
+      get?: GithubJsonGet;
+      clock?: () => string;
+    },
+  ): GithubActionsDispatchReservation {
+    const observation = this.observe(token, { get, clock });
+    return this.reserveDispatch({
+      observation,
+      reservationId,
+      jobs,
+      limit,
+      safetyReserveJobs,
+    });
+  }
+
   reserveDispatch({
     observation,
     reservationId,
