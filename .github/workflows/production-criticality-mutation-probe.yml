@@ -107,6 +107,32 @@ jobs:
           git diff --name-only "$BASE" "$HEAD" \
             | node --experimental-strip-types experiments/production-criticality-ranking/select-mutation-probe.ts "$EVENT_NAME" \
             >> "$GITHUB_OUTPUT"
+  graph-obligation:
+    name: Reconcile hostile evidence obligation
+    needs: preflight
+    if: ${{ github.event_name == 'push' && needs.preflight.result == 'success' }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 2
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+          persist-credentials: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Reconcile mutation evidence obligation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+          OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
+          OVERCENTER_PROJECT_REMOTE: origin
+        run: node --experimental-strip-types src/cli/hostile-mutation-evidence-obligation.ts reconcile
+
   mutate:
     needs: preflight
     if: needs.preflight.outputs.run_probe == 'true'
