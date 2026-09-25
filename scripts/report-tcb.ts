@@ -45,6 +45,8 @@ interface TcbProperty {
   expected_module_closure_sha256?: string;
   max_hybrid_closure_semantic_loc?: number;
   expected_hybrid_closure_sha256?: string;
+  attention_hybrid_closure_semantic_loc?: number;
+  attention_external_assumptions?: string[];
   require_sound_symbol_closure?: boolean;
   hostile_evidence_probes?: string[];
   entries: SymbolEntry[];
@@ -61,6 +63,8 @@ interface TcbComposition {
   properties: string[];
   max_hybrid_union_semantic_loc?: number;
   expected_hybrid_union_sha256?: string;
+  attention_hybrid_union_semantic_loc?: number;
+  max_trusted_file_share?: number;
 }
 
 interface TcbPolicy {
@@ -825,6 +829,8 @@ try {
       max_hybrid_closure_semantic_loc: property.max_hybrid_closure_semantic_loc ?? null,
       hybrid_closure_sha256: hybrid.sha256,
       expected_hybrid_closure_sha256: property.expected_hybrid_closure_sha256 ?? null,
+      attention_hybrid_closure_semantic_loc: property.attention_hybrid_closure_semantic_loc ?? null,
+      attention_external_assumptions: property.attention_external_assumptions ?? [],
       hybrid_closure_files: hybrid.files,
       symbol_closure_files: symbols.files,
       symbol_closure_files_outside_module_closure: symbolFilesOutsideModuleClosure,
@@ -912,6 +918,8 @@ try {
       max_hybrid_union_semantic_loc: composition.max_hybrid_union_semantic_loc ?? null,
       hybrid_union_sha256: sha256,
       expected_hybrid_union_sha256: composition.expected_hybrid_union_sha256 ?? null,
+      attention_hybrid_union_semantic_loc: composition.attention_hybrid_union_semantic_loc ?? null,
+      max_trusted_file_share: composition.max_trusted_file_share ?? null,
       hybrid_union_files: [...trusted.keys()].sort(),
       hybrid_union_file_semantic_loc: [...trusted.entries()]
         .map(([path, lines]) => ({ path, semantic_loc: lines.size }))
@@ -922,6 +930,209 @@ try {
       hostile_evidence_status: hostileEvidenceStatus,
     };
   });
+
+  type TcbFindingKind =
+    | 'tcb-growth'
+    | 'hostile-evidence-stale'
+    | 'hostile-evidence-missing'
+    | 'external-assumption-added'
+    | 'trust-concentration';
+
+  interface TcbFinding {
+    id: string;
+    kind: TcbFindingKind;
+    scope: string;
+    task: {
+      schema: 'overcenter-source-task/v1';
+      kind: 'source-change';
+      objective: string;
+      writable_paths: string[];
+    };
+    evidence: Record<string, unknown>;
+  }
+
+  const finding = (
+    id: string,
+    kind: TcbFindingKind,
+    scope: string,
+    objective: string,
+    writablePaths: string[],
+    evidence: Record<string, unknown>,
+  ): TcbFinding => ({
+    id,
+    kind,
+    scope,
+    task: {
+      schema: 'overcenter-source-task/v1',
+      kind: 'source-change',
+      objective,
+      writable_paths: [...new Set(writablePaths)].sort(),
+    },
+    evidence,
+  });
+
+  const findings: TcbFinding[] = [];
+  for (const property of reports) {
+    if (
+      property.attention_hybrid_closure_semantic_loc !== null &&
+      property.hybrid_closure_semantic_loc > property.attention_hybrid_closure_semantic_loc
+    ) {
+      findings.push(
+        finding(
+          `tcb:growth:${property.id}`,
+          'tcb-growth',
+          property.id,
+          `Reduce the ${property.id} hybrid TCB to at most ${property.attention_hybrid_closure_semantic_loc} semantic LOC without weakening its stated safety property or symbol-closure soundness.`,
+          property.hybrid_closure_files,
+          {
+            measured_semantic_loc: property.hybrid_closure_semantic_loc,
+            attention_semantic_loc: property.attention_hybrid_closure_semantic_loc,
+            hybrid_sha256: property.hybrid_closure_sha256,
+          },
+        ),
+      );
+    }
+
+    for (const probe of property.hostile_evidence.probes) {
+      if (probe.status !== 'stale') continue;
+      findings.push(
+        finding(
+          `tcb:hostile-evidence-stale:${property.id}:${probe.id}`,
+          'hostile-evidence-stale',
+          property.id,
+          `Refresh hostile mutation evidence for ${property.id} probe ${probe.id} against the current trusted source and preserve the probe's falsification purpose.`,
+          [
+            'experiments/production-criticality-ranking/mutation-evidence.json',
+            ...probe.sources.map((source) => source.path),
+          ],
+          {
+            probe_id: probe.id,
+            mutation_score: probe.mutation_score,
+            stale_sources: probe.sources.filter((source) => !source.current),
+          },
+        ),
+      );
+    }
+
+    if (property.hostile_evidence.status === 'unconfigured') {
+      findings.push(
+        finding(
+          `tcb:hostile-evidence-missing:${property.id}`,
+          'hostile-evidence-missing',
+          property.id,
+          `Add a hostile mutation probe that can falsify the ${property.id} property at its current trusted boundary.`,
+          [
+            'experiments/production-criticality-ranking/mutation-evidence.json',
+            ...property.hybrid_closure_files,
+          ],
+          {
+            property_id: property.id,
+            hybrid_sha256: property.hybrid_closure_sha256,
+          },
+        ),
+      );
+    }
+
+    const acceptedAssumptions = new Set(property.attention_external_assumptions);
+    for (const assumption of property.external_assumptions) {
+      if (acceptedAssumptions.has(assumption)) continue;
+      const assumptionId = createHash('sha256').update(assumption).digest('hex').slice(0, 16);
+      findings.push(
+        finding(
+          `tcb:external-assumption-added:${property.id}:${assumptionId}`,
+          'external-assumption-added',
+          property.id,
+          `Remove or explicitly justify the newly introduced external assumption in ${property.id}: ${assumption}`,
+          property.hybrid_closure_files,
+          {
+            assumption,
+            assumption_sha256: createHash('sha256').update(assumption).digest('hex'),
+          },
+        ),
+      );
+    }
+  }
+
+  for (const composition of compositions) {
+    if (
+      composition.attention_hybrid_union_semantic_loc !== null &&
+      composition.hybrid_union_semantic_loc > composition.attention_hybrid_union_semantic_loc
+    ) {
+      findings.push(
+        finding(
+          `tcb:growth:${composition.id}`,
+          'tcb-growth',
+          composition.id,
+          `Reduce the ${composition.id} composed TCB to at most ${composition.attention_hybrid_union_semantic_loc} semantic LOC while preserving every member property.`,
+          composition.hybrid_union_files,
+          {
+            measured_semantic_loc: composition.hybrid_union_semantic_loc,
+            attention_semantic_loc: composition.attention_hybrid_union_semantic_loc,
+            hybrid_union_sha256: composition.hybrid_union_sha256,
+          },
+        ),
+      );
+    }
+
+    if (composition.max_trusted_file_share !== null) {
+      for (const file of composition.hybrid_union_file_semantic_loc) {
+        const share =
+          composition.hybrid_union_semantic_loc === 0
+            ? 0
+            : file.semantic_loc / composition.hybrid_union_semantic_loc;
+        if (share <= composition.max_trusted_file_share) continue;
+        const pathId = createHash('sha256').update(file.path).digest('hex').slice(0, 16);
+        findings.push(
+          finding(
+            `tcb:trust-concentration:${composition.id}:${pathId}`,
+            'trust-concentration',
+            composition.id,
+            `Reduce the trusted concentration of ${file.path} below ${(
+              composition.max_trusted_file_share * 100
+            ).toFixed(
+              1,
+            )}% of the ${composition.id} composed TCB without hiding dependencies from the analysis.`,
+            composition.hybrid_union_files,
+            {
+              path: file.path,
+              semantic_loc: file.semantic_loc,
+              union_semantic_loc: composition.hybrid_union_semantic_loc,
+              share,
+              max_share: composition.max_trusted_file_share,
+            },
+          ),
+        );
+      }
+    }
+  }
+
+  findings.sort((left, right) => left.id.localeCompare(right.id));
+  const tcbObligationManifest = {
+    schema: 'overcenter-tcb-obligations/v1',
+    obligations: findings,
+  };
+  const tcbObligationManifestText = `${JSON.stringify(tcbObligationManifest, null, 2)}\n`;
+  const tcbObligationPath = '.overcenter/tcb-obligations.json';
+  const writeGeneratedArtifacts =
+    process.argv.includes('--write') || process.argv.includes('--write-doc');
+  if (writeGeneratedArtifacts) {
+    writeFileSync(tcbObligationPath, tcbObligationManifestText, 'utf8');
+  } else if (
+    !existsSync(tcbObligationPath) ||
+    readFileSync(tcbObligationPath, 'utf8') !== tcbObligationManifestText
+  ) {
+    failed = true;
+    console.error(
+      JSON.stringify(
+        {
+          check: 'tcb-obligation-drift',
+          expected: tcbObligationManifest,
+        },
+        null,
+        2,
+      ),
+    );
+  }
 
   const number = (value: number): string => value.toLocaleString('en-US');
   const shortHash = (value: string): string => `${value.slice(0, 12)}…${value.slice(-5)}`;
@@ -949,7 +1160,7 @@ try {
   if (!generatedBlockPattern.test(documentation)) {
     throw new Error('TCB_DOC_GENERATED_BLOCK_MISSING');
   }
-  if (process.argv.includes('--write-doc')) {
+  if (process.argv.includes('--write') || process.argv.includes('--write-doc')) {
     writeFileSync(
       documentationPath,
       documentation.replace(generatedBlockPattern, generatedBaseline),
@@ -978,6 +1189,7 @@ try {
     generated_from_policy: 'tcb-policy.json',
     properties: reports,
     compositions,
+    obligations: findings,
   };
 
   const optionValue = (name: string): string | null => {
@@ -1070,6 +1282,16 @@ try {
       '| Property | Probe | Freshness | Mutation score |',
       '| --- | --- | --- | ---: |',
       ...(staleProbeRows.length > 0 ? staleProbeRows : ['| _none_ | _none_ | current | 1.000 |']),
+      '',
+      '### Active TCB obligations',
+      '',
+      `Active findings: **${findings.length}**.`,
+      '',
+      '| Obligation | Kind | Scope |',
+      '| --- | --- | --- |',
+      ...(findings.length > 0
+        ? findings.map((item) => `| \`${item.id}\` | ${item.kind} | \`${item.scope}\` |`)
+        : ['| _none_ | _none_ | _none_ |']),
       '',
       '### Ratchet state',
       '',
