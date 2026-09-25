@@ -331,6 +331,7 @@ class MemoryReservationStore implements GithubActionsReservationStore {
           {
             id: 'other',
             capacity_cost: 1,
+            capacity_lease_ms: 1_000,
             phase: 'reserved',
             expires_at_ms: 10_000,
           },
@@ -356,6 +357,7 @@ test('Actions capacity reservation needs no GitHub API credential', () => {
   const result = controller.reserveDispatch({
     reservation_id: 'dispatch-1',
     capacity_cost: 6,
+    capacity_lease_ms: 1_000,
   });
 
   assert.equal(result.state, 'reserved');
@@ -378,10 +380,18 @@ test('declared fan-out cost saturates the semaphore before dispatch', () => {
   });
 
   assert.equal(
-    controller.reserveDispatch({ reservation_id: 'large', capacity_cost: 17 }).state,
+    controller.reserveDispatch({
+      reservation_id: 'large',
+      capacity_cost: 17,
+      capacity_lease_ms: 1_000,
+    }).state,
     'reserved',
   );
-  const blocked = controller.reserveDispatch({ reservation_id: 'another', capacity_cost: 2 });
+  const blocked = controller.reserveDispatch({
+    reservation_id: 'another',
+    capacity_cost: 2,
+    capacity_lease_ms: 1_000,
+  });
   assert.deepEqual(blocked, {
     state: 'saturated',
     capacity: {
@@ -404,6 +414,7 @@ test('dispatch reservation atomically closes the capacity race', () => {
   const result = controller.reserveDispatch({
     reservation_id: 'mine',
     capacity_cost: 18,
+    capacity_lease_ms: 1_000,
   });
 
   assert.equal(result.state, 'saturated');
@@ -425,7 +436,11 @@ test('expired reservations recover capacity without provider observation', () =>
   });
 
   assert.equal(
-    controller.reserveDispatch({ reservation_id: 'dead-controller', capacity_cost: 18 }).state,
+    controller.reserveDispatch({
+      reservation_id: 'dead-controller',
+      capacity_cost: 18,
+      capacity_lease_ms: 1_000,
+    }).state,
     'reserved',
   );
   assert.equal(controller.capacity().available_capacity, 0);
@@ -437,7 +452,11 @@ test('expired reservations recover capacity without provider observation', () =>
     available_capacity: 18,
   });
   assert.equal(
-    controller.reserveDispatch({ reservation_id: 'replacement', capacity_cost: 18 }).state,
+    controller.reserveDispatch({
+      reservation_id: 'replacement',
+      capacity_cost: 18,
+      capacity_lease_ms: 1_000,
+    }).state,
     'reserved',
   );
 });
@@ -448,7 +467,6 @@ test('dispatch handoff has its own bounded lease and is idempotent', () => {
   const controller = new GithubActionsCapacityController({
     budget: 18,
     reservationTtlMs: 100,
-    handoffTtlMs: 500,
     store,
     clock: () => now,
   });
@@ -456,6 +474,7 @@ test('dispatch handoff has its own bounded lease and is idempotent', () => {
   const reserved = controller.reserveDispatch({
     reservation_id: 'dispatch-1',
     capacity_cost: 3,
+    capacity_lease_ms: 500,
   });
   assert.equal(reserved.state, 'reserved');
 
@@ -484,10 +503,12 @@ test('reservation replay and release are idempotent', () => {
   const first = controller.reserveDispatch({
     reservation_id: 'dispatch-1',
     capacity_cost: 1,
+    capacity_lease_ms: 1_000,
   });
   const replay = controller.reserveDispatch({
     reservation_id: 'dispatch-1',
     capacity_cost: 1,
+    capacity_lease_ms: 1_000,
   });
   assert.deepEqual(replay, first);
   assert.equal(store.revision, 1);
@@ -507,7 +528,11 @@ test('controllers cannot silently disagree about the shared budget', () => {
     clock: () => 1_000,
   });
   assert.equal(
-    first.reserveDispatch({ reservation_id: 'dispatch-1', capacity_cost: 1 }).state,
+    first.reserveDispatch({
+      reservation_id: 'dispatch-1',
+      capacity_cost: 1,
+      capacity_lease_ms: 1_000,
+    }).state,
     'reserved',
   );
 
