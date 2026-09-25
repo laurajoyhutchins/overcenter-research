@@ -10,7 +10,7 @@ on:
       - 'experiments/production-criticality-ranking/**'
       - '.github/workflows/production-criticality-mutation-probe.yml'
   pull_request:
-    types: [ready_for_review]
+    types: [ready_for_review, synchronize]
     paths:
       - 'src/**'
       - 'test/**'
@@ -97,7 +97,7 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.run_probe == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       MUTATION_PROBE: ${{ needs.preflight.outputs.mutation_probe }}
     steps:
