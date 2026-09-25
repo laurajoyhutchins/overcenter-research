@@ -12,6 +12,7 @@ const statisticalEntries = new Set([
   'production-latency',
   'recovery-agent-search',
   'recovery-agent-refinement',
+  'rust-executor-consolidation',
 ]);
 
 const evidenceClasses = new Set([

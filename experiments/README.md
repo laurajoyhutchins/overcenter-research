@@ -55,6 +55,7 @@ Each experiment owns the actors, fixtures, and focused tests that change togethe
 - `frontier-prioritization/` - exhaustive and sampled proof that apparently ambiguous READY-frontier priority can be resolved or verified deterministically before AI escalation.
 - `production-criticality-ranking/` - revision-bound quantitative ranking of production callables, calibrated against prior human judgments.
 - `production-latency/` - SQLite-to-GitHub successful-transaction latency decomposition: local authority/reservation/settlement versus provider I/O.
+- `rust-executor-consolidation/` - tests whether the long-lived Go concurrent execution fabric can be deleted once Rust owns per-attempt confinement, including saturation throughput, tail latency, peak memory, and cancellation under load.
 - `typed-capability-authority/` - preregistered Rust differential for sealed affine effect authority, compile-fail invalid states, and sequential/concurrent admission cost.
 - `authority-flow-analysis/` - static abstract interpretation of untrusted data, revision, lease, and mutation authority across serialization, queues, joins, aliases, and dynamic dispatch.
 - `effect-authority-decay/` - current-main production broker experiment testing whether bound authority eliminates downstream raw-coordinate reconstruction while preserving the final runtime fence.
