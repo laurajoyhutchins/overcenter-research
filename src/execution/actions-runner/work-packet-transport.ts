@@ -19,10 +19,7 @@ import {
 } from '../assignment-capsule.ts';
 import { sha256 } from '../../digest.ts';
 import { isData } from '../../validation.ts';
-import {
-  assertNoProviderCredentials,
-  minimalExecutionEnvironment,
-} from './environment.ts';
+import { assertNoProviderCredentials, minimalExecutionEnvironment } from './environment.ts';
 
 const TRANSPORT_SCHEMA = 'overcenter-work-packet-transport/v1' as const;
 const PACKET_FILES = ['assignment.json', 'overcenter', 'receipt.json'] as const;
