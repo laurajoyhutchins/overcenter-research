@@ -28,6 +28,8 @@ const plumbing = new Set([
 const broadMechanics = new Set([
   'experiments/production-criticality-ranking/resolve-mutation-probes.ts',
   'experiments/production-criticality-ranking/generate-stryker-config.ts',
+  'experiments/production-criticality-ranking/combine-mutation-shards.ts',
+  'experiments/production-criticality-ranking/combine-mutation-shards.test.ts',
   'experiments/production-criticality-ranking/summarize-mutation.ts',
   'experiments/production-criticality-ranking/summarize-mutation.test.ts',
 ]);
