@@ -378,7 +378,7 @@ test('declared fan-out cost saturates the semaphore before dispatch', () => {
     controller.reserveDispatch({
       reservation_id: 'large',
       capacity_cost: 17,
-      }).state,
+    }).state,
     'reserved',
   );
   const blocked = controller.reserveDispatch({
@@ -499,7 +499,7 @@ test('controllers cannot silently disagree about the shared budget', () => {
     first.reserveDispatch({
       reservation_id: 'dispatch-1',
       capacity_cost: 1,
-      }).state,
+    }).state,
     'reserved',
   );
 
