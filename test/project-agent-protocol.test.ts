@@ -242,7 +242,7 @@ test('project.advance surfaces READY system evidence without claiming agent work
     });
 
     assert.equal(receipt.state, 'READY');
-    assert.equal(receipt.obligation_id, 'hostile-mutation-evidence-current');
+    assert.equal(receipt.obligation_id, 'system-evidence:hostile-mutation');
     assert.equal(receipt.run_id, undefined);
     assert.equal(receipt.assignment_sha256, undefined);
     assert.equal(existsSync(outputDir), false);
@@ -252,7 +252,7 @@ test('project.advance surfaces READY system evidence without claiming agent work
       ref: AUTHORITY_REF,
     }).inspect();
     assert.equal(current.length, 1);
-    assert.equal(current[0].id, 'hostile-mutation-evidence-current');
+    assert.equal(current[0].id, 'system-evidence:hostile-mutation');
     assert.equal(current[0].status, 'READY');
     assert.equal(current[0].run_id, undefined);
   } finally {
