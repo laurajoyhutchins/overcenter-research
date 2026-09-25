@@ -264,6 +264,11 @@ function resolvedValueSymbol(node: Node): TypeScriptSymbol | null {
   return resolved.flags & SymbolFlags.Value ? resolved : null;
 }
 
+function isRuntimeDeclaration(node: Node): boolean {
+  if (node.getSourceFile().isDeclarationFile) return false;
+  return !isTypeSpaceNode(node) && !isInterfaceDeclaration(node) && !isTypeAliasDeclaration(node);
+}
+
 function lineRange(node: Node): {
   path: string;
   start_line: number;
@@ -350,15 +355,27 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
           const repositoryDeclarations = resolvedDeclarations.filter(
             (declaration) => repoPathFor(declaration) !== null,
           );
-          if (repositoryDeclarations.length === 0) {
-            externalSymbols.add(symbol.name);
-          } else {
-            for (const declaration of repositoryDeclarations) {
+          const runtimeDeclarations = repositoryDeclarations.filter(isRuntimeDeclaration);
+          if (runtimeDeclarations.length > 0) {
+            for (const declaration of runtimeDeclarations) {
               queue.push({
                 node: declaration,
                 symbol: symbol.name,
               });
             }
+          } else if (repositoryDeclarations.length > 0) {
+            const targets = [
+              ...new Set(
+                repositoryDeclarations
+                  .map((declaration) => repoPathFor(declaration))
+                  .filter((path): path is string => path !== null),
+              ),
+            ].sort();
+            obligations.add(
+              `DYNAMIC_DISPATCH_UNRESOLVED:${symbol.name}:${targets.join(',')}`,
+            );
+          } else {
+            externalSymbols.add(symbol.name);
           }
         }
       }
@@ -376,23 +393,6 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
       if (semanticLine(lines[line - 1] ?? '')) selected.add(line);
     }
     trusted.set(declaration.path, selected);
-  }
-
-  for (const declaration of declarations.values()) {
-    const { source } = sourceFor(declaration.path);
-    const node = source.statements.find(
-      (statement) =>
-        source.getLineAndCharacterOfPosition(statement.getStart(source)).line + 1 <=
-          declaration.start_line &&
-        source.getLineAndCharacterOfPosition(
-          Math.max(statement.getStart(source), statement.getEnd() - 1),
-        ).line +
-          1 >=
-          declaration.end_line,
-    );
-    if (node && isInterfaceDeclaration(node)) {
-      obligations.add(`TYPE_ONLY_RUNTIME_TARGET:${declaration.path}:${declaration.start_line}`);
-    }
   }
 
   const output = [...declarations.values()].sort(
@@ -476,6 +476,28 @@ function runtimeImports(path: string): { local: string[]; external: string[] } {
   return { local, external };
 }
 
+function hybridClosureSemanticLoc(module: ModuleClosure, symbols: SymbolClosure): number {
+  const trusted = new Map<string, Set<number>>();
+  for (const path of module.files) {
+    const { text } = sourceFor(path);
+    const selected = trusted.get(path) ?? new Set<number>();
+    text.split('\n').forEach((line, index) => {
+      if (semanticLine(line)) selected.add(index + 1);
+    });
+    trusted.set(path, selected);
+  }
+  for (const declaration of symbols.declarations) {
+    const { text } = sourceFor(declaration.path);
+    const lines = text.split('\n');
+    const selected = trusted.get(declaration.path) ?? new Set<number>();
+    for (let line = declaration.start_line; line <= declaration.end_line; line += 1) {
+      if (semanticLine(lines[line - 1] ?? '')) selected.add(line);
+    }
+    trusted.set(declaration.path, selected);
+  }
+  return [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0);
+}
+
 function moduleClosure(rootPaths: string[]): ModuleClosure {
   const pending = [...new Set(rootPaths.map(normalizedRepoPath))];
   const visited = new Set<string>();
@@ -527,6 +549,7 @@ try {
       .digest('hex');
     const closure = moduleClosure(property.entries.map((entry) => entry.path));
     const symbols = symbolClosure(property.entries);
+    const hybridSemanticLoc = hybridClosureSemanticLoc(closure, symbols);
     const moduleFiles = new Set(closure.files);
     const symbolFilesOutsideModuleClosure = symbols.files.filter((path) => !moduleFiles.has(path));
     if (symbolFilesOutsideModuleClosure.length > 0) {
@@ -569,6 +592,7 @@ try {
       external_module_imports: closure.external_modules,
       symbol_closure_status: symbols.status,
       symbol_closure_semantic_loc: symbols.semantic_loc,
+      hybrid_closure_semantic_loc: hybridSemanticLoc,
       symbol_closure_files: symbols.files,
       symbol_closure_files_outside_module_closure: symbolFilesOutsideModuleClosure,
       symbol_closure_declarations: symbols.declarations,
