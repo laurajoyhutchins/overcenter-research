@@ -113,7 +113,11 @@
       ],
       "max_hybrid_closure_semantic_loc": 8056,
       "expected_hybrid_closure_sha256": "594dcfeaf9af3671cbcd8ed77c523bc0f4ba788df6f6760604818d5d2f448db2",
-      "require_sound_symbol_closure": true
+      "require_sound_symbol_closure": true,
+      "hostile_evidence_probes": [
+        "effect-reservation",
+        "execution-fence"
+      ]
     },
     {
       "id": "no-false-done",
@@ -247,7 +251,14 @@
       ],
       "max_hybrid_closure_semantic_loc": 8053,
       "expected_hybrid_closure_sha256": "db07a0ab87f5e4c802a25ab65903d962f60efdd726bc41372cc4784a04b80569",
-      "require_sound_symbol_closure": true
+      "require_sound_symbol_closure": true,
+      "hostile_evidence_probes": [
+        "digest-foundation",
+        "semantic-identity",
+        "done-candidate-reuse",
+        "settlement",
+        "verification-and-absence"
+      ]
     },
     {
       "id": "github-commit-status-provider",
@@ -343,6 +354,19 @@
       "max_hybrid_closure_semantic_loc": 2746,
       "expected_hybrid_closure_sha256": "6d7c785ce55bacad547c9359159185f8ccd9146e6d88a92a62881ba9b6030ba7",
       "require_sound_symbol_closure": true
+    }
+  ],
+  "compositions": [
+    {
+      "id": "github-status-safe-settlement",
+      "statement": "For the admitted GitHub commit-status path, an external mutation crosses the provider boundary only under current exact authority and durable reservation, and DONE is derived only from exact authoritative GitHub observation and valid settlement evidence.",
+      "properties": [
+        "broker-mutation-safety",
+        "no-false-done",
+        "github-commit-status-provider"
+      ],
+      "max_hybrid_union_semantic_loc": 8241,
+      "expected_hybrid_union_sha256": "f1cb7167a814c83f63528dfb9aa037e9d45ec1c4c22fbe88284c6b603544a4c2"
     }
   ]
 }

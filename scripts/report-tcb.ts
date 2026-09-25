@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 
 import { API, SymbolFlags, type Symbol as TypeScriptSymbol } from 'typescript/unstable/sync';
@@ -46,6 +46,7 @@ interface TcbProperty {
   max_hybrid_closure_semantic_loc?: number;
   expected_hybrid_closure_sha256?: string;
   require_sound_symbol_closure?: boolean;
+  hostile_evidence_probes?: string[];
   entries: SymbolEntry[];
   composes_with?: string[];
   trusted_symbol_boundaries?: string[];
@@ -54,10 +55,30 @@ interface TcbProperty {
   excluded: string[];
 }
 
+interface TcbComposition {
+  id: string;
+  statement: string;
+  properties: string[];
+  max_hybrid_union_semantic_loc?: number;
+  expected_hybrid_union_sha256?: string;
+}
+
 interface TcbPolicy {
   schema: 'overcenter-tcb-policy';
   schema_version: 1;
   properties: TcbProperty[];
+  compositions?: TcbComposition[];
+}
+
+interface MutationEvidenceProbe {
+  id: string;
+  source_blobs: Record<string, string>;
+  mutation_score: number;
+}
+
+interface MutationEvidence {
+  schema: string;
+  probes: MutationEvidenceProbe[];
 }
 
 interface Slice {
@@ -75,6 +96,10 @@ const policy = JSON.parse(readFileSync('tcb-policy.json', 'utf8')) as TcbPolicy;
 if (policy.schema !== 'overcenter-tcb-policy' || policy.schema_version !== 1) {
   throw new Error('TCB_POLICY_SCHEMA_UNSUPPORTED');
 }
+const mutationEvidence = JSON.parse(
+  readFileSync('experiments/production-criticality-ranking/mutation-evidence.json', 'utf8'),
+) as MutationEvidence;
+const mutationEvidenceById = new Map(mutationEvidence.probes.map((probe) => [probe.id, probe]));
 
 const openFiles = [
   ...new Set(
@@ -199,6 +224,47 @@ function uniqueSemanticLoc(slices: Slice[]): number {
     trusted.set(slice.path, selected);
   }
   return [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0);
+}
+
+function gitBlobSha1(path: string): string {
+  const bytes = readFileSync(path);
+  return createHash('sha1')
+    .update(Buffer.from(`blob ${bytes.length}\0`, 'utf8'))
+    .update(bytes)
+    .digest('hex');
+}
+
+function hostileEvidenceFor(probeIds: readonly string[] | undefined) {
+  if (!probeIds || probeIds.length === 0) {
+    return { status: 'unconfigured' as const, probes: [] };
+  }
+  const probes = probeIds.map((id) => {
+    const probe = mutationEvidenceById.get(id);
+    if (!probe) throw new Error(`TCB_HOSTILE_EVIDENCE_PROBE_UNKNOWN:${id}`);
+    const sources = Object.entries(probe.source_blobs)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([path, expected_blob_sha1]) => {
+        const current_blob_sha1 = existsSync(path) ? gitBlobSha1(path) : null;
+        return {
+          path,
+          expected_blob_sha1,
+          current_blob_sha1,
+          current: current_blob_sha1 === expected_blob_sha1,
+        };
+      });
+    return {
+      id,
+      mutation_score: probe.mutation_score,
+      status: sources.every((source) => source.current) ? ('current' as const) : ('stale' as const),
+      sources,
+    };
+  });
+  return {
+    status: probes.every((probe) => probe.status === 'current')
+      ? ('current' as const)
+      : ('stale' as const),
+    probes,
+  };
 }
 
 interface ModuleClosure {
@@ -768,17 +834,144 @@ try {
       symbol_closure_composed_boundaries: symbols.composed_boundaries,
       symbol_closure_resolved_dispatch_bindings: symbols.resolved_dispatch_bindings,
       composes_with: property.composes_with ?? [],
+      hostile_evidence: hostileEvidenceFor(property.hostile_evidence_probes),
       slices,
       external_assumptions: property.external_assumptions,
       excluded: property.excluded,
     };
   });
 
+  const compositions = (policy.compositions ?? []).map((composition) => {
+    const members = composition.properties.map((id) => {
+      const member = reports.find((candidate) => candidate.id === id);
+      if (!member) throw new Error(`TCB_COMPOSITION_PROPERTY_UNKNOWN:${composition.id}:${id}`);
+      return member;
+    });
+    const trusted = new Map<string, Set<number>>();
+    for (const member of members) {
+      for (const path of member.module_closure_files) {
+        const lines = readFileSync(path, 'utf8').split('\n');
+        const selected = trusted.get(path) ?? new Set<number>();
+        lines.forEach((line, index) => {
+          if (semanticLine(line)) selected.add(index + 1);
+        });
+        trusted.set(path, selected);
+      }
+      const moduleFiles = new Set(member.module_closure_files);
+      for (const declaration of member.symbol_closure_declarations) {
+        if (moduleFiles.has(declaration.path)) continue;
+        const lines = readFileSync(declaration.path, 'utf8').split('\n');
+        const selected = trusted.get(declaration.path) ?? new Set<number>();
+        for (let line = declaration.start_line; line <= declaration.end_line; line += 1) {
+          if (semanticLine(lines[line - 1] ?? '')) selected.add(line);
+        }
+        trusted.set(declaration.path, selected);
+      }
+    }
+    const fingerprintMaterial = [`composition:${composition.id}`];
+    for (const member of [...composition.properties].sort())
+      fingerprintMaterial.push(`member:${member}`);
+    for (const path of [...trusted.keys()].sort()) {
+      const lines = readFileSync(path, 'utf8').split('\n');
+      for (const line of [...(trusted.get(path) ?? [])].sort((left, right) => left - right)) {
+        fingerprintMaterial.push(`${path}:${line}:${lines[line - 1] ?? ''}`);
+      }
+    }
+    const semanticLoc = [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0);
+    const sha256 = createHash('sha256').update(fingerprintMaterial.join('\n')).digest('hex');
+    if (
+      composition.max_hybrid_union_semantic_loc !== undefined &&
+      semanticLoc > composition.max_hybrid_union_semantic_loc
+    ) {
+      failed = true;
+    }
+    if (
+      composition.expected_hybrid_union_sha256 &&
+      composition.expected_hybrid_union_sha256 !== sha256
+    ) {
+      failed = true;
+    }
+    const memberEvidence = members.map((member) => member.hostile_evidence);
+    const hasStaleEvidence = memberEvidence.some((evidence) => evidence.status === 'stale');
+    const hasUnconfiguredEvidence = memberEvidence.some(
+      (evidence) => evidence.status === 'unconfigured',
+    );
+    const hostileEvidenceStatus =
+      hasStaleEvidence && hasUnconfiguredEvidence
+        ? 'stale-and-incomplete'
+        : hasStaleEvidence
+          ? 'stale'
+          : hasUnconfiguredEvidence
+            ? 'incomplete'
+            : 'current';
+    return {
+      id: composition.id,
+      statement: composition.statement,
+      properties: composition.properties,
+      hybrid_union_semantic_loc: semanticLoc,
+      max_hybrid_union_semantic_loc: composition.max_hybrid_union_semantic_loc ?? null,
+      hybrid_union_sha256: sha256,
+      expected_hybrid_union_sha256: composition.expected_hybrid_union_sha256 ?? null,
+      hybrid_union_files: [...trusted.keys()].sort(),
+      hostile_evidence_status: hostileEvidenceStatus,
+    };
+  });
+
+  const number = (value: number): string => value.toLocaleString('en-US');
+  const shortHash = (value: string): string => `${value.slice(0, 12)}…${value.slice(-5)}`;
+  const generatedBaseline = [
+    '<!-- BEGIN GENERATED TCB BASELINE -->',
+    '| Property | Explicit slice | Runtime symbols | Import envelope | Hybrid TCB | Hostile evidence | Hybrid SHA-256 |',
+    '| --- | ---: | ---: | ---: | ---: | --- | --- |',
+    ...reports.map(
+      (property) =>
+        `| \`${property.id}\` | ${number(property.semantic_loc)} | ${number(property.symbol_closure_semantic_loc)} | ${number(property.module_closure_semantic_loc)} | **${number(property.hybrid_closure_semantic_loc)}** | ${property.hostile_evidence.status} | \`${shortHash(property.hybrid_closure_sha256)}\` |`,
+    ),
+    '',
+    '| Composition | Deduplicated hybrid union | Hostile evidence | Union SHA-256 |',
+    '| --- | ---: | --- | --- |',
+    ...compositions.map(
+      (composition) =>
+        `| \`${composition.id}\` | **${number(composition.hybrid_union_semantic_loc)}** | ${composition.hostile_evidence_status} | \`${shortHash(composition.hybrid_union_sha256)}\` |`,
+    ),
+    '<!-- END GENERATED TCB BASELINE -->',
+  ].join('\n');
+  const documentationPath = 'docs/trusted-computing-base.md';
+  const documentation = readFileSync(documentationPath, 'utf8');
+  const generatedBlockPattern =
+    /<!-- BEGIN GENERATED TCB BASELINE -->[\s\S]*?<!-- END GENERATED TCB BASELINE -->/;
+  if (!generatedBlockPattern.test(documentation)) {
+    throw new Error('TCB_DOC_GENERATED_BLOCK_MISSING');
+  }
+  if (process.argv.includes('--write-doc')) {
+    writeFileSync(
+      documentationPath,
+      documentation.replace(generatedBlockPattern, generatedBaseline),
+      'utf8',
+    );
+  } else {
+    const currentBaseline = documentation.match(generatedBlockPattern)?.[0];
+    if (currentBaseline !== generatedBaseline) {
+      failed = true;
+      console.error(
+        JSON.stringify(
+          {
+            check: 'tcb-doc-drift',
+            expected: generatedBaseline,
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  }
+
   const report = {
     schema: 'overcenter-tcb-report',
     schema_version: 1,
     generated_from_policy: 'tcb-policy.json',
     properties: reports,
+    compositions,
   };
   if (failed) {
     console.error(
@@ -800,6 +993,14 @@ try {
             max_hybrid_closure_semantic_loc: property.max_hybrid_closure_semantic_loc,
             hybrid_closure_sha256: property.hybrid_closure_sha256,
             expected_hybrid_closure_sha256: property.expected_hybrid_closure_sha256,
+          })),
+          compositions: compositions.map((composition) => ({
+            id: composition.id,
+            hybrid_union_semantic_loc: composition.hybrid_union_semantic_loc,
+            max_hybrid_union_semantic_loc: composition.max_hybrid_union_semantic_loc,
+            hybrid_union_sha256: composition.hybrid_union_sha256,
+            expected_hybrid_union_sha256: composition.expected_hybrid_union_sha256,
+            hostile_evidence_status: composition.hostile_evidence_status,
           })),
         },
         null,

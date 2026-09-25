@@ -36,13 +36,25 @@ A LOC ceiling or static dependency closure is not a proof. It is an architectura
 
 ## Current baseline
 
-| Property | Explicit slice | Runtime symbols | Import envelope | Hybrid TCB | Hybrid SHA-256 |
-| --- | ---: | ---: | ---: | ---: | --- |
-| Broker mutation safety | 1,108 | 3,194 | 7,947 | **8,058** | `1e1c53ff04f6…ed1ed` |
-| No false `DONE` | 1,501 | 3,035 | 7,947 | **8,055** | `401fbf9b746f…c3ddb` |
-| GitHub commit-status provider | 2,377 | 2,550 | 2,740 | **2,746** | `4a2a068440cf…67d3e` |
+The table below is generated from the executable report. Run `npm run update:tcb-doc` after an intentional ratchet change; `npm run check:tcb` fails if the checked-in block drifts from the measured policy.
 
-The hybrid counts are property-scoped and overlap. Do not sum them into one repository number. The core properties explicitly bind the `DurableFactStore.append` dispatch edge to `SqliteFactStore.append`. The GitHub provider profile composes with broker mutation safety at `KernelCore.authorizeEffect`, `performEffect`, and `releaseEffectReservation`; those core methods are not charged again to the provider-specific delta. Six provider-profile lines beyond the import envelope remain deliberately charged: the effect authority's `postcondition` field and the five GitHub commit-status coordinates it consumes.
+<!-- BEGIN GENERATED TCB BASELINE -->
+| Property | Explicit slice | Runtime symbols | Import envelope | Hybrid TCB | Hostile evidence | Hybrid SHA-256 |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| `broker-mutation-safety` | 1,106 | 3,192 | 7,945 | **8,056** | stale | `594dcfeaf9af…48db2` |
+| `no-false-done` | 1,499 | 3,033 | 7,945 | **8,053** | stale | `db07a0ab87f5…80569` |
+| `github-commit-status-provider` | 2,377 | 2,550 | 2,740 | **2,746** | unconfigured | `6d7c785ce55b…30ba7` |
+
+| Composition | Deduplicated hybrid union | Hostile evidence | Union SHA-256 |
+| --- | ---: | --- | --- |
+| `github-status-safe-settlement` | **8,241** | stale-and-incomplete | `f1cb7167a814…4a4c2` |
+<!-- END GENERATED TCB BASELINE -->
+
+The property scopes overlap and must not be summed. The composed GitHub status path is the deduplicated end-to-end trust surface for mutation admission through authoritative settlement. The two core properties share most of the same broad authority, graph, observation, and provider cone; adding the GitHub commit-status profile increases the composed hybrid surface by only 185 semantic lines above broker mutation safety.
+
+Hostile-evidence freshness is deliberately separate from the TCB size ratchet. A stale mutation probe remains visible as debt but does not make unrelated source changes fail the merge gate; an unknown configured probe still fails closed. `unconfigured` means the property does not yet have a dedicated hostile mutation probe.
+
+The core properties explicitly bind the `DurableFactStore.append` dispatch edge to `SqliteFactStore.append`. The GitHub provider profile composes with broker mutation safety at `KernelCore.authorizeEffect`, `performEffect`, and `releaseEffectReservation`; those core methods are not charged again to the provider-specific delta.
 
 ## External assumptions
 
