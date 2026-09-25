@@ -48,8 +48,14 @@ export interface GitHubPullRequestBranchUpdatedPostcondition {
   expected_base_sha: string;
 }
 
-export interface GithubHostileMutationEvidencePostcondition {
-  verifier: 'github-hostile-mutation-evidence/v1';
+export interface GithubSourceBoundEvidenceRun {
+  workflow_run_id: number;
+  revision: string;
+  artifact_digest: string;
+}
+
+export interface GithubSourceBoundEvidencePostcondition {
+  verifier: 'github-source-bound-evidence/v1';
   provider: 'github';
   repository_id: number;
   repository_full_name: string;
@@ -57,6 +63,11 @@ export interface GithubHostileMutationEvidencePostcondition {
   evidence_path: string;
   expected_sha256: string;
   source_blobs: Record<string, string>;
+  evidence_source_blobs: Record<string, string>;
+  source_runs: GithubSourceBoundEvidenceRun[];
+  workflow_path: string;
+  job_name: string;
+  artifact_name: string;
 }
 
 export interface KubernetesConfigMapExistsPostcondition {
@@ -74,7 +85,7 @@ export type Postcondition =
   | EventuallyConsistentFilePostcondition
   | GitHubCommitStatusPostcondition
   | GitHubPullRequestBranchUpdatedPostcondition
-  | GithubHostileMutationEvidencePostcondition
+  | GithubSourceBoundEvidencePostcondition
   | KubernetesConfigMapExistsPostcondition;
 
 export type { Observation } from '../contracts/observation-evidence/settlement-observation.typebox.ts';
