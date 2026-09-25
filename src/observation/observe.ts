@@ -4,7 +4,7 @@ import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync }
 import { dirname, resolve } from 'node:path';
 import type {
   AbsenceEvidenceCertificate,
-  GithubHostileMutationEvidencePostcondition,
+  GithubSourceBoundEvidencePostcondition,
   Observation,
   Postcondition,
 } from '../model.ts';
@@ -39,8 +39,8 @@ export interface ObservationContext {
   githubToken: string | null;
   githubGet?: GithubJsonGet;
   githubGetAsync?: GithubJsonGetAsync;
-  observeGithubHostileMutationEvidence?: (
-    postcondition: GithubHostileMutationEvidencePostcondition,
+  observeGithubSourceBoundEvidence?: (
+    postcondition: GithubSourceBoundEvidencePostcondition,
   ) => Observation;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
@@ -148,7 +148,7 @@ export function validatePostcondition(p: Postcondition): void {
   )
     return;
   if (
-    p?.verifier === 'github-hostile-mutation-evidence/v1' &&
+    p?.verifier === 'github-source-bound-evidence/v1' &&
     p.provider === 'github' &&
     Number.isSafeInteger(p.repository_id) &&
     p.repository_id > 0 &&
@@ -171,7 +171,33 @@ export function validatePostcondition(p: Postcondition): void {
         !path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
         typeof blob === 'string' &&
         /^[0-9a-f]{40}$/i.test(blob),
-    )
+    ) &&
+    data(p.evidence_source_blobs) &&
+    Object.entries(p.evidence_source_blobs).every(
+      ([path, blob]) =>
+        path.length > 0 &&
+        !path.startsWith('/') &&
+        !path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
+        typeof blob === 'string' &&
+        /^[0-9a-f]{40}$/i.test(blob),
+    ) &&
+    Array.isArray(p.source_runs) &&
+    p.source_runs.every(
+      (run) =>
+        data(run) &&
+        Number.isSafeInteger(run.workflow_run_id) &&
+        run.workflow_run_id > 0 &&
+        typeof run.revision === 'string' &&
+        /^[0-9a-f]{40}$/i.test(run.revision) &&
+        typeof run.artifact_digest === 'string' &&
+        /^sha256:[0-9a-f]{64}$/i.test(run.artifact_digest),
+    ) &&
+    typeof p.workflow_path === 'string' &&
+    p.workflow_path.length > 0 &&
+    typeof p.job_name === 'string' &&
+    p.job_name.length > 0 &&
+    typeof p.artifact_name === 'string' &&
+    p.artifact_name.length > 0
   )
     return;
   if (
@@ -231,8 +257,20 @@ const githubStatusError = (
   observation_error: error,
 });
 
-const githubHostileMutationEvidenceError = (
-  p: GithubHostileMutationEvidencePostcondition,
+const githubSourceBoundEvidenceBindingDigest = (
+  p: GithubSourceBoundEvidencePostcondition,
+): string =>
+  canonicalDigest({
+    source_blobs: p.source_blobs,
+    evidence_source_blobs: p.evidence_source_blobs,
+    source_runs: p.source_runs,
+    workflow_path: p.workflow_path,
+    job_name: p.job_name,
+    artifact_name: p.artifact_name,
+  });
+
+const githubSourceBoundEvidenceError = (
+  p: GithubSourceBoundEvidencePostcondition,
   error: string,
 ): Observation => ({
   verifier: p.verifier,
@@ -242,7 +280,7 @@ const githubHostileMutationEvidenceError = (
   ref: p.ref,
   evidence_path: p.evidence_path,
   expected_sha256: p.expected_sha256,
-  source_binding_sha256: canonicalDigest(p.source_blobs),
+  source_binding_sha256: githubSourceBoundEvidenceBindingDigest(p),
   mutation_certainty: 'uncertain',
   observation_error: error,
 });
@@ -442,17 +480,17 @@ export function observePostcondition(p: Postcondition, context: ObservationConte
     }
   }
 
-  if (p.verifier === 'github-hostile-mutation-evidence/v1') {
-    if (!context.observeGithubHostileMutationEvidence) {
-      return githubHostileMutationEvidenceError(
+  if (p.verifier === 'github-source-bound-evidence/v1') {
+    if (!context.observeGithubSourceBoundEvidence) {
+      return githubSourceBoundEvidenceError(
         p,
-        'GITHUB_HOSTILE_MUTATION_EVIDENCE_OBSERVER_UNAVAILABLE',
+        'GITHUB_SOURCE_BOUND_EVIDENCE_OBSERVER_UNAVAILABLE',
       );
     }
     try {
-      return context.observeGithubHostileMutationEvidence(p);
+      return context.observeGithubSourceBoundEvidence(p);
     } catch (e: unknown) {
-      return githubHostileMutationEvidenceError(p, errorMessage(e));
+      return githubSourceBoundEvidenceError(p, errorMessage(e));
     }
   }
 
@@ -681,7 +719,7 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
     return;
   }
 
-  if (postcondition.verifier === 'github-hostile-mutation-evidence/v1') {
+  if (postcondition.verifier === 'github-source-bound-evidence/v1') {
     if (
       observed.provider !== 'github' ||
       observed.repository_id !== postcondition.repository_id ||
@@ -691,7 +729,7 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
       observed.ref !== postcondition.ref ||
       observed.evidence_path !== postcondition.evidence_path ||
       observed.expected_sha256 !== postcondition.expected_sha256 ||
-      observed.source_binding_sha256 !== canonicalDigest(postcondition.source_blobs)
+      observed.source_binding_sha256 !== githubSourceBoundEvidenceBindingDigest(postcondition)
     ) {
       throw new Error('OBSERVATION_COORDINATE_MISMATCH');
     }
@@ -776,11 +814,11 @@ export function observationVerified(postcondition: Postcondition, observed: Obse
     );
   }
 
-  if (postcondition.verifier === 'github-hostile-mutation-evidence/v1') {
+  if (postcondition.verifier === 'github-source-bound-evidence/v1') {
     return (
       observed.actual_state === 'current' &&
       observed.actual_sha256 === postcondition.expected_sha256 &&
-      observed.source_binding_sha256 === canonicalDigest(postcondition.source_blobs)
+      observed.source_binding_sha256 === githubSourceBoundEvidenceBindingDigest(postcondition)
     );
   }
 
