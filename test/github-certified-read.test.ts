@@ -354,8 +354,8 @@ test('Actions capacity reservation needs no GitHub API credential', () => {
   });
 
   const result = controller.reserveDispatch({
-    reservationId: 'dispatch-1',
-    capacityCost: 6,
+    reservation_id: 'dispatch-1',
+    capacity_cost: 6,
   });
 
   assert.equal(result.state, 'reserved');
@@ -378,10 +378,10 @@ test('declared fan-out cost saturates the semaphore before dispatch', () => {
   });
 
   assert.equal(
-    controller.reserveDispatch({ reservationId: 'large', capacityCost: 17 }).state,
+    controller.reserveDispatch({ reservation_id: 'large', capacity_cost: 17 }).state,
     'reserved',
   );
-  const blocked = controller.reserveDispatch({ reservationId: 'another', capacityCost: 2 });
+  const blocked = controller.reserveDispatch({ reservation_id: 'another', capacity_cost: 2 });
   assert.deepEqual(blocked, {
     state: 'saturated',
     capacity: {
@@ -402,8 +402,8 @@ test('dispatch reservation atomically closes the capacity race', () => {
   });
 
   const result = controller.reserveDispatch({
-    reservationId: 'mine',
-    capacityCost: 18,
+    reservation_id: 'mine',
+    capacity_cost: 18,
   });
 
   assert.equal(result.state, 'saturated');
@@ -425,7 +425,7 @@ test('expired reservations recover capacity without provider observation', () =>
   });
 
   assert.equal(
-    controller.reserveDispatch({ reservationId: 'dead-controller', capacityCost: 18 }).state,
+    controller.reserveDispatch({ reservation_id: 'dead-controller', capacity_cost: 18 }).state,
     'reserved',
   );
   assert.equal(controller.capacity().available_capacity, 0);
@@ -437,7 +437,7 @@ test('expired reservations recover capacity without provider observation', () =>
     available_capacity: 18,
   });
   assert.equal(
-    controller.reserveDispatch({ reservationId: 'replacement', capacityCost: 18 }).state,
+    controller.reserveDispatch({ reservation_id: 'replacement', capacity_cost: 18 }).state,
     'reserved',
   );
 });
@@ -454,8 +454,8 @@ test('dispatch handoff has its own bounded lease and is idempotent', () => {
   });
 
   const reserved = controller.reserveDispatch({
-    reservationId: 'dispatch-1',
-    capacityCost: 3,
+    reservation_id: 'dispatch-1',
+    capacity_cost: 3,
   });
   assert.equal(reserved.state, 'reserved');
 
@@ -482,12 +482,12 @@ test('reservation replay and release are idempotent', () => {
   });
 
   const first = controller.reserveDispatch({
-    reservationId: 'dispatch-1',
-    capacityCost: 1,
+    reservation_id: 'dispatch-1',
+    capacity_cost: 1,
   });
   const replay = controller.reserveDispatch({
-    reservationId: 'dispatch-1',
-    capacityCost: 1,
+    reservation_id: 'dispatch-1',
+    capacity_cost: 1,
   });
   assert.deepEqual(replay, first);
   assert.equal(store.revision, 1);
@@ -507,7 +507,7 @@ test('controllers cannot silently disagree about the shared budget', () => {
     clock: () => 1_000,
   });
   assert.equal(
-    first.reserveDispatch({ reservationId: 'dispatch-1', capacityCost: 1 }).state,
+    first.reserveDispatch({ reservation_id: 'dispatch-1', capacity_cost: 1 }).state,
     'reserved',
   );
 
