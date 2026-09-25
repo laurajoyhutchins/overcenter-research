@@ -69,13 +69,19 @@ export interface KubernetesConfigMapExistsPostcondition {
   name: string;
 }
 
+export interface OperatorJudgmentPostcondition {
+  verifier: 'operator-judgment/v1';
+  subject: Data;
+}
+
 export type Postcondition =
   | FileContentPostcondition
   | EventuallyConsistentFilePostcondition
   | GitHubCommitStatusPostcondition
   | GitHubPullRequestBranchUpdatedPostcondition
   | GithubHostileMutationEvidencePostcondition
-  | KubernetesConfigMapExistsPostcondition;
+  | KubernetesConfigMapExistsPostcondition
+  | OperatorJudgmentPostcondition;
 
 export type { Observation } from '../contracts/observation-evidence/settlement-observation.typebox.ts';
 

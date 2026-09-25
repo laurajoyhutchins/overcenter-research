@@ -71,6 +71,10 @@ export type ProjectExplanation =
             run_id: string;
             reason: string;
             settlement_commit?: string;
+          }
+        | {
+            kind: 'judgment-required';
+            subject: Record<string, unknown>;
           };
     }
   | {
@@ -305,6 +309,15 @@ function deriveClaimability(
   indeterminateRealization: RealizationJudgmentRelation | null,
   staticEffectIndex: StaticEffectIndex,
 ): Claimability {
+  if (work.postcondition.verifier === 'operator-judgment/v1') {
+    return {
+      error: 'JUDGMENT_REQUIRED',
+      unsatisfiedDependencies: [],
+      staticConflict: null,
+      indeterminateRealization: null,
+    };
+  }
+
   const prerequisites = deriveClaimPrerequisites(work, lifecycles, semanticKey);
   if (prerequisites.error === 'NOT_READY') {
     return {
@@ -458,6 +471,19 @@ function deriveExplanation(
   }
 
   if (projected.status === 'BLOCKED') {
+    if (
+      claimability.error === 'JUDGMENT_REQUIRED' &&
+      obligation.postcondition.verifier === 'operator-judgment/v1'
+    ) {
+      return {
+        obligation_id: obligation.id,
+        status: 'BLOCKED',
+        reason: {
+          kind: 'judgment-required',
+          subject: structuredClone(obligation.postcondition.subject),
+        },
+      };
+    }
     if (
       claimability.error === 'CURRENT_REALIZATION_ADMISSIBILITY_INDETERMINATE' &&
       claimability.indeterminateRealization

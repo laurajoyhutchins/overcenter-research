@@ -102,7 +102,12 @@ export interface GraphReconciliationResult {
   revision: string;
   added: string[];
   rebound: string[];
+  retired: string[];
   unchanged: string[];
+}
+
+export interface GraphReconciliationOptions {
+  retireMissingPrefixes?: readonly string[];
 }
 
 export class KernelCore {
@@ -161,26 +166,32 @@ export class KernelCore {
     );
   }
 
-  reconcileGraph(desired: ObligationInput[], expectedRevision: string): GraphReconciliationResult {
+  reconcileGraph(
+    desired: ObligationInput[],
+    expectedRevision: string,
+    { retireMissingPrefixes = [] }: GraphReconciliationOptions = {},
+  ): GraphReconciliationResult {
     const head = this.#requireHead();
     if (head !== expectedRevision) throw new Error('STALE_REVISION');
 
     const projection = this.#historicalProjection(head);
-    const plan = planGraphReconciliation(projection.state, desired);
-    if (plan.upsert.length === 0) {
+    const plan = planGraphReconciliation(projection.state, desired, retireMissingPrefixes);
+    if (plan.upsert.length === 0 && plan.retire.length === 0) {
       return {
         revision: head,
         added: [],
         rebound: [],
+        retired: [],
         unchanged: plan.unchanged,
       };
     }
 
-    const revision = this.#commitGraphPatch(projection, plan.upsert, [], head);
+    const revision = this.#commitGraphPatch(projection, plan.upsert, plan.retire, head);
     return {
       revision,
       added: plan.added,
       rebound: plan.rebound,
+      retired: plan.retire,
       unchanged: plan.unchanged,
     };
   }
