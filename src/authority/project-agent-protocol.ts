@@ -16,9 +16,11 @@ import {
 import { canonicalDigest, sha256 } from '../digest.ts';
 import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
-import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
-import { compileDefaultProjectGraph } from './default-project-graph.ts';
+import { projectIntentGraphProducer } from './default-project-graph.ts';
+import { compileProjectGraph, type ProjectGraphProducer } from './project-graph.ts';
+import { repositorySnapshot } from '../evidence/repository-snapshot.ts';
+import type { ObservationContext } from '../observation/observe.ts';
 import type { Work } from '../model.ts';
 
 export const PROJECT_ADVANCE_RECEIPT_SCHEMA = 'overcenter-project-advance/v1' as const;
@@ -101,6 +103,8 @@ interface ProtocolOptions {
 interface AdvanceOptions extends ProtocolOptions {
   outputDir: string;
   workerClientPath?: string;
+  graphProducers?: readonly ProjectGraphProducer[];
+  observationContext?: ObservationContext;
 }
 
 interface SubmitOptions extends ProtocolOptions {
@@ -318,6 +322,8 @@ export function advanceProjectForAgent(
     authorityRef = DEFAULT_AUTHORITY_REF,
     remote = DEFAULT_REMOTE,
     githubToken = null,
+    graphProducers = [projectIntentGraphProducer],
+    observationContext = { githubToken },
   }: AdvanceOptions,
 ): ProjectAdvanceReceipt {
   validateCommandContext(context);
@@ -325,20 +331,13 @@ export function advanceProjectForAgent(
     ref: authorityRef,
     remote,
     githubToken,
-    observationContext: {
-      ...(githubToken
-        ? {
-            observeGithubHostileMutationEvidence: (postcondition) =>
-              observeGithubHostileMutationEvidence(githubToken, postcondition),
-          }
-        : {}),
-    },
+    observationContext,
   });
   if (!kernel.head()) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
-  const desired = compileDefaultProjectGraph(
-    repo,
-    context.command_source_sha.toLowerCase(),
+  const desired = compileProjectGraph(
+    repositorySnapshot(repo, context.command_source_sha.toLowerCase()),
     context,
+    graphProducers,
   );
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
