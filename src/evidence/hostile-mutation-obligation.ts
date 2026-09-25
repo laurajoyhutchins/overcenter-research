@@ -160,12 +160,16 @@ export function compileHostileMutationEvidenceObligation({
       ref,
       evidence_path: HOSTILE_MUTATION_EVIDENCE_PATH,
       expected_sha256: sha256(evidenceBytes),
-      source_blobs: currentSourceBlobs,
-      evidence_source_blobs: committed.sourceBlobs,
-      source_runs: committed.sourceRuns,
-      workflow_path: WORKFLOW_PATH,
-      job_name: JOB_NAME,
-      artifact_name: ARTIFACT_NAME,
+      binding: {
+        source_blobs: currentSourceBlobs,
+        evidence_source_blobs: committed.sourceBlobs,
+        source_runs: committed.sourceRuns,
+        workflow: {
+          path: WORKFLOW_PATH,
+          job: JOB_NAME,
+          artifact: ARTIFACT_NAME,
+        },
+      },
     },
   });
 }
