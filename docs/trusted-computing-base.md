@@ -10,7 +10,7 @@ The machine-readable policy is [`tcb-policy.json`](../tcb-policy.json). Reproduc
 npm run check:tcb
 ```
 
-The report gives every trusted slice an exact path, symbol or whole-file boundary, source-line range, semantic LOC count, and SHA-256 fingerprint. It also computes a conservative transitive repository-module closure from every trusted root. The explicit slice is a lower bound; the module closure is an upper bound until symbol-level dependency closure can mechanically narrow the gap. Whole-file entries are intentionally conservative where the current analysis cannot yet prove a smaller sound slice.
+The report gives every trusted slice an exact path, symbol or whole-file boundary, source-line range, semantic LOC count, and SHA-256 fingerprint. It then computes two independent dependency views: a transitive runtime-import envelope and a TypeScript-checker runtime-symbol closure. The import envelope is **not** an upper bound: hosted measurement falsified that assumption because injected runtime objects can call trusted code without importing its module. The ratcheted hybrid envelope therefore charges whole runtime-imported files plus runtime declarations reached across those non-import symbol edges.
 
 ## Properties
 
@@ -30,23 +30,23 @@ The generic core depends on provider-specific facts being interpreted correctly.
 
 ## Budget rule
 
-Each property has an explicit semantic-LOC ceiling. CI fails if the counted trusted slice exceeds it. The baseline is ratcheted to the exact hosted measurement, so future TCB growth requires an explicit policy change. A whole-surface SHA-256 fingerprint also makes same-LOC trusted-code edits visible once the baseline fingerprint is recorded.
+Each property has explicit-slice, import-envelope, and hybrid semantic-LOC ceilings. CI also requires the symbol closure to have zero unresolved runtime-dispatch obligations. The hybrid SHA-256 fingerprint covers the import-envelope fingerprint, cross-envelope trusted declaration slices, runtime dispatch bindings, and property-composition cuts, so a same-LOC trust-edge change still requires an explicit policy update.
 
-A LOC ceiling is not a proof. It is an architectural ratchet. The stronger evidence comes from combining this inventory with hostile tests, authority-flow analysis, exact-head CI, differential backends, and formal models.
+A LOC ceiling or static dependency closure is not a proof. It is an architectural ratchet. The stronger evidence comes from combining this inventory with hostile tests, authority-flow analysis, exact-head CI, differential backends, and formal models.
 
 ## Current baseline
 
-| Property | Explicit slice LOC | Conservative module closure LOC | Closure SHA-256 |
-| --- | ---: | ---: | --- |
-| Broker mutation safety | 1,108 | 7,947 | `d52fd14cf1ca…5df87` |
-| No false `DONE` | 1,501 | 7,947 | `d52fd14cf1ca…5df87` |
-| GitHub commit-status provider | 2,377 | 2,740 | `8f572e9d658f…e00a3` |
+| Property | Explicit slice | Runtime symbols | Import envelope | Hybrid TCB | Hybrid SHA-256 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Broker mutation safety | 1,108 | 3,194 | 7,947 | **8,058** | `1e1c53ff04f6…ed1ed` |
+| No false `DONE` | 1,501 | 3,035 | 7,947 | **8,055** | `401fbf9b746f…c3ddb` |
+| GitHub commit-status provider | 2,377 | 2,550 | 2,740 | **2,746** | `4a2a068440cf…67d3e` |
 
-These scopes overlap and must not be summed into a repository-wide figure without deduplicating shared code. The two core properties currently share the same 7,947-LOC closure because their trusted roots eventually reach the same broad authority, graph, observation, and provider module cone. That is useful pressure: the 6,839-LOC and 6,446-LOC gaps are uncertainty to remove, not evidence that every line in the closure is actually security-critical. The GitHub provider gap is much narrower at 363 LOC.
+The hybrid counts are property-scoped and overlap. Do not sum them into one repository number. The core properties explicitly bind the `DurableFactStore.append` dispatch edge to `SqliteFactStore.append`. The GitHub provider profile composes with broker mutation safety at `KernelCore.authorizeEffect`, `performEffect`, and `releaseEffectReservation`; those core methods are not charged again to the provider-specific delta. Six provider-profile lines beyond the import envelope remain deliberately charged: the effect authority's `postcondition` field and the five GitHub commit-status coordinates it consumes.
 
 ## External assumptions
 
-External assumptions are part of the TCB even though they have no repository LOC. The report keeps them visible instead of allowing a small source-code number to imply that SQLite, Node.js, the operating system, TLS, the system `curl` executable used by GitHub certified reads, or provider API semantics are somehow irrelevant. The report also lists every external module reached by the conservative closure; that list is an over-approximation and is not itself a claim that every imported module is necessary to the named property.
+External assumptions are part of the TCB even though they have no repository LOC. The report keeps them visible instead of allowing a small source-code number to imply that SQLite, Node.js, the operating system, TLS, the system `curl` executable used by GitHub certified reads, or provider API semantics are somehow irrelevant. The report also lists external runtime modules and symbols reached by the analysis; those lists are dependency evidence, not repository LOC.
 
 ## Direction
 
