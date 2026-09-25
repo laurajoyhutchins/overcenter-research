@@ -138,6 +138,13 @@ test('checked-in project intent is source-agnostic until trusted compilation', (
   assert.ok(compiled);
   assert.equal(compiled.id, 'live-agent-loop-witness');
   assert.ok(compiled.packet);
+  assert.deepEqual(compiled.packet.command, [
+    'node',
+    '--experimental-strip-types',
+    'experiments/assignment-capsule/fixture-task.ts',
+    'experiments/assignment-capsule/fixture-input.txt',
+    'result.txt',
+  ]);
   assert.equal(JSON.stringify(compiled.packet).includes('source_sha'), false);
 });
 
