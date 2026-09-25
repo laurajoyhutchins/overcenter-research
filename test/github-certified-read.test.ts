@@ -385,8 +385,6 @@ test('certified Actions load drives conservative account-capacity admission', ()
     repository_full_name: 'acme/widget',
     run_id: 7001,
     job_id: 9001,
-    job_name: 'unit',
-    head_sha: SHA,
     self_hosted: false,
   });
   assert.equal(observation.in_progress_jobs[1]?.self_hosted, true);
@@ -403,11 +401,9 @@ test('certified Actions load drives conservative account-capacity admission', ()
     observed_hosted_jobs: 1,
     locally_reserved_jobs: 17,
     safety_reserve_jobs: 1,
-    committed_jobs: 19,
     available_jobs: 1,
     state: 'available',
     reason: null,
-    conservative_runner_classification: true,
   });
 
   assert.deepEqual(
@@ -418,15 +414,12 @@ test('certified Actions load drives conservative account-capacity admission', ()
     {
       limit: 20,
       observed_in_progress_jobs: 2,
-      observed_self_hosted_jobs: 1,
-      observed_non_self_hosted_jobs: 1,
+      observed_hosted_jobs: 1,
       locally_reserved_jobs: 0,
       safety_reserve_jobs: 0,
-      committed_jobs: 1,
       available_jobs: 0,
       state: 'indeterminate',
       reason: 'repository-scope-incomplete',
-      conservative_runner_classification: true,
     },
   );
 });
@@ -461,6 +454,6 @@ test('Actions capacity observation refuses partial provider collections', () => 
           throw new Error('unexpected path:' + path);
         },
       }),
-    /GITHUB_ACTIONS_CAPACITY_COLLECTION_NOT_SINGLE_PAGE_COMPLETE/,
+    /GITHUB_ACTIONS_CAPACITY_COLLECTION_INCOMPLETE/,
   );
 });
