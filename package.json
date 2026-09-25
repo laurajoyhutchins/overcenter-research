@@ -63,6 +63,7 @@
     "test:verified-generated-output": "node --experimental-strip-types experiments/verified-generated-output/experiment.ts",
     "test:kubernetes-configmap-effect": "node --experimental-strip-types experiments/kubernetes-configmap-effect/experiment.ts",
     "check:tcb": "node --experimental-strip-types scripts/report-tcb.ts",
+    "update:tcb-doc": "node --experimental-strip-types scripts/report-tcb.ts --write-doc",
     "check:experiment-statistics": "node --experimental-strip-types scripts/check-experiment-statistics.ts"
   },
   "devDependencies": {
