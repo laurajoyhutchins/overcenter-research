@@ -1,0 +1,75 @@
+name: Executor fabric retention
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/rust-executor-consolidation.yml
+      - experiments/rust-executor-consolidation/**
+      - scripts/experiment-statistics.ts
+      - src/execution/executor/**
+      - src/execution/protocol.ts
+      - src/execution/runner.ts
+      - src/execution/confined-executor.ts
+      - src/execution/manifest.ts
+      - src/execution/confinement/**
+      - experiments/registry.json
+      - experiments/README.md
+      - package.json
+      - .go-version
+      - rust-toolchain.toml
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Go fabric vs direct Rust confinement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact experiment revision
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: '.node-version'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: '.go-version'
+          cache: false
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "$channel"
+          rustup toolchain install "$channel" --profile minimal --no-self-update
+          test "$(rustc --version | awk '{print $2}')" = "$channel"
+      - name: Verify experiment contract
+        run: npm run test:experiment-contract
+      - name: Run differential experiment
+        env:
+          OVERCENTER_RUST_CONSOLIDATION_REPORT: ${{ runner.temp }}/rust-executor-consolidation.json
+        run: npm run experiment:rust-executor-consolidation
+      - name: Publish result summary
+        if: always()
+        shell: bash
+        run: |
+          report="${{ runner.temp }}/rust-executor-consolidation.json"
+          {
+            echo '## Executor fabric retention'
+            echo
+            if [[ -f "$report" ]]; then
+              echo '~~~json'
+              cat "$report"
+              echo '~~~'
+            else
+              echo 'Experiment did not produce a result report.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
