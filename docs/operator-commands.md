@@ -38,6 +38,10 @@ The worker executable carries no project-settlement or provider authority. The c
 
 A reasoning agent does not select or claim its own work.
 
+Trusted deterministic graph producers may also materialize **system evidence obligations**. These use the same obligation identity, reconciliation, claim, observation, and settlement machinery, but they are not reasoning assignments. If one reaches the READY frontier, `project.advance` reports the system obligation as READY without claiming it or constructing an agent packet. Its trusted producer remains responsible for generating and independently verifying the evidence before settlement.
+
+Hostile mutation freshness uses this path. The obligation identity binds the configured protected source blobs and committed mutation-evidence bytes. A protected source change therefore reopens the obligation; unrelated source movement does not. The mutation-evidence promoter may settle it only after canonical GitHub workflow, job, artifact, report, and source bindings verify.
+
 ## `project.submit`
 
 Return the candidate produced from a work packet.

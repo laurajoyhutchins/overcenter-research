@@ -99,8 +99,8 @@
         "formal models and proof tools"
       ],
       "expected_surface_sha256": "a87cfcadedea7d764e8c7dbda88c56d5cc45884864865c9824e2c2539a526541",
-      "max_module_closure_semantic_loc": 7945,
-      "expected_module_closure_sha256": "f2dd2dc8a2942385ebcb052b76ab9325254b0d3dd22f6af7f63c4e163a5742ee",
+      "max_module_closure_semantic_loc": 8043,
+      "expected_module_closure_sha256": "d8c125227cd307ea205b8ac604de04e9f7e085d38eaf9dcca92f8054c9d08e2a",
       "runtime_dispatch_bindings": [
         {
           "target": "src/authority/store.ts#append",
@@ -111,8 +111,8 @@
           "reason": "production authority persistence is the SQLite durable fact store"
         }
       ],
-      "max_hybrid_closure_semantic_loc": 8056,
-      "expected_hybrid_closure_sha256": "594dcfeaf9af3671cbcd8ed77c523bc0f4ba788df6f6760604818d5d2f448db2",
+      "max_hybrid_closure_semantic_loc": 8167,
+      "expected_hybrid_closure_sha256": "2ec31c7dc1656aaaa3545f27622ebbc6b211087852da260b5f459fca6f5ba9a0",
       "require_sound_symbol_closure": true,
       "hostile_evidence_probes": [
         "effect-reservation",
@@ -122,7 +122,7 @@
     {
       "id": "no-false-done",
       "statement": "Overcenter cannot derive DONE for a run unless an admitted receipt and exact postcondition observation justify it, and replay cannot reinterpret unresolved or mismatched mutation evidence as success.",
-      "max_semantic_loc": 1499,
+      "max_semantic_loc": 1523,
       "entries": [
         {
           "path": "src/authority/engine.ts",
@@ -236,9 +236,9 @@
         "Rust worker confinement",
         "experiments and formal models"
       ],
-      "expected_surface_sha256": "38864533b0ec79c957cb3065340a0aba48ff44335801581616425b29a9532f77",
-      "max_module_closure_semantic_loc": 7945,
-      "expected_module_closure_sha256": "f2dd2dc8a2942385ebcb052b76ab9325254b0d3dd22f6af7f63c4e163a5742ee",
+      "expected_surface_sha256": "01bf69612aa7de1b06bea6122f03dbb2747ab934d6841228e51443f1f243ba22",
+      "max_module_closure_semantic_loc": 8043,
+      "expected_module_closure_sha256": "d8c125227cd307ea205b8ac604de04e9f7e085d38eaf9dcca92f8054c9d08e2a",
       "runtime_dispatch_bindings": [
         {
           "target": "src/authority/store.ts#append",
@@ -249,8 +249,8 @@
           "reason": "production authority persistence is the SQLite durable fact store"
         }
       ],
-      "max_hybrid_closure_semantic_loc": 8053,
-      "expected_hybrid_closure_sha256": "db07a0ab87f5e4c802a25ab65903d962f60efdd726bc41372cc4784a04b80569",
+      "max_hybrid_closure_semantic_loc": 8164,
+      "expected_hybrid_closure_sha256": "97240fabb5144dfaec2a140f8f4b4af30227892af4b38bce64e543b2e646de8c",
       "require_sound_symbol_closure": true,
       "hostile_evidence_probes": [
         "digest-foundation",
@@ -365,8 +365,8 @@
         "no-false-done",
         "github-commit-status-provider"
       ],
-      "max_hybrid_union_semantic_loc": 8241,
-      "expected_hybrid_union_sha256": "f1cb7167a814c83f63528dfb9aa037e9d45ec1c4c22fbe88284c6b603544a4c2"
+      "max_hybrid_union_semantic_loc": 8352,
+      "expected_hybrid_union_sha256": "45cc6f256cef23498bb3ab2880dee5e7156d522c19d3654022a59e9a7e4f0756"
     }
   ]
 }

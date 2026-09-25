@@ -13,6 +13,7 @@ export const SettlementObservationSchema={
         "eventually-consistent-file-content-equals/v1",
         "github-commit-status/v2",
         "github-pull-request-branch-updated/v1",
+        "github-hostile-mutation-evidence/v1",
         "kubernetes-configmap-exists/v1"
       ]
     },
@@ -71,6 +72,15 @@ export const SettlementObservationSchema={
       "maximum": 9007199254740991
     },
     "repository_full_name": {
+      "type": "string"
+    },
+    "ref": {
+      "type": "string"
+    },
+    "evidence_path": {
+      "type": "string"
+    },
+    "source_binding_sha256": {
       "type": "string"
     },
     "commit_sha": {

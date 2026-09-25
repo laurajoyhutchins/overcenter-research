@@ -1,7 +1,13 @@
 import { createHash } from 'node:crypto';
+import { canonicalDigest } from '../digest.ts';
 import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import type { AbsenceEvidenceCertificate, Observation, Postcondition } from '../model.ts';
+import type {
+  AbsenceEvidenceCertificate,
+  GithubHostileMutationEvidencePostcondition,
+  Observation,
+  Postcondition,
+} from '../model.ts';
 import {
   localFileEnoentEvidence,
   localFileEnoentEvidenceMatches,
@@ -33,6 +39,9 @@ export interface ObservationContext {
   githubToken: string | null;
   githubGet?: GithubJsonGet;
   githubGetAsync?: GithubJsonGetAsync;
+  observeGithubHostileMutationEvidence?: (
+    postcondition: GithubHostileMutationEvidencePostcondition,
+  ) => Observation;
   kubernetesListConfigMaps?: KubernetesListConfigMaps;
   kubernetesListLimit?: number;
   // Optional trusted confinement root for local-file observations. In confined
@@ -139,6 +148,33 @@ export function validatePostcondition(p: Postcondition): void {
   )
     return;
   if (
+    p?.verifier === 'github-hostile-mutation-evidence/v1' &&
+    p.provider === 'github' &&
+    Number.isSafeInteger(p.repository_id) &&
+    p.repository_id > 0 &&
+    typeof p.repository_full_name === 'string' &&
+    /^[^/]+\/[^/]+$/.test(p.repository_full_name) &&
+    typeof p.ref === 'string' &&
+    p.ref.length > 0 &&
+    typeof p.evidence_path === 'string' &&
+    p.evidence_path.length > 0 &&
+    !p.evidence_path.startsWith('/') &&
+    !p.evidence_path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
+    typeof p.expected_sha256 === 'string' &&
+    /^[0-9a-f]{64}$/i.test(p.expected_sha256) &&
+    data(p.source_blobs) &&
+    Object.keys(p.source_blobs).length > 0 &&
+    Object.entries(p.source_blobs).every(
+      ([path, blob]) =>
+        path.length > 0 &&
+        !path.startsWith('/') &&
+        !path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
+        typeof blob === 'string' &&
+        /^[0-9a-f]{40}$/i.test(blob),
+    )
+  )
+    return;
+  if (
     p?.verifier === 'kubernetes-configmap-exists/v1' &&
     p.provider === 'kubernetes' &&
     typeof p.authority_id === 'string' &&
@@ -191,6 +227,22 @@ const githubStatusError = (
   error: string,
 ): Observation => ({
   ...githubStatusCommon(p),
+  mutation_certainty: 'uncertain',
+  observation_error: error,
+});
+
+const githubHostileMutationEvidenceError = (
+  p: GithubHostileMutationEvidencePostcondition,
+  error: string,
+): Observation => ({
+  verifier: p.verifier,
+  provider: 'github',
+  repository_id: p.repository_id,
+  repository_full_name: p.repository_full_name,
+  ref: p.ref,
+  evidence_path: p.evidence_path,
+  expected_sha256: p.expected_sha256,
+  source_binding_sha256: canonicalDigest(p.source_blobs),
   mutation_certainty: 'uncertain',
   observation_error: error,
 });
@@ -387,6 +439,20 @@ export function observePostcondition(p: Postcondition, context: ObservationConte
       );
     } catch (e: unknown) {
       return githubPullRequestBranchUpdatedError(p, errorMessage(e));
+    }
+  }
+
+  if (p.verifier === 'github-hostile-mutation-evidence/v1') {
+    if (!context.observeGithubHostileMutationEvidence) {
+      return githubHostileMutationEvidenceError(
+        p,
+        'GITHUB_HOSTILE_MUTATION_EVIDENCE_OBSERVER_UNAVAILABLE',
+      );
+    }
+    try {
+      return context.observeGithubHostileMutationEvidence(p);
+    } catch (e: unknown) {
+      return githubHostileMutationEvidenceError(p, errorMessage(e));
     }
   }
 
@@ -615,6 +681,23 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
     return;
   }
 
+  if (postcondition.verifier === 'github-hostile-mutation-evidence/v1') {
+    if (
+      observed.provider !== 'github' ||
+      observed.repository_id !== postcondition.repository_id ||
+      typeof observed.repository_full_name !== 'string' ||
+      observed.repository_full_name.toLowerCase() !==
+        postcondition.repository_full_name.toLowerCase() ||
+      observed.ref !== postcondition.ref ||
+      observed.evidence_path !== postcondition.evidence_path ||
+      observed.expected_sha256 !== postcondition.expected_sha256 ||
+      observed.source_binding_sha256 !== canonicalDigest(postcondition.source_blobs)
+    ) {
+      throw new Error('OBSERVATION_COORDINATE_MISMATCH');
+    }
+    return;
+  }
+
   if (postcondition.verifier === 'github-pull-request-branch-updated/v1') {
     if (
       observed.provider !== 'github' ||
@@ -690,6 +773,14 @@ export function observationVerified(postcondition: Postcondition, observed: Obse
       observed.observed_uid.length > 0 &&
       typeof observed.observed_resource_version === 'string' &&
       observed.observed_resource_version.length > 0
+    );
+  }
+
+  if (postcondition.verifier === 'github-hostile-mutation-evidence/v1') {
+    return (
+      observed.actual_state === 'current' &&
+      observed.actual_sha256 === postcondition.expected_sha256 &&
+      observed.source_binding_sha256 === canonicalDigest(postcondition.source_blobs)
     );
   }
 

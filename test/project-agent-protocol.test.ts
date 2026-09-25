@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -180,6 +181,78 @@ test('project.advance reconciles trusted project intent before frontier selectio
     assert.equal(current.length, 1);
     assert.equal(current[0].id, 'intent-work');
     assert.equal(current[0].status, 'EXECUTING');
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(f.postconditionRoot, { recursive: true, force: true });
+  }
+});
+
+test('project.advance surfaces READY system evidence without claiming agent work', () => {
+  const f = fixture();
+  try {
+    const kernel = new GitOvercenterKernel(f.work, { remote: 'origin', ref: AUTHORITY_REF });
+    kernel.initialize();
+
+    const evidenceRoot = join(f.work, 'experiments', 'production-criticality-ranking');
+    mkdirSync(evidenceRoot, { recursive: true });
+    writeFileSync(
+      join(evidenceRoot, 'mutation-probes.json'),
+      `${JSON.stringify(
+        {
+          schema: 'overcenter-criticality-mutation-probes/v1',
+          probes: [
+            {
+              id: 'fixture-proof',
+              selectors: [{ file: 'task.mjs', name: 'fixtureTask' }],
+              tests: ['test/fixture.test.ts'],
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    writeFileSync(
+      join(evidenceRoot, 'mutation-evidence.json'),
+      `${JSON.stringify(
+        {
+          schema: 'overcenter-criticality-mutation-evidence',
+          probes: [],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    execFileSync('git', ['-C', f.work, 'add', 'experiments/production-criticality-ranking'], {
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['-C', f.work, 'commit', '-m', 'configure hostile evidence'], {
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['-C', f.work, 'push', 'origin', 'main'], { stdio: 'ignore' });
+    const sourceSha = git(f.work, ['rev-parse', 'HEAD']);
+
+    const outputDir = join(f.root, 'system-evidence-packet');
+    const receipt = advanceProjectForAgent(f.work, commandContext(sourceSha), {
+      outputDir,
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
+
+    assert.equal(receipt.state, 'READY');
+    assert.equal(receipt.obligation_id, 'hostile-mutation-evidence-current');
+    assert.equal(receipt.run_id, undefined);
+    assert.equal(receipt.assignment_sha256, undefined);
+    assert.equal(existsSync(outputDir), false);
+
+    const current = new GitOvercenterKernel(f.work, {
+      remote: 'origin',
+      ref: AUTHORITY_REF,
+    }).inspect();
+    assert.equal(current.length, 1);
+    assert.equal(current[0].id, 'hostile-mutation-evidence-current');
+    assert.equal(current[0].status, 'READY');
+    assert.equal(current[0].run_id, undefined);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
     rmSync(f.postconditionRoot, { recursive: true, force: true });

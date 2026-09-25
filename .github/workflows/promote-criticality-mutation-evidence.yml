@@ -119,3 +119,12 @@ jobs:
           git add "$evidence"
           git commit -m "Refresh criticality mutation evidence"
           git push origin HEAD:main
+
+      - name: Settle hostile mutation evidence obligation
+        if: steps.artifact.outputs.found == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+          OVERCENTER_PROJECT_AUTHORITY_REF: refs/overcenter/state
+          OVERCENTER_PROJECT_REMOTE: origin
+        run: node --experimental-strip-types src/cli/hostile-mutation-evidence-obligation.ts settle
