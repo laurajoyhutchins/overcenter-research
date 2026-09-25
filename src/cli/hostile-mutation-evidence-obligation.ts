@@ -160,4 +160,5 @@ if (mode === 'reconcile') {
       throw error;
     }
   }
+  throw new Error('HOSTILE_MUTATION_SETTLEMENT_CONTENTION_EXHAUSTED');
 }
