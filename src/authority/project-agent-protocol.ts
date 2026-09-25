@@ -270,7 +270,9 @@ function prepareAgentPacket(
       byPath.set(file.path, file);
     }
   }
-  const files = [...byPath.values()].sort((left, right) => left.path.localeCompare(right.path));
+  const files = [...byPath.values()].sort((left, right) =>
+    left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+  );
   if (files.length === 0) throw new Error('PROJECT_ADVANCE_SOURCE_INPUTS_EMPTY');
 
   const packet = validateAgentTaskPacket({
