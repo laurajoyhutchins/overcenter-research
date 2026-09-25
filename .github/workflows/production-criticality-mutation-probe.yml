@@ -17,6 +17,8 @@ on:
       - 'experiments/production-criticality-ranking/mutation-probes.json'
       - 'experiments/production-criticality-ranking/resolve-mutation-probes.ts'
       - 'experiments/production-criticality-ranking/generate-stryker-config.ts'
+      - 'experiments/production-criticality-ranking/combine-mutation-shards.ts'
+      - 'experiments/production-criticality-ranking/combine-mutation-shards.test.ts'
       - 'experiments/production-criticality-ranking/summarize-mutation.ts'
       - 'experiments/production-criticality-ranking/summarize-mutation.test.ts'
       - 'experiments/production-criticality-ranking/emit-mutation-evidence.ts'
@@ -30,9 +32,15 @@ on:
       - 'experiments/production-criticality-ranking/mutation-evidence.json'
       - '.github/workflows/production-criticality-mutation-probe.yml'
   workflow_dispatch:
+    inputs:
+      probe:
+        description: Optional exact probe id; empty runs all configured probes
+        required: false
+        default: ''
+        type: string
 
 concurrency:
-  group: criticality-mutation-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  group: criticality-mutation-${{ github.event.pull_request.number || inputs.probe || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -74,16 +82,22 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_HEALTH: ${{ steps.evidence-health.outcome }}
+          MANUAL_PROBE: ${{ inputs.probe || '' }}
         run: |
           set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ -n "$MANUAL_PROBE" && ! "$MANUAL_PROBE" =~ ^[a-z0-9-]+(,[a-z0-9-]+)*$ ]]; then
+              echo "invalid mutation probe selector: $MANUAL_PROBE" >&2
+              exit 1
+            fi
+            echo "run_probe=true" >> "$GITHUB_OUTPUT"
+            echo "mutation_probe=$MANUAL_PROBE" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ "$EVIDENCE_HEALTH" != "success" ]]; then
             echo "checked-in mutation evidence is stale or provenance-invalid; forcing a full repair run" >&2
             echo "run_probe=true" >> "$GITHUB_OUTPUT"
             echo "mutation_probe=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            node --experimental-strip-types experiments/production-criticality-ranking/select-mutation-probe.ts "$EVENT_NAME" </dev/null >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [[ -z "$BASE" || -z "$HEAD" ]]; then
@@ -116,12 +130,47 @@ jobs:
       - name: Install pinned mutation engine
         if: steps.mutation-tools.outputs.cache-hit != 'true'
         run: npm install --no-save --ignore-scripts @stryker-mutator/core@10.0.0 typescript@5.8.3
-      - name: Generate mutation config
+      - name: Generate targeted mutation config
+        if: env.MUTATION_PROBE != ''
         run: node --experimental-strip-types experiments/production-criticality-ranking/generate-stryker-config.ts mutation-stryker-config.json
-      - name: Prove mutation summarizer
-        run: node --experimental-strip-types --test experiments/production-criticality-ranking/summarize-mutation.test.ts
+      - name: Prove mutation aggregation
+        run: |
+          node --experimental-strip-types --test \
+            experiments/production-criticality-ranking/summarize-mutation.test.ts \
+            experiments/production-criticality-ranking/combine-mutation-shards.test.ts
       - name: Probe hostile mutations
-        run: ./node_modules/.bin/stryker run mutation-stryker-config.json
+        run: |
+          set -euo pipefail
+          if [[ -n "$MUTATION_PROBE" ]]; then
+            ./node_modules/.bin/stryker run mutation-stryker-config.json
+            exit 0
+          fi
+
+          mkdir -p mutation-shards
+          while IFS= read -r probe; do
+            echo "::group::mutation probe $probe"
+            MUTATION_PROBE="$probe" \
+            MUTATION_REPORT="mutation-shards/$probe.report.json" \
+            MUTATION_RANGES="mutation-shards/$probe.ranges.json" \
+              node --experimental-strip-types \
+                experiments/production-criticality-ranking/generate-stryker-config.ts \
+                "mutation-shards/$probe.config.json"
+            ./node_modules/.bin/stryker run "mutation-shards/$probe.config.json"
+            echo "::endgroup::"
+          done < <(
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config=JSON.parse(fs.readFileSync(
+            'experiments/production-criticality-ranking/mutation-probes.json',
+            'utf8',
+          ));
+          for(const probe of config.probes??[]) console.log(probe.id);
+          NODE
+          )
+
+          node --experimental-strip-types \
+            experiments/production-criticality-ranking/combine-mutation-shards.ts \
+            mutation-shards mutation.json mutation-ranges.json
       - name: Summarize semantic regions
         if: always()
         run: |
