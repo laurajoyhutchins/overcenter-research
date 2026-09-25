@@ -5,7 +5,7 @@
     {
       "id": "broker-mutation-safety",
       "statement": "A broker-owned provider mutation cannot execute through an admitted Overcenter effect path unless execution authority and exact claimed revision are current, a durable effect reservation has succeeded, and no prior unresolved effect exists for that run.",
-      "max_semantic_loc": 1106,
+      "max_semantic_loc": 1099,
       "entries": [
         {
           "path": "src/authority/engine.ts",
@@ -98,9 +98,9 @@
         "experiments and tests",
         "formal models and proof tools"
       ],
-      "expected_surface_sha256": "a87cfcadedea7d764e8c7dbda88c56d5cc45884864865c9824e2c2539a526541",
-      "max_module_closure_semantic_loc": 8094,
-      "expected_module_closure_sha256": "b87457655047c660ddc90ecca8198ab484eed229afe72d3e73c78b5b3b419e91",
+      "expected_surface_sha256": "cfa877146a3d834be829e5a0823cf3b5ab8bd10f8f381151bdfc3f25dcffc20f",
+      "max_module_closure_semantic_loc": 8077,
+      "expected_module_closure_sha256": "19e677ba32e9411c5fc101a2fd447c3cc84f4f555a1ffc08df167943cebc5a17",
       "runtime_dispatch_bindings": [
         {
           "target": "src/authority/store.ts#append",
@@ -111,8 +111,8 @@
           "reason": "production authority persistence is the SQLite durable fact store"
         }
       ],
-      "max_hybrid_closure_semantic_loc": 8220,
-      "expected_hybrid_closure_sha256": "77f45375a90ea78d819bb5116042e08ed1f0684f83a666da826bdbaa39f9ac6f",
+      "max_hybrid_closure_semantic_loc": 8203,
+      "expected_hybrid_closure_sha256": "413f6296b4ef875e53bc1bdafe5e8b2589a5d912164e35cdf6314caa6e6e246e",
       "require_sound_symbol_closure": true,
       "hostile_evidence_probes": [
         "effect-reservation",
@@ -129,7 +129,7 @@
     {
       "id": "no-false-done",
       "statement": "Overcenter cannot derive DONE for a run unless an admitted receipt and exact postcondition observation justify it, and replay cannot reinterpret unresolved or mismatched mutation evidence as success.",
-      "max_semantic_loc": 1530,
+      "max_semantic_loc": 1518,
       "entries": [
         {
           "path": "src/authority/engine.ts",
@@ -243,9 +243,9 @@
         "Rust worker confinement",
         "experiments and formal models"
       ],
-      "expected_surface_sha256": "6835e4cfba81efe92e898f7415aed72505137135589b1d4fb84d467f26cd7e61",
-      "max_module_closure_semantic_loc": 8094,
-      "expected_module_closure_sha256": "b87457655047c660ddc90ecca8198ab484eed229afe72d3e73c78b5b3b419e91",
+      "expected_surface_sha256": "48f26a3a4cfef017bcbabe48f97e1cbac8185a04221bbb5b324136da0d5ae422",
+      "max_module_closure_semantic_loc": 8077,
+      "expected_module_closure_sha256": "19e677ba32e9411c5fc101a2fd447c3cc84f4f555a1ffc08df167943cebc5a17",
       "runtime_dispatch_bindings": [
         {
           "target": "src/authority/store.ts#append",
@@ -256,8 +256,8 @@
           "reason": "production authority persistence is the SQLite durable fact store"
         }
       ],
-      "max_hybrid_closure_semantic_loc": 8217,
-      "expected_hybrid_closure_sha256": "eeac55cffc30e5ae864fcce53467cee6f54af51f61001b03e4dc5333e1e04368",
+      "max_hybrid_closure_semantic_loc": 8200,
+      "expected_hybrid_closure_sha256": "88c5220a6443612055f426f77be1f6e6b5baab869ca4150e209c715bcfd0225b",
       "require_sound_symbol_closure": true,
       "hostile_evidence_probes": [
         "digest-foundation",
@@ -357,7 +357,7 @@
       ],
       "expected_surface_sha256": "84f0fe24a1fba0b45695052dbb1a1597048cc51d0aad3b20b914f9504868d08e",
       "max_module_closure_semantic_loc": 2740,
-      "expected_module_closure_sha256": "a244356793429f2c3de1bea89a75a316cc40f19f4d2d13eefa19e702bbf2f0ec",
+      "expected_module_closure_sha256": "8e2c8b9099313e325efac8a28b5b7a7166c97add58c7e81d7db6985725235d1d",
       "composes_with": [
         "broker-mutation-safety"
       ],
@@ -367,7 +367,7 @@
         "src/authority/engine.ts#releaseEffectReservation"
       ],
       "max_hybrid_closure_semantic_loc": 2746,
-      "expected_hybrid_closure_sha256": "6d7c785ce55bacad547c9359159185f8ccd9146e6d88a92a62881ba9b6030ba7",
+      "expected_hybrid_closure_sha256": "23e5572885aba775bbb74eb8f127776a265d6af37171f15ae3d4a65a791a1835",
       "require_sound_symbol_closure": true,
       "attention_hybrid_closure_semantic_loc": 2746,
       "attention_external_assumptions": [
@@ -388,8 +388,8 @@
         "no-false-done",
         "github-commit-status-provider"
       ],
-      "max_hybrid_union_semantic_loc": 8405,
-      "expected_hybrid_union_sha256": "76a3dec214dffb2adf239afa4e4434542645047d43b6aebe333a7f28685d27ec",
+      "max_hybrid_union_semantic_loc": 8388,
+      "expected_hybrid_union_sha256": "def24e4ae41a3cc22c0b6758f2e064c79c56ff5f06d486c2f4de9716be5500c2",
       "attention_hybrid_union_semantic_loc": 8348,
       "max_trusted_file_share": 0.1
     }
