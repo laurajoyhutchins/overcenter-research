@@ -4,8 +4,7 @@ import { execFileSync } from 'node:child_process';
 import type { Obligation } from '../model.ts';
 import { normalizeObligation } from '../authority/facts.ts';
 
-export const HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID =
-  'hostile-mutation-evidence-current' as const;
+export const HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID = 'hostile-mutation-evidence-current' as const;
 export const HOSTILE_MUTATION_EVIDENCE_PACKET_SCHEMA =
   'overcenter-hostile-mutation-evidence-obligation/v1' as const;
 export const HOSTILE_MUTATION_EVIDENCE_PATH =
@@ -129,9 +128,7 @@ export function compileHostileMutationEvidenceObligation({
   });
 }
 
-export function isSystemEvidenceObligation(work: {
-  packet: Record<string, unknown>;
-}): boolean {
+export function isSystemEvidenceObligation(work: { packet: Record<string, unknown> }): boolean {
   return (
     work.packet.schema === HOSTILE_MUTATION_EVIDENCE_PACKET_SCHEMA &&
     work.packet.kind === 'system-evidence'

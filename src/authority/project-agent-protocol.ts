@@ -236,11 +236,7 @@ function gitSourceTree(
   });
 }
 
-function desiredProjectGraph(
-  repo: string,
-  sourceSha: string,
-  context: ProjectCommandContext,
-) {
+function desiredProjectGraph(repo: string, sourceSha: string, context: ProjectCommandContext) {
   const bytes = gitOptionalBytes(repo, sourceSha, PROJECT_INTENT_PATH);
   let intent = [];
   if (bytes) {
@@ -376,11 +372,7 @@ export function advanceProjectForAgent(
     githubToken,
   });
   if (!kernel.head()) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
-  const desired = desiredProjectGraph(
-    repo,
-    context.command_source_sha.toLowerCase(),
-    context,
-  );
+  const desired = desiredProjectGraph(repo, context.command_source_sha.toLowerCase(), context);
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
     if (desired) {

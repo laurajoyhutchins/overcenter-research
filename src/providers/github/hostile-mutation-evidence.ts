@@ -157,7 +157,13 @@ export function observeGithubHostileMutationEvidence(
     for (const path of expectedPaths) {
       const expected = p.source_blobs[path]!.toLowerCase();
       const committedBlob = bindings.sourceBlobs[path];
-      const observed = fileBytes(token, p.repository_full_name, path, p.ref, get).blob.toLowerCase();
+      const observed = fileBytes(
+        token,
+        p.repository_full_name,
+        path,
+        p.ref,
+        get,
+      ).blob.toLowerCase();
       sourceEvidence[path] = {
         expected_blob: expected,
         committed_evidence_blob: committedBlob ?? null,

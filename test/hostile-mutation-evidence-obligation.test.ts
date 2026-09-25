@@ -12,10 +12,7 @@ import {
 } from '../src/evidence/hostile-mutation-obligation.ts';
 import { obligationDefinition, obligationDefinitionId } from '../src/authority/facts.ts';
 import type { GithubHostileMutationEvidencePostcondition } from '../src/model.ts';
-import {
-  observationVerified,
-  observePostcondition,
-} from '../src/observation/observe.ts';
+import { observationVerified, observePostcondition } from '../src/observation/observe.ts';
 
 function git(cwd: string, args: string[]): string {
   return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();

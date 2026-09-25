@@ -7,10 +7,7 @@ import {
   HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID,
   HOSTILE_MUTATION_EVIDENCE_PATH,
 } from '../evidence/hostile-mutation-obligation.ts';
-import {
-  observationVerified,
-  observePostconditionAsync,
-} from '../observation/observe.ts';
+import { observationVerified, observePostconditionAsync } from '../observation/observe.ts';
 import { verifyMutationEvidenceSources } from '../../experiments/production-criticality-ranking/verify-mutation-evidence-sources.ts';
 import { requiredEnv } from './project-command-runtime.ts';
 
@@ -136,9 +133,7 @@ if (mode === 'reconcile') {
         },
       });
       if (receipt.disposition !== 'DONE' || receipt.verified !== true) {
-        throw new Error(
-          `HOSTILE_MUTATION_OBLIGATION_NOT_SETTLED:${receipt.disposition}`,
-        );
+        throw new Error(`HOSTILE_MUTATION_OBLIGATION_NOT_SETTLED:${receipt.disposition}`);
       }
       console.log(
         JSON.stringify(
