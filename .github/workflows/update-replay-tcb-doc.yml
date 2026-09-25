@@ -26,7 +26,7 @@ jobs:
       - name: Update generated TCB baseline
         run: |
           set -euo pipefail
-          npm install --no-save --ignore-scripts --package-lock=false typescript@5.8.3
+          npm install --ignore-scripts --package-lock=false
           npm run update:tcb-doc
           rm .github/workflows/update-replay-tcb-doc.yml
           git config user.name github-actions[bot]
