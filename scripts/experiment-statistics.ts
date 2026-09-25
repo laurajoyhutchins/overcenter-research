@@ -20,10 +20,7 @@ export function median(values: readonly number[]): number {
   return (sorted[middle - 1]! + sorted[middle]!) / 2;
 }
 
-export function pairedRatios(
-  baseline: readonly number[],
-  treatment: readonly number[],
-): number[] {
+export function pairedRatios(baseline: readonly number[], treatment: readonly number[]): number[] {
   if (baseline.length !== treatment.length || baseline.length === 0) {
     throw new Error('PAIRED_RATIOS:INVALID_LENGTH');
   }
@@ -91,10 +88,7 @@ export function bootstrapMedianInterval(
   };
 }
 
-export function zeroFailureUpperBound(
-  trials: number,
-  confidence = 0.95,
-): number {
+export function zeroFailureUpperBound(trials: number, confidence = 0.95): number {
   if (!Number.isSafeInteger(trials) || trials < 1) throw new Error('ZERO_FAILURE:INVALID_TRIALS');
   if (!(confidence > 0 && confidence < 1)) {
     throw new Error('ZERO_FAILURE:INVALID_CONFIDENCE');
