@@ -1,56 +1,9 @@
 {
   "schema": "overcenter-graph-patch-v1",
-  "definitions": [
-    {
-      "id": "a30ea9ff2e7853c3ffbf22112498f646e31b163c29626502687763943ed4db8c",
-      "definition": {
-        "dependencies": [],
-        "packet": {
-          "schema": "overcenter-system-evidence/v1",
-          "kind": "system-evidence",
-          "evidence_kind": "hostile-mutation",
-          "evidence_path": "experiments/production-criticality-ranking/mutation-evidence.json",
-          "probe_ids": [
-            "digest-foundation",
-            "done-candidate-reuse",
-            "effect-reservation",
-            "execution-fence",
-            "semantic-identity",
-            "settlement",
-            "verification-and-absence"
-          ],
-          "source_blobs": {
-            "src/authority/engine.ts": "e25d630f2b1e835cd03eee83146fa44e59547afb",
-            "src/authority/project-state.ts": "3239a4937c9c320d94792192b7ac8939d90db55c",
-            "src/authority/transaction-admission.ts": "90a63386e49a2142aba1bae5b19efc0fa2f54cf0",
-            "src/digest.ts": "1b6e9d1ec4353f48add1b0d8ac35ce5c92471e1e",
-            "src/graph/identity.ts": "b5224f4c6c7b4626d3ae3698425303f1cf9d50bd",
-            "src/observation/observe.ts": "87e24821d351c1de7cf4c4cb5ac9e81fbd2f7470"
-          }
-        },
-        "postcondition": {
-          "verifier": "github-hostile-mutation-evidence/v1",
-          "provider": "github",
-          "repository_id": 1354872053,
-          "repository_full_name": "laurajoyhutchins/overcenter-research",
-          "ref": "main",
-          "evidence_path": "experiments/production-criticality-ranking/mutation-evidence.json",
-          "expected_sha256": "6197f6f6f3562881ffe13dee7d90f5bea541208c23fc86bc71938401b1fb6297",
-          "source_blobs": {
-            "src/authority/engine.ts": "e25d630f2b1e835cd03eee83146fa44e59547afb",
-            "src/authority/project-state.ts": "3239a4937c9c320d94792192b7ac8939d90db55c",
-            "src/authority/transaction-admission.ts": "90a63386e49a2142aba1bae5b19efc0fa2f54cf0",
-            "src/digest.ts": "1b6e9d1ec4353f48add1b0d8ac35ce5c92471e1e",
-            "src/graph/identity.ts": "b5224f4c6c7b4626d3ae3698425303f1cf9d50bd",
-            "src/observation/observe.ts": "87e24821d351c1de7cf4c4cb5ac9e81fbd2f7470"
-          }
-        }
-      }
-    }
-  ],
+  "definitions": [],
   "bindings": [
     {
-      "node_id": "hostile-mutation-evidence-current",
+      "node_id": "system-evidence:hostile-mutation",
       "definition_id": "a30ea9ff2e7853c3ffbf22112498f646e31b163c29626502687763943ed4db8c"
     }
   ],
