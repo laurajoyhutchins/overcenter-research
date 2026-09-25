@@ -206,9 +206,8 @@ test('GitHub hostile evidence observation fails currentness on source drift', ()
   const context = {
     githubToken: 'token',
     githubGet: get,
-    observeGithubHostileMutationEvidence: (
-      candidate: GithubHostileMutationEvidencePostcondition,
-    ) => observeGithubHostileMutationEvidence('token', candidate, get),
+    observeGithubHostileMutationEvidence: (candidate: GithubHostileMutationEvidencePostcondition) =>
+      observeGithubHostileMutationEvidence('token', candidate, get),
   };
 
   const current = observePostcondition(postcondition, context);
