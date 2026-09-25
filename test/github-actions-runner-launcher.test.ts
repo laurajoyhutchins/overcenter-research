@@ -179,9 +179,7 @@ test('work packet transport exposes exact packet bytes but no GitHub credential'
       assert.equal(options.env.GITHUB_TOKEN, undefined);
       assert.equal(options.env.ACTIONS_RUNTIME_TOKEN, undefined);
       assert.equal(args.length, 2);
-      const request = JSON.parse(
-        readFileSync(args[0]!, 'utf8'),
-      ) as WorkPacketTransportRequest;
+      const request = JSON.parse(readFileSync(args[0]!, 'utf8')) as WorkPacketTransportRequest;
       assert.equal(request.schema, 'overcenter-work-packet-transport/v1');
       assert.equal(request.assignment_sha256, assignmentSha256(fixture.assignment));
       assert.equal(request.obligation_id, 'proof');
