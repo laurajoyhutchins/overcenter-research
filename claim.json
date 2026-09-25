@@ -1,0 +1,8 @@
+{
+  "schema": "overcenter-git-claim-v3",
+  "run_id": "9389f44b-ef87-45c7-8c3b-2e0bb857d0fe",
+  "obligation_id": "live-agent-loop-witness",
+  "claimed_revision": "56bcb192f11a00e0946d529e52ecc46a38614ed5",
+  "obligation_key": "ce11f0070694641e71502e96173824f4386cc8da9779e4a13358cea96c683cd5",
+  "execution_capability_sha256": "54d9c3413422b4ecaa41c224d3630951988c06d6b655dc200422dd7ecbf718c1"
+}
