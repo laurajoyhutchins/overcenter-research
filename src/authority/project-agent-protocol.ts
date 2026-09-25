@@ -16,6 +16,8 @@ import {
 import { canonicalDigest, sha256 } from '../digest.ts';
 import {
   compileHostileMutationEvidenceObligation,
+  HOSTILE_MUTATION_EVIDENCE_PATH,
+  HOSTILE_MUTATION_PROBES_PATH,
   isSystemEvidenceObligation,
 } from '../evidence/hostile-mutation-obligation.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
@@ -250,14 +252,23 @@ function desiredProjectGraph(
     }
     intent = compileProjectIntent(value);
   }
+  const mutationProbes = gitOptionalBytes(repo, sourceSha, HOSTILE_MUTATION_PROBES_PATH);
+  const mutationEvidence = gitOptionalBytes(repo, sourceSha, HOSTILE_MUTATION_EVIDENCE_PATH);
+  if ((mutationProbes === null) !== (mutationEvidence === null)) {
+    throw new Error('HOSTILE_MUTATION_EVIDENCE_INPUT_INCOMPLETE');
+  }
   return [
     ...intent,
-    compileHostileMutationEvidenceObligation({
-      repo,
-      sourceSha,
-      repositoryId: context.repository_id,
-      repositoryFullName: context.repository_full_name,
-    }),
+    ...(mutationProbes && mutationEvidence
+      ? [
+          compileHostileMutationEvidenceObligation({
+            repo,
+            sourceSha,
+            repositoryId: context.repository_id,
+            repositoryFullName: context.repository_full_name,
+          }),
+        ]
+      : []),
   ];
 }
 
