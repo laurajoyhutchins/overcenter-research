@@ -425,6 +425,7 @@ export function integrateVerifiedSourceCandidate(
   {
     remote = 'origin',
     ref = 'refs/heads/main',
+    performReservedMutation,
   }: {
     remote?: string;
     ref?: string;
