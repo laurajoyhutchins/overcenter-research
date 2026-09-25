@@ -14,16 +14,11 @@ import {
   type AssignmentTaskPacket,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest, sha256 } from '../digest.ts';
-import {
-  compileHostileMutationEvidenceObligation,
-  HOSTILE_MUTATION_EVIDENCE_PATH,
-  HOSTILE_MUTATION_PROBES_PATH,
-  isSystemEvidenceObligation,
-} from '../evidence/hostile-mutation-obligation.ts';
+import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
 import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
-import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
+import { compileDefaultProjectGraph } from './default-project-graph.ts';
 import type { Work } from '../model.ts';
 
 export const PROJECT_ADVANCE_RECEIPT_SCHEMA = 'overcenter-project-advance/v1' as const;
@@ -143,15 +138,6 @@ function gitBytes(repo: string, commit: string, path: string): Buffer {
   });
 }
 
-function gitOptionalBytes(repo: string, commit: string, path: string): Buffer | null {
-  const listed = execFileSync('git', ['-C', repo, 'ls-tree', '--name-only', commit, '--', path], {
-    encoding: 'utf8',
-  }).trim();
-  if (listed === '') return null;
-  if (listed !== path) throw new Error('PROJECT_INTENT_PATH_AMBIGUOUS');
-  return gitBytes(repo, commit, path);
-}
-
 interface GitTreeEntry {
   mode: '100644' | '100755' | '040000';
   type: 'blob' | 'tree';
@@ -235,38 +221,6 @@ function gitSourceTree(
     }
     return assignmentFile(entry.path, gitBytes(repo, commit, entry.path), entry.mode);
   });
-}
-
-function desiredProjectGraph(repo: string, sourceSha: string, context: ProjectCommandContext) {
-  const bytes = gitOptionalBytes(repo, sourceSha, PROJECT_INTENT_PATH);
-  let intent: ReturnType<typeof compileProjectIntent> = [];
-  if (bytes) {
-    let value: unknown;
-    try {
-      value = JSON.parse(bytes.toString('utf8'));
-    } catch {
-      throw new Error('PROJECT_INTENT_JSON_INVALID');
-    }
-    intent = compileProjectIntent(value);
-  }
-  const mutationProbes = gitOptionalBytes(repo, sourceSha, HOSTILE_MUTATION_PROBES_PATH);
-  const mutationEvidence = gitOptionalBytes(repo, sourceSha, HOSTILE_MUTATION_EVIDENCE_PATH);
-  if ((mutationProbes === null) !== (mutationEvidence === null)) {
-    throw new Error('HOSTILE_MUTATION_EVIDENCE_INPUT_INCOMPLETE');
-  }
-  return [
-    ...intent,
-    ...(mutationProbes && mutationEvidence
-      ? [
-          compileHostileMutationEvidenceObligation({
-            repo,
-            sourceSha,
-            repositoryId: context.repository_id,
-            repositoryFullName: context.repository_full_name,
-          }),
-        ]
-      : []),
-  ];
 }
 
 function prepareAgentPacket(
@@ -381,10 +335,14 @@ export function advanceProjectForAgent(
     },
   });
   if (!kernel.head()) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
-  const desired = desiredProjectGraph(repo, context.command_source_sha.toLowerCase(), context);
+  const desired = compileDefaultProjectGraph(
+    repo,
+    context.command_source_sha.toLowerCase(),
+    context,
+  );
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
-    if (desired) {
+    if (desired.length > 0) {
       const expectedRevision = kernel.head();
       if (!expectedRevision) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
       try {
@@ -415,7 +373,7 @@ export function advanceProjectForAgent(
       });
     }
 
-    if (isSystemEvidenceObligation(ready)) {
+    if (isSystemEvidenceWork(ready)) {
       const authorityHead = kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
       return withDigest({
