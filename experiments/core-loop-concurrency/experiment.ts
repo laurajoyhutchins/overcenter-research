@@ -62,8 +62,8 @@ async function runCase(concurrency: number, effectMs: number) {
       concurrency,
       effect_ms: effectMs,
       tasks: TASKS,
-      elapsed_ms: Number(elapsed.toFixed(3)),
-      tasks_per_second: Number((TASKS / (elapsed / 1000)).toFixed(3)),
+      elapsed_ms: elapsed,
+      tasks_per_second: TASKS / (elapsed / 1000),
       max_active_effects: maxActive,
     };
   } finally {
