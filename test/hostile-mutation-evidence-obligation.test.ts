@@ -7,13 +7,13 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-  compileHostileMutationEvidenceObligation,
+  compileHostileMutationEvidenceFromRepository,
   HOSTILE_MUTATION_EVIDENCE_OBLIGATION_ID,
 } from '../src/evidence/hostile-mutation-obligation.ts';
 import { obligationDefinition, obligationDefinitionId } from '../src/authority/facts.ts';
-import type { GithubHostileMutationEvidencePostcondition } from '../src/model.ts';
+import type { GithubSourceBoundEvidencePostcondition } from '../src/model.ts';
 import { observationVerified, observePostcondition } from '../src/observation/observe.ts';
-import { observeGithubHostileMutationEvidence } from '../src/providers/github/hostile-mutation-evidence.ts';
+import { observeGithubSourceBoundEvidence } from '../src/providers/github/source-bound-evidence.ts';
 
 function git(cwd: string, args: string[]): string {
   return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();
@@ -28,7 +28,7 @@ function commit(repo: string, message: string): string {
 function definitionId(repo: string, sourceSha: string): string {
   return obligationDefinitionId(
     obligationDefinition(
-      compileHostileMutationEvidenceObligation({
+      compileHostileMutationEvidenceFromRepository({
         repo,
         sourceSha,
         repositoryId: 42,
@@ -93,7 +93,7 @@ test('hostile evidence obligation changes only with protected semantics or evide
     const evidenceChange = commit(root, 'evidence change');
     assert.notEqual(definitionId(root, evidenceChange), changedSource);
 
-    const obligation = compileHostileMutationEvidenceObligation({
+    const obligation = compileHostileMutationEvidenceFromRepository({
       repo: root,
       sourceSha: evidenceChange,
       repositoryId: 42,
@@ -139,15 +139,30 @@ test('GitHub hostile evidence observation fails currentness on source drift', ()
       ],
     }),
   );
-  const postcondition: GithubHostileMutationEvidencePostcondition = {
-    verifier: 'github-hostile-mutation-evidence/v1',
+  const postcondition: GithubSourceBoundEvidencePostcondition = {
+    verifier: 'github-source-bound-evidence/v1',
     provider: 'github',
     repository_id: 42,
     repository_full_name: 'acme/widget',
     ref: 'main',
     evidence_path: 'experiments/production-criticality-ranking/mutation-evidence.json',
     expected_sha256: sha256(evidence),
-    source_blobs: { 'src/core.ts': sourceBlob },
+    binding: {
+      source_blobs: { 'src/core.ts': sourceBlob },
+      evidence_source_blobs: { 'src/core.ts': sourceBlob },
+      source_runs: [
+        {
+          workflow_run_id: 123,
+          revision,
+          artifact_digest: artifactDigest,
+        },
+      ],
+      workflow: {
+        path: '.github/workflows/production-criticality-mutation-probe.yml',
+        job: 'mutate',
+        artifact: 'production-criticality-mutation-probe',
+      },
+    },
   };
 
   const evidencePath =
@@ -206,8 +221,8 @@ test('GitHub hostile evidence observation fails currentness on source drift', ()
   const context = {
     githubToken: 'token',
     githubGet: get,
-    observeGithubHostileMutationEvidence: (candidate: GithubHostileMutationEvidencePostcondition) =>
-      observeGithubHostileMutationEvidence('token', candidate, get),
+    observeGithubSourceBoundEvidence: (candidate: GithubSourceBoundEvidencePostcondition) =>
+      observeGithubSourceBoundEvidence('token', candidate, get),
   };
 
   const current = observePostcondition(postcondition, context);

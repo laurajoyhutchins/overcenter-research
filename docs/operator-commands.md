@@ -38,9 +38,9 @@ The worker executable carries no project-settlement or provider authority. The c
 
 A reasoning agent does not select or claim its own work.
 
-Trusted deterministic graph producers may also materialize **system evidence obligations**. These use the same obligation identity, reconciliation, claim, observation, and settlement machinery, but they are not reasoning assignments. If one reaches the READY frontier, `project.advance` reports the system obligation as READY without claiming it or constructing an agent packet. Its trusted producer remains responsible for generating and independently verifying the evidence before settlement.
+Trusted deterministic graph producers may also materialize **system evidence obligations**. Producers implement one generic repository-snapshot contract and are composed at the command boundary; `project.advance` does not know their domain schemas or source paths. System evidence uses the same obligation identity, reconciliation, claim, observation, and settlement machinery as other work, but it is not a reasoning assignment. If one reaches the READY frontier, `project.advance` reports it without claiming it or constructing an agent packet.
 
-Hostile mutation freshness uses this path. The obligation identity binds the configured protected source blobs and committed mutation-evidence bytes. A protected source change therefore reopens the obligation; unrelated source movement does not. The mutation-evidence promoter may settle it only after canonical GitHub workflow, job, artifact, report, and source bindings verify.
+Provider-backed evidence likewise uses a generic source-bound observation contract: the kernel binds an opaque provider-owned evidence descriptor by canonical digest, while the provider adapter validates the detailed file, source-blob, workflow, job, and artifact coordinates. Hostile mutation freshness is one producer of that contract. A protected source change reopens its obligation; unrelated source movement does not. The mutation-specific code is limited to deriving protected paths and translating mutation evidence into the generic binding.
 
 ## `project.submit`
 

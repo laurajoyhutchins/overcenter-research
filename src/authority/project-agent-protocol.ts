@@ -14,16 +14,13 @@ import {
   type AssignmentTaskPacket,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest, sha256 } from '../digest.ts';
-import {
-  compileHostileMutationEvidenceObligation,
-  HOSTILE_MUTATION_EVIDENCE_PATH,
-  HOSTILE_MUTATION_PROBES_PATH,
-  isSystemEvidenceObligation,
-} from '../evidence/hostile-mutation-obligation.ts';
+import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
-import { observeGithubHostileMutationEvidence } from '../providers/github/hostile-mutation-evidence.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
-import { compileProjectIntent, PROJECT_INTENT_PATH } from './project-intent.ts';
+import { projectIntentGraphProducer } from './default-project-graph.ts';
+import { compileProjectGraph, type ProjectGraphProducer } from './project-graph.ts';
+import { repositorySnapshot } from '../evidence/repository-snapshot.ts';
+import type { ObservationContext } from '../observation/observe.ts';
 import type { Work } from '../model.ts';
 
 export const PROJECT_ADVANCE_RECEIPT_SCHEMA = 'overcenter-project-advance/v1' as const;
@@ -106,6 +103,8 @@ interface ProtocolOptions {
 interface AdvanceOptions extends ProtocolOptions {
   outputDir: string;
   workerClientPath?: string;
+  graphProducers?: readonly ProjectGraphProducer[];
+  observationContext?: ObservationContext;
 }
 
 interface SubmitOptions extends ProtocolOptions {
@@ -141,15 +140,6 @@ function gitBytes(repo: string, commit: string, path: string): Buffer {
   return execFileSync('git', ['-C', repo, 'show', `${commit}:${path}`], {
     maxBuffer: 16 * 1024 * 1024,
   });
-}
-
-function gitOptionalBytes(repo: string, commit: string, path: string): Buffer | null {
-  const listed = execFileSync('git', ['-C', repo, 'ls-tree', '--name-only', commit, '--', path], {
-    encoding: 'utf8',
-  }).trim();
-  if (listed === '') return null;
-  if (listed !== path) throw new Error('PROJECT_INTENT_PATH_AMBIGUOUS');
-  return gitBytes(repo, commit, path);
 }
 
 interface GitTreeEntry {
@@ -235,38 +225,6 @@ function gitSourceTree(
     }
     return assignmentFile(entry.path, gitBytes(repo, commit, entry.path), entry.mode);
   });
-}
-
-function desiredProjectGraph(repo: string, sourceSha: string, context: ProjectCommandContext) {
-  const bytes = gitOptionalBytes(repo, sourceSha, PROJECT_INTENT_PATH);
-  let intent: ReturnType<typeof compileProjectIntent> = [];
-  if (bytes) {
-    let value: unknown;
-    try {
-      value = JSON.parse(bytes.toString('utf8'));
-    } catch {
-      throw new Error('PROJECT_INTENT_JSON_INVALID');
-    }
-    intent = compileProjectIntent(value);
-  }
-  const mutationProbes = gitOptionalBytes(repo, sourceSha, HOSTILE_MUTATION_PROBES_PATH);
-  const mutationEvidence = gitOptionalBytes(repo, sourceSha, HOSTILE_MUTATION_EVIDENCE_PATH);
-  if ((mutationProbes === null) !== (mutationEvidence === null)) {
-    throw new Error('HOSTILE_MUTATION_EVIDENCE_INPUT_INCOMPLETE');
-  }
-  return [
-    ...intent,
-    ...(mutationProbes && mutationEvidence
-      ? [
-          compileHostileMutationEvidenceObligation({
-            repo,
-            sourceSha,
-            repositoryId: context.repository_id,
-            repositoryFullName: context.repository_full_name,
-          }),
-        ]
-      : []),
-  ];
 }
 
 function prepareAgentPacket(
@@ -364,6 +322,8 @@ export function advanceProjectForAgent(
     authorityRef = DEFAULT_AUTHORITY_REF,
     remote = DEFAULT_REMOTE,
     githubToken = null,
+    graphProducers = [projectIntentGraphProducer],
+    observationContext = { githubToken },
   }: AdvanceOptions,
 ): ProjectAdvanceReceipt {
   validateCommandContext(context);
@@ -371,20 +331,17 @@ export function advanceProjectForAgent(
     ref: authorityRef,
     remote,
     githubToken,
-    observationContext: {
-      ...(githubToken
-        ? {
-            observeGithubHostileMutationEvidence: (postcondition) =>
-              observeGithubHostileMutationEvidence(githubToken, postcondition),
-          }
-        : {}),
-    },
+    observationContext,
   });
   if (!kernel.head()) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
-  const desired = desiredProjectGraph(repo, context.command_source_sha.toLowerCase(), context);
+  const desired = compileProjectGraph(
+    repositorySnapshot(repo, context.command_source_sha.toLowerCase()),
+    context,
+    graphProducers,
+  );
 
   for (let attempt = 0; attempt < 16; attempt += 1) {
-    if (desired) {
+    if (desired.length > 0) {
       const expectedRevision = kernel.head();
       if (!expectedRevision) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
       try {
@@ -415,7 +372,7 @@ export function advanceProjectForAgent(
       });
     }
 
-    if (isSystemEvidenceObligation(ready)) {
+    if (isSystemEvidenceWork(ready)) {
       const authorityHead = kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
       return withDigest({
