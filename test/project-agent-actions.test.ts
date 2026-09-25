@@ -54,6 +54,7 @@ test('project.advance is a project-scoped trusted rerun command', () => {
 test('candidate transport stays internal and inert until project.submit is invoked', () => {
   assert.match(signal, /^name: Overcenter internal · candidate handoff/m);
   assert.match(signal, /overcenter\/candidate\/\*\*/);
+  assert.match(signal, /paths:\n\s+- '\.overcenter\/candidate\.json'/);
   assert.match(signal, /permissions: \{\}/);
   assert.doesNotMatch(signal, /contents:\s*write|actions:\s*write/);
 
