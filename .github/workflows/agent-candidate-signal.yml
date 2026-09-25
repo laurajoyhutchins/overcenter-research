@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - 'overcenter/candidate/**'
+    paths:
+      - '.overcenter/candidate.json'
 
 permissions: {}
 
