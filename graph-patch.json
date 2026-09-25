@@ -1,0 +1,38 @@
+{
+  "schema": "overcenter-graph-patch-v1",
+  "definitions": [
+    {
+      "id": "51002062a7a24050587dd109f90b0627ac01776f0f55364835aece8e3d827ecf",
+      "definition": {
+        "dependencies": [],
+        "packet": {
+          "schema": "overcenter-agent-task/v2",
+          "kind": "pure-candidate",
+          "command": [
+            "node",
+            "experiments/assignment-capsule/fixture-task.ts",
+            "experiments/assignment-capsule/fixture-input.txt",
+            "result.txt"
+          ],
+          "required_paths": [],
+          "required_trees": [
+            "."
+          ],
+          "output_path": "result.txt"
+        },
+        "postcondition": {
+          "verifier": "file-content-equals/v1",
+          "path": "/tmp/overcenter-live-agent-loop/result.txt",
+          "content": "completed:assignment-bytes\n"
+        }
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "node_id": "live-agent-loop-witness",
+      "definition_id": "51002062a7a24050587dd109f90b0627ac01776f0f55364835aece8e3d827ecf"
+    }
+  ],
+  "retire": []
+}
