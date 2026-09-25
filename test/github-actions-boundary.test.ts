@@ -14,6 +14,10 @@ const evidenceWorkflow = readFileSync(
   new URL('../.github/workflows/tests.yml', import.meta.url),
   'utf8',
 );
+const projectAdvanceWorkflow = readFileSync(
+  new URL('../.github/workflows/operator-project-advance.yml', import.meta.url),
+  'utf8',
+);
 const candidateOnlyWorkflowPaths = [
   '../.github/workflows/assignment-capsule-proof.yml',
   '../.github/workflows/disposable-agent-proof.yml',
@@ -149,6 +153,19 @@ test('intermediate PR heads cannot spend candidate-only CI evidence', () => {
     mergeGate,
     /production-computation:|self-application:/,
     'candidate-local evidence must not acquire dedicated merge-gate runners',
+  );
+});
+
+test('portable worker client artifact verifies after download into a fresh directory', () => {
+  assert.match(
+    projectAdvanceWorkflow,
+    /\(cd worker-client && sha256sum overcenter > overcenter\.sha256\)/,
+    'checksum paths must be relative to the artifact root',
+  );
+  assert.match(
+    projectAdvanceWorkflow,
+    /\(cd worker-client && sha256sum --check overcenter\.sha256\)/,
+    'download verification must use the same artifact-relative root',
   );
 });
 
