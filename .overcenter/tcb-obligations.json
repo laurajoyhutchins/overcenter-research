@@ -1,0 +1,411 @@
+{
+  "schema": "overcenter-tcb-obligations/v1",
+  "obligations": [
+    {
+      "id": "tcb:growth:broker-mutation-safety",
+      "kind": "tcb-growth",
+      "scope": "broker-mutation-safety",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Reduce the broker-mutation-safety hybrid TCB to at most 8056 semantic LOC without weakening its stated safety property or symbol-closure soundness.",
+        "writable_paths": [
+          "contracts/observation-evidence/settlement-observation.typebox.ts",
+          "src/authority/admission.ts",
+          "src/authority/engine.ts",
+          "src/authority/facts.ts",
+          "src/authority/project-state.ts",
+          "src/authority/realization-reuse.ts",
+          "src/authority/replay.ts",
+          "src/authority/store.ts",
+          "src/authority/transaction-admission.ts",
+          "src/digest.ts",
+          "src/effect-adapter.ts",
+          "src/effect-release-witness.ts",
+          "src/evidence/reference.ts",
+          "src/execution/core-loop.ts",
+          "src/generated/settlement-observation-schema.ts",
+          "src/graph/dependencies.ts",
+          "src/graph/identity.ts",
+          "src/graph/reconciliation.ts",
+          "src/graph/topology.ts",
+          "src/model.ts",
+          "src/observation/evidence.ts",
+          "src/observation/observe.ts",
+          "src/observation/provider.ts",
+          "src/observation/response-slice.ts",
+          "src/providers/curl-json.ts",
+          "src/providers/effect-dispatch.ts",
+          "src/providers/github/certified-ancestry.ts",
+          "src/providers/github/certified-observation.ts",
+          "src/providers/github/certified-pr.ts",
+          "src/providers/github/certified-repository.ts",
+          "src/providers/github/certified-status.ts",
+          "src/providers/github/contract.ts",
+          "src/providers/github/openapi.ts",
+          "src/providers/github/operations.generated.ts",
+          "src/providers/github/page-collection.ts",
+          "src/providers/github/rest.ts",
+          "src/providers/github/semantics.ts",
+          "src/providers/github/status-effect.ts",
+          "src/providers/github/status-transport.ts",
+          "src/providers/kubernetes/configmap-effect.ts",
+          "src/providers/kubernetes/configmap.ts",
+          "src/semantics.ts",
+          "src/storage/sqlite.ts",
+          "src/structural-schema.ts",
+          "src/validation.ts"
+        ]
+      },
+      "evidence": {
+        "measured_semantic_loc": 8119,
+        "attention_semantic_loc": 8056,
+        "hybrid_sha256": "093cb7873d85f153ee710c4b74782ade8db2ac3b1f3e64634e2819f5a856cbe9"
+      }
+    },
+    {
+      "id": "tcb:growth:github-status-safe-settlement",
+      "kind": "tcb-growth",
+      "scope": "github-status-safe-settlement",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Reduce the github-status-safe-settlement composed TCB to at most 8241 semantic LOC while preserving every member property.",
+        "writable_paths": [
+          "contracts/observation-evidence/settlement-observation.typebox.ts",
+          "src/authority/admission.ts",
+          "src/authority/engine.ts",
+          "src/authority/facts.ts",
+          "src/authority/project-state.ts",
+          "src/authority/realization-reuse.ts",
+          "src/authority/replay.ts",
+          "src/authority/store.ts",
+          "src/authority/transaction-admission.ts",
+          "src/digest.ts",
+          "src/effect-adapter.ts",
+          "src/effect-release-witness.ts",
+          "src/evidence/reference.ts",
+          "src/execution/core-loop.ts",
+          "src/generated/settlement-observation-schema.ts",
+          "src/graph/dependencies.ts",
+          "src/graph/identity.ts",
+          "src/graph/reconciliation.ts",
+          "src/graph/topology.ts",
+          "src/model.ts",
+          "src/observation/evidence.ts",
+          "src/observation/observe.ts",
+          "src/observation/provider.ts",
+          "src/observation/response-slice.ts",
+          "src/providers/curl-json.ts",
+          "src/providers/effect-dispatch.ts",
+          "src/providers/github/certified-ancestry.ts",
+          "src/providers/github/certified-observation.ts",
+          "src/providers/github/certified-pr.ts",
+          "src/providers/github/certified-read.ts",
+          "src/providers/github/certified-repository.ts",
+          "src/providers/github/certified-status.ts",
+          "src/providers/github/contract.ts",
+          "src/providers/github/openapi.ts",
+          "src/providers/github/operations.generated.ts",
+          "src/providers/github/page-collection.ts",
+          "src/providers/github/rest.ts",
+          "src/providers/github/semantics.ts",
+          "src/providers/github/status-effect.ts",
+          "src/providers/github/status-transport.ts",
+          "src/providers/kubernetes/configmap-effect.ts",
+          "src/providers/kubernetes/configmap.ts",
+          "src/semantics.ts",
+          "src/storage/sqlite.ts",
+          "src/structural-schema.ts",
+          "src/validation.ts"
+        ]
+      },
+      "evidence": {
+        "measured_semantic_loc": 8304,
+        "attention_semantic_loc": 8241,
+        "hybrid_union_sha256": "70ed2a049ff6ce47924e9b5e337ed3e3e864585c8fef200e2020b8cf294ec184"
+      }
+    },
+    {
+      "id": "tcb:growth:no-false-done",
+      "kind": "tcb-growth",
+      "scope": "no-false-done",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Reduce the no-false-done hybrid TCB to at most 8053 semantic LOC without weakening its stated safety property or symbol-closure soundness.",
+        "writable_paths": [
+          "contracts/observation-evidence/settlement-observation.typebox.ts",
+          "src/authority/admission.ts",
+          "src/authority/engine.ts",
+          "src/authority/facts.ts",
+          "src/authority/project-state.ts",
+          "src/authority/realization-reuse.ts",
+          "src/authority/replay.ts",
+          "src/authority/store.ts",
+          "src/authority/transaction-admission.ts",
+          "src/digest.ts",
+          "src/effect-adapter.ts",
+          "src/effect-release-witness.ts",
+          "src/evidence/reference.ts",
+          "src/execution/core-loop.ts",
+          "src/generated/settlement-observation-schema.ts",
+          "src/graph/dependencies.ts",
+          "src/graph/identity.ts",
+          "src/graph/reconciliation.ts",
+          "src/graph/topology.ts",
+          "src/model.ts",
+          "src/observation/evidence.ts",
+          "src/observation/observe.ts",
+          "src/observation/provider.ts",
+          "src/observation/response-slice.ts",
+          "src/providers/curl-json.ts",
+          "src/providers/effect-dispatch.ts",
+          "src/providers/github/certified-ancestry.ts",
+          "src/providers/github/certified-observation.ts",
+          "src/providers/github/certified-pr.ts",
+          "src/providers/github/certified-repository.ts",
+          "src/providers/github/certified-status.ts",
+          "src/providers/github/contract.ts",
+          "src/providers/github/openapi.ts",
+          "src/providers/github/operations.generated.ts",
+          "src/providers/github/page-collection.ts",
+          "src/providers/github/rest.ts",
+          "src/providers/github/semantics.ts",
+          "src/providers/github/status-effect.ts",
+          "src/providers/github/status-transport.ts",
+          "src/providers/kubernetes/configmap-effect.ts",
+          "src/providers/kubernetes/configmap.ts",
+          "src/semantics.ts",
+          "src/storage/sqlite.ts",
+          "src/structural-schema.ts",
+          "src/validation.ts"
+        ]
+      },
+      "evidence": {
+        "measured_semantic_loc": 8116,
+        "attention_semantic_loc": 8053,
+        "hybrid_sha256": "be93f693f50d57b891801dfb46a847791ac4b0cd9ab1d67a38508131a8169d22"
+      }
+    },
+    {
+      "id": "tcb:hostile-evidence-missing:github-commit-status-provider",
+      "kind": "hostile-evidence-missing",
+      "scope": "github-commit-status-provider",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Add a hostile mutation probe that can falsify the github-commit-status-provider property at its current trusted boundary.",
+        "writable_paths": [
+          "experiments/production-criticality-ranking/mutation-evidence.json",
+          "src/authority/engine.ts",
+          "src/digest.ts",
+          "src/effect-adapter.ts",
+          "src/model.ts",
+          "src/observation/provider.ts",
+          "src/observation/response-slice.ts",
+          "src/providers/curl-json.ts",
+          "src/providers/github/certified-observation.ts",
+          "src/providers/github/certified-read.ts",
+          "src/providers/github/certified-repository.ts",
+          "src/providers/github/certified-status.ts",
+          "src/providers/github/contract.ts",
+          "src/providers/github/openapi.ts",
+          "src/providers/github/operations.generated.ts",
+          "src/providers/github/page-collection.ts",
+          "src/providers/github/rest.ts",
+          "src/providers/github/semantics.ts",
+          "src/providers/github/status-effect.ts",
+          "src/providers/github/status-transport.ts",
+          "src/validation.ts"
+        ]
+      },
+      "evidence": {
+        "property_id": "github-commit-status-provider",
+        "hybrid_sha256": "6d7c785ce55bacad547c9359159185f8ccd9146e6d88a92a62881ba9b6030ba7"
+      }
+    },
+    {
+      "id": "tcb:hostile-evidence-stale:broker-mutation-safety:effect-reservation",
+      "kind": "hostile-evidence-stale",
+      "scope": "broker-mutation-safety",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Refresh hostile mutation evidence for broker-mutation-safety probe effect-reservation against the current trusted source and preserve the probe's falsification purpose.",
+        "writable_paths": [
+          "experiments/production-criticality-ranking/mutation-evidence.json",
+          "src/authority/engine.ts"
+        ]
+      },
+      "evidence": {
+        "probe_id": "effect-reservation",
+        "mutation_score": 0.75,
+        "stale_sources": [
+          {
+            "path": "src/authority/engine.ts",
+            "expected_blob_sha1": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5",
+            "current_blob_sha1": "e25d630f2b1e835cd03eee83146fa44e59547afb",
+            "current": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "tcb:hostile-evidence-stale:broker-mutation-safety:execution-fence",
+      "kind": "hostile-evidence-stale",
+      "scope": "broker-mutation-safety",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Refresh hostile mutation evidence for broker-mutation-safety probe execution-fence against the current trusted source and preserve the probe's falsification purpose.",
+        "writable_paths": [
+          "experiments/production-criticality-ranking/mutation-evidence.json",
+          "src/authority/engine.ts"
+        ]
+      },
+      "evidence": {
+        "probe_id": "execution-fence",
+        "mutation_score": 0.5,
+        "stale_sources": [
+          {
+            "path": "src/authority/engine.ts",
+            "expected_blob_sha1": "fce1c788b58ee792a8c6d7575da91a2cea958305",
+            "current_blob_sha1": "e25d630f2b1e835cd03eee83146fa44e59547afb",
+            "current": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "tcb:hostile-evidence-stale:no-false-done:digest-foundation",
+      "kind": "hostile-evidence-stale",
+      "scope": "no-false-done",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Refresh hostile mutation evidence for no-false-done probe digest-foundation against the current trusted source and preserve the probe's falsification purpose.",
+        "writable_paths": [
+          "experiments/production-criticality-ranking/mutation-evidence.json",
+          "src/digest.ts"
+        ]
+      },
+      "evidence": {
+        "probe_id": "digest-foundation",
+        "mutation_score": 1,
+        "stale_sources": [
+          {
+            "path": "src/digest.ts",
+            "expected_blob_sha1": "7fceb3b722cc31fe318cbd8886159ced5e976f9d",
+            "current_blob_sha1": "1b6e9d1ec4353f48add1b0d8ac35ce5c92471e1e",
+            "current": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "tcb:hostile-evidence-stale:no-false-done:done-candidate-reuse",
+      "kind": "hostile-evidence-stale",
+      "scope": "no-false-done",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Refresh hostile mutation evidence for no-false-done probe done-candidate-reuse against the current trusted source and preserve the probe's falsification purpose.",
+        "writable_paths": [
+          "experiments/production-criticality-ranking/mutation-evidence.json",
+          "src/authority/project-state.ts"
+        ]
+      },
+      "evidence": {
+        "probe_id": "done-candidate-reuse",
+        "mutation_score": 0.7107438016528925,
+        "stale_sources": [
+          {
+            "path": "src/authority/project-state.ts",
+            "expected_blob_sha1": "95b795ba41c39f2be0f2849c11cf96e7b30918c5",
+            "current_blob_sha1": "3239a4937c9c320d94792192b7ac8939d90db55c",
+            "current": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "tcb:hostile-evidence-stale:no-false-done:semantic-identity",
+      "kind": "hostile-evidence-stale",
+      "scope": "no-false-done",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Refresh hostile mutation evidence for no-false-done probe semantic-identity against the current trusted source and preserve the probe's falsification purpose.",
+        "writable_paths": [
+          "experiments/production-criticality-ranking/mutation-evidence.json",
+          "src/graph/identity.ts"
+        ]
+      },
+      "evidence": {
+        "probe_id": "semantic-identity",
+        "mutation_score": 1,
+        "stale_sources": [
+          {
+            "path": "src/graph/identity.ts",
+            "expected_blob_sha1": "e86c460c34d292105b4160d23744d806a04337c6",
+            "current_blob_sha1": "b5224f4c6c7b4626d3ae3698425303f1cf9d50bd",
+            "current": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "tcb:hostile-evidence-stale:no-false-done:settlement",
+      "kind": "hostile-evidence-stale",
+      "scope": "no-false-done",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Refresh hostile mutation evidence for no-false-done probe settlement against the current trusted source and preserve the probe's falsification purpose.",
+        "writable_paths": [
+          "experiments/production-criticality-ranking/mutation-evidence.json",
+          "src/authority/engine.ts"
+        ]
+      },
+      "evidence": {
+        "probe_id": "settlement",
+        "mutation_score": 0.6666666666666666,
+        "stale_sources": [
+          {
+            "path": "src/authority/engine.ts",
+            "expected_blob_sha1": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5",
+            "current_blob_sha1": "e25d630f2b1e835cd03eee83146fa44e59547afb",
+            "current": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "tcb:hostile-evidence-stale:no-false-done:verification-and-absence",
+      "kind": "hostile-evidence-stale",
+      "scope": "no-false-done",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Refresh hostile mutation evidence for no-false-done probe verification-and-absence against the current trusted source and preserve the probe's falsification purpose.",
+        "writable_paths": [
+          "experiments/production-criticality-ranking/mutation-evidence.json",
+          "src/observation/observe.ts"
+        ]
+      },
+      "evidence": {
+        "probe_id": "verification-and-absence",
+        "mutation_score": 0.9552238805970149,
+        "stale_sources": [
+          {
+            "path": "src/observation/observe.ts",
+            "expected_blob_sha1": "7696e90f429f80879e6c6581e00d643d3c6cc2f7",
+            "current_blob_sha1": "20ce872a61f813138476c65ed50853fe0b1eabdf",
+            "current": false
+          }
+        ]
+      }
+    }
+  ]
+}
