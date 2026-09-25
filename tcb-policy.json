@@ -99,7 +99,7 @@
         "formal models and proof tools"
       ],
       "expected_surface_sha256": "a87cfcadedea7d764e8c7dbda88c56d5cc45884864865c9824e2c2539a526541",
-      "max_module_closure_semantic_loc": 8039,
+      "max_module_closure_semantic_loc": 8100,
       "expected_module_closure_sha256": "f1af38fc555d960cf7a84bc65f93d27745975b635e3821c86bdef84d17b73db9",
       "runtime_dispatch_bindings": [
         {
@@ -111,18 +111,25 @@
           "reason": "production authority persistence is the SQLite durable fact store"
         }
       ],
-      "max_hybrid_closure_semantic_loc": 8163,
+      "max_hybrid_closure_semantic_loc": 8226,
       "expected_hybrid_closure_sha256": "72f42dc9f555ab59a8c22371ff0dec1aa805a62229425cc6c1a0ac2ad118f03e",
       "require_sound_symbol_closure": true,
       "hostile_evidence_probes": [
         "effect-reservation",
         "execution-fence"
+      ],
+      "attention_hybrid_closure_semantic_loc": 8163,
+      "attention_external_assumptions": [
+        "Node.js runtime preserves JavaScript/TypeScript execution semantics used by the trusted slice.",
+        "node:crypto SHA-256 and randomUUID behave as specified.",
+        "node:sqlite provides the documented transaction, WAL, and synchronous=FULL semantics.",
+        "The operating system and filesystem correctly implement the durability guarantees requested by SQLite."
       ]
     },
     {
       "id": "no-false-done",
       "statement": "Overcenter cannot derive DONE for a run unless an admitted receipt and exact postcondition observation justify it, and replay cannot reinterpret unresolved or mismatched mutation evidence as success.",
-      "max_semantic_loc": 1523,
+      "max_semantic_loc": 1530,
       "entries": [
         {
           "path": "src/authority/engine.ts",
@@ -237,7 +244,7 @@
         "experiments and formal models"
       ],
       "expected_surface_sha256": "01bf69612aa7de1b06bea6122f03dbb2747ab934d6841228e51443f1f243ba22",
-      "max_module_closure_semantic_loc": 8039,
+      "max_module_closure_semantic_loc": 8100,
       "expected_module_closure_sha256": "f1af38fc555d960cf7a84bc65f93d27745975b635e3821c86bdef84d17b73db9",
       "runtime_dispatch_bindings": [
         {
@@ -249,7 +256,7 @@
           "reason": "production authority persistence is the SQLite durable fact store"
         }
       ],
-      "max_hybrid_closure_semantic_loc": 8160,
+      "max_hybrid_closure_semantic_loc": 8223,
       "expected_hybrid_closure_sha256": "ccbbc8af3bab518d492d69179a3b8168696821d00b8f1a7c1c7a04d28b32c8de",
       "require_sound_symbol_closure": true,
       "hostile_evidence_probes": [
@@ -258,6 +265,14 @@
         "done-candidate-reuse",
         "settlement",
         "verification-and-absence"
+      ],
+      "attention_hybrid_closure_semantic_loc": 8160,
+      "attention_external_assumptions": [
+        "Node.js runtime preserves JavaScript/TypeScript execution semantics used by the trusted slice.",
+        "Provider observations supplied to the verifier obey the provider-profile assumptions documented separately.",
+        "node:crypto SHA-256 behaves as specified.",
+        "node:sqlite and the operating system preserve committed authority history according to the requested durability mode.",
+        "For GitHub-backed observations, node:child_process launches the intended system curl executable and curl faithfully returns the authenticated HTTPS response bytes and status metadata consumed by the verifier."
       ]
     },
     {
@@ -353,7 +368,15 @@
       ],
       "max_hybrid_closure_semantic_loc": 2746,
       "expected_hybrid_closure_sha256": "6d7c785ce55bacad547c9359159185f8ccd9146e6d88a92a62881ba9b6030ba7",
-      "require_sound_symbol_closure": true
+      "require_sound_symbol_closure": true,
+      "attention_hybrid_closure_semantic_loc": 2746,
+      "attention_external_assumptions": [
+        "GitHub repository IDs and commit-status coordinates have the documented API meaning.",
+        "GitHub HTTPS responses correspond to the authenticated api.github.com endpoint reached by the transport.",
+        "TLS, DNS, sockets, and Node.js HTTPS correctly distinguish failure before secureConnect from failures after secureConnect.",
+        "The pinned GitHub API/OpenAPI contract accurately describes the response fields consumed by the verifier.",
+        "node:child_process launches the intended system curl executable, and curl faithfully returns the authenticated GitHub HTTPS response bytes and status metadata consumed by certified reads."
+      ]
     }
   ],
   "compositions": [
@@ -365,8 +388,10 @@
         "no-false-done",
         "github-commit-status-provider"
       ],
-      "max_hybrid_union_semantic_loc": 8348,
-      "expected_hybrid_union_sha256": "470b5bbf1006213a52e400bd7b48cbfc591b7f99b07a242afba29dcb45995707"
+      "max_hybrid_union_semantic_loc": 8411,
+      "expected_hybrid_union_sha256": "470b5bbf1006213a52e400bd7b48cbfc591b7f99b07a242afba29dcb45995707",
+      "attention_hybrid_union_semantic_loc": 8348,
+      "max_trusted_file_share": 0.1
     }
   ]
 }
