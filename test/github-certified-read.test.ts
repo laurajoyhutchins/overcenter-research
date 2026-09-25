@@ -344,10 +344,6 @@ test('certified Actions load drives conservative account-capacity admission', ()
               conclusion: null,
               started_at: '2026-09-24T21:00:00Z',
               completed_at: null,
-              runner_id: 501,
-              runner_name: 'GitHub Actions 501',
-              runner_group_id: 1,
-              runner_group_name: 'GitHub Actions',
               labels: ['ubuntu-24.04'],
             },
             {
@@ -361,10 +357,6 @@ test('certified Actions load drives conservative account-capacity admission', ()
               conclusion: null,
               started_at: '2026-09-24T21:00:00Z',
               completed_at: null,
-              runner_id: 777,
-              runner_name: 'phthalo',
-              runner_group_id: 9,
-              runner_group_name: 'Default',
               labels: ['self-hosted', 'Windows', 'X64'],
             },
             {
@@ -378,10 +370,6 @@ test('certified Actions load drives conservative account-capacity admission', ()
               conclusion: null,
               started_at: '2026-09-24T21:00:00Z',
               completed_at: null,
-              runner_id: null,
-              runner_name: null,
-              runner_group_id: null,
-              runner_group_name: null,
               labels: ['ubuntu-24.04'],
             },
           ],
@@ -399,15 +387,9 @@ test('certified Actions load drives conservative account-capacity admission', ()
     job_id: 9001,
     job_name: 'unit',
     head_sha: SHA,
-    runner_id: 501,
-    runner_name: 'GitHub Actions 501',
-    runner_group_id: 1,
-    runner_group_name: 'GitHub Actions',
-    runner_labels: ['ubuntu-24.04'],
     self_hosted: false,
   });
   assert.equal(observation.in_progress_jobs[1]?.self_hosted, true);
-  assert.deepEqual(observation.in_progress_jobs[1]?.runner_labels, ['self-hosted', 'Windows', 'X64']);
 
   const capacity = projectGithubActionsCapacity({
     observation,
@@ -418,8 +400,7 @@ test('certified Actions load drives conservative account-capacity admission', ()
   assert.deepEqual(capacity, {
     limit: 20,
     observed_in_progress_jobs: 2,
-    observed_self_hosted_jobs: 1,
-    observed_non_self_hosted_jobs: 1,
+    observed_hosted_jobs: 1,
     locally_reserved_jobs: 17,
     safety_reserve_jobs: 1,
     committed_jobs: 19,
