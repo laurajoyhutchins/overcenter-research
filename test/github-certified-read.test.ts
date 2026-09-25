@@ -2,12 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { observeCertifiedGithubSemanticRead } from '../src/providers/github/certified-read.ts';
 import {
-  observeGithubAccountRepositories,
-  observeGithubActionsLoad,
-  projectGithubActionsCapacity,
-  type GithubActionsLoadObservation,
-} from '../src/providers/github/actions-capacity.ts';
-import {
   GithubActionsCapacityController,
   type GithubActionsReservationStore,
 } from '../src/providers/github/actions-capacity-controller.ts';
@@ -310,211 +304,6 @@ test('generic read fails closed before provider access when credential permissio
   assert.equal(result.observation_error, 'GITHUB_SEMANTIC_READ_PERMISSION_NOT_GRANTED:issues:read');
 });
 
-test('GitHub derives an account-complete owned-repository inventory from user identity', () => {
-  const seen: string[] = [];
-  const inventory = observeGithubAccountRepositories('token', 'acme', {
-    clock: () => '2026-09-24T21:00:00.000Z',
-    get: (_token, path) => {
-      seen.push(path);
-      if (path === '/user') return { login: 'acme' };
-      if (
-        path === '/user/repos?affiliation=owner&direction=asc&page=1&per_page=100&sort=full_name'
-      ) {
-        return [
-          { id: 42, full_name: 'acme/widget', owner: { login: 'acme' } },
-          { id: 43, full_name: 'acme/gadget', owner: { login: 'acme' } },
-        ];
-      }
-      throw new Error('unexpected path:' + path);
-    },
-  });
-
-  assert.deepEqual(inventory, {
-    account_login: 'acme',
-    repositories: [
-      { repository_id: 42, repository_full_name: 'acme/widget' },
-      { repository_id: 43, repository_full_name: 'acme/gadget' },
-    ],
-    observed_at: '2026-09-24T21:00:00.000Z',
-    complete: true,
-  });
-  assert.deepEqual(seen, [
-    '/user',
-    '/user/repos?affiliation=owner&direction=asc&page=1&per_page=100&sort=full_name',
-  ]);
-});
-
-test('GitHub account inventory rejects a token for a different account', () => {
-  assert.throws(
-    () =>
-      observeGithubAccountRepositories('token', 'acme', {
-        get: (_token, path) => {
-          assert.equal(path, '/user');
-          return { login: 'other' };
-        },
-      }),
-    /GITHUB_ACTIONS_CAPACITY_ACCOUNT_IDENTITY_MISMATCH/,
-  );
-});
-
-test('certified Actions load uses the provider-derived inventory and runner labels', () => {
-  const inventory = {
-    account_login: 'acme',
-    repositories: [
-      { repository_id: 42, repository_full_name: 'acme/widget' },
-      { repository_id: 43, repository_full_name: 'acme/gadget' },
-    ],
-    observed_at: '2026-09-24T21:00:00.000Z',
-    complete: true as const,
-  };
-  const observation = observeGithubActionsLoad('token', {
-    inventory,
-    get: (_token, path) => {
-      if (path === '/repos/acme/widget') return repository();
-      if (path === '/repos/acme/gadget') {
-        return {
-          id: 43,
-          node_id: 'R_43',
-          full_name: 'acme/gadget',
-          name: 'gadget',
-          owner: { login: 'acme' },
-        };
-      }
-      if (path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress') {
-        return {
-          total_count: 1,
-          workflow_runs: [
-            {
-              id: 7001,
-              node_id: 'WFR_7001',
-              workflow_id: 88,
-              run_number: 12,
-              run_attempt: 1,
-              status: 'in_progress',
-              conclusion: null,
-              head_sha: SHA,
-              head_branch: 'main',
-              updated_at: '2026-09-24T21:00:00Z',
-            },
-          ],
-        };
-      }
-      if (path === '/repos/acme/gadget/actions/runs?page=1&per_page=100&status=in_progress') {
-        return { total_count: 0, workflow_runs: [] };
-      }
-      if (path === '/repos/acme/widget/actions/runs/7001/jobs?filter=latest&page=1&per_page=100') {
-        return {
-          total_count: 3,
-          jobs: [
-            {
-              id: 9001,
-              run_id: 7001,
-              run_attempt: 1,
-              node_id: 'WFJ_9001',
-              head_sha: SHA,
-              name: 'unit',
-              status: 'in_progress',
-              conclusion: null,
-              started_at: '2026-09-24T21:00:00Z',
-              completed_at: null,
-              labels: ['ubuntu-24.04'],
-            },
-            {
-              id: 9002,
-              run_id: 7001,
-              run_attempt: 1,
-              node_id: 'WFJ_9002',
-              head_sha: SHA,
-              name: 'self-hosted',
-              status: 'in_progress',
-              conclusion: null,
-              started_at: '2026-09-24T21:00:00Z',
-              completed_at: null,
-              labels: ['self-hosted', 'Windows', 'X64'],
-            },
-            {
-              id: 9003,
-              run_id: 7001,
-              run_attempt: 1,
-              node_id: 'WFJ_9003',
-              head_sha: SHA,
-              name: 'queued',
-              status: 'queued',
-              conclusion: null,
-              started_at: '2026-09-24T21:00:00Z',
-              completed_at: null,
-              labels: ['ubuntu-24.04'],
-            },
-          ],
-        };
-      }
-      throw new Error('unexpected path:' + path);
-    },
-  });
-
-  assert.equal(observation.inventory, inventory);
-  assert.equal(observation.in_progress_jobs.length, 2);
-  assert.equal(observation.in_progress_jobs[0]?.self_hosted, false);
-  assert.equal(observation.in_progress_jobs[1]?.self_hosted, true);
-
-  assert.deepEqual(
-    projectGithubActionsCapacity({
-      observation,
-      limit: 20,
-      locallyReservedJobs: 17,
-      safetyReserveJobs: 1,
-    }),
-    {
-      limit: 20,
-      observed_in_progress_jobs: 2,
-      observed_hosted_jobs: 1,
-      locally_reserved_jobs: 17,
-      safety_reserve_jobs: 1,
-      available_jobs: 1,
-      state: 'available',
-    },
-  );
-});
-
-test('Actions load refuses a provider collection that is not completely observed', () => {
-  const inventory = {
-    account_login: 'acme',
-    repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
-    observed_at: '2026-09-24T21:00:00.000Z',
-    complete: true as const,
-  };
-  assert.throws(
-    () =>
-      observeGithubActionsLoad('token', {
-        inventory,
-        get: (_token, path) => {
-          if (path === '/repos/acme/widget') return repository();
-          if (path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress') {
-            return {
-              total_count: 2,
-              workflow_runs: [
-                {
-                  id: 7001,
-                  node_id: 'WFR_7001',
-                  workflow_id: 88,
-                  run_number: 12,
-                  run_attempt: 1,
-                  status: 'in_progress',
-                  conclusion: null,
-                  head_sha: SHA,
-                  head_branch: 'main',
-                  updated_at: '2026-09-24T21:00:00Z',
-                },
-              ],
-            };
-          }
-          throw new Error('unexpected path:' + path);
-        },
-      }),
-    /GITHUB_ACTIONS_CAPACITY_COLLECTION_INCOMPLETE/,
-  );
-});
-
 class MemoryReservationStore implements GithubActionsReservationStore {
   headValue: string | null = null;
   value: unknown | null = null;
@@ -537,8 +326,15 @@ class MemoryReservationStore implements GithubActionsReservationStore {
       this.headValue = `r${this.revision}`;
       this.value = {
         schema: 'overcenter-github-actions-capacity/v1',
-        account_login: 'acme',
-        reservations: [{ id: 'other', jobs: 1 }],
+        budget: 18,
+        reservations: [
+          {
+            id: 'other',
+            capacity_cost: 1,
+            phase: 'reserved',
+            expires_at_ms: 10_000,
+          },
+        ],
       };
       return null;
     }
@@ -549,71 +345,176 @@ class MemoryReservationStore implements GithubActionsReservationStore {
   }
 }
 
-function capacityObservation(hostedJobs: number): GithubActionsLoadObservation {
-  return {
-    inventory: {
-      account_login: 'acme',
-      repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
-      observed_at: '2026-09-24T21:00:00.000Z',
-      complete: true,
-    },
-    in_progress_jobs: Array.from({ length: hostedJobs }, (_, index) => ({
-      repository_id: 42,
-      repository_full_name: 'acme/widget',
-      run_id: 7001,
-      job_id: index + 1,
-      self_hosted: false,
-    })),
-    evidence: [],
-  };
-}
-
-test('dispatch reservation atomically closes the local capacity race', () => {
+test('Actions capacity reservation needs no GitHub API credential', () => {
   const store = new MemoryReservationStore();
-  store.injectCompetingReservation = true;
-  const controller = new GithubActionsCapacityController('acme', { store });
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+    clock: () => 1_000,
+  });
 
   const result = controller.reserveDispatch({
-    observation: capacityObservation(18),
+    reservationId: 'dispatch-1',
+    capacityCost: 6,
+  });
+
+  assert.equal(result.state, 'reserved');
+  if (result.state !== 'reserved') return;
+  assert.equal(result.reservation.capacity_cost, 6);
+  assert.equal(result.reservation.phase, 'reserved');
+  assert.deepEqual(result.capacity, {
+    budget: 18,
+    committed_capacity: 6,
+    available_capacity: 12,
+  });
+});
+
+test('declared fan-out cost saturates the semaphore before dispatch', () => {
+  const store = new MemoryReservationStore();
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+    clock: () => 1_000,
+  });
+
+  assert.equal(
+    controller.reserveDispatch({ reservationId: 'large', capacityCost: 17 }).state,
+    'reserved',
+  );
+  const blocked = controller.reserveDispatch({ reservationId: 'another', capacityCost: 2 });
+  assert.deepEqual(blocked, {
+    state: 'saturated',
+    capacity: {
+      budget: 18,
+      committed_capacity: 17,
+      available_capacity: 1,
+    },
+  });
+});
+
+test('dispatch reservation atomically closes the capacity race', () => {
+  const store = new MemoryReservationStore();
+  store.injectCompetingReservation = true;
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+    clock: () => 1_000,
+  });
+
+  const result = controller.reserveDispatch({
     reservationId: 'mine',
-    jobs: 1,
-    limit: 20,
-    safetyReserveJobs: 1,
+    capacityCost: 18,
   });
 
   assert.equal(result.state, 'saturated');
-  assert.equal(result.capacity.observed_hosted_jobs, 18);
-  assert.equal(result.capacity.locally_reserved_jobs, 1);
-  assert.equal(result.capacity.available_jobs, 0);
+  assert.deepEqual(result.capacity, {
+    budget: 18,
+    committed_capacity: 1,
+    available_capacity: 17,
+  });
 });
 
-test('dispatch reservation is durable, idempotent, and releasable', () => {
+test('expired reservations recover capacity without provider observation', () => {
   const store = new MemoryReservationStore();
-  const controller = new GithubActionsCapacityController('acme', { store });
-  const observation = capacityObservation(17);
+  let now = 1_000;
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    reservationTtlMs: 100,
+    store,
+    clock: () => now,
+  });
+
+  assert.equal(
+    controller.reserveDispatch({ reservationId: 'dead-controller', capacityCost: 18 }).state,
+    'reserved',
+  );
+  assert.equal(controller.capacity().available_capacity, 0);
+
+  now = 1_101;
+  assert.deepEqual(controller.capacity(), {
+    budget: 18,
+    committed_capacity: 0,
+    available_capacity: 18,
+  });
+  assert.equal(
+    controller.reserveDispatch({ reservationId: 'replacement', capacityCost: 18 }).state,
+    'reserved',
+  );
+});
+
+test('dispatch handoff has its own bounded lease and is idempotent', () => {
+  const store = new MemoryReservationStore();
+  let now = 1_000;
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    reservationTtlMs: 100,
+    handoffTtlMs: 500,
+    store,
+    clock: () => now,
+  });
+
+  const reserved = controller.reserveDispatch({
+    reservationId: 'dispatch-1',
+    capacityCost: 3,
+  });
+  assert.equal(reserved.state, 'reserved');
+
+  now = 1_050;
+  const dispatched = controller.markDispatched('dispatch-1');
+  assert.equal(dispatched.phase, 'dispatched');
+  assert.equal(dispatched.expires_at_ms, 1_550);
+
+  const replay = controller.markDispatched('dispatch-1');
+  assert.deepEqual(replay, dispatched);
+  assert.equal(store.revision, 2);
+
+  now = 1_551;
+  assert.equal(controller.reservation('dispatch-1'), null);
+  assert.equal(controller.capacity().available_capacity, 18);
+});
+
+test('reservation replay and release are idempotent', () => {
+  const store = new MemoryReservationStore();
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+    clock: () => 1_000,
+  });
 
   const first = controller.reserveDispatch({
-    observation,
     reservationId: 'dispatch-1',
-    jobs: 1,
-    limit: 20,
-    safetyReserveJobs: 1,
+    capacityCost: 1,
   });
-  assert.equal(first.state, 'reserved');
-  if (first.state !== 'reserved') return;
-  assert.equal(first.capacity.available_jobs, 1);
-
   const replay = controller.reserveDispatch({
-    observation,
     reservationId: 'dispatch-1',
-    jobs: 1,
-    limit: 20,
-    safetyReserveJobs: 1,
+    capacityCost: 1,
   });
-  assert.equal(replay.state, 'reserved');
-  assert.equal(store.revision, 1, 'idempotent reservation must not append another authority state');
+  assert.deepEqual(replay, first);
+  assert.equal(store.revision, 1);
 
   const released = controller.releaseDispatch('dispatch-1');
   assert.ok(released);
   assert.equal(store.revision, 2);
+  assert.equal(controller.releaseDispatch('dispatch-1'), released);
+  assert.equal(store.revision, 2);
+});
+
+test('controllers cannot silently disagree about the shared budget', () => {
+  const store = new MemoryReservationStore();
+  const first = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+    clock: () => 1_000,
+  });
+  assert.equal(
+    first.reserveDispatch({ reservationId: 'dispatch-1', capacityCost: 1 }).state,
+    'reserved',
+  );
+
+  const incompatible = new GithubActionsCapacityController({
+    budget: 17,
+    store,
+    clock: () => 1_000,
+  });
+  assert.throws(() => incompatible.capacity(), /GITHUB_ACTIONS_CAPACITY_STATE_INVALID/);
 });
