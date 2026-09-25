@@ -2,9 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { observeCertifiedGithubSemanticRead } from '../src/providers/github/certified-read.ts';
 import {
+  observeGithubAccountRepositories,
   observeGithubActionsLoad,
   projectGithubActionsCapacity,
+  type GithubActionsLoadObservation,
 } from '../src/providers/github/actions-capacity.ts';
+import {
+  GithubActionsCapacityController,
+  type GithubActionsReservationStore,
+} from '../src/providers/github/actions-capacity-controller.ts';
 
 const SHA = 'a'.repeat(40);
 const repository = () => ({
@@ -304,12 +310,77 @@ test('generic read fails closed before provider access when credential permissio
   assert.equal(result.observation_error, 'GITHUB_SEMANTIC_READ_PERMISSION_NOT_GRANTED:issues:read');
 });
 
-test('certified Actions load drives conservative account-capacity admission', () => {
+test('GitHub derives an account-complete owned-repository inventory from user identity', () => {
+  const seen: string[] = [];
+  const inventory = observeGithubAccountRepositories('token', 'acme', {
+    clock: () => '2026-09-24T21:00:00.000Z',
+    get: (_token, path) => {
+      seen.push(path);
+      if (path === '/user') return { login: 'acme' };
+      if (
+        path ===
+        '/user/repos?affiliation=owner&direction=asc&page=1&per_page=100&sort=full_name'
+      ) {
+        return [
+          { id: 42, full_name: 'acme/widget', owner: { login: 'acme' } },
+          { id: 43, full_name: 'acme/gadget', owner: { login: 'acme' } },
+        ];
+      }
+      throw new Error('unexpected path:' + path);
+    },
+  });
+
+  assert.deepEqual(inventory, {
+    account_login: 'acme',
+    repositories: [
+      { repository_id: 42, repository_full_name: 'acme/widget' },
+      { repository_id: 43, repository_full_name: 'acme/gadget' },
+    ],
+    observed_at: '2026-09-24T21:00:00.000Z',
+    complete: true,
+  });
+  assert.deepEqual(seen, [
+    '/user',
+    '/user/repos?affiliation=owner&direction=asc&page=1&per_page=100&sort=full_name',
+  ]);
+});
+
+test('GitHub account inventory rejects a token for a different account', () => {
+  assert.throws(
+    () =>
+      observeGithubAccountRepositories('token', 'acme', {
+        get: (_token, path) => {
+          assert.equal(path, '/user');
+          return { login: 'other' };
+        },
+      }),
+    /GITHUB_ACTIONS_CAPACITY_ACCOUNT_IDENTITY_MISMATCH/,
+  );
+});
+
+test('certified Actions load uses the provider-derived inventory and runner labels', () => {
+  const inventory = {
+    account_login: 'acme',
+    repositories: [
+      { repository_id: 42, repository_full_name: 'acme/widget' },
+      { repository_id: 43, repository_full_name: 'acme/gadget' },
+    ],
+    observed_at: '2026-09-24T21:00:00.000Z',
+    complete: true as const,
+  };
   const observation = observeGithubActionsLoad('token', {
-    repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
-    scopeCompleteness: 'account-complete',
+    inventory,
     get: (_token, path) => {
       if (path === '/repos/acme/widget') return repository();
+      if (path === '/repos/acme/gadget') {
+        return {
+          id: 43,
+          node_id: 'R_43',
+          full_name: 'acme/gadget',
+          name: 'gadget',
+          owner: { login: 'acme' },
+        };
+      }
       if (path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress') {
         return {
           total_count: 1,
@@ -328,6 +399,9 @@ test('certified Actions load drives conservative account-capacity admission', ()
             },
           ],
         };
+      }
+      if (path === '/repos/acme/gadget/actions/runs?page=1&per_page=100&status=in_progress') {
+        return { total_count: 0, workflow_runs: [] };
       }
       if (path === '/repos/acme/widget/actions/runs/7001/jobs?filter=latest&page=1&per_page=100') {
         return {
@@ -379,57 +453,41 @@ test('certified Actions load drives conservative account-capacity admission', ()
     },
   });
 
+  assert.equal(observation.inventory, inventory);
   assert.equal(observation.in_progress_jobs.length, 2);
-  assert.deepEqual(observation.in_progress_jobs[0], {
-    repository_id: 42,
-    repository_full_name: 'acme/widget',
-    run_id: 7001,
-    job_id: 9001,
-    self_hosted: false,
-  });
+  assert.equal(observation.in_progress_jobs[0]?.self_hosted, false);
   assert.equal(observation.in_progress_jobs[1]?.self_hosted, true);
-
-  const capacity = projectGithubActionsCapacity({
-    observation,
-    limit: 20,
-    locallyReservedJobs: 17,
-    safetyReserveJobs: 1,
-  });
-  assert.deepEqual(capacity, {
-    limit: 20,
-    observed_in_progress_jobs: 2,
-    observed_hosted_jobs: 1,
-    locally_reserved_jobs: 17,
-    safety_reserve_jobs: 1,
-    available_jobs: 1,
-    state: 'available',
-    reason: null,
-  });
 
   assert.deepEqual(
     projectGithubActionsCapacity({
-      observation: { ...observation, scope_completeness: 'partial' },
+      observation,
       limit: 20,
+      locallyReservedJobs: 17,
+      safetyReserveJobs: 1,
     }),
     {
       limit: 20,
       observed_in_progress_jobs: 2,
       observed_hosted_jobs: 1,
-      locally_reserved_jobs: 0,
-      safety_reserve_jobs: 0,
-      available_jobs: 0,
-      state: 'indeterminate',
-      reason: 'repository-scope-incomplete',
+      locally_reserved_jobs: 17,
+      safety_reserve_jobs: 1,
+      available_jobs: 1,
+      state: 'available',
     },
   );
 });
 
-test('Actions capacity observation refuses partial provider collections', () => {
+test('Actions load refuses a provider collection that is not completely observed', () => {
+  const inventory = {
+    account_login: 'acme',
+    repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+    observed_at: '2026-09-24T21:00:00.000Z',
+    complete: true as const,
+  };
   assert.throws(
     () =>
       observeGithubActionsLoad('token', {
-        repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
-        scopeCompleteness: 'account-complete',
+        inventory,
         get: (_token, path) => {
           if (path === '/repos/acme/widget') return repository();
           if (path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress') {
@@ -456,4 +514,107 @@ test('Actions capacity observation refuses partial provider collections', () => 
       }),
     /GITHUB_ACTIONS_CAPACITY_COLLECTION_INCOMPLETE/,
   );
+});
+
+class MemoryReservationStore implements GithubActionsReservationStore {
+  headValue: string | null = null;
+  value: unknown | null = null;
+  revision = 0;
+  injectCompetingReservation = false;
+
+  head(): string | null {
+    return this.headValue;
+  }
+
+  read(): unknown | null {
+    return this.value;
+  }
+
+  append(expectedHead: string | null, next: unknown): string | null {
+    if (expectedHead !== this.headValue) return null;
+    if (this.injectCompetingReservation) {
+      this.injectCompetingReservation = false;
+      this.revision += 1;
+      this.headValue = `r${this.revision}`;
+      this.value = {
+        schema: 'overcenter-github-actions-capacity/v1',
+        account_login: 'acme',
+        reservations: [{ id: 'other', jobs: 1 }],
+      };
+      return null;
+    }
+    this.revision += 1;
+    this.headValue = `r${this.revision}`;
+    this.value = structuredClone(next);
+    return this.headValue;
+  }
+}
+
+function capacityObservation(hostedJobs: number): GithubActionsLoadObservation {
+  return {
+    inventory: {
+      account_login: 'acme',
+      repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
+      observed_at: '2026-09-24T21:00:00.000Z',
+      complete: true,
+    },
+    in_progress_jobs: Array.from({ length: hostedJobs }, (_, index) => ({
+      repository_id: 42,
+      repository_full_name: 'acme/widget',
+      run_id: 7001,
+      job_id: index + 1,
+      self_hosted: false,
+    })),
+    evidence: [],
+  };
+}
+
+test('dispatch reservation atomically closes the local capacity race', () => {
+  const store = new MemoryReservationStore();
+  store.injectCompetingReservation = true;
+  const controller = new GithubActionsCapacityController('acme', { store });
+
+  const result = controller.reserveDispatch({
+    observation: capacityObservation(18),
+    reservationId: 'mine',
+    jobs: 1,
+    limit: 20,
+    safetyReserveJobs: 1,
+  });
+
+  assert.equal(result.state, 'saturated');
+  assert.equal(result.capacity.observed_hosted_jobs, 18);
+  assert.equal(result.capacity.locally_reserved_jobs, 1);
+  assert.equal(result.capacity.available_jobs, 0);
+});
+
+test('dispatch reservation is durable, idempotent, and releasable', () => {
+  const store = new MemoryReservationStore();
+  const controller = new GithubActionsCapacityController('acme', { store });
+  const observation = capacityObservation(17);
+
+  const first = controller.reserveDispatch({
+    observation,
+    reservationId: 'dispatch-1',
+    jobs: 1,
+    limit: 20,
+    safetyReserveJobs: 1,
+  });
+  assert.equal(first.state, 'reserved');
+  if (first.state !== 'reserved') return;
+  assert.equal(first.capacity.available_jobs, 1);
+
+  const replay = controller.reserveDispatch({
+    observation,
+    reservationId: 'dispatch-1',
+    jobs: 1,
+    limit: 20,
+    safetyReserveJobs: 1,
+  });
+  assert.equal(replay.state, 'reserved');
+  assert.equal(store.revision, 1, 'idempotent reservation must not append another authority state');
+
+  const released = controller.releaseDispatch('dispatch-1');
+  assert.ok(released);
+  assert.equal(store.revision, 2);
 });
