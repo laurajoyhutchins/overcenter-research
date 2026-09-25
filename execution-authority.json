@@ -1,8 +1,0 @@
-{
-  "schema": "overcenter-git-execution-authority-v1",
-  "run_id": "34fe7f76-5781-49c6-9f7a-7b5c42c0e7eb",
-  "obligation_id": "live-agent-loop-witness",
-  "generation": 2,
-  "previous_authority_commit": "4159a93de5ad74e12718d769ee5050f47199f1c7",
-  "execution_capability_sha256": "7a9e7d517bc66e23ebd042609c2647882bf653a1277a420a4ba6da43a82998ef"
-}
