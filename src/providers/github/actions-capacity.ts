@@ -19,8 +19,15 @@ export interface GithubActionsObservedJob {
   self_hosted: boolean;
 }
 
+export interface GithubAccountRepositoryInventory {
+  account_login: string;
+  repositories: readonly GithubActionsRepositoryScope[];
+  observed_at: string;
+  complete: true;
+}
+
 export interface GithubActionsLoadObservation {
-  scope_completeness: 'account-complete' | 'partial';
+  inventory: GithubAccountRepositoryInventory;
   in_progress_jobs: readonly GithubActionsObservedJob[];
   evidence: readonly CertifiedGithubSemanticReadEvidence[];
 }
@@ -32,8 +39,7 @@ export interface GithubActionsCapacityProjection {
   locally_reserved_jobs: number;
   safety_reserve_jobs: number;
   available_jobs: number;
-  state: 'available' | 'saturated' | 'indeterminate';
-  reason: 'repository-scope-incomplete' | null;
+  state: 'available' | 'saturated';
 }
 
 interface WorkflowRunsPage {
@@ -88,31 +94,88 @@ function nonnegativeInteger(value: number, code: string): void {
   if (!Number.isSafeInteger(value) || value < 0) throw new Error(code);
 }
 
-export function observeGithubActionsLoad(
+export function observeGithubAccountRepositories(
   token: string,
+  accountLogin: string,
   {
-    repositories,
-    scopeCompleteness,
     get = githubGet,
     clock = () => new Date().toISOString(),
   }: {
-    repositories: readonly GithubActionsRepositoryScope[];
-    scopeCompleteness: 'account-complete' | 'partial';
+    get?: GithubJsonGet;
+    clock?: () => string;
+  } = {},
+): GithubAccountRepositoryInventory {
+  const identity = get(token, '/user') as { login?: unknown };
+  if (identity.login !== accountLogin) {
+    throw new Error('GITHUB_ACTIONS_CAPACITY_ACCOUNT_IDENTITY_MISMATCH');
+  }
+
+  const repositories: GithubActionsRepositoryScope[] = [];
+  const seen = new Set<number>();
+  for (let page = 1; page <= 1000; page += 1) {
+    const value = get(
+      token,
+      `/user/repos?affiliation=owner&direction=asc&page=${page}&per_page=${PAGE_SIZE}&sort=full_name`,
+    );
+    if (!Array.isArray(value)) {
+      throw new Error('GITHUB_ACTIONS_CAPACITY_REPOSITORY_INVENTORY_INVALID');
+    }
+    for (const raw of value) {
+      if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+        throw new Error('GITHUB_ACTIONS_CAPACITY_REPOSITORY_INVENTORY_INVALID');
+      }
+      const repository = raw as {
+        id?: unknown;
+        full_name?: unknown;
+        owner?: { login?: unknown };
+      };
+      if (
+        !Number.isSafeInteger(repository.id) ||
+        (repository.id as number) < 1 ||
+        typeof repository.full_name !== 'string' ||
+        repository.owner?.login !== accountLogin
+      ) {
+        throw new Error('GITHUB_ACTIONS_CAPACITY_REPOSITORY_INVENTORY_INVALID');
+      }
+      if (seen.has(repository.id as number)) {
+        throw new Error('GITHUB_ACTIONS_CAPACITY_REPOSITORY_INVENTORY_DUPLICATE');
+      }
+      seen.add(repository.id as number);
+      repositories.push({
+        repository_id: repository.id as number,
+        repository_full_name: repository.full_name,
+      });
+    }
+    if (value.length < PAGE_SIZE) {
+      return {
+        account_login: accountLogin,
+        repositories,
+        observed_at: clock(),
+        complete: true,
+      };
+    }
+  }
+  throw new Error('GITHUB_ACTIONS_CAPACITY_REPOSITORY_INVENTORY_PAGE_LIMIT');
+}
+
+export function observeGithubActionsLoad(
+  token: string,
+  {
+    inventory,
+    get = githubGet,
+    clock = () => new Date().toISOString(),
+  }: {
+    inventory: GithubAccountRepositoryInventory;
     get?: GithubJsonGet;
     clock?: () => string;
   },
 ): GithubActionsLoadObservation {
-  if (repositories.length === 0) throw new Error('GITHUB_ACTIONS_CAPACITY_SCOPE_EMPTY');
+  if (inventory.complete !== true) throw new Error('GITHUB_ACTIONS_CAPACITY_INVENTORY_INCOMPLETE');
 
   const evidence: CertifiedGithubSemanticReadEvidence[] = [];
   const jobs: GithubActionsObservedJob[] = [];
-  const uniqueRepositories = [
-    ...new Map(
-      repositories.map((repository) => [repository.repository_full_name, repository]),
-    ).values(),
-  ];
 
-  for (const repository of uniqueRepositories) {
+  for (const repository of inventory.repositories) {
     const runsPage = certifiedPage(
       token,
       repository,
@@ -152,7 +215,7 @@ export function observeGithubActionsLoad(
   }
 
   return {
-    scope_completeness: scopeCompleteness,
+    inventory,
     in_progress_jobs: jobs,
     evidence,
   };
@@ -178,19 +241,6 @@ export function projectGithubActionsCapacity({
   const observed = observation.in_progress_jobs.length;
   const hosted = observation.in_progress_jobs.filter((job) => !job.self_hosted).length;
 
-  if (observation.scope_completeness !== 'account-complete') {
-    return {
-      limit,
-      observed_in_progress_jobs: observed,
-      observed_hosted_jobs: hosted,
-      locally_reserved_jobs: locallyReservedJobs,
-      safety_reserve_jobs: safetyReserveJobs,
-      available_jobs: 0,
-      state: 'indeterminate',
-      reason: 'repository-scope-incomplete',
-    };
-  }
-
   const available = Math.max(0, limit - hosted - locallyReservedJobs - safetyReserveJobs);
   return {
     limit,
@@ -200,6 +250,5 @@ export function projectGithubActionsCapacity({
     safety_reserve_jobs: safetyReserveJobs,
     available_jobs: available,
     state: available > 0 ? 'available' : 'saturated',
-    reason: null,
   };
 }
