@@ -1,6 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
 import {
   compileHostileMutationEvidenceObligation,
@@ -8,7 +6,6 @@ import {
   HOSTILE_MUTATION_EVIDENCE_PATH,
 } from '../evidence/hostile-mutation-obligation.ts';
 import { observationVerified, observePostconditionAsync } from '../observation/observe.ts';
-import { verifyMutationEvidenceSources } from '../../experiments/production-criticality-ranking/verify-mutation-evidence-sources.ts';
 import { requiredEnv } from './project-command-runtime.ts';
 
 const mode = process.argv[2];
@@ -78,17 +75,22 @@ async function reconcile(waitForIdle: boolean) {
 if (mode === 'reconcile') {
   console.log(JSON.stringify(await reconcile(false), null, 2));
 } else {
-  const committed = JSON.parse(readFileSync(HOSTILE_MUTATION_EVIDENCE_PATH, 'utf8'));
-  const verified = await verifyMutationEvidenceSources({
-    root: repo,
-    committed,
-    repository: repositoryFullName,
-    token,
-  });
-  const stale = verified.flatMap((result) => result.stale ?? []);
-  if (stale.length > 0) {
-    throw new Error(`HOSTILE_MUTATION_EVIDENCE_STALE:${stale.join(',')}`);
-  }
+  execFileSync(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      'experiments/production-criticality-ranking/verify-mutation-evidence-sources.ts',
+    ],
+    {
+      cwd: repo,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        GITHUB_REPOSITORY: repositoryFullName,
+        GITHUB_TOKEN: token,
+      },
+    },
+  );
 
   await reconcile(true);
   const desired = obligation();
@@ -101,6 +103,7 @@ if (mode === 'reconcile') {
     );
   }
 
+  let completed = false;
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const work = kernel
       .inspect()
@@ -118,6 +121,7 @@ if (mode === 'reconcile') {
           2,
         ),
       );
+      completed = true;
       break;
     }
     if (work.status !== 'READY') {
@@ -128,8 +132,7 @@ if (mode === 'reconcile') {
       const permit = kernel.claim(work.id, work.revision);
       const receipt = await kernel.resolveAsync(permit, {
         hostile_mutation_evidence: {
-          verified_source_runs: verified.map((result) => result.workflowRunId),
-          verified_probes: verified.reduce((sum, result) => sum + result.probes, 0),
+          verifier: 'verify-mutation-evidence-sources.ts',
         },
       });
       if (receipt.disposition !== 'DONE' || receipt.verified !== true) {
@@ -148,6 +151,7 @@ if (mode === 'reconcile') {
           2,
         ),
       );
+      completed = true;
       break;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -155,5 +159,5 @@ if (mode === 'reconcile') {
       throw error;
     }
   }
-  throw new Error('HOSTILE_MUTATION_SETTLEMENT_CONTENTION_EXHAUSTED');
+  if (!completed) throw new Error('HOSTILE_MUTATION_SETTLEMENT_CONTENTION_EXHAUSTED');
 }
