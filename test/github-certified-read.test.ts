@@ -478,14 +478,14 @@ test('reservation replay and release are idempotent', () => {
   assert.equal(store.revision, 1);
 
   assert.throws(
-    () => controller.releaseDispatch('dispatch-1'),
+    () => controller.completeDispatch('dispatch-1'),
     /GITHUB_ACTIONS_CAPACITY_NOT_DISPATCHED/,
   );
   controller.markDispatched('dispatch-1');
-  const released = controller.releaseDispatch('dispatch-1');
+  const released = controller.completeDispatch('dispatch-1');
   assert.ok(released);
   assert.equal(store.revision, 3);
-  assert.equal(controller.releaseDispatch('dispatch-1'), released);
+  assert.equal(controller.completeDispatch('dispatch-1'), released);
   assert.equal(store.revision, 3);
 });
 
