@@ -42,7 +42,7 @@ export function settlementSemantics(postcondition: Postcondition): SettlementSem
     postcondition.verifier === 'eventually-consistent-file-content-equals/v1' ||
     postcondition.verifier === 'github-commit-status/v2' ||
     postcondition.verifier === 'github-pull-request-branch-updated/v1' ||
-    postcondition.verifier === 'github-hostile-mutation-evidence/v1'
+    postcondition.verifier === 'github-source-bound-evidence/v1'
   ) {
     return {
       verifier: postcondition.verifier,
