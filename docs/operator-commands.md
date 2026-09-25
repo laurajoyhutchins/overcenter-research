@@ -40,7 +40,7 @@ A reasoning agent does not select or claim its own work.
 
 Trusted deterministic graph producers may also materialize **system evidence obligations**. Producers implement one generic repository-snapshot contract and are composed at the command boundary; `project.advance` does not know their domain schemas or source paths. System evidence uses the same obligation identity, reconciliation, claim, observation, and settlement machinery as other work, but it is not a reasoning assignment. If one reaches the READY frontier, `project.advance` reports it without claiming it or constructing an agent packet.
 
-Provider-backed evidence likewise uses a generic source-bound observation contract: the kernel binds an opaque provider-owned evidence descriptor by canonical digest, while the provider adapter validates the detailed file, source-blob, workflow, job, and artifact coordinates. Hostile mutation freshness is one producer of that contract. A protected source change reopens its obligation; unrelated source movement does not. The mutation-specific code is limited to deriving protected paths and translating mutation evidence into the generic binding.
+Provider-backed evidence reuses generic source-bound GitHub observation machinery beneath its persisted postcondition schema. The persisted verifier and coordinate shape remain stable because authority history is durable; provider adapters supply domain-specific evidence parsing while shared machinery verifies repository identity, evidence bytes, current source blobs, workflow/job success, and artifact digests. Hostile mutation freshness is one adapter. A protected source change reopens its obligation; unrelated source movement does not.
 
 ## `project.submit`
 
