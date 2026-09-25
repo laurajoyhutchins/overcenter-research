@@ -238,7 +238,7 @@ function gitSourceTree(
 
 function desiredProjectGraph(repo: string, sourceSha: string, context: ProjectCommandContext) {
   const bytes = gitOptionalBytes(repo, sourceSha, PROJECT_INTENT_PATH);
-  let intent = [];
+  let intent: ReturnType<typeof compileProjectIntent> = [];
   if (bytes) {
     let value: unknown;
     try {
