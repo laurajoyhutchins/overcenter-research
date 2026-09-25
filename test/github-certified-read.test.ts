@@ -304,7 +304,6 @@ test('generic read fails closed before provider access when credential permissio
   assert.equal(result.observation_error, 'GITHUB_SEMANTIC_READ_PERMISSION_NOT_GRANTED:issues:read');
 });
 
-
 test('certified Actions load drives conservative account-capacity admission', () => {
   const observation = observeGithubActionsLoad('token', {
     repositories: [{ repository_id: 42, repository_full_name: 'acme/widget' }],
@@ -330,10 +329,7 @@ test('certified Actions load drives conservative account-capacity admission', ()
           ],
         };
       }
-      if (
-        path ===
-        '/repos/acme/widget/actions/runs/7001/jobs?filter=latest&page=1&per_page=100'
-      ) {
+      if (path === '/repos/acme/widget/actions/runs/7001/jobs?filter=latest&page=1&per_page=100') {
         return {
           total_count: 2,
           jobs: [
@@ -416,9 +412,7 @@ test('Actions capacity observation refuses partial provider collections', () => 
         scopeCompleteness: 'account-complete',
         get: (_token, path) => {
           if (path === '/repos/acme/widget') return repository();
-          if (
-            path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress'
-          ) {
+          if (path === '/repos/acme/widget/actions/runs?page=1&per_page=100&status=in_progress') {
             return {
               total_count: 2,
               workflow_runs: [
