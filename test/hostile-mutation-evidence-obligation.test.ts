@@ -147,18 +147,22 @@ test('GitHub hostile evidence observation fails currentness on source drift', ()
     ref: 'main',
     evidence_path: 'experiments/production-criticality-ranking/mutation-evidence.json',
     expected_sha256: sha256(evidence),
-    source_blobs: { 'src/core.ts': sourceBlob },
-    evidence_source_blobs: { 'src/core.ts': sourceBlob },
-    source_runs: [
-      {
-        workflow_run_id: 123,
-        revision,
-        artifact_digest: artifactDigest,
+    binding: {
+      source_blobs: { 'src/core.ts': sourceBlob },
+      evidence_source_blobs: { 'src/core.ts': sourceBlob },
+      source_runs: [
+        {
+          workflow_run_id: 123,
+          revision,
+          artifact_digest: artifactDigest,
+        },
+      ],
+      workflow: {
+        path: '.github/workflows/production-criticality-mutation-probe.yml',
+        job: 'mutate',
+        artifact: 'production-criticality-mutation-probe',
       },
-    ],
-    workflow_path: '.github/workflows/production-criticality-mutation-probe.yml',
-    job_name: 'mutate',
-    artifact_name: 'production-criticality-mutation-probe',
+    },
   };
 
   const evidencePath =
