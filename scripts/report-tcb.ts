@@ -271,9 +271,7 @@ function isInvocationTarget(node: Node): boolean {
   if (parent.kind === SyntaxKind.PropertyAccessExpression) {
     const access = parent as Node & { name: Node };
     return (
-      access.name === node &&
-      isCallExpression(parent.parent) &&
-      parent.parent.expression === parent
+      access.name === node && isCallExpression(parent.parent) && parent.parent.expression === parent
     );
   }
   return false;
@@ -391,10 +389,7 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
           );
           const runtimeDeclarations = repositoryDeclarations.filter(isRuntimeDeclaration);
           if (runtimeDeclarations.length > 0) {
-            if (
-              isInvocationTarget(node) &&
-              !runtimeDeclarations.some(hasCallableImplementation)
-            ) {
+            if (isInvocationTarget(node) && !runtimeDeclarations.some(hasCallableImplementation)) {
               const targets = [
                 ...new Set(
                   runtimeDeclarations
@@ -402,9 +397,7 @@ function symbolClosure(entries: SymbolEntry[]): SymbolClosure {
                     .filter((path): path is string => path !== null),
                 ),
               ].sort();
-              obligations.add(
-                `DYNAMIC_CALL_TARGET_UNRESOLVED:${symbol.name}:${targets.join(',')}`,
-              );
+              obligations.add(`DYNAMIC_CALL_TARGET_UNRESOLVED:${symbol.name}:${targets.join(',')}`);
             }
             for (const declaration of runtimeDeclarations) {
               queue.push({
