@@ -780,6 +780,33 @@ try {
     generated_from_policy: 'tcb-policy.json',
     properties: reports,
   };
+  if (failed) {
+    console.error(
+      JSON.stringify(
+        {
+          check: 'tcb-ratchet-mismatch',
+          properties: reports.map((property) => ({
+            id: property.id,
+            semantic_loc: property.semantic_loc,
+            max_semantic_loc: property.max_semantic_loc,
+            surface_sha256: property.surface_sha256,
+            expected_surface_sha256: property.expected_surface_sha256,
+            module_closure_semantic_loc: property.module_closure_semantic_loc,
+            max_module_closure_semantic_loc: property.max_module_closure_semantic_loc,
+            module_closure_sha256: property.module_closure_sha256,
+            expected_module_closure_sha256: property.expected_module_closure_sha256,
+            symbol_closure_status: property.symbol_closure_status,
+            hybrid_closure_semantic_loc: property.hybrid_closure_semantic_loc,
+            max_hybrid_closure_semantic_loc: property.max_hybrid_closure_semantic_loc,
+            hybrid_closure_sha256: property.hybrid_closure_sha256,
+            expected_hybrid_closure_sha256: property.expected_hybrid_closure_sha256,
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+  }
   console.log(JSON.stringify(report, null, 2));
 
   if (failed) {
