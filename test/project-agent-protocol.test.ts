@@ -417,8 +417,10 @@ test('project intent accepts repository-tree selectors without embedding a sourc
     ],
   });
   assert.equal(compiled.length, 1);
-  assert.deepEqual(compiled[0]!.packet.required_trees, ['src']);
-  assert.equal(JSON.stringify(compiled[0]!.packet).includes('source_sha'), false);
+  const compiledTask = compiled[0];
+  assert.ok(compiledTask?.packet);
+  assert.deepEqual(compiledTask.packet.required_trees, ['src']);
+  assert.equal(JSON.stringify(compiledTask.packet).includes('source_sha'), false);
 });
 
 test('project.advance requires native client bytes before claiming reasoning work', () => {
