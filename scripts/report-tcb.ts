@@ -2,14 +2,16 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 
-import { API } from 'typescript/unstable/sync';
+import { API, SymbolFlags, type Symbol as TypeScriptSymbol } from 'typescript/unstable/sync';
 import {
   SyntaxKind,
+  isCallExpression,
   isClassDeclaration,
   isEnumDeclaration,
   isExportDeclaration,
   isFunctionDeclaration,
   isImportDeclaration,
+  isIdentifier,
   isInterfaceDeclaration,
   isStringLiteral,
   isTypeAliasDeclaration,
@@ -25,6 +27,15 @@ interface SymbolEntry {
   reason: string;
 }
 
+interface RuntimeDispatchBinding {
+  target: string;
+  implementation: {
+    path: string;
+    symbol: string;
+  };
+  reason: string;
+}
+
 interface TcbProperty {
   id: string;
   statement: string;
@@ -32,7 +43,13 @@ interface TcbProperty {
   expected_surface_sha256?: string;
   max_module_closure_semantic_loc?: number;
   expected_module_closure_sha256?: string;
+  max_hybrid_closure_semantic_loc?: number;
+  expected_hybrid_closure_sha256?: string;
+  require_sound_symbol_closure?: boolean;
   entries: SymbolEntry[];
+  composes_with?: string[];
+  trusted_symbol_boundaries?: string[];
+  runtime_dispatch_bindings?: RuntimeDispatchBinding[];
   external_assumptions: string[];
   excluded: string[];
 }
@@ -192,6 +209,320 @@ interface ModuleClosure {
   external_modules: string[];
 }
 
+interface SymbolClosure {
+  semantic_loc: number;
+  files: string[];
+  declarations: Array<{
+    path: string;
+    start_line: number;
+    end_line: number;
+    semantic_loc: number;
+    symbol: string;
+  }>;
+  external_symbols: string[];
+  obligations: string[];
+  composed_boundaries: string[];
+  resolved_dispatch_bindings: string[];
+  status: 'candidate' | 'sound';
+}
+
+function isTypeSpaceNode(node: Node): boolean {
+  return (
+    (node.kind >= SyntaxKind.FirstTypeNode && node.kind <= SyntaxKind.LastTypeNode) ||
+    node.kind === SyntaxKind.AnyKeyword ||
+    node.kind === SyntaxKind.UnknownKeyword ||
+    node.kind === SyntaxKind.NumberKeyword ||
+    node.kind === SyntaxKind.BigIntKeyword ||
+    node.kind === SyntaxKind.ObjectKeyword ||
+    node.kind === SyntaxKind.BooleanKeyword ||
+    node.kind === SyntaxKind.StringKeyword ||
+    node.kind === SyntaxKind.SymbolKeyword ||
+    node.kind === SyntaxKind.VoidKeyword ||
+    node.kind === SyntaxKind.UndefinedKeyword ||
+    node.kind === SyntaxKind.NeverKeyword ||
+    node.kind === SyntaxKind.IntrinsicKeyword ||
+    node.kind === SyntaxKind.ExpressionWithTypeArguments
+  );
+}
+
+function isTypeOnlySpecifier(node: Node): boolean {
+  if (node.kind !== SyntaxKind.ImportSpecifier && node.kind !== SyntaxKind.ExportSpecifier) {
+    return false;
+  }
+  return (node as Node & { isTypeOnly?: boolean }).isTypeOnly === true;
+}
+
+function repoPathFor(node: Node): string | null {
+  const source = node.getSourceFile();
+  if (source.isDeclarationFile) return null;
+  const path = normalizedRepoPath(source.fileName);
+  if (
+    path.startsWith('../') ||
+    path === '..' ||
+    path.startsWith('node_modules/') ||
+    path.includes('/node_modules/')
+  ) {
+    return null;
+  }
+  return path;
+}
+
+function checkerFor(node: Node) {
+  const project = snapshot.getDefaultProjectForFile(node.getSourceFile().fileName);
+  if (!project) throw new Error(`TCB_PROJECT_UNAVAILABLE:${node.getSourceFile().fileName}`);
+  return project.checker;
+}
+
+function resolvedValueSymbol(node: Node): TypeScriptSymbol | null {
+  const checker = checkerFor(node);
+  const symbol = checker.getSymbolAtLocation(node);
+  if (!symbol) return null;
+  const resolved = symbol.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  if (checker.isUnknownSymbol(resolved)) return null;
+  return resolved.flags & SymbolFlags.Value ? resolved : null;
+}
+
+function isInvocationTarget(node: Node): boolean {
+  const parent = node.parent;
+  if (isCallExpression(parent) && parent.expression === node) return true;
+  if (parent.kind === SyntaxKind.PropertyAccessExpression) {
+    const access = parent as Node & { name: Node };
+    return (
+      access.name === node && isCallExpression(parent.parent) && parent.parent.expression === parent
+    );
+  }
+  return false;
+}
+
+function hasCallableImplementation(node: Node): boolean {
+  if (
+    node.kind === SyntaxKind.FunctionDeclaration ||
+    node.kind === SyntaxKind.MethodDeclaration ||
+    node.kind === SyntaxKind.FunctionExpression ||
+    node.kind === SyntaxKind.ArrowFunction
+  ) {
+    return (node as Node & { body?: Node }).body !== undefined;
+  }
+  if (
+    node.kind === SyntaxKind.VariableDeclaration ||
+    node.kind === SyntaxKind.PropertyDeclaration ||
+    node.kind === SyntaxKind.PropertyAssignment
+  ) {
+    return (node as Node & { initializer?: Node }).initializer !== undefined;
+  }
+  return false;
+}
+
+function isRuntimeDeclaration(node: Node): boolean {
+  if (node.getSourceFile().isDeclarationFile) return false;
+  return !isTypeSpaceNode(node) && !isInterfaceDeclaration(node) && !isTypeAliasDeclaration(node);
+}
+
+function lineRange(node: Node): {
+  path: string;
+  start_line: number;
+  end_line: number;
+  semantic_loc: number;
+} | null {
+  const path = repoPathFor(node);
+  if (!path) return null;
+  const { text, source } = sourceFor(path);
+  const start = node.getStart(source);
+  const end = node.getEnd();
+  const startLine = source.getLineAndCharacterOfPosition(start).line + 1;
+  const endLine = source.getLineAndCharacterOfPosition(Math.max(start, end - 1)).line + 1;
+  return {
+    path,
+    start_line: startLine,
+    end_line: endLine,
+    semantic_loc: text
+      .split('\n')
+      .slice(startLine - 1, endLine)
+      .filter(semanticLine).length,
+  };
+}
+
+function symbolClosure(property: TcbProperty): SymbolClosure {
+  if ((property.trusted_symbol_boundaries?.length ?? 0) > 0 && !property.composes_with?.length) {
+    throw new Error(`TCB_COMPOSITION_REQUIRED:${property.id}`);
+  }
+  const boundaries = new Set(property.trusted_symbol_boundaries ?? []);
+  const dispatchBindings = new Map(
+    (property.runtime_dispatch_bindings ?? []).map((binding) => [binding.target, binding]),
+  );
+  const queue: Array<{ node: Node; symbol: string }> = property.entries.map((entry) => {
+    const { source } = sourceFor(entry.path);
+    return {
+      node:
+        entry.whole_file === true
+          ? source
+          : declarationFor(
+              entry.path,
+              entry.symbol ??
+                (() => {
+                  throw new Error('TCB_SYMBOL_REQUIRED');
+                })(),
+            ),
+      symbol: entry.whole_file === true ? `${entry.path}#*` : `${entry.path}#${entry.symbol}`,
+    };
+  });
+  const visitedSymbols = new Set<number>();
+  const declarations = new Map<
+    string,
+    {
+      path: string;
+      start_line: number;
+      end_line: number;
+      semantic_loc: number;
+      symbol: string;
+    }
+  >();
+  const externalSymbols = new Set<string>();
+  const obligations = new Set<string>();
+  const composedBoundaries = new Set<string>();
+  const resolvedDispatchBindings = new Set<string>();
+
+  while (queue.length > 0) {
+    const current = queue.pop();
+    if (!current) continue;
+    const range = lineRange(current.node);
+    if (range) {
+      const key = `${range.path}:${range.start_line}:${range.end_line}`;
+      declarations.set(key, { ...range, symbol: current.symbol });
+    }
+
+    const visit = (node: Node): void => {
+      if (
+        isTypeSpaceNode(node) ||
+        isInterfaceDeclaration(node) ||
+        isTypeAliasDeclaration(node) ||
+        (isImportDeclaration(node) &&
+          node.importClause?.phaseModifier === SyntaxKind.TypeKeyword) ||
+        isTypeOnlySpecifier(node)
+      ) {
+        return;
+      }
+
+      if (isIdentifier(node)) {
+        const symbol = resolvedValueSymbol(node);
+        if (symbol && !visitedSymbols.has(symbol.id)) {
+          visitedSymbols.add(symbol.id);
+          const resolvedDeclarations = symbol.declarations
+            .map((handle) => handle.resolve())
+            .filter((declaration): declaration is Node => declaration !== undefined);
+          const repositoryDeclarations = resolvedDeclarations.filter(
+            (declaration) => repoPathFor(declaration) !== null,
+          );
+          const runtimeDeclarations = repositoryDeclarations.filter(isRuntimeDeclaration);
+          const declarationKeys = repositoryDeclarations
+            .map((declaration) => repoPathFor(declaration))
+            .filter((path): path is string => path !== null)
+            .map((path) => `${path}#${symbol.name}`);
+          const boundaryDeclarations = runtimeDeclarations.filter((declaration) => {
+            const path = repoPathFor(declaration);
+            return path !== null && boundaries.has(`${path}#${symbol.name}`);
+          });
+          for (const declaration of boundaryDeclarations) {
+            const path = repoPathFor(declaration) as string;
+            composedBoundaries.add(`${path}#${symbol.name}`);
+          }
+          const activeRuntimeDeclarations = runtimeDeclarations.filter(
+            (declaration) => !boundaryDeclarations.includes(declaration),
+          );
+          const dispatchBinding = declarationKeys
+            .map((key) => dispatchBindings.get(key))
+            .find((binding): binding is RuntimeDispatchBinding => binding !== undefined);
+
+          if (activeRuntimeDeclarations.length > 0) {
+            if (
+              isInvocationTarget(node) &&
+              !activeRuntimeDeclarations.some(hasCallableImplementation)
+            ) {
+              if (dispatchBinding) {
+                queue.push({
+                  node: declarationFor(
+                    dispatchBinding.implementation.path,
+                    dispatchBinding.implementation.symbol,
+                  ),
+                  symbol: dispatchBinding.implementation.symbol,
+                });
+                resolvedDispatchBindings.add(
+                  `${dispatchBinding.target}->${dispatchBinding.implementation.path}#${dispatchBinding.implementation.symbol}`,
+                );
+              } else {
+                const targets = [
+                  ...new Set(
+                    activeRuntimeDeclarations
+                      .map((declaration) => repoPathFor(declaration))
+                      .filter((path): path is string => path !== null),
+                  ),
+                ].sort();
+                obligations.add(
+                  `DYNAMIC_CALL_TARGET_UNRESOLVED:${symbol.name}:${targets.join(',')}`,
+                );
+              }
+            }
+            for (const declaration of activeRuntimeDeclarations) {
+              queue.push({
+                node: declaration,
+                symbol: symbol.name,
+              });
+            }
+          } else if (boundaryDeclarations.length > 0) {
+            // The implementation is deliberately supplied by a separately measured TCB property.
+          } else if (repositoryDeclarations.length > 0 && dispatchBinding) {
+            queue.push({
+              node: declarationFor(
+                dispatchBinding.implementation.path,
+                dispatchBinding.implementation.symbol,
+              ),
+              symbol: dispatchBinding.implementation.symbol,
+            });
+            resolvedDispatchBindings.add(
+              `${dispatchBinding.target}->${dispatchBinding.implementation.path}#${dispatchBinding.implementation.symbol}`,
+            );
+          } else if (repositoryDeclarations.length > 0) {
+            const targets = [...new Set(declarationKeys.map((key) => key.split('#')[0]))].sort();
+            obligations.add(`DYNAMIC_DISPATCH_UNRESOLVED:${symbol.name}:${targets.join(',')}`);
+          } else {
+            externalSymbols.add(symbol.name);
+          }
+        }
+      }
+      node.forEachChild(visit);
+    };
+    visit(current.node);
+  }
+
+  const trusted = new Map<string, Set<number>>();
+  for (const declaration of declarations.values()) {
+    const { text } = sourceFor(declaration.path);
+    const lines = text.split('\n');
+    const selected = trusted.get(declaration.path) ?? new Set<number>();
+    for (let line = declaration.start_line; line <= declaration.end_line; line += 1) {
+      if (semanticLine(lines[line - 1] ?? '')) selected.add(line);
+    }
+    trusted.set(declaration.path, selected);
+  }
+
+  const output = [...declarations.values()].sort(
+    (left, right) =>
+      left.path.localeCompare(right.path) ||
+      left.start_line - right.start_line ||
+      left.end_line - right.end_line,
+  );
+  return {
+    semantic_loc: [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0),
+    files: [...trusted.keys()].sort(),
+    declarations: output,
+    external_symbols: [...externalSymbols].sort(),
+    obligations: [...obligations].sort(),
+    composed_boundaries: [...composedBoundaries].sort(),
+    resolved_dispatch_bindings: [...resolvedDispatchBindings].sort(),
+    status: obligations.size === 0 ? 'sound' : 'candidate',
+  };
+}
+
 function normalizedRepoPath(path: string): string {
   return relative(process.cwd(), resolve(path)).replaceAll('\\\\', '/');
 }
@@ -257,6 +588,70 @@ function runtimeImports(path: string): { local: string[]; external: string[] } {
   return { local, external };
 }
 
+interface HybridClosure {
+  semantic_loc: number;
+  files: string[];
+  sha256: string;
+}
+
+function hybridClosure(
+  module: ModuleClosure,
+  symbols: SymbolClosure,
+  property: TcbProperty,
+): HybridClosure {
+  const trusted = new Map<string, Set<number>>();
+  const fingerprintMaterial = [`module:${module.sha256}`];
+  const moduleFiles = new Set(module.files);
+
+  for (const path of module.files) {
+    const { text } = sourceFor(path);
+    const selected = trusted.get(path) ?? new Set<number>();
+    text.split('\n').forEach((line, index) => {
+      if (semanticLine(line)) selected.add(index + 1);
+    });
+    trusted.set(path, selected);
+  }
+
+  for (const declaration of symbols.declarations) {
+    const { text } = sourceFor(declaration.path);
+    const lines = text.split('\n');
+    const selected = trusted.get(declaration.path) ?? new Set<number>();
+    for (let line = declaration.start_line; line <= declaration.end_line; line += 1) {
+      if (semanticLine(lines[line - 1] ?? '')) selected.add(line);
+    }
+    trusted.set(declaration.path, selected);
+
+    if (!moduleFiles.has(declaration.path)) {
+      const source = sourceFor(declaration.path).source;
+      const start = source.getPositionOfLineAndCharacter(declaration.start_line - 1, 0);
+      const end =
+        declaration.end_line < lines.length
+          ? source.getPositionOfLineAndCharacter(declaration.end_line, 0)
+          : text.length;
+      const body = text.slice(start, end);
+      fingerprintMaterial.push(
+        `symbol:${declaration.path}:${declaration.start_line}-${declaration.end_line}:${createHash('sha256').update(body).digest('hex')}`,
+      );
+    }
+  }
+
+  for (const boundary of symbols.composed_boundaries) {
+    fingerprintMaterial.push(`composition:${boundary}`);
+  }
+  for (const binding of symbols.resolved_dispatch_bindings) {
+    fingerprintMaterial.push(`dispatch:${binding}`);
+  }
+  for (const propertyId of property.composes_with ?? []) {
+    fingerprintMaterial.push(`composes-with:${propertyId}`);
+  }
+
+  return {
+    semantic_loc: [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0),
+    files: [...trusted.keys()].sort(),
+    sha256: createHash('sha256').update(fingerprintMaterial.sort().join('\n')).digest('hex'),
+  };
+}
+
 function moduleClosure(rootPaths: string[]): ModuleClosure {
   const pending = [...new Set(rootPaths.map(normalizedRepoPath))];
   const visited = new Set<string>();
@@ -307,6 +702,10 @@ try {
       )
       .digest('hex');
     const closure = moduleClosure(property.entries.map((entry) => entry.path));
+    const symbols = symbolClosure(property);
+    const hybrid = hybridClosure(closure, symbols, property);
+    const moduleFiles = new Set(closure.files);
+    const symbolFilesOutsideModuleClosure = symbols.files.filter((path) => !moduleFiles.has(path));
     if (semanticLoc > property.max_semantic_loc) failed = true;
     if (property.expected_surface_sha256 && property.expected_surface_sha256 !== surfaceSha256) {
       failed = true;
@@ -321,6 +720,21 @@ try {
       property.expected_module_closure_sha256 &&
       property.expected_module_closure_sha256 !== closure.sha256
     ) {
+      failed = true;
+    }
+    if (
+      property.max_hybrid_closure_semantic_loc !== undefined &&
+      hybrid.semantic_loc > property.max_hybrid_closure_semantic_loc
+    ) {
+      failed = true;
+    }
+    if (
+      property.expected_hybrid_closure_sha256 &&
+      property.expected_hybrid_closure_sha256 !== hybrid.sha256
+    ) {
+      failed = true;
+    }
+    if (property.require_sound_symbol_closure && symbols.status !== 'sound') {
       failed = true;
     }
     return {
@@ -338,6 +752,22 @@ try {
       expected_module_closure_sha256: property.expected_module_closure_sha256 ?? null,
       module_closure_files: closure.files,
       external_module_imports: closure.external_modules,
+      symbol_closure_status: symbols.status,
+      symbol_closure_semantic_loc: symbols.semantic_loc,
+      require_sound_symbol_closure: property.require_sound_symbol_closure ?? false,
+      hybrid_closure_semantic_loc: hybrid.semantic_loc,
+      max_hybrid_closure_semantic_loc: property.max_hybrid_closure_semantic_loc ?? null,
+      hybrid_closure_sha256: hybrid.sha256,
+      expected_hybrid_closure_sha256: property.expected_hybrid_closure_sha256 ?? null,
+      hybrid_closure_files: hybrid.files,
+      symbol_closure_files: symbols.files,
+      symbol_closure_files_outside_module_closure: symbolFilesOutsideModuleClosure,
+      symbol_closure_declarations: symbols.declarations,
+      symbol_closure_external_symbols: symbols.external_symbols,
+      symbol_closure_obligations: symbols.obligations,
+      symbol_closure_composed_boundaries: symbols.composed_boundaries,
+      symbol_closure_resolved_dispatch_bindings: symbols.resolved_dispatch_bindings,
+      composes_with: property.composes_with ?? [],
       slices,
       external_assumptions: property.external_assumptions,
       excluded: property.excluded,
