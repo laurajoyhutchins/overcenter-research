@@ -1,0 +1,18 @@
+{
+  "schema": "overcenter-git-receipt-v5",
+  "run_id": "cd642fc8-6761-4aa8-8b08-f28d311d8cbd",
+  "obligation_id": "live-agent-loop-witness",
+  "claimed_revision": "08c877fe3639967512cf29d2882e370b93380357",
+  "claim_commit": "8c23b3a404f50dc6453028f5113b43d62e200719",
+  "execution_generation": 2,
+  "execution_authority_commit": "b0a8d6cc3fbef80fda247038daba25f678317fa9",
+  "kind": "execution-terminated",
+  "observed": null,
+  "diagnostic": {
+    "source": "foreign-worker",
+    "error": "ASSIGNMENT_COMMAND_FAILED:1",
+    "candidate_present": false,
+    "provider_effect_reserved": false
+  },
+  "settled_at": "2026-09-25T05:07:21.765Z"
+}
