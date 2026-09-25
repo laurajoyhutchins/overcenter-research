@@ -8,7 +8,7 @@
       "task": {
         "schema": "overcenter-source-task/v1",
         "kind": "source-change",
-        "objective": "Reduce the broker-mutation-safety hybrid TCB to at most 8056 semantic LOC without weakening its stated safety property or symbol-closure soundness.",
+        "objective": "Reduce the broker-mutation-safety hybrid TCB to at most 8163 semantic LOC without weakening its stated safety property or symbol-closure soundness.",
         "writable_paths": [
           "contracts/observation-evidence/settlement-observation.typebox.ts",
           "src/authority/admission.ts",
@@ -58,9 +58,9 @@
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8119,
-        "attention_semantic_loc": 8056,
-        "hybrid_sha256": "093cb7873d85f153ee710c4b74782ade8db2ac3b1f3e64634e2819f5a856cbe9"
+        "measured_semantic_loc": 8220,
+        "attention_semantic_loc": 8163,
+        "hybrid_sha256": "77f45375a90ea78d819bb5116042e08ed1f0684f83a666da826bdbaa39f9ac6f"
       }
     },
     {
@@ -70,7 +70,7 @@
       "task": {
         "schema": "overcenter-source-task/v1",
         "kind": "source-change",
-        "objective": "Reduce the github-status-safe-settlement composed TCB to at most 8241 semantic LOC while preserving every member property.",
+        "objective": "Reduce the github-status-safe-settlement composed TCB to at most 8348 semantic LOC while preserving every member property.",
         "writable_paths": [
           "contracts/observation-evidence/settlement-observation.typebox.ts",
           "src/authority/admission.ts",
@@ -121,9 +121,9 @@
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8304,
-        "attention_semantic_loc": 8241,
-        "hybrid_union_sha256": "70ed2a049ff6ce47924e9b5e337ed3e3e864585c8fef200e2020b8cf294ec184"
+        "measured_semantic_loc": 8405,
+        "attention_semantic_loc": 8348,
+        "hybrid_union_sha256": "76a3dec214dffb2adf239afa4e4434542645047d43b6aebe333a7f28685d27ec"
       }
     },
     {
@@ -133,7 +133,7 @@
       "task": {
         "schema": "overcenter-source-task/v1",
         "kind": "source-change",
-        "objective": "Reduce the no-false-done hybrid TCB to at most 8053 semantic LOC without weakening its stated safety property or symbol-closure soundness.",
+        "objective": "Reduce the no-false-done hybrid TCB to at most 8160 semantic LOC without weakening its stated safety property or symbol-closure soundness.",
         "writable_paths": [
           "contracts/observation-evidence/settlement-observation.typebox.ts",
           "src/authority/admission.ts",
@@ -183,9 +183,9 @@
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8116,
-        "attention_semantic_loc": 8053,
-        "hybrid_sha256": "be93f693f50d57b891801dfb46a847791ac4b0cd9ab1d67a38508131a8169d22"
+        "measured_semantic_loc": 8217,
+        "attention_semantic_loc": 8160,
+        "hybrid_sha256": "eeac55cffc30e5ae864fcce53467cee6f54af51f61001b03e4dc5333e1e04368"
       }
     },
     {
@@ -244,60 +244,8 @@
         "stale_sources": [
           {
             "path": "src/authority/engine.ts",
-            "expected_blob_sha1": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5",
+            "expected_blob_sha1": "8c3f536642e26e0186631e81764319cf4bdb5cdd",
             "current_blob_sha1": "e25d630f2b1e835cd03eee83146fa44e59547afb",
-            "current": false
-          }
-        ]
-      }
-    },
-    {
-      "id": "tcb:hostile-evidence-stale:broker-mutation-safety:execution-fence",
-      "kind": "hostile-evidence-stale",
-      "scope": "broker-mutation-safety",
-      "task": {
-        "schema": "overcenter-source-task/v1",
-        "kind": "source-change",
-        "objective": "Refresh hostile mutation evidence for broker-mutation-safety probe execution-fence against the current trusted source and preserve the probe's falsification purpose.",
-        "writable_paths": [
-          "experiments/production-criticality-ranking/mutation-evidence.json",
-          "src/authority/engine.ts"
-        ]
-      },
-      "evidence": {
-        "probe_id": "execution-fence",
-        "mutation_score": 0.5,
-        "stale_sources": [
-          {
-            "path": "src/authority/engine.ts",
-            "expected_blob_sha1": "fce1c788b58ee792a8c6d7575da91a2cea958305",
-            "current_blob_sha1": "e25d630f2b1e835cd03eee83146fa44e59547afb",
-            "current": false
-          }
-        ]
-      }
-    },
-    {
-      "id": "tcb:hostile-evidence-stale:no-false-done:digest-foundation",
-      "kind": "hostile-evidence-stale",
-      "scope": "no-false-done",
-      "task": {
-        "schema": "overcenter-source-task/v1",
-        "kind": "source-change",
-        "objective": "Refresh hostile mutation evidence for no-false-done probe digest-foundation against the current trusted source and preserve the probe's falsification purpose.",
-        "writable_paths": [
-          "experiments/production-criticality-ranking/mutation-evidence.json",
-          "src/digest.ts"
-        ]
-      },
-      "evidence": {
-        "probe_id": "digest-foundation",
-        "mutation_score": 1,
-        "stale_sources": [
-          {
-            "path": "src/digest.ts",
-            "expected_blob_sha1": "7fceb3b722cc31fe318cbd8886159ced5e976f9d",
-            "current_blob_sha1": "1b6e9d1ec4353f48add1b0d8ac35ce5c92471e1e",
             "current": false
           }
         ]
@@ -318,38 +266,12 @@
       },
       "evidence": {
         "probe_id": "done-candidate-reuse",
-        "mutation_score": 0.7107438016528925,
+        "mutation_score": 0.47107438016528924,
         "stale_sources": [
           {
             "path": "src/authority/project-state.ts",
-            "expected_blob_sha1": "95b795ba41c39f2be0f2849c11cf96e7b30918c5",
+            "expected_blob_sha1": "2de78f62bade23251b7daf98e1c92407d55cce8f",
             "current_blob_sha1": "3239a4937c9c320d94792192b7ac8939d90db55c",
-            "current": false
-          }
-        ]
-      }
-    },
-    {
-      "id": "tcb:hostile-evidence-stale:no-false-done:semantic-identity",
-      "kind": "hostile-evidence-stale",
-      "scope": "no-false-done",
-      "task": {
-        "schema": "overcenter-source-task/v1",
-        "kind": "source-change",
-        "objective": "Refresh hostile mutation evidence for no-false-done probe semantic-identity against the current trusted source and preserve the probe's falsification purpose.",
-        "writable_paths": [
-          "experiments/production-criticality-ranking/mutation-evidence.json",
-          "src/graph/identity.ts"
-        ]
-      },
-      "evidence": {
-        "probe_id": "semantic-identity",
-        "mutation_score": 1,
-        "stale_sources": [
-          {
-            "path": "src/graph/identity.ts",
-            "expected_blob_sha1": "e86c460c34d292105b4160d23744d806a04337c6",
-            "current_blob_sha1": "b5224f4c6c7b4626d3ae3698425303f1cf9d50bd",
             "current": false
           }
         ]
@@ -374,7 +296,7 @@
         "stale_sources": [
           {
             "path": "src/authority/engine.ts",
-            "expected_blob_sha1": "5eff7fbaca2c4c0ebd20e0e9e0ae265cdb2decc5",
+            "expected_blob_sha1": "8c3f536642e26e0186631e81764319cf4bdb5cdd",
             "current_blob_sha1": "e25d630f2b1e835cd03eee83146fa44e59547afb",
             "current": false
           }
@@ -396,12 +318,12 @@
       },
       "evidence": {
         "probe_id": "verification-and-absence",
-        "mutation_score": 0.9552238805970149,
+        "mutation_score": 0.7857142857142857,
         "stale_sources": [
           {
             "path": "src/observation/observe.ts",
-            "expected_blob_sha1": "7696e90f429f80879e6c6581e00d643d3c6cc2f7",
-            "current_blob_sha1": "20ce872a61f813138476c65ed50853fe0b1eabdf",
+            "expected_blob_sha1": "ddf142f25516587578836e7f0bab0b37cd15562a",
+            "current_blob_sha1": "87e24821d351c1de7cf4c4cb5ac9e81fbd2f7470",
             "current": false
           }
         ]
