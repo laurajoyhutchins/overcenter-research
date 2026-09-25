@@ -344,5 +344,28 @@
       "expected_hybrid_closure_sha256": "6d7c785ce55bacad547c9359159185f8ccd9146e6d88a92a62881ba9b6030ba7",
       "require_sound_symbol_closure": true
     }
+  ],
+  "composites": [
+    {
+      "id": "project-truth-safety",
+      "statement": "Given arbitrary worker behavior, Overcenter neither admits a stale or unresolved broker-owned mutation nor derives DONE without exact admitted authoritative evidence.",
+      "components": [
+        "broker-mutation-safety",
+        "no-false-done"
+      ],
+      "max_hybrid_closure_semantic_loc": 8059,
+      "expected_hybrid_closure_sha256": "44cdb15907a4c6b7333ad508bc4cd2c631e9b450166cd24fd512622b6c711119"
+    },
+    {
+      "id": "github-commit-status-end-to-end",
+      "statement": "Project-truth safety holds for the admitted GitHub commit-status provider profile, including provider identity, mutation dispatch certainty, authoritative observation, and settlement.",
+      "components": [
+        "broker-mutation-safety",
+        "no-false-done",
+        "github-commit-status-provider"
+      ],
+      "max_hybrid_closure_semantic_loc": 8243,
+      "expected_hybrid_closure_sha256": "a340d94df02803cde0f29661505047a2def16d8e9e49e02d3b18ac66c367203c"
+    }
   ]
 }

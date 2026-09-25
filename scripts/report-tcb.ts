@@ -54,10 +54,19 @@ interface TcbProperty {
   excluded: string[];
 }
 
+interface TcbComposite {
+  id: string;
+  statement: string;
+  components: string[];
+  max_hybrid_closure_semantic_loc?: number;
+  expected_hybrid_closure_sha256?: string;
+}
+
 interface TcbPolicy {
   schema: 'overcenter-tcb-policy';
   schema_version: 1;
   properties: TcbProperty[];
+  composites?: TcbComposite[];
 }
 
 interface Slice {
@@ -592,6 +601,7 @@ interface HybridClosure {
   semantic_loc: number;
   files: string[];
   sha256: string;
+  trusted_lines: Map<string, Set<number>>;
 }
 
 function hybridClosure(
@@ -649,6 +659,7 @@ function hybridClosure(
     semantic_loc: [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0),
     files: [...trusted.keys()].sort(),
     sha256: createHash('sha256').update(fingerprintMaterial.sort().join('\n')).digest('hex'),
+    trusted_lines: trusted,
   };
 }
 
@@ -690,6 +701,8 @@ function moduleClosure(rootPaths: string[]): ModuleClosure {
 
 try {
   let failed = false;
+  const hybridByProperty = new Map<string, HybridClosure>();
+  const propertyById = new Map(policy.properties.map((property) => [property.id, property]));
   const reports = policy.properties.map((property) => {
     const slices = property.entries.map(sliceFor);
     const semanticLoc = uniqueSemanticLoc(slices);
@@ -704,6 +717,7 @@ try {
     const closure = moduleClosure(property.entries.map((entry) => entry.path));
     const symbols = symbolClosure(property);
     const hybrid = hybridClosure(closure, symbols, property);
+    hybridByProperty.set(property.id, hybrid);
     const moduleFiles = new Set(closure.files);
     const symbolFilesOutsideModuleClosure = symbols.files.filter((path) => !moduleFiles.has(path));
     if (semanticLoc > property.max_semantic_loc) failed = true;
@@ -774,11 +788,70 @@ try {
     };
   });
 
+  const compositeReports = (policy.composites ?? []).map((composite) => {
+    if (composite.components.length === 0) {
+      throw new Error(`TCB_COMPOSITE_EMPTY:${composite.id}`);
+    }
+    if (new Set(composite.components).size !== composite.components.length) {
+      throw new Error(`TCB_COMPOSITE_DUPLICATE_COMPONENT:${composite.id}`);
+    }
+
+    const trusted = new Map<string, Set<number>>();
+    const fingerprints: string[] = [];
+    const assumptions = new Set<string>();
+    const exclusions = new Set<string>();
+
+    for (const component of composite.components) {
+      const hybrid = hybridByProperty.get(component);
+      const property = propertyById.get(component);
+      if (!hybrid || !property) {
+        throw new Error(`TCB_COMPOSITE_COMPONENT_UNKNOWN:${composite.id}:${component}`);
+      }
+      fingerprints.push(`${component}:${hybrid.sha256}`);
+      for (const [path, lines] of hybrid.trusted_lines) {
+        const selected = trusted.get(path) ?? new Set<number>();
+        for (const line of lines) selected.add(line);
+        trusted.set(path, selected);
+      }
+      for (const assumption of property.external_assumptions) assumptions.add(assumption);
+      for (const excluded of property.excluded) exclusions.add(excluded);
+    }
+
+    const semanticLoc = [...trusted.values()].reduce((sum, lines) => sum + lines.size, 0);
+    const sha256 = createHash('sha256').update(fingerprints.sort().join('\n')).digest('hex');
+    if (
+      composite.max_hybrid_closure_semantic_loc !== undefined &&
+      semanticLoc > composite.max_hybrid_closure_semantic_loc
+    ) {
+      failed = true;
+    }
+    if (
+      composite.expected_hybrid_closure_sha256 &&
+      composite.expected_hybrid_closure_sha256 !== sha256
+    ) {
+      failed = true;
+    }
+
+    return {
+      id: composite.id,
+      statement: composite.statement,
+      components: composite.components,
+      hybrid_closure_semantic_loc: semanticLoc,
+      max_hybrid_closure_semantic_loc: composite.max_hybrid_closure_semantic_loc ?? null,
+      hybrid_closure_sha256: sha256,
+      expected_hybrid_closure_sha256: composite.expected_hybrid_closure_sha256 ?? null,
+      hybrid_closure_files: [...trusted.keys()].sort(),
+      external_assumptions: [...assumptions].sort(),
+      excluded: [...exclusions].sort(),
+    };
+  });
+
   const report = {
     schema: 'overcenter-tcb-report',
     schema_version: 1,
     generated_from_policy: 'tcb-policy.json',
     properties: reports,
+    composites: compositeReports,
   };
   if (failed) {
     console.error(
