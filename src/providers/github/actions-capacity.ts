@@ -142,9 +142,9 @@ export function observeGithubActionsLoad(
 ): GithubActionsLoadObservation {
   if (repositories.length === 0) throw new Error('GITHUB_ACTIONS_CAPACITY_SCOPE_EMPTY');
 
-  const ordered = [...repositories].map(validateRepositoryScope).sort((left, right) =>
-    left.repository_full_name.localeCompare(right.repository_full_name),
-  );
+  const ordered = [...repositories]
+    .map(validateRepositoryScope)
+    .sort((left, right) => left.repository_full_name.localeCompare(right.repository_full_name));
   const seenRepositories = new Set<string>();
   for (const repository of ordered) {
     if (seenRepositories.has(repository.repository_full_name)) {
@@ -264,10 +264,7 @@ export function projectGithubActionsCapacity({
   safetyReserveJobs?: number;
 }): GithubActionsCapacityProjection {
   positiveSafeInteger(limit, 'GITHUB_ACTIONS_CAPACITY_LIMIT_INVALID');
-  nonnegativeSafeInteger(
-    locallyReservedJobs,
-    'GITHUB_ACTIONS_CAPACITY_LOCAL_RESERVATIONS_INVALID',
-  );
+  nonnegativeSafeInteger(locallyReservedJobs, 'GITHUB_ACTIONS_CAPACITY_LOCAL_RESERVATIONS_INVALID');
   nonnegativeSafeInteger(safetyReserveJobs, 'GITHUB_ACTIONS_CAPACITY_SAFETY_RESERVE_INVALID');
 
   const observed = observation.in_progress_jobs.length;
