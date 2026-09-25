@@ -869,7 +869,8 @@ try {
       }
     }
     const fingerprintMaterial = [`composition:${composition.id}`];
-    for (const member of [...composition.properties].sort()) fingerprintMaterial.push(`member:${member}`);
+    for (const member of [...composition.properties].sort())
+      fingerprintMaterial.push(`member:${member}`);
     for (const path of [...trusted.keys()].sort()) {
       const lines = readFileSync(path, 'utf8').split('\n');
       for (const line of [...(trusted.get(path) ?? [])].sort((left, right) => left - right)) {
