@@ -1,4 +1,4 @@
-import type { GithubSourceBoundEvidencePostcondition, Observation } from '../../model.ts';
+import type { Observation } from '../../model.ts';
 import { canonicalDigest, sha256 } from '../../digest.ts';
 import {
   readGithubEvidenceFile,
@@ -7,108 +7,39 @@ import {
 } from './evidence-primitives.ts';
 import { githubGet, type GithubJsonGet } from './rest.ts';
 
-const data = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value);
+export interface GithubSourceBoundEvidenceCoordinates {
+  verifier: Observation['verifier'];
+  provider: 'github';
+  repository_id: number;
+  repository_full_name: string;
+  ref: string;
+  evidence_path: string;
+  expected_sha256: string;
+  source_blobs: Record<string, string>;
+}
 
-interface SourceRun {
+export interface GithubSourceBoundEvidenceRun {
   workflow_run_id: number;
   revision: string;
   artifact_digest: string;
 }
 
-interface SourceBoundBinding {
+export interface GithubSourceBoundEvidenceBinding {
   source_blobs: Record<string, string>;
-  evidence_source_blobs: Record<string, string>;
-  source_runs: SourceRun[];
-  workflow: {
-    path: string;
-    job: string;
-    artifact: string;
-  };
+  source_runs: GithubSourceBoundEvidenceRun[];
 }
 
-function blobMap(value: unknown): Record<string, string> | null {
-  if (!data(value)) return null;
-  const entries = Object.entries(value);
-  if (
-    !entries.every(
-      ([path, blob]) =>
-        path.length > 0 &&
-        !path.startsWith('/') &&
-        !path.split('/').some((part) => part === '' || part === '.' || part === '..') &&
-        typeof blob === 'string' &&
-        /^[0-9a-f]{40}$/i.test(blob),
-    )
-  ) {
-    return null;
-  }
-  return Object.fromEntries(entries.map(([path, blob]) => [path, String(blob).toLowerCase()]));
-}
-
-function sourceBoundBinding(p: GithubSourceBoundEvidencePostcondition): SourceBoundBinding {
-  const binding = p.binding;
-  const sourceBlobs = blobMap(binding.source_blobs);
-  const evidenceSourceBlobs = blobMap(binding.evidence_source_blobs);
-  const runs = binding.source_runs;
-  const workflow = binding.workflow;
-  if (
-    !sourceBlobs ||
-    Object.keys(sourceBlobs).length === 0 ||
-    !evidenceSourceBlobs ||
-    !Array.isArray(runs) ||
-    !data(workflow) ||
-    typeof workflow.path !== 'string' ||
-    workflow.path.length === 0 ||
-    typeof workflow.job !== 'string' ||
-    workflow.job.length === 0 ||
-    typeof workflow.artifact !== 'string' ||
-    workflow.artifact.length === 0
-  ) {
-    throw new Error('GITHUB_SOURCE_BOUND_EVIDENCE_BINDING_INVALID');
-  }
-
-  const sourceRuns: SourceRun[] = [];
-  for (const run of runs) {
-    if (
-      !data(run) ||
-      !Number.isSafeInteger(run.workflow_run_id) ||
-      Number(run.workflow_run_id) <= 0 ||
-      typeof run.revision !== 'string' ||
-      !/^[0-9a-f]{40}$/i.test(run.revision) ||
-      typeof run.artifact_digest !== 'string' ||
-      !/^sha256:[0-9a-f]{64}$/i.test(run.artifact_digest)
-    ) {
-      throw new Error('GITHUB_SOURCE_BOUND_EVIDENCE_RUN_INVALID');
-    }
-    sourceRuns.push({
-      workflow_run_id: Number(run.workflow_run_id),
-      revision: run.revision.toLowerCase(),
-      artifact_digest: run.artifact_digest.toLowerCase(),
-    });
-  }
-  if (sourceRuns.length === 0) throw new Error('GITHUB_SOURCE_BOUND_EVIDENCE_RUNS_MISSING');
-
-  return {
-    source_blobs: sourceBlobs,
-    evidence_source_blobs: evidenceSourceBlobs,
-    source_runs: sourceRuns,
-    workflow: {
-      path: workflow.path,
-      job: workflow.job,
-      artifact: workflow.artifact,
-    },
-  };
-}
-
-export function githubSourceBoundEvidenceBindingDigest(
-  p: GithubSourceBoundEvidencePostcondition,
-): string {
-  return canonicalDigest(p.binding);
+export interface GithubSourceBoundEvidenceAdapter {
+  workflow_path: string;
+  job_name: string;
+  artifact_name: string;
+  bindingFromEvidence(bytes: Buffer): GithubSourceBoundEvidenceBinding;
 }
 
 export function observeGithubSourceBoundEvidence(
   token: string,
-  p: GithubSourceBoundEvidencePostcondition,
+  p: GithubSourceBoundEvidenceCoordinates,
+  adapter: GithubSourceBoundEvidenceAdapter,
   get: GithubJsonGet = githubGet,
 ): Observation {
   const base = {
@@ -119,11 +50,10 @@ export function observeGithubSourceBoundEvidence(
     ref: p.ref,
     evidence_path: p.evidence_path,
     expected_sha256: p.expected_sha256,
-    source_binding_sha256: githubSourceBoundEvidenceBindingDigest(p),
+    source_binding_sha256: canonicalDigest(p.source_blobs),
   };
 
   try {
-    const binding = sourceBoundBinding(p);
     verifyGithubRepositoryIdentity(token, {
       repositoryId: p.repository_id,
       repositoryFullName: p.repository_full_name,
@@ -137,17 +67,18 @@ export function observeGithubSourceBoundEvidence(
       get,
     });
     const actualSha256 = sha256(evidenceFile.bytes);
+    const binding = adapter.bindingFromEvidence(evidenceFile.bytes);
 
-    const expectedPaths = Object.keys(binding.source_blobs).sort();
-    const evidencePaths = Object.keys(binding.evidence_source_blobs).sort();
+    const expectedPaths = Object.keys(p.source_blobs).sort();
+    const declaredPaths = Object.keys(binding.source_blobs).sort();
     const sourceEvidence: Record<string, unknown> = {};
     let current =
       actualSha256 === p.expected_sha256 &&
-      JSON.stringify(expectedPaths) === JSON.stringify(evidencePaths);
+      JSON.stringify(expectedPaths) === JSON.stringify(declaredPaths);
 
     for (const path of expectedPaths) {
-      const expected = binding.source_blobs[path]!;
-      const declared = binding.evidence_source_blobs[path];
+      const expected = p.source_blobs[path]!.toLowerCase();
+      const declared = binding.source_blobs[path]?.toLowerCase();
       const observed = readGithubEvidenceFile(token, {
         repositoryFullName: p.repository_full_name,
         path,
@@ -162,14 +93,17 @@ export function observeGithubSourceBoundEvidence(
       if (declared !== expected || observed !== expected) current = false;
     }
 
+    if (binding.source_runs.length === 0) {
+      throw new Error('GITHUB_SOURCE_BOUND_EVIDENCE_RUNS_MISSING');
+    }
     const sourceRuns = binding.source_runs.map((source) =>
       verifyGithubWorkflowArtifact(token, {
         repositoryFullName: p.repository_full_name,
         workflowRunId: source.workflow_run_id,
         revision: source.revision,
-        workflowPath: binding.workflow.path,
-        jobName: binding.workflow.job,
-        artifactName: binding.workflow.artifact,
+        workflowPath: adapter.workflow_path,
+        jobName: adapter.job_name,
+        artifactName: adapter.artifact_name,
         artifactDigest: source.artifact_digest,
         get,
       }),
