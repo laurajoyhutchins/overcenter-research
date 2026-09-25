@@ -21,7 +21,6 @@ test('bootstrap median interval is exact for a degenerate sample', () => {
   });
 });
 
-
 test('invalid statistical inputs fail closed', () => {
   assert.throws(() => median([]), /MEDIAN:EMPTY/);
   assert.throws(() => pairedRatios([1], [1, 2]), /INVALID_LENGTH/);
