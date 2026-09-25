@@ -18,11 +18,6 @@ export interface GithubActionsInProgressJob {
   job_id: number;
   job_name: string;
   head_sha: string;
-  runner_id: number | null;
-  runner_name: string | null;
-  runner_group_id: number | null;
-  runner_group_name: string | null;
-  runner_labels: readonly string[];
   self_hosted: boolean;
 }
 
@@ -39,8 +34,7 @@ export interface GithubActionsLoadObservation {
 export interface GithubActionsCapacityProjection {
   limit: number;
   observed_in_progress_jobs: number;
-  observed_self_hosted_jobs: number;
-  observed_non_self_hosted_jobs: number;
+  observed_hosted_jobs: number;
   locally_reserved_jobs: number;
   safety_reserve_jobs: number;
   committed_jobs: number;
@@ -72,15 +66,6 @@ function requiredString(value: unknown, code: string): string {
   return value;
 }
 
-function nullableString(value: unknown, code: string): string | null {
-  if (value === null) return null;
-  return requiredString(value, code);
-}
-
-function nullablePositiveSafeInteger(value: unknown, code: string): number | null {
-  if (value === null) return null;
-  return positiveSafeInteger(value, code);
-}
 
 function stringArray(value: unknown, code: string): string[] {
   if (!Array.isArray(value) || value.some((member) => typeof member !== 'string')) {
@@ -251,10 +236,7 @@ export function observeGithubActionsLoad(
           throw new Error(`GITHUB_ACTIONS_CAPACITY_JOB_DUPLICATE:${identity}`);
         }
         seenJobs.add(identity);
-        const runnerLabels = stringArray(
-          job.labels,
-          'GITHUB_ACTIONS_CAPACITY_JOB_LABELS_INVALID',
-        );
+        const labels = stringArray(job.labels, 'GITHUB_ACTIONS_CAPACITY_JOB_LABELS_INVALID');
         jobs.push({
           repository_id: repository.repository_id,
           repository_full_name: repository.repository_full_name,
@@ -262,24 +244,7 @@ export function observeGithubActionsLoad(
           job_id: jobId,
           job_name: requiredString(job.name, 'GITHUB_ACTIONS_CAPACITY_JOB_NAME_INVALID'),
           head_sha: requiredString(job.head_sha, 'GITHUB_ACTIONS_CAPACITY_JOB_HEAD_INVALID'),
-          runner_id: nullablePositiveSafeInteger(
-            job.runner_id,
-            'GITHUB_ACTIONS_CAPACITY_RUNNER_ID_INVALID',
-          ),
-          runner_name: nullableString(
-            job.runner_name,
-            'GITHUB_ACTIONS_CAPACITY_RUNNER_NAME_INVALID',
-          ),
-          runner_group_id: nullablePositiveSafeInteger(
-            job.runner_group_id,
-            'GITHUB_ACTIONS_CAPACITY_RUNNER_GROUP_ID_INVALID',
-          ),
-          runner_group_name: nullableString(
-            job.runner_group_name,
-            'GITHUB_ACTIONS_CAPACITY_RUNNER_GROUP_NAME_INVALID',
-          ),
-          runner_labels: runnerLabels,
-          self_hosted: runnerLabels.includes('self-hosted'),
+          self_hosted: labels.includes('self-hosted'),
         });
       }
     }
@@ -315,15 +280,13 @@ export function projectGithubActionsCapacity({
   nonnegativeSafeInteger(safetyReserveJobs, 'GITHUB_ACTIONS_CAPACITY_SAFETY_RESERVE_INVALID');
 
   const observed = observation.in_progress_jobs.length;
-  const selfHosted = observation.in_progress_jobs.filter((job) => job.self_hosted).length;
-  const nonSelfHosted = observed - selfHosted;
-  const committed = nonSelfHosted + locallyReservedJobs + safetyReserveJobs;
+  const hosted = observation.in_progress_jobs.filter((job) => !job.self_hosted).length;
+  const committed = hosted + locallyReservedJobs + safetyReserveJobs;
   if (observation.scope_completeness !== 'account-complete') {
     return {
       limit,
       observed_in_progress_jobs: observed,
-      observed_self_hosted_jobs: selfHosted,
-      observed_non_self_hosted_jobs: nonSelfHosted,
+      observed_hosted_jobs: hosted,
       locally_reserved_jobs: locallyReservedJobs,
       safety_reserve_jobs: safetyReserveJobs,
       committed_jobs: committed,
@@ -338,16 +301,13 @@ export function projectGithubActionsCapacity({
   return {
     limit,
     observed_in_progress_jobs: observed,
-    observed_self_hosted_jobs: selfHosted,
-    observed_non_self_hosted_jobs: nonSelfHosted,
+    observed_hosted_jobs: hosted,
     locally_reserved_jobs: locallyReservedJobs,
     safety_reserve_jobs: safetyReserveJobs,
     committed_jobs: committed,
     available_jobs: available,
     state: available > 0 ? 'available' : 'saturated',
     reason: null,
-    // Runner labels make explicit self-hosted jobs removable from the hosted budget.
-    // Non-self-hosted labels still do not distinguish standard from larger hosted runners.
     conservative_runner_classification: true,
   };
 }
