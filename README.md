@@ -176,13 +176,14 @@ scripts/      repository tooling and proof/evidence entrypoints
 experiments/  maintained executable proofs
 formal/       machine-checked safety model and negative controls
 research/     prior art, synthesis, claims, and design arguments
-docs/adr/     durable architecture decisions
+docs/         operator, extension, recovery, deployment, and architecture documentation
 examples/     small runnable demonstrations
 .github/      hosted proof workflows
 ```
 
 Important entry points:
 
+- [`docs/README.md`](./docs/README.md) - operator, extension, recovery, scheduling, deployment, evidence, and troubleshooting guides.
 - [`src/cli/`](./src/cli/) - the two supported semantic operator entrypoints: `project.advance` and `project.submit`.
 - [`src/authority/kernel.ts`](./src/authority/kernel.ts) - production SQLite-backed kernel entry point.
 - [`src/authority/engine.ts`](./src/authority/engine.ts) - storage-neutral transaction, recovery, and settlement policy.
