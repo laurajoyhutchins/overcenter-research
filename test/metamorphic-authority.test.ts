@@ -127,7 +127,6 @@ test('semantic dependency drift changes obligation identity', () => {
   );
 });
 
-
 test('production GitHub effect coordinate is representation-stable and drift fails closed', () => {
   const base = normalizeObligation(
     githubCommitStatus.ensure({
@@ -166,14 +165,12 @@ test('production GitHub effect coordinate is representation-stable and drift fai
     }),
   );
 
-  const definitionId = (work: Obligation) =>
-    obligationDefinitionId(obligationDefinition(work));
+  const definitionId = (work: Obligation) => obligationDefinitionId(obligationDefinition(work));
   const stateFor = (work: Obligation): State => ({
     obligations: { [work.id]: work },
     definition_ids: { [work.id]: definitionId(work) },
   });
-  const keyFor = (work: Obligation) =>
-    obligationKey(stateFor(work), work, new Map(), new Map());
+  const keyFor = (work: Obligation) => obligationKey(stateFor(work), work, new Map(), new Map());
 
   const baseDefinitionId = definitionId(base);
   const baseKey = keyFor(base);
