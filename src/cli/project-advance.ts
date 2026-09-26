@@ -42,5 +42,8 @@ appendGithubOutputs({
   assignment_sha256: receipt.assignment_sha256 ?? '',
   candidate_branch: receipt.candidate_branch ?? '',
   candidate_branch_base_sha: receipt.candidate_branch_base_sha ?? '',
+  dispatch_route: receipt.dispatch?.route ?? '',
+  dispatch_reason_code: receipt.dispatch?.reason_code ?? '',
+  dispatch_evidence_predicates: JSON.stringify(receipt.dispatch?.evidence_predicates ?? []),
   receipt_digest: receipt.receipt_digest,
 });

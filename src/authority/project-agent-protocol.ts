@@ -15,7 +15,6 @@ import {
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest, sha256 } from '../digest.ts';
 import { GITHUB_SOURCE_INTEGRATION_EFFECT } from '../effect-adapter.ts';
-import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
 import { buildSourceAssignment, validateSourceTaskPacket } from '../source/source-obligation.ts';
 import {
@@ -33,6 +32,7 @@ import {
 import { repositorySnapshot } from '../evidence/repository-snapshot.ts';
 import type { ObservationContext } from '../observation/observe.ts';
 import type { Work } from '../model.ts';
+import { classifyJudgmentFrontier, type JudgmentFrontierDecision } from './judgment-frontier.ts';
 
 export const PROJECT_ADVANCE_RECEIPT_SCHEMA = 'overcenter-project-advance/v1' as const;
 export const PROJECT_SUBMIT_RECEIPT_SCHEMA = 'overcenter-project-submit/v1' as const;
@@ -74,6 +74,7 @@ export interface ProjectAdvanceReceipt {
   assignment_sha256?: string;
   candidate_branch?: string;
   candidate_branch_base_sha?: string;
+  dispatch?: JudgmentFrontierDecision;
   receipt_digest: string;
 }
 
@@ -367,8 +368,19 @@ export function advanceProjectForAgent(
       }
     }
 
-    const ready = kernel.deriveReadyWork();
-    if (!ready) {
+    const projected = kernel.inspect();
+    const unresolved = projected.find(
+      (candidate) => candidate.run_id && kernel.hasUnresolvedEffect(candidate.run_id),
+    );
+    if (unresolved) {
+      const dispatch = classifyJudgmentFrontier({
+        work: unresolved,
+        explanation: kernel.explain(unresolved.id),
+        unresolved_effect: true,
+      });
+      if (dispatch.route !== 'recovery-required') {
+        throw new Error('PROJECT_ADVANCE_UNRESOLVED_EFFECT_MISROUTED');
+      }
       const authorityHead = kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
       return withDigest({
@@ -382,11 +394,99 @@ export function advanceProjectForAgent(
         command_run_attempt: context.command_run_attempt,
         authority_ref: authorityRef,
         authority_head: authorityHead,
-        state: visibleState(kernel.inspect()),
+        state: 'RECOVERY_REQUIRED' as const,
+        obligation_id: unresolved.id,
+        ...(unresolved.run_id ? { run_id: unresolved.run_id } : {}),
+        dispatch,
       });
     }
 
-    if (isSystemEvidenceWork(ready)) {
+    const recovery = projected.find((candidate) => candidate.status === 'RECOVERY_REQUIRED');
+    if (recovery) {
+      const dispatch = classifyJudgmentFrontier({
+        work: recovery,
+        explanation: kernel.explain(recovery.id),
+        unresolved_effect: false,
+      });
+      if (dispatch.route !== 'recovery-required') {
+        throw new Error('PROJECT_ADVANCE_RECOVERY_MISROUTED');
+      }
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
+      return withDigest({
+        schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
+        command: PROJECT_ADVANCE_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        state: 'RECOVERY_REQUIRED' as const,
+        obligation_id: recovery.id,
+        ...(recovery.run_id ? { run_id: recovery.run_id } : {}),
+        dispatch,
+      });
+    }
+
+    const ready = kernel.deriveReadyWork();
+    if (!ready) {
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
+      const frontier = projected.find((candidate) => candidate.status !== 'DONE');
+      const dispatch = frontier
+        ? classifyJudgmentFrontier({
+            work: frontier,
+            explanation: kernel.explain(frontier.id),
+            unresolved_effect: false,
+          })
+        : undefined;
+      return withDigest({
+        schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
+        command: PROJECT_ADVANCE_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        state: visibleState(projected),
+        ...(frontier ? { obligation_id: frontier.id } : {}),
+        ...(frontier?.run_id ? { run_id: frontier.run_id } : {}),
+        ...(dispatch ? { dispatch } : {}),
+      });
+    }
+
+    const dispatch = classifyJudgmentFrontier({
+      work: ready,
+      explanation: kernel.explain(ready.id),
+      unresolved_effect: ready.run_id ? kernel.hasUnresolvedEffect(ready.run_id) : false,
+    });
+    if (dispatch.route === 'recovery-required') {
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
+      return withDigest({
+        schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
+        command: PROJECT_ADVANCE_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        state: 'RECOVERY_REQUIRED' as const,
+        obligation_id: ready.id,
+        ...(ready.run_id ? { run_id: ready.run_id } : {}),
+        dispatch,
+      });
+    }
+    if (dispatch.route === 'deterministic-software-action') {
       const authorityHead = kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
       return withDigest({
@@ -402,11 +502,29 @@ export function advanceProjectForAgent(
         authority_head: authorityHead,
         state: 'READY' as const,
         obligation_id: ready.id,
+        dispatch,
+      });
+    }
+    if (dispatch.route === 'unsupported') {
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
+      return withDigest({
+        schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
+        command: PROJECT_ADVANCE_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        state: 'BLOCKED' as const,
+        obligation_id: ready.id,
+        dispatch,
       });
     }
 
-    // Frontier choice remains deterministic. The packet kind selects only the
-    // realization transport, never a different obligation identity.
     const sourceRevision = context.command_source_sha.toLowerCase();
     let preparedAgent: ReturnType<typeof prepareAgentPacket> | null = null;
     let workerClient: Buffer | null = null;
@@ -472,6 +590,7 @@ export function advanceProjectForAgent(
         assignment_sha256: assignmentSha256(assignmentBytes),
         candidate_branch: `overcenter/candidate/${permit.id}`,
         candidate_branch_base_sha: permit.source_revision ?? sourceRevision,
+        dispatch,
       };
       const receipt = withDigest(base);
       writeFileSync(join(outputDir, 'receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
