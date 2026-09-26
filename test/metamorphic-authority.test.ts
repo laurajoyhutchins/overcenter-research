@@ -14,6 +14,7 @@ import { deriveProjectProjection } from '../src/authority/project-state.ts';
 import { obligationKey } from '../src/graph/identity.ts';
 import type { Obligation } from '../src/model.ts';
 import { githubCommitStatus } from '../src/providers/github/status-resource.ts';
+import { effectSemantics, verifiedContentIdentity } from '../src/semantics.ts';
 
 const obligation = (id: string, content: string): Obligation => ({
   id,
@@ -218,4 +219,29 @@ test('production GitHub effect coordinate is representation-stable and drift fai
 
   assert.equal(statusFor(reordered), 'DONE');
   assert.equal(statusFor(changedCoordinate), 'READY');
+});
+
+
+test('GitHub repository rename preserves provider identity while repository substitution does not', () => {
+  const statusPostcondition = (repositoryId: number, repositoryFullName: string) =>
+    githubCommitStatus.ensure({
+      id: 'status-proof',
+      target: {
+        repository_id: repositoryId,
+        repository_full_name: repositoryFullName,
+        commit_sha: 'a'.repeat(40),
+        context: 'overcenter/proof',
+      },
+      desired: { state: 'success' },
+    }).postcondition;
+
+  const original = statusPostcondition(42, 'acme/widget');
+  const renamed = statusPostcondition(42, 'renamed-acme/renamed-widget');
+  const substituted = statusPostcondition(43, 'acme/widget');
+
+  assert.equal(verifiedContentIdentity(renamed), verifiedContentIdentity(original));
+  assert.deepEqual(effectSemantics(renamed), effectSemantics(original));
+
+  assert.notEqual(verifiedContentIdentity(substituted), verifiedContentIdentity(original));
+  assert.notDeepEqual(effectSemantics(substituted), effectSemantics(original));
 });
