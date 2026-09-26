@@ -1,8 +1,10 @@
 import { AGENT_TASK_PACKET_SCHEMA, validateAgentTaskDefinition } from '../execution/assignment-capsule.ts';
 import { GITHUB_SOURCE_INTEGRATION_EFFECT } from '../effect-adapter.ts';
+import { HOSTILE_MUTATION_EVIDENCE_PATH } from '../evidence/hostile-mutation-obligation.ts';
 import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
 import type { Work } from '../model.ts';
 import { validateSourceTaskPacket } from '../source/source-obligation.ts';
+import { isData } from '../validation.ts';
 import type { ProjectExplanation } from './project-state.ts';
 
 export const JUDGMENT_FRONTIER_SCHEMA = 'overcenter-judgment-frontier/v1' as const;
@@ -69,11 +71,27 @@ function isReservedSourceMutation(work: Work): boolean {
 function isDerivableHostileEvidenceDebt(work: Work): boolean {
   if (work.packet.kind !== 'source-change') return false;
   const task = validateSourceTaskPacket(work.packet);
+  const evidence = task.context?.evidence;
+  if (!isData(evidence) || typeof evidence.probe_id !== 'string') return false;
+  if (!Array.isArray(evidence.stale_sources) || evidence.stale_sources.length === 0) return false;
+  const exactStaleSources = evidence.stale_sources.every(
+    (source) =>
+      isData(source) &&
+      typeof source.path === 'string' &&
+      typeof source.expected_blob_sha1 === 'string' &&
+      /^[0-9a-f]{40}$/.test(source.expected_blob_sha1) &&
+      typeof source.current_blob_sha1 === 'string' &&
+      /^[0-9a-f]{40}$/.test(source.current_blob_sha1) &&
+      source.current === false,
+  );
   return (
+    work.id.startsWith('tcb:hostile-evidence-stale:') &&
     task.context?.schema === 'overcenter-tcb-finding/v1' &&
     task.context.finding_kind === 'hostile-evidence-stale' &&
     task.acceptance?.verifier === 'tcb-finding-absent/v1' &&
-    task.acceptance.finding_id === work.id
+    task.acceptance.finding_id === work.id &&
+    task.writable_paths.includes(HOSTILE_MUTATION_EVIDENCE_PATH) &&
+    exactStaleSources
   );
 }
 
@@ -185,6 +203,8 @@ export function classifyJudgmentFrontier({
         'work.status=READY',
         'packet.kind=source-change',
         'packet.context.finding_kind=hostile-evidence-stale',
+        `packet.writable_paths includes ${HOSTILE_MUTATION_EVIDENCE_PATH}`,
+        'packet.context.evidence.stale_sources=exact-nonempty-current-false',
         `packet.effect_contract=${task.effect_contract}`,
         `packet.acceptance.finding_id=${task.acceptance?.finding_id ?? 'missing'}`,
       );
