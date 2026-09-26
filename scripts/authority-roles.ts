@@ -2,11 +2,7 @@ import { existsSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 
 import { API } from 'typescript/unstable/sync';
-import {
-  isExportDeclaration,
-  isImportDeclaration,
-  isStringLiteral,
-} from 'typescript/unstable/ast';
+import { isExportDeclaration, isImportDeclaration, isStringLiteral } from 'typescript/unstable/ast';
 
 export interface AuthorityRole {
   concept: string;
@@ -186,18 +182,11 @@ export function analyzeAuthorityRoleFlows(
 
   for (const role of manifest.roles) {
     for (const projection of role.projections) {
-      if (
-        projection === role.authority ||
-        !pathExists(role.authority) ||
-        !pathExists(projection)
-      ) {
+      if (projection === role.authority || !pathExists(role.authority) || !pathExists(projection)) {
         continue;
       }
 
-      if (
-        !references(role.authority, projection) &&
-        !references(projection, role.authority)
-      ) {
+      if (!references(role.authority, projection) && !references(projection, role.authority)) {
         findings.push({
           code: 'DECLARED_PROJECTION_FLOW_MISSING',
           concept: role.concept,
