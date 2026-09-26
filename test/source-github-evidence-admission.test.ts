@@ -7,10 +7,7 @@ import test from 'node:test';
 
 import { admitSourceTaskFromGithubWorkflow } from '../src/source/github-evidence-admission.ts';
 import type { GithubJsonGet } from '../src/providers/github/rest.ts';
-import {
-  SOURCE_TASK_SCHEMA,
-  validateSourceTaskPacket,
-} from '../src/source/source-obligation.ts';
+import { SOURCE_TASK_SCHEMA, validateSourceTaskPacket } from '../src/source/source-obligation.ts';
 
 const TASK_PATH = '.overcenter/promotions/result-a.json';
 const WORKFLOW_RUN_ID = 7001;
