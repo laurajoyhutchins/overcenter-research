@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  analyzeAuthorityRoleFlows,
   analyzeAuthorityRoles,
   type AuthorityRoleManifest,
 } from '../scripts/authority-roles.ts';
@@ -12,6 +13,7 @@ test('maintained authority role manifest has one existing owner per concept', ()
     readFileSync('authority-roles.json', 'utf8'),
   ) as AuthorityRoleManifest;
   assert.deepEqual(analyzeAuthorityRoles(manifest), []);
+  assert.deepEqual(analyzeAuthorityRoleFlows(manifest), []);
 });
 
 test('shadow authority and authority/projection overlap fail deterministically', () => {
@@ -56,5 +58,45 @@ test('missing authority, projection, and verifier paths are explicit findings', 
   assert.deepEqual(
     analyzeAuthorityRoles(manifest, () => false).map((finding) => finding.code),
     ['AUTHORITY_PATH_MISSING', 'PROJECTION_PATH_MISSING', 'VERIFIER_PATH_MISSING'],
+  );
+});
+
+test('declared projection requires a production source reference to its authority', () => {
+  const manifest: AuthorityRoleManifest = {
+    schema: 'overcenter-authority-roles',
+    schema_version: 1,
+    roles: [
+      {
+        concept: 'a',
+        authority: 'src/a.ts',
+        projections: ['src/view.ts'],
+        verifiers: [],
+      },
+    ],
+  };
+  const present = new Set(['src/a.ts', 'src/view.ts']);
+
+  assert.deepEqual(
+    analyzeAuthorityRoleFlows(
+      manifest,
+      (path) => present.has(path),
+      () => false,
+    ),
+    [
+      {
+        code: 'DECLARED_PROJECTION_FLOW_MISSING',
+        concept: 'a',
+        path: 'src/view.ts',
+      },
+    ],
+  );
+
+  assert.deepEqual(
+    analyzeAuthorityRoleFlows(
+      manifest,
+      (path) => present.has(path),
+      (fromPath, toPath) => fromPath === 'src/view.ts' && toPath === 'src/a.ts',
+    ),
+    [],
   );
 });
