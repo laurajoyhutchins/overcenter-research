@@ -98,6 +98,23 @@ test('derivable hostile-evidence debt stays in deterministic software', () => {
   ]);
 });
 
+test('hostile-evidence label without exact stale blobs cannot acquire software routing', () => {
+  const work = sourceWork();
+  work.packet.context = {
+    schema: 'overcenter-tcb-finding/v1',
+    finding_kind: 'hostile-evidence-stale',
+    scope: 'fixture',
+    evidence: {
+      probe_id: 'fixture-probe',
+      stale_sources: [],
+    },
+  };
+
+  const result = classify(work, readyExplanation(work.id));
+  assert.equal(result.route, 'reasoning-required');
+  assert.equal(result.reason_code, 'OPEN_ENDED_SOURCE_REMEDIATION');
+});
+
 test('open-ended source remediation remains on the reasoning frontier', () => {
   const work = sourceWork('source:open-ended');
   delete work.packet.acceptance;
