@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Obligation } from '../src/model.ts';
-import type { State } from '../src/authority/facts.ts';
+import type { HistoricalRun, State } from '../src/authority/facts.ts';
+import { delegationCreatesCausalCycle } from '../src/authority/delegation.ts';
 import {
   buildGraphIndex,
   dependencyUpstreams,
@@ -88,4 +89,121 @@ test('graph index handles a 10,000-node dependency chain without recursion', () 
   assert.equal(graph.topologicalOrder[0], 'deep-00000');
   assert.equal(graph.topologicalOrder.at(-1), 'deep-09999');
   assert.equal(graphDependsOn(graph, 'deep-09999', 'deep-00000'), true);
+});
+
+const historicalRun = (id: string, work: Obligation): HistoricalRun => ({
+  id,
+  obligation_id: work.id,
+  claimed_revision: 'revision',
+  claim_commit: 'claim',
+  obligation_key: 'obligation-key',
+  execution_generation: 1,
+  execution_authority_commit: 'authority',
+  execution_capability_sha256: '0'.repeat(64),
+  obligation: work,
+  definition_id: work.id + '-def',
+});
+
+test('delegation cycle detection fails closed when an outstanding parent run is missing', () => {
+  const parent = obligation('parent');
+  const child = obligation('child');
+  const state: State = {
+    obligations: { parent, child },
+    definition_ids: { parent: 'parent-def', child: 'child-def' },
+  };
+  const unresolved = new Map([
+    ['missing-run', new Map([['delegation-1', { child_obligation_id: 'child' }]])],
+  ]);
+
+  assert.throws(
+    () =>
+      delegationCreatesCausalCycle({
+        state,
+        runs: new Map(),
+        unresolvedDelegationsByRun: unresolved,
+        parentObligationId: 'parent',
+        childObligationId: 'child',
+      }),
+    /DELEGATION_PARENT_RUN_MISSING/,
+  );
+});
+
+test('delegation cycle detection rejects a transitive dependency cycle', () => {
+  const parent = obligation('parent');
+  const middle = obligation('middle', [{ kind: 'control', upstream: 'parent' }]);
+  const child = obligation('child', [{ kind: 'control', upstream: 'middle' }]);
+  const state: State = {
+    obligations: { parent, middle, child },
+    definition_ids: {
+      parent: 'parent-def',
+      middle: 'middle-def',
+      child: 'child-def',
+    },
+  };
+
+  assert.equal(
+    delegationCreatesCausalCycle({
+      state,
+      runs: new Map(),
+      unresolvedDelegationsByRun: new Map(),
+      parentObligationId: 'parent',
+      childObligationId: 'child',
+    }),
+    true,
+  );
+});
+
+test('delegation cycle detection rejects a delegated-child cycle', () => {
+  const parent = obligation('parent');
+  const child = obligation('child');
+  const state: State = {
+    obligations: { parent, child },
+    definition_ids: { parent: 'parent-def', child: 'child-def' },
+  };
+  const childRun = historicalRun('child-run', child);
+  const unresolved = new Map([
+    [childRun.id, new Map([['delegation-1', { child_obligation_id: 'parent' }]])],
+  ]);
+
+  assert.equal(
+    delegationCreatesCausalCycle({
+      state,
+      runs: new Map([[childRun.id, childRun]]),
+      unresolvedDelegationsByRun: unresolved,
+      parentObligationId: 'parent',
+      childObligationId: 'child',
+    }),
+    true,
+  );
+});
+
+test('delegation cycle detection traverses mixed acyclic waits without a false positive', () => {
+  const parent = obligation('parent');
+  const upstream = obligation('upstream');
+  const child = obligation('child', [{ kind: 'control', upstream: 'upstream' }]);
+  const leaf = obligation('leaf');
+  const state: State = {
+    obligations: { parent, upstream, child, leaf },
+    definition_ids: {
+      parent: 'parent-def',
+      upstream: 'upstream-def',
+      child: 'child-def',
+      leaf: 'leaf-def',
+    },
+  };
+  const childRun = historicalRun('child-run', child);
+  const unresolved = new Map([
+    [childRun.id, new Map([['delegation-1', { child_obligation_id: 'leaf' }]])],
+  ]);
+
+  assert.equal(
+    delegationCreatesCausalCycle({
+      state,
+      runs: new Map([[childRun.id, childRun]]),
+      unresolvedDelegationsByRun: unresolved,
+      parentObligationId: 'parent',
+      childObligationId: 'child',
+    }),
+    false,
+  );
 });
