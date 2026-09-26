@@ -52,15 +52,54 @@
           "src/providers/kubernetes/configmap-effect.ts",
           "src/providers/kubernetes/configmap.ts",
           "src/semantics.ts",
+          "src/source/source-integration.ts",
+          "src/source/source-obligation.ts",
           "src/storage/sqlite.ts",
           "src/structural-schema.ts",
           "src/validation.ts"
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8220,
+        "measured_semantic_loc": 9303,
         "attention_semantic_loc": 8163,
-        "hybrid_sha256": "77f45375a90ea78d819bb5116042e08ed1f0684f83a666da826bdbaa39f9ac6f"
+        "hybrid_sha256": "d70de5f6a3f9ab405d99145de5b165826a7bf3b476568e8f22475b6df0fa385f"
+      }
+    },
+    {
+      "id": "tcb:growth:github-commit-status-provider",
+      "kind": "tcb-growth",
+      "scope": "github-commit-status-provider",
+      "task": {
+        "schema": "overcenter-source-task/v1",
+        "kind": "source-change",
+        "objective": "Reduce the github-commit-status-provider hybrid TCB to at most 2746 semantic LOC without weakening its stated safety property or symbol-closure soundness.",
+        "writable_paths": [
+          "src/authority/engine.ts",
+          "src/digest.ts",
+          "src/effect-adapter.ts",
+          "src/model.ts",
+          "src/observation/provider.ts",
+          "src/observation/response-slice.ts",
+          "src/providers/curl-json.ts",
+          "src/providers/github/certified-observation.ts",
+          "src/providers/github/certified-read.ts",
+          "src/providers/github/certified-repository.ts",
+          "src/providers/github/certified-status.ts",
+          "src/providers/github/contract.ts",
+          "src/providers/github/openapi.ts",
+          "src/providers/github/operations.generated.ts",
+          "src/providers/github/page-collection.ts",
+          "src/providers/github/rest.ts",
+          "src/providers/github/semantics.ts",
+          "src/providers/github/status-effect.ts",
+          "src/providers/github/status-transport.ts",
+          "src/validation.ts"
+        ]
+      },
+      "evidence": {
+        "measured_semantic_loc": 2762,
+        "attention_semantic_loc": 2746,
+        "hybrid_sha256": "4e882140c05ba870c1745efef0e222d202363138646432ebc360de01c26588d8"
       }
     },
     {
@@ -115,15 +154,17 @@
           "src/providers/kubernetes/configmap-effect.ts",
           "src/providers/kubernetes/configmap.ts",
           "src/semantics.ts",
+          "src/source/source-integration.ts",
+          "src/source/source-obligation.ts",
           "src/storage/sqlite.ts",
           "src/structural-schema.ts",
           "src/validation.ts"
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8405,
+        "measured_semantic_loc": 9488,
         "attention_semantic_loc": 8348,
-        "hybrid_union_sha256": "76a3dec214dffb2adf239afa4e4434542645047d43b6aebe333a7f28685d27ec"
+        "hybrid_union_sha256": "0ba7f9f364466afef1b33989006c99949cda1456482854b2f0a944bbf12f784b"
       }
     },
     {
@@ -177,15 +218,17 @@
           "src/providers/kubernetes/configmap-effect.ts",
           "src/providers/kubernetes/configmap.ts",
           "src/semantics.ts",
+          "src/source/source-integration.ts",
+          "src/source/source-obligation.ts",
           "src/storage/sqlite.ts",
           "src/structural-schema.ts",
           "src/validation.ts"
         ]
       },
       "evidence": {
-        "measured_semantic_loc": 8217,
+        "measured_semantic_loc": 9300,
         "attention_semantic_loc": 8160,
-        "hybrid_sha256": "eeac55cffc30e5ae864fcce53467cee6f54af51f61001b03e4dc5333e1e04368"
+        "hybrid_sha256": "e4f6f55e9437b1f03e861840ea71d87d1c4182950a35cee22a5ec3e0df3fabb9"
       }
     },
     {
@@ -198,6 +241,7 @@
         "objective": "Add a hostile mutation probe that can falsify the github-commit-status-provider property at its current trusted boundary.",
         "writable_paths": [
           "experiments/production-criticality-ranking/mutation-evidence.json",
+          "experiments/production-criticality-ranking/mutation-probes.json",
           "src/authority/engine.ts",
           "src/digest.ts",
           "src/effect-adapter.ts",
@@ -222,7 +266,7 @@
       },
       "evidence": {
         "property_id": "github-commit-status-provider",
-        "hybrid_sha256": "6d7c785ce55bacad547c9359159185f8ccd9146e6d88a92a62881ba9b6030ba7"
+        "hybrid_sha256": "4e882140c05ba870c1745efef0e222d202363138646432ebc360de01c26588d8"
       }
     },
     {
@@ -245,7 +289,7 @@
           {
             "path": "src/authority/engine.ts",
             "expected_blob_sha1": "8c3f536642e26e0186631e81764319cf4bdb5cdd",
-            "current_blob_sha1": "e25d630f2b1e835cd03eee83146fa44e59547afb",
+            "current_blob_sha1": "c0e3c9732c9422a9fe950a07665f2f00c2d7b9ef",
             "current": false
           }
         ]
@@ -297,7 +341,7 @@
           {
             "path": "src/authority/engine.ts",
             "expected_blob_sha1": "8c3f536642e26e0186631e81764319cf4bdb5cdd",
-            "current_blob_sha1": "e25d630f2b1e835cd03eee83146fa44e59547afb",
+            "current_blob_sha1": "c0e3c9732c9422a9fe950a07665f2f00c2d7b9ef",
             "current": false
           }
         ]
@@ -323,7 +367,7 @@
           {
             "path": "src/observation/observe.ts",
             "expected_blob_sha1": "ddf142f25516587578836e7f0bab0b37cd15562a",
-            "current_blob_sha1": "87e24821d351c1de7cf4c4cb5ac9e81fbd2f7470",
+            "current_blob_sha1": "6faca4c77fe69a6ec0190632599ca148bc6199c0",
             "current": false
           }
         ]
