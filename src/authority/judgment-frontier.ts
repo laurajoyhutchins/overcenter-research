@@ -1,4 +1,4 @@
-import { AGENT_TASK_PACKET_SCHEMA, validateAgentTaskDefinition } from '../execution/assignment-capsule.ts';
+import {\n  AGENT_TASK_PACKET_SCHEMA,\n  validateAgentTaskDefinition,\n} from '../execution/assignment-capsule.ts';
 import { GITHUB_SOURCE_INTEGRATION_EFFECT } from '../effect-adapter.ts';
 import { HOSTILE_MUTATION_EVIDENCE_PATH } from '../evidence/hostile-mutation-obligation.ts';
 import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
@@ -190,7 +190,7 @@ export function classifyJudgmentFrontier({
       stale ? 'STALE_EXACT_REVISION_EVIDENCE' : 'DERIVABLE_SYSTEM_EVIDENCE',
       'work.status=READY',
       'packet.kind=system-evidence',
-      stale ? 'prior_realization=currently-rejected' : 'prior_realization=no-current-admissible-run',
+      stale\n        ? 'prior_realization=currently-rejected'\n        : 'prior_realization=no-current-admissible-run',
     );
   }
 
@@ -218,10 +218,7 @@ export function classifyJudgmentFrontier({
     );
   }
 
-  if (
-    work.packet.schema === AGENT_TASK_PACKET_SCHEMA &&
-    work.packet.kind === 'pure-candidate'
-  ) {
+  if (work.packet.schema === AGENT_TASK_PACKET_SCHEMA && work.packet.kind === 'pure-candidate') {
     validateAgentTaskDefinition(work.packet);
     return decision(
       'reasoning-required',
