@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { observeCertifiedGithubSemanticRead } from '../src/providers/github/certified-read.ts';
+import {
+  GithubActionsCapacityController,
+  type GithubActionsReservationStore,
+} from '../src/providers/github/actions-capacity-controller.ts';
 
 const SHA = 'a'.repeat(40);
 const repository = () => ({
@@ -298,4 +302,210 @@ test('generic read fails closed before provider access when credential permissio
   assert.equal(called, false);
   if (result.state !== 'indeterminate') return;
   assert.equal(result.observation_error, 'GITHUB_SEMANTIC_READ_PERMISSION_NOT_GRANTED:issues:read');
+});
+
+class MemoryReservationStore implements GithubActionsReservationStore {
+  headValue: string | null = null;
+  value: unknown | null = null;
+  revision = 0;
+  injectCompetingReservation = false;
+
+  head(): string | null {
+    return this.headValue;
+  }
+
+  read(): unknown | null {
+    return this.value;
+  }
+
+  append(expectedHead: string | null, next: unknown): string | null {
+    if (expectedHead !== this.headValue) return null;
+    if (this.injectCompetingReservation) {
+      this.injectCompetingReservation = false;
+      this.revision += 1;
+      this.headValue = `r${this.revision}`;
+      this.value = {
+        schema: 'overcenter-github-actions-capacity/v1',
+        budget: 18,
+        reservations: [
+          {
+            id: 'other',
+            capacity_cost: 1,
+            phase: 'reserved',
+          },
+        ],
+      };
+      return null;
+    }
+    this.revision += 1;
+    this.headValue = `r${this.revision}`;
+    this.value = structuredClone(next);
+    return this.headValue;
+  }
+}
+
+test('Actions capacity reservation needs no GitHub API credential', () => {
+  const store = new MemoryReservationStore();
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+  });
+
+  const result = controller.reserveDispatch({
+    reservation_id: 'dispatch-1',
+    capacity_cost: 6,
+  });
+
+  assert.equal(result.state, 'reserved');
+  if (result.state !== 'reserved') return;
+  assert.equal(result.reservation.capacity_cost, 6);
+  assert.equal(result.reservation.phase, 'reserved');
+  assert.deepEqual(result.capacity, {
+    budget: 18,
+    committed_capacity: 6,
+    available_capacity: 12,
+  });
+});
+
+test('declared fan-out cost saturates the semaphore before dispatch', () => {
+  const store = new MemoryReservationStore();
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+  });
+
+  assert.equal(
+    controller.reserveDispatch({
+      reservation_id: 'large',
+      capacity_cost: 17,
+    }).state,
+    'reserved',
+  );
+  const blocked = controller.reserveDispatch({
+    reservation_id: 'another',
+    capacity_cost: 2,
+  });
+  assert.deepEqual(blocked, {
+    state: 'saturated',
+    capacity: {
+      budget: 18,
+      committed_capacity: 17,
+      available_capacity: 1,
+    },
+  });
+});
+
+test('dispatch reservation atomically closes the capacity race', () => {
+  const store = new MemoryReservationStore();
+  store.injectCompetingReservation = true;
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+  });
+
+  const result = controller.reserveDispatch({
+    reservation_id: 'mine',
+    capacity_cost: 18,
+  });
+
+  assert.equal(result.state, 'saturated');
+  assert.deepEqual(result.capacity, {
+    budget: 18,
+    committed_capacity: 1,
+    available_capacity: 17,
+  });
+});
+
+test('ambiguous pre-dispatch recovery fails closed until explicitly cancelled', () => {
+  const store = new MemoryReservationStore();
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+  });
+
+  assert.equal(
+    controller.reserveDispatch({ reservation_id: 'dead-controller', capacity_cost: 18 }).state,
+    'reserved',
+  );
+  assert.equal(controller.capacity().available_capacity, 0);
+
+  assert.ok(controller.cancelReservation('dead-controller'));
+  assert.equal(controller.capacity().available_capacity, 18);
+});
+
+test('dispatch transition is durable and cannot be cancelled as not-dispatched', () => {
+  const store = new MemoryReservationStore();
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+  });
+
+  const reserved = controller.reserveDispatch({
+    reservation_id: 'dispatch-1',
+    capacity_cost: 3,
+  });
+  assert.equal(reserved.state, 'reserved');
+
+  const dispatched = controller.markDispatched('dispatch-1');
+  assert.equal(dispatched.phase, 'dispatched');
+  const replay = controller.markDispatched('dispatch-1');
+  assert.deepEqual(replay, dispatched);
+  assert.equal(store.revision, 2);
+
+  assert.throws(
+    () => controller.cancelReservation('dispatch-1'),
+    /GITHUB_ACTIONS_CAPACITY_ALREADY_DISPATCHED/,
+  );
+  assert.equal(controller.capacity().available_capacity, 15);
+});
+
+test('reservation replay and release are idempotent', () => {
+  const store = new MemoryReservationStore();
+  const controller = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+  });
+
+  const first = controller.reserveDispatch({
+    reservation_id: 'dispatch-1',
+    capacity_cost: 1,
+  });
+  const replay = controller.reserveDispatch({
+    reservation_id: 'dispatch-1',
+    capacity_cost: 1,
+  });
+  assert.deepEqual(replay, first);
+  assert.equal(store.revision, 1);
+
+  assert.throws(
+    () => controller.completeDispatch('dispatch-1'),
+    /GITHUB_ACTIONS_CAPACITY_NOT_DISPATCHED/,
+  );
+  controller.markDispatched('dispatch-1');
+  const released = controller.completeDispatch('dispatch-1');
+  assert.ok(released);
+  assert.equal(store.revision, 3);
+  assert.equal(controller.completeDispatch('dispatch-1'), released);
+  assert.equal(store.revision, 3);
+});
+
+test('controllers cannot silently disagree about the shared budget', () => {
+  const store = new MemoryReservationStore();
+  const first = new GithubActionsCapacityController({
+    budget: 18,
+    store,
+  });
+  assert.equal(
+    first.reserveDispatch({
+      reservation_id: 'dispatch-1',
+      capacity_cost: 1,
+    }).state,
+    'reserved',
+  );
+
+  const incompatible = new GithubActionsCapacityController({
+    budget: 17,
+    store,
+  });
+  assert.throws(() => incompatible.capacity(), /GITHUB_ACTIONS_CAPACITY_STATE_INVALID/);
 });
