@@ -91,7 +91,6 @@ test('graph index handles a 10,000-node dependency chain without recursion', () 
   assert.equal(graphDependsOn(graph, 'deep-09999', 'deep-00000'), true);
 });
 
-
 const historicalRun = (id: string, work: Obligation): HistoricalRun => ({
   id,
   obligation_id: work.id,
@@ -113,10 +112,7 @@ test('delegation cycle detection fails closed when an outstanding parent run is 
     definition_ids: { parent: 'parent-def', child: 'child-def' },
   };
   const unresolved = new Map([
-    [
-      'missing-run',
-      new Map([['delegation-1', { child_obligation_id: 'child' }]]),
-    ],
+    ['missing-run', new Map([['delegation-1', { child_obligation_id: 'child' }]])],
   ]);
 
   assert.throws(
@@ -166,10 +162,7 @@ test('delegation cycle detection rejects a delegated-child cycle', () => {
   };
   const childRun = historicalRun('child-run', child);
   const unresolved = new Map([
-    [
-      childRun.id,
-      new Map([['delegation-1', { child_obligation_id: 'parent' }]]),
-    ],
+    [childRun.id, new Map([['delegation-1', { child_obligation_id: 'parent' }]])],
   ]);
 
   assert.equal(
@@ -200,10 +193,7 @@ test('delegation cycle detection traverses mixed acyclic waits without a false p
   };
   const childRun = historicalRun('child-run', child);
   const unresolved = new Map([
-    [
-      childRun.id,
-      new Map([['delegation-1', { child_obligation_id: 'leaf' }]]),
-    ],
+    [childRun.id, new Map([['delegation-1', { child_obligation_id: 'leaf' }]])],
   ]);
 
   assert.equal(
