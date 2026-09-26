@@ -60,7 +60,13 @@ function runReport(root: string, output: string, write: boolean): ReturnType<typ
   const trustedScript = resolve(dirname(fileURLToPath(import.meta.url)), 'report-tcb.ts');
   return spawnSync(
     process.execPath,
-    ['--experimental-strip-types', trustedScript, ...(write ? ['--write'] : []), '--output', output],
+    [
+      '--experimental-strip-types',
+      trustedScript,
+      ...(write ? ['--write'] : []),
+      '--output',
+      output,
+    ],
     { cwd: root, encoding: 'utf8' },
   );
 }
@@ -116,7 +122,7 @@ try {
   const final = readReport(finalPath);
   if (finalRun.status !== 0) {
     throw new Error(
-      `TCB_NORMALIZE_FINAL_REPORT_FAILED:${(finalRun.stderr || finalRun.stdout || '').trim()}`,
+      `TCB_NORMALIZE_FINAL_REPORT_FAILED:${String(finalRun.stderr || finalRun.stdout || '').trim()}`,
     );
   }
 

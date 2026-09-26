@@ -677,6 +677,7 @@ export function submitProjectCandidate(
       repo,
       assigned.packet,
       claim,
+      assigned.id,
       candidateSha,
       verification,
       {
