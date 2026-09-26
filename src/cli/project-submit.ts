@@ -20,12 +20,14 @@ if (!receiptPath) {
 const context: ProjectSubmitContext = {
   ...projectCommandContext(),
   candidate_sha: requiredEnv('OVERCENTER_CANDIDATE_SHA'),
+  candidate_run_id: requiredEnv('OVERCENTER_CANDIDATE_RUN_ID'),
 };
 
 const receipt = submitProjectCandidate(process.cwd(), context, {
   authorityRef: process.env.OVERCENTER_PROJECT_AUTHORITY_REF,
   remote: process.env.OVERCENTER_PROJECT_REMOTE,
   githubToken: process.env.GITHUB_TOKEN ?? null,
+  sourceVerificationPath: process.env.OVERCENTER_SOURCE_VERIFICATION_PATH,
 });
 mkdirSync(dirname(receiptPath), { recursive: true });
 writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
@@ -38,6 +40,7 @@ appendGithubOutputs({
   obligation_id: receipt.obligation_id,
   run_id: receipt.run_id,
   settlement_commit: receipt.settlement_commit ?? '',
+  integration_commit: receipt.integration_commit ?? '',
   already_settled: String(receipt.already_settled),
   receipt_digest: receipt.receipt_digest,
 });

@@ -10,6 +10,7 @@ import {
   EFFECT_ADAPTER_CAPABILITIES_SCHEMA,
   GITHUB_COMMIT_STATUS_EFFECT,
   GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
+  GITHUB_SOURCE_INTEGRATION_EFFECT,
   KUBERNETES_CONFIGMAP_EFFECT,
   effectAdapterCapabilities,
   validateEffectAdapterCapabilities,
@@ -22,7 +23,7 @@ import { localFileEnoentEvidence } from '../src/observation/evidence.ts';
 import type { Obligation } from '../src/model.ts';
 
 test('effect adapter capabilities are closed machine-readable data', () => {
-  assert.equal(EFFECT_ADAPTER_CAPABILITIES.length, 3);
+  assert.equal(EFFECT_ADAPTER_CAPABILITIES.length, 4);
   assert.doesNotThrow(() => JSON.stringify(EFFECT_ADAPTER_CAPABILITIES));
 
   for (const capabilities of EFFECT_ADAPTER_CAPABILITIES) {
@@ -35,6 +36,7 @@ test('effect adapter capabilities are closed machine-readable data', () => {
     [
       GITHUB_COMMIT_STATUS_EFFECT,
       GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
+      GITHUB_SOURCE_INTEGRATION_EFFECT,
       KUBERNETES_CONFIGMAP_EFFECT,
     ].sort(),
   );
@@ -49,6 +51,7 @@ test('current production mutation adapters do not claim replay safety they canno
   for (const effectContract of [
     GITHUB_COMMIT_STATUS_EFFECT,
     GITHUB_PULL_REQUEST_UPDATE_BRANCH_EFFECT,
+    GITHUB_SOURCE_INTEGRATION_EFFECT,
     KUBERNETES_CONFIGMAP_EFFECT,
   ]) {
     const capabilities = effectAdapterCapabilities(effectContract);

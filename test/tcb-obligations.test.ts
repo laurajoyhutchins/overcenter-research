@@ -15,6 +15,7 @@ import {
 } from '../src/authority/tcb-obligations.ts';
 import { deriveProjectProjection } from '../src/authority/project-state.ts';
 import { observePostcondition } from '../src/observation/observe.ts';
+import { GITHUB_SOURCE_INTEGRATION_EFFECT } from '../src/effect-adapter.ts';
 
 const manifest = {
   schema: 'overcenter-tcb-obligations/v1',
@@ -40,7 +41,7 @@ const manifest = {
   ],
 } as const;
 
-test('TCB findings compile into stable non-executable judgment obligations', () => {
+test('executable TCB findings compile into bounded source-change obligations', () => {
   assert.deepEqual(tcbObligationsGraphProducer.input_paths, [TCB_OBLIGATIONS_PATH]);
   assert.deepEqual(tcbObligationsGraphProducer.managed_prefixes, [TCB_OBLIGATION_PREFIX]);
   const [compiled] = compileTcbObligations(manifest);
@@ -48,22 +49,20 @@ test('TCB findings compile into stable non-executable judgment obligations', () 
   const obligation = normalizeObligation(compiled);
   assert.equal(obligation.id.startsWith(TCB_OBLIGATION_PREFIX), true);
   assert.deepEqual(obligation.packet, {
-    schema: 'overcenter-tcb-finding/v1',
-    kind: 'judgment-required',
-    finding_kind: 'hostile-evidence-stale',
-    scope: 'no-false-done',
-    source_task: manifest.obligations[0].task,
-    evidence: manifest.obligations[0].evidence,
-  });
-  assert.deepEqual(obligation.postcondition, {
-    verifier: 'operator-judgment/v1',
-    subject: {
-      kind: 'tcb-remediation',
+    ...manifest.obligations[0].task,
+    effect_contract: GITHUB_SOURCE_INTEGRATION_EFFECT,
+    acceptance: {
+      verifier: 'tcb-finding-absent/v1',
       finding_id: manifest.obligations[0].id,
+    },
+    context: {
+      schema: 'overcenter-tcb-finding/v1',
       finding_kind: manifest.obligations[0].kind,
       scope: manifest.obligations[0].scope,
+      evidence: manifest.obligations[0].evidence,
     },
   });
+  assert.deepEqual(obligation.postcondition, { verifier: 'source-integration/v1' });
 
   const definition = obligationDefinition(obligation);
   const state: State = {
@@ -77,22 +76,28 @@ test('TCB findings compile into stable non-executable judgment obligations', () 
     revision: 'authority-head',
   });
 
-  assert.equal(project.readyWork, null);
-  assert.equal(project.work[0]?.status, 'BLOCKED');
-  assert.equal(project.work[0]?.blocked_reason, 'JUDGMENT_REQUIRED');
-  assert.deepEqual(project.explanations.get(obligation.id), {
-    obligation_id: obligation.id,
-    status: 'BLOCKED',
-    reason: {
-      kind: 'judgment-required',
-      subject: {
-        kind: 'tcb-remediation',
-        finding_id: manifest.obligations[0].id,
-        finding_kind: manifest.obligations[0].kind,
-        scope: manifest.obligations[0].scope,
+  assert.equal(project.readyWork?.id, obligation.id);
+  assert.equal(project.work[0]?.status, 'READY');
+  const explanation = project.explanations.get(obligation.id);
+  assert.equal(explanation?.status, 'READY');
+  assert.equal(explanation?.reason.kind, 'claimable');
+});
+
+test('non-executable TCB findings retain the operator-judgment boundary', () => {
+  const [compiled] = compileTcbObligations({
+    ...manifest,
+    obligations: [
+      {
+        ...manifest.obligations[0],
+        id: 'tcb:hostile-evidence-missing:no-false-done:settlement',
+        kind: 'hostile-evidence-missing',
       },
-    },
+    ],
   });
+  assert.ok(compiled);
+  const obligation = normalizeObligation(compiled);
+  assert.equal(obligation.packet.kind, 'judgment-required');
+  assert.equal(obligation.postcondition.verifier, 'operator-judgment/v1');
 });
 
 test('TCB obligation compiler fails closed on unmanaged identities and finding kinds', () => {

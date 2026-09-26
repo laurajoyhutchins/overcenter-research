@@ -14,8 +14,15 @@ import {
   type AssignmentTaskPacket,
 } from '../execution/assignment-capsule.ts';
 import { canonicalDigest, sha256 } from '../digest.ts';
+import { GITHUB_SOURCE_INTEGRATION_EFFECT } from '../effect-adapter.ts';
 import { isSystemEvidenceWork } from '../evidence/system-evidence.ts';
 import { isData, isPositiveSafeInteger } from '../validation.ts';
+import { buildSourceAssignment, validateSourceTaskPacket } from '../source/source-obligation.ts';
+import {
+  integrateVerifiedSourceCandidate,
+  validateSourceIntegrationEvidence,
+  validateSourceVerification,
+} from '../source/source-integration.ts';
 import { GitOvercenterKernel } from '../storage/git-kernel.ts';
 import { DEFAULT_PROJECT_GRAPH_PRODUCERS } from './default-project-graph.ts';
 import {
@@ -72,6 +79,7 @@ export interface ProjectAdvanceReceipt {
 
 export interface ProjectSubmitContext extends ProjectCommandContext {
   candidate_sha: string;
+  candidate_run_id: string;
 }
 
 export interface ProjectSubmitReceipt {
@@ -89,10 +97,11 @@ export interface ProjectSubmitReceipt {
   obligation_id: string;
   run_id: string;
   claimed_revision: string;
-  assignment_sha256: string;
-  output_sha256: string;
-  disposition: 'DONE';
-  verified: true;
+  assignment_sha256?: string;
+  output_sha256?: string;
+  integration_commit?: string;
+  disposition: 'DONE' | 'READY' | 'RECOVERY_REQUIRED';
+  verified: boolean;
   settlement_commit: string | null;
   already_settled: boolean;
   receipt_digest: string;
@@ -113,6 +122,7 @@ interface AdvanceOptions extends ProtocolOptions {
 
 interface SubmitOptions extends ProtocolOptions {
   candidatePath?: string;
+  sourceVerificationPath?: string;
 }
 
 const DEFAULT_AUTHORITY_REF = 'refs/overcenter/state';
@@ -395,30 +405,54 @@ export function advanceProjectForAgent(
       });
     }
 
-    // The operator command does not ask the reasoning agent to choose work.
-    // It only accepts a frontier item that is already an agent-shaped packet.
-    const prepared = prepareAgentPacket(repo, ready, context.command_source_sha.toLowerCase());
-    if (!workerClientPath) {
-      throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED');
-    }
-    const workerClient = readFileSync(workerClientPath);
-    if (workerClient.length === 0) {
-      throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_EMPTY');
+    // Frontier choice remains deterministic. The packet kind selects only the
+    // realization transport, never a different obligation identity.
+    const sourceRevision = context.command_source_sha.toLowerCase();
+    let preparedAgent: ReturnType<typeof prepareAgentPacket> | null = null;
+    let workerClient: Buffer | null = null;
+    if (
+      ready.packet.schema === AGENT_TASK_PACKET_SCHEMA &&
+      ready.packet.kind === 'pure-candidate'
+    ) {
+      preparedAgent = prepareAgentPacket(repo, ready, sourceRevision);
+      if (!workerClientPath) throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_REQUIRED');
+      workerClient = readFileSync(workerClientPath);
+      if (workerClient.length === 0) throw new Error('PROJECT_ADVANCE_WORKER_CLIENT_EMPTY');
+    } else if (ready.packet.kind === 'source-change') {
+      validateSourceTaskPacket(ready.packet);
+      if (!/^[0-9a-f]{40}$/.test(sourceRevision)) {
+        throw new Error('PROJECT_ADVANCE_SOURCE_REVISION_INVALID');
+      }
+    } else {
+      throw new Error('PROJECT_ADVANCE_AGENT_PACKET_UNSUPPORTED');
     }
 
     try {
-      const permit = kernel.claim(ready.id, ready.revision, {
-        sourceRevision: prepared.sourceRevision,
-      });
+      const permit = kernel.claim(ready.id, ready.revision, { sourceRevision });
       const claimed = kernel.claimedWork(permit.id);
-      const assignment = agentAssignment(claimed, prepared);
+      let assignmentBytes: Buffer;
+      if (claimed.packet.kind === 'source-change') {
+        const sourceAssignment = buildSourceAssignment(
+          claimed.id,
+          claimed.packet,
+          kernel.sourceClaimBinding(permit.id),
+        );
+        assignmentBytes = Buffer.from(`${JSON.stringify(sourceAssignment, null, 2)}\n`, 'utf8');
+      } else {
+        if (!preparedAgent) throw new Error('PROJECT_ADVANCE_AGENT_PACKET_UNSUPPORTED');
+        assignmentBytes = agentAssignment(claimed, preparedAgent).bytes;
+      }
+      if (assignmentBytes.includes(Buffer.from('execution_capability'))) {
+        throw new Error('PROJECT_ADVANCE_PACKET_LEAKED_EXECUTION_CAPABILITY');
+      }
+
       const authorityHead = kernel.head();
       if (!authorityHead) throw new Error('PROJECT_ADVANCE_AUTHORITY_MISSING');
 
       rmSync(outputDir, { recursive: true, force: true });
       mkdirSync(outputDir, { recursive: true });
-      writeFileSync(join(outputDir, 'assignment.json'), assignment.bytes);
-      writeFileSync(join(outputDir, 'overcenter'), workerClient, { mode: 0o755 });
+      writeFileSync(join(outputDir, 'assignment.json'), assignmentBytes);
+      if (workerClient) writeFileSync(join(outputDir, 'overcenter'), workerClient, { mode: 0o755 });
 
       const base = {
         schema: PROJECT_ADVANCE_RECEIPT_SCHEMA,
@@ -426,7 +460,7 @@ export function advanceProjectForAgent(
         transport: 'github-actions-job-rerun' as const,
         repository_id: context.repository_id,
         repository_full_name: context.repository_full_name,
-        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_source_sha: sourceRevision,
         command_run_id: context.command_run_id,
         command_run_attempt: context.command_run_attempt,
         authority_ref: authorityRef,
@@ -435,9 +469,9 @@ export function advanceProjectForAgent(
         obligation_id: claimed.id,
         run_id: permit.id,
         claimed_revision: permit.claimed_revision,
-        assignment_sha256: assignmentSha256(assignment.bytes),
+        assignment_sha256: assignmentSha256(assignmentBytes),
         candidate_branch: `overcenter/candidate/${permit.id}`,
-        candidate_branch_base_sha: permit.source_revision ?? prepared.sourceRevision,
+        candidate_branch_base_sha: permit.source_revision ?? sourceRevision,
       };
       const receipt = withDigest(base);
       writeFileSync(join(outputDir, 'receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
@@ -460,6 +494,49 @@ function safeLocalObservationRoot(path: string): string {
   return root;
 }
 
+function assertNonEmptyCandidateRun(value: string): void {
+  if (!value) throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_REQUIRED');
+}
+
+function sourceSubmitReceipt(
+  context: ProjectSubmitContext,
+  authorityRef: string,
+  kernel: GitOvercenterKernel,
+  obligationId: string,
+  claimedRevision: string,
+  candidateSha: string,
+  settled: ReturnType<GitOvercenterKernel['recoverInterrupted']>,
+  alreadySettled: boolean,
+  integrationCommit?: string,
+): ProjectSubmitReceipt {
+  if (settled.disposition === 'WAITING') {
+    throw new Error('PROJECT_SUBMIT_SOURCE_SETTLEMENT_WAITING');
+  }
+  const authorityHead = kernel.head();
+  if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
+  return withDigest({
+    schema: PROJECT_SUBMIT_RECEIPT_SCHEMA,
+    command: PROJECT_SUBMIT_COMMAND,
+    transport: 'github-actions-job-rerun' as const,
+    repository_id: context.repository_id,
+    repository_full_name: context.repository_full_name,
+    command_source_sha: context.command_source_sha.toLowerCase(),
+    command_run_id: context.command_run_id,
+    command_run_attempt: context.command_run_attempt,
+    authority_ref: authorityRef,
+    authority_head: authorityHead,
+    candidate_sha: candidateSha,
+    obligation_id: obligationId,
+    run_id: context.candidate_run_id,
+    claimed_revision: claimedRevision,
+    ...(integrationCommit ? { integration_commit: integrationCommit } : {}),
+    disposition: settled.disposition,
+    verified: settled.verified,
+    settlement_commit: settled.settlement_commit ?? null,
+    already_settled: alreadySettled,
+  });
+}
+
 export function submitProjectCandidate(
   repo: string,
   context: ProjectSubmitContext,
@@ -468,17 +545,14 @@ export function submitProjectCandidate(
     remote = DEFAULT_REMOTE,
     githubToken = null,
     candidatePath = DEFAULT_CANDIDATE_PATH,
+    sourceVerificationPath,
   }: SubmitOptions = {},
 ): ProjectSubmitReceipt {
   validateCommandContext(context);
+  assertNonEmptyCandidateRun(context.candidate_run_id);
   const candidateSha = context.candidate_sha.toLowerCase();
-  if (!/^[0-9a-f]{40}$/i.test(candidateSha)) {
+  if (!/^[0-9a-f]{40}$/.test(candidateSha)) {
     throw new Error('PROJECT_SUBMIT_CANDIDATE_SHA_INVALID');
-  }
-
-  const raw = JSON.parse(gitBytes(repo, candidateSha, candidatePath).toString('utf8'));
-  if (!isData(raw) || typeof raw.run_id !== 'string') {
-    throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_INVALID');
   }
 
   const kernel = new GitOvercenterKernel(repo, {
@@ -488,9 +562,184 @@ export function submitProjectCandidate(
   });
   if (!kernel.head()) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
 
-  const assigned = kernel.claimedWork(raw.run_id);
-  const sourceRevision = kernel.claimedSourceRevision(raw.run_id);
+  const runId = context.candidate_run_id;
+  const assigned = kernel.claimedWork(runId);
+  const sourceRevision = kernel.claimedSourceRevision(runId);
   if (!sourceRevision) throw new Error('PROJECT_SUBMIT_SOURCE_REVISION_MISSING');
+
+  if (assigned.packet.kind === 'source-change') {
+    const claim = kernel.sourceClaimBinding(runId);
+    const prior = kernel.receipts(runId).at(-1);
+    if (prior?.disposition === 'DONE' && prior.kind === 'source-integration') {
+      const diagnostic = isData(prior.diagnostic) ? prior.diagnostic.source_integration : null;
+      const evidence = validateSourceIntegrationEvidence(diagnostic);
+      if (evidence.candidate_sha !== candidateSha) {
+        throw new Error('PROJECT_SUBMIT_SETTLED_SOURCE_MISMATCH');
+      }
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
+      return withDigest({
+        schema: PROJECT_SUBMIT_RECEIPT_SCHEMA,
+        command: PROJECT_SUBMIT_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        candidate_sha: candidateSha,
+        obligation_id: assigned.id,
+        run_id: runId,
+        claimed_revision: claim.claimed_revision,
+        integration_commit: evidence.integration_commit,
+        disposition: 'DONE' as const,
+        verified: true,
+        settlement_commit: prior.settlement_commit ?? null,
+        already_settled: true,
+      });
+    }
+    if (prior?.disposition === 'READY' && prior.kind === 'source-retry') {
+      const authorityHead = kernel.head();
+      if (!authorityHead) throw new Error('PROJECT_SUBMIT_AUTHORITY_MISSING');
+      return withDigest({
+        schema: PROJECT_SUBMIT_RECEIPT_SCHEMA,
+        command: PROJECT_SUBMIT_COMMAND,
+        transport: 'github-actions-job-rerun' as const,
+        repository_id: context.repository_id,
+        repository_full_name: context.repository_full_name,
+        command_source_sha: context.command_source_sha.toLowerCase(),
+        command_run_id: context.command_run_id,
+        command_run_attempt: context.command_run_attempt,
+        authority_ref: authorityRef,
+        authority_head: authorityHead,
+        candidate_sha: candidateSha,
+        obligation_id: assigned.id,
+        run_id: runId,
+        claimed_revision: claim.claimed_revision,
+        disposition: 'READY' as const,
+        verified: false,
+        settlement_commit: prior.settlement_commit ?? null,
+        already_settled: true,
+      });
+    }
+
+    const current = kernel.inspect().find((work) => work.id === assigned.id);
+    if (!current || current.run_id !== runId) {
+      throw new Error('PROJECT_SUBMIT_AUTHORITY_RUN_MISMATCH');
+    }
+    if (!['EXECUTING', 'RECOVERY_REQUIRED'].includes(current.status)) {
+      throw new Error(`PROJECT_SUBMIT_RUN_NOT_SETTLEABLE:${current.status}`);
+    }
+
+    const permit = kernel.acquireExecution(runId);
+    if (!sourceVerificationPath) {
+      const recovered = kernel.recoverInterrupted(permit, {
+        source_verification: { reason: 'SOURCE_VERIFICATION_MISSING', candidate_sha: candidateSha },
+      });
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        recovered,
+        false,
+      );
+    }
+
+    let verification: ReturnType<typeof validateSourceVerification>;
+    try {
+      verification = validateSourceVerification(
+        JSON.parse(readFileSync(sourceVerificationPath, 'utf8')),
+      );
+    } catch (error: unknown) {
+      const reason = error instanceof Error ? error.message : String(error);
+      const recovered = kernel.recoverInterrupted(permit, {
+        source_verification: { reason, candidate_sha: candidateSha },
+      });
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        recovered,
+        false,
+      );
+    }
+
+    const sourceAuthority = kernel.authorizeEffect(permit, GITHUB_SOURCE_INTEGRATION_EFFECT);
+    const integration = integrateVerifiedSourceCandidate(
+      repo,
+      assigned.packet,
+      claim,
+      assigned.id,
+      candidateSha,
+      verification,
+      {
+        remote,
+        performReservedMutation: (mutation) =>
+          kernel.performEffectSync(sourceAuthority, () => mutation()),
+      },
+    );
+
+    if (integration.state === 'INTEGRATED' || integration.state === 'ALREADY_INTEGRATED') {
+      const settled = kernel.settleSourceIntegration(permit, integration.witness);
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        settled,
+        integration.state === 'ALREADY_INTEGRATED',
+        integration.commit_sha,
+      );
+    }
+
+    if (integration.state === 'RECOVERY_REQUIRED') {
+      const recovered = kernel.recoverInterrupted(permit, {
+        source_integration: { reason: integration.reason, candidate_sha: candidateSha },
+      });
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        recovered,
+        false,
+      );
+    }
+
+    if (integration.state === 'REJECTED' || integration.state === 'REREALIZE_REQUIRED') {
+      const retry = kernel.retrySourceIntegration(permit, integration.reason, {
+        candidate_sha: candidateSha,
+      });
+      return sourceSubmitReceipt(
+        context,
+        authorityRef,
+        kernel,
+        assigned.id,
+        claim.claimed_revision,
+        candidateSha,
+        retry,
+        false,
+      );
+    }
+    throw new Error('SOURCE_INTEGRATION_RESULT_UNCLASSIFIED');
+  }
+
+  const raw = JSON.parse(gitBytes(repo, candidateSha, candidatePath).toString('utf8'));
+  if (!isData(raw) || raw.run_id !== runId) {
+    throw new Error('PROJECT_SUBMIT_CANDIDATE_RUN_INVALID');
+  }
   const rebuilt = agentAssignment(assigned, prepareAgentPacket(repo, assigned, sourceRevision));
   const candidate = validateCandidate(
     raw,
@@ -534,7 +783,7 @@ export function submitProjectCandidate(
       assignment_sha256: candidate.assignment_sha256,
       output_sha256: candidate.output_sha256,
       disposition: 'DONE' as const,
-      verified: true as const,
+      verified: true,
       settlement_commit: priorDone.settlement_commit ?? null,
       already_settled: true,
     });
@@ -609,7 +858,7 @@ export function submitProjectCandidate(
     assignment_sha256: candidate.assignment_sha256,
     output_sha256: candidate.output_sha256,
     disposition: 'DONE' as const,
-    verified: true as const,
+    verified: true,
     settlement_commit: settled.settlement_commit ?? null,
     already_settled: false,
   });

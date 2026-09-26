@@ -113,6 +113,7 @@ function readLocalFile(path: string, context: ObservationContext): string {
 
 export function validatePostcondition(p: Postcondition): void {
   if (p?.verifier === 'operator-judgment/v1' && data(p.subject)) return;
+  if (p?.verifier === 'source-integration/v1') return;
   if (
     p?.verifier === 'file-content-equals/v1' &&
     typeof p.path === 'string' &&
@@ -423,6 +424,9 @@ function githubPullRequestBranchUpdatedEvidenceMatches(
 
 export function observePostcondition(p: Postcondition, context: ObservationContext): Observation {
   validatePostcondition(p);
+  if (p.verifier === 'source-integration/v1') {
+    throw new Error('SOURCE_INTEGRATION_REQUIRES_TRUSTED_SETTLEMENT');
+  }
 
   if (p.verifier === 'operator-judgment/v1') {
     throw new Error('OPERATOR_JUDGMENT_NOT_AUTOMATICALLY_OBSERVABLE');
@@ -657,6 +661,9 @@ function assertObservationCoordinate(postcondition: Postcondition, observed: Obs
   if (postcondition.verifier === 'operator-judgment/v1') {
     throw new Error('OPERATOR_JUDGMENT_NOT_AUTOMATICALLY_OBSERVABLE');
   }
+  if (postcondition.verifier === 'source-integration/v1') {
+    throw new Error('SOURCE_INTEGRATION_REQUIRES_TRUSTED_SETTLEMENT');
+  }
   validateObservationEnvelope(observed);
   if (observed.verifier !== postcondition.verifier) {
     throw new Error('OBSERVATION_VERIFIER_MISMATCH');
@@ -766,6 +773,9 @@ export function observationVerified(postcondition: Postcondition, observed: Obse
     throw new Error('OPERATOR_JUDGMENT_NOT_AUTOMATICALLY_OBSERVABLE');
   }
   assertObservationCoordinate(postcondition, observed);
+  if (postcondition.verifier === 'source-integration/v1') {
+    throw new Error('SOURCE_INTEGRATION_REQUIRES_TRUSTED_SETTLEMENT');
+  }
   if (observed.mutation_certainty !== 'present') return false;
 
   if (
