@@ -943,7 +943,6 @@ test('project.advance reports DONE for an empty authoritative graph', () => {
   }
 });
 
-
 test('project.advance keeps mechanically derivable hostile-evidence debt out of agent packets', () => {
   const fixtureState = fixture();
   try {
