@@ -136,6 +136,9 @@ jobs:
           RUN_ID: ${{ steps.invoke.outputs.run_id }}
           ASSIGNMENT_SHA256: ${{ steps.invoke.outputs.assignment_sha256 }}
           CANDIDATE_BRANCH: ${{ steps.invoke.outputs.candidate_branch }}
+          DISPATCH_ROUTE: ${{ steps.invoke.outputs.dispatch_route }}
+          DISPATCH_REASON_CODE: ${{ steps.invoke.outputs.dispatch_reason_code }}
+          DISPATCH_EVIDENCE_PREDICATES: ${{ steps.invoke.outputs.dispatch_evidence_predicates }}
           RECEIPT_DIGEST: ${{ steps.invoke.outputs.receipt_digest }}
         run: |
           {
@@ -149,5 +152,8 @@ jobs:
             echo "- run: ${RUN_ID:-none}"
             echo "- assignment digest: ${ASSIGNMENT_SHA256:-none}"
             echo "- candidate branch: ${CANDIDATE_BRANCH:-none}"
+            echo "- dispatch route: ${DISPATCH_ROUTE:-none}"
+            echo "- dispatch reason: ${DISPATCH_REASON_CODE:-none}"
+            echo "- dispatch predicates: ${DISPATCH_EVIDENCE_PREDICATES:-[]}"
             echo "- receipt digest: ${RECEIPT_DIGEST:-none}"
           } >> "$GITHUB_STEP_SUMMARY"
