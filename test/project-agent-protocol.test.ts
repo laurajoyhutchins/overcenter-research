@@ -989,15 +989,11 @@ test('project.advance keeps mechanically derivable hostile-evidence debt out of 
     ]);
 
     const outputDir = join(fixtureState.root, 'derivable-source-packet');
-    const receipt = advanceProjectForAgent(
-      fixtureState.work,
-      commandContext(sourceSha, 9300),
-      {
-        outputDir,
-        authorityRef: AUTHORITY_REF,
-        remote: 'origin',
-      },
-    );
+    const receipt = advanceProjectForAgent(fixtureState.work, commandContext(sourceSha, 9300), {
+      outputDir,
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
 
     assert.equal(receipt.state, 'READY');
     assert.equal(receipt.obligation_id, obligationId);
@@ -1031,16 +1027,12 @@ test('ambiguous reserved source mutation blocks otherwise READY agent work', () 
       agentIntent('z-agent-work', fixtureState.postconditionPath),
     ]);
 
-    const first = advanceProjectForAgent(
-      fixtureState.work,
-      commandContext(sourceSha, 9400),
-      {
-        outputDir: join(fixtureState.root, 'first-source-packet'),
-        workerClientPath: workerClientFixture(fixtureState.root),
-        authorityRef: AUTHORITY_REF,
-        remote: 'origin',
-      },
-    );
+    const first = advanceProjectForAgent(fixtureState.work, commandContext(sourceSha, 9400), {
+      outputDir: join(fixtureState.root, 'first-source-packet'),
+      workerClientPath: workerClientFixture(fixtureState.root),
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
     assert.equal(first.state, 'AGENT_EXECUTION_REQUIRED');
     assert.equal(first.obligation_id, 'a-source-work');
     assert.ok(first.run_id);
@@ -1058,16 +1050,12 @@ test('ambiguous reserved source mutation blocks otherwise READY agent work', () 
     assert.equal(interruptedKernel.hasUnresolvedEffect(first.run_id), true);
 
     const secondOutput = join(fixtureState.root, 'second-agent-packet');
-    const second = advanceProjectForAgent(
-      fixtureState.work,
-      commandContext(sourceSha, 9401),
-      {
-        outputDir: secondOutput,
-        workerClientPath: workerClientFixture(fixtureState.root),
-        authorityRef: AUTHORITY_REF,
-        remote: 'origin',
-      },
-    );
+    const second = advanceProjectForAgent(fixtureState.work, commandContext(sourceSha, 9401), {
+      outputDir: secondOutput,
+      workerClientPath: workerClientFixture(fixtureState.root),
+      authorityRef: AUTHORITY_REF,
+      remote: 'origin',
+    });
 
     assert.equal(second.state, 'RECOVERY_REQUIRED');
     assert.equal(second.obligation_id, 'a-source-work');
