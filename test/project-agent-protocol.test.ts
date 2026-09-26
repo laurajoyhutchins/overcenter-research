@@ -470,7 +470,7 @@ test('project.advance materializes an exact tracked repository tree into a concr
     }>;
     assert.deepEqual(
       files.map((file) => file.path),
-      ['bin/tool.sh', 'input.txt', 'lib/nested.txt', 'task.mjs'],
+      ['bin/tool.sh', 'input.txt', 'lib/nested.txt', 'src/feature.txt', 'task.mjs'],
     );
     assert.deepEqual(
       assignment.work.packet.required_paths,

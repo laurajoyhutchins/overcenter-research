@@ -7,7 +7,10 @@ import test from 'node:test';
 
 import { admitSourceTaskFromGithubWorkflow } from '../src/source/github-evidence-admission.ts';
 import type { GithubJsonGet } from '../src/providers/github/rest.ts';
-import { SOURCE_TASK_SCHEMA } from '../src/source/source-obligation.ts';
+import {
+  SOURCE_TASK_SCHEMA,
+  validateSourceTaskPacket,
+} from '../src/source/source-obligation.ts';
 
 const TASK_PATH = '.overcenter/promotions/result-a.json';
 const WORKFLOW_RUN_ID = 7001;
@@ -144,7 +147,7 @@ test('exact GitHub evidence admits only the source task frozen at the executed d
       clock: () => '2026-09-24T14:06:00.000Z',
     });
 
-    assert.deepEqual(admitted.task, f.original);
+    assert.deepEqual(admitted.task, validateSourceTaskPacket(f.original));
     assert.equal(admitted.design.commit_sha, f.designSha);
     assert.equal(admitted.design.task_blob_sha, f.designBlobSha);
     assert.equal(admitted.workflow_run_evidence.operation_id, 'actions/get-workflow-run');
