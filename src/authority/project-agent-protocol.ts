@@ -32,10 +32,7 @@ import {
 import { repositorySnapshot } from '../evidence/repository-snapshot.ts';
 import type { ObservationContext } from '../observation/observe.ts';
 import type { Work } from '../model.ts';
-import {
-  classifyJudgmentFrontier,
-  type JudgmentFrontierDecision,
-} from './judgment-frontier.ts';
+import { classifyJudgmentFrontier, type JudgmentFrontierDecision } from './judgment-frontier.ts';
 
 export const PROJECT_ADVANCE_RECEIPT_SCHEMA = 'overcenter-project-advance/v1' as const;
 export const PROJECT_SUBMIT_RECEIPT_SCHEMA = 'overcenter-project-submit/v1' as const;
